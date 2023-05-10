@@ -10774,6 +10774,110 @@ int runApiDetectNoFirstHeartbeat(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/**
+ * LCPFragWatchdog (LCPFSW) monitors LCP progress and stops the DB node if no
+ * progress is made for a max lag, initialized by the config
+ * variable DB_LCP_SCAN_WATCHDOG_LIMIT = 60000 ms.  However this is
+ * relaxed in one phase of the LCP (LCP_WAIT_END_LCP) to allow for the
+ * worst case GCP completion, as the LCP requires a GCP to complete,
+ * and that may take more time than the configured LCP 'stall'
+ * limit. Max time a GCP is allowed to complete (gcp_stop_timer)
+ * depending primarily on the number of nodes in the cluster at any
+ * time, and is recalculated when nodes leave or join.
+ *
+ * The test case tests whether the lcp watchdog limit reflects the
+ * newly calculated values in the following cases :
+ * - 1) after all configured nodes joined initially
+ * - 2) one node leves while the system is running
+ * - 3) the node left in 2) rejoins.
+
+ * The test case runs the following steps after the above 3 scenarios :
+ *
+ * - delays GCP_SAVEREQ by error insertion (EI) to stall GCP.  This
+ *   tests the behaviour of the LCPFSWs when GCP is stalled for longer
+ *   than the configured LCPFSW limit.  One sub-case of that is where
+ *   the GCP is stalled for an LCP which was running prior to a node
+ *   completing its start.
+ *
+ * - waits for 3*lcp_max_lag, which is a little longer than the expected
+ *   LCP max lag.
+ *
+ * - clears EI and sleeps for 'clear_error_insert_seconds' to allow
+ *   the delayed GCP and LCP to complete.
+ *
+ * The test will fail if the calculated values is not applied to newer LCPs.
+ * Checked manually whether the newly calculated values in all 3 scenarios
+ * are applied.
+ */
+int runDelayGCP_SAVEREQ(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  Uint32 db_node_count = restarter.getNumDbNodes();
+
+  if (db_node_count == 2) {
+    /**
+     * With just 2 nodes, in the node stopped case the survivor
+     * is Master and so the non-Master timer-change code is
+     * not exercised.
+     */
+    g_err << "Number of db nodes found " << db_node_count
+	  << ".  The test gives better coverage with 3 or more nodes." << endl;
+  }
+
+  int result = NDBT_OK;
+  const int victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+  const Uint32 lcp_max_lag = ctx->getProperty("MaxLcpLag",
+                                              Uint32(60));
+  const Uint32 clear_error_insert_seconds = 20;
+
+  for (int scenario=1; scenario < 4; scenario++)
+  {
+    switch (scenario)
+    {
+    case 1:
+      g_err << "Scenario 1 : block GCP, check no LCP stall" << endl;
+      break;
+    case 2:
+      g_err << "Scenario 2 : Stop node, block GCP, check no LCP stall" << endl;
+      g_err << "Stopping node : " << victim << endl;
+      CHECK2(restarter.restartOneDbNode(victim,
+                                       true, /* initial */
+                                       true,  /* nostart  */
+                                       false, /* abort */
+                                       false  /* force */) == 0);
+      g_err << "Waiting until node " << victim << " stops" << endl;
+      restarter.waitNodesNoStart(&victim, 1);
+      break;
+    case 3:
+      g_err << "Scenario 3 : Start node, block GCP, check no LCP stall" << endl;
+      g_err << "Starting node " << victim << endl;
+      CHECK2(restarter.startNodes(&victim, 1) == 0);
+      CHECK2(restarter.waitClusterStarted() == 0);
+      break;
+    default:
+      abort();
+    }
+
+    g_err << "Inserting err delaying GCP_SAVEREQ" << endl;
+    CHECK2(restarter.insertErrorInAllNodes(7237) == 0);
+
+    g_err << "Sleeping for 3 * MaxLcpLag = " << 3*lcp_max_lag << " seconds."
+          << endl;
+    NdbSleep_SecSleep(3*lcp_max_lag);
+
+    // Remove the error insertion and let the GCP and LCP to finish
+    CHECK2(restarter.insertErrorInAllNodes(0) == 0);
+
+    g_err << "Sleeping for "
+          << clear_error_insert_seconds
+          << "s to allow GCP and LCP to resume." << endl;
+     NdbSleep_SecSleep(clear_error_insert_seconds);
+  }
+
+  ctx->stopTest();
+  return result;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -11641,7 +11745,34 @@ TESTCASE("ApiDetectNoFirstHeartbeat",
 {
   STEP(runApiDetectNoFirstHeartbeat);
 }
-NDBT_TESTSUITE_END(testNodeRestart)
+TESTCASE("CheckGcpStopTimerDistributed",
+         "Check that the lack of Gcp cordinator recalculating "
+	 "and distributing gcp_stop_timer does not result in "
+         "an LCP failure in participants")
+{
+  TC_PROPERTY("NumConfigVars", Uint32(2));
+  TC_PROPERTY("ConfigVarId1", Uint32(CFG_DB_MICRO_GCP_TIMEOUT));
+  // Set to a nonzero value to force GCP cordinator to recalculate
+  // gcp_stop_timer.
+  TC_PROPERTY("ConfigValue1", Uint32(120000));
+
+  const Uint32 MaxLcpSeconds = 30;
+
+  TC_PROPERTY("ConfigVarId2", Uint32(CFG_DB_LCP_SCAN_WATCHDOG_LIMIT));
+  // Reduce default LCP watchdog max limit from 60 sec
+  // to reduce the test run time.
+  TC_PROPERTY("ConfigValue2", MaxLcpSeconds);
+
+  TC_PROPERTY("MaxLcpLag", MaxLcpSeconds);
+
+  INITIALIZER(runChangeDataNodeConfig);
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runDelayGCP_SAVEREQ);
+  FINALIZER(runChangeDataNodeConfig);
+}
+
+NDBT_TESTSUITE_END(testNodeRestart);
 
 int main(int argc, const char** argv){
   ndb_init();

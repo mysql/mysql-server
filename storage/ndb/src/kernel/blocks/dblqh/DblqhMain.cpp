@@ -2424,6 +2424,7 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     
     ndbrequire(c_lcpFragWatchdog.MaxElapsedWithNoProgressMillis >= 
                c_lcpFragWatchdog.WarnElapsedWithNoProgressMillis);
+    c_lcpFragWatchdog.MaxGcpWaitLimitMillis = 0; // Will be set by DIH
 
     if (!m_is_query_block)
     {
@@ -35890,9 +35891,10 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   {
     g_eventLogger->info(
         "LCPFragWatchdog : WarnElapsed : %u(ms) MaxElapsed %u(ms) "
-        ": period millis : %u",
+	": MaxGcpWaitLimit %u(ms) period millis : %u",
         c_lcpFragWatchdog.WarnElapsedWithNoProgressMillis,
         c_lcpFragWatchdog.MaxElapsedWithNoProgressMillis,
+	c_lcpFragWatchdog.MaxGcpWaitLimitMillis,
         LCPFragWatchdog::PollingPeriodMillis);
     return;
   }
@@ -36667,6 +36669,14 @@ Dblqh::startLcpFragWatchdog(Signal* signal)
   c_lcpFragWatchdog.elapsedNoProgressMillis = 0;
   c_lcpFragWatchdog.lastChecked = NdbTick_getCurrentTicks();
   
+  // Use latest gcp timeout value to set 'extra time'
+  // available in LCP_WAIT_END_LCP state where we
+  // depend on GCP completion.
+  // This is set to twice GCP stop timer, to give plenty
+  // time for GCP problems to be resolved before LCP
+  // Watchdog attempts to escalate.
+  c_lcpFragWatchdog.MaxGcpWaitLimitMillis = 2 * c_gcp_stop_timer;
+
   /* If thread is not already active, start it */
   if (! c_lcpFragWatchdog.thread_active)
   {
@@ -36834,6 +36844,7 @@ Dblqh::lcpStateString(LcpStatusConf::LcpState lcpState)
 void
 Dblqh::execINFO_GCP_STOP_TIMER(Signal *signal)
 {
+  /* DIH informs us of current GCP stop timer value */
   c_gcp_stop_timer = signal->theData[0];
 }
 
@@ -36919,10 +36930,10 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
       c_lcpFragWatchdog.MaxElapsedWithNoProgressMillis;
 
     if ((c_lcpFragWatchdog.lcpState == LcpStatusConf::LCP_WAIT_END_LCP) &&
-        (max_no_progress_time < (2 * c_gcp_stop_timer)))
+        (max_no_progress_time < c_lcpFragWatchdog.MaxGcpWaitLimitMillis))
     {
       jam();
-      max_no_progress_time = 2 * c_gcp_stop_timer;
+      max_no_progress_time = c_lcpFragWatchdog.MaxGcpWaitLimitMillis;
     }
     if (c_lcpFragWatchdog.elapsedNoProgressMillis >= max_no_progress_time)
     {

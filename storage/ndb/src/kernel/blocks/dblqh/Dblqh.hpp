@@ -1437,6 +1437,7 @@ public:
     static constexpr Uint32 PollingPeriodMillis = 1000; /* 10s */
     Uint32 WarnElapsedWithNoProgressMillis; /* LCP Warn, milliseconds */
     Uint32 MaxElapsedWithNoProgressMillis;  /* LCP Fail, milliseconds */
+    Uint32 MaxGcpWaitLimitMillis; /* Extra time for GCP completion */
 
     SimulatedBlock* block;
     
