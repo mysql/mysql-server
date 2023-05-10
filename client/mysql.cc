@@ -39,6 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include "client/client_priv.h"
 #include "client/client_query_attributes.h"
+#include "client/multi_option.h"
 #include "client/my_readline.h"
 #include "client/pattern_matcher.h"
 #include "compression.h"
@@ -197,7 +198,6 @@ static char *current_db;
 static char *current_user = nullptr;
 static char *current_prompt = nullptr;
 static char *delimiter_str = nullptr;
-static char *opt_init_command = nullptr;
 static const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 #ifdef HAVE_READLINE
 static char *histfile;
@@ -259,6 +259,8 @@ static const char *opt_tel_plugin_name = "telemetry_client";
 
 const char *default_dbug_option = "d:t:o,/tmp/mysql.trace";
 static void *ssl_session_data = nullptr;
+
+static Multi_option opt_init_commands;
 
 /*
   completion_hash is an auxiliary feature for mysql client to complete
@@ -1554,6 +1556,7 @@ void mysql_end(int sig) {
   my_free(full_username);
   my_free(part_username);
   my_free(default_prompt);
+  opt_init_commands.free();
 #if defined(_WIN32)
   my_free(shared_memory_base_name);
 #endif
@@ -1807,10 +1810,15 @@ static struct my_option my_long_options[] = {
     {"ignore-spaces", 'i', "Ignore space after function names.", &ignore_spaces,
      &ignore_spaces, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"init-command", OPT_INIT_COMMAND,
-     "SQL Command to execute when connecting to MySQL server. Will "
+     "Single SQL Command to execute when connecting to MySQL server. Will "
      "automatically be re-executed when reconnecting.",
-     &opt_init_command, &opt_init_command, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
-     0, nullptr, 0, nullptr},
+     nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"init-command-add", OPT_INIT_COMMAND_ADD,
+     "Add SQL command to the list to execute when connecting to MySQL server. "
+     "Will automatically be re-executed when reconnecting.",
+     nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"local-infile", OPT_LOCAL_INFILE, "Enable/disable LOAD DATA LOCAL INFILE.",
      &opt_local_infile, &opt_local_infile, nullptr, GET_BOOL, OPT_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
@@ -2168,6 +2176,12 @@ bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
       break;
     case 'C':
       CLIENT_WARN_DEPRECATED("--compress", "--compression-algorithms");
+      break;
+    case OPT_INIT_COMMAND:
+      opt_init_commands.add_value(argument, true);
+      break;
+    case OPT_INIT_COMMAND_ADD:
+      opt_init_commands.add_value(argument, false);
       break;
   }
   return false;
@@ -4875,8 +4889,7 @@ static int sql_real_connect(char *host, char *database, char *user, char *,
 static bool init_connection_options(MYSQL *mysql) {
   bool handle_expired = (opt_connect_expired_password || !status.batch);
 
-  if (opt_init_command)
-    mysql_options(mysql, MYSQL_INIT_COMMAND, opt_init_command);
+  opt_init_commands.set_mysql_options(mysql, MYSQL_INIT_COMMAND);
 
   if (opt_connect_timeout) {
     uint timeout = opt_connect_timeout;

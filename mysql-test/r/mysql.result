@@ -405,8 +405,25 @@ Warning (Code 1266): Using storage engine InnoDB for table 't2'
 Error (Code 1050): Table 't2' already exists
 drop tables t1, t2;
 SET @@global.sql_mode=DEFAULT;
+"Only with --init-command ============================================="
 Variable_name	Value
 lc_messages	ru_RU
+"With --init-command and --init-command-add ==========================="
+@init_var_1	@init_var_2	@init_var_3
+1	2	3
+"Only with --init-command-add ========================================="
+@init_var_1	@init_var_2	@init_var_3
+1	2	3
+"With --init-command-add ovewritten by --init-command ================="
+@init_var_1	@init_var_2	@init_var_3
+NULL	2	3
+"Test if the commands are executed in order ==========================="
+@init_var_1	@init_var_2
+99	1
+"Test multiple --init-command and --init-command-add =================="
+Database (init_command_db%)
+init_command_db_2
+DROP DATABASE init_command_db_2;
 <TABLE BORDER=1><TR><TH>&lt;</TH></TR><TR><TD>&lt; &amp; &gt;</TD></TR></TABLE>create table t1 (a char(5));
 insert into t1 values ('\0b\0');
 a

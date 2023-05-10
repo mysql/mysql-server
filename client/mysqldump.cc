@@ -37,6 +37,7 @@
 #include <string>
 
 #include "client/client_priv.h"
+#include "client/multi_option.h"
 #include "compression.h"
 #include "m_string.h"
 #include "map_helpers.h"
@@ -131,7 +132,8 @@ static bool verbose = false, opt_no_create_info = false, opt_no_data = false,
             opt_notspcs = false, opt_drop_trigger = false,
             opt_network_timeout = false, stats_tables_included = false,
             column_statistics = false,
-            opt_show_create_table_skip_secondary_engine = false;
+            opt_show_create_table_skip_secondary_engine = false,
+            opt_ignore_views = false;
 static bool insert_pat_inited = false, debug_info_flag = false,
             debug_check_flag = false;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
@@ -142,6 +144,7 @@ static char *current_user = nullptr, *current_host = nullptr, *path = nullptr,
             *enclosed = nullptr, *opt_enclosed = nullptr, *escaped = nullptr,
             *where = nullptr, *opt_compatible_mode_str = nullptr,
             *opt_ignore_error = nullptr, *log_error_file = nullptr;
+static Multi_option opt_init_commands;
 static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static bool ansi_mode = false;  ///< Force the "ANSI" SQL_MODE.
 /* Server supports character_set_results session variable? */
@@ -667,6 +670,18 @@ static struct my_option my_long_options[] = {
      "be dumped or not.",
      &opt_skip_gipk, &opt_skip_gipk, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
+    {"init-command", OPT_INIT_COMMAND,
+     "Single SQL Command to execute when connecting to MySQL server. Will "
+     "automatically be re-executed when reconnecting.",
+     nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"init-command-add", OPT_INIT_COMMAND_ADD,
+     "Add SQL command to the list to execute when connecting to MySQL server. "
+     "Will automatically be re-executed when reconnecting.",
+     nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"ignore-views", 0, "Skip dumping table views.", &opt_ignore_views,
+     &opt_ignore_views, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #include "authentication_kerberos_clientopt-longopts.h"
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
@@ -1015,6 +1030,12 @@ static bool get_one_option(int optid, const struct my_option *opt,
       break;
     case 'C':
       CLIENT_WARN_DEPRECATED("--compress", "--compression-algorithms");
+      break;
+    case OPT_INIT_COMMAND:
+      opt_init_commands.add_value(argument, true);
+      break;
+    case OPT_INIT_COMMAND_ADD:
+      opt_init_commands.add_value(argument, false);
       break;
   }
   return false;
@@ -1492,6 +1513,7 @@ static void free_resources() {
   }
   if (insert_pat_inited) dynstr_free(&insert_pat);
   if (opt_ignore_error) my_free(opt_ignore_error);
+  opt_init_commands.free();
   my_end(my_end_arg);
 }
 
@@ -1575,6 +1597,9 @@ static int connect_to_db(char *host, char *user) {
 
   verbose_msg("-- Connecting to %s...\n", host ? host : "localhost");
   mysql_init(&mysql_connection);
+
+  opt_init_commands.set_mysql_options(&mysql_connection, MYSQL_INIT_COMMAND);
+
   if (opt_compress) mysql_options(&mysql_connection, MYSQL_OPT_COMPRESS, NullS);
   if (SSL_SET_OPTIONS(&mysql_connection)) {
     fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
@@ -2708,6 +2733,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
   FILE *sql_file = md_result_file;
   bool is_log_table;
   bool is_replication_metadata_table;
+  bool is_view(false);
   unsigned int colno;
   MYSQL_RES *result;
   MYSQL_ROW row;
@@ -2715,6 +2741,13 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
   DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
 
   *ignore_flag = check_if_ignore_table(table, table_type);
+
+  is_view = strcmp(table_type, "VIEW") == 0;
+
+  if (opt_ignore_views && is_view) {
+    DBUG_PRINT("exit", ("Dumping view ignored."));
+    return 0;
+  }
 
   /*
     for mysql.innodb_table_stats, mysql.innodb_index_stats tables we
@@ -2764,7 +2797,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
 
       bool freemem = false;
       char const *text = fix_identifier_with_newline(result_table, &freemem);
-      if (strcmp(table_type, "VIEW") == 0) /* view */
+      if (is_view) /* view */
         print_comment(sql_file, false,
                       "\n--\n-- Temporary view structure for view %s\n--\n\n",
                       text);
@@ -4795,6 +4828,8 @@ static bool dump_all_views_in_db(char *database) {
   char hash_key[2 * NAME_LEN + 2]; /* "db.tablename" */
   char *afterdot;
 
+  if (opt_ignore_views) return 0;
+
   afterdot = my_stpcpy(hash_key, database);
   *afterdot++ = '.';
 
@@ -5364,9 +5399,9 @@ bool is_infoschema_db(const char *db) {
   /*
     INFORMATION_SCHEMA DB content dump is only used to reload the data into
     another tables for analysis purpose. This feature is not the core
-    responsibility of mysqldump tool. INFORMATION_SCHEMA DB content can even be
-    dumped using other methods like SELECT INTO OUTFILE... for such purpose.
-    Hence ignoring INFORMATION_SCHEMA DB here.
+    responsibility of mysqldump tool. INFORMATION_SCHEMA DB content can even
+    be dumped using other methods like SELECT INTO OUTFILE... for such
+    purpose. Hence ignoring INFORMATION_SCHEMA DB here.
   */
   if (mysql_get_server_version(mysql) >= FIRST_INFORMATION_SCHEMA_VERSION &&
       !my_strcasecmp(&my_charset_latin1, db, INFORMATION_SCHEMA_DB_NAME)) {

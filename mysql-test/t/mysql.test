@@ -384,13 +384,31 @@ drop tables t1, t2;
 SET @@global.sql_mode=DEFAULT;
 
 #
-# mysql client with 'init-command' option
+# mysql client with 'init-command' and 'init-command-add' options
+# WL#15662: Add options to mysqldump to skip views and utilize read ahead
 #
+--echo "Only with --init-command ============================================="
 --exec $MYSQL --init-command="SET lc_messages=ru_RU" -e "SHOW VARIABLES LIKE 'lc_messages';"
+
+--echo "With --init-command and --init-command-add ==========================="
+--exec $MYSQL --init-command="SET @init_var_1=1"  --init-command-add="SET @init_var_2=2"  --init-command-add="SET @init_var_3=3" -e "SELECT @init_var_1, @init_var_2, @init_var_3;"
+
+--echo "Only with --init-command-add ========================================="
+--exec $MYSQL --init-command-add="SET @init_var_1=1"  --init-command-add="SET @init_var_2=2"  --init-command-add="SET @init_var_3=3" -e "SELECT @init_var_1, @init_var_2, @init_var_3;"
+
+--echo "With --init-command-add ovewritten by --init-command ================="
+--exec $MYSQL --init-command-add="SET @init_var_1=1"  --init-command="SET @init_var_2=2"  --init-command-add="SET @init_var_3=3" -e "SELECT @init_var_1, @init_var_2, @init_var_3;"
+
+--echo "Test if the commands are executed in order ==========================="
+--exec $MYSQL --init-command="SET @init_var_1=1"  --init-command-add="SET @init_var_2=@init_var_1"  --init-command-add="SET @init_var_1=99" -e "SELECT @init_var_1, @init_var_2;"
+
+--echo "Test multiple --init-command and --init-command-add =================="
+--exec $MYSQL --init-command="CREATE DATABASE init_command_db_1" --init-command-add="CREATE TABLE init_command_db_1.t(a INT)" --init-command-add="INSERT INTO init_command_db_1.t VALUES (1)" --init-command="CREATE DATABASE init_command_db_2" --init-command-add="CREATE TABLE init_command_db_2.t(a INT)" --init-command-add="INSERT INTO init_command_db_2.t VALUES (1)" -e "SHOW DATABASES LIKE 'init_command_db%'"
+DROP DATABASE init_command_db_2;
 
 #
 # Bug #27884: mysql --html does not quote HTML special characters in output
-# 
+#
 --write_file $MYSQLTEST_VARDIR/tmp/bug27884.sql
 SELECT '< & >' AS `<`;
 EOF

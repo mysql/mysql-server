@@ -5893,3 +5893,64 @@ SET GLOBAL sql_generate_invisible_primary_key =
 @saved_global_sql_generate_invisible_primary_key;
 SET SESSION sql_generate_invisible_primary_key =
 @saved_session_sql_generate_invisible_primary_key;
+#
+# WL#15662: Add options to mysqldump to skip views and utilize read ahead
+#
+CREATE DATABASE init_command_db;
+CREATE TABLE init_command_db.t(a INT);
+"Only with --init-command ============================================="
+INSERT INTO `t` VALUES (1);
+DELETE FROM init_command_db.t;
+"With --init-command and --init-command-add ==========================="
+INSERT INTO `t` VALUES (1),(2),(3);
+DELETE FROM init_command_db.t;
+"Only with --init-command-add ========================================="
+INSERT INTO `t` VALUES (1),(2),(3);
+DELETE FROM init_command_db.t;
+"With --init-command-add ovewritten by --init-command ================="
+INSERT INTO `t` VALUES (2),(3);
+DELETE FROM init_command_db.t;
+"Test if the commands are executed in order ==========================="
+INSERT INTO `t` VALUES (99);
+DROP DATABASE init_command_db;
+CREATE DATABASE skip_views_db;
+CREATE TABLE skip_views_db.t(a INT);
+CREATE VIEW skip_views_db.v AS SELECT * FROM skip_views_db.t;
+INSERT INTO skip_views_db.t VALUES (10), (20), (30);
+CREATE DATABASE skip_views_db2;
+CREATE TABLE skip_views_db2.t(a INT);
+INSERT INTO skip_views_db2.t VALUES (1);
+"Without --ignore-views ==============================================="
+DROP DATABASE skip_views_db;
+SHOW FULL TABLES IN skip_views_db WHERE TABLE_TYPE LIKE 'VIEW';
+Tables_in_skip_views_db	Table_type
+v	VIEW
+"With --ignore-views =================================================="
+DROP DATABASE skip_views_db;
+SHOW FULL TABLES IN skip_views_db WHERE TABLE_TYPE LIKE 'VIEW';
+Tables_in_skip_views_db	Table_type
+"Verify skip dumping views by setting option --ignore-views for mysqldump where DB1 has view and another DB2 don't have view."
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `skip_views_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+
+USE `skip_views_db`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `t` VALUES (10),(20),(30);
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `skip_views_db2` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+
+USE `skip_views_db2`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `t` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `t` VALUES (1);
+DROP DATABASE skip_views_db;
+DROP DATABASE skip_views_db2;

@@ -2987,3 +2987,63 @@ SET GLOBAL sql_generate_invisible_primary_key =
              @saved_global_sql_generate_invisible_primary_key;
 SET SESSION sql_generate_invisible_primary_key =
               @saved_session_sql_generate_invisible_primary_key;
+
+--echo #
+--echo # WL#15662: Add options to mysqldump to skip views and utilize read ahead
+--echo #
+
+CREATE DATABASE init_command_db;
+CREATE TABLE init_command_db.t(a INT);
+
+--echo "Only with --init-command ============================================="
+--exec $MYSQL_DUMP --no-create-info --compact --init-command="INSERT INTO init_command_db.t VALUES (1)" init_command_db
+DELETE FROM init_command_db.t;
+
+--echo "With --init-command and --init-command-add ==========================="
+--exec $MYSQL_DUMP --no-create-info --compact --init-command="INSERT INTO init_command_db.t VALUES (1)" --init-command-add="INSERT INTO init_command_db.t VALUES (2)" --init-command-add="INSERT INTO init_command_db.t VALUES (3)" init_command_db
+DELETE FROM init_command_db.t;
+
+--echo "Only with --init-command-add ========================================="
+--exec $MYSQL_DUMP --no-create-info --compact --init-command-add="INSERT INTO init_command_db.t VALUES (1)" --init-command-add="INSERT INTO init_command_db.t VALUES (2)" --init-command-add="INSERT INTO init_command_db.t VALUES (3)" init_command_db
+DELETE FROM init_command_db.t;
+
+--echo "With --init-command-add ovewritten by --init-command ================="
+--exec $MYSQL_DUMP --no-create-info --compact --init-command-add="INSERT INTO init_command_db.t VALUES (1)" --init-command="INSERT INTO init_command_db.t VALUES (2)" --init-command-add="INSERT INTO init_command_db.t VALUES (3)" init_command_db
+DELETE FROM init_command_db.t;
+
+--echo "Test if the commands are executed in order ==========================="
+--exec $MYSQL_DUMP --no-create-info --compact --init-command="SET @init_var_1=0"  --init-command-add="SET @init_var_1=99" --init-command-add="INSERT INTO init_command_db.t VALUES (@init_var_1)" init_command_db
+
+DROP DATABASE init_command_db;
+CREATE DATABASE skip_views_db;
+CREATE TABLE skip_views_db.t(a INT);
+CREATE VIEW skip_views_db.v AS SELECT * FROM skip_views_db.t;
+
+INSERT INTO skip_views_db.t VALUES (10), (20), (30);
+
+CREATE DATABASE skip_views_db2;
+CREATE TABLE skip_views_db2.t(a INT);
+
+INSERT INTO skip_views_db2.t VALUES (1);
+
+--echo "Without --ignore-views ==============================================="
+--exec $MYSQL_DUMP --compact --databases skip_views_db > $MYSQLTEST_VARDIR/tmp/mysqldump.sql
+# restore and verify the view not exists
+DROP DATABASE skip_views_db;
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqldump.sql
+SHOW FULL TABLES IN skip_views_db WHERE TABLE_TYPE LIKE 'VIEW';
+
+--echo "With --ignore-views =================================================="
+--exec $MYSQL_DUMP --compact --databases --ignore-views skip_views_db > $MYSQLTEST_VARDIR/tmp/mysqldump.sql
+# restore and verify the view not exists
+DROP DATABASE skip_views_db;
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqldump.sql
+SHOW FULL TABLES IN skip_views_db WHERE TABLE_TYPE LIKE 'VIEW';
+
+--echo "Verify skip dumping views by setting option --ignore-views for mysqldump where DB1 has view and another DB2 don't have view."
+--exec $MYSQL_DUMP --compact --ignore-views --databases skip_views_db skip_views_db2
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqldump.sql
+DROP DATABASE skip_views_db;
+DROP DATABASE skip_views_db2;
+
