@@ -154,8 +154,8 @@ html {
     /* sidebar navigation (treeview) colors */
     --side-nav-background: #fbfbfb;
     --side-nav-foreground: var(--page-foreground-color);
-    --side-nav-arrow-opacity: 0;
-    --side-nav-arrow-hover-opacity: 0.9;
+    --side-nav-arrow-opacity: 1;
+    --side-nav-arrow-hover-opacity: 1;
 
     --toc-background: var(--side-nav-background);
     --toc-foreground: var(--side-nav-foreground);
@@ -812,7 +812,7 @@ html.dark-mode iframe#MSearchResults {
 #nav-tree .selected {
     text-shadow: none;
     background-image: none;
-    background-color: transparent;
+    background-color: var(--primary-color) !important;
     position: relative;
 }
 
@@ -857,7 +857,7 @@ html.dark-mode iframe#MSearchResults {
 }
 
 #nav-tree .selected a {
-    color: var(--primary-color) !important;
+    color: #f8f9fa !important;
     font-weight: bolder;
     font-weight: 600;
 }
