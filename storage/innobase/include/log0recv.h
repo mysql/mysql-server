@@ -672,11 +672,7 @@ constexpr uint32_t RECV_PARSING_BUF_SIZE = 2 * 1024 * 1024;
 roll-forward */
 #define RECV_SCAN_SIZE (4 * UNIV_PAGE_SIZE)
 
-/** This many frames must be left free in the buffer pool when we scan
-the log and store the scanned log records in the buffer pool: we will
-use these free frames to read in pages when we start applying the
-log records to the database. */
-extern ulint recv_n_pool_free_frames;
+extern size_t recv_n_frames_for_pages_per_pool_instance;
 
 /** A list of tablespaces for which (un)encryption process was not
 completed before crash. */

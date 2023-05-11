@@ -186,13 +186,12 @@ static ulint recv_previous_parsed_rec_offset;
 /** The 'multi' flag of the previous parsed redo log record */
 static ulint recv_previous_parsed_rec_is_multi;
 
-/** This many frames must be left free in the buffer pool when we scan
-the log and store the scanned log records in the buffer pool: we will
-use these free frames to read in pages when we start applying the
-log records to the database.
-This is the default value. If the actual size of the buffer pool is
-larger than 10 MB we'll set this value to 512. */
-ulint recv_n_pool_free_frames;
+/** This many blocks must be left in each Buffer Pool instance to be managed by
+the LRU when we scan the log and store the scanned log records in a hashmap
+allocated in the Buffer Pool in frames of non-LRU managed blocks. We will use
+these free blocks to read in pages when we start applying the log records to the
+database. */
+size_t recv_n_frames_for_pages_per_pool_instance;
 
 /** The maximum lsn we see for a page during the recovery process. If this
 is bigger than the lsn we are able to scan up to, that is an indication that
@@ -457,7 +456,6 @@ void recv_sys_var_init() {
   recv_previous_parsed_rec_type = MLOG_SINGLE_REC_FLAG;
   recv_previous_parsed_rec_offset = 0;
   recv_previous_parsed_rec_is_multi = 0;
-  recv_n_pool_free_frames = 256;
   recv_max_page_lsn = 0;
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -3690,11 +3688,35 @@ static void recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
   recv_previous_parsed_rec_is_multi = 0;
   ut_ad(recv_max_page_lsn == 0);
 
-  mutex_exit(&recv_sys->mutex);
+  const auto pages_to_be_kept_free = std::min(
+      size_t{buf_pool_get_n_pages()} / 2,
+      /* This value should be greater than the number of pages we want
+      to apply redo records for concurrently. This should be greater
+      than number of concurrent IOs we want to sustain. We should also keep in
+      mind that the limit for the deltas hashmap is not strictly enforced and
+      this number includes the not-well specified safety margin. */
+      size_t{256} * srv_buf_pool_instances);
+  const size_t delta_hashmap_max_mem =
+      UNIV_PAGE_SIZE * (buf_pool_get_n_pages() - pages_to_be_kept_free);
 
-  ulint max_mem =
-      UNIV_PAGE_SIZE * (buf_pool_get_n_pages() -
-                        (recv_n_pool_free_frames * srv_buf_pool_instances));
+  recv_n_frames_for_pages_per_pool_instance =
+      pages_to_be_kept_free / srv_buf_pool_instances;
+  /* We need at least 2 pages for IO, to allow a loop in `buf_read_recv_pages()`
+  to be able to break. Currently, the Buffer Pool chunk, and thus the Buffer
+  Pool instance, will have at least 16 pages (of size of 64KB), so half of that,
+  8, will easily satisfy that, but we nevertheless don't assume current
+  implementation and assert the real requirements. */
+  ut_a(recv_n_frames_for_pages_per_pool_instance >= 2);
+  /* We need at least a page for the redo deltas hashmap. */
+  ut_a(delta_hashmap_max_mem > 0);
+  /* Currently the hashmap memory limit is not strictly enforced, and we need
+  some not well defined safety margin. Currently the Buffer Pool minimum size is
+  no less than 80 pages (of size of 64KB). With at least half of that allocated
+  to pages_to_be_kept_free, it should contain enough margin, which we
+  approximate to 10 pages. */
+  ut_a(10 < pages_to_be_kept_free);
+
+  mutex_exit(&recv_sys->mutex);
 
   lsn_t start_lsn =
       ut_uint64_align_down(checkpoint_lsn, OS_FILE_LOG_BLOCK_SIZE);
@@ -3711,8 +3733,9 @@ static void recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
       break;
     }
 
-    finished = recv_scan_log_recs(log, max_mem, log.buf, end_lsn - start_lsn,
-                                  start_lsn, &log.m_scanned_lsn);
+    finished =
+        recv_scan_log_recs(log, delta_hashmap_max_mem, log.buf,
+                           end_lsn - start_lsn, start_lsn, &log.m_scanned_lsn);
 
     start_lsn = end_lsn;
   }
