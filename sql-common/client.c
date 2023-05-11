@@ -1011,6 +1011,7 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
             len = (size_t)net_field_length_ll_safe(mysql, &pos, length,
                                                    &is_error);
             if (is_error) return;
+            if (!buffer_check_remaining(mysql, pos, length, len)) return;
             pos += len;
             break;
           }
