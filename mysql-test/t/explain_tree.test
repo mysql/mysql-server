@@ -698,3 +698,46 @@ EXPLAIN ANALYZE WITH cte AS (SELECT SUM(i) k1 FROM t1 GROUP BY j)
 SELECT * FROM cte LIMIT 2;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34527697: EXPLAIN and EXPLAIN ANALYZE disagree on
+--echo #               covering index scans
+--echo #
+
+CREATE TABLE t(
+  x INT,
+  y INT DEFAULT (x),
+  z VARCHAR(128) DEFAULT (REPEAT('z', 128)), KEY (x));
+INSERT INTO t(x) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+INSERT INTO t SELECT * FROM t;
+INSERT INTO t SELECT * FROM t;
+INSERT INTO t SELECT * FROM t;
+INSERT INTO t SELECT * FROM t;
+ANALYZE TABLE t;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT 1 FROM t;
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x = 4;
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t WHERE x = 4;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x > 4;
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t WHERE x > 4;
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT x FROM t ORDER BY MOD(x, 2);
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT x FROM t ORDER BY MOD(x, 2);
+
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT t1.x FROM t t1, t t2 WHERE t1.x < t2.y;
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT t1.x FROM t t1, t t2 WHERE t1.x < t2.y;
+
+DROP TABLE t;
