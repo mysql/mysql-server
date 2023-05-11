@@ -649,7 +649,7 @@ EXPLAIN
             -> Index range scan on t1 using PRIMARY over (80 < pk)  (cost=0.46 rows=1)
         -> Nested loop inner join  (cost=0.775 rows=2)
             -> Table scan on t5  (cost=0.45 rows=1)
-            -> Index scan on t4 using PRIMARY  (cost=1.3 rows=2)
+            -> Covering index scan on t4 using PRIMARY  (cost=1.3 rows=2)
     -> Nested loop semijoin  (cost=0.8 rows=1)
         -> Single-row index lookup on t3 using PRIMARY (pk=t1.pk)  (cost=0.45 rows=1)
         -> Filter: (t2.f2 = t1.f2)  (cost=0.7 rows=1)
@@ -782,7 +782,7 @@ EXPLAIN
     -> Single-row index lookup on <subquery2> using <auto_distinct_key> (pk=t1.pk)  (cost=1.64..1.64 rows=1)
         -> Materialize with deduplication  (cost=1.6..1.6 rows=5)
             -> Nested loop left join  (cost=1.1 rows=5)
-                -> Index scan on t2 using PRIMARY  (cost=0.35 rows=1)
+                -> Covering index scan on t2 using PRIMARY  (cost=0.35 rows=1)
                 -> Nested loop left join  (cost=2.5 rows=5)
                     -> Filter: (t3.col_int_key <> t2.pk)  (cost=0.75 rows=5)
                         -> Table scan on t3  (cost=0.75 rows=5)
@@ -911,11 +911,11 @@ t1 AS t2 LEFT JOIN t1 AS t3 USING (f2)
 WHERE t2.f1 > table1.f2
 ) FROM t1 AS table1;
 EXPLAIN
--> Index scan on table1 using f2_idx  (cost=0.35 rows=1)
+-> Covering index scan on table1 using f2_idx  (cost=0.35 rows=1)
 -> Select #2 (subquery in projection; dependent)
     -> Nested loop inner join  (cost=1.05 rows=1)
         -> Nested loop inner join  (cost=0.7 rows=1)
-            -> Index scan on t1 using f2_idx  (cost=0.35 rows=1)
+            -> Covering index scan on t1 using f2_idx  (cost=0.35 rows=1)
             -> Filter: (cast(t2.f1 as double) > cast(table1.f2 as double))  (cost=0.35 rows=1)
                 -> Index range scan on t2 (re-planned for each iteration)  (cost=0.35 rows=1)
         -> Covering index lookup on t3 using f2_idx (f2=t2.f2)  (cost=0.35 rows=1)
@@ -1117,7 +1117,7 @@ GROUP BY table_user.id
 ) AS d
 ) AS users FROM table_city;
 EXPLAIN
--> Index scan on table_city using PRIMARY  (rows=6)
+-> Covering index scan on table_city using PRIMARY  (rows=6)
 -> Select #2 (subquery in projection; dependent)
     -> Aggregate: group_concat(d.id separator ',')  (rows=1)
         -> Table scan on d  (rows=5)
@@ -1177,7 +1177,7 @@ EXPLAIN
 -> Sort: d.c
     -> Stream results  (cost=1.55 rows=4)
         -> Inner hash join (no condition)  (cost=1.55 rows=4)
-            -> Index scan on c using idx_c  (cost=0.45 rows=2)
+            -> Covering index scan on c using idx_c  (cost=0.45 rows=2)
             -> Hash
                 -> Nested loop inner join  (cost=0.9 rows=2)
                     -> Filter: (`<subquery2>`.c is not null)  (cost=1.2..0.2 rows=2)
@@ -1185,10 +1185,10 @@ EXPLAIN
                             -> Materialize with deduplication  (cost=2.2..2.2 rows=4)
                                 -> Filter: (b.c is not null)  (cost=1.8 rows=4)
                                     -> Inner hash join (no condition)  (cost=1.8 rows=4)
-                                        -> Index scan on c_inner_inner using idx_c  (cost=0.225 rows=2)
+                                        -> Covering index scan on c_inner_inner using idx_c  (cost=0.225 rows=2)
                                         -> Hash
                                             -> Nested loop left join  (cost=1.15 rows=2)
-                                                -> Index scan on b using idx_b  (cost=0.45 rows=2)
+                                                -> Covering index scan on b using idx_b  (cost=0.45 rows=2)
                                                 -> Covering index lookup on c_inner using idx_c (c=b.c)  (cost=0.3 rows=1)
                     -> Covering index lookup on d using idx_d (c=`<subquery2>`.c)  (cost=0.6 rows=1)
 
@@ -1422,7 +1422,7 @@ EXPLAIN
 -> Remove duplicate t1 rows using temporary table (weedout)  (cost=1.05 rows=1)
     -> Filter: (cast(t1.col1 as double) = (t1.col1 + t2.col2))  (cost=1.05 rows=1)
         -> Inner hash join (no condition)  (cost=1.05 rows=1)
-            -> Index scan on t1 using col1_idx  (cost=0.35 rows=1)
+            -> Covering index scan on t1 using col1_idx  (cost=0.35 rows=1)
             -> Hash
                 -> Nested loop inner join  (cost=0.7 rows=1)
                     -> Filter: ((t3.col2 between 2 and 9) and (t3.col1 is not null))  (cost=0.35 rows=1)
@@ -1467,7 +1467,7 @@ EXPLAIN
                     -> Limit: 1 row(s)  (cost=3.45..3.45 rows=1)
                         -> Index lookup on <materialized_subquery> using <auto_distinct_key> (field4=(t1.col_int_key + 6))
                             -> Materialize with deduplication  (cost=3.45..3.45 rows=16)
-                                -> Index scan on table1s using col_int_unique  (cost=1.85 rows=16)
+                                -> Covering index scan on table1s using col_int_unique  (cost=1.85 rows=16)
         -> Single-row covering index lookup on t3 using PRIMARY (pk=t1.col_int_key)  (cost=0.35 rows=1)
     -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int_key)  (cost=0.4 rows=1.14)
 
@@ -1790,7 +1790,7 @@ EXPLAIN FORMAT=tree SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
 EXPLAIN
 -> Remove duplicate t1 rows using temporary table (weedout)  (cost=1.1 rows=2)
     -> Inner hash join (cast(t1.d as double) = cast(t1.a as double))  (cost=1.1 rows=2)
-        -> Index scan on t1 using PRIMARY  (cost=0.35 rows=2)
+        -> Covering index scan on t1 using PRIMARY  (cost=0.35 rows=2)
         -> Hash
             -> Table scan on t1  (cost=0.45 rows=2)
 

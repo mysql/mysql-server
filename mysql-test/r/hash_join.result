@@ -955,7 +955,7 @@ EXPLAIN
 -> Table scan on <temporary>  (cost=7.46..10.2 rows=27)
     -> Temporary table with deduplication  (cost=7.35..7.35 rows=27)
         -> Inner hash join (no condition)  (cost=4.65 rows=27)
-            -> Index scan on alias1 using idx_CC_col_varchar_key  (cost=0.183 rows=3)
+            -> Covering index scan on alias1 using idx_CC_col_varchar_key  (cost=0.183 rows=3)
             -> Hash
                 -> Nested loop antijoin  (cost=1.7 rows=9)
                     -> Table scan on t1  (cost=0.55 rows=3)
@@ -1045,7 +1045,7 @@ EXPLAIN
         -> Inner hash join (no condition)  (cost=1 rows=2)
             -> Table scan on table1  (cost=0.45 rows=4)
             -> Hash
-                -> Index scan on table2 using varchar_key  (cost=0.35 rows=1)
+                -> Covering index scan on table2 using varchar_key  (cost=0.35 rows=1)
     -> Nested loop inner join  (cost=2.85 rows=4)
         -> Filter: (alias3.pk >= table1.pk)  (cost=0.45 rows=4)
             -> Index range scan on alias3 (re-planned for each iteration)  (cost=0.45 rows=4)
@@ -1305,7 +1305,7 @@ EXPLAIN
                                 -> Table scan on t4  (cost=0.117 rows=1)
                             -> Hash
                                 -> Filter: (t2.f2 is not null)  (cost=0.55 rows=3)
-                                    -> Index scan on t2 using f2  (cost=0.55 rows=3)
+                                    -> Covering index scan on t2 using f2  (cost=0.55 rows=3)
                         -> Covering index lookup on ta3 using f2 (f2=t2.f2)  (cost=0.3 rows=1.5)
                     -> Single-row covering index lookup on ta4 using PRIMARY (f1=t4.f1)  (cost=0.0778 rows=1)
 
@@ -1703,11 +1703,11 @@ EXPLAIN
                 -> Temporary table with deduplication  (cost=208..208 rows=936)
                     -> Remove duplicate alias1 rows using temporary table (weedout)  (cost=114 rows=936)
                         -> Inner hash join (no condition)  (cost=114 rows=936)
-                            -> Index scan on sq2_alias2 using col_date_key  (cost=1.93 rows=20)
+                            -> Covering index scan on sq2_alias2 using col_date_key  (cost=1.93 rows=20)
                             -> Hash
                                 -> Nested loop inner join  (cost=20.4 rows=46.8)
                                     -> Filter: (sq2_alias1.col_varchar_key is not null)  (cost=2.25 rows=20)
-                                        -> Index scan on sq2_alias1 using col_varchar_key  (cost=2.25 rows=20)
+                                        -> Covering index scan on sq2_alias1 using col_varchar_key  (cost=2.25 rows=20)
                                     -> Filter: (sq2_alias1.col_varchar_key <> alias1.col_varchar)  (cost=7.49..0.662 rows=2.34)
                                         -> Index lookup on alias1 using <auto_key0> (col_varchar_key=sq2_alias1.col_varchar_key)  (cost=12.8..13.2 rows=2.6)
                                             -> Materialize  (cost=12.6..12.6 rows=26.7)
@@ -1831,7 +1831,7 @@ EXPLAIN
                     -> Temporary table with deduplication  (cost=0.65..0.65 rows=2)
                         -> Table scan on subquery2_t1  (cost=0.45 rows=2)
         -> Filter: (subquery1_t1.col_varchar = lower(subquery3_t1.pk))  (cost=0.175 rows=1)
-            -> Index scan on subquery3_t1 using PRIMARY  (cost=0.175 rows=1)
+            -> Covering index scan on subquery3_t1 using PRIMARY  (cost=0.175 rows=1)
 
 SELECT
 table1.col_varchar
@@ -2138,7 +2138,7 @@ EXPLAIN
 -> Nested loop antijoin  (cost=10 rows=34)
     -> Inner hash join (no condition)  (cost=6.38 rows=34)
         -> Filter: (t2.col1 < 49)  (cost=0.975 rows=17)
-            -> Index scan on t2 using idx  (cost=0.975 rows=17)
+            -> Covering index scan on t2 using idx  (cost=0.975 rows=17)
         -> Hash
             -> Table scan on const_table  (cost=1.46..2.73 rows=2)
                 -> Materialize  (cost=0.2..0.2 rows=2)
@@ -2146,7 +2146,7 @@ EXPLAIN
     -> Limit: 1 row(s)  (cost=8.61 rows=1)
         -> Nested loop inner join  (cost=8.61 rows=1)
             -> Filter: (t1.col1 <> t2.col1)  (cost=0.0103 rows=1)
-                -> Index scan on t1 using idx  (cost=0.0103 rows=1)
+                -> Covering index scan on t1 using idx  (cost=0.0103 rows=1)
             -> Covering index lookup on t1_2 using idx (col1=t1.col1)  (cost=0.253 rows=1)
 
 Warnings:
@@ -3060,7 +3060,7 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL
 EXPLAIN
 -> Filter: (t2.f1 is null)  (cost=1.97 rows=3)
     -> Hash antijoin (t2.f1 = t1.f1)  (cost=1.97 rows=3)
-        -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
+        -> Covering index scan on t1 using PRIMARY  (cost=0.55 rows=3)
         -> Hash
             -> Table scan on t2  (cost=0.217 rows=4)
 
@@ -3574,13 +3574,13 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXI
 SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
 EXPLAIN
 -> Nested loop left join  (cost=42.5 rows=400)
-    -> Index scan on alias1 using PRIMARY  (cost=2.25 rows=20)
+    -> Covering index scan on alias1 using PRIMARY  (cost=2.25 rows=20)
     -> Hash antijoin (no condition)  (cost=2.37 rows=20)
-        -> Index scan on alias2 using PRIMARY  (cost=0.113 rows=20)
+        -> Covering index scan on alias2 using PRIMARY  (cost=0.113 rows=20)
         -> Hash
             -> Limit: 1 row(s)  (cost=0.113 rows=1)
                 -> Filter: (alias1.pk <> 20)  (cost=0.113 rows=20)
-                    -> Index scan on t1 using PRIMARY  (cost=0.113 rows=20)
+                    -> Covering index scan on t1 using PRIMARY  (cost=0.113 rows=20)
 
 Warnings:
 Note	1276	Field or reference 'test.alias1.pk' of SELECT #2 was resolved in SELECT #1
@@ -3725,7 +3725,7 @@ EXPLAIN
                     -> Hash antijoin (no condition), extra conditions: ((inner_t3.pk >= 1) or (table1.f1 = 'G'))  (cost=2.01 rows=16)
                         -> Table scan on inner_t3  (cost=0.163 rows=4)
                         -> Hash
-                            -> Index scan on t1 using i1  (cost=0.163 rows=4)
+                            -> Covering index scan on t1 using i1  (cost=0.163 rows=4)
         -> Filter: (inner_t2.f1 = inner_t1.f1)  (cost=0.252 rows=1)
             -> Multi-range index lookup on inner_t2 using i1 (pk=inner_t1.pk)  (cost=0.252 rows=1)
 
@@ -3843,7 +3843,7 @@ FROM t2 AS c1_1 INNER JOIN t2 AS c1_2 STRAIGHT_JOIN t3 ON t3.i = c1_2.i
 EXPLAIN
 -> Filter: <in_optimizer>((t1.str_col,t1.str_col),<exists>(select #2) is false)  (cost=0.875 rows=4)
     -> Left hash join (t1.str_col = t2.str_col)  (cost=0.875 rows=4)
-        -> Index scan on t2 using idx  (cost=0.45 rows=2)
+        -> Covering index scan on t2 using idx  (cost=0.45 rows=2)
         -> Hash
             -> Table scan on t1  (cost=0.225 rows=2)
     -> Select #2 (subquery in condition; dependent)
@@ -3854,9 +3854,9 @@ EXPLAIN
                         -> Table scan on t3  (cost=0.0875 rows=1)
                         -> Hash
                             -> Inner hash join (no condition)  (cost=1.1 rows=4)
-                                -> Index scan on c1_2 using idx  (cost=0.225 rows=2)
+                                -> Covering index scan on c1_2 using idx  (cost=0.225 rows=2)
                                 -> Hash
-                                    -> Index scan on c1_1 using idx  (cost=0.45 rows=2)
+                                    -> Covering index scan on c1_1 using idx  (cost=0.45 rows=2)
 
 SELECT 1 FROM t1 RIGHT JOIN t2 ON t2.str_col = t1.str_col
 WHERE (t1.str_col, t1.str_col) NOT IN (

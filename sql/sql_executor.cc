@@ -126,13 +126,13 @@ static bool alloc_group_fields(JOIN *join, ORDER *group);
 /// Maximum amount of space (in bytes) to allocate for a Record_buffer.
 static constexpr size_t MAX_RECORD_BUFFER_SIZE = 128 * 1024;  // 128KB
 
-string RefToString(const Index_lookup &ref, const KEY *key,
+string RefToString(const Index_lookup &ref, const KEY &key,
                    bool include_nulls) {
   string ret;
 
   if (ref.keypart_hash != nullptr) {
     assert(!include_nulls);
-    ret = key->key_part[0].field->field_name;
+    ret = key.key_part[0].field->field_name;
     ret += "=hash(";
     for (unsigned key_part_idx = 0; key_part_idx < ref.key_parts;
          ++key_part_idx) {
@@ -152,7 +152,7 @@ string RefToString(const Index_lookup &ref, const KEY *key,
     if (key_part_idx != 0) {
       ret += ", ";
     }
-    const Field *field = key->key_part[key_part_idx].field;
+    const Field *field = key.key_part[key_part_idx].field;
     if (field->is_field_for_functional_index()) {
       // Do not print out the column name if the column represents a functional
       // index. Instead, print out the indexed expression.
@@ -169,7 +169,7 @@ string RefToString(const Index_lookup &ref, const KEY *key,
     if (include_nulls && key_buff == ref.null_ref_key) {
       ret += " or NULL";
     }
-    key_buff += key->key_part[key_part_idx].store_length;
+    key_buff += key.key_part[key_part_idx].store_length;
   }
   return ret;
 }

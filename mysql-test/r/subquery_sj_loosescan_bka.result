@@ -13092,7 +13092,7 @@ EXPLAIN
                     -> Inner hash join (t4.col_int_key = t1.col_int_key)  (rows=7)
                         -> Table scan on t4  (rows=6)
                         -> Hash
-                            -> Index scan on t1 using col_int_key  (rows=7)
+                            -> Covering index scan on t1 using col_int_key  (rows=7)
                     -> Nested loop inner join  (rows=1)
                         -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (rows=1)
                         -> Filter: (t3.col_int_key = t2.col_int)  (rows=1)

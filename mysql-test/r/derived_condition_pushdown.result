@@ -79,7 +79,7 @@ WHERE (dt.f1 = 6) or( t1.f2 = 50 and dt.f3 = 200);
 EXPLAIN
 -> Filter: ((dt.f1 = 6) or ((dt.f3 = 200) and (t1.f2 = 50)))  (rows=27.4)
     -> Inner hash join (no condition)  (rows=27.4)
-        -> Index scan on t1 using f1_2  (rows=12)
+        -> Covering index scan on t1 using f1_2  (rows=12)
         -> Hash
             -> Filter: ((dt.f1 = 6) or (dt.f3 = 200))  (rows=2.28)
                 -> Table scan on dt  (rows=12)
@@ -279,14 +279,14 @@ EXPLAIN
             -> Inner hash join (no condition)  (rows=144)
                 -> Table scan on dt2  (rows=12)
                     -> Materialize  (rows=12)
-                        -> Index scan on t1 using f1_2  (rows=12)
+                        -> Covering index scan on t1 using f1_2  (rows=12)
                 -> Hash
                     -> Table scan on dt1  (rows=12)
                         -> Materialize  (rows=12)
                             -> Table scan on dt0  (rows=12)
                                 -> Materialize  (rows=12)
                                     -> Filter: ((((t1.f1 + 10) + (t1.f2 + 10)) + ((t1.f1 + 10) - (t1.f2 + 10))) > 26)  (rows=12)
-                                        -> Index scan on t1 using f1_2  (rows=12)
+                                        -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT * FROM
 (SELECT (i+j) AS g, f1 FROM
@@ -339,7 +339,7 @@ EXPLAIN
         -> Table scan on dt1  (rows=12)
             -> Materialize  (rows=12)
                 -> Filter: (((t1.f1 + t1.f2) + 2) > 30)  (rows=12)
-                    -> Index scan on t1 using f1_2  (rows=12)
+                    -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT m FROM (SELECT k+2 as l
 FROM (SELECT f1+f2 as j
@@ -385,7 +385,7 @@ EXPLAIN
     -> Materialize  (rows=7)
         -> Filter: (rollup_group_item(t1.f1,0) is null)  (rows=7)
             -> Group aggregate with rollup: sum(t1.f2)  (rows=7)
-                -> Index scan on t1 using f1_2  (rows=12)
+                -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT f1
 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1 WITH ROLLUP) as dt
@@ -402,7 +402,7 @@ EXPLAIN
     -> Materialize  (rows=7)
         -> Filter: (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null))  (rows=7)
             -> Group aggregate with rollup: sum(t1.f2)  (rows=7)
-                -> Index scan on t1 using f1_2  (rows=12)
+                -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT *
 FROM (SELECT f1 as j, SUM(f2) as sum
@@ -423,7 +423,7 @@ EXPLAIN
     -> Materialize  (rows=7)
         -> Filter: ((rollup_sum_switcher(avg(t1.f2)) > 1) and (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null)))  (rows=7)
             -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2)  (rows=7)
-                -> Index scan on t1 using f1_2  (rows=12)
+                -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT *
 FROM (SELECT f1 as j, SUM(f2) as sum
@@ -456,7 +456,7 @@ EXPLAIN
         -> Materialize  (rows=4)
             -> Limit: 4 row(s)  (rows=4)
                 -> Sort: t1.f2, limit input to 4 row(s) per chunk  (rows=12)
-                    -> Index scan on t1 using f1_2  (rows=12)
+                    -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT f1 FROM (SELECT f1, f2 FROM t1 ORDER BY f2 LIMIT 4) as dt
 WHERE f1 > 0 ;
@@ -467,7 +467,7 @@ EXPLAIN
     -> Table scan on dt  (rows=4)
         -> Materialize  (rows=4)
             -> Limit: 4 row(s)  (rows=4)
-                -> Index scan on t1 using f1_2  (rows=12)
+                -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT f1 FROM (SELECT f1, f2 FROM t1 LIMIT 4) as dt WHERE f1 > 0;
 f1
@@ -661,7 +661,7 @@ EXPLAIN
                         -> Temporary table  (rows=0)
                             -> Window aggregate with buffering: sum(t1.f1) OVER (PARTITION BY t1.f2 ) 
                                 -> Sort: t1.f2  (rows=12)
-                                    -> Index scan on t1 using f1_2  (rows=12)
+                                    -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT *
 FROM (SELECT f1, SUM(f1) OVER (PARTITION by f2),
@@ -727,7 +727,7 @@ EXPLAIN
 -> Filter: (dt.a > 0.5)  (rows=4)
     -> Table scan on dt  (rows=12)
         -> Materialize  (rows=12)
-            -> Index scan on t1 using f1  (rows=12)
+            -> Covering index scan on t1 using f1  (rows=12)
 
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE f1 > 3*RAND() AND f1 < 10;
@@ -765,10 +765,10 @@ EXPLAIN FORMAT=tree SELECT f1 FROM
 EXPLAIN
 -> Covering index lookup on dt using <auto_key0> (f1=1)  (rows=1.2)
     -> Materialize  (rows=12)
-        -> Index scan on t1 using f1  (rows=12)
+        -> Covering index scan on t1 using f1  (rows=12)
         -> Select #3 (subquery in projection; run only once)
             -> Limit: 1 row(s)  (rows=1)
-                -> Index scan on t1 using f1  (rows=12)
+                -> Covering index scan on t1 using f1  (rows=12)
 
 SELECT f1 FROM
 (SELECT (SELECT 1 FROM t1 LIMIT 1) as f1 FROM t1) as dt WHERE f1 = 1;
@@ -798,7 +798,7 @@ EXPLAIN
     -> Table scan on dt  (rows=6)
         -> Materialize  (rows=6)
             -> Group aggregate: sum(t1.f2)  (rows=6)
-                -> Index scan on t1 using f1_2  (rows=12)
+                -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE p() = 1;
@@ -817,7 +817,7 @@ EXPLAIN
     -> Materialize  (rows=6)
         -> Group aggregate: sum(t1.f2)  (rows=6)
             -> Filter: <cache>((p() = 1))  (rows=12)
-                -> Index scan on t1 using f1_2  (rows=12)
+                -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE p() = 1;
@@ -853,7 +853,7 @@ EXPLAIN
                 -> Table scan on qn  (rows=12)
                     -> Materialize CTE qn  (rows=12)
                         -> Filter: ((3 * (10 * t1.f1)) > 1)  (rows=12)
-                            -> Index scan on t1 using f1  (rows=12)
+                            -> Covering index scan on t1 using f1  (rows=12)
 
 SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
@@ -883,7 +883,7 @@ EXPLAIN
                 -> Filter: (qn.f1 < 10)  (rows=4)
                     -> Table scan on qn  (rows=12)
                         -> Materialize CTE qn if needed  (rows=12)
-                            -> Index scan on t1 using f1  (rows=12)
+                            -> Covering index scan on t1 using f1  (rows=12)
 
 SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
@@ -928,7 +928,7 @@ EXPLAIN
         -> Hash
             -> Table scan on dt  (rows=12)
                 -> Materialize  (rows=12)
-                    -> Index scan on t1 using f1_2  (rows=12)
+                    -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT * FROM t1 LEFT JOIN (SELECT f1, f2 FROM t1) as dt USING (f2)
 WHERE dt.f1 is null;
@@ -1001,9 +1001,9 @@ EXPLAIN
         -> Materialize  (rows=48)
             -> Filter: (t2.f1 > 3)  (rows=48)
                 -> Left hash join (no condition)  (rows=48)
-                    -> Index scan on t1 using f1  (rows=12)
+                    -> Covering index scan on t1 using f1  (rows=12)
                     -> Hash
-                        -> Index scan on t2 using f1_2  (rows=12)
+                        -> Covering index scan on t2 using f1_2  (rows=12)
     -> Hash
         -> Table scan on t1  (rows=12)
 
@@ -1450,7 +1450,7 @@ EXPLAIN
         -> Filter: (t1.f1 > 10)  (rows=1)
             -> Covering index range scan on t1 using f1 over (10 < f1)  (rows=1)
         -> Filter: (t2.f2 > 10)  (rows=4)
-            -> Index scan on t2 using f1_2  (rows=12)
+            -> Covering index scan on t2 using f1_2  (rows=12)
 
 SELECT i
 FROM (SELECT f1 FROM t1
@@ -1497,10 +1497,10 @@ EXPLAIN
     -> Union all materialize  (rows=13)
         -> Filter: ((rollup_sum_switcher(avg(t1.f2)) > 1) and (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null)))  (rows=7)
             -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2)  (rows=7)
-                -> Index scan on t1 using f1_2  (rows=12)
+                -> Covering index scan on t1 using f1_2  (rows=12)
         -> Filter: (((t1.f1 + sum(t1.f2)) > 50) or (t1.f1 is null))  (rows=6)
             -> Group aggregate: sum(t1.f2)  (rows=6)
-                -> Index scan on t1 using f1_2  (rows=12)
+                -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT *
 FROM (SELECT f1 as j, SUM(f2) as sum
@@ -1669,8 +1669,8 @@ EXPLAIN
 -> Filter: (dt.a > 0.5)  (rows=8)
     -> Table scan on dt  (rows=24)
         -> Union all materialize  (rows=24)
-            -> Index scan on t1 using f1  (rows=12)
-            -> Index scan on t1 using f1  (rows=12)
+            -> Covering index scan on t1 using f1  (rows=12)
+            -> Covering index scan on t1 using f1  (rows=12)
 
 EXPLAIN FORMAT=tree SELECT *
 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1
@@ -1710,11 +1710,11 @@ WHERE f1 = 1;
 EXPLAIN
 -> Covering index lookup on dt using <auto_key0> (f1=1)  (rows=2.4)
     -> Union all materialize  (rows=24)
-        -> Index scan on t1 using f1  (rows=12)
-        -> Index scan on t1 using f1  (rows=12)
+        -> Covering index scan on t1 using f1  (rows=12)
+        -> Covering index scan on t1 using f1  (rows=12)
         -> Select #4 (subquery in projection; run only once)
             -> Limit: 1 row(s)  (rows=1)
-                -> Index scan on t1 using f1  (rows=12)
+                -> Covering index scan on t1 using f1  (rows=12)
 
 SELECT f1
 FROM (SELECT f1 FROM t1
@@ -1745,9 +1745,9 @@ EXPLAIN
 -> Covering index lookup on dt using <auto_key0> (f1=1)  (rows=2.4)
     -> Union all materialize  (rows=24)
         -> Limit table size: 1 row(s)
-            -> Index scan on t1 using f1  (rows=12)
+            -> Covering index scan on t1 using f1  (rows=12)
         -> Limit table size: 1 row(s)
-            -> Index scan on t1 using f1  (rows=12)
+            -> Covering index scan on t1 using f1  (rows=12)
 
 EXPLAIN FORMAT=tree SELECT f1
 FROM (SELECT f1 FROM t1
@@ -1757,9 +1757,9 @@ WHERE f1 = 1;
 EXPLAIN
 -> Covering index lookup on dt using <auto_key0> (f1=1)  (rows=1.3)
     -> Union all materialize  (rows=13)
-        -> Index scan on t1 using f1  (rows=12)
+        -> Covering index scan on t1 using f1  (rows=12)
         -> Limit: 1 row(s)  (rows=1)
-            -> Index scan on t1 using f1  (rows=12)
+            -> Covering index scan on t1 using f1  (rows=12)
 
 CREATE FUNCTION p() RETURNS INTEGER
 BEGIN
@@ -1777,8 +1777,8 @@ EXPLAIN
     -> Table scan on dt  (rows=18)
         -> Union materialize with deduplication  (rows=18)
             -> Group aggregate: sum(t1.f2)  (rows=6)
-                -> Index scan on t1 using f1_2  (rows=12)
-            -> Index scan on t1 using f1_2  (rows=12)
+                -> Covering index scan on t1 using f1_2  (rows=12)
+            -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT *
 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1
@@ -1803,9 +1803,9 @@ EXPLAIN
     -> Union materialize with deduplication  (rows=18)
         -> Group aggregate: sum(t1.f2)  (rows=6)
             -> Filter: <cache>((p() = 1))  (rows=12)
-                -> Index scan on t1 using f1_2  (rows=12)
+                -> Covering index scan on t1 using f1_2  (rows=12)
         -> Filter: <cache>((p() = 1))  (rows=12)
-            -> Index scan on t1 using f1_2  (rows=12)
+            -> Covering index scan on t1 using f1_2  (rows=12)
 
 SELECT *
 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1
@@ -1861,7 +1861,7 @@ EXPLAIN
 -> Filter: (qn.f1 > 1)  (rows=8)
     -> Table scan on qn  (rows=24)
         -> Materialize recursive CTE qn with deduplication  (rows=24)
-            -> Index scan on t1 using f1  (rows=12)
+            -> Covering index scan on t1 using f1  (rows=12)
             -> Repeat until convergence
                 -> Scan new records on qn  (rows=12)
 
@@ -1948,7 +1948,7 @@ EXPLAIN
 -> Table scan on dt2  (rows=13)
     -> Union materialize with deduplication  (rows=13)
         -> Filter: ((t1.f1 + t1.f2) > 30)  (rows=12)
-            -> Index scan on t1 using f1_2  (rows=12)
+            -> Covering index scan on t1 using f1_2  (rows=12)
         -> Filter: (t1.f1 > 30)  (rows=1)
             -> Covering index range scan on t1 using f1_2 over (30 < f1)  (rows=1)
 

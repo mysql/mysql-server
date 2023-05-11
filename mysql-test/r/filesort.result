@@ -135,8 +135,8 @@ EXPLAIN
                 -> Nested loop inner join
                     -> Constant row from SUBQUERY1_t2
                     -> Table scan on table2
-                -> Index scan on SUBQUERY1_t1 using PRIMARY
-            -> Index scan on t1 using PRIMARY
+                -> Covering index scan on SUBQUERY1_t1 using PRIMARY
+            -> Covering index scan on t1 using PRIMARY
 
 DROP TABLE t1, t2;
 #

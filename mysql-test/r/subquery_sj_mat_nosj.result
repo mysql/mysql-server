@@ -13149,7 +13149,7 @@ EXPLAIN
                         -> Materialize with deduplication  (rows=7)
                             -> Filter: (t3.col_int is null)  (rows=7)
                                 -> Nested loop left join  (rows=7)
-                                    -> Index scan on t1 using col_int_key  (rows=7)
+                                    -> Covering index scan on t1 using col_int_key  (rows=7)
                                     -> Nested loop inner join  (rows=1)
                                         -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (rows=1)
                                         -> Filter: (t3.col_int_key = t2.col_int)  (rows=1)

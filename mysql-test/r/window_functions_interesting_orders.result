@@ -103,7 +103,7 @@ EXPLAIN
 -> Window aggregate with buffering: sum(t1.b) OVER (ORDER BY t1.b )
     -> Window aggregate with buffering: sum(t1.a) OVER (ORDER BY t1.a )
         -> Nested loop inner join
-            -> Index scan on t1 using idx
+            -> Covering index scan on t1 using idx
             -> Filter: (t1.a = t2.b)
                 -> Table scan on t2
 
@@ -130,6 +130,6 @@ EXPLAIN
                 -> Nested loop inner join
                     -> Index scan on t1 using PRIMARY
                     -> Filter: (t1.x = t2.pk)
-                        -> Index scan on t2 using PRIMARY
+                        -> Covering index scan on t2 using PRIMARY
 
 DROP TABLE t1, t2;

@@ -3484,7 +3484,6 @@ let $query =
 SELECT b, COUNT(*) FROM t1 LEFT JOIN t2 USING (b) LEFT JOIN t3 USING (b)
 GROUP BY b;
 
---skip_if_hypergraph  # Bug#34527697.
 --replace_regex $elide_costs
 --eval EXPLAIN FORMAT=TREE $query
 

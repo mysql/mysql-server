@@ -2676,7 +2676,7 @@ WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
 XOR TRUE;
 EXPLAIN
 -> Filter: (<in_optimizer>(t3.c1,<exists>(select #2)) xor true)  (cost=0.45 rows=2)
-    -> Index scan on t3 using k1  (cost=0.45 rows=2)
+    -> Covering index scan on t3 using k1  (cost=0.45 rows=2)
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)  (cost=0.716 rows=1)
             -> Nested loop inner join  (cost=0.716 rows=1)

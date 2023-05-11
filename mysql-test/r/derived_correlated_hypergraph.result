@@ -19,7 +19,7 @@ EXPLAIN
     -> Nested loop inner join  (cost=0.25..0.25 rows=1)
         -> Stream results  (cost=0..0 rows=1)
             -> Rows fetched before execution  (cost=0..0 rows=1)
-        -> Single-row index lookup on t2 using PRIMARY (pk=dt.x)  (cost=0.25..0.25 rows=1)
+        -> Single-row covering index lookup on t2 using PRIMARY (pk=dt.x)  (cost=0.25..0.25 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.x' of SELECT #2 was resolved in SELECT #1

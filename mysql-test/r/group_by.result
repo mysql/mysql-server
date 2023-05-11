@@ -4513,7 +4513,7 @@ EXPLAIN
 -> Group aggregate: count(0)  (rows=250)
     -> Nested loop left join  (rows=8000)
         -> Nested loop left join  (rows=8000)
-            -> Index scan on t1 using b  (rows=8000)
+            -> Covering index scan on t1 using b  (rows=8000)
             -> Single-row covering index lookup on t2 using PRIMARY (b=t1.b)  (rows=1)
         -> Single-row covering index lookup on t3 using PRIMARY (b=t1.b)  (rows=1)
 

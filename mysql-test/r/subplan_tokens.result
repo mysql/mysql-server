@@ -13,10 +13,10 @@ SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93';
 
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY a;
 EXPLAIN
--> [0x2215d3ce44f01b0d] Index scan on t1 using a  (cost=0.0836..0.251 rows=3)
+-> [0x6d8e7db8c811fc24] Covering index scan on t1 using a  (cost=0.0836..0.251 rows=3)
 
 To force this plan, use:
-SET DEBUG='+d,subplan_tokens,force_subplan_0x2215d3ce44f01b0d';
+SET DEBUG='+d,subplan_tokens,force_subplan_0x6d8e7db8c811fc24';
 
 SET DEBUG='+d,subplan_tokens,force_subplan_0xeed2c0bd3e39ba93';
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY a;
@@ -46,7 +46,7 @@ SET DEBUG='-d,subplan_tokens';
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t1 AS t2 ON t1.a=t2.a ORDER BY t1.a;
 EXPLAIN
 -> Nested loop inner join  (cost=0.334..1 rows=3)
-    -> Index scan on t2 using a  (cost=0.0836..0.251 rows=3)
-    -> Index lookup on t1 using a (a=t2.a)  (cost=0.25..0.25 rows=1)
+    -> Covering index scan on t2 using a  (cost=0.0836..0.251 rows=3)
+    -> Covering index lookup on t1 using a (a=t2.a)  (cost=0.25..0.25 rows=1)
 
 DROP TABLE t1;

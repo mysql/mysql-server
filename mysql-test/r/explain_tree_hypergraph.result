@@ -234,7 +234,7 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT 1 FROM t;
 EXPLAIN
--> Index scan on t using x  (rows=160)
+-> Covering index scan on t using x  (rows=160)
 
 EXPLAIN ANALYZE SELECT 1 FROM t;
 EXPLAIN
@@ -242,15 +242,15 @@ EXPLAIN
 
 EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x = 4;
 EXPLAIN
--> Index lookup on t using x (x=4)  (rows=16)
+-> Covering index lookup on t using x (x=4)  (rows=16)
 
 EXPLAIN ANALYZE SELECT 1 FROM t WHERE x = 4;
 EXPLAIN
--> Index lookup on t using x (x=4)  (rows=16) (actual rows=16 loops=1)
+-> Covering index lookup on t using x (x=4)  (rows=16) (actual rows=16 loops=1)
 
 EXPLAIN FORMAT=TREE SELECT 1 FROM t WHERE x > 4;
 EXPLAIN
--> Index range scan on t using x over (4 < x)  (rows=96)
+-> Covering index range scan on t using x over (4 < x)  (rows=96)
 
 EXPLAIN ANALYZE SELECT 1 FROM t WHERE x > 4;
 EXPLAIN
@@ -259,17 +259,17 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT x FROM t ORDER BY MOD(x, 2);
 EXPLAIN
 -> Sort: (t.x % 2)  (rows=160)
-    -> Index scan on t using x  (rows=160)
+    -> Covering index scan on t using x  (rows=160)
 
 EXPLAIN ANALYZE SELECT x FROM t ORDER BY MOD(x, 2);
 EXPLAIN
 -> Sort: (t.x % 2)  (rows=160) (actual rows=160 loops=1)
-    -> Index scan on t using x  (rows=160) (actual rows=160 loops=1)
+    -> Covering index scan on t using x  (rows=160) (actual rows=160 loops=1)
 
 EXPLAIN FORMAT=TREE SELECT t1.x FROM t t1, t t2 WHERE t1.x < t2.y;
 EXPLAIN
 -> Inner hash join (no condition), extra conditions: (t1.x < t2.y)  (rows=8532)
-    -> Index scan on t1 using x  (rows=160)
+    -> Covering index scan on t1 using x  (rows=160)
     -> Hash
         -> Table scan on t2  (rows=160)
 

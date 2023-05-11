@@ -830,7 +830,7 @@ EXPLAIN
             -> Sort: t1.a, t2.b
                 -> Stream results  (cost=0.8 rows=2)
                     -> Inner hash join (no condition)  (cost=0.8 rows=2)
-                        -> Index scan on t1 using PRIMARY  (cost=0.45 rows=2)
+                        -> Covering index scan on t1 using PRIMARY  (cost=0.45 rows=2)
                         -> Hash
                             -> Table scan on t2  (cost=0.35 rows=1)
 

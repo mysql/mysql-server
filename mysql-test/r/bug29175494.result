@@ -32,7 +32,7 @@ ON ( t2.col_int_key = alias2.col_int_key AND alias2.col_varchar_key IN ( SELECT 
 WHERE alias1.col_varchar >= 'Z' );
 EXPLAIN
 -> Filter: <in_optimizer>((t1.col_varchar_key,t1.col_varchar_key),<exists>(select #2) is false)  (cost=0.55 rows=3)
-    -> Index scan on t1 using k2  (cost=0.55 rows=3)
+    -> Covering index scan on t1 using k2  (cost=0.55 rows=3)
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)  (cost=0.622 rows=0.222)
             -> Filter: (<if>(outer_field_is_not_null, <is_not_null_test>(alias1.col_varchar_key), true) and <if>(outer_field_is_not_null, <is_not_null_test>(alias1.col_varchar_key), true))  (cost=0.622 rows=0.222)

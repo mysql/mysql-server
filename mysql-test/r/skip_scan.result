@@ -28,7 +28,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT b, d FROM t WHERE d < 2;
 EXPLAIN
 -> Filter: (t.d < 2)  (rows=833)
-    -> Index scan on t using b  (rows=2500)
+    -> Covering index scan on t using b  (rows=2500)
 
 FLUSH STATUS;
 SELECT b, d FROM t WHERE d < 2;
@@ -80,7 +80,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT b, d FROM t WHERE d > 4;
 EXPLAIN
 -> Filter: (t.d > 4)  (rows=833)
-    -> Index scan on t using b  (rows=2500)
+    -> Covering index scan on t using b  (rows=2500)
 
 FLUSH STATUS;
 SELECT b, d FROM t WHERE d > 4;
@@ -600,7 +600,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
 EXPLAIN
 -> Filter: ((t.b = t.a) and (t.d >= 98))  (rows=833)
-    -> Index scan on t using b  (rows=2500)
+    -> Covering index scan on t using b  (rows=2500)
 
 FLUSH STATUS;
 SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
@@ -1088,7 +1088,7 @@ EXPLAIN FORMAT=TREE SELECT count(*) FROM t WHERE d < 2;;
 EXPLAIN
 -> Aggregate: count(0)  (rows=1)
     -> Filter: (t.d < 2)  (rows=833)
-        -> Index scan on t using b  (rows=2500)
+        -> Covering index scan on t using b  (rows=2500)
 
 FLUSH STATUS;
 SELECT count(*) FROM t WHERE d < 2;;
@@ -1356,7 +1356,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE c BETWEEN 3 AND 5 AND d < 3;;
 EXPLAIN
 -> Filter: ((t.c between 3 and 5) and (t.d < 3))  (rows=92.6)
-    -> Index scan on t using PRIMARY  (rows=2500)
+    -> Covering index scan on t using PRIMARY  (rows=2500)
 
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE c BETWEEN 3 AND 5 AND d < 3;;
@@ -1391,7 +1391,7 @@ set optimizer_switch = 'skip_scan=on';
 EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE d < 3;;
 EXPLAIN
 -> Filter: (t.d < 3)  (rows=833)
-    -> Index scan on t using PRIMARY  (rows=2500)
+    -> Covering index scan on t using PRIMARY  (rows=2500)
 
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE d < 3;;
@@ -1408,7 +1408,7 @@ set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT b, c, d FROM t WHERE d < 3;;
 EXPLAIN
 -> Filter: (t.d < 3)  (rows=833)
-    -> Index scan on t using PRIMARY  (rows=2500)
+    -> Covering index scan on t using PRIMARY  (rows=2500)
 
 FLUSH STATUS;
 SELECT b, c, d FROM t WHERE d < 3;;

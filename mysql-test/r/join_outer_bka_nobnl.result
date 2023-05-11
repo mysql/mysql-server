@@ -406,7 +406,7 @@ Thimble Smith	Happy	3	3
 explain format=tree select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 EXPLAIN
 -> Nested loop left join  (cost=2.2 rows=9)
-    -> Index scan on t3 using PRIMARY  (cost=0.55 rows=3)
+    -> Covering index scan on t3 using PRIMARY  (cost=0.55 rows=3)
     -> Nested loop inner join  (cost=1.33 rows=3)
         -> Single-row index lookup on t1 using PRIMARY (id=t3.id)  (cost=0.283 rows=1)
         -> Filter: (t2.`owner` = t3.id)  (cost=0.35 rows=3)

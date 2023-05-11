@@ -557,7 +557,7 @@ AccessPath *GetAccessPathForDerivedTable(
 
 void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
                         Temp_table_param *param);
-std::string RefToString(const Index_lookup &ref, const KEY *key,
+std::string RefToString(const Index_lookup &ref, const KEY &key,
                         bool include_nulls);
 
 bool MaterializeIsDoingDeduplication(TABLE *table);

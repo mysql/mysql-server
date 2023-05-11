@@ -247,31 +247,31 @@ EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ai=b;
 EXPLAIN
 -> Nested loop inner join  (rows=4000) (actual rows=4000 loops=1)
     -> Table scan on t2  (rows=1000) (actual rows=1000 loops=1)
-    -> Index lookup on t1 using ix1 (ai=t2.b)  (rows=4) (actual rows=4 loops=1000)
+    -> Covering index lookup on t1 using ix1 (ai=t2.b)  (rows=4) (actual rows=4 loops=1000)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.ai=x2.ai;
 EXPLAIN
 -> Nested loop inner join  (rows=400) (actual rows=400 loops=1)
     -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on x1 using ix1 (ai=x2.ai)  (rows=4) (actual rows=4 loops=100)
+    -> Covering index lookup on x1 using ix1 (ai=x2.ai)  (rows=4) (actual rows=4 loops=100)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ai=bi;
 EXPLAIN
 -> Nested loop inner join  (rows=4000) (actual rows=4000 loops=1)
     -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on t2 using ix2 (bi=t1.ai)  (rows=40) (actual rows=40 loops=100)
+    -> Covering index lookup on t2 using ix2 (bi=t1.ai)  (rows=40) (actual rows=40 loops=100)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=bi;
 EXPLAIN
 -> Nested loop inner join  (rows=4000) (actual rows=4000 loops=1)
     -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on t2 using ix2 (bi=t1.a)  (rows=40) (actual rows=40 loops=100)
+    -> Covering index lookup on t2 using ix2 (bi=t1.a)  (rows=40) (actual rows=40 loops=100)
 
 EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.bi=x2.bi;
 EXPLAIN
 -> Nested loop inner join  (rows=40000) (actual rows=40000 loops=1)
     -> Covering index scan on x2 using ix2  (rows=1000) (actual rows=1000 loops=1)
-    -> Index lookup on x1 using ix2 (bi=x2.bi)  (rows=40) (actual rows=40 loops=1000)
+    -> Covering index lookup on x1 using ix2 (bi=x2.bi)  (rows=40) (actual rows=40 loops=1000)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ah=b;
 EXPLAIN
@@ -780,7 +780,7 @@ EXPLAIN
         -> Nested loop left join  (rows=4) (actual rows=1 loops=1)
             -> Filter: (x2.b = 3)  (rows=2) (actual rows=1 loops=1)
                 -> Table scan on x2  (rows=100) (actual rows=13 loops=1)
-            -> Index lookup on x3 using PRIMARY (a=x2.c, b=x2.d)  (rows=2) (actual rows=1 loops=1)
+            -> Covering index lookup on x3 using PRIMARY (a=x2.c, b=x2.d)  (rows=2) (actual rows=1 loops=1)
     -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 x1 JOIN t1 x2 ON x1.a=x2.v AND x1.b=x2.b;
@@ -808,7 +808,7 @@ EXPLAIN ANALYZE SELECT 1 FROM t2 JOIN t3 USING (x, y);
 EXPLAIN
 -> Nested loop inner join  (rows=4) (actual rows=4 loops=1)
     -> Table scan on t3  (rows=4) (actual rows=4 loops=1)
-    -> Index lookup on t2 using x (x=t3.x, y=t3.y)  (rows=1) (actual rows=1 loops=4)
+    -> Covering index lookup on t2 using x (x=t3.x, y=t3.y)  (rows=1) (actual rows=1 loops=4)
 
 ANALYZE TABLE t2,t3;
 Table	Op	Msg_type	Msg_text
