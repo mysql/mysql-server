@@ -519,16 +519,15 @@ enum enum_gcs_error Gcs_operations::send_transaction_message(
 }
 
 Gcs_operations::enum_force_members_state Gcs_operations::force_members(
-    const char *members) {
+    const char *members, Plugin_gcs_view_modification_notifier *view_notifier) {
   DBUG_TRACE;
   enum_force_members_state error = FORCE_MEMBERS_OK;
-  gcs_operations_lock->wrlock();
+  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::WRITE_LOCK);
 
   if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
-    error = FORCE_MEMBERS_ER_MEMBER_NOT_ONLINE;
-    goto end;
+    return FORCE_MEMBERS_ER_MEMBER_NOT_ONLINE;
     /* purecov: end */
   }
 
@@ -538,8 +537,7 @@ Gcs_operations::enum_force_members_state Gcs_operations::force_members(
   */
   if (leave_coordination_leaving) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBERS_WHEN_LEAVING);
-    error = FORCE_MEMBERS_ER_MEMBERS_WHEN_LEAVING;
-    goto end;
+    return FORCE_MEMBERS_ER_MEMBERS_WHEN_LEAVING;
   }
 
   if (local_member_info->get_recovery_status() ==
@@ -552,17 +550,18 @@ Gcs_operations::enum_force_members_state Gcs_operations::force_members(
     if (gcs_management == nullptr) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_INTERFACE_ERROR);
-      error = FORCE_MEMBERS_ER_INTERNAL_ERROR;
-      goto end;
+      return FORCE_MEMBERS_ER_INTERNAL_ERROR;
       /* purecov: end */
     }
 
-    Plugin_gcs_view_modification_notifier view_change_notifier;
-    view_change_notifier.start_view_modification();
-
     view_observers_lock->wrlock();
     injected_view_modification = true;
-    view_change_notifier_list.push_back(&view_change_notifier);
+    /* Receiving view_notifier as an argument instead using one
+      created here allows to do the waiting for a view outside this function.
+      This reduces time locking gcs_operations_lock write lock.
+    */
+    if (nullptr != view_notifier)
+      view_change_notifier_list.push_back(view_notifier);
     view_observers_lock->unlock();
 
     Gcs_interface_parameters gcs_interface_parameters;
@@ -573,30 +572,15 @@ Gcs_operations::enum_force_members_state Gcs_operations::force_members(
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET_ERROR,
                    members);
-      error = FORCE_MEMBERS_ER_VALUE_SET_ERROR;
-      view_change_notifier.cancel_view_modification();
-      remove_view_notifer(&view_change_notifier);
-      goto end;
+      return FORCE_MEMBERS_ER_VALUE_SET_ERROR;
       /* purecov: end */
     }
     LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET, members);
-    if (view_change_notifier.wait_for_view_modification(
-            FORCE_MEMBERS_VIEW_MODIFICATION_TIMEOUT)) {
-      /* purecov: begin inspected */
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_TIME_OUT,
-                   members);
-      error = FORCE_MEMBERS_ER_TIMEOUT_ON_WAIT_FOR_VIEW;
-      /* purecov: end */
-    }
-    remove_view_notifer(&view_change_notifier);
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
     error = FORCE_MEMBERS_ER_MEMBER_NOT_ONLINE;
-    goto end;
   }
 
-end:
-  gcs_operations_lock->unlock();
   return error;
 }
 

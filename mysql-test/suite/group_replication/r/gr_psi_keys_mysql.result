@@ -26,7 +26,6 @@ wait/synch/mutex/group_rpl/LOCK_clone_read_mode	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/LOCK_count_down_latch	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/LOCK_delayed_init_run	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/LOCK_delayed_init_server_ready	YES	YES	singleton	NULL	0	NULL
-wait/synch/mutex/group_rpl/LOCK_force_members_running	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/key_GR_LOCK_group_action_coordinator_process	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/key_GR_LOCK_group_action_coordinator_thread	YES	YES	singleton	NULL	0	NULL
 wait/synch/mutex/group_rpl/key_GR_LOCK_group_action_coordinator_thread_end	YES	YES	singleton	NULL	0	NULL

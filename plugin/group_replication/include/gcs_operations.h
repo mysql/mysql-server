@@ -274,6 +274,7 @@ class Gcs_operations {
 
     @param members  The list of members, comma
                     separated. E.g., host1:port1,host2:port2
+    @param view_notifier  A view change notifier to know the response
 
     @return Operation status
       @retval FORCE_MEMBERS_OK   The forced new group membership is
@@ -297,7 +298,9 @@ class Gcs_operations {
                                         group_replication_force_members value.
       @retval FORCE_MEMBERS_INTERNAL_ERROR   Internal error.
   */
-  enum enum_force_members_state force_members(const char *members);
+  enum enum_force_members_state force_members(
+      const char *members,
+      Plugin_gcs_view_modification_notifier *view_notifier);
 
   /**
     Retrieves the minimum supported "write concurrency" value.
