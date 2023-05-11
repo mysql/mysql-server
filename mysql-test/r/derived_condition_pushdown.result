@@ -2098,7 +2098,7 @@ UNION
 SELECT NOW() AS time FROM t1 WHERE f1 = 0) AS dt
 WHERE time <= ?";
 SET @a = 1;
-SET @b = '2022-05-06 16:49:45';
+SET @b = DATE_FORMAT(DATE_ADD(NOW(), INTERVAL -1 DAY), '%Y-%m-%d %H:%i:%s');
 EXECUTE stmt USING @a, @b;
 time
 PREPARE stmt FROM "EXPLAIN FORMAT=tree SELECT *
@@ -2111,7 +2111,7 @@ EXPLAIN
 -> Zero rows (no matching row in const table)  (rows=0)
 
 SET @a = 2;
-SET @b = '2023-05-06 16:49:45';
+SET @b = DATE_FORMAT(DATE_ADD(NOW(), INTERVAL +1 DAY), '%Y-%m-%d %H:%i:%s');
 EXECUTE stmt USING @a, @b;
 EXPLAIN
 -> Table scan on dt  (rows=2)

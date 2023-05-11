@@ -1305,14 +1305,14 @@ let $query = SELECT *
              WHERE time <= ?;
 eval PREPARE stmt FROM "$query";
 SET @a = 1;
-SET @b = '2022-05-06 16:49:45';
+SET @b = DATE_FORMAT(DATE_ADD(NOW(), INTERVAL -1 DAY), '%Y-%m-%d %H:%i:%s');  # Date in the past
 eval EXECUTE stmt USING @a, @b;
 eval PREPARE stmt FROM "EXPLAIN FORMAT=tree $query";
 --replace_regex $elide_costs
 --skip_if_hypergraph  # Depends on the query plan.
 eval EXECUTE stmt USING @a, @b;
 SET @a = 2;
-SET @b = '2023-05-06 16:49:45';
+SET @b = DATE_FORMAT(DATE_ADD(NOW(), INTERVAL +1 DAY), '%Y-%m-%d %H:%i:%s');  # Date in the future
 --replace_regex $elide_costs
 --skip_if_hypergraph  # Depends on the query plan.
 eval EXECUTE stmt USING @a, @b;
