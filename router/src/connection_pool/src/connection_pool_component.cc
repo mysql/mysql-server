@@ -34,7 +34,11 @@ void ConnectionPoolComponent::erase(const key_type &name) {
   pools_.erase(name);
 }
 
-void ConnectionPoolComponent::clear() { pools_.clear(); }
+void ConnectionPoolComponent::clear() {
+  for (auto &pool : pools_) {
+    pool.second->clear();
+  }
+}
 
 std::shared_ptr<ConnectionPool> ConnectionPoolComponent::get(
     const key_type &name) {

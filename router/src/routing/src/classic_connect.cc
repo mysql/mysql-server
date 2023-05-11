@@ -351,7 +351,12 @@ stdx::expected<Processor::Result, std::error_code> ConnectProcessor::connect() {
   net::ip::tcp::socket server_sock(io_ctx_);
 
   auto open_res = server_sock.open(server_endpoint_.protocol(), socket_flags);
-  if (!open_res) return open_res.get_unexpected();
+  if (!open_res) {
+    last_ec_ = open_res.error();
+
+    stage(Stage::NextEndpoint);
+    return Result::Again;
+  }
 
   const auto non_block_res = server_sock.native_non_blocking(true);
   if (!non_block_res) return non_block_res.get_unexpected();
