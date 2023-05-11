@@ -288,6 +288,8 @@ class sp_lex_instr : public sp_instr {
   */
   bool reset_lex_and_exec_core(THD *thd, uint *nextp, bool open_tables);
 
+  bool execute_expression(THD *thd, uint *nextp);
+
   /**
     (Re-)parse the query corresponding to this instruction and return a new
     LEX-object.
