@@ -3905,9 +3905,11 @@ static int i_s_innodb_stats_fill(
 
   OK(fields[IDX_BUF_STATS_PENDING_READ]->store(info->n_pend_reads, true));
 
-  OK(fields[IDX_BUF_STATS_FLUSH_LRU]->store(info->n_pending_flush_lru, true));
+  OK(fields[IDX_BUF_STATS_FLUSH_LRU]->store(
+      info->n_pending_flush[BUF_FLUSH_LRU], true));
 
-  OK(fields[IDX_BUF_STATS_FLUSH_LIST]->store(info->n_pending_flush_list, true));
+  OK(fields[IDX_BUF_STATS_FLUSH_LIST]->store(
+      info->n_pending_flush[BUF_FLUSH_LIST], true));
 
   OK(fields[IDX_BUF_STATS_PAGE_YOUNG]->store(info->n_pages_made_young, true));
 

@@ -153,38 +153,46 @@ enum buf_page_state : uint8_t {
 will be used to print table IO stats */
 struct buf_pool_info_t {
   /* General buffer pool info */
-  ulint pool_unique_id;              /*!< Buffer Pool ID */
-  ulint pool_size;                   /*!< Buffer Pool size in pages */
-  ulint lru_len;                     /*!< Length of buf_pool->LRU */
-  ulint old_lru_len;                 /*!< buf_pool->LRU_old_len */
-  ulint free_list_len;               /*!< Length of buf_pool->free list */
-  ulint flush_list_len;              /*!< Length of buf_pool->flush_list */
-  ulint n_pend_unzip;                /*!< buf_pool->n_pend_unzip, pages
-                                     pending decompress */
-  ulint n_pend_reads;                /*!< buf_pool->n_pend_reads, pages
-                                     pending read */
-  ulint n_pending_flush_lru;         /*!< Pages pending flush in LRU */
-  ulint n_pending_flush_single_page; /*!< Pages pending to be
-                                 flushed as part of single page
-                                 flushes issued by various user
-                                 threads */
-  ulint n_pending_flush_list;        /*!< Pages pending flush in FLUSH
-                                     LIST */
-  ulint n_pages_made_young;          /*!< number of pages made young */
-  ulint n_pages_not_made_young;      /*!< number of pages not made young */
-  ulint n_pages_read;                /*!< buf_pool->n_pages_read */
-  ulint n_pages_created;             /*!< buf_pool->n_pages_created */
-  ulint n_pages_written;             /*!< buf_pool->n_pages_written */
-  ulint n_page_gets;                 /*!< buf_pool->n_page_gets */
-  ulint n_ra_pages_read_rnd;         /*!< buf_pool->n_ra_pages_read_rnd,
-                                     number of pages readahead */
-  ulint n_ra_pages_read;             /*!< buf_pool->n_ra_pages_read, number
-                                     of pages readahead */
-  ulint n_ra_pages_evicted;          /*!< buf_pool->n_ra_pages_evicted,
-                                     number of readahead pages evicted
-                                     without access */
-  ulint n_page_get_delta;            /*!< num of buffer pool page gets since
-                                     last printout */
+
+  /** Buffer Pool ID */
+  ulint pool_unique_id;
+  /** Buffer Pool size in pages */
+  ulint pool_size;
+  /** Length of buf_pool->LRU */
+  ulint lru_len;
+  /** buf_pool->LRU_old_len */
+  ulint old_lru_len;
+  /** Length of buf_pool->free list */
+  ulint free_list_len;
+  /** Length of buf_pool->flush_list */
+  ulint flush_list_len;
+  /** buf_pool->n_pend_unzip, pages pending decompress */
+  ulint n_pend_unzip;
+  /** buf_pool->n_pend_reads, pages pending read */
+  ulint n_pend_reads;
+  /** Number of pages pending flush of given type */
+  std::array<size_t, BUF_FLUSH_N_TYPES> n_pending_flush;
+  /** number of pages made young */
+  ulint n_pages_made_young;
+  /** number of pages not made young */
+  ulint n_pages_not_made_young;
+  /** buf_pool->n_pages_read */
+  ulint n_pages_read;
+  /** buf_pool->n_pages_created */
+  ulint n_pages_created;
+  /** buf_pool->n_pages_written */
+  ulint n_pages_written;
+  /** buf_pool->n_page_gets */
+  ulint n_page_gets;
+  /** buf_pool->n_ra_pages_read_rnd, number of pages readahead */
+  ulint n_ra_pages_read_rnd;
+  /** buf_pool->n_ra_pages_read, number of pages readahead */
+  ulint n_ra_pages_read;
+  /** buf_pool->n_ra_pages_evicted, number of readahead pages evicted without
+  access */
+  ulint n_ra_pages_evicted;
+  /** num of buffer pool page gets since last printout */
+  ulint n_page_get_delta;
 
   /* Buffer pool access stats */
   double page_made_young_rate;     /*!< page made young rate in pages
@@ -2291,7 +2299,7 @@ struct buf_pool_t {
 
   /** This is the number of pending writes in the given flush type.  Protected
   by flush_state_mutex. */
-  ulint n_flush[BUF_FLUSH_N_TYPES];
+  std::array<size_t, BUF_FLUSH_N_TYPES> n_flush;
 
   /** This is in the set state when there is no flush batch of the given type
   running. Protected by flush_state_mutex. */
@@ -2419,6 +2427,41 @@ struct buf_pool_t {
   Emits a warning to the log if could not succeed.
   @return true iff succeeded, false if no OS support or failed */
   bool madvise_dont_dump();
+
+  /** Checks if the batch is running, which is basically equivalent to
+  !os_event_is_set(no_flush[type]) if you hold flush_state_mutex.
+  It is used as source of truth to know when to set or reset this event.
+  Caller should hold flush_state_mutex.
+  @param[in]  flush_type  The type of the flush we are interested in
+  @return Should no_flush[type] be in the "unset" state? */
+  bool is_flushing(buf_flush_t flush_type) const {
+    ut_ad(mutex_own(&flush_state_mutex));
+    return init_flush[flush_type] || 0 < n_flush[flush_type];
+  }
+
+#ifndef UNIV_HOTBACKUP
+  /** Executes change() which modifies fields protected by flush_state_mutex.
+  If it caused a change to is_flushing(flush_type) then it sets or resets the
+  no_flush[flush_type] to keep it in sync.
+  @param[in]  flush_type  The type of the flush this change of state concerns
+  @param[in]  change      A callback to execute within flush_state_mutex
+  */
+  template <typename F>
+  void change_flush_state(buf_flush_t flush_type, F &&change) {
+    mutex_enter(&flush_state_mutex);
+    const bool was_set = !is_flushing(flush_type);
+    ut_ad(was_set == os_event_is_set(no_flush[flush_type]));
+    std::forward<F>(change)();
+    const bool should_be_set = !is_flushing(flush_type);
+    if (was_set && !should_be_set) {
+      os_event_reset(no_flush[flush_type]);
+    } else if (!was_set && should_be_set) {
+      os_event_set(no_flush[flush_type]);
+    }
+    ut_ad(should_be_set == os_event_is_set(no_flush[flush_type]));
+    mutex_exit(&flush_state_mutex);
+  }
+#endif /*! UNIV_HOTBACKUP */
 
   static_assert(BUF_BUDDY_LOW <= UNIV_ZIP_SIZE_MIN,
                 "BUF_BUDDY_LOW > UNIV_ZIP_SIZE_MIN");

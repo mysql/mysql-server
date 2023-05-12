@@ -1317,6 +1317,8 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
 
   for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
     buf_pool->no_flush[i] = os_event_create();
+    /* There are no flushes at this moment */
+    os_event_set(buf_pool->no_flush[i]);
   }
 
   buf_pool->watch = (buf_page_t *)ut::zalloc_withkey(
@@ -5422,23 +5424,21 @@ void buf_page_free_stale_during_write(buf_page_t *bpage,
 
   ut_a(io_type == BUF_IO_WRITE);
 
-  mutex_enter(&buf_pool->flush_state_mutex);
+  buf_pool->change_flush_state(flush_type, [&]() {
+    if (bpage->is_dirty()) {
+      buf_flush_remove(bpage);
+    }
 
-  if (bpage->is_dirty()) {
-    buf_flush_remove(bpage);
-  }
+    /* The current thread is responsible for the write IO, so we are allowed to
+    reset it back to BUF_IO_NONE. */
+    buf_page_set_io_fix(bpage, BUF_IO_NONE);
 
-  /* The current thread is responsible for the write IO, so we are allowed to
-  reset it back to BUF_IO_NONE. */
-  buf_page_set_io_fix(bpage, BUF_IO_NONE);
+    ut_a(owns_sx_lock || buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE);
 
-  ut_a(owns_sx_lock || buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE);
-
-  /* Since we aborted a write request. We need to adjust the number of
-  of outstanding write requests. */
-  --buf_pool->n_flush[flush_type];
-
-  mutex_exit(&buf_pool->flush_state_mutex);
+    /* Since we aborted a write request. We need to adjust the number of
+    outstanding write requests. */
+    --buf_pool->n_flush[flush_type];
+  });
 
   /* Free the page. This can fail, if some other thread start to free this stale
   page during page creation - the buf_page_free_stale will buf fix the page to
@@ -5916,30 +5916,20 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
 
   ut_ad(!mutex_own(&buf_pool->LRU_list_mutex));
 
-  mutex_enter(&buf_pool->flush_state_mutex);
-
   for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-    /* As this function is called during startup and
-    during redo application phase during recovery, InnoDB
-    is single threaded (apart from IO helper threads) at
-    this stage. No new write batch can be in initialization
-    stage at this point. */
-    ut_ad(buf_pool->init_flush[i] == false);
+    /* As this function is called during startup and during redo application
+    phase during recovery, a flush might be requested either by
+    recv_writer thread (which is not started yet, or paused by writer_mutex), or
+    by our own thread (in which case we wait for it to finish initialization).
+    No new write batch can be in initialization stage at this point.
+    This also explains why we don't need flush_state_mutex to assert this. */
+    ut_ad(!buf_pool->init_flush[i]);
 
-    /* However, it is possible that a write batch that has
-    been posted earlier is still not complete. For buffer
-    pool invalidation to proceed we must ensure there is NO
-    write activity happening. */
-    if (buf_pool->n_flush[i] > 0) {
-      buf_flush_t type = static_cast<buf_flush_t>(i);
-
-      mutex_exit(&buf_pool->flush_state_mutex);
-      buf_flush_wait_batch_end(buf_pool, type);
-      mutex_enter(&buf_pool->flush_state_mutex);
-    }
+    /* However, it is possible that a write batch that has been posted earlier
+    is still not complete. For buffer pool invalidation to proceed we must
+    ensure there is NO write activity happening. */
+    buf_flush_await_no_flushing(buf_pool, static_cast<buf_flush_t>(i));
   }
-
-  mutex_exit(&buf_pool->flush_state_mutex);
 
   ut_d(buf_must_be_all_freed_instance(buf_pool));
 
@@ -5965,9 +5955,7 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
  completed. All the file pages buffered must be in a replaceable state when
  this function is called: not latched and not modified. */
 void buf_pool_invalidate(void) {
-  ulint i;
-
-  for (i = 0; i < srv_buf_pool_instances; i++) {
+  for (ulong i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_invalidate_instance(buf_pool_from_array(i));
   }
 }
@@ -6425,8 +6413,9 @@ static void buf_stats_aggregate_pool_info(
   total_info->flush_list_len += pool_info->flush_list_len;
   total_info->n_pend_unzip += pool_info->n_pend_unzip;
   total_info->n_pend_reads += pool_info->n_pend_reads;
-  total_info->n_pending_flush_lru += pool_info->n_pending_flush_lru;
-  total_info->n_pending_flush_list += pool_info->n_pending_flush_list;
+  for (size_t i = 0; i < total_info->n_pending_flush.size(); ++i) {
+    total_info->n_pending_flush[i] += pool_info->n_pending_flush[i];
+  }
   total_info->n_pages_made_young += pool_info->n_pages_made_young;
   total_info->n_pages_not_made_young += pool_info->n_pages_not_made_young;
   total_info->n_pages_read += pool_info->n_pages_read;
@@ -6484,15 +6473,10 @@ void buf_stats_get_pool_info(
 
   pool_info->n_pend_reads = buf_pool->n_pend_reads;
 
-  pool_info->n_pending_flush_lru =
-      (buf_pool->n_flush[BUF_FLUSH_LRU] + buf_pool->init_flush[BUF_FLUSH_LRU]);
-
-  pool_info->n_pending_flush_list = (buf_pool->n_flush[BUF_FLUSH_LIST] +
-                                     buf_pool->init_flush[BUF_FLUSH_LIST]);
-
-  pool_info->n_pending_flush_single_page =
-      (buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] +
-       buf_pool->init_flush[BUF_FLUSH_SINGLE_PAGE]);
+  for (size_t i = 0; i < pool_info->n_pending_flush.size(); ++i) {
+    pool_info->n_pending_flush[i] =
+        buf_pool->n_flush[i] + buf_pool->init_flush[i];
+  }
 
   const auto time_elapsed_s =
       0.001 +
@@ -6599,13 +6583,12 @@ static void buf_print_io_instance(
           "\n"
           "Pending reads      " ULINTPF
           "\n"
-          "Pending writes: LRU " ULINTPF ", flush list " ULINTPF
-          ", single page " ULINTPF "\n",
+          "Pending writes: LRU %zu, flush list %zu, single page %zu\n",
           pool_info->pool_size, pool_info->free_list_len, pool_info->lru_len,
           pool_info->old_lru_len, pool_info->flush_list_len,
-          pool_info->n_pend_reads, pool_info->n_pending_flush_lru,
-          pool_info->n_pending_flush_list,
-          pool_info->n_pending_flush_single_page);
+          pool_info->n_pend_reads, pool_info->n_pending_flush[BUF_FLUSH_LRU],
+          pool_info->n_pending_flush[BUF_FLUSH_LIST],
+          pool_info->n_pending_flush[BUF_FLUSH_SINGLE_PAGE]);
 
   fprintf(file,
           "Pages made young " ULINTPF ", not young " ULINTPF
@@ -6752,9 +6735,9 @@ size_t buf_pool_pending_io_writes_count() {
   for (size_t i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
     mutex_enter(&buf_pool->flush_state_mutex);
-    pending_io_writes += buf_pool->n_flush[BUF_FLUSH_LRU] +
-                         buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE] +
-                         buf_pool->n_flush[BUF_FLUSH_LIST];
+    for (const auto n_flush : buf_pool->n_flush) {
+      pending_io_writes += n_flush;
+    }
     mutex_exit(&buf_pool->flush_state_mutex);
   }
   return pending_io_writes;
