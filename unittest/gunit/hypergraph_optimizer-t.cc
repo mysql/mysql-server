@@ -186,8 +186,9 @@ void SortNodes(JoinHypergraph *graph) {
 
   // Remap TES.
   for (Predicate &pred : graph->predicates) {
-    NodeMap new_tes = 0;
-    for (int node_idx : BitsSetIn(pred.total_eligibility_set)) {
+    NodeMap new_tes = pred.total_eligibility_set & PSEUDO_TABLE_BITS;
+    for (int node_idx :
+         BitsSetIn(pred.total_eligibility_set & ~PSEUDO_TABLE_BITS)) {
       new_tes |= NodeMap{1} << node_map[node_idx];
     }
     pred.total_eligibility_set = new_tes;
