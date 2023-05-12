@@ -847,3 +847,24 @@ GREATEST(F1, F4, F2)
 2060-12-31 00:00:00
 2060-12-31 00:00:00
 DROP TABLE T4;
+#
+# Bug#35380560 Item_typecast_signed::val_int():
+#              Assertion `is_nullable()' failed.
+#
+CREATE TABLE t1 (
+c1 datetime NOT NULL,
+c2 varchar(7) NOT NULL
+);
+INSERT INTO t1 VALUES
+('1900-01-01 10:10:10','zgkt'),
+('2000-08-19 10:10:10','yzgk'),
+('2005-10-18 17:41:54','tyz'),
+('2000-03-03 23:40:04','ityzg'),
+('1900-01-01 10:10:10','wityzg');
+SELECT
+CONVERT(LEAST(c1,
+CASE (COT(c2)) WHEN c1 THEN c2 ELSE 0 END ),
+SIGNED)
+FROM t1;
+ERROR 22003: DOUBLE value is out of range in 'cot(`test`.`t1`.`c2`)'
+DROP TABLE t1;

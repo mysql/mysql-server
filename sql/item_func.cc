@@ -3830,7 +3830,10 @@ bool Item_func_min_max::cmp_datetimes(longlong *value) {
         get_datetime_value(thd, &arg, nullptr, temporal_item, &is_null);
 
     // Check if we need to stop (because of error or KILL)  and stop the loop
-    if ((null_value = thd->is_error())) return true;
+    if (thd->is_error()) {
+      null_value = is_nullable();
+      return true;
+    }
     if ((null_value = args[i]->null_value)) return true;
     if (i == 0 || (tmp < res) == m_is_least_func) res = tmp;
   }
