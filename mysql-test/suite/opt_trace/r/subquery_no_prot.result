@@ -966,19 +966,19 @@ field4,field5,field6	{
               "steps": [
                 {
                   "expanded_query": "/* select#6 */ select `sq4_alias1`.`col_varchar_key` AS `sq4_field1` from (`t3` `sq4_alias1` join (`t3` `sq4_alias3` left join `t2` `sq4_alias2` on((`sq4_alias3`.`pk` = `sq4_alias2`.`col_int_key`))) on((`sq4_alias3`.`col_varchar_nokey` = `sq4_alias2`.`col_varchar_key`))) where ((`sq4_alias2`.`col_int_key` < `alias1`.`col_int_nokey`) and (`sq4_alias3`.`col_varchar_nokey` <> `alias1`.`col_varchar_key`))"
-                },
-                {
-                  "transformation": {
-                    "select#": 6,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 6,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "chosen": true,
+              "evaluating_constant_where_conditions": [
+              ] /* evaluating_constant_where_conditions */
+            } /* transformation */
           },
           {
             "expanded_query": "/* select#1 */ select `alias1`.`col_varchar_key` AS `field1`,`alias1`.`col_date_key` AS `field2`,(/* select#2 */ select min(`sq1_alias1`.`col_varchar_nokey`) AS `sq1_field1` from (`t1` `sq1_alias1` join (`t5` `sq1_alias2` left join `t5` `sq1_alias3` on((`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`))) on((`sq1_alias3`.`col_varchar_nokey` = `sq1_alias2`.`col_varchar_key`))) where exists(/* select#3 */ select `c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from (`t4` `c_sq1_alias2` left join `t3` `c_sq1_alias1` on((`c_sq1_alias2`.`col_int_nokey` = `c_sq1_alias1`.`pk`))) where (`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`))) AS `field3`,(/* select#4 */ select max(`sq2_alias1`.`pk`) AS `sq2_field1` from `t5` `sq2_alias1`) AS `field4`,`sq3_alias2`.`col_varchar_nokey` AS `field5`,`sq3_alias2`.`col_varchar_nokey` AS `field6` from ((`t4` `alias3` left join ((`t5` `sq3_alias1` join `t4` `sq3_alias2`)) on((`alias3`.`col_varchar_key` = `sq3_alias2`.`col_varchar_key`))) left join `t5` `alias1` on((`alias3`.`col_int_key` = `sq3_alias2`.`pk`))) where (<in_optimizer>(`alias1`.`col_varchar_nokey`,<exists>(/* select#6 */ select `sq4_alias1`.`col_varchar_key` AS `sq4_field1` from (`t3` `sq4_alias1` join (`t3` `sq4_alias3` left join `t2` `sq4_alias2` on((`sq4_alias3`.`pk` = `sq4_alias2`.`col_int_key`))) on((`sq4_alias3`.`col_varchar_nokey` = `sq4_alias2`.`col_varchar_key`))) where ((`sq4_alias2`.`col_int_key` < `alias1`.`col_int_nokey`) and (`sq4_alias3`.`col_varchar_nokey` <> `alias1`.`col_varchar_key`) and (<cache>(`alias1`.`col_varchar_nokey`) = `sq4_alias1`.`col_varchar_key`)))) and (`alias1`.`col_int_key` <> 214)) group by `field1`,`field2`,`field3`,`field4`,`field5`,`field6`"
@@ -1283,19 +1283,19 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
               "steps": [
                 {
                   "expanded_query": "/* select#3 */ select 5 from `t2`"
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 3,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "chosen": true,
+              "evaluating_constant_where_conditions": [
+              ] /* evaluating_constant_where_conditions */
+            } /* transformation */
           },
           {
             "IN_uses_bisection": true

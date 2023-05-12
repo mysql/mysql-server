@@ -1443,10 +1443,14 @@ class Query_block : public Query_term {
   void set_sj_candidates(Mem_root_array<Item_exists_subselect *> *sj_cand) {
     sj_candidates = sj_cand;
   }
-
+  void add_subquery_transform_candidate(Item_exists_subselect *predicate) {
+    sj_candidates->push_back(predicate);
+  }
   bool has_sj_candidates() const {
     return sj_candidates != nullptr && !sj_candidates->empty();
   }
+
+  bool has_subquery_transforms() const { return sj_candidates != nullptr; }
 
   /// Add full-text function elements from a list into this query block
   bool add_ftfunc_list(List<Item_func_match> *ftfuncs);
@@ -2176,6 +2180,8 @@ class Query_block : public Query_term {
   /// @note that using this means we modify resolved data during optimization
   uint hidden_items_from_optimization{0};
 
+  bool is_row_count_valid_for_semi_join();
+
  private:
   friend class Query_expression;
   friend class Condition_context;
@@ -2217,7 +2223,6 @@ class Query_block : public Query_term {
       bool added_card_check);
   void replace_referenced_item(Item *const old_item, Item *const new_item);
   void remap_tables(THD *thd);
-  bool resolve_subquery(THD *thd);
   void mark_item_as_maybe_null_if_rollup_item(Item *item);
   Item *resolve_rollup_item(THD *thd, Item *item);
   bool resolve_rollup(THD *thd);
@@ -2283,8 +2288,6 @@ class Query_block : public Query_term {
 
   bool prepare_values(THD *thd);
   bool check_only_full_group_by(THD *thd);
-  bool is_row_count_valid_for_semi_join();
-
   /**
     Copies all non-aggregated calls to the full-text search MATCH function from
     the HAVING clause to the SELECT list (as hidden items), so that we can
@@ -2340,9 +2343,10 @@ class Query_block : public Query_term {
   */
   ulonglong m_active_options{0};
 
+ public:
   Table_ref *resolve_nest{
       nullptr};  ///< Used when resolving outer join condition
-
+ private:
   /**
     Condition to be evaluated after all tables in a query block are joined.
     After all permanent transformations have been conducted by

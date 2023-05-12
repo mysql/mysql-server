@@ -1716,11 +1716,11 @@ bool Query_expression::ExecuteIteratorQuery(THD *thd) {
     return query_result->send_eof(thd);
   }
 
-  if (item) {
-    item->reset_value_registration();
+  if (item != nullptr) {
+    item->reset_has_values();
 
-    if (item->assigned()) {
-      item->assigned(false);  // Prepare for re-execution of this unit
+    if (item->is_value_assigned()) {
+      item->reset_value_assigned();  // Prepare for re-execution of this unit
       item->reset();
     }
   }

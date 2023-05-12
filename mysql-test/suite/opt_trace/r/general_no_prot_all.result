@@ -999,16 +999,6 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select 1 from `t6` where (`t6`.`d` = ifnull(`t5`.`c`,NULL))"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -1019,16 +1009,6 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
               "steps": [
                 {
                   "expanded_query": "/* select#3 */ select 2 from `t6` where (`t6`.`d` = ifnull(`t5`.`c`,NULL))"
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -1056,6 +1036,26 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "chosen": true,
+              "evaluating_constant_where_conditions": [
+              ] /* evaluating_constant_where_conditions */
+            } /* transformation */
+          },
+          {
+            "transformation": {
+              "select#": 3,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "chosen": true,
+              "evaluating_constant_where_conditions": [
+              ] /* evaluating_constant_where_conditions */
+            } /* transformation */
           },
           {
             "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` where <in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 2 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
@@ -1311,7 +1311,7 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-12964
+12844
 set @max_mem_size=13307;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
@@ -1331,7 +1331,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-12964	1	1
+12844	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -1719,19 +1719,19 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select (`t6`.`d` + 1) from `t6` where (`t6`.`d` is null)"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "chosen": true,
+              "evaluating_constant_where_conditions": [
+              ] /* evaluating_constant_where_conditions */
+            } /* transformation */
           },
           {
             "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` where <in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where ((`t6`.`d` is null) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
@@ -1849,17 +1849,17 @@ explain select * from t1 where s1 > any (select s2 from t1)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `t1`.`s2` from `t1`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "> ALL/ANY (SELECT)",
-                    "to": "SELECT(MIN)",
-                    "chosen": true
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "> ALL/ANY (SELECT)",
+              "to": "SELECT(MIN)",
+              "chosen": true
+            } /* transformation */
           },
           {
             "expanded_query": "/* select#1 */ select `t1`.`s1` AS `s1`,`t1`.`s2` AS `s2` from `t1` where <nop>((`t1`.`s1` > (/* select#2 */ select min(`t1`.`s2`) from `t1`)))"
@@ -2107,17 +2107,17 @@ explain select * from t1 where s1 > any (select max(s2) from t1)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select max(`t1`.`s2`) from `t1`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "> ALL/ANY (SELECT)",
-                    "to": "MIN (SELECT)",
-                    "chosen": true
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "> ALL/ANY (SELECT)",
+              "to": "MIN (SELECT)",
+              "chosen": true
+            } /* transformation */
           },
           {
             "expanded_query": "/* select#1 */ select `t1`.`s1` AS `s1`,`t1`.`s2` AS `s2` from `t1` where <nop>((`t1`.`s1` > <min>(/* select#2 */ select max(`t1`.`s2`) from `t1`)))"
@@ -2365,19 +2365,19 @@ explain select * from t1 where s1 in (select s2 from t1)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `t1`.`s2` from `t1`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "chosen": true,
+              "evaluating_constant_where_conditions": [
+              ] /* evaluating_constant_where_conditions */
+            } /* transformation */
           },
           {
             "expanded_query": "/* select#1 */ select `t1`.`s1` AS `s1`,`t1`.`s2` AS `s2` from `t1` where <in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select `t1`.`s2` from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))"
@@ -2653,19 +2653,19 @@ explain select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `t1`.`s2`,`t1`.`s1` from `t1`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "chosen": true,
+              "evaluating_constant_where_conditions": [
+              ] /* evaluating_constant_where_conditions */
+            } /* transformation */
           },
           {
             "expanded_query": "/* select#1 */ select `t1`.`s1` AS `s1`,`t1`.`s2` AS `s2` from `t1` where <in_optimizer>((`t1`.`s1`,`t1`.`s2`),<exists>(/* select#2 */ select `t1`.`s2`,`t1`.`s1` from `t1` where ((<cache>(`t1`.`s1`) = `t1`.`s2`) and (<cache>(`t1`.`s2`) = `t1`.`s1`))))"
@@ -3286,19 +3286,19 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `t2_16`.`b1` from `t2_16` where (`t2_16`.`b1` > '0')"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "chosen": true,
+              "evaluating_constant_where_conditions": [
+              ] /* evaluating_constant_where_conditions */
+            } /* transformation */
           },
           {
             "expanded_query": "/* select#1 */ select left(`t1_16`.`a1`,7) AS `left(a1,7)`,left(`t1_16`.`a2`,7) AS `left(a2,7)` from `t1_16` where <in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select `t2_16`.`b1` from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))"
@@ -4464,19 +4464,19 @@ concat(c1,'y') IN
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select left(`t2`.`c2`,8) from `t2`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "chosen": true,
+              "evaluating_constant_where_conditions": [
+              ] /* evaluating_constant_where_conditions */
+            } /* transformation */
           },
           {
             "join_preparation": {
@@ -4484,19 +4484,19 @@ concat(c1,'y') IN
               "steps": [
                 {
                   "expanded_query": "/* select#3 */ select left(`t2`.`c2`,9) from `t2`"
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 3,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "chosen": true,
+              "evaluating_constant_where_conditions": [
+              ] /* evaluating_constant_where_conditions */
+            } /* transformation */
           },
           {
             "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1` from `t1` where (<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select left(`t2`.`c2`,8) from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select left(`t2`.`c2`,9) from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))"
@@ -6481,21 +6481,21 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `t2`.`c`,`t2`.`d` from `t2` where (`t2`.`c` > 0)"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "EXISTS (CORRELATED SELECT)",
-                    "chosen": true,
-                    "evaluating_constant_where_conditions": [
-                    ] /* evaluating_constant_where_conditions */,
-                    "evaluating_constant_having_conditions": [
-                    ] /* evaluating_constant_having_conditions */
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "IN (SELECT)",
+              "to": "EXISTS (CORRELATED SELECT)",
+              "chosen": true,
+              "evaluating_constant_where_conditions": [
+              ] /* evaluating_constant_where_conditions */,
+              "evaluating_constant_having_conditions": [
+              ] /* evaluating_constant_having_conditions */
+            } /* transformation */
           },
           {
             "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where <in_optimizer>((`t1`.`a`,`t1`.`b`),<exists>(/* select#2 */ select `t2`.`c`,`t2`.`d` from `t2` where ((`t2`.`c` > 0) and <if>(outer_field_is_not_null, ((<cache>(`t1`.`a`) = `t2`.`c`) or (`t2`.`c` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`t1`.`b`) = `t2`.`d`) or (`t2`.`d` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`t2`.`c`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`t2`.`d`), true))) is false)"

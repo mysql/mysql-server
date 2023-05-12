@@ -2087,13 +2087,13 @@ a
 1
 3
 SELECT a FROM t1 WHERE (1,2) > ANY (SELECT a FROM t1 WHERE b = 2);
-ERROR 21000: Operand should contain 1 column(s)
+ERROR 21000: Operand should contain 2 column(s)
 SELECT a FROM t1 WHERE a > ANY (SELECT a,2 FROM t1 WHERE b = 2);
 ERROR 21000: Operand should contain 1 column(s)
 SELECT a FROM t1 WHERE (1,2) > ANY (SELECT a,2 FROM t1 WHERE b = 2);
 ERROR 21000: Operand should contain 1 column(s)
 SELECT a FROM t1 WHERE (1,2) > ALL (SELECT a FROM t1 WHERE b = 2);
-ERROR 21000: Operand should contain 1 column(s)
+ERROR 21000: Operand should contain 2 column(s)
 SELECT a FROM t1 WHERE a > ALL (SELECT a,2 FROM t1 WHERE b = 2);
 ERROR 21000: Operand should contain 1 column(s)
 SELECT a FROM t1 WHERE (1,2) > ALL (SELECT a,2 FROM t1 WHERE b = 2);
@@ -4126,10 +4126,10 @@ SELECT
 SUM( (SELECT AVG( (SELECT COUNT(*) FROM t1 t HAVING t1.a < 12) ) FROM t2) )
 FROM t1;
 ERROR HY000: Invalid use of group function
-SELECT t1.a as XXA,
-SUM( (SELECT AVG( (SELECT COUNT(*) FROM t1 t HAVING XXA < 12) ) FROM t2) )
+SELECT t1.a as xxa,
+SUM( (SELECT AVG( (SELECT COUNT(*) FROM t1 t HAVING xxa < 12) ) FROM t2) )
 FROM t1;
-ERROR 42S22: Unknown column 'XXA' in 'having clause'
+ERROR HY000: Invalid use of group function
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a int, b int, KEY (a));
 INSERT INTO t1 VALUES (1,1),(2,1);
@@ -4445,7 +4445,9 @@ t3.f5
 FROM
 t2, t3, t1 JOIN t2 a1 ON t1.f9 = a1.f4
 GROUP BY a4;
-ERROR 42S22: Unknown column 'a4' in 'where clause'
+a4	f3	a6
+1	NULL	NULL
+2	NULL	NULL
 DROP TABLE t1, t2, t3, t4;
 create table t1 (a float(5,4) zerofill);
 Warnings:

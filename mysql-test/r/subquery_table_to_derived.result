@@ -286,13 +286,13 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 DROP TABLE t1,t2;
 DROP view v2;
 # Bug#30697743 WL#13425: ASSERT: !THD->IS_ERROR()' IN SELECT_LEX::PREPARE() AT SQL/SQL_RESOLVE
-CREATE TABLE C (col_varchar_key VARCHAR(1));
-CREATE TABLE insert_select_140
-SELECT 1 FROM C WHERE
-col_varchar_key IN ( SELECT  1 FROM C
-WHERE ( 'f' , 'f' ) IN ( SELECT 1 , COUNT(  1 ) FROM C ));
+CREATE TABLE t1 (col_varchar_key VARCHAR(1));
+CREATE TABLE t2
+SELECT 1 FROM t1 WHERE
+col_varchar_key IN (SELECT  1 FROM t1
+WHERE ('f', 'f') IN (SELECT 1, COUNT(1) FROM t1));
 ERROR 22007: Truncated incorrect DOUBLE value: 'f'
-DROP TABLE C;
+DROP TABLE t1;
 # Bug#30709889 ASSERT: &SUBS_SELECT->FIELDS_LIST == &SUBS_SELECT->ITEM_LIST && SUBS_SELECT->IT
 CREATE TABLE t1 (
 field2 VARCHAR(2),

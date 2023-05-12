@@ -503,7 +503,7 @@ class Item_in_optimizer final : public Item_bool_func {
     set_subquery();
   }
   bool fix_fields(THD *, Item **) override;
-  bool fix_left(THD *thd, Item **ref);
+  bool fix_left(THD *thd);
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,

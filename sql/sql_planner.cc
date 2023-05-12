@@ -2120,7 +2120,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables) {
   double cost = 0.0;
   const Cost_model_server *const cost_model = join->cost_model();
 
-  // resolve_subquery() disables semijoin if STRAIGHT_JOIN
+  // semijoin is disabled with STRAIGHT_JOIN
   assert(join->query_block->sj_nests.empty());
 
   const Table_map_restorer deps_lateral(
@@ -4049,7 +4049,7 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(uint first_tab,
   (c) a SJ nest is not nested in another SJ or anti SJ nest (it would have been
   dissolved into the outer nest by simplify_joins()).
   (d) an anti SJ nest is not nested inside another SJ or anti SJ nest (this case
-  is blocked by resolve_subquery()).
+  is blocked during resolving.
 
   @param remaining_tables Tables not in the join prefix
   @param new_join_tab     Join tab that we are adding to the join prefix

@@ -1008,6 +1008,7 @@ class Item : public Parse_tree_node {
       case MYSQL_TYPE_INVALID:
         return INVALID_RESULT;
       case MYSQL_TYPE_NULL:
+        return STRING_RESULT;
       case MYSQL_TYPE_TYPED_ARRAY:
         break;
     }

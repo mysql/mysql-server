@@ -220,8 +220,9 @@ static bool GetAccessPathsFromItem(Item *item_arg, const char *source_text,
           return false;
         }
 
-        Item_subselect *subselect = down_cast<Item_subselect *>(item);
-        Query_block *query_block = subselect->unit->first_query_block();
+        Item_subselect *subquery = down_cast<Item_subselect *>(item);
+        Query_expression *qe = subquery->query_expr();
+        Query_block *query_block = qe->first_query_block();
         char description[256];
         if (query_block->is_dependent()) {
           snprintf(description, sizeof(description),
@@ -237,13 +238,13 @@ static bool GetAccessPathsFromItem(Item *item_arg, const char *source_text,
                    query_block->select_number, source_text);
         }
         if (query_block->join->needs_finalize) {
-          subselect->unit->finalize(current_thd);
+          qe->finalize(current_thd);
         }
         AccessPath *path;
-        if (subselect->unit->root_access_path() != nullptr) {
-          path = subselect->unit->root_access_path();
+        if (qe->root_access_path() != nullptr) {
+          path = qe->root_access_path();
         } else {
-          path = subselect->unit->item->root_access_path();
+          path = qe->item->root_access_path();
         }
         Json_object *child_obj = new (std::nothrow) Json_object();
         if (child_obj == nullptr) return true;

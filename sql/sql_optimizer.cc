@@ -1388,18 +1388,17 @@ int JOIN::replace_index_subquery() {
   DBUG_TRACE;
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
+  Query_expression *qe = query_expression();
   if (!group_list.empty() ||
-      !(query_expression()->item &&
-        query_expression()->item->substype() == Item_subselect::IN_SUBS) ||
-      primary_tables != 1 || !where_cond ||
-      query_expression()->is_set_operation())
+      !(qe->item != nullptr &&
+        qe->item->subquery_type() == Item_subselect::IN_SUBQUERY) ||
+      primary_tables != 1 || where_cond == nullptr || qe->is_set_operation())
     return 0;
 
   // Guaranteed by remove_redundant_subquery_clauses():
   assert(order.empty() && !select_distinct);
 
-  Item_in_subselect *const in_subs =
-      static_cast<Item_in_subselect *>(query_expression()->item);
+  Item_in_subselect *const in_subs = down_cast<Item_in_subselect *>(qe->item);
   bool found_engine = false;
 
   JOIN_TAB *const first_join_tab = best_ref[0];
@@ -7407,10 +7406,11 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
   if (cond->type() == Item::FUNC_ITEM &&
       down_cast<Item_func *>(cond)->functype() == Item_func::TRIG_COND_FUNC) {
     Item *const cond_arg = down_cast<Item_func *>(cond)->arguments()[0];
+    Query_expression *qe = join->query_expression();
     if (join->group_list.empty() && join->order.empty() &&
-        join->query_expression()->item &&
-        join->query_expression()->item->substype() == Item_subselect::IN_SUBS &&
-        !join->query_expression()->is_set_operation()) {
+        qe->item != nullptr &&
+        qe->item->subquery_type() == Item_subselect::IN_SUBQUERY &&
+        !qe->is_set_operation()) {
       Key_field *save = *key_fields;
       if (add_key_fields(thd, join, key_fields, and_level, cond_arg,
                          usable_tables, sargables))
@@ -10998,10 +10998,10 @@ static void calculate_materialization_costs(JOIN *join, Table_ref *sj_nest,
 bool JOIN::decide_subquery_strategy() {
   assert(query_expression()->item);
 
-  switch (query_expression()->item->substype()) {
-    case Item_subselect::IN_SUBS:
-    case Item_subselect::ALL_SUBS:
-    case Item_subselect::ANY_SUBS:
+  switch (query_expression()->item->subquery_type()) {
+    case Item_subselect::IN_SUBQUERY:
+    case Item_subselect::ALL_SUBQUERY:
+    case Item_subselect::ANY_SUBQUERY:
       // All of those are children of Item_in_subselect and may use EXISTS
       break;
     default:
@@ -11172,7 +11172,7 @@ double calculate_subquery_executions(const Item_subselect *subquery,
   double subquery_executions = 1.0;
   for (;;) {
     const Query_block *const parent_query_block =
-        subquery->unit->outer_query_block();
+        subquery->query_expr()->outer_query_block();
     const JOIN *const parent_join = parent_query_block->join;
     if (parent_join == nullptr) {
       /*
@@ -11490,12 +11490,13 @@ static double EstimateRowAccessesInItem(Item *item, double num_evaluations) {
   WalkItem(item, enum_walk::PREFIX, [num_evaluations, &rows](Item *subitem) {
     if (subitem->type() == Item::SUBSELECT_ITEM) {
       Item_subselect *subselect = down_cast<Item_subselect *>(subitem);
-      Query_block *query_block = subselect->unit->first_query_block();
+      Query_expression *qe = subselect->query_expr();
+      Query_block *query_block = qe->first_query_block();
       AccessPath *path;
-      if (subselect->unit->root_access_path() != nullptr) {
-        path = subselect->unit->root_access_path();
+      if (qe->root_access_path() != nullptr) {
+        path = qe->root_access_path();
       } else {
-        path = subselect->unit->item->root_access_path();
+        path = qe->item->root_access_path();
       }
       rows += EstimateRowAccesses(
           path, query_block->is_cacheable() ? 1.0 : num_evaluations, kNoLimit);

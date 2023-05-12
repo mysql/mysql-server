@@ -311,17 +311,16 @@ bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
   }
   return WalkItem(
       path->filter().condition, enum_walk::POSTFIX, [thd, join](Item *item) {
-        if (!IsItemInSubSelect(item)) {
+        if (!is_quantified_comp_predicate(item)) {
           return false;
         }
         Item_in_subselect *item_subs = down_cast<Item_in_subselect *>(item);
-        Query_block *subquery_block = item_subs->unit->first_query_block();
-        if (!item_subs->subquery_allows_materialization(thd, subquery_block,
+        Query_block *qb = item_subs->query_expr()->first_query_block();
+        if (!item_subs->subquery_allows_materialization(thd, qb,
                                                         join->query_block)) {
           return false;
         }
-        if (item_subs->finalize_materialization_transform(
-                thd, subquery_block->join)) {
+        if (item_subs->finalize_materialization_transform(thd, qb->join)) {
           return true;
         }
         item_subs->create_iterators(thd);

@@ -395,7 +395,8 @@ longlong Item_func_not_all::val_int() {
 }
 
 bool Item_func_not_all::empty_underlying_subquery() {
-  assert(subselect || !(test_sum_item || test_sub_item));
+  assert(subselect != nullptr ||
+         !(test_sum_item != nullptr || test_sub_item != nullptr));
   /*
    When outer argument is NULL the subquery has not yet been evaluated, we
    need to evaluate it to get to know whether it returns any rows to return
@@ -405,12 +406,13 @@ bool Item_func_not_all::empty_underlying_subquery() {
    subselect->... to workaround subquery transformation which could make
    subselect->engine unusable.
   */
-  if (subselect && subselect->substype() != Item_subselect::ANY_SUBS &&
-      subselect->unit->item != nullptr &&
-      !subselect->unit->item->is_evaluated())
-    subselect->unit->item->exec(current_thd);
-  return ((test_sum_item && !test_sum_item->any_value()) ||
-          (test_sub_item && !test_sub_item->any_value()));
+  if (subselect != nullptr &&
+      subselect->subquery_type() != Item_subselect::ANY_SUBQUERY &&
+      subselect->query_expr()->item != nullptr &&
+      !subselect->query_expr()->item->is_evaluated())
+    subselect->query_expr()->item->exec(current_thd);
+  return (test_sum_item != nullptr && !test_sum_item->has_values()) ||
+         (test_sub_item != nullptr && !test_sub_item->has_values());
 }
 
 void Item_func_not_all::print(const THD *thd, String *str,
@@ -2136,7 +2138,7 @@ longlong Item_func_truth::val_int() {
   }
 }
 
-bool Item_in_optimizer::fix_left(THD *thd, Item **) {
+bool Item_in_optimizer::fix_left(THD *thd) {
   Item *left = down_cast<Item_in_subselect *>(args[0])->left_expr;
   /*
     Because get_cache() depends on type of left arg, if this arg is a PS param
@@ -2178,16 +2180,11 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **) {
   return false;
 }
 
-bool Item_in_optimizer::fix_fields(THD *thd, Item **) {
+bool Item_in_optimizer::fix_fields(THD *, Item **) {
   assert(!fixed);
   Item_in_subselect *subqpred = down_cast<Item_in_subselect *>(args[0]);
 
-  if (!subqpred->fixed && subqpred->fix_fields(thd, nullptr)) return true;
-  if (subqpred->left_expr->cols() != subqpred->unit_cols()) {
-    assert(false);
-    my_error(ER_OPERAND_COLUMNS, MYF(0), subqpred->left_expr->cols());
-    return true;
-  }
+  assert(subqpred->fixed);
   if (subqpred->is_nullable()) set_nullable(true);
   add_accum_properties(subqpred);
   used_tables_cache |= subqpred->used_tables();
@@ -2379,7 +2376,7 @@ longlong Item_in_optimizer::val_int() {
       } else {
         /* The subquery has to be evaluated */
         (void)subqpred->val_bool_naked();
-        if (!subqpred->value)
+        if (!subqpred->m_value)
           null_value = subqpred->null_value;
         else
           null_value = true;
@@ -6140,7 +6137,7 @@ longlong Item_is_not_null_test::val_int() {
   DBUG_TRACE;
   if (args[0]->is_null()) {
     DBUG_PRINT("info", ("null"));
-    owner->was_null |= 1;
+    owner->m_was_null |= 1;
     return 0;
   } else
     return 1;
@@ -6591,9 +6588,9 @@ Item *Item_func_nop_all::truth_transformer(THD *, Bool_test test) {
   // "NOT (e $cmp$ ANY (SELECT ...)) -> e $rev_cmp$" ALL (SELECT ...)
   Item_func_not_all *new_item = new Item_func_not_all(args[0]);
   Item_allany_subselect *allany = down_cast<Item_allany_subselect *>(args[0]);
-  allany->func = allany->func_creator(false);
-  allany->all = !allany->all;
-  allany->upper_item = new_item;
+  allany->m_func = allany->m_func_creator(false);
+  allany->m_all = !allany->m_all;
+  allany->m_upper_item = new_item;
   return new_item;
 }
 
@@ -6602,9 +6599,9 @@ Item *Item_func_not_all::truth_transformer(THD *, Bool_test test) {
   // "NOT (e $cmp$ ALL (SELECT ...)) -> e $rev_cmp$" ANY (SELECT ...)
   Item_func_nop_all *new_item = new Item_func_nop_all(args[0]);
   Item_allany_subselect *allany = down_cast<Item_allany_subselect *>(args[0]);
-  allany->all = !allany->all;
-  allany->func = allany->func_creator(true);
-  allany->upper_item = new_item;
+  allany->m_all = !allany->m_all;
+  allany->m_func = allany->m_func_creator(true);
+  allany->m_upper_item = new_item;
   return new_item;
 }
 

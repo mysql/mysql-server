@@ -1545,7 +1545,7 @@ class Item_sum_hybrid : public Item_sum {
   Item_cache *value, *arg_cache;
   Arg_comparator *cmp;
   Item_result hybrid_type;
-  bool was_values;  // Set if we have found at least one row (for max/min only)
+  bool m_has_values;  // Set if at least one row is found (for max/min only)
   /**
     Set to true if the window is ordered ascending.
   */
@@ -1612,7 +1612,7 @@ class Item_sum_hybrid : public Item_sum {
         arg_cache(nullptr),
         cmp(nullptr),
         hybrid_type(INT_RESULT),
-        was_values(true),
+        m_has_values(true),
         m_nulls_first(false),
         m_optimize(false),
         m_want_first(false),
@@ -1628,7 +1628,7 @@ class Item_sum_hybrid : public Item_sum {
         arg_cache(nullptr),
         cmp(nullptr),
         hybrid_type(INT_RESULT),
-        was_values(true),
+        m_has_values(true),
         m_nulls_first(false),
         m_optimize(false),
         m_want_first(false),
@@ -1643,7 +1643,7 @@ class Item_sum_hybrid : public Item_sum {
         value(item->value),
         arg_cache(nullptr),
         hybrid_type(item->hybrid_type),
-        was_values(item->was_values),
+        m_has_values(item->m_has_values),
         m_nulls_first(item->m_nulls_first),
         m_optimize(item->m_optimize),
         m_want_first(item->m_want_first),
@@ -1674,7 +1674,7 @@ class Item_sum_hybrid : public Item_sum {
   }
   void update_field() override;
   void cleanup() override;
-  bool any_value() { return was_values; }
+  bool has_values() { return m_has_values; }
   void no_rows_in_result() override;
   Field *create_tmp_field(bool group, TABLE *table) override;
   bool uses_only_one_row() const override { return m_optimize; }

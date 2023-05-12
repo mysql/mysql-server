@@ -3079,11 +3079,11 @@ void Item_sum_hybrid::cleanup() {
     no_rows_in_result() set it to false if was not results found.
     If some results found it will be left unchanged.
   */
-  was_values = true;
+  m_has_values = true;
 }
 
 void Item_sum_hybrid::no_rows_in_result() {
-  was_values = false;
+  m_has_values = false;
   clear();
 }
 

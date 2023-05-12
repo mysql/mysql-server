@@ -133,7 +133,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
   if (expr->type() == Item::SUBSELECT_ITEM) {
     Item_subselect *expr2 = (Item_subselect *)expr;
 
-    if (expr2->substype() == Item_subselect::SINGLEROW_SUBS) {
+    if (expr2->subquery_type() == Item_subselect::SCALAR_SUBQUERY) {
       Item_singlerow_subselect *expr3 = (Item_singlerow_subselect *)expr2;
       Query_block *subselect;
 

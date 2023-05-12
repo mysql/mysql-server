@@ -1427,12 +1427,12 @@ static bool prepare_partial_update(Opt_trace_context *trace,
   single-table path are used.
 
   @param thd         Thread handler
-  @param select      Query block
+  @param qb          Query block
   @param table_list  Table to modify
   @returns true if we should switch
  */
 bool should_switch_to_multi_table_if_subqueries(const THD *thd,
-                                                const Query_block *select,
+                                                const Query_block *qb,
                                                 const Table_ref *table_list) {
   TABLE *t = table_list->updatable_base_table()->table;
   handler *h = t->file;
@@ -1441,7 +1441,7 @@ bool should_switch_to_multi_table_if_subqueries(const THD *thd,
   assert((h->ht->flags & HTON_IS_SECONDARY_ENGINE) == 0);
   // LIMIT, ORDER BY and read-before-write removal are not supported in
   // multi-table UPDATE/DELETE.
-  if (select->is_ordered() || select->has_limit() ||
+  if (qb->is_ordered() || qb->has_limit() ||
       (h->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL))
     return false;
   /*
@@ -1449,11 +1449,12 @@ bool should_switch_to_multi_table_if_subqueries(const THD *thd,
     account. They can serve as a solution is a user really wants to use the
     single-table path, e.g. in case of regression.
   */
-  for (Query_expression *unit = select->first_inner_query_expression(); unit;
-       unit = unit->next_query_expression()) {
-    if (unit->item && (unit->item->substype() == Item_subselect::IN_SUBS ||
-                       unit->item->substype() == Item_subselect::EXISTS_SUBS)) {
-      auto sub_query_block = unit->first_query_block();
+  for (Query_expression *qe = qb->first_inner_query_expression(); qe != nullptr;
+       qe = qe->next_query_expression()) {
+    if (qe->item != nullptr &&
+        (qe->item->subquery_type() == Item_subselect::IN_SUBQUERY ||
+         qe->item->subquery_type() == Item_subselect::EXISTS_SUBQUERY)) {
+      Query_block *sub_query_block = qe->first_query_block();
       Subquery_strategy subq_mat = sub_query_block->subquery_strategy(thd);
       if (subq_mat == Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT ||
           subq_mat == Subquery_strategy::SUBQ_MATERIALIZATION)

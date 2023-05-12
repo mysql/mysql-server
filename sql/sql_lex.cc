@@ -2610,8 +2610,8 @@ bool Query_block::setup_base_ref_items(THD *thd) {
         thd->secondary_engine_optimization() ==
             Secondary_engine_optimization::SECONDARY))) {
     Item_subselect *subq_predicate = master_query_expression()->item;
-    if (subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
-        subq_predicate->substype() == Item_subselect::IN_SUBS) {
+    if (subq_predicate->subquery_type() == Item_subselect::EXISTS_SUBQUERY ||
+        subq_predicate->subquery_type() == Item_subselect::IN_SUBQUERY) {
       // might be transformed to derived table, so:
       n_elems +=
           // possible additions to SELECT list from decorrelation of WHERE
@@ -2706,11 +2706,11 @@ void Query_block::print_limit(const THD *thd, String *str,
   Query_expression *unit = master_query_expression();
   Item_subselect *item = unit->item;
 
-  if (item && unit->global_parameters() == this) {
-    const Item_subselect::subs_type subs_type = item->substype();
-    if (subs_type == Item_subselect::EXISTS_SUBS ||
-        subs_type == Item_subselect::IN_SUBS ||
-        subs_type == Item_subselect::ALL_SUBS)
+  if (item != nullptr && unit->global_parameters() == this) {
+    Item_subselect::Subquery_type type = item->subquery_type();
+    if (type == Item_subselect::EXISTS_SUBQUERY ||
+        type == Item_subselect::IN_SUBQUERY ||
+        type == Item_subselect::ALL_SUBQUERY)
       return;
   }
   if (has_limit() && !m_internal_limit) {

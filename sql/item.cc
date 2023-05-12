@@ -2344,10 +2344,11 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     split_sum_func(thd, ref_item_array, fields);
   } else if ((type() == SUM_FUNC_ITEM || !const_for_execution()) &&  // (1)
              (type() != SUBSELECT_ITEM ||                            // (2)
-              (down_cast<Item_subselect *>(this)->substype() ==
-                   Item_subselect::SINGLEROW_SUBS &&
+              (down_cast<Item_subselect *>(this)->subquery_type() ==
+                   Item_subselect::SCALAR_SUBQUERY &&
                down_cast<Item_subselect *>(this)
-                       ->unit->first_query_block()
+                       ->query_expr()
+                       ->first_query_block()
                        ->single_visible_field() != nullptr)) &&
              (type() != REF_ITEM ||  // (3)
               (down_cast<Item_ref *>(this))->ref_type() ==
@@ -5018,50 +5019,50 @@ bool Item::fix_fields(THD *, Item **) {
 
 double Item_ref_null_helper::val_real() {
   auto tmp = super::val_real();
-  owner->was_null |= null_value;
+  owner->m_was_null |= null_value;
   return tmp;
 }
 
 longlong Item_ref_null_helper::val_int() {
   auto tmp = super::val_int();
-  owner->was_null |= null_value;
+  owner->m_was_null |= null_value;
   return tmp;
 }
 
 longlong Item_ref_null_helper::val_time_temporal() {
   auto tmp = super::val_time_temporal();
-  owner->was_null |= null_value;
+  owner->m_was_null |= null_value;
   return tmp;
 }
 
 longlong Item_ref_null_helper::val_date_temporal() {
   auto tmp = super::val_date_temporal();
-  owner->was_null |= null_value;
+  owner->m_was_null |= null_value;
   return tmp;
 }
 
 my_decimal *Item_ref_null_helper::val_decimal(my_decimal *decimal_value) {
   auto tmp = super::val_decimal(decimal_value);
-  owner->was_null |= null_value;
+  owner->m_was_null |= null_value;
   return tmp;
 }
 
 bool Item_ref_null_helper::val_bool() {
   auto tmp = super::val_bool();
-  owner->was_null |= null_value;
+  owner->m_was_null |= null_value;
   return tmp;
 }
 
 String *Item_ref_null_helper::val_str(String *s) {
   auto tmp = super::val_str(s);
-  owner->was_null |= null_value;
+  owner->m_was_null |= null_value;
   return tmp;
 }
 
 bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime,
                                     my_time_flags_t fuzzydate) {
   auto tmp = super::get_date(ltime, fuzzydate);
-  owner->was_null |= null_value;
+  owner->m_was_null |= null_value;
   return tmp;
 }
 
@@ -10274,7 +10275,7 @@ bool Item_cache_row::cache_value() {
 
   const bool cached_item_is_assigned =
       example->type() != SUBSELECT_ITEM ||
-      down_cast<Item_subselect *>(example)->assigned();
+      down_cast<Item_subselect *>(example)->is_value_assigned();
 
   for (uint i = 0; i < item_count; i++) {
     if (!cached_item_is_assigned) {

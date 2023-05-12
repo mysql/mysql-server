@@ -6746,9 +6746,9 @@ Item *all_any_subquery_creator(Item *left_expr,
   }
   Item_allany_subselect *it =
       new Item_allany_subselect(left_expr, cmp, query_block, all);
-  if (all) return it->upper_item = new Item_func_not_all(it); /* ALL */
+  if (all) return it->m_upper_item = new Item_func_not_all(it); /* ALL */
 
-  return it->upper_item = new Item_func_nop_all(it); /* ANY/SOME */
+  return it->m_upper_item = new Item_func_nop_all(it); /* ANY/SOME */
 }
 
 /**
