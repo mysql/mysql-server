@@ -104,6 +104,12 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
     ${ARGN}
     )
 
+  IF(ARG_EXCLUDE_FROM_PGO)
+    IF(FPROFILE_GENERATE OR FPROFILE_USE)
+      RETURN()
+    ENDIF()
+  ENDIF()
+
   SET(target ${target_arg})
   SET(sources ${ARG_UNPARSED_ARGUMENTS})
 
