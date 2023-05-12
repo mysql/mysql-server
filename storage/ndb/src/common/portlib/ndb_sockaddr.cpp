@@ -1,6 +1,4 @@
-/*
-   Copyright (c) 2004, 2023, Oracle and/or its affiliates.
-
+/* Copyright (c) 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -19,35 +17,26 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-*/
-
-#ifndef SOCKET_CLIENT_HPP
-#define SOCKET_CLIENT_HPP
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "portlib/ndb_sockaddr.h"
 #include "portlib/ndb_socket.h"
-#include "util/NdbSocket.h"
+#include "portlib/NdbTCP.h"
 
-class SocketAuthenticator;
-
-class SocketClient
+int ndb_sockaddr::probe_address_family()
 {
-  unsigned int m_connect_timeout_millisec;
-  unsigned short m_last_used_port;
-  SocketAuthenticator *m_auth;
-public:
-  SocketClient(SocketAuthenticator *sa = nullptr);
-  ~SocketClient();
-  bool init(int af);
-  void set_connect_timeout(unsigned int timeout_millisec) {
-    m_connect_timeout_millisec = timeout_millisec;
-  }
-  int bind(ndb_sockaddr local);
-  ndb_socket_t connect(ndb_sockaddr server_addr);
-  void connect(NdbSocket &, ndb_sockaddr server_addr);
+  /*
+   * If one can not resolve IPv6 any (::) address assume IPv4 only.
+   *
+   * Must initialize dummy with something else than implicit any since we have
+   * not yet probed what address family to use for implicit any address.
+   */
+  [[maybe_unused]] ndb_sockaddr dummy(&in6addr_any, 0);
+  if (Ndb_getAddr(&dummy, "::") != 0) return AF_INET;
 
-  ndb_socket_t m_sockfd;
-};
-
-#endif // SOCKET_ClIENT_HPP
+  ndb_socket_t sock = ndb_socket_create(AF_INET6);
+  // Assume failure creating socket is due to AF_INET6 not supported.
+  if (!ndb_socket_valid(sock)) return AF_INET;
+  ndb_socket_close(sock);
+  return AF_INET6;
+}

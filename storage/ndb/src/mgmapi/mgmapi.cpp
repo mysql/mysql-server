@@ -46,6 +46,7 @@
 #include <ndb_limits.h>
 #include <EventLogger.hpp>
 #include <memory>
+#include "portlib/ndb_sockaddr.h"
 
 //#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \
@@ -815,7 +816,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
    * Do connect
    */
   LocalConfig &cfg= handle->cfg;
-  ndb_socket_t sockfd = ndb_socket_create();
+  ndb_socket_t sockfd;
   Uint32 i = Uint32(~0);
   while (!ndb_socket_valid(sockfd))
   {
@@ -826,11 +827,62 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       if (cfg.ids[i].type != MgmId_TCP)
 	continue;
 
-      SocketClient s;
       const char *bind_address= nullptr;
       unsigned short bind_address_port= 0;
+      if (handle->m_bindaddress)
+      {
+        bind_address= handle->m_bindaddress;
+        bind_address_port= handle->m_bindaddress_port;
+      }
+      else if (cfg.ids[i].bind_address.length())
+      {
+        bind_address= cfg.ids[i].bind_address.c_str();
+        bind_address_port= cfg.ids[i].bind_address_port;
+      }
+      ndb_sockaddr bind_addr;
+      if (bind_address)
+      {
+        if (Ndb_getAddr(&bind_addr, bind_address) != 0) {
+          if (!handle->m_bindaddress)
+          {
+            // retry with next mgmt server
+            continue;
+          }
+          fprintf(handle->errstream,
+                  "Unable to resolve local bind address: %s\n",
+                  bind_address);
+
+          setError(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, __LINE__,
+                   "Unable to resolve local bind address: %s\n",
+                   bind_address);
+          DBUG_RETURN(-1);
+        }
+        bind_addr.set_port(bind_address_port);
+      }
+
+      // return immediately when all the hostnames are invalid.
+      ndb_sockaddr addr;
+      if (Ndb_getAddr(&addr, cfg.ids[i].name.c_str()) != 0) {
+        invalid_Address++;
+        if (cfg.ids.size() - invalid_Address == 0) {
+          fprintf(handle->errstream,
+                  "Unable to resolve any of the address"
+                  " in connect string: %s\n",
+                  cfg.makeConnectString(buf, sizeof(buf)));
+
+          setError(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, __LINE__,
+                   "Unable to resolve any of the address"
+                   " in connect string: %s\n",
+                   cfg.makeConnectString(buf, sizeof(buf)));
+          DBUG_RETURN(-1);
+        } else {
+          continue;
+        }
+      }
+      addr.set_port(cfg.ids[i].port);
+      SocketClient s;
       s.set_connect_timeout(handle->timeout);
-      if (!s.init())
+      if (!s.init(addr.get_address_family()))
       {
         fprintf(handle->errstream, 
                 "Unable to create socket, "
@@ -843,20 +895,10 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
                  cfg.makeConnectString(buf,sizeof(buf)));
         DBUG_RETURN(-1);
       }
-      if (handle->m_bindaddress)
-      {
-        bind_address= handle->m_bindaddress;
-        bind_address_port= handle->m_bindaddress_port;
-      }
-      else if (cfg.ids[i].bind_address.length())
-      {
-        bind_address= cfg.ids[i].bind_address.c_str();
-        bind_address_port= cfg.ids[i].bind_address_port;
-      }
       if (bind_address)
       {
         int err;
-        if ((err = s.bind(bind_address, bind_address_port)) != 0)
+        if ((err = s.bind(bind_addr)) != 0)
         {
           if (!handle->m_bindaddress)
           {
@@ -884,28 +926,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
           DBUG_RETURN(-1);
         }
       }
-
-      // return immediately when all the hostnames are invalid.
-      struct in6_addr addr;
-      if (Ndb_getInAddr6(&addr, cfg.ids[i].name.c_str()) != 0) {
-        invalid_Address++;
-        if (cfg.ids.size() - invalid_Address == 0) {
-          fprintf(handle->errstream,
-                  "Unable to resolve any of the address"
-                  " in connect string: %s\n",
-                  cfg.makeConnectString(buf, sizeof(buf)));
-
-          setError(handle, NDB_MGM_ILLEGAL_CONNECT_STRING, __LINE__,
-                   "Unable to resolve any of the address"
-                   " in connect string: %s\n",
-                   cfg.makeConnectString(buf, sizeof(buf)));
-          DBUG_RETURN(-1);
-        } else {
-          continue;
-        }
-      }
-
-      sockfd = s.connect(cfg.ids[i].name.c_str(), cfg.ids[i].port);
+      sockfd = s.connect(addr);
       if (ndb_socket_valid(sockfd))
 	break;
     }
@@ -2421,9 +2442,39 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   const char *hostname= ndb_mgm_get_connected_host(handle);
   int port= ndb_mgm_get_connected_port(handle);
   const char *bind_address= ndb_mgm_get_connected_bind_address(handle);
+  ndb_sockaddr bind_addr;
+  if (bind_address)
+  {
+    if (Ndb_getAddr(&bind_addr, bind_address) != 0)
+    {
+      fprintf(handle->errstream,
+              "Unable to lookup local address '%s:0', errno: %d, "
+              "while trying to connect with connect string: '%s:%d'\n",
+              bind_address, errno, hostname, port);
+      setError(handle, NDB_MGM_BIND_ADDRESS, __LINE__,
+               "Unable to lookup local address '%s:0', errno: %d, "
+               "while trying to connect with connect string: '%s:%d'\n",
+               bind_address, errno, hostname, port);
+      DBUG_RETURN(-1);
+    }
+  }
+  ndb_sockaddr addr;
+  if (Ndb_getAddr(&addr, hostname))
+  {
+    fprintf(handle->errstream,
+            "Unable to lookup remote address '%s:0', errno: %d, "
+            "while trying to connect with connect string: '%s:%d'\n",
+            hostname, errno, hostname, port);
+    setError(handle, NDB_MGM_BIND_ADDRESS, __LINE__,
+             "Unable to lookup remote address '%s:0', errno: %d, "
+             "while trying to connect with connect string: '%s:%d'\n",
+             hostname, errno, hostname, port);
+    DBUG_RETURN(-1);
+  }
+  addr.set_port(port);
   SocketClient s;
   s.set_connect_timeout(handle->timeout);
-  if (!s.init())
+  if (!s.init(addr.get_address_family()))
   {
     fprintf(handle->errstream, "Unable to create socket");
     setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
@@ -2433,7 +2484,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
   if (bind_address)
   {
     int err;
-    if ((err = s.bind(bind_address, 0)) != 0)
+    if ((err = s.bind(bind_addr)) != 0)
     {
       fprintf(handle->errstream,
               "Unable to bind local address '%s:0' err: %d, errno: %d, "
@@ -2446,7 +2497,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
       DBUG_RETURN(-1);
     }
   }
-  const ndb_socket_t sockfd = s.connect(hostname, port);
+  const ndb_socket_t sockfd = s.connect(addr);
   if (!ndb_socket_valid(sockfd))
   {
     setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,

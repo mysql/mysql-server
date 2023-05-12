@@ -38,6 +38,7 @@
 #include <logger/Logger.hpp>
 #include <logger/FileLogHandler.hpp>
 #include <logger/SysLogHandler.hpp>
+#include "portlib/ndb_sockaddr.h"
 
 #include "common.hpp"
 
@@ -170,13 +171,15 @@ int main(int argc, char** argv){
   SocketServer * ss = new SocketServer();
   CPCDAPIService * serv = new CPCDAPIService(cpcd);
   unsigned short real_port= port; // correct type
-  if(!ss->setup(serv, &real_port)){
+  ndb_sockaddr addr(real_port);
+  if(!ss->setup(serv, &addr)){
     logger.critical("Cannot setup server: %s", strerror(errno));
     NdbSleep_SecSleep(1);
     delete ss;
     delete serv;
     return 1;
   }
+  real_port = addr.get_port();
 
   ss->startServer();
 

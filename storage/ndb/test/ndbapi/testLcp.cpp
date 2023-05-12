@@ -478,7 +478,7 @@ static int do_op(int row)
 static int continue_lcp(int error)
 {
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
-  ndb_socket_t my_fd = ndb_socket_create();
+  ndb_socket_t my_fd;
 
   if(error){
     socket_t fd = ndb_mgm_listen_event(g_restarter.handle, filter);

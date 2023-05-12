@@ -35,6 +35,7 @@
 #include "ndb_socket.h"
 #include <OwnProcessInfo.hpp>
 #include <EventLogger.hpp>
+#include "portlib/ndb_sockaddr.h"
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -65,23 +66,17 @@ SocketServer::~SocketServer() {
   }
 }
 
-bool SocketServer::tryBind(unsigned short port, const char* intface,
+bool SocketServer::tryBind(ndb_sockaddr servaddr,
                            char* error, size_t error_size) {
-  struct sockaddr_in6 servaddr;
-  memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin6_family = AF_INET6;
-  servaddr.sin6_addr = in6addr_any;
-  servaddr.sin6_port = htons(port);
+  const ndb_socket_t sock = ndb_socket_create(servaddr.get_address_family());
 
-  if(intface != nullptr){
-    if(Ndb_getInAddr6(&servaddr.sin6_addr, intface))
-      return false;
-  }
-
-  const ndb_socket_t sock =
-      ndb_socket_create_dual_stack(SOCK_STREAM, 0);
   if (!ndb_socket_valid(sock))
     return false;
+
+  if (servaddr.need_dual_stack())
+  {
+    [[maybe_unused]] bool ok = ndb_socket_dual_stack(sock, 1);
+  }
 
   DBUG_PRINT("info",("NDB_SOCKET: %s", ndb_socket_to_string(sock).c_str()));
 
@@ -91,7 +86,7 @@ bool SocketServer::tryBind(unsigned short port, const char* intface,
     return false;
   }
 
-  if (ndb_bind_inet(sock, &servaddr) == -1) {
+  if (ndb_bind(sock, &servaddr) == -1) {
     if (error != nullptr) {
       int err_code = ndb_socket_errno();
       snprintf(error, error_size, "%d '%s'", err_code,
@@ -107,29 +102,22 @@ bool SocketServer::tryBind(unsigned short port, const char* intface,
 
 #define MAX_SOCKET_SERVER_TCP_BACKLOG 64
 bool
-SocketServer::setup(SocketServer::Service * service,
-        unsigned short * port,
-        const char * intface){
+SocketServer::setup(SocketServer::Service * service, ndb_sockaddr* servaddr)
+{
   DBUG_ENTER("SocketServer::setup");
-  DBUG_PRINT("enter",("interface=%s, port=%u", intface, *port));
-  struct sockaddr_in6 servaddr;
-  memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin6_family = AF_INET6;
-  servaddr.sin6_addr = in6addr_any;
-  servaddr.sin6_port = htons(*port);
 
-  if(intface != nullptr){
-    if(Ndb_getInAddr6(&servaddr.sin6_addr, intface))
-      DBUG_RETURN(false);
-  }
+  const ndb_socket_t sock = ndb_socket_create(servaddr->get_address_family());
 
-  const ndb_socket_t sock =
-      ndb_socket_create_dual_stack(SOCK_STREAM, 0);
   if (!ndb_socket_valid(sock))
   {
     DBUG_PRINT("error",("socket() - %d - %s",
       socket_errno, strerror(socket_errno)));
     DBUG_RETURN(false);
+  }
+
+  if (servaddr->need_dual_stack())
+  {
+    [[maybe_unused]] bool ok = ndb_socket_dual_stack(sock, 1);
   }
 
   DBUG_PRINT("info",("NDB_SOCKET: %s", ndb_socket_to_string(sock).c_str()));
@@ -142,7 +130,7 @@ SocketServer::setup(SocketServer::Service * service,
     DBUG_RETURN(false);
   }
 
-  if (ndb_bind_inet(sock, &servaddr) == -1) {
+  if (ndb_bind(sock, servaddr) == -1) {
     DBUG_PRINT("error",("bind() - %d - %s",
       socket_errno, strerror(socket_errno)));
     ndb_socket_close(sock);
@@ -150,8 +138,7 @@ SocketServer::setup(SocketServer::Service * service,
   }
 
   /* Get the address and port we bound to */
-  struct sockaddr_in6 serv_addr;
-  if(ndb_getsockname(sock, &serv_addr))
+  if(ndb_getsockname(sock, servaddr))
   {
     g_eventLogger->info(
         "An error occurred while trying to find out what port we bound to."
@@ -160,10 +147,9 @@ SocketServer::setup(SocketServer::Service * service,
     ndb_socket_close(sock);
     DBUG_RETURN(false);
   }
-  *port = ntohs(serv_addr.sin6_port);
-  setOwnProcessInfoServerAddress((sockaddr*)& serv_addr);
+  setOwnProcessInfoServerAddress(servaddr);
 
-  DBUG_PRINT("info",("bound to %u", *port));
+  DBUG_PRINT("info",("bound to %u", servaddr->get_port()));
 
   if (ndb_listen(sock, m_maxSessions > MAX_SOCKET_SERVER_TCP_BACKLOG ?
                       MAX_SOCKET_SERVER_TCP_BACKLOG : m_maxSessions) == -1)
@@ -228,7 +214,7 @@ SocketServer::doAccept()
     ServiceInstance & si = m_services[i];
     assert(m_services_poller.is_socket_equal(i, si.m_socket));
 
-    const ndb_socket_t childSock = ndb_accept(si.m_socket, nullptr, nullptr);
+    const ndb_socket_t childSock = ndb_accept(si.m_socket, nullptr);
     if (!ndb_socket_valid(childSock))
     {
       // Could not 'accept' socket(maybe at max fds), indicate error

@@ -24,6 +24,7 @@
 
 #include "ndb_global.h"
 #include "portlib/NdbTCP.h"
+#include "portlib/ndb_sockaddr.h"
 
 #include <string.h>
 
@@ -42,22 +43,6 @@ void NdbTCP_set_preferred_IP_version(int version) {
 #ifndef EAI_NODATA
 #define EAI_NODATA EAI_NONAME
 #endif
-
-static void Ndb_make_ipv6_from_ipv4(struct sockaddr_in6* dst,
-                                    const struct sockaddr_in* src);
-
-void Ndb_make_ipv6_from_ipv4(struct sockaddr_in6* dst,
-                             const struct sockaddr_in* src)
-{
-  /*
-   * IPv4 mapped to IPv6 is ::ffff:a.b.c.d or expanded as full hex
-   * 0000:0000:0000:0000:0000:ffff:AABB:CCDD
-   */
-  dst->sin6_family = AF_INET6;
-  memset(&dst->sin6_addr.s6_addr[0], 0, 10);
-  memset(&dst->sin6_addr.s6_addr[10], 0xff, 2);
-  memcpy(&dst->sin6_addr.s6_addr[12], &src->sin_addr.s_addr, 4);
-}
 
 static struct addrinfo * get_preferred_address(struct addrinfo * ai_list)
 {
@@ -93,40 +78,31 @@ static struct addrinfo * get_preferred_address(struct addrinfo * ai_list)
   return ai_list;  // fallback to first address in original list
 }
 
-static int get_in6_addr(struct in6_addr* dst, const struct addrinfo* src)
+static int get_addr(ndb_sockaddr* dst, const struct addrinfo* src)
 {
   if (src == nullptr)
   {
     return -1;
   }
 
-  struct sockaddr_in6* addr6_ptr;
-  sockaddr_in6 addr6;
-
-  if (src->ai_family == AF_INET)
+  if (src->ai_family == AF_INET6)
   {
-    struct sockaddr_in* addr4_ptr = (struct sockaddr_in*)src->ai_addr;
-    Ndb_make_ipv6_from_ipv4(&addr6, addr4_ptr);
-    addr6_ptr = &addr6;
-  }
-  else if (src->ai_family == AF_INET6)
-  {
-    addr6_ptr = (struct sockaddr_in6*)src->ai_addr;
+    const sockaddr_in6* addr6_ptr = (const sockaddr_in6*)src->ai_addr;
     if(addr6_ptr->sin6_scope_id != 0)
     {
       return -1;  // require unscoped address
     }
   }
-  else
+  else if (src->ai_family != AF_INET)
   {
     return -1;
   }
-  memcpy(dst, &addr6_ptr->sin6_addr, sizeof(struct in6_addr));
+  *dst = ndb_sockaddr(src->ai_addr, src->ai_addrlen);
   return 0;
 }
 
 int
-Ndb_getInAddr6(struct in6_addr * dst, const char *address)
+Ndb_getAddr(ndb_sockaddr * dst, const char *address)
 {
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
@@ -144,7 +120,7 @@ Ndb_getInAddr6(struct in6_addr * dst, const char *address)
 
   struct addrinfo* ai_pref = get_preferred_address(ai_list);
 
-  int ret = get_in6_addr(dst, ai_pref);
+  int ret = get_addr(dst, ai_pref);
 
   freeaddrinfo(ai_list);
 
@@ -152,8 +128,7 @@ Ndb_getInAddr6(struct in6_addr * dst, const char *address)
 }
 
 char*
-Ndb_inet_ntop(int af,
-              const void *src,
+Ndb_inet_ntop(const ndb_sockaddr *src,
               char *dst,
               size_t dst_size)
 {
@@ -163,67 +138,32 @@ Ndb_inet_ntop(int af,
   assert(dst);
   assert(dst_size > 0);
 
-  int ret;
-  switch (af)
+  int ret = getnameinfo(src->get_sockaddr(),
+                        src->get_sockaddr_len(),
+                        dst,
+                        (socklen_t)dst_size,
+                        nullptr,
+                        0,
+                        NI_NUMERICHOST);
+  if (ret != 0)
   {
-    case AF_INET:
+    // Copy the string "null" into dst buffer
+    // and zero terminate for safety
+    strncpy(dst, "null", dst_size);
+    dst[dst_size-1] = 0;
+  }
+  else if (src->get_address_family() == AF_INET6 &&
+           src->get_protocol_family() == PF_INET)
+  {
+    const char* mapped_prefix = "::ffff:";
+    size_t mapped_prefix_len = strlen(mapped_prefix);
+    if ((dst != nullptr) &&
+        (strncmp(mapped_prefix, dst, mapped_prefix_len) == 0))
     {
-      sockaddr_in sa;
-      memset(&sa, 0, sizeof(sa));
-      memcpy(&sa.sin_addr, src, sizeof(sa.sin_addr));
-      sa.sin_family = AF_INET;
-      ret = getnameinfo(reinterpret_cast<sockaddr*>(&sa),
-                        sizeof(sockaddr_in),
-                        dst,
-                        (socklen_t)dst_size,
-                        nullptr,
-                        0,
-                        NI_NUMERICHOST);
-      if (ret != 0)
-      {
-        break;
-      }
-      return dst;
-    }
-    case AF_INET6:
-    {
-      sockaddr_in6 sa;
-      memset(&sa, 0, sizeof(sa));
-      memcpy(&sa.sin6_addr, src, sizeof(sa.sin6_addr));
-      sa.sin6_family = AF_INET6;
-      ret = getnameinfo(reinterpret_cast<sockaddr*>(&sa),
-                        sizeof(sockaddr_in6),
-                        dst,
-                        (socklen_t)dst_size,
-                        nullptr,
-                        0,
-                        NI_NUMERICHOST);
-      const char* mapped_prefix = "::ffff:";
-      size_t mapped_prefix_len = strlen(mapped_prefix);
-      if ((dst != nullptr) &&
-          (strncmp(mapped_prefix, dst, mapped_prefix_len) == 0))
-      {
-        memmove(dst, dst + mapped_prefix_len,
-                strlen(dst) - mapped_prefix_len + 1);
-      }
-
-      if (ret != 0)
-      {
-        break;
-      }
-      return dst;
-    }
-    default:
-    {
-      break;
+      memmove(dst, dst + mapped_prefix_len,
+              strlen(dst) - mapped_prefix_len + 1);
     }
   }
-
-  // Copy the string "null" into dst buffer
-  // and zero terminate for safety
-  strncpy(dst, "null", dst_size);
-  dst[dst_size-1] = 0;
-
   return dst;
 }
 
@@ -370,13 +310,13 @@ Ndb_combine_address_port(char *buf,
 static void
 CHECK(const char* name, int chk_result, const char* chk_address = nullptr)
 {
-  struct in6_addr addr;
+  ndb_sockaddr addr;
   char *addr_str1;
   char buf1[NDB_ADDR_STRLEN];
 
   fprintf(stderr, "Testing '%s' with length: %zu\n", name, strlen(name));
 
-  int res= Ndb_getInAddr6(&addr, name);
+  int res= Ndb_getAddr(&addr, name);
 
   if (res != chk_result)
   {
@@ -384,8 +324,7 @@ CHECK(const char* name, int chk_result, const char* chk_address = nullptr)
     abort();
   }
 
-  addr_str1 = Ndb_inet_ntop(AF_INET6, static_cast<void*>(&addr),
-                            buf1, sizeof(buf1));
+  addr_str1 = Ndb_inet_ntop(&addr, buf1, sizeof(buf1));
   fprintf(stderr, "> '%s' -> '%s'\n", name, addr_str1);
 
   if(chk_address && strcmp(addr_str1, chk_address))
@@ -499,13 +438,21 @@ can_resolve_hostname(const char* name)
 TAPTEST(NdbGetInAddr)
 {
   socket_library_init();
+  /*
+   * If possible ndb_sockaddr will use AF_INET6 by default, else assume only
+   * AF_INET is supported.
+   */
+  const bool ipv6 = (ndb_sockaddr().get_address_family() == AF_INET6);
 
   if (can_resolve_hostname("localhost"))
   {
     NdbTCP_set_preferred_IP_version(4);
     CHECK("localhost", 0, "127.0.0.1");
-    NdbTCP_set_preferred_IP_version(6);
-    CHECK("localhost", 0, "::1");
+    if (ipv6)
+    {
+      NdbTCP_set_preferred_IP_version(6);
+      CHECK("localhost", 0, "::1");
+    }
     NdbTCP_set_preferred_IP_version(4);
   }
   CHECK("127.0.0.1", 0);
@@ -518,20 +465,19 @@ TAPTEST(NdbGetInAddr)
     // Check this machines hostname
     CHECK(hostname_buf, 0);
 
-    struct in6_addr addr;
-    Ndb_getInAddr6(&addr, hostname_buf);
+    ndb_sockaddr addr;
+    Ndb_getAddr(&addr, hostname_buf);
     // Convert hostname to dotted decimal string ip and check
-    CHECK(Ndb_inet_ntop(AF_INET6,
-                        static_cast<void*>(&addr),
-                        addr_buf,
-                        sizeof(addr_buf)),
-                        0);
+    CHECK(Ndb_inet_ntop(&addr, addr_buf, sizeof(addr_buf)), 0);
   }
   CHECK("unknown_?host", -1); // Does not exist
-  CHECK("3ffe:1900:4545:3:200:f8ff:fe21:67cf", 0);
-  CHECK("fe80:0:0:0:200:f8ff:fe21:67cf", 0);
-  CHECK("fe80::200:f8ff:fe21:67cf", 0);
-  CHECK("::1", 0);
+  if (ipv6)
+  {
+    CHECK("3ffe:1900:4545:3:200:f8ff:fe21:67cf", 0);
+    CHECK("fe80:0:0:0:200:f8ff:fe21:67cf", 0);
+    CHECK("fe80::200:f8ff:fe21:67cf", 0);
+    CHECK("::1", 0);
+  }
 
   // 255 byte hostname which does not exist
   char long_hostname[NDB_DNS_HOST_NAME_LENGTH + 1];
@@ -540,33 +486,26 @@ TAPTEST(NdbGetInAddr)
   assert(strlen(long_hostname) == 255);
   CHECK(long_hostname, -1);
 
-  {
-    // Check with AF_UNSPEC to trigger Ndb_inet_ntop()
-    // to return the "null" error string
-    fprintf(stderr, "Testing Ndb_inet_ntop(AF_UNSPEC, ...)\n");
-
-    struct in_addr addr;
-    const char* addr_str = Ndb_inet_ntop(AF_UNSPEC,
-                                         static_cast<void*>(&addr),
-                                         addr_buf,
-                                         sizeof(addr_buf));
-    fprintf(stderr, "> AF_UNSPEC -> '%s'\n", addr_str);
-  }
-
   CHECK_SPLIT("1.2.3.4", 0, "1.2.3.4", "");
   CHECK_SPLIT("001.009.081.0255", 0, "001.009.081.0255", "");
   CHECK_SPLIT("1.2.3.4:5", 0, "1.2.3.4", "5");
-  CHECK_SPLIT("1::5:4", 0, "1::5:4", "");
-  CHECK_SPLIT("[1::5]:4", 0, "1::5", "4");
+  if (ipv6)
+  {
+    CHECK_SPLIT("1::5:4", 0, "1::5:4", "");
+    CHECK_SPLIT("[1::5]:4", 0, "1::5", "4");
+  }
   CHECK_SPLIT("my_host:4", 0, "my_host", "4");
   CHECK_SPLIT("localhost:13001", 0, "localhost", "13001");
-  CHECK_SPLIT("[fed0:10::182]", 0, "fed0:10::182", "");
-  CHECK_SPLIT("fed0:10::182", 0, "fed0:10::182", "");
-  CHECK_SPLIT("[fed0:10:0:ff:11:22:33:182]:1186", 0,
-              "fed0:10:0:ff:11:22:33:182", "1186");
-  CHECK_SPLIT("::", 0, "::", "");
-  CHECK_SPLIT("::1", 0, "::1", "");
-  CHECK_SPLIT("2001:db8::1", 0, "2001:db8::1", "");
+  if (ipv6)
+  {
+    CHECK_SPLIT("[fed0:10::182]", 0, "fed0:10::182", "");
+    CHECK_SPLIT("fed0:10::182", 0, "fed0:10::182", "");
+    CHECK_SPLIT("[fed0:10:0:ff:11:22:33:182]:1186", 0,
+                "fed0:10:0:ff:11:22:33:182", "1186");
+    CHECK_SPLIT("::", 0, "::", "");
+    CHECK_SPLIT("::1", 0, "::1", "");
+    CHECK_SPLIT("2001:db8::1", 0, "2001:db8::1", "");
+  }
   CHECK_SPLIT("192.0.2.0:1", 0, "192.0.2.0", "1");
   /*
    * When using space separated host and port, host part should not contain
@@ -590,15 +529,23 @@ TAPTEST(NdbGetInAddr)
    * does not do a full validation of host.
    */
   CHECK_SPLIT("192.0.2.0::1", 0, "192.0.2.0::1", "");
-  CHECK_SPLIT("fed0:10:0:ff:11:22:33:182:1186", 0,
-              "fed0:10:0:ff:11:22:33:182:1186", "");
+  if (ipv6)
+  {
+    CHECK_SPLIT("fed0:10:0:ff:11:22:33:182:1186", 0,
+                "fed0:10:0:ff:11:22:33:182:1186", "");
+  }
 
   CHECK_SPLIT("localhost 13001", 0, "localhost", "13001");
-  CHECK_SPLIT("fed0:10:0:ff:11:22:33:182 1186", 0, "fed0:10:0:ff:11:22:33:182",
-              "1186");
+  if (ipv6)
+  {
+    CHECK_SPLIT("fed0:10:0:ff:11:22:33:182 1186", 0, "fed0:10:0:ff:11:22:33:182",
+                "1186");
+  }
   CHECK_SPLIT("super:1186 1234", -1);
-  CHECK_SPLIT("[2001:db8::1] 20", 0, "2001:db8::1", "20");
-
+  if (ipv6)
+  {
+    CHECK_SPLIT("[2001:db8::1] 20", 0, "2001:db8::1", "20");
+  }
   socket_library_end();
 
   return 1; // OK

@@ -525,15 +525,13 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
         row.write_uint32(rnode); // Remote node id
         row.write_uint32(globalTransporterRegistry.getPerformState(rnode)); // State
 
-        struct in6_addr conn_addr = globalTransporterRegistry.get_connect_address(rnode);
+        ndb_sockaddr conn_addr = globalTransporterRegistry.get_connect_address(rnode);
         /* Connect address */
-        if (!IN6_IS_ADDR_UNSPECIFIED(&conn_addr))
+        if (!conn_addr.is_unspecified())
         {
           jam();
-          char *addr_str = Ndb_inet_ntop(AF_INET6,
-                                         static_cast<void*>(&conn_addr),
-                                         addr_buf,
-                                         sizeof(addr_buf));
+          char *addr_str =
+              Ndb_inet_ntop(&conn_addr, addr_buf, sizeof(addr_buf));
           row.write_string(addr_str);
         }
         else

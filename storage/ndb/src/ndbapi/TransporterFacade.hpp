@@ -39,6 +39,7 @@
 #include "my_thread.h"
 #include "NdbApiSignal.hpp"
 #include "transporter/TransporterCallback.hpp"
+#include "portlib/ndb_sockaddr.h"
 
 class ClusterMgr;
 class ArbitMgr;
@@ -125,7 +126,7 @@ private:
    * These are functions used by ndb_mgmd
    */
   void ext_set_max_api_reg_req_interval(Uint32 ms);
-  struct in6_addr ext_get_connect_address(Uint32 nodeId);
+  ndb_sockaddr ext_get_connect_address(Uint32 nodeId);
   bool ext_isConnected(NodeId aNodeId);
   void ext_doConnect(int aNodeId);
 

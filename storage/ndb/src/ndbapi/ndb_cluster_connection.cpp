@@ -41,6 +41,8 @@
 #include "NdbDictionaryImpl.hpp"
 #include "ProcessInfo.hpp"
 #include "NdbWaitGroup.hpp"
+#include "portlib/NdbTCP.h"
+#include "portlib/ndb_sockaddr.h"
 
 #include <NdbMutex.h>
 #ifdef VM_TRACE
@@ -1068,7 +1070,9 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
                my_location_domain_id ==
                m_location_domain_id[remoteNodeId])
       {
-        if (SocketServer::tryBind(0,remoteHostName))
+        ndb_sockaddr addr;
+        if (Ndb_getAddr(&addr, remoteHostName) == 0 &&
+            SocketServer::tryBind(addr))
         {
 	  group -= 10; // upgrade group value
         }
@@ -1079,7 +1083,9 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
       }
       else if (my_location_domain_id == 0)
       {
-        if (SocketServer::tryBind(0,remoteHostName))
+        ndb_sockaddr addr;
+        if (Ndb_getAddr(&addr, remoteHostName) == 0 &&
+            SocketServer::tryBind(addr))
         {
 	  group -= 1; // upgrade group value
         }

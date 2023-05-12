@@ -38,6 +38,7 @@
 #include <NdbMutex.h>
 #include <NdbThread.h>
 
+#include "portlib/ndb_sockaddr.h"
 #include "portlib/ndb_socket.h"
 #include "util/NdbSocket.h"
 
@@ -294,7 +295,7 @@ protected:
   NdbSocket theSocket;
 private:
   SocketClient *m_socket_client;
-  struct in6_addr m_connect_address;
+  ndb_sockaddr m_connect_address;
 
   virtual bool send_is_possible(int timeout_millisec) const = 0;
   virtual bool send_limit_reached(int bufsize) = 0;

@@ -30,9 +30,11 @@
 #include "openssl/x509.h"
 
 #include "debugger/EventLogger.hpp"
+#include "portlib/ndb_sockaddr.h"
 #include "portlib/NdbGetRUsage.h"
 #include "portlib/NdbMutex.h"
 #include "portlib/NdbSleep.h"
+#include "portlib/NdbTCP.h"
 #include "portlib/NdbTick.h"
 #include "unittest/mytap/tap.h"
 #include "util/ndb_openssl3_compat.h"
@@ -317,14 +319,32 @@ Client::Client(const char * hostname) : SocketClient(nullptr),
 }
 
 NdbSocket & Client::connect_plain() {
-  connect(m_plain_socket, m_server_host, opt_port);
+  ndb_sockaddr server_addr;
+  if (Ndb_getAddr(&server_addr, m_server_host))
+  {
+    puts("Plain connection lookup server address failed.");
+    m_plain_socket.invalidate();
+    return m_plain_socket;
+  }
+  server_addr.set_port(opt_port);
+  if (!init(server_addr.get_address_family())) return m_plain_socket;
+  connect(m_plain_socket, server_addr);
   ndb_setsockopt(m_plain_socket.ndb_socket(), IPPROTO_TCP, TCP_NODELAY,
                  & opt_tcp_no_delay);
   return m_plain_socket;
 }
 
 NdbSocket & Client::connect_tls() {
-  connect(m_tls_socket, m_server_host, opt_port + 1);
+  ndb_sockaddr server_addr;
+  if (Ndb_getAddr(&server_addr, m_server_host))
+  {
+    puts("TLS connection lookup server address failed.");
+    m_tls_socket.invalidate();
+    return m_tls_socket;
+  }
+  server_addr.set_port(opt_port + 1);
+  if (!init(server_addr.get_address_family())) return m_tls_socket;
+  connect(m_tls_socket, server_addr);
 
   if(! m_tls_socket.is_valid())
     puts("Could not connect to server");
@@ -1001,11 +1021,15 @@ void run_server(bool standalone = false) {
   unsigned short port = opt_port;
   const char * srvType = opt_sink ? "sink" : "echo";
 
-  server.setup(s1, &port);
+  ndb_sockaddr addr(port);
+  server.setup(s1, &addr);
+  port =  addr.get_port();
   printf("Plain %s server running on port %d\n", srvType, port);
 
   port++;
-  server.setup(s2, &port);
+  addr.set_port(port);
+  server.setup(s2, &addr);
+  port = addr.get_port();
   printf("  TLS %s server running on port %d\n", srvType, port);
 
   NdbThread * thd = server.startServer();
