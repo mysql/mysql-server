@@ -276,6 +276,10 @@ class CONNECTION_POOL_EXPORT ConnectionPool {
    */
   [[nodiscard]] uint64_t reused_connections() const { return reused_; }
 
+  void clear() {
+    pool_([](auto &pool) { pool.clear(); });
+  }
+
  protected:
   using container_type = std::list<connection_type>;
 
