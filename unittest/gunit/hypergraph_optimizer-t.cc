@@ -206,6 +206,19 @@ vector<Item *> GetWhereConditions(const JoinHypergraph &graph) {
   return where_conditions;
 }
 
+// Create an index on the given columns, and make it report that it supports
+// ordered scans and range scans, including backward scans.
+int CreateOrderedIndex(std::initializer_list<Field *> columns,
+                       ulong key_flags = 0) {
+  assert(!empty(columns));
+  Fake_TABLE *table = pointer_cast<Fake_TABLE *>((*columns.begin())->table);
+  const int index = table->create_index(columns, key_flags);
+  ON_CALL(*down_cast<Mock_HANDLER *>(table->file), index_flags(index, _, _))
+      .WillByDefault(
+          Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+  return index;
+}
+
 }  // namespace
 
 using MakeHypergraphTest = OptimizerTestBase;
@@ -853,7 +866,7 @@ TEST_F(MakeHypergraphTest, CyclesGetConsistentSelectivities) {
       ParseAndResolve("SELECT 1 FROM t1,t2,t3 WHERE t1.x=t2.x AND t2.x=t3.x",
                       /*nullable=*/true);
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
+  t1->create_index(t1->field[0]);
   ulong rec_per_key_int[] = {2};
   float rec_per_key[] = {2.0f};
   t1->key_info[0].set_rec_per_key_array(rec_per_key_int, rec_per_key);
@@ -1904,7 +1917,7 @@ TEST_F(HypergraphOptimizerTest, PredicatePushdownToRef) {
   Query_block *query_block =
       ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x=3", /*nullable=*/true);
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+  t1->create_index({t1->field[0], t1->field[1]}, HA_NOSAME);
   m_fake_tables["t1"]->file->stats.records = 100;
   m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
 
@@ -1928,7 +1941,7 @@ TEST_F(HypergraphOptimizerTest, NotPredicatePushdownToRef) {
   Query_block *query_block =
       ParseAndResolve("SELECT 1 FROM t1 WHERE t1.y=3", /*nullable=*/true);
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+  t1->create_index({t1->field[0], t1->field[1]}, HA_NOSAME);
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -1946,7 +1959,7 @@ TEST_F(HypergraphOptimizerTest, MultiPartPredicatePushdownToRef) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 WHERE t1.y=3 AND t1.x=2", /*nullable=*/true);
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+  t1->create_index({t1->field[0], t1->field[1]}, HA_NOSAME);
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -1968,8 +1981,8 @@ TEST_F(HypergraphOptimizerTest, JoinConditionToRef) {
       /*nullable=*/true);
   Fake_TABLE *t2 = m_fake_tables["t2"];
   Fake_TABLE *t3 = m_fake_tables["t3"];
-  t2->create_index(t2->field[1], /*column2=*/nullptr, /*unique=*/false);
-  t3->create_index(t3->field[0], t3->field[1], /*unique=*/true);
+  t2->create_index(t2->field[1]);
+  t3->create_index({t3->field[0], t3->field[1]}, HA_NOSAME);
 
   // Hash join between t2/t3 is attractive, but hash join between t1 and t2/t3
   // should not be.
@@ -2030,12 +2043,9 @@ TEST_F(HypergraphOptimizerTest, PreferWidestEqRefKey) {
   Fake_TABLE *t1 = m_fake_tables["t1"];
 
   // Create three unique indexes.
-  const int key_x =
-      t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/true);
-  const int key_xy =
-      t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
-  const int key_y =
-      t1->create_index(t1->field[1], /*column2=*/nullptr, /*unique=*/true);
+  const int key_x = t1->create_index(t1->field[0], HA_NOSAME);
+  const int key_xy = t1->create_index({t1->field[0], t1->field[1]}, HA_NOSAME);
+  const int key_y = t1->create_index(t1->field[1], HA_NOSAME);
 
   EXPECT_EQ(0, key_x);
   EXPECT_EQ(1, key_xy);
@@ -2064,7 +2074,7 @@ TEST_F(HypergraphOptimizerTest, RefIntoHashJoin) {
       "SELECT 1 FROM t1 LEFT JOIN (t2 JOIN t3 ON t2.y=t3.y) ON t1.x=t3.x",
       /*nullable=*/true);
   Fake_TABLE *t3 = m_fake_tables["t3"];
-  t3->create_index(t3->field[0], /*column2=*/nullptr, /*unique=*/false);
+  t3->create_index(t3->field[0]);
   ulong rec_per_key_int[] = {1};
   float rec_per_key[] = {0.001f};
   t3->key_info[0].set_rec_per_key_array(rec_per_key_int, rec_per_key);
@@ -2135,8 +2145,8 @@ TEST_F(HypergraphOptimizerTest, MultiEqualitySargable) {
       /*nullable=*/true);
   Fake_TABLE *t2 = m_fake_tables["t2"];
   Fake_TABLE *t3 = m_fake_tables["t3"];
-  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/true);
-  t3->create_index(t3->field[0], /*column2=*/nullptr, /*unique=*/true);
+  t2->create_index(t2->field[0], HA_NOSAME);
+  t3->create_index(t3->field[0], HA_NOSAME);
 
   // Build multiple equalities from the WHERE condition.
   COND_EQUAL *cond_equal = nullptr;
@@ -2181,7 +2191,7 @@ TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
       "SELECT 1 FROM t1, t2, t3, t4 WHERE t1.x = t2.x AND t2.x = t3.x",
       /*nullable=*/true);
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/false);
+  t1->create_index(t1->field[0]);
 
   // Build multiple equalities from the WHERE condition.
   COND_EQUAL *cond_equal = nullptr;
@@ -2274,8 +2284,7 @@ TEST_F(HypergraphOptimizerTest, SargableJoinPredicateSelectivity) {
 
   // Add an index on t1(x) to make t1.x=t2.x sargable.
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  const int t1_idx =
-      t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/false);
+  const int t1_idx = t1->create_index(t1->field[0]);
   ulong rec_per_key_int[] = {1};
   float rec_per_key[] = {1.0f};
   t1->key_info[t1_idx].set_rec_per_key_array(rec_per_key_int, rec_per_key);
@@ -2333,7 +2342,7 @@ TEST_F(HypergraphOptimizerTest, SargableJoinPredicateWithTypeMismatch) {
 
   // Add an index on t2(x) to make the join predicate sargable.
   Fake_TABLE *t2 = m_fake_tables["t2"];
-  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/true);
+  t2->create_index(t2->field[0], HA_NOSAME);
 
   // Set up sizes to make index access on t2 preferable.
   t1->file->stats.records = 100;
@@ -2372,7 +2381,7 @@ TEST_F(HypergraphOptimizerTest, SargableJoinPredicateWithFunction) {
   Fake_TABLE *t2 = m_fake_tables["t2"];
 
   // Add an index on t1.x to make the join predicate sargable.
-  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/true);
+  t1->create_index(t1->field[0], HA_NOSAME);
 
   // Set up sizes to make index access on t1 preferable.
   t1->file->stats.records = 100000;
@@ -2422,7 +2431,7 @@ TEST_F(HypergraphOptimizerTest, SargableSubquery) {
 
   // Add an index on t1.x to make the predicate sargable.
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/true);
+  t1->create_index(t1->field[0], HA_NOSAME);
 
   // Set up sizes to make index lookup preferable.
   t1->file->stats.records = 100000;
@@ -2455,7 +2464,7 @@ TEST_F(HypergraphOptimizerTest, SargableOuterReference) {
 
   // Add an index on t2.x to make the predicate in the subquery sargable.
   Fake_TABLE *t2 = m_fake_tables["t2"];
-  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/true);
+  t2->create_index(t2->field[0], HA_NOSAME);
   t2->file->stats.records = 100000;
   t2->file->stats.data_file_length = 1e7;
 
@@ -2484,7 +2493,7 @@ TEST_F(HypergraphOptimizerTest, SargableHyperpredicate) {
   Fake_TABLE *t3 = m_fake_tables["t3"];
 
   // Add an index on t1.x to make the join predicate sargable.
-  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/true);
+  t1->create_index(t1->field[0], HA_NOSAME);
 
   // Set up sizes to make index access on t1 preferable.
   t1->file->stats.records = 100000;
@@ -2527,7 +2536,7 @@ TEST_F(HypergraphOptimizerTest, AntiJoinGetsSameEstimateWithAndWithoutIndex) {
 
     Fake_TABLE *t2 = m_fake_tables["t2"];
     if (has_index) {
-      t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
+      t2->create_index(t2->field[0]);
     }
     t2->file->stats.records = 100;
 
@@ -2640,12 +2649,12 @@ TEST_F(HypergraphOptimizerTest, InnerNestloopShouldBeLeftDeep) {
   Fake_TABLE *t2 = m_fake_tables["t2"];
   Fake_TABLE *t3 = m_fake_tables["t3"];
   Fake_TABLE *t4 = m_fake_tables["t4"];
-  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/false);
-  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
-  t2->create_index(t2->field[1], /*column2=*/nullptr, /*unique=*/false);
-  t3->create_index(t3->field[1], /*column2=*/nullptr, /*unique=*/false);
-  t3->create_index(t3->field[2], /*column2=*/nullptr, /*unique=*/false);
-  t4->create_index(t4->field[2], /*column2=*/nullptr, /*unique=*/false);
+  t1->create_index(t1->field[0]);
+  t2->create_index(t2->field[0]);
+  t2->create_index(t2->field[1]);
+  t3->create_index(t3->field[1]);
+  t3->create_index(t3->field[2]);
+  t4->create_index(t4->field[2]);
 
   // We use the secondary engine hook to check that we never try a join between
   // ref accesses. They are not _wrong_, but they are redundant in this
@@ -2817,9 +2826,9 @@ TEST_P(HypergraphOptimizerCyclePredicatesSargableTest,
   Fake_TABLE *t1 = m_fake_tables["t1"];
   Fake_TABLE *t2 = m_fake_tables["t2"];
   Fake_TABLE *t3 = m_fake_tables["t3"];
-  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/false);
-  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
-  t3->create_index(t3->field[0], /*column2=*/nullptr, /*unique=*/false);
+  t1->create_index(t1->field[0]);
+  t2->create_index(t2->field[0]);
+  t3->create_index(t3->field[0]);
 
   // Build multiple equalities from the WHERE condition.
   COND_EQUAL *cond_equal = nullptr;
@@ -3172,7 +3181,7 @@ TEST_F(HypergraphOptimizerTest, UniqueIndexCapsBothWays) {
   Fake_TABLE *t2 = m_fake_tables["t2"];
   t1->file->stats.records = 1000;
   t2->file->stats.records = 1000;
-  t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+  t1->create_index(t1->field[0], HA_NOSAME);
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -3219,8 +3228,8 @@ TEST_F(HypergraphOptimizerTest, SubsumedSargableInDoubleCycle) {
   t3->file->stats.records = 100;
   t4->file->stats.records = 100;
   t4->file->stats.data_file_length = 100e6;
-  t3->create_index(t3->field[0], nullptr, /*unique=*/false);
-  t4->create_index(t4->field[0], t4->field[1], /*unique=*/false);
+  t3->create_index(t3->field[0]);
+  t4->create_index({t4->field[0], t4->field[1]});
 
   // Build multiple equalities from the WHERE condition.
   COND_EQUAL *cond_equal = nullptr;
@@ -3288,9 +3297,9 @@ TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant) {
 
   // Create indexes on t1(y) and t4(y).
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[1], /*column2=*/nullptr, /*unique=*/false);
+  t1->create_index(t1->field[1]);
   Fake_TABLE *t4 = m_fake_tables["t4"];
-  t4->create_index(t4->field[1], /*column2=*/nullptr, /*unique=*/false);
+  t4->create_index(t4->field[1]);
 
   Fake_TABLE *t2 = m_fake_tables["t2"];
   Fake_TABLE *t3 = m_fake_tables["t3"];
@@ -3340,11 +3349,11 @@ TEST_F(HypergraphOptimizerTest, SemiJoinPredicateNotRedundant2) {
 
   // Add an index on t2.x to make the join predicate t2.x = t3.x sargable.
   Fake_TABLE *t2 = m_fake_tables["t2"];
-  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
+  t2->create_index(t2->field[0]);
 
   // Add a unique index to make the join predicate t4.x = t5.x sargable.
   Fake_TABLE *t5 = m_fake_tables["t5"];
-  t5->create_index(t5->field[0], /*column2=*/nullptr, /*unique=*/true);
+  t5->create_index(t5->field[0], HA_NOSAME);
 
   // Set up table sizes so that nested loop joins with REF(t2) and EQ_REF(t5) as
   // the innermost tables are attractive.
@@ -3412,7 +3421,7 @@ TEST_F(HypergraphOptimizerTest, SemijoinToInnerWithSargable) {
   Fake_TABLE *t2 = m_fake_tables["t2"];
   Fake_TABLE *t3 = m_fake_tables["t3"];
 
-  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
+  t2->create_index(t2->field[0]);
 
   t1->file->stats.records = 10;
   t2->file->stats.records = 100;
@@ -3567,9 +3576,9 @@ TEST_F(HypergraphOptimizerTest, SwitchesOrderToMakeSafeForRowid) {
       "SELECT t1.y FROM t1 JOIN t2 ON t1.x=t2.x ORDER BY t1.y, t2.y",
       /*nullable=*/true);
 
-  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
+  t1->create_index(t1->field[0]);
   Fake_TABLE *t2 = m_fake_tables["t2"];
-  t2->create_index(t2->field[0], nullptr, /*unique=*/false);
+  t2->create_index(t2->field[0]);
 
   // The normal case for rowid-unsafe tables are LATERAL derived tables,
   // but since we don't support derived tables in the unit test,
@@ -3869,7 +3878,7 @@ TEST_P(HypergraphFullTextTest, FullTextSearch) {
   // CREATE FULLTEXT INDEX idx ON t1(x).
   down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
       t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
-  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+  t1->create_index(&column1, HA_FULLTEXT);
 
   Query_block *query_block = ParseAndResolve(GetParam().query,
                                              /*nullable=*/false);
@@ -3984,7 +3993,7 @@ TEST_F(HypergraphOptimizerTest, FullTextSearchNoHashJoin) {
   // CREATE FULLTEXT INDEX idx ON t1(x).
   down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
       t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
-  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+  t1->create_index(&column1, HA_FULLTEXT);
 
   Query_block *query_block = ParseAndResolve(
       "SELECT MATCH(t1.x) AGAINST ('abc') FROM t1, t2 WHERE t1.x = t2.x",
@@ -4019,7 +4028,7 @@ TEST_F(HypergraphOptimizerTest, FullTextCanSkipRanking) {
   // CREATE FULLTEXT INDEX idx ON t1(x).
   down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
       t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
-  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+  t1->create_index(&column1, HA_FULLTEXT);
 
   Query_block *query_block = ParseAndResolve(
       "SELECT MATCH(t1.x) AGAINST ('a') FROM t1 WHERE "
@@ -4073,7 +4082,7 @@ TEST_F(HypergraphOptimizerTest, FullTextAvoidDescSort) {
   // CREATE FULLTEXT INDEX idx ON t1(x).
   down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
       t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
-  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+  t1->create_index(&column1, HA_FULLTEXT);
 
   Query_block *query_block = ParseAndResolve(
       "SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') "
@@ -4106,7 +4115,7 @@ TEST_F(HypergraphOptimizerTest, FullTextAscSort) {
   // CREATE FULLTEXT INDEX idx ON t1(x).
   down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
       t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
-  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+  t1->create_index(&column1, HA_FULLTEXT);
 
   Query_block *query_block = ParseAndResolve(
       "SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') "
@@ -4139,7 +4148,7 @@ TEST_F(HypergraphOptimizerTest, FullTextDescSortNoPredicate) {
   // CREATE FULLTEXT INDEX idx ON t1(x).
   down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
       t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
-  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+  t1->create_index(&column1, HA_FULLTEXT);
 
   Query_block *query_block = ParseAndResolve(
       "SELECT t1.x FROM t1 ORDER BY MATCH(t1.x) AGAINST ('abc') DESC",
@@ -4467,8 +4476,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadDueToUniqueIndex) {
   // Create a unique index on t2.x. This means that t2.y is now
   // redundant, and can (will) be reduced away when creating the homogenized
   // order.
-  m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0],
-                                    /*column2=*/nullptr, /*unique=*/true);
+  m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0], HA_NOSAME);
 
   m_fake_tables["t1"]->file->stats.records = 200;
   m_fake_tables["t2"]->file->stats.records = 10000;
@@ -4522,8 +4530,7 @@ TEST_F(HypergraphOptimizerTest, NoSortAheadOnNonUniqueIndex) {
   // and we should resort to sorting the largest table (t2).
   // The rest of the test is equal to SortAheadDueToUniqueIndex,
   // and we don't really verify it.
-  m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0],
-                                    /*column2=*/nullptr, /*unique=*/false);
+  m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0]);
 
   m_fake_tables["t1"]->file->stats.records = 200;
   m_fake_tables["t2"]->file->stats.records = 10000;
@@ -4560,8 +4567,7 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToBaseFilters) {
       "SELECT t1.x, t1.y FROM t1 WHERE t1.x=3 ORDER BY t1.x, t1.y",
       /*nullable=*/true);
 
-  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0],
-                                    /*column2=*/nullptr, /*unique=*/true);
+  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0], HA_NOSAME);
   m_fake_tables["t1"]->file->stats.records = 100;
   m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
 
@@ -4585,8 +4591,7 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToDelayedFilters) {
       "ORDER BY t2.x, t2.y ",
       /*nullable=*/true);
 
-  m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0],
-                                    /*column2=*/nullptr, /*unique=*/true);
+  m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0], HA_NOSAME);
   m_fake_tables["t1"]->file->stats.records = 100;
   m_fake_tables["t2"]->file->stats.records = 10000;
   m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
@@ -4618,15 +4623,9 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToIndex) {
       ParseAndResolve("SELECT t1.x FROM t1 ORDER BY t1.x DESC",
                       /*nullable=*/true);
 
-  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0],
-                                    /*column2=*/nullptr, /*unique=*/false);
+  CreateOrderedIndex({m_fake_tables["t1"]->field[0]});
   m_fake_tables["t1"]->file->stats.records = 100;
   m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
-
-  // Mark the index as returning ordered results.
-  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
-          index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -4748,16 +4747,10 @@ TEST_F(HypergraphOptimizerTest, IndexTailGetsUsed) {
       ParseAndResolve("SELECT t1.x, t1.y FROM t1 WHERE t1.x=42 ORDER BY t1.y",
                       /*nullable=*/true);
 
-  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0],
-                                    m_fake_tables["t1"]->field[1],
-                                    /*unique=*/false);
-  m_fake_tables["t1"]->file->stats.records = 100;
-  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
-
-  // Mark the index as returning ordered results.
-  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
-          index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  CreateOrderedIndex({t1->field[0], t1->field[1]});
+  t1->file->stats.records = 100;
+  t1->file->stats.data_file_length = 1e6;
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -4820,16 +4813,9 @@ TEST_F(HypergraphOptimizerTest, SatisfyGroupByWithIndex) {
   Query_block *query_block =
       ParseAndResolve("SELECT t1.x FROM t1 GROUP BY t1.x",
                       /*nullable=*/true);
-
-  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0],
-                                    /*column2=*/nullptr, /*unique=*/false);
+  CreateOrderedIndex({m_fake_tables["t1"]->field[0]});
   m_fake_tables["t1"]->file->stats.records = 100;
   m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
-
-  // Mark the index as returning ordered results.
-  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
-          index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -4853,16 +4839,10 @@ TEST_F(HypergraphOptimizerTest, SatisfyGroupingForDistinctWithIndex) {
       ParseAndResolve("SELECT DISTINCT t1.y, t1.x FROM t1",
                       /*nullable=*/true);
 
-  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0],
-                                    m_fake_tables["t1"]->field[1],
-                                    /*unique=*/false);
+  CreateOrderedIndex(
+      {m_fake_tables["t1"]->field[0], m_fake_tables["t1"]->field[1]});
   m_fake_tables["t1"]->file->stats.records = 100;
   m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
-
-  // Mark the index as returning ordered results.
-  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
-          index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -4893,9 +4873,7 @@ TEST_F(HypergraphOptimizerTest, SemiJoinThroughLooseScan) {
   // Make t1 large and with a relevant index, and t2 small
   // and with none. The best plan then will be to remove
   // duplicates from t2 and then do lookups into t1.
-  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0],
-                                    /*column2=*/nullptr,
-                                    /*unique=*/true);
+  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0], HA_NOSAME);
   m_fake_tables["t1"]->file->stats.records = 1000000;
   m_fake_tables["t1"]->file->stats.data_file_length = 10000e6;
   m_fake_tables["t2"]->file->stats.records = 100;
@@ -4999,9 +4977,7 @@ TEST_F(HypergraphOptimizerTest, ImpossibleWhereInJoinGivesZeroRows) {
   // Create an index on t2.y so that the range optimizer analyzes the WHERE
   // clause and detects that it always evaluates to FALSE.
   Fake_TABLE *t2 = m_fake_tables["t2"];
-  t2->create_index(t2->field[1],
-                   /*column2=*/nullptr,
-                   /*unique=*/false);
+  t2->create_index(t2->field[1]);
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
@@ -5027,9 +5003,7 @@ TEST_F(HypergraphOptimizerTest, ImpossibleRangeInJoinWithFilterAndAggregation) {
   // Create an index on t2.y so that the range optimizer analyzes the WHERE
   // clause and detects that it always evaluates to FALSE.
   Fake_TABLE *t2 = m_fake_tables["t2"];
-  t2->create_index(t2->field[1],
-                   /*column2=*/nullptr,
-                   /*unique=*/false);
+  t2->create_index(t2->field[1]);
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
@@ -5050,7 +5024,7 @@ TEST_F(HypergraphOptimizerTest, FullTableCoveringIndexScan) {
   t1->file->stats.records = 100000;
   t1->file->stats.data_file_length = 100e6;
   t1->file->stats.block_size = 4096;
-  const int index = t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+  const int index = t1->create_index(t1->field[0], HA_NOSAME);
   t1->covering_keys.clear_all();
   t1->covering_keys.set_bit(index);
   t1->s->key_info = t1->key_info;
@@ -5073,12 +5047,7 @@ TEST_F(HypergraphOptimizerTest, SimpleRangeScan) {
 
   Fake_TABLE *t1 = m_fake_tables["t1"];
   t1->file->stats.records = 1000;
-  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
-
-  // Mark the index as supporting range scans.
-  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
-          index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({t1->field[0]});
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
@@ -5113,12 +5082,7 @@ TEST_F(HypergraphOptimizerTest, ComplexMultipartRangeScan) {
 
   Fake_TABLE *t1 = m_fake_tables["t1"];
   t1->file->stats.records = 1000;
-  t1->create_index(t1->field[0], t1->field[1], /*unique=*/false);
-
-  // Mark the index as supporting range scans.
-  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
-          index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({t1->field[0], t1->field[1]});
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
@@ -5185,13 +5149,7 @@ TEST_F(HypergraphOptimizerTest, RangeScanWithReverseOrdering) {
 
   Fake_TABLE *t1 = m_fake_tables["t1"];
   t1->file->stats.records = 1000;
-  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
-
-  // Mark the index as supporting range scans _and_ ordering.
-  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
-          index_flags(_, _, _))
-      .WillByDefault(
-          Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({t1->field[0]});
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
@@ -5219,10 +5177,7 @@ TEST_F(HypergraphOptimizerTest, ImpossibleRange) {
                       /*nullable=*/false);
 
   // We need an index, or we would never analyze ranges on t1.x.
-  Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
-  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({m_fake_tables["t1"]->field[0]});
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
@@ -5256,10 +5211,7 @@ TEST_F(HypergraphOptimizerTest, ImpossibleRangeWithOverflowBitset) {
 
   // Add an index on t1.x so that we try a range scan on the
   // impossible range (x >= 2 AND x <= 1).
-  Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
-  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({m_fake_tables["t1"]->field[0]});
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
@@ -5279,13 +5231,8 @@ TEST_F(HypergraphOptimizerTest, IndexMerge) {
 
   Fake_TABLE *t1 = m_fake_tables["t1"];
   t1->file->stats.records = 1000;
-  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
-  t1->create_index(t1->field[1], nullptr, /*unique=*/false);
-
-  // Mark the index as supporting range scans.
-  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
-          index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
@@ -5323,13 +5270,8 @@ TEST_F(HypergraphOptimizerTest, IndexMergeSubsumesOnlyOnePredicate) {
 
   Fake_TABLE *t1 = m_fake_tables["t1"];
   t1->file->stats.records = 1000;
-  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
-  t1->create_index(t1->field[1], nullptr, /*unique=*/false);
-
-  // Mark the index as supporting range scans.
-  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
-          index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({t1->field[0]});
+  CreateOrderedIndex({t1->field[1]});
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
@@ -5362,13 +5304,9 @@ TEST_F(HypergraphOptimizerTest, DontSubsumeIndexMergePredicateInRangeScan) {
   t1->file->stats.data_file_length = 1e6;
 
   // Create indexes on (x, y) and on (y).
-  EXPECT_EQ(0, t1->create_index(t1->field[0], t1->field[1], /*unique=*/false));
-  EXPECT_EQ(1, t1->create_index(t1->field[1], nullptr, /*unique=*/false));
-
-  // Mark the indexes as supporting range scans.
+  EXPECT_EQ(0, CreateOrderedIndex({t1->field[0], t1->field[1]}));
+  EXPECT_EQ(1, CreateOrderedIndex({t1->field[1]}));
   Mock_HANDLER *handler = down_cast<Mock_HANDLER *>(t1->file);
-  EXPECT_CALL(*handler, index_flags)
-      .WillRepeatedly(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
 
   // Report smaller ranges in the (x, y) index than in the (y) index, so that a
   // range scan on (x, y) is preferred to a range scan on (y). And also
@@ -5417,13 +5355,10 @@ TEST_F(HypergraphOptimizerTest, DontSubsumeRangePredicateInIndexMerge) {
 
   // Create indexes on x, y and z.
   for (int i = 0; i < 3; ++i) {
-    EXPECT_EQ(i, t1->create_index(t1->field[i], nullptr));
+    EXPECT_EQ(i, CreateOrderedIndex({t1->field[i]}));
   }
 
-  // Mark the indexes as supporting range scans.
   Mock_HANDLER *handler = down_cast<Mock_HANDLER *>(t1->file);
-  EXPECT_CALL(*handler, index_flags)
-      .WillRepeatedly(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
 
   // Make the index on x less selective than the other indexes, so that an index
   // merge on y and z is preferred to an index range scan on x.
@@ -5462,16 +5397,10 @@ TEST_F(HypergraphOptimizerTest, IndexMergePrefersNonCPKToOrderByPrimaryKey) {
 
     Fake_TABLE *t1 = m_fake_tables["t1"];
     t1->file->stats.records = 1000;
-    t1->s->primary_key =
-        t1->create_index(t1->field[0], nullptr, /*unique=*/false);
-    t1->create_index(t1->field[1], nullptr, /*unique=*/false);
+    t1->s->primary_key = CreateOrderedIndex({t1->field[0]});
+    CreateOrderedIndex({t1->field[1]});
 
-    // Mark the index as supporting range scans, being ordered, and being
-    // clustered.
-    ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
-            index_flags(_, _, _))
-        .WillByDefault(Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT |
-                              HA_READ_PREV));
+    // Mark the primary index as clustered.
     ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
             primary_key_is_clustered())
         .WillByDefault(Return(true));
@@ -5508,10 +5437,8 @@ TEST_F(HypergraphOptimizerTest, IndexMergeInexactRangeWithOverflowBitset) {
   Fake_TABLE *t1 = new (m_thd->mem_root) Fake_TABLE(&x, &y, &z);
   t1->file->stats.records = 10000;
   t1->file->stats.data_file_length = 1e6;
-  t1->create_index(&x, nullptr, /*unique=*/false);
-  t1->create_index(&y, nullptr, /*unique=*/false);
-  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({&x});
+  CreateOrderedIndex({&y});
   m_fake_tables["t1"] = t1;
 
   // We want to test a query that does an inexact range scan (achieved by having
@@ -5761,11 +5688,11 @@ TEST_F(HypergraphOptimizerTest, DeletePreferImmediate) {
   // is considered cheaper than (t1, t2) before the cost of buffered deletes is
   // taken into consideration.
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+  t1->create_index(t1->field[0], HA_NOSAME);
   t1->file->stats.records = 110000;
   t1->file->stats.data_file_length = 1.1e6;
   Fake_TABLE *t2 = m_fake_tables["t2"];
-  t2->create_index(t2->field[0], nullptr, /*unique=*/true);
+  t2->create_index(t2->field[0], HA_NOSAME);
   t2->file->stats.records = 100000;
   t2->file->stats.data_file_length = 1.0e6;
 
@@ -5799,12 +5726,8 @@ TEST_F(HypergraphOptimizerTest, ImmedateDeleteFromRangeScan) {
   ASSERT_NE(nullptr, query_block);
 
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+  CreateOrderedIndex({t1->field[0]}, HA_NOSAME);
   t1->file->stats.records = 100000;
-
-  // Mark the index as supporting range scans.
-  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -5827,13 +5750,9 @@ TEST_F(HypergraphOptimizerTest, ImmedateDeleteFromIndexMerge) {
   ASSERT_NE(nullptr, query_block);
 
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], nullptr, /*unique=*/true);
-  t1->create_index(t1->field[1], nullptr, /*unique=*/true);
+  CreateOrderedIndex({t1->field[0]}, HA_NOSAME);
+  CreateOrderedIndex({t1->field[1]}, HA_NOSAME);
   t1->file->stats.records = 100000;
-
-  // Mark the indexes as supporting range scans.
-  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
 
   string trace;
   AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
@@ -5861,11 +5780,11 @@ TEST_F(HypergraphOptimizerTest, UpdatePreferImmediate) {
   // is considered cheaper than (t1, t2) before the cost of buffered updates is
   // taken into consideration.
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+  t1->create_index(t1->field[0], HA_NOSAME);
   t1->file->stats.records = 110000;
   t1->file->stats.data_file_length = 1.1e6;
   Fake_TABLE *t2 = m_fake_tables["t2"];
-  t2->create_index(t2->field[0], nullptr, /*unique=*/true);
+  t2->create_index(t2->field[0], HA_NOSAME);
   t2->file->stats.records = 100000;
   t2->file->stats.data_file_length = 1.0e6;
 
@@ -5934,10 +5853,7 @@ TEST_F(HypergraphOptimizerTest, IndexSkipScan) {
   Fake_TABLE *t1 = m_fake_tables["t1"];
   t1->file->stats.records = 1000;
   t1->file->stats.data_file_length = 100e6;
-  t1->create_index(t1->field[0], t1->field[1], t1->field[2], /*unique=*/true);
-
-  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
-      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({t1->field[0], t1->field[1], t1->field[2]}, HA_NOSAME);
   m_thd->variables.optimizer_switch |= OPTIMIZER_SKIP_SCAN;
   t1->covering_keys.clear_all();
   t1->covering_keys.set_bit(0);  // covering index on (y,w)
@@ -5963,11 +5879,7 @@ TEST_F(HypergraphOptimizerTest, IndexSkipScanWithOrderBy) {
   Fake_TABLE *t1 = m_fake_tables["t1"];
   t1->file->stats.records = 1000;
   t1->file->stats.data_file_length = 100e6;
-  t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
-
-  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
-      .WillByDefault(
-          Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({t1->field[0], t1->field[1]}, HA_NOSAME);
   m_thd->variables.optimizer_switch |= OPTIMIZER_SKIP_SCAN;
   t1->covering_keys.clear_all();
   t1->covering_keys.set_bit(0);  // covering index on (x,y)
@@ -5996,12 +5908,8 @@ TEST_F(HypergraphOptimizerTest, IndexSkipScanMultiIndex) {
   Fake_TABLE *t1 = m_fake_tables["t1"];
   t1->file->stats.records = 1000;
   t1->file->stats.data_file_length = 100e6;
-  t1->create_index(t1->field[2], t1->field[3], /*unique=*/true);
-  t1->create_index(t1->field[1], t1->field[3], /*unique=*/true);
-
-  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
-      .WillByDefault(
-          Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({t1->field[2], t1->field[3]}, HA_NOSAME);
+  CreateOrderedIndex({t1->field[1], t1->field[3]}, HA_NOSAME);
   m_thd->variables.optimizer_switch |= OPTIMIZER_SKIP_SCAN;
   t1->covering_keys.clear_all();
   // non-covering index on (z,w), covering index on (y,w)
@@ -6031,11 +5939,7 @@ TEST_F(HypergraphOptimizerTest, IndexSkipScanMultiPredicate) {
   Fake_TABLE *t1 = m_fake_tables["t1"];
   t1->file->stats.records = 1000;
   t1->file->stats.data_file_length = 100e6;
-  t1->create_index(t1->field[0], t1->field[1], t1->field[2], /*unique=*/true);
-
-  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
-      .WillByDefault(
-          Return(HA_READ_RANGE | HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+  CreateOrderedIndex({t1->field[0], t1->field[1], t1->field[2]}, HA_NOSAME);
   m_thd->variables.optimizer_switch |= OPTIMIZER_SKIP_SCAN;
   t1->covering_keys.clear_all();
   t1->covering_keys.set_bit(0);
@@ -6674,7 +6578,7 @@ TEST_F(HypergraphSecondaryEngineTest, DontCallCostHookForEmptyJoins) {
   // Create an index on t1.y, so that the range optimizer detects the impossible
   // table filter.
   Fake_TABLE *t1 = m_fake_tables["t1"];
-  t1->create_index(t1->field[1], nullptr, /*unique=*/true);
+  t1->create_index(t1->field[1], HA_NOSAME);
 
   // The secondary engine cost hook is stateless, so let's create a thread local
   // variable for it to store the state in.
@@ -7285,9 +7189,9 @@ static void BM_FindBestQueryPlanPointSelect(size_t num_iterations) {
   Fake_TABLE *t1 = fake_tables["t1"];
   Fake_handler_for_benchmark fake_handler(t1);
   t1->set_handler(&fake_handler);
-  t1->s->primary_key = t1->create_index(t1->field[0], nullptr, /*unique=*/true);
-  t1->create_index(t1->field[1], nullptr, /*unique=*/false);
-  t1->create_index(t1->field[2], nullptr, /*unique=*/false);
+  t1->s->primary_key = t1->create_index(t1->field[0], HA_NOSAME);
+  t1->create_index(t1->field[1]);
+  t1->create_index(t1->field[2]);
   t1->file->stats.records = 100000;
   t1->file->stats.data_file_length = 1e8;
 

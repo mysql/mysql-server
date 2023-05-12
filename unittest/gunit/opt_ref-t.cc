@@ -74,7 +74,7 @@ class OptRefTest : public ::testing::Test {
     t1 = new Fake_TABLE(field_t1_a, field_t1_b);
     t2 = new Fake_TABLE(field_t2_a, field_t2_b);
 
-    index_over_t1ab_id = t1->create_index(field_t1_a, field_t1_b);
+    index_over_t1ab_id = t1->create_index({field_t1_a, field_t1_b});
     indexes.set_bit(index_over_t1ab_id);
 
     t1_join_tab.set_qs(&t1_qep_shared);

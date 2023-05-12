@@ -26,21 +26,27 @@
 #include <assert.h>
 #include <string.h>
 #include <sys/types.h>
+#include <cstddef>
+#include <initializer_list>
+#include <iterator>
+#include <new>
 #include <ostream>
 #include <string>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
-
 #include "my_inttypes.h"
+#include "my_sys.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/key.h"
+#include "sql/sql_array.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
@@ -122,7 +128,6 @@ class Fake_TABLE : public TABLE {
   uint32 read_set_buf;
   uint32 tmp_set_buf;
   Field *m_field_array[MAX_TABLE_COLUMNS]{};
-  Mock_field_long *m_mock_field_array[MAX_TABLE_COLUMNS];
 
   // Counter for creating unique index id's. See create_index().
   int highest_index_id;
@@ -257,54 +262,42 @@ class Fake_TABLE : public TABLE {
     */
   }
 
-  // Defines an index over (column1, column2) and generates a unique id.
-  int create_index(Field *column1, Field *column2, bool unique = false) {
-    return create_index(column1, column2, unique ? ulong{HA_NOSAME} : 0);
+  // Defines an index over column and generates a unique id.
+  int create_index(Field *column, ulong key_flags = 0) {
+    return create_index({column}, key_flags);
   }
 
-  int create_index(Field *column1, Field *column2, ulong key_flags) {
-    return create_index(column1, column2, nullptr, key_flags);
-  }
-
-  int create_index(Field *column1, Field *column2, Field *column3,
-                   ulong key_flags) {
-    column1->set_flag(PART_KEY_FLAG);
-    int index_id = highest_index_id++;
-    column1->key_start.set_bit(index_id);
+  int create_index(std::initializer_list<Field *> columns,
+                   ulong key_flags = 0) {
+    assert(!empty(columns));
+    const int index_id = highest_index_id++;
     keys_in_use_for_query.set_bit(index_id);
-    column1->part_of_key.set_bit(index_id);
 
-    if (column2 != nullptr) {
-      column2->set_flag(PART_KEY_FLAG);
-      column2->part_of_key.set_bit(index_id);
+    bool first = true;
+    for (Field *column : columns) {
+      if (first) {
+        column->key_start.set_bit(index_id);
+        first = false;
+      }
+      column->set_flag(PART_KEY_FLAG);
+      column->part_of_key.set_bit(index_id);
     }
 
-    if (column3 != nullptr) {
-      column3->set_flag(PART_KEY_FLAG);
-      column3->part_of_key.set_bit(index_id);
-    }
+    KEY &key = m_keys[index_id];
+    key.table = this;
+    string key_name = "key" + std::to_string(index_id);
+    key.name = strmake_root(&mem_root, key_name.data(), key_name.length());
+    key.flags = key.actual_flags = key_flags;
+    key.actual_key_parts = key.user_defined_key_parts = columns.size();
 
-    KEY *key = &m_keys[index_id];
-    key->table = this;
-    key->flags = key->actual_flags = key_flags;
-    key->actual_key_parts = key->user_defined_key_parts = 1;
-    key->key_part[0].init_from_field(column1);
-    ++s->key_parts;
-    if (column2 != nullptr) {
-      key->actual_key_parts = key->user_defined_key_parts = 2;
-      key->key_part[1].init_from_field(column2);
+    for (size_t i = 0; i < columns.size(); ++i) {
+      key.key_part[i].init_from_field(data(columns)[i]);
       ++s->key_parts;
     }
-    if (column3 != nullptr) {
-      key->actual_key_parts = key->user_defined_key_parts = 3;
-      key->key_part[2].init_from_field(column3);
-      ++s->key_parts;
-    }
-    key->name = "unittest_index";
 
     for (const KEY_PART_INFO &key_part :
-         make_array(key->key_part, key->actual_key_parts)) {
-      key->key_length += key_part.length;
+         make_array(key.key_part, key.actual_key_parts)) {
+      key.key_length += key_part.length;
     }
 
     ++s->keys;
