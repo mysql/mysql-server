@@ -24,8 +24,6 @@
 
 #include "classic_mock_session.h"
 
-#include <openssl/bio.h>
-#include <openssl/x509.h>
 #include <array>
 #include <chrono>
 #include <exception>
@@ -33,7 +31,9 @@
 #include <system_error>
 #include <thread>
 
+#include <openssl/bio.h>
 #include <openssl/ssl.h>
+#include <openssl/x509.h>
 
 #include "hexify.h"
 #include "mysql/harness/logging/logging.h"
@@ -561,6 +561,44 @@ void MySQLServerMockSessionClassic::idle() {
       return;
     case classic_protocol::Codec<
         classic_protocol::message::client::ResetConnection>::cmd_byte():
+
+      protocol_.encode_ok({});
+
+      send_response_then_idle();
+      break;
+    case classic_protocol::Codec<
+        classic_protocol::message::client::ChangeUser>::cmd_byte(): {
+      auto msg_res = classic_protocol::decode<
+          classic_protocol::message::client::ChangeUser>(net::buffer(payload),
+                                                         {});
+      if (!msg_res) {
+        protocol_.encode_error({ER_PARSE_ERROR, std::string("change-user: ") +
+                                                    msg_res.error().message()});
+        send_response_then_idle();
+        break;
+      }
+
+      if (msg_res->second.auth_method_name() == CachingSha2Password::name) {
+        protocol_.encode_auth_fast_message();
+      }
+
+      OkResponse msg;
+      if (protocol_.shared_capabilities().test(
+              classic_protocol::capabilities::pos::session_track)) {
+        msg.status_flags(
+            1 << classic_protocol::status::pos::session_state_changed);
+        msg.session_changes(encode_session_trackers({
+            {classic_protocol::session_track::TransactionCharacteristics{""}},
+        }));
+      }
+
+      protocol_.encode_ok(msg);
+
+      send_response_then_idle();
+      break;
+    }
+    case classic_protocol::Codec<
+        classic_protocol::message::client::Ping>::cmd_byte():
 
       protocol_.encode_ok({});
 

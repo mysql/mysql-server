@@ -79,6 +79,7 @@ FOREACH(test_file
     test_routing_retry.cc
     test_routing_strategy.cc
     test_routing_sharing.cc
+    test_routing_splitting.cc
     test_sd_notify.cc
     test_shutdown.cc
     test_state_file.cc

@@ -445,7 +445,21 @@ function get_response(stmt_key, options) {
         },
       };
     case "router_start_transaction":
-      return {"stmt": "START TRANSACTION", "ok": {}};
+      return {
+        "stmt": "START TRANSACTION",
+        "ok": {
+          session_trackers: [
+            {
+              type: "trx_characteristics",
+              trx_stmt: "START TRANSACTION;",
+            },
+            {
+              type: "trx_state",
+              state: "________",
+            },
+          ]
+        }
+      };
     case "router_select_router_address":
       return {
         stmt_regex:
@@ -600,9 +614,41 @@ function get_response(stmt_key, options) {
         "ok": {}
       };
     case "router_commit":
-      return {stmt: "COMMIT", ok: {}};
+      return {
+        stmt: "COMMIT",
+        ok: {
+          session_trackers: [
+            {
+              type: "trx_characteristics",
+              value: "",
+            },
+            {
+              type: "trx_state",
+              state: "________",
+            },
+            {
+              type: "gtid",
+              gtid: "3E11FA47-71CA-11E1-9E33-C80AA9429562:23",
+            }
+          ]
+        }
+      };
     case "router_rollback":
-      return {stmt: "ROLLBACK", ok: {}};
+      return {
+        stmt: "ROLLBACK",
+        ok: {
+          session_trackers: [
+            {
+              type: "trx_characteristics",
+              value: "",
+            },
+            {
+              type: "trx_state",
+              state: "________",
+            },
+          ]
+        }
+      };
     case "router_replication_group_members":
       return {
         stmt:
