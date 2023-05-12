@@ -247,6 +247,15 @@ enum enum_gcs_error Gcs_operations::join(
   */
   metrics_cache_reset();
 
+  DBUG_EXECUTE_IF("group_replication_wait_on_before_gcs_join", {
+    const char act[] =
+        "now signal "
+        "signal.reached_group_replication_wait_on_before_gcs_join "
+        "wait_for "
+        "signal.resume_group_replication_wait_on_before_gcs_join";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   error = gcs_control->join();
 
   gcs_operations_lock->unlock();
@@ -890,12 +899,15 @@ void Gcs_operations::metrics_cache_update() {
 
 uint64_t Gcs_operations::get_all_consensus_proposals_count() {
   DBUG_TRACE;
-  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
 
-  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
-  if (gcs_statistics != nullptr) {
-    m_all_consensus_proposals_count.store(
-        gcs_statistics->get_all_sucessful_proposal_rounds());
+  Checkable_rwlock::Guard g(*gcs_operations_lock,
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (g.is_rdlocked()) {
+    Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+    if (gcs_statistics != nullptr) {
+      m_all_consensus_proposals_count.store(
+          gcs_statistics->get_all_sucessful_proposal_rounds());
+    }
   }
 
   return m_all_consensus_proposals_count.load();
@@ -903,12 +915,15 @@ uint64_t Gcs_operations::get_all_consensus_proposals_count() {
 
 uint64_t Gcs_operations::get_empty_consensus_proposals_count() {
   DBUG_TRACE;
-  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
 
-  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
-  if (gcs_statistics != nullptr) {
-    m_empty_consensus_proposals_count.store(
-        gcs_statistics->get_all_empty_proposal_rounds());
+  Checkable_rwlock::Guard g(*gcs_operations_lock,
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (g.is_rdlocked()) {
+    Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+    if (gcs_statistics != nullptr) {
+      m_empty_consensus_proposals_count.store(
+          gcs_statistics->get_all_empty_proposal_rounds());
+    }
   }
 
   return m_empty_consensus_proposals_count.load();
@@ -916,11 +931,14 @@ uint64_t Gcs_operations::get_empty_consensus_proposals_count() {
 
 uint64_t Gcs_operations::get_consensus_bytes_sent_sum() {
   DBUG_TRACE;
-  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
 
-  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
-  if (gcs_statistics != nullptr) {
-    m_consensus_bytes_sent_sum.store(gcs_statistics->get_all_bytes_sent());
+  Checkable_rwlock::Guard g(*gcs_operations_lock,
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (g.is_rdlocked()) {
+    Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+    if (gcs_statistics != nullptr) {
+      m_consensus_bytes_sent_sum.store(gcs_statistics->get_all_bytes_sent());
+    }
   }
 
   return m_consensus_bytes_sent_sum.load();
@@ -928,12 +946,15 @@ uint64_t Gcs_operations::get_consensus_bytes_sent_sum() {
 
 uint64_t Gcs_operations::get_consensus_bytes_received_sum() {
   DBUG_TRACE;
-  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
 
-  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
-  if (gcs_statistics != nullptr) {
-    m_consensus_bytes_received_sum.store(
-        gcs_statistics->get_all_message_bytes_received());
+  Checkable_rwlock::Guard g(*gcs_operations_lock,
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (g.is_rdlocked()) {
+    Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+    if (gcs_statistics != nullptr) {
+      m_consensus_bytes_received_sum.store(
+          gcs_statistics->get_all_message_bytes_received());
+    }
   }
 
   return m_consensus_bytes_received_sum.load();
@@ -941,12 +962,15 @@ uint64_t Gcs_operations::get_consensus_bytes_received_sum() {
 
 uint64_t Gcs_operations::get_all_consensus_time_sum() {
   DBUG_TRACE;
-  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
 
-  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
-  if (gcs_statistics != nullptr) {
-    m_all_consensus_time_sum.store(
-        static_cast<uint64_t>(gcs_statistics->get_cumulative_proposal_time()));
+  Checkable_rwlock::Guard g(*gcs_operations_lock,
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (g.is_rdlocked()) {
+    Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+    if (gcs_statistics != nullptr) {
+      m_all_consensus_time_sum.store(static_cast<uint64_t>(
+          gcs_statistics->get_cumulative_proposal_time()));
+    }
   }
 
   return m_all_consensus_time_sum.load();
@@ -954,12 +978,15 @@ uint64_t Gcs_operations::get_all_consensus_time_sum() {
 
 uint64_t Gcs_operations::get_extended_consensus_count() {
   DBUG_TRACE;
-  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
 
-  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
-  if (gcs_statistics != nullptr) {
-    m_extended_consensus_count.store(
-        gcs_statistics->get_all_full_proposal_count());
+  Checkable_rwlock::Guard g(*gcs_operations_lock,
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (g.is_rdlocked()) {
+    Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+    if (gcs_statistics != nullptr) {
+      m_extended_consensus_count.store(
+          gcs_statistics->get_all_full_proposal_count());
+    }
   }
 
   return m_extended_consensus_count.load();
@@ -967,11 +994,15 @@ uint64_t Gcs_operations::get_extended_consensus_count() {
 
 uint64_t Gcs_operations::get_total_messages_sent_count() {
   DBUG_TRACE;
-  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
 
-  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
-  if (gcs_statistics != nullptr) {
-    m_total_messages_sent_count.store(gcs_statistics->get_all_messages_sent());
+  Checkable_rwlock::Guard g(*gcs_operations_lock,
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (g.is_rdlocked()) {
+    Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+    if (gcs_statistics != nullptr) {
+      m_total_messages_sent_count.store(
+          gcs_statistics->get_all_messages_sent());
+    }
   }
 
   return m_total_messages_sent_count.load();
@@ -979,12 +1010,15 @@ uint64_t Gcs_operations::get_total_messages_sent_count() {
 
 uint64_t Gcs_operations::get_last_consensus_end_timestamp() {
   DBUG_TRACE;
-  Checkable_rwlock::Guard g(*gcs_operations_lock, Checkable_rwlock::READ_LOCK);
 
-  Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
-  if (gcs_statistics != nullptr) {
-    m_last_consensus_end_timestamp.store(
-        static_cast<uint64_t>(gcs_statistics->get_last_proposal_round_time()));
+  Checkable_rwlock::Guard g(*gcs_operations_lock,
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (g.is_rdlocked()) {
+    Gcs_statistics_interface *gcs_statistics = get_statistics_interface();
+    if (gcs_statistics != nullptr) {
+      m_last_consensus_end_timestamp.store(static_cast<uint64_t>(
+          gcs_statistics->get_last_proposal_round_time()));
+    }
   }
 
   return m_last_consensus_end_timestamp.load();

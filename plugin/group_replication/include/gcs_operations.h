@@ -493,41 +493,81 @@ class Gcs_operations {
  public:
   /**
     @see Gcs_statistics_interface::get_all_sucessful_proposal_rounds()
+
+    @details This method will try to acquire a read lock so that a
+    recent value is returned. If the lock acquire is not possible,
+    case on which there is a exclusive operation ongoing, a cached
+    value is returned.
   */
   uint64_t get_all_consensus_proposals_count();
 
   /**
     @see Gcs_statistics_interface::get_all_empty_proposal_rounds()
+
+    @details This method will try to acquire a read lock so that a
+    recent value is returned. If the lock acquire is not possible,
+    case on which there is a exclusive operation ongoing, a cached
+    value is returned.
   */
   uint64_t get_empty_consensus_proposals_count();
 
   /**
     @see Gcs_statistics_interface::get_all_bytes_sent()
+
+    @details This method will try to acquire a read lock so that a
+    recent value is returned. If the lock acquire is not possible,
+    case on which there is a exclusive operation ongoing, a cached
+    value is returned.
   */
   uint64_t get_consensus_bytes_sent_sum();
 
   /**
     @see Gcs_statistics_interface::get_all_message_bytes_received()
+
+    @details This method will try to acquire a read lock so that a
+    recent value is returned. If the lock acquire is not possible,
+    case on which there is a exclusive operation ongoing, a cached
+    value is returned.
   */
   uint64_t get_consensus_bytes_received_sum();
 
   /**
     @see Gcs_statistics_interface::get_cumulative_proposal_time()
+
+    @details This method will try to acquire a read lock so that a
+    recent value is returned. If the lock acquire is not possible,
+    case on which there is a exclusive operation ongoing, a cached
+    value is returned.
   */
   uint64_t get_all_consensus_time_sum();
 
   /**
     @see Gcs_statistics_interface::get_all_full_proposal_count()
+
+    @details This method will try to acquire a read lock so that a
+    recent value is returned. If the lock acquire is not possible,
+    case on which there is a exclusive operation ongoing, a cached
+    value is returned.
   */
   uint64_t get_extended_consensus_count();
 
   /**
     @see Gcs_statistics_interface::get_all_messages_sent()
+
+    @details This method will try to acquire a read lock so that a
+    recent value is returned. If the lock acquire is not possible,
+    case on which there is a exclusive operation ongoing, a cached
+    value is returned.
   */
   uint64_t get_total_messages_sent_count();
 
   /**
     @see Gcs_statistics_interface::get_last_proposal_round_time()
+
+    @details This method will try to acquire a read lock so that a
+    recent value is returned. If the lock acquire is not possible,
+    case on which there is a exclusive operation ongoing, a cached
+    value is returned.
   */
   uint64_t get_last_consensus_end_timestamp();
 
