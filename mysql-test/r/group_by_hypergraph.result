@@ -11,14 +11,13 @@ SELECT DISTINCT MIN(t2.x), t1.x
 FROM t t1 JOIN t t2 USING (x)
 GROUP BY t2.x;
 EXPLAIN
--> Remove duplicates from input grouped on t.x, `MIN(t2.x)`
-    -> Stream results
-        -> Group aggregate: min(t2.x)
-            -> Sort: t2.x
-                -> Inner hash join (t1.x = t2.x)
-                    -> Table scan on t1
-                    -> Hash
-                        -> Table scan on t2
+-> Remove duplicates from input grouped on t1.x, min(t2.x)
+    -> Group aggregate: min(t2.x)
+        -> Sort: t2.x
+            -> Inner hash join (t1.x = t2.x)
+                -> Table scan on t1
+                -> Hash
+                    -> Table scan on t2
 
 DROP TABLE t;
 #

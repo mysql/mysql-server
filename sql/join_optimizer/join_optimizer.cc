@@ -142,7 +142,8 @@ AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
                                       bool copy_items);
 
 AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
-                              bool need_rowid);
+                              bool need_rowid,
+                              bool force_materialization = false);
 
 /**
   CostingReceiver contains the main join planning logic, selecting access paths
@@ -5101,8 +5102,9 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
 }
 
 AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
-                              bool need_rowid) {
-  if (need_rowid && path->safe_for_rowid == AccessPath::UNSAFE) {
+                              bool need_rowid, bool force_materialization) {
+  if (force_materialization ||
+      (need_rowid && path->safe_for_rowid == AccessPath::UNSAFE)) {
     // We need to materialize this path before we can sort it,
     // since it might not give us stable row IDs.
     return CreateMaterializationOrStreamingPath(
@@ -5732,23 +5734,11 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   // problem. Note that we can't do this if sorting by row IDs, as
   // AggregateIterator doesn't preserve them (doing so would probably not be
   // worth it for something that's fairly niche).
-  //
-  // NOTE: If we elide the sort due to interesting orderings, this might
-  // be redundant. It is fairly harmless, though.
-  if ((query_block->is_explicitly_grouped() &&
+  const bool force_materialization_before_sort =
+      (query_block->is_explicitly_grouped() &&
        (*join->sum_funcs != nullptr ||
         join->rollup_state != JOIN::RollupState::NONE || need_rowid)) &&
-      join->m_windows.is_empty()) {
-    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
-    for (AccessPath *root_path : root_candidates) {
-      root_path =
-          CreateMaterializationOrStreamingPath(thd, join, root_path, need_rowid,
-                                               /*copy_items=*/true);
-      receiver.ProposeAccessPath(root_path, &new_root_candidates,
-                                 /*obsolete_orderings=*/0, "");
-    }
-    root_candidates = std::move(new_root_candidates);
-  }
+      join->m_windows.is_empty();
 
   // Now create iterators for DISTINCT, if applicable.
   if (join->select_distinct) {
@@ -5796,7 +5786,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         continue;
       }
 
-      root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
+      root_path = GetSafePathToSort(thd, join, root_path, need_rowid,
+                                    force_materialization_before_sort);
 
       // We need to sort. Try all sort-ahead, not just the one directly
       // derived from DISTINCT clause, because the DISTINCT clause might
@@ -5887,7 +5878,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         const bool push_limit_to_filesort =
             limit_rows != HA_POS_ERROR && !join->calc_found_rows;
 
-        root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
+        root_path = GetSafePathToSort(thd, join, root_path, need_rowid,
+                                      force_materialization_before_sort);
 
         AccessPath *sort_path = new (thd->mem_root) AccessPath;
         sort_path->type = AccessPath::SORT;

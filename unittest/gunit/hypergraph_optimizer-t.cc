@@ -4715,6 +4715,29 @@ TEST_F(HypergraphOptimizerTest, ElideRedundantSortAfterGrouping) {
   EXPECT_EQ(nullptr, query_block->join->order.order);
 }
 
+TEST_F(HypergraphOptimizerTest, NoMaterializationForElidedSortAfterGrouping) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT SUM(t1.y) FROM t1 GROUP BY t1.x ORDER BY t1.x",
+                      /*nullable=*/true);
+
+  CreateOrderedIndex({m_fake_tables["t1"]->field[0]});
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect that there is no materialization step after the aggregation. There
+  // usually is one when sorting after aggregation, but it's not needed when the
+  // sorting is elided.
+  ASSERT_EQ(AccessPath::AGGREGATE, root->type);
+  ASSERT_EQ(AccessPath::INDEX_SCAN, root->aggregate().child->type);
+  EXPECT_TRUE(root->aggregate().child->index_scan().use_order);
+  EXPECT_FALSE(root->aggregate().child->index_scan().reverse);
+}
+
 TEST_F(HypergraphOptimizerTest, ElideRedundantSortForDistinct) {
   Query_block *query_block = ParseAndResolve(
       "SELECT DISTINCT t2.x FROM t1 LEFT JOIN t2 ON t1.x = t2.x "
@@ -4737,6 +4760,38 @@ TEST_F(HypergraphOptimizerTest, ElideRedundantSortForDistinct) {
   ASSERT_EQ(AccessPath::FILTER, root->limit_offset().child->type);
   EXPECT_EQ("(t2.x is null)",
             ItemToString(root->limit_offset().child->filter().condition));
+}
+
+TEST_F(HypergraphOptimizerTest, NoMaterializationForElidedSortForDistinct) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT DISTINCT t1.x FROM t1 GROUP BY t1.x, t1.y HAVING COUNT(*) < 10",
+      /*nullable=*/true);
+
+  // Add an index that can be used to get the desired ordering for GROUP BY
+  // without sorting.
+  CreateOrderedIndex(
+      {m_fake_tables["t1"]->field[0], m_fake_tables["t1"]->field[1]});
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Expect that there is no materialization step below the REMOVE_DUPLICATES
+  // step. We'd need that if we had to sort the aggregated results in order to
+  // remove the duplicates, but since the sort is elided, a materialization step
+  // is unnecessary.
+  ASSERT_EQ(AccessPath::REMOVE_DUPLICATES, root->type);
+  AccessPath *child = root->remove_duplicates().child;
+  ASSERT_EQ(AccessPath::FILTER, child->type);
+  child = child->filter().child;
+  ASSERT_EQ(AccessPath::AGGREGATE, child->type);
+  child = child->aggregate().child;
+  ASSERT_EQ(AccessPath::INDEX_SCAN, child->type);
+  EXPECT_TRUE(child->index_scan().use_order);
+  EXPECT_FALSE(child->index_scan().reverse);
 }
 
 // This case is tricky; the order given by the index is (x, y), but the
@@ -6438,7 +6493,7 @@ INSTANTIATE_TEST_SUITE_P(
         {"SELECT t1.x FROM t1 GROUP BY t1.x HAVING COUNT(*) > 5 ORDER BY t1.x",
          AccessPath::FILTER, true},
         {"SELECT 1 FROM t1 GROUP BY t1.x ORDER BY SUM(t1.y)",
-         AccessPath::STREAM, true},
+         AccessPath::AGGREGATE, true},
     })));
 
 INSTANTIATE_TEST_SUITE_P(
