@@ -4091,7 +4091,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       (*order->item)->increment_ref_count();
       order->in_field_list = true;
       if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)
-        order->used_alias = true;
+        order->used_alias = (*order->item)->item_name.ptr();
       return false;
     }
     /*

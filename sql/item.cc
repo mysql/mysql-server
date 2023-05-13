@@ -846,13 +846,13 @@ void Item::print_item_w_name(const THD *thd, String *str,
    merge-able view never has GROUP BY. @see mysql_register_view().
 */
 void Item::print_for_order(const THD *thd, String *str,
-                           enum_query_type query_type, bool used_alias) const {
+                           enum_query_type query_type,
+                           const char *used_alias) const {
   if ((query_type & QT_NORMALIZED_FORMAT) != 0)
     str->append("?");
-  else if (used_alias) {
-    assert(item_name.is_set());
+  else if (used_alias != nullptr) {
     // In the clause, user has referenced expression using an alias; we use it
-    append_identifier(thd, str, item_name.ptr(), item_name.length());
+    append_identifier(thd, str, used_alias, strlen(used_alias));
   } else {
     if (type() == Item::INT_ITEM && basic_const_item()) {
       /*

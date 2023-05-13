@@ -585,7 +585,7 @@ static bool open_views_and_update_metadata(
         view->algorithm != VIEW_ALGORITHM_TEMPTABLE) {
       for (ORDER *order = thd->lex->query_block->order_list.first; order;
            order = order->next)
-        order->used_alias = false;  /// @see Item::print_for_order()
+        order->used_alias = nullptr;  /// @see Item::print_for_order()
     }
     Sql_mode_parse_guard parse_guard(thd);
     thd->lex->unit->print(

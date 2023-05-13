@@ -307,11 +307,11 @@ struct ORDER {
   bool in_field_list{false}; /* true if in select field list */
   /**
      Tells whether this ORDER element was referenced with an alias or with an
-     expression, in the query:
-     SELECT a AS foo GROUP BY foo: true.
-     SELECT a AS foo GROUP BY a: false.
+     expression in the query, and what the alias was:
+     SELECT a AS foo GROUP BY foo: "foo".
+     SELECT a AS foo GROUP BY a: nullptr.
   */
-  bool used_alias{false};
+  const char *used_alias{nullptr};
   /**
     When GROUP BY is implemented with a temporary table (i.e. the table takes
     care to store only unique group rows, table->group != nullptr), each GROUP

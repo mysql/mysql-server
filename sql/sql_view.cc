@@ -908,7 +908,7 @@ bool mysql_register_view(THD *thd, Table_ref *view,
   if (can_be_merged) {
     for (ORDER *order = lex->query_block->order_list.first; order;
          order = order->next)
-      order->used_alias = false;  /// @see Item::print_for_order()
+      order->used_alias = nullptr;  /// @see Item::print_for_order()
   }
 
   /* Generate view definition and IS queries. */

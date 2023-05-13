@@ -693,13 +693,13 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
       return true;
     oi = *order->item;
 
-    if (order->used_alias) {
+    if (order->used_alias != nullptr) {
       /*
         Order by using alias is not allowed for windows, cf. SQL 2011, section
         7.11 <window clause>, SR 4. Throw the same error code as when alias is
         argument of a window function, or any function.
       */
-      my_error(ER_BAD_FIELD_ERROR, MYF(0), oi->item_name.ptr(), thd->where);
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), order->used_alias, thd->where);
       return true;
     }
 

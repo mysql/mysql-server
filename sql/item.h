@@ -2380,10 +2380,11 @@ class Item : public Parse_tree_node {
      @param  thd            Thread handle
      @param  str            String to print to
      @param  query_type     How to format the item
-     @param  used_alias     Whether item was referenced with alias.
+     @param  used_alias     The alias with which this item was referenced, or
+                            nullptr if it was not referenced with an alias.
   */
   void print_for_order(const THD *thd, String *str, enum_query_type query_type,
-                       bool used_alias) const;
+                       const char *used_alias) const;
 
   /**
     Updates used tables, not null tables information and accumulates

@@ -773,3 +773,17 @@ EXPLAIN
   "estimated_first_row_cost": 0.0625
 }
 DROP TABLE t1;
+#
+# Bug#35382014: Mysqld crash: Assertion `item_name.is_set()' failed
+#               in sql/item.cc
+#
+CREATE TABLE t (a INT);
+# Used to hit assertion in debug builds.
+EXPLAIN FORMAT=JSON INTO @var
+SELECT 1 + 1 AS x FROM t GROUP BY x WITH ROLLUP HAVING x = 1;
+EXPLAIN
+# Used to show the GROUP BY clause as "group by ``".
+SELECT JSON_UNQUOTE(JSON_EXTRACT(@var, '$.query')) AS query;
+query
+/* select#1 */ select rollup_group_item(<cache>((1 + 1)),0) AS `x` from `test`.`t` group by `x` with rollup having (rollup_group_item(`x`,0) = 1)
+DROP TABLE t;

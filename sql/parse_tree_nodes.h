@@ -233,7 +233,7 @@ class PT_order_list : public Parse_tree_node {
   }
 
   void push_back(PT_order_expr *order) {
-    order->used_alias = false;
+    order->used_alias = nullptr;
     order->used = 0;
     value.link_in_list(order, &order->next);
   }

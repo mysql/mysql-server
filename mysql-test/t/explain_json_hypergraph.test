@@ -153,3 +153,16 @@ EXPLAIN FORMAT=TREE SELECT * FROM t1 AS a LEFT JOIN t1 AS b ON FALSE
 EXPLAIN FORMAT=JSON SELECT * FROM t1 AS a LEFT JOIN t1 AS b ON FALSE
   LEFT JOIN t1 AS c ON b.a=c.a;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35382014: Mysqld crash: Assertion `item_name.is_set()' failed
+--echo #               in sql/item.cc
+--echo #
+
+CREATE TABLE t (a INT);
+--echo # Used to hit assertion in debug builds.
+EXPLAIN FORMAT=JSON INTO @var
+SELECT 1 + 1 AS x FROM t GROUP BY x WITH ROLLUP HAVING x = 1;
+--echo # Used to show the GROUP BY clause as "group by ``".
+SELECT JSON_UNQUOTE(JSON_EXTRACT(@var, '$.query')) AS query;
+DROP TABLE t;
