@@ -8000,7 +8000,7 @@ uint Field_varstring::is_equal(Create_field *new_field)
 {
   if ( (new_field->sql_type == real_type() &&
         new_field->charset == field_charset) || 
-       (new_field->chaset == &my_charset_utf8mb4_bin &&
+       (new_field->charset == &my_charset_utf8mb4_bin &&
 	field_charset == &my_charset_utf8_bin)
       )
   {
