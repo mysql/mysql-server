@@ -142,6 +142,10 @@ have_statement_timeout.inc
 # --bootstrap=--init-file=std_data/explicit_undo_32.sql
 have_innodb_default_undo_tablespaces.inc
 
+# 4.9 General utility to skip if a specific command line option is used.
+# The usage is described in the .inc file.
+skip_by_command_line_option.inc
+
 # 5.0 Different protocols
 # Reason for inclusion: Tests should run only with supported protocols and
 # skip on others.

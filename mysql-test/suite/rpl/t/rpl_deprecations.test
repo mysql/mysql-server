@@ -1,13 +1,17 @@
 --source include/master-slave.inc
 
-# no need to run multiple times
+# Each deprecated option specified on the command line, produces an
+# extra warning during server restart. So when the test executes with
+# extra options, it causes a failure of the the test assertion that
+# checks warnings after a server restart.  mtr can't help passing
+# binlog_format, so allow that (but run only in row format to avoid
+# unnecessary repetition). The other options are not passed by
+# default, so skip the test if they are set on the command line while
+# invoking mtr.
 --source include/have_binlog_format_row.inc
---source include/have_slave_repository_type_table.inc
---source include/only_mts_replica_parallel_workers.inc
---source include/only_replica_preserve_commit_order.inc
---source include/only_mts_replica_parallel_type_logical_clock.inc
---source include/have_default_replica_transaction_retries.inc
---source include/have_default_slave_rows_search_algorithms.inc
+let $variable_names = 'master_info_repository', 'relay_log_info_repository', 'replica_parallel_workers', 'replica_preserve_commit_order',
+'replica_parallel_type', 'replica_transaction_retries', 'slave_rows_search_algorithms','transaction_write_set_extraction';
+--source include/skip_by_command_line_option.inc
 
 #####################################################################
 # WL#12926: Deprecate --log_bin_use_v1_row_events                   #
