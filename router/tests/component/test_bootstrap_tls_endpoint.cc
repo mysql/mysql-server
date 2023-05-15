@@ -50,7 +50,10 @@ struct BootstrapTlsEndpointFailParams {
 
 class BootstrapTlsEndpointFail
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTlsEndpointFailParams> {};
+      public ::testing::WithParamInterface<BootstrapTlsEndpointFailParams> {
+ public:
+  BootstrapTlsEndpointFail() : RouterComponentBootstrapTest(false) {}
+};
 
 TEST_P(BootstrapTlsEndpointFail, check) {
   // launch the router in bootstrap mode
@@ -226,7 +229,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 class BootstrapTlsEndpointWithoutBootstrapFail
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTlsEndpointFailParams> {};
+      public ::testing::WithParamInterface<BootstrapTlsEndpointFailParams> {
+ public:
+  BootstrapTlsEndpointWithoutBootstrapFail()
+      : RouterComponentBootstrapTest(false) {}
+};
 
 TEST_P(BootstrapTlsEndpointWithoutBootstrapFail, check) {
   // don't set the --bootstrap option.
@@ -326,7 +333,11 @@ struct BootstrapTlsEndpointParams {
 
 class BootstrapTlsEndpointWithoutCertGeneration
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTlsEndpointParams> {};
+      public ::testing::WithParamInterface<BootstrapTlsEndpointParams> {
+ public:
+  BootstrapTlsEndpointWithoutCertGeneration()
+      : RouterComponentBootstrapTest(false) {}
+};
 
 TEST_P(BootstrapTlsEndpointWithoutCertGeneration, succeeds) {
   auto cmdline_args = GetParam().cmdline_args;
@@ -676,7 +687,10 @@ INSTANTIATE_TEST_SUITE_P(
 
 class BootstrapTlsEndpoint
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTlsEndpointParams> {};
+      public ::testing::WithParamInterface<BootstrapTlsEndpointParams> {
+ public:
+  BootstrapTlsEndpoint() : RouterComponentBootstrapTest(false) {}
+};
 
 TEST_P(BootstrapTlsEndpoint, succeeds) {
   auto cmdline_args = GetParam().cmdline_args;
@@ -1155,6 +1169,8 @@ struct BootstrapTlsEndpointFailMockParams {
 class BootstrapTlsEndpointFailMock
     : public RouterComponentBootstrapTest,
       public ::testing::WithParamInterface<BootstrapTlsEndpointFailMockParams> {
+ public:
+  BootstrapTlsEndpointFailMock() : RouterComponentBootstrapTest(false) {}
 };
 
 TEST_P(BootstrapTlsEndpointFailMock, fails) {

@@ -302,24 +302,24 @@ void MySQLRouterConf::prepare_command_options(
           }
           this->bootstrap_uri_ = server_url;
         });
-
-    arg_handler.add_option(
-        OptionNames({"--bootstrap-socket"}),
-        "Bootstrap and configure Router via a Unix socket",
-        CmdOptionValueReq::required, "socket_name",
-        [this](const std::string &socket_name) {
-          if (socket_name.empty()) {
-            throw std::runtime_error(
-                "Invalid value for --bootstrap-socket option");
-          }
-
-          this->save_bootstrap_option_not_empty(
-              "--bootstrap-socket", "bootstrap_socket", socket_name);
-        },
-        [this](const std::string &) {
-          this->assert_bootstrap_mode("--bootstrap-socket");
-        });
   }
+
+  arg_handler.add_option(
+      OptionNames({"--bootstrap-socket"}),
+      "Bootstrap and configure Router via a Unix socket",
+      CmdOptionValueReq::required, "socket_name",
+      [this](const std::string &socket_name) {
+        if (socket_name.empty()) {
+          throw std::runtime_error(
+              "Invalid value for --bootstrap-socket option");
+        }
+
+        this->save_bootstrap_option_not_empty("--bootstrap-socket",
+                                              "bootstrap_socket", socket_name);
+      },
+      [this](const std::string &) {
+        this->assert_bootstrap_mode("--bootstrap-socket");
+      });
 
   arg_handler.add_option(
       OptionNames({"--client-ssl-cert"}),
@@ -1108,7 +1108,7 @@ std::string MySQLRouterConf::bootstrap(
 #endif
 ) {
   auto print_skip_config = [this](const std::string &config_path) {
-    assert(!legacy_bootstrap_);
+    assert(!is_legacy());
     // TODO add a --reconfigure option
     out_stream_ << Vt100::foreground(Vt100::Color::Yellow)
                 << "# Skipping Router bootstrap"
@@ -1190,7 +1190,7 @@ std::string MySQLRouterConf::bootstrap(
     keyring_info_.set_master_key_file(master_key_path);
     config_gen.set_keyring_info(keyring_info_);
 
-    if (!legacy_bootstrap_ && !config_gen.needs_bootstrap(config_file_path)) {
+    if (!is_legacy() && !config_gen.needs_bootstrap(config_file_path)) {
       print_skip_config(config_file_path);
       skipped_ = true;
     } else {
@@ -1206,7 +1206,7 @@ std::string MySQLRouterConf::bootstrap(
 
     auto config_file_path =
         config_gen.config_file_path_for_directory(bootstrap_directory_);
-    if (!legacy_bootstrap_ && !config_gen.needs_bootstrap(config_file_path)) {
+    if (!is_legacy() && !config_gen.needs_bootstrap(config_file_path)) {
       print_skip_config(config_file_path);
       skipped_ = true;
     } else {

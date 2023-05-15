@@ -26,6 +26,7 @@
 #define _ROUTER_COMPONENT_TEST_H_
 
 #include <chrono>
+#include <string_view>
 
 #include <gmock/gmock.h>
 
@@ -180,6 +181,9 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
  **/
 class RouterComponentBootstrapTest : virtual public RouterComponentTest {
  public:
+  RouterComponentBootstrapTest(bool use_new_executable)
+      : new_bootstrap_executable_{use_new_executable} {}
+
   using OutputResponder = ProcessWrapper::OutputResponder;
 
   static const OutputResponder kBootstrapOutputResponder;
@@ -221,12 +225,68 @@ class RouterComponentBootstrapTest : virtual public RouterComponentTest {
     if (disable_rest) params.push_back("--disable-rest");
     if (add_report_host) params.push_back("--report-host=dont.query.dns");
 
-    return ProcessManager::launch_router(
-        params, expected_exit_code, catch_stderr, /*with_sudo=*/false,
+    if (!new_bootstrap_executable_)
+      return ProcessManager::launch_router(
+          params, expected_exit_code, catch_stderr,
+          /*with_sudo=*/false,
+          /*wait_for_notify_ready=*/std::chrono::seconds(-1), output_responder);
+
+    auto end = params.end();
+    auto it = std::find_if(params.begin(), end, [](const auto &v) {
+      std::string_view opt_bootstrap1{"--bootstrap"};
+      std::string_view opt_bootstrap2{"-B"};
+      if (v == opt_bootstrap1 || v == opt_bootstrap2) return true;
+      if (starts_with(v, opt_bootstrap1)) {
+        if (v[opt_bootstrap1.size()] == '=') return true;
+      }
+      if (starts_with(v, opt_bootstrap2)) {
+        if (v[opt_bootstrap2.size()] == '=') return true;
+      }
+      return false;
+    });
+    if (it != end) {
+      uint32_t idx;
+      auto value = *it;
+      params.erase(it);
+      if (index(value, "=", &idx)) {
+        value.erase(0, idx + 1);
+        params.insert(params.begin(), value);
+      }
+    }
+
+    for (auto &v : params) {
+      std::cout << "V:" << v << std::endl;
+    }
+    return ProcessManager::launch_router_bootstrap(
         /*wait_for_notify_ready=*/std::chrono::seconds(-1), output_responder);
   }
 
   static constexpr const char kRootPassword[] = "fake-pass";
+
+ private:
+  static bool index(const std::string &value, const char *inside,
+                    uint32_t *idx) {
+    auto pos = value.find(inside);
+
+    if (value.npos == pos) return false;
+    if (idx) *idx = static_cast<uint32_t>(pos);
+
+    return true;
+  }
+
+  static bool starts_with(const std::string &value,
+                          const std::string_view &sst) {
+    auto sst_len = sst.length();
+    if (0 == sst_len) return false;
+    if (value.length() < sst_len) return false;
+
+    for (uint32_t i = 0; i < sst_len; ++i) {
+      if (value[i] != sst[i]) return false;
+    }
+    return true;
+  }
+
+  bool new_bootstrap_executable_;
 };
 
 std::ostream &operator<<(
