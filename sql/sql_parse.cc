@@ -3332,8 +3332,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
   }
 
   /*
-    Pre-open temporary tables to simplify privilege checking
-    for statements which need this.
+    Open all temporary tables referenced in statement.
+    A session has all privileges for any temporary table that it has created,
+    however a table must be opened in order to identify it as a temporary table.
   */
   if (sql_command_flags[lex->sql_command] & CF_PREOPEN_TMP_TABLES) {
     if (open_temporary_tables(thd, all_tables)) goto error;
