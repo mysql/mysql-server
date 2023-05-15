@@ -116,8 +116,9 @@ ADD_LIBRARY(routing SHARED
   classic_query_param.cc
   classic_session_tracker.cc
 
-  sql_value.cc
   show_warnings_parser.cc
+  sql_value.cc
+  start_transaction_parser.cc
 
   openssl_msg.cc
 )

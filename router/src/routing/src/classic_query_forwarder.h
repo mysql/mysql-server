@@ -38,6 +38,10 @@ class QueryForwarder : public ForwardingProcessor {
   enum class Stage {
     Command,
 
+    PoolBackend,
+    SwitchBackend,
+    PrepareBackend,
+
     Connect,
     Connected,
 
@@ -73,6 +77,9 @@ class QueryForwarder : public ForwardingProcessor {
 
  private:
   stdx::expected<Result, std::error_code> command();
+  stdx::expected<Result, std::error_code> pool_backend();
+  stdx::expected<Result, std::error_code> switch_backend();
+  stdx::expected<Result, std::error_code> prepare_backend();
   stdx::expected<Result, std::error_code> connect();
   stdx::expected<Result, std::error_code> connected();
   stdx::expected<Result, std::error_code> forward();

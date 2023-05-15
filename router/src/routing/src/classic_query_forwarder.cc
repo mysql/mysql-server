@@ -28,6 +28,7 @@
 #include <chrono>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <system_error>
 #include <variant>
@@ -44,6 +45,7 @@
 #include "classic_lazy_connect.h"
 #include "classic_query_param.h"
 #include "classic_query_sender.h"
+#include "classic_quit_sender.h"
 #include "classic_session_tracker.h"
 #include "command_router_set.h"
 #include "harness_assert.h"
@@ -59,6 +61,9 @@
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/client_error_code.h"
+#include "mysqlrouter/connection_pool_component.h"
+#include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"  // to_string
 #include "show_warnings_parser.h"
 #include "sql/lex.h"
@@ -66,10 +71,13 @@
 #include "sql_lexer.h"
 #include "sql_lexer_thd.h"
 #include "sql_parser.h"
+#include "start_transaction_parser.h"
+#include "stmt_classifier.h"
 
 #undef DEBUG_DUMP_TOKENS
 
-static const auto forwarded_status_flags =
+namespace {
+const auto forwarded_status_flags =
     classic_protocol::status::in_transaction |
     classic_protocol::status::in_transaction_readonly |
     classic_protocol::status::autocommit;
@@ -77,7 +85,7 @@ static const auto forwarded_status_flags =
 /**
  * format a timepoint as json-value (date-time format).
  */
-static std::string string_from_timepoint(
+std::string string_from_timepoint(
     std::chrono::time_point<std::chrono::system_clock> tp) {
   time_t cur = decltype(tp)::clock::to_time_t(tp);
   struct tm cur_gmtime;
@@ -98,7 +106,7 @@ static std::string string_from_timepoint(
       static_cast<long int>(usec.count()));
 }
 
-static bool ieq(const std::string_view &a, const std::string_view &b) {
+bool ieq(const std::string_view &a, const std::string_view &b) {
   return std::equal(a.begin(), a.end(), b.begin(), b.end(),
                     [](char lhs, char rhs) {
                       auto ascii_tolower = [](char c) {
@@ -108,53 +116,8 @@ static bool ieq(const std::string_view &a, const std::string_view &b) {
                     });
 }
 
-stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
-  switch (stage()) {
-    case Stage::Command:
-      return command();
-    case Stage::Connect:
-      return connect();
-    case Stage::Connected:
-      return connected();
-    case Stage::Forward:
-      return forward();
-    case Stage::ForwardDone:
-      return forward_done();
-    case Stage::Response:
-      return response();
-    case Stage::ColumnCount:
-      return column_count();
-    case Stage::LoadData:
-      return load_data();
-    case Stage::Data:
-      return data();
-    case Stage::Column:
-      return column();
-    case Stage::ColumnEnd:
-      return column_end();
-    case Stage::RowOrEnd:
-      return row_or_end();
-    case Stage::Row:
-      return row();
-    case Stage::RowEnd:
-      return row_end();
-    case Stage::Ok:
-      return ok();
-    case Stage::Error:
-      return error();
-    case Stage::ResponseDone:
-      return response_done();
-    case Stage::SendQueued:
-      return send_queued();
-    case Stage::Done:
-      return Result::Done;
-  }
-
-  harness_assert_this_should_not_execute();
-}
-
 #ifdef DEBUG_DUMP_TOKENS
-static void dump_token(SqlLexer::iterator::Token tkn) {
+void dump_token(SqlLexer::iterator::Token tkn) {
   std::map<int, std::string_view> syms;
 
   for (size_t ndx{}; ndx < sizeof(symbols) / sizeof(symbols[0]); ++ndx) {
@@ -181,43 +144,44 @@ static void dump_token(SqlLexer::iterator::Token tkn) {
 }
 #endif
 
-static std::ostream &operator<<(std::ostream &os,
-                                stdx::flags<StmtClassifier> flags) {
-  bool one{false};
-  if (flags & StmtClassifier::ForbiddenFunctionWithConnSharing) {
-    one = true;
-    os << "forbidden_function_with_connection_sharing";
-  }
-  if (flags & StmtClassifier::ForbiddenSetWithConnSharing) {
-    if (one) os << ",";
-    one = true;
-    os << "forbidden_set_with_connection_sharing";
-  }
-  if (flags & StmtClassifier::NoStateChangeIgnoreTracker) {
-    if (one) os << ",";
-    one = true;
-    os << "ignore_session_tracker_some_state_changed";
-  }
-  if (flags & StmtClassifier::StateChangeOnError) {
-    if (one) os << ",";
-    one = true;
-    os << "session_not_sharable_on_error";
-  }
-  if (flags & StmtClassifier::StateChangeOnSuccess) {
-    if (one) os << ",";
-    one = true;
-    os << "session_not_sharable_on_success";
-  }
-  if (flags & StmtClassifier::StateChangeOnTracker) {
-    if (one) os << ",";
-    one = true;
-    os << "accept_session_state_from_session_tracker";
+std::string to_string(stdx::flags<StmtClassifier> flags) {
+  std::string out;
+
+  for (auto [flag, str] : {
+           std::pair{StmtClassifier::ForbiddenFunctionWithConnSharing,
+                     "forbidden_function_with_connection_sharing"},
+           std::pair{StmtClassifier::ForbiddenSetWithConnSharing,
+                     "forbidden_set_with_connection_sharing"},
+           std::pair{StmtClassifier::NoStateChangeIgnoreTracker,
+                     "ignore_session_tracker_some_state_changed"},
+           std::pair{StmtClassifier::StateChangeOnError,
+                     "session_not_sharable_on_error"},
+           std::pair{StmtClassifier::StateChangeOnSuccess,
+                     "session_not_sharable_on_success"},
+           std::pair{StmtClassifier::StateChangeOnTracker,
+                     "accept_session_state_from_session_tracker"},
+           std::pair{StmtClassifier::ReadOnly, "read-only"},
+       }) {
+    if (flags & flag) {
+      if (!out.empty()) {
+        out += ",";
+      }
+      out += str;
+    }
   }
 
-  return os;
+  return out;
 }
 
-static bool contains_multiple_statements(const std::string &stmt) {
+/*
+ * check if the statement is a multi-statement.
+ *
+ * true for:  DO 1; DO 2
+ * true for:  BEGIN; DO 1; COMMIT
+ * false for: CREATE PROCEDURE ... BEGIN DO 1; DO 2; END
+ * false for: CREATE PROCEDURE ... BEGIN IF 1 THEN DO 1; END IF; END
+ */
+bool contains_multiple_statements(const std::string &stmt) {
   MEM_ROOT mem_root;
   THD session;
   session.mem_root = &mem_root;
@@ -228,8 +192,44 @@ static bool contains_multiple_statements(const std::string &stmt) {
     session.m_parser_state = &parser_state;
     SqlLexer lexer(&session);
 
+    bool is_first{true};
+    int begin_end_depth{0};
+
+    std::optional<SqlLexer::iterator::Token> first_tkn;
+    std::optional<SqlLexer::iterator::Token> last_tkn;
+
     for (auto tkn : lexer) {
-      if (tkn.id == ';') return true;
+#ifdef DEBUG_DUMP_TOKENS
+      dump_token(tkn);
+#endif
+
+      if (is_first) {
+        first_tkn = tkn;
+        is_first = false;
+      }
+
+      // semicolon may be inside a BEGIN ... END compound statement of a
+      // CREATE PROCEDURE|EVENT|TRIGGER|FUNCTION
+      if (first_tkn->id == CREATE) {
+        // BEGIN
+        if (tkn.id == BEGIN_SYM) {
+          ++begin_end_depth;
+        }
+
+        // END, at the end of the input.
+        //
+        // but not END IF, END LOOP, ...
+        if (last_tkn && last_tkn->id == END && (tkn.id == END_OF_INPUT)) {
+          --begin_end_depth;
+        }
+      }
+
+      if (begin_end_depth == 0) {
+        // semicolon outside a BEGIN...END block.
+        if (tkn.id == ';') return true;
+      }
+
+      last_tkn = tkn;
     }
   }
 
@@ -254,8 +254,9 @@ static bool contains_multiple_statements(const std::string &stmt) {
  * FLUSH TABLES WITH READ LOCK
  * @endcode
  */
-static stdx::flags<StmtClassifier> classify(const std::string &stmt,
-                                            bool forbid_set_trackers) {
+stdx::flags<StmtClassifier> classify(const std::string &stmt,
+                                     bool forbid_set_trackers,
+                                     bool config_access_mode_auto) {
   stdx::flags<StmtClassifier> classified{};
 
   MEM_ROOT mem_root;
@@ -275,6 +276,22 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
 #ifdef DEBUG_DUMP_TOKENS
       dump_token(first);
 #endif
+
+      switch (first.id) {
+        case SELECT_SYM:
+        case DO_SYM:
+        case VALUES:
+        case TABLE_SYM:
+        case WITH:
+        case HELP_SYM:
+        case USE_SYM:
+        case DESC:
+        case DESCRIBE:  // EXPLAIN, DESCRIBE
+        case CHECKSUM_SYM:
+        case '(':
+          classified |= StmtClassifier::ReadOnly;
+          break;
+      }
 
       ++lexer_it;
 
@@ -310,6 +327,12 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
         } else if (first.id == GET_SYM && tkn.id == DIAGNOSTICS_SYM) {
           // GET [CURRENT] DIAGNOSTICS ...
           classified |= StmtClassifier::ForbiddenFunctionWithConnSharing;
+        } else if (first.id == DESCRIBE || first.id == WITH) {
+          if (tkn.id == UPDATE_SYM || tkn.id == DELETE_SYM) {
+            // always sent to the read-write servers.
+            classified &=
+                ~stdx::flags<StmtClassifier>(StmtClassifier::ReadOnly);
+          }
         }
 
         // check forbidden functions in DML statements:
@@ -328,10 +351,10 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
 
         switch (first.id) {
           case SELECT_SYM:
+          case DO_SYM:
           case INSERT_SYM:
           case UPDATE_SYM:
           case DELETE_SYM:
-          case DO_SYM:
           case CALL_SYM:
           case SET_SYM:
             if (tkn.id == '(' &&
@@ -350,6 +373,10 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
                   ident == "VERSION_TOKENS_LOCK_SHARED" ||
                   ident == "VERSION_TOKENS_LOCK_EXCLUSIVE") {
                 classified |= StmtClassifier::StateChangeOnSuccess;
+
+                // always sent to the read-write servers.
+                classified &=
+                    ~stdx::flags<StmtClassifier>(StmtClassifier::ReadOnly);
               }
 
               if (ident == "LAST_INSERT_ID") {
@@ -358,6 +385,16 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
             }
 
             break;
+        }
+
+        // SELECT ... FOR UPDATE|SHARE
+        if (first.id == SELECT_SYM) {
+          if (last.id == FOR_SYM &&
+              (tkn.id == UPDATE_SYM || tkn.id == SHARE_SYM)) {
+            // always sent to the read-write servers.
+            classified &=
+                ~stdx::flags<StmtClassifier>(StmtClassifier::ReadOnly);
+          }
         }
 
         if (first.id == SET_SYM) {
@@ -399,24 +436,40 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
               }
             }
           }
+        } else if (config_access_mode_auto &&
+                   (tkn.id == PERSIST_SYM || tkn.id == PERSIST_ONLY_SYM ||
+                    tkn.id == GLOBAL_SYM)) {
+          classified |= StmtClassifier::ForbiddenSetWithConnSharing;
         } else {
           if (last.id == LEX_HOSTNAME && tkn.id == SET_VAR) {  // :=
             classified |= StmtClassifier::StateChangeOnSuccess;
             classified |= StmtClassifier::StateChangeOnError;
           }
         }
+
         last = tkn;
       }
 
+      if (classified & (StmtClassifier::StateChangeOnError |
+                        StmtClassifier::StateChangeOnSuccess)) {
+        // If the statement would mark the connection as not-sharable, make sure
+        // that happens on the read-write server as we don't want to get
+        // stuck on a read-only server and not be able to switch back on a
+        // UPDATE
+        classified &= ~stdx::flags<StmtClassifier>(StmtClassifier::ReadOnly);
+      }
+
       if (first.id == SET_SYM || first.id == USE_SYM) {
-        if (!classified) {
-          return StmtClassifier::NoStateChangeIgnoreTracker;
+        if (!classified || classified == stdx::flags<StmtClassifier>(
+                                             StmtClassifier::ReadOnly)) {
+          return classified | StmtClassifier::NoStateChangeIgnoreTracker;
         } else {
           return classified;
         }
       } else {
-        if (!classified) {
-          return StmtClassifier::StateChangeOnTracker;
+        if (!classified || classified == stdx::flags<StmtClassifier>(
+                                             StmtClassifier::ReadOnly)) {
+          return classified | StmtClassifier::StateChangeOnTracker;
         } else {
           return classified;
         }
@@ -428,7 +481,7 @@ static stdx::flags<StmtClassifier> classify(const std::string &stmt,
   return StmtClassifier::StateChangeOnTracker;
 }
 
-static uint64_t get_error_count(MysqlRoutingClassicConnectionBase *connection) {
+uint64_t get_error_count(MysqlRoutingClassicConnectionBase *connection) {
   uint64_t count{};
   for (auto const &w :
        connection->execution_context().diagnostics_area().warnings()) {
@@ -438,13 +491,12 @@ static uint64_t get_error_count(MysqlRoutingClassicConnectionBase *connection) {
   return count;
 }
 
-static uint64_t get_warning_count(
-    MysqlRoutingClassicConnectionBase *connection) {
+uint64_t get_warning_count(MysqlRoutingClassicConnectionBase *connection) {
   return connection->execution_context().diagnostics_area().warnings().size() +
          (connection->events().events().empty() ? 0 : 1);
 }
 
-static stdx::expected<void, std::error_code> send_resultset(
+stdx::expected<void, std::error_code> send_resultset(
     Channel *src_channel, ClassicProtocolState *src_protocol,
     const std::vector<classic_protocol::message::server::ColumnMeta> &columns,
     const std::vector<classic_protocol::message::server::Row> &rows) {
@@ -621,7 +673,7 @@ std::vector<classic_protocol::message::server::Row> rows_from_warnings(
   return rows;
 }
 
-static stdx::expected<void, std::error_code> show_count(
+stdx::expected<void, std::error_code> show_count(
     MysqlRoutingClassicConnectionBase *connection, const char *name,
     uint64_t count) {
   auto *socket_splicer = connection->socket_splicer();
@@ -652,8 +704,8 @@ static stdx::expected<void, std::error_code> show_count(
   return {};
 }
 
-static const char *show_warning_count_name(
-    ShowWarningCount::Verbosity verbosity, ShowWarningCount::Scope scope) {
+const char *show_warning_count_name(ShowWarningCount::Verbosity verbosity,
+                                    ShowWarningCount::Scope scope) {
   if (verbosity == ShowWarningCount::Verbosity::Error) {
     switch (scope) {
       case ShowWarningCount::Scope::Local:
@@ -677,7 +729,7 @@ static const char *show_warning_count_name(
   harness_assert_this_should_not_execute();
 }
 
-static stdx::expected<void, std::error_code> show_warning_count(
+stdx::expected<void, std::error_code> show_warning_count(
     MysqlRoutingClassicConnectionBase *connection,
     ShowWarningCount::Verbosity verbosity, ShowWarningCount::Scope scope) {
   if (verbosity == ShowWarningCount::Verbosity::Error) {
@@ -689,7 +741,7 @@ static stdx::expected<void, std::error_code> show_warning_count(
   }
 }
 
-static stdx::expected<void, std::error_code> show_warnings(
+stdx::expected<void, std::error_code> show_warnings(
     MysqlRoutingClassicConnectionBase *connection,
     ShowWarnings::Verbosity verbosity, uint64_t row_count, uint64_t offset) {
   auto *socket_splicer = connection->socket_splicer();
@@ -766,7 +818,7 @@ class Name_string {
   const char *name_;
 };
 
-static stdx::expected<void, std::error_code> execute_command_router_set_trace(
+stdx::expected<void, std::error_code> execute_command_router_set_trace(
     MysqlRoutingClassicConnectionBase *connection,
     const CommandRouterSet &cmd) {
   auto *socket_splicer = connection->socket_splicer();
@@ -824,7 +876,7 @@ static stdx::expected<void, std::error_code> execute_command_router_set_trace(
  * @retval expected        done
  * @retval unexpected      fatal-error
  */
-static stdx::expected<void, std::error_code> execute_command_router_set(
+stdx::expected<void, std::error_code> execute_command_router_set(
     MysqlRoutingClassicConnectionBase *connection,
     const CommandRouterSet &cmd) {
   auto *socket_splicer = connection->socket_splicer();
@@ -1033,9 +1085,9 @@ class InterceptedStatementsParser : public ShowWarningsParser {
   }
 };
 
-static stdx::expected<std::variant<std::monostate, ShowWarningCount,
-                                   ShowWarnings, CommandRouterSet>,
-                      std::string>
+stdx::expected<std::variant<std::monostate, ShowWarningCount, ShowWarnings,
+                            CommandRouterSet>,
+               std::string>
 intercept_diagnostics_area_queries(std::string_view stmt) {
   MEM_ROOT mem_root;
   THD session;
@@ -1048,6 +1100,22 @@ intercept_diagnostics_area_queries(std::string_view stmt) {
     SqlLexer lexer{&session};
 
     return InterceptedStatementsParser(lexer.begin(), lexer.end()).parse();
+  }
+}
+
+stdx::expected<std::variant<std::monostate, StartTransaction>, std::string>
+start_transaction(std::string_view stmt) {
+  MEM_ROOT mem_root;
+  THD session;
+  session.mem_root = &mem_root;
+
+  {
+    Parser_state parser_state;
+    parser_state.init(&session, stmt.data(), stmt.size());
+    session.m_parser_state = &parser_state;
+    SqlLexer lexer{&session};
+
+    return StartTransactionParser(lexer.begin(), lexer.end()).parse();
   }
 }
 
@@ -1302,10 +1370,83 @@ class ForwardedShowWarningCountHandler : public QuerySender::Handler {
   ShowWarnings::Verbosity verbosity_;
 };
 
+bool ends_with(std::string_view haystack, std::string_view needle) {
+  if (haystack.size() < needle.size()) return false;
+
+  return haystack.substr(haystack.size() - needle.size()) == needle;
+}
+
+bool set_transaction_contains_read_only(
+    std::optional<classic_protocol::session_track::TransactionCharacteristics>
+        trx_char) {
+  // match SET TRANSACTION READ ONLY; at the end of the string as
+  // the server sends:
+  //
+  // SET TRANSACTION ISOLATION LEVEL READ COMMITTED; SET TRANSACTION
+  // READ ONLY;
+  return (trx_char &&
+          ends_with(trx_char->characteristics(), "SET TRANSACTION READ ONLY;"));
+}
+
+}  // namespace
+
+stdx::expected<Processor::Result, std::error_code> QueryForwarder::process() {
+  switch (stage()) {
+    case Stage::Command:
+      return command();
+    case Stage::PoolBackend:
+      return pool_backend();
+    case Stage::SwitchBackend:
+      return switch_backend();
+    case Stage::PrepareBackend:
+      return prepare_backend();
+    case Stage::Connect:
+      return connect();
+    case Stage::Connected:
+      return connected();
+    case Stage::Forward:
+      return forward();
+    case Stage::ForwardDone:
+      return forward_done();
+    case Stage::Response:
+      return response();
+    case Stage::ColumnCount:
+      return column_count();
+    case Stage::LoadData:
+      return load_data();
+    case Stage::Data:
+      return data();
+    case Stage::Column:
+      return column();
+    case Stage::ColumnEnd:
+      return column_end();
+    case Stage::RowOrEnd:
+      return row_or_end();
+    case Stage::Row:
+      return row();
+    case Stage::RowEnd:
+      return row_end();
+    case Stage::Ok:
+      return ok();
+    case Stage::Error:
+      return error();
+    case Stage::ResponseDone:
+      return response_done();
+    case Stage::SendQueued:
+      return send_queued();
+    case Stage::Done:
+      return Result::Done;
+  }
+
+  harness_assert_this_should_not_execute();
+}
+
 stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
   auto *socket_splicer = connection()->socket_splicer();
   auto *src_channel = socket_splicer->client_channel();
   auto *src_protocol = connection()->client_protocol();
+
+  bool want_read_only_connection{false};
 
   if (!connection()->connection_sharing_possible()) {
     if (auto &tr = tracer()) {
@@ -1544,9 +1685,154 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
       }
     }
 
-    trace_event_command_ = trace_command(prefix());
+    stmt_classified_ = classify(
+        msg_res->statement(), true,
+        connection()->context().access_mode() == routing::AccessMode::kAuto);
 
-    stmt_classified_ = classify(msg_res->statement(), true);
+    enum class ReadOnlyDecider {
+      TrxState,
+      Statement,
+    } read_only_decider{ReadOnlyDecider::TrxState};
+
+    auto read_only_decider_to_string = [](ReadOnlyDecider v) -> std::string {
+      switch (v) {
+        case ReadOnlyDecider::TrxState:
+          return "trx-state";
+        case ReadOnlyDecider::Statement:
+          return "statement";
+      }
+
+      harness_assert_this_should_not_execute();
+    };
+
+    {
+      bool some_trx_state{false};
+      bool in_read_only_trx{false};
+
+      const auto &sysvars =
+          connection()->execution_context().system_variables();
+
+      // check the server's trx-characteristics if:
+      //
+      // - a transaction has been explicitly started
+      // - some transaction characteristics have been specified
+
+      const auto trx_char = connection()->trx_characteristics();
+      if (trx_char && !trx_char->characteristics().empty()) {
+        // some transaction state is set. Either is started or SET TRANSACTION
+        // ...
+        some_trx_state = true;
+
+        if (ends_with(trx_char->characteristics(),
+                      "START TRANSACTION READ ONLY;")) {
+          // explicit read-only trx started.
+          //
+          // can be moved to read-only server even if it was started as it
+          // didn't ask for a consistent snapshot.
+          in_read_only_trx = true;
+        } else if (ends_with(trx_char->characteristics(),
+                             "SET TRANSACTION READ ONLY;")) {
+          // check if the received statement is an explicit transaction start.
+          const auto start_transaction_res =
+              start_transaction(msg_res->statement());
+          if (!start_transaction_res) {
+            discard_current_msg(src_channel, src_protocol);
+
+            auto send_res = ClassicFrame::send_msg<
+                classic_protocol::message::server::Error>(
+                src_channel, src_protocol,
+                {1064, start_transaction_res.error(), "42000"});
+            if (!send_res) return send_client_failed(send_res.error());
+
+            stage(Stage::Done);
+            return Result::SendToClient;
+          }
+
+          if (std::holds_alternative<StartTransaction>(
+                  *start_transaction_res)) {
+            const auto start_trx =
+                std::get<StartTransaction>(*start_transaction_res);
+
+            if (auto access_mode = start_trx.access_mode()) {
+              // READ ONLY or READ WRITE explicitely specified.
+              in_read_only_trx =
+                  (*access_mode == StartTransaction::AccessMode::ReadOnly);
+            } else {
+              in_read_only_trx = true;
+            }
+          }  // otherwise no START TRANSACTION or BEGIN
+        }
+      } else {
+        // no trx-state yet.
+
+        // check if the received statement is an explicit transaction start.
+        const auto start_transaction_res =
+            start_transaction(msg_res->statement());
+        if (!start_transaction_res) {
+          discard_current_msg(src_channel, src_protocol);
+
+          const auto send_res =
+              ClassicFrame::send_msg<classic_protocol::message::server::Error>(
+                  src_channel, src_protocol,
+                  {1064, start_transaction_res.error(), "42000"});
+          if (!send_res) return send_client_failed(send_res.error());
+
+          stage(Stage::Done);
+          return Result::SendToClient;
+        }
+
+        if (std::holds_alternative<StartTransaction>(*start_transaction_res)) {
+          some_trx_state = true;
+
+          const auto start_trx =
+              std::get<StartTransaction>(*start_transaction_res);
+
+          if (auto access_mode = start_trx.access_mode()) {
+            // READ ONLY or READ WRITE explicitely specified.
+            in_read_only_trx =
+                (*access_mode == StartTransaction::AccessMode::ReadOnly);
+          } else {
+            // if there is a SET TRANSACTION READ ONLY ...
+            if (set_transaction_contains_read_only(
+                    connection()->trx_characteristics())) {
+              in_read_only_trx = true;
+            }
+          }
+
+          // ignore
+          //
+          //   SET SESSION transaction_read_only = 1;
+          //
+          // as it should be handled by the server.
+        } else {
+          // ... or an implicit transaction start.
+          auto autocommit_res = sysvars.get("autocommit").value();
+
+          // if autocommit is off, there is always some transaction which should
+          // be sent to the read-write server.
+          if (autocommit_res && autocommit_res == "OFF") {
+            some_trx_state = true;
+          }
+        }
+      }
+
+      if (some_trx_state) {
+        want_read_only_connection = in_read_only_trx;
+        read_only_decider = ReadOnlyDecider::TrxState;
+      } else {
+        // automatically detected.
+        want_read_only_connection = stmt_classified_ & StmtClassifier::ReadOnly;
+        read_only_decider = ReadOnlyDecider::Statement;
+      }
+    }
+
+    trace_event_command_ = trace_command(prefix());
+    if (auto *ev = trace_event_command_) {
+      ev->attrs.emplace_back("mysql.session_is_read_only",
+                             want_read_only_connection);
+      ev->attrs.emplace_back("mysql.session_is_read_only_decider",
+                             read_only_decider_to_string(read_only_decider));
+    }
 
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("query::classified: " +
@@ -1555,7 +1841,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
 
     if (auto *ev = trace_span(trace_event_command_, "mysql/query_classify")) {
       ev->attrs.emplace_back("mysql.query.classification",
-                             mysqlrouter::to_string(stmt_classified_));
+                             to_string(stmt_classified_));
     }
 
     // SET session_track... is forbidden if router sets session-trackers on the
@@ -1607,6 +1893,77 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
   trace_event_connect_and_forward_command_ =
       trace_connect_and_forward_command(trace_event_command_);
 
+  stage(Stage::PrepareBackend);
+
+  if (connection()->connection_sharing_allowed() &&
+      // only switch backends if access-mode is 'auto'
+      connection()->context().access_mode() == routing::AccessMode::kAuto) {
+    if ((want_read_only_connection && connection()->expected_server_mode() ==
+                                          mysqlrouter::ServerMode::ReadWrite) ||
+        (!want_read_only_connection && connection()->expected_server_mode() ==
+                                           mysqlrouter::ServerMode::ReadOnly)) {
+      connection()->expected_server_mode(
+          want_read_only_connection ? mysqlrouter::ServerMode::ReadOnly
+                                    : mysqlrouter::ServerMode::ReadWrite);
+
+      if (socket_splicer->server_conn().is_open()) {
+        // as the connection will be switched, get rid of this connection.
+        stage(Stage::PoolBackend);
+      }
+    }
+  }
+
+  return Result::Again;
+}
+
+// pool the current server connection.
+stdx::expected<Processor::Result, std::error_code>
+QueryForwarder::pool_backend() {
+  stage(Stage::SwitchBackend);
+
+  auto pooled_res = pool_server_connection();
+  if (!pooled_res) return send_server_failed(pooled_res.error());
+
+  const auto pooled = *pooled_res;
+
+  if (pooled) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::switch_backend::pooled"));
+    }
+  } else {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("query::switch_backend::full"));
+    }
+
+    // as the pool is full, close the server connection nicely.
+    connection()->push_processor(std::make_unique<QuitSender>(connection()));
+  }
+
+  return Result::Again;
+}
+
+// switch to the new backend.
+stdx::expected<Processor::Result, std::error_code>
+QueryForwarder::switch_backend() {
+  auto *socket_splicer = connection()->socket_splicer();
+
+  // toggle the read-only state.
+  // and connect to the backend again.
+  stage(Stage::PrepareBackend);
+
+  // server socket is closed, reset its state.
+  auto ssl_mode = socket_splicer->server_conn().ssl_mode();
+  socket_splicer->server_conn() =
+      TlsSwitchableConnection{nullptr,   // connection
+                              nullptr,   // routing-connection
+                              ssl_mode,  //
+                              std::make_unique<ClassicProtocolState>()};
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+QueryForwarder::prepare_backend() {
   auto &server_conn = connection()->socket_splicer()->server_conn();
   if (!server_conn.is_open()) {
     stage(Stage::Connect);
@@ -1615,6 +1972,7 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
         trace_forward_command(trace_event_connect_and_forward_command_);
     stage(Stage::Forward);
   }
+
   return Result::Again;
 }
 

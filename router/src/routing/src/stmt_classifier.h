@@ -34,6 +34,7 @@ enum class StmtClassifier {
   NoStateChangeIgnoreTracker = 1 << 3,        // tracker is wrong.
   ForbiddenFunctionWithConnSharing = 1 << 4,  // forbidden function
   ForbiddenSetWithConnSharing = 1 << 5,       // forbidden set-tracker
+  ReadOnly = 1 << 6,                          // statement is read-only
 };
 
 namespace stdx {

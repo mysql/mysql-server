@@ -1085,8 +1085,8 @@ const TracingCommandParam tracing_command_params[] = {
                   std::pair{"/events/0/name",
                             rapidjson::Value("mysql/query_classify")},
                   std::pair{"/events/0/attributes/mysql.query.classification",
-                            rapidjson::Value(
-                                "accept_session_state_from_session_tracker")},
+                            rapidjson::Value("accept_session_state_from_"
+                                             "session_tracker,read-only")},
                   std::pair{"/events/1/name",
                             rapidjson::Value("mysql/connect_and_forward")},
                   std::pair{"/events/1/attributes/mysql.remote.is_connected",

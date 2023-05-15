@@ -37,7 +37,6 @@ class SqlParser {
   SqlParser(SqlLexer::iterator first, SqlLexer::iterator last)
       : cur_{first}, end_{last} {}
 
- protected:
   class TokenText {
    public:
     TokenText() = default;
@@ -51,6 +50,9 @@ class SqlParser {
     std::string_view txt_{};
   };
 
+  TokenText token() const { return {cur_->id, cur_->text}; }
+
+ protected:
   TokenText ident() {
     if (auto ident_tkn = accept(IDENT)) {
       return ident_tkn;

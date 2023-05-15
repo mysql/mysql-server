@@ -49,6 +49,7 @@ SET(test_files
   test_auth_digest.cc
   test_classic_quit_sender.cc
   test_classic_reset_connection_sender.cc
+  test_start_transaction_parser.cc
   )
 
 FOREACH(test_file ${test_files})
