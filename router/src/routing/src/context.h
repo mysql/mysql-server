@@ -169,6 +169,12 @@ class MySQLRoutingContext {
     return routing_config_.access_mode;
   }
 
+  bool wait_for_my_writes() const { return routing_config_.wait_for_my_writes; }
+
+  std::chrono::seconds wait_for_my_writes_timeout() const {
+    return routing_config_.wait_for_my_writes_timeout;
+  }
+
  private:
   const RoutingConfig routing_config_;
 

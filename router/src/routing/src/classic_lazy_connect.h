@@ -28,6 +28,7 @@
 #include <system_error>
 
 #include "forwarding_processor.h"
+#include "mysqlrouter/classic_protocol_message.h"
 
 /**
  * attach a server connection and initialize it.
@@ -81,6 +82,11 @@ class LazyConnector : public ForwardingProcessor {
     FetchSysVarsDone,
     SetTrxCharacteristics,
     SetTrxCharacteristicsDone,
+    WaitGtidExecuted,
+    WaitGtidExecutedDone,
+
+    PoolOrClose,
+    FallbackToWrite,
 
     Done,
   };
@@ -114,6 +120,11 @@ class LazyConnector : public ForwardingProcessor {
   stdx::expected<Processor::Result, std::error_code> set_trx_characteristics();
   stdx::expected<Processor::Result, std::error_code>
   set_trx_characteristics_done();
+  stdx::expected<Processor::Result, std::error_code> wait_gtid_executed();
+  stdx::expected<Processor::Result, std::error_code> wait_gtid_executed_done();
+
+  stdx::expected<Processor::Result, std::error_code> pool_or_close();
+  stdx::expected<Processor::Result, std::error_code> fallback_to_write();
 
   Stage stage_{Stage::Connect};
 
@@ -139,6 +150,7 @@ class LazyConnector : public ForwardingProcessor {
   TraceEvent *trace_event_fetch_sys_vars_{};
   TraceEvent *trace_event_set_schema_{};
   TraceEvent *trace_event_set_trx_characteristics_{};
+  TraceEvent *trace_event_wait_gtid_executed_{};
 };
 
 #endif

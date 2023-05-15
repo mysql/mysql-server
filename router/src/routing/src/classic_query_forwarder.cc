@@ -1460,6 +1460,10 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
     // not a SHOW WARNINGS or so, reset the warnings.
     connection()->execution_context().diagnostics_area().warnings().clear();
     connection()->events().clear();
+    connection()->wait_for_my_writes(src_protocol->wait_for_my_writes());
+    connection()->gtid_at_least_executed(src_protocol->gtid_executed());
+    connection()->wait_for_my_writes_timeout(
+        src_protocol->wait_for_my_writes_timeout());
 
     auto collation_connection = connection()
                                     ->execution_context()

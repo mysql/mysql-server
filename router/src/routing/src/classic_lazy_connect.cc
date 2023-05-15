@@ -36,6 +36,7 @@
 #include "classic_greeting_forwarder.h"  // ServerGreetor
 #include "classic_init_schema_sender.h"
 #include "classic_query_sender.h"
+#include "classic_quit_sender.h"
 #include "classic_reset_connection_sender.h"
 #include "classic_set_option_sender.h"
 #include "mysql/harness/logging/logging.h"
@@ -62,6 +63,61 @@ class FailedQueryHandler : public QuerySender::Handler {
 
  private:
   LazyConnector &processor_;
+};
+
+class IsTrueHandler : public QuerySender::Handler {
+ public:
+  IsTrueHandler(LazyConnector &processor) : processor_(processor) {}
+
+  void on_column_count(uint64_t count) override {
+    if (count != 1) {
+      processor_.failed(classic_protocol::message::server::Error{
+          0, "Too many columns", "HY000"});
+    }
+  }
+
+  void on_row(const classic_protocol::message::server::Row &row) override {
+    ++row_count_;
+
+    if (row.begin() == row.end()) {
+      processor_.failed(
+          classic_protocol::message::server::Error{0, "No fields", "HY000"});
+      return;
+    }
+
+    auto fld = *(row.begin());
+
+    if (!fld.has_value()) {
+      processor_.failed(classic_protocol::message::server::Error{
+          0, "Expected integer, got NULL", "HY000"});
+      return;
+    }
+
+    if (*fld != "1") {
+      processor_.failed(classic_protocol::message::server::Error{
+          0, "Replica not synced yet.", "HY000"});
+      return;
+    }
+  }
+
+  void on_row_end(
+      const classic_protocol::message::server::Eof & /* eof */) override {
+    if (row_count_ != 1) {
+      processor_.failed(classic_protocol::message::server::Error{
+          0, "Too many rows", "HY000"});
+      return;
+    }
+  }
+
+  void on_error(const classic_protocol::message::server::Error &err) override {
+    log_warning("%s", err.message().c_str());
+
+    processor_.failed(err);
+  }
+
+ private:
+  LazyConnector &processor_;
+  uint64_t row_count_{};
 };
 
 /**
@@ -181,7 +237,16 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
       return set_trx_characteristics();
     case Stage::SetTrxCharacteristicsDone:
       return set_trx_characteristics_done();
+    case Stage::WaitGtidExecuted:
+      return wait_gtid_executed();
+    case Stage::WaitGtidExecutedDone:
+      return wait_gtid_executed_done();
+    case Stage::PoolOrClose:
+      return pool_or_close();
+    case Stage::FallbackToWrite:
+      return fallback_to_write();
     case Stage::Done:
+
       if (failed()) {
         if (auto &tr = tracer()) {
           tr.trace(Tracer::Event().stage("connect::failed"));
@@ -277,6 +342,7 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
 
       connection()->push_processor(std::make_unique<ResetConnectionSender>(
           connection(), trace_event_authenticate_));
+      connection()->authenticated(true);
     } else {
       if (auto *ev = trace_event_authenticate_) {
         ev->attrs.emplace_back("mysql.remote.needs_full_handshake", true);
@@ -595,7 +661,7 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_schema() {
     connection()->push_processor(
         std::make_unique<InitSchemaSender>(connection(), client_schema));
   } else {
-    stage(Stage::Done);
+    stage(Stage::WaitGtidExecuted);
   }
 
   return Result::Again;
@@ -618,6 +684,117 @@ LazyConnector::set_schema_done() {
       tr.trace(Tracer::Event().stage("connect::set_schema::done"));
     }
     stage(Stage::SetTrxCharacteristics);
+  }
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::wait_gtid_executed() {
+  stage(Stage::SetTrxCharacteristics);  // skip wait_gtid_executed_done if we
+                                        // didn't wait.
+
+  if (connection()->wait_for_my_writes() &&
+      (connection()->expected_server_mode() ==
+       mysqlrouter::ServerMode::ReadOnly)) {
+    auto gtid_executed = connection()->gtid_at_least_executed();
+    if (!gtid_executed.empty()) {
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("connect::wait_gtid"));
+      }
+
+      trace_event_wait_gtid_executed_ =
+          trace_span(trace_event_connect_, "mysql/wait_gtid_executed");
+
+      stage(Stage::WaitGtidExecutedDone);
+
+      const std::chrono::seconds max_replication_lag{
+          connection()->wait_for_my_writes_timeout()};
+
+      std::ostringstream oss;
+      if (max_replication_lag.count() == 0) {
+        oss << "SELECT GTID_SUBSET(" << std::quoted(gtid_executed)
+            << ", @@GLOBAL.gtid_executed)";
+      } else {
+        oss << "SELECT NOT WAIT_FOR_EXECUTED_GTID_SET("
+            << std::quoted(gtid_executed) << ", "
+            << std::to_string(max_replication_lag.count()) << ")";
+      }
+
+      connection()->push_processor(std::make_unique<QuerySender>(
+          connection(), oss.str(), std::make_unique<IsTrueHandler>(*this)));
+    }
+  }
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::wait_gtid_executed_done() {
+  if (failed()) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::wait_gtid::failed"));
+    }
+
+    trace_span_end(trace_event_wait_gtid_executed_,
+                   TraceEvent::StatusCode::kError);
+
+    stage(Stage::PoolOrClose);
+  } else {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::wait_gtid::done"));
+    }
+
+    trace_span_end(trace_event_wait_gtid_executed_);
+
+    stage(Stage::SetTrxCharacteristics);
+  }
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::pool_or_close() {
+  stage(Stage::FallbackToWrite);
+
+  const auto pool_res = pool_server_connection();
+  if (!pool_res) return stdx::make_unexpected(pool_res.error());
+
+  const auto still_open = *pool_res;
+  if (still_open) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::pooled"));
+    }
+
+  } else {
+    // connection wasn't pooled as the pool was full. close it.
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::pool_full"));
+    }
+
+    connection()->push_processor(std::make_unique<QuitSender>(connection()));
+  }
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::fallback_to_write() {
+  if (connection()->expected_server_mode() ==
+      mysqlrouter::ServerMode::ReadOnly) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::fallback_to_write"));
+    }
+
+    connection()->expected_server_mode(mysqlrouter::ServerMode::ReadWrite);
+
+    // reset the failed state
+    failed(std::nullopt);
+
+    // the fallback will create a new trace-event
+    trace_span_end(trace_event_connect_);
+
+    stage(Stage::Connect);
+  } else {
+    stage(Stage::Done);
   }
   return Result::Again;
 }
@@ -669,7 +846,6 @@ LazyConnector::set_trx_characteristics() {
   } else {
     stage(Stage::Done);  // skip set_trx_characteristics_done
   }
-
   return Result::Again;
 }
 

@@ -476,7 +476,9 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
             classic_protocol::borrowed::session_track::SystemVariable>(
             net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
-          // ignore errors?
+          log_debug(
+              "decoding session_track::SystemVariable from server failed: %s",
+              decode_value_res.error().message().c_str());
         } else {
           const auto kv = decode_value_res->second;
 
@@ -509,7 +511,8 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
             classic_protocol::borrowed::session_track::Schema>(
             net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
-          // ignore errors?
+          log_debug("decoding session_track::Schema from server failed: %s",
+                    decode_value_res.error().message().c_str());
         } else {
           auto schema = std::string(decode_value_res->second.schema());
 
@@ -531,7 +534,8 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
             classic_protocol::borrowed::session_track::State>(
             net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
-          // ignore errors?
+          log_debug("decoding session_track::State from server failed: %s",
+                    decode_value_res.error().message().c_str());
         } else {
           // .state() is always '1'
 
@@ -554,9 +558,12 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
             classic_protocol::borrowed::session_track::Gtid>(
             net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
-          // ignore errors?
+          log_debug("decoding session_track::Gtid from server failed: %s",
+                    decode_value_res.error().message().c_str());
         } else {
-          auto gtid = decode_value_res->second;
+          const auto gtid = decode_value_res->second;
+
+          client_protocol()->gtid_executed(std::string(gtid.gtid()));
 
           if (auto &tr = tracer()) {
             std::ostringstream oss;
@@ -574,7 +581,9 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
             classic_protocol::borrowed::session_track::TransactionState>(
             net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
-          // ignore errors?
+          log_debug(
+              "decoding session_track::TransactionState from server failed: %s",
+              decode_value_res.error().message().c_str());
         } else {
           auto trx_state = decode_value_res->second;
 
@@ -689,7 +698,10 @@ MysqlRoutingClassicConnectionBase::track_session_changes(
                                          TransactionCharacteristics>(
                 net::buffer(decode_session_res->second.data()), caps);
         if (!decode_value_res) {
-          // ignore errors?
+          log_debug(
+              "decoding session_track::TransactionCharacteristics from server "
+              "failed: %s",
+              decode_value_res.error().message().c_str());
         } else {
           auto trx_characteristics = decode_value_res->second;
 
