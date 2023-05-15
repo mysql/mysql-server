@@ -139,6 +139,7 @@ bool Table_histograms_collection::insert(Table_histograms *histograms) {
       m_table_histograms[m_current_index]->reference_count() == 0) {
     free_table_histograms(m_current_index);
   }
+  assert(i < kMaxNumberOfTableHistogramsInCollection);
   m_table_histograms[i] = histograms;
   m_table_histograms[i]->set_index(i);
   m_current_index = i;

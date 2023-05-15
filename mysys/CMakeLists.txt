@@ -218,6 +218,14 @@ IF(SOLARIS AND MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(my_md5.cc COMPILE_FLAGS "-Wno-deprecated-declarations")
 ENDIF()
 
+# WinSDK files included by these .cc files generate warnings in /analyze
+# TODO: remove these when the warnings in the SDK are fixed.
+# See e.g. https://aka.ms/AAfydfn
+IF(MSVC_CPPCHECK AND MSVC AND MSVC_VERSION GREATER 1935)
+  ADD_COMPILE_FLAGS(my_init.cc COMPILE_FLAGS "/wd6553")
+  ADD_COMPILE_FLAGS(my_conio.cc COMPILE_FLAGS "/wd28286")
+ENDIF()
+
 # We are not interesting in profiling tests.
 DISABLE_MISSING_PROFILE_WARNING()
 

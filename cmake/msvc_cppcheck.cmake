@@ -46,6 +46,10 @@ MACRO(MSVC_CPPCHECK_ADD_SUPPRESSIONS)
 
     ENDIF()
 
+    IF((NOT FORCE_UNSUPPORTED_COMPILER) AND MSVC_VERSION GREATER 1935)
+      STRING_APPEND(suppress_warnings " /wd26860") # Potentially empty optional ''...'' is unwrapped, may throw exception.: Lines: ...
+    ENDIF()
+
     STRING_APPEND(suppress_warnings " /wd26110") # Caller failing to hold lock '...' before calling function 'ReleaseSRWLockExclusive'.
     STRING_APPEND(suppress_warnings " /wd26115") # Failing to release lock '..' in function '..'
     STRING_APPEND(suppress_warnings " /wd26135") # Missing annotation _Acquires_lock_(...) at function '...'.
