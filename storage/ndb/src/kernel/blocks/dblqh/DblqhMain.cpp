@@ -36898,25 +36898,12 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
        "rows completed":
        "bytes remaining.");
     
-    warningEvent("LCP Frag watchdog : No progress on table %u, frag %u for %u s."
-                 "  %llu %s, state: %s",
-                 c_lcpFragWatchdog.tableId,
-                 c_lcpFragWatchdog.fragId,
-                 c_lcpFragWatchdog.elapsedNoProgressMillis / 1000,
-                 c_lcpFragWatchdog.completionStatus,
-                 completionStatusString,
-                 lcpStateString(c_lcpFragWatchdog.lcpState));
-    c_tup->lcp_frag_watchdog_print(c_lcpFragWatchdog.tableId,
-                                   c_lcpFragWatchdog.fragId);
-    g_eventLogger->info("LCP Frag watchdog : No progress on table %u,"
-                        " frag %u for %u s."
-                        "  %llu %s, state: %s",
-             c_lcpFragWatchdog.tableId,
-             c_lcpFragWatchdog.fragId,
-             c_lcpFragWatchdog.elapsedNoProgressMillis / 1000,
-             c_lcpFragWatchdog.completionStatus,
-             completionStatusString,
-             lcpStateString(c_lcpFragWatchdog.lcpState));
+    char buf[512];
+    BaseString::snprintf(buf, sizeof(buf), " Completion Status %llu %s, table %u, frag %u",
+			 c_lcpFragWatchdog.completionStatus,
+			 completionStatusString,
+			 c_lcpFragWatchdog.tableId,
+			 c_lcpFragWatchdog.fragId);
 
     Uint32 max_no_progress_time =
       c_lcpFragWatchdog.MaxElapsedWithNoProgressMillis;
@@ -36927,23 +36914,34 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
       jam();
       max_no_progress_time = c_lcpFragWatchdog.MaxGcpWaitLimitMillis;
     }
+
+    char buf2[512];
+    BaseString::snprintf(buf2, sizeof(buf2), "LCP Frag watchdog : No progress for %u s, MaxWaitTime %u s, lcp state %s",
+                        c_lcpFragWatchdog.elapsedNoProgressMillis / 1000,
+                        max_no_progress_time / 1000,
+                        lcpStateString(c_lcpFragWatchdog.lcpState));
+
+    if (c_lcpFragWatchdog.lcpState != LcpStatusConf::LCP_WAIT_END_LCP) {
+      // LCP is checkpointing the tables, thus add completion status
+      // and table/fragment info.
+      warningEvent("%s %s", buf2, buf);
+      c_tup->lcp_frag_watchdog_print(c_lcpFragWatchdog.tableId,
+                                    c_lcpFragWatchdog.fragId);
+      g_eventLogger->info("%s %s", buf2, buf);
+    }
+    else {
+      // LCP has finished checkpointing the tables, thus no need to
+      // add completion status and table/frag info.
+      warningEvent("%s", buf2);
+      g_eventLogger->info("%s", buf2);
+    }
+
     if (c_lcpFragWatchdog.elapsedNoProgressMillis >= max_no_progress_time)
     {
       jam();
       /* Too long with no progress... */
-      
-      warningEvent("LCP Frag watchdog : Checkpoint of table %u fragment %u "
-                   "too slow (no progress for > %u s, state: %s).",
-                   c_lcpFragWatchdog.tableId,
-                   c_lcpFragWatchdog.fragId,
-                   c_lcpFragWatchdog.elapsedNoProgressMillis / 1000,
-                   lcpStateString(c_lcpFragWatchdog.lcpState));
-      g_eventLogger->info(
-          "LCP Frag watchdog : Checkpoint of table %u fragment %u "
-          "too slow (no progress for > %u s, state: %s).",
-          c_lcpFragWatchdog.tableId, c_lcpFragWatchdog.fragId,
-          c_lcpFragWatchdog.elapsedNoProgressMillis / 1000,
-          lcpStateString(c_lcpFragWatchdog.lcpState));
+      warningEvent("Waited too long with  LCP not progressing.");
+      g_eventLogger->info("Waited too long with LCP not progressing.");
 
       /**
        * Dump some LCP and GCP state for debugging...
