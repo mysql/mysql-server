@@ -145,7 +145,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 ## header contains version/platform information
 --replace_result $IBD2SDI IBD2SDI
 # see: Bug #29525890 REPLACE_REGEX DOLAR DOES NOT MATCH END OF LINE WITH EXEC
---replace_regex / Ver [0-9].*\n?$// /(Copyright \(c\)) [0-9]+, [0-9]+(.*)/\1 YEAR, YEAR\2/
+--replace_regex / Ver [0-9].*\n?$// /(Copyright \(c\)) [0-9]+, [0-9]+(.*)/\1 YEAR, YEAR\2/ /refman\/[1-9]+\.[1-9]+/refman\/#.#/
 --error 1
 --exec $IBD2SDI 2>&1
 --replace_regex /descriptor [0-9]*/descriptor X/
