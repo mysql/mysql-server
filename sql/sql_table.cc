@@ -11656,9 +11656,15 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
                         true),
                        false) ||
       trans_commit_stmt(thd) || trans_commit_implicit(thd)) {
-    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
-           (is_load ? "secondary_load" : "secondary_unload"),
-           "transaction commit failed");
+    if (thd_killed(thd)) {
+      LogErr(SYSTEM_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+             (is_load ? "secondary_load" : "secondary_unload"),
+             "query aborted before commit");
+    } else {
+      LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+             (is_load ? "secondary_load" : "secondary_unload"),
+             "transaction commit failed");
+    }
     return true;
   }
 
