@@ -78,12 +78,12 @@ class condition_variable {
     tm.tv_nsec = std::chrono::duration_cast<std::chrono::nanoseconds>(
                      rel_time - std::chrono::seconds(tm.tv_sec))
                      .count();
-    return 0 == mysql_cond_timedwait(&m_cond,
-                                     reinterpret_cast<mysql_mutex_t *>(
-                                         lock.mutex()->native_handle()),
-                                     &tm)
-               ? std::cv_status::no_timeout
-               : std::cv_status::timeout;
+    return (0 == mysql_cond_timedwait(&m_cond,
+                                      reinterpret_cast<mysql_mutex_t *>(
+                                          lock.mutex()->native_handle()),
+                                      &tm)
+                ? std::cv_status::no_timeout
+                : std::cv_status::timeout);
   }
 
   template <class Rep, class Period, class Predicate>
