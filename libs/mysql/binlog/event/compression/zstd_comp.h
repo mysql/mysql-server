@@ -20,20 +20,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_
-#define LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_
+#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_ZSTD_COMP_H
+#define MYSQL_BINLOG_EVENT_COMPRESSION_ZSTD_COMP_H
 
 #define ZSTD_STATIC_LINKING_ONLY 1
 #include <zstd.h>
 
-#include "compressor.h"
-#include "libbinlogevents/include/buffer/buffer_sequence_view.h"
-#include "libbinlogevents/include/nodiscard.h"
-#include "libbinlogevents/include/resource/memory_resource.h"  // Memory_resource
+#include "mysql/binlog/event/compression/buffer/buffer_sequence_view.h"
+#include "mysql/binlog/event/compression/compressor.h"
+#include "mysql/binlog/event/nodiscard.h"
+#include "mysql/binlog/event/resource/memory_resource.h"  // Memory_resource
 
 struct ZSTD_outBuffer_s;
 
-namespace binary_log::transaction::compression {
+namespace mysql::binlog::event::compression {
 
 /// Compressor class that uses the ZSTD library.
 class Zstd_comp : public Compressor {
@@ -41,7 +41,7 @@ class Zstd_comp : public Compressor {
   using typename Compressor::Char_t;
   using typename Compressor::Managed_buffer_sequence_t;
   using typename Compressor::Size_t;
-  using Memory_resource_t = mysqlns::resource::Memory_resource;
+  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
   using Compression_level_t = int;
   static constexpr type type_code = ZSTD;
 
@@ -157,6 +157,6 @@ class Zstd_comp : public Compressor {
   static void zstd_mem_res_free(void *opaque, void *address);
 };
 
-}  // namespace binary_log::transaction::compression
+}  // namespace mysql::binlog::event::compression
 
-#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_ZSTD_COMP_H_
+#endif  // MYSQL_BINLOG_EVENT_COMPRESSION_ZSTD_COMP_H

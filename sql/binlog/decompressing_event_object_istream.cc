@@ -30,16 +30,19 @@
 namespace binlog {
 
 Decompressing_event_object_istream::Decompressing_event_object_istream(
-    IBasic_binlog_file_reader &reader)
+    IBasic_binlog_file_reader &reader, const Memory_resource_t &memory_resource)
     : m_binlog_reader(&reader),
+      m_memory_resource(memory_resource),
       m_get_format_description_event([&]() -> Fde_ref_t {
         return m_binlog_reader->format_description_event();
       }) {}
 
 Decompressing_event_object_istream::Decompressing_event_object_istream(
     const Tple_ptr_t &transaction_payload_log_event,
-    Fde_ref_t format_description_event)
+    Fde_ref_t format_description_event,
+    const Memory_resource_t &memory_resource)
     : m_binlog_reader(nullptr),
+      m_memory_resource(memory_resource),
       m_get_format_description_event(
           [&]() -> Fde_ref_t { return format_description_event; }) {
   begin_payload_event(transaction_payload_log_event);
@@ -47,8 +50,10 @@ Decompressing_event_object_istream::Decompressing_event_object_istream(
 
 Decompressing_event_object_istream::Decompressing_event_object_istream(
     const Transaction_payload_log_event &transaction_payload_log_event,
-    Fde_ref_t format_description_event)
+    Fde_ref_t format_description_event,
+    const Memory_resource_t &memory_resource)
     : m_binlog_reader(nullptr),
+      m_memory_resource(memory_resource),
       m_get_format_description_event(
           [&]() -> Fde_ref_t { return format_description_event; }) {
   begin_payload_event(transaction_payload_log_event);

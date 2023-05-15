@@ -20,19 +20,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef LIBBINLOGEVENTS_COMPRESSION_ZSTD_DEC_H_
-#define LIBBINLOGEVENTS_COMPRESSION_ZSTD_DEC_H_
+#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_ZSTD_DEC_H
+#define MYSQL_BINLOG_EVENT_COMPRESSION_ZSTD_DEC_H
 
 #define ZSTD_STATIC_LINKING_ONLY 1
 #include <zstd.h>
 
-#include "decompressor.h"
-#include "libbinlogevents/include/nodiscard.h"
-#include "libbinlogevents/include/resource/memory_resource.h"  // Memory_resource
+#include "mysql/binlog/event/compression/decompressor.h"
+#include "mysql/binlog/event/nodiscard.h"
+#include "mysql/binlog/event/resource/memory_resource.h"  // Memory_resource
 
-namespace binary_log {
-namespace transaction {
-namespace compression {
+namespace mysql::binlog::event::compression {
 
 /// Decompressor class that uses the ZSTD library.
 class Zstd_dec : public Decompressor {
@@ -40,7 +38,7 @@ class Zstd_dec : public Decompressor {
   using typename Decompressor::Char_t;
   using typename Decompressor::Grow_constraint_t;
   using typename Decompressor::Size_t;
-  using Memory_resource_t = mysqlns::resource::Memory_resource;
+  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
   static constexpr type type_code = ZSTD;
 
   Zstd_dec(const Memory_resource_t &memory_resource = Memory_resource_t());
@@ -88,8 +86,6 @@ class Zstd_dec : public Decompressor {
   static void zstd_mem_res_free(void *opaque, void *address);
 };
 
-}  // namespace compression
-}  // end of namespace transaction
-}  // end of namespace binary_log
+}  // namespace mysql::binlog::event::compression
 
-#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_ZSTD_DEC_H_
+#endif  // MYSQL_BINLOG_EVENT_COMPRESSION_ZSTD_DEC_H

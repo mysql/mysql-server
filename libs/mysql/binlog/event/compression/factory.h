@@ -20,45 +20,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef LIBBINLOGEVENTS_COMPRESSION_BASE_H_
-#define LIBBINLOGEVENTS_COMPRESSION_BASE_H_
+#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_FACTORY_H
+#define MYSQL_BINLOG_EVENT_COMPRESSION_FACTORY_H
 
-#include <string>
+#include <memory>
+#include "mysql/binlog/event/compression/compressor.h"
+#include "mysql/binlog/event/compression/decompressor.h"
+#include "mysql/binlog/event/resource/memory_resource.h"  // Memory_resource
 
-namespace binary_log::transaction::compression {
+namespace mysql::binlog::event::compression {
 
-// ZSTD version boundary below which instrumented
-// ZSTD_create[CD]Stream_advanced functions are allowed.
-// When new ZSTD versions are released and they do not
-// break prototype for ZSTD_create[CD]Stream_advanced
-// increase the number '10505' accordingly
-constexpr unsigned int ZSTD_INSTRUMENTED_BELOW_VERSION = 10505;
+class Factory {
+  using Memory_resource_t = mysqlns::resource::Memory_resource;
 
-// Todo: use enum class and a more specific name.
-// Use contiguous values.
-enum type {
-  /* ZSTD compression. */
-  ZSTD = 0,
-
-  /* No compression. */
-  NONE = 255,
+ public:
+  static std::unique_ptr<Compressor> build_compressor(
+      type t, const Memory_resource_t &memory_resource = Memory_resource_t());
+  static std::unique_ptr<Decompressor> build_decompressor(
+      type t, const Memory_resource_t &memory_resource = Memory_resource_t());
 };
 
-template <class T>
-bool type_is_valid(T t) {
-  switch (t) {
-    case ZSTD:
-      return true;
-    case NONE:
-      return true;
-    default:
-      break;
-  }
-  return false;
-}
+}  // namespace mysql::binlog::event::compression
 
-std::string type_to_string(type t);
-
-}  // namespace binary_log::transaction::compression
-
-#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_BASE_H_
+#endif  // MYSQL_BINLOG_EVENT_COMPRESSION_FACTORY_H

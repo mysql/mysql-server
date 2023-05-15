@@ -20,45 +20,40 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef LIBBINLOGEVENTS_COMPRESSION_BASE_H_
-#define LIBBINLOGEVENTS_COMPRESSION_BASE_H_
+#include "mysql/binlog/event/compression/factory.h"
+#include <my_byteorder.h>
+#include <algorithm>
+#include "mysql/binlog/event/compression/none_comp.h"
+#include "mysql/binlog/event/compression/none_dec.h"
+#include "mysql/binlog/event/compression/zstd_comp.h"
+#include "mysql/binlog/event/compression/zstd_dec.h"
 
-#include <string>
+namespace mysql::binlog::event::compression {
 
-namespace binary_log::transaction::compression {
-
-// ZSTD version boundary below which instrumented
-// ZSTD_create[CD]Stream_advanced functions are allowed.
-// When new ZSTD versions are released and they do not
-// break prototype for ZSTD_create[CD]Stream_advanced
-// increase the number '10505' accordingly
-constexpr unsigned int ZSTD_INSTRUMENTED_BELOW_VERSION = 10505;
-
-// Todo: use enum class and a more specific name.
-// Use contiguous values.
-enum type {
-  /* ZSTD compression. */
-  ZSTD = 0,
-
-  /* No compression. */
-  NONE = 255,
-};
-
-template <class T>
-bool type_is_valid(T t) {
+std::unique_ptr<Compressor> Factory::build_compressor(
+    type t, const Memory_resource_t &memory_resource) {
   switch (t) {
     case ZSTD:
-      return true;
+      return std::make_unique<Zstd_comp>(memory_resource);
     case NONE:
-      return true;
+      return std::make_unique<None_comp>();
     default:
       break;
   }
-  return false;
+  return std::unique_ptr<Compressor>();
 }
 
-std::string type_to_string(type t);
+std::unique_ptr<Decompressor> Factory::build_decompressor(
+    type t, const Memory_resource_t &memory_resource) {
+  switch (t) {
+    case ZSTD:
+      return std::make_unique<Zstd_dec>(memory_resource);
+    case NONE:
+      return std::make_unique<None_dec>();
+    default:
+      break;
+  }
+  return std::unique_ptr<Decompressor>();
+}
 
-}  // namespace binary_log::transaction::compression
-
-#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_BASE_H_
+}  // namespace mysql::binlog::event::compression

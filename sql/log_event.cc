@@ -70,7 +70,8 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/binlog_reader.h"
 #include "sql/field_common_properties.h"
-#include "sql/my_decimal.h"               // my_decimal
+#include "sql/my_decimal.h"  // my_decimal
+#include "sql/psi_memory_resource.h"
 #include "sql/raii/thread_stage_guard.h"  // NAMED_THD_STAGE_GUARD
 #include "sql/rpl_handler.h"              // RUN_HOOK
 #include "sql/rpl_tblmap.h"
@@ -13997,7 +13998,7 @@ int Transaction_payload_log_event::do_apply_event(Relay_log_info const *rli) {
   DBUG_TRACE;
   using Istream_t =
       binary_log::transaction::compression::Payload_event_buffer_istream;
-  Istream_t istream(*this);
+  Istream_t istream(*this, 0, psi_memory_resource(key_memory_applier));
   NAMED_THD_STAGE_GUARD(stage_guard, thd, stage_binlog_transaction_decompress);
   Istream_t::Buffer_ptr_t buffer;
   while (istream >> buffer) {

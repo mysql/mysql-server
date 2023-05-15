@@ -1,0 +1,5 @@
+include/assert.inc [Check no performance schema memory is lost Performance_schema_memory_classes_lost]
+include/assert.inc [Check performance_schema.setup_instruments 'memory/sql/Rpl_thd_context']
+include/assert.inc [Check performance_schema.setup_instruments 'memory/sql/Mts_submode_database::set_multi_threaded_applier_context']
+include/assert.inc [Check performance_schema.setup_instruments 'memory/sql/Binlog_recovery::recover']
+include/assert.inc [Check performance_schema.setup_instruments 'memory/sql/show_binlog_events']

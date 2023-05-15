@@ -1,0 +1,1 @@
+--binlog-format=ROW --binlog-transaction-compression=ON

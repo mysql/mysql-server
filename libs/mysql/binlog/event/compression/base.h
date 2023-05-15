@@ -20,12 +20,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef LIBBINLOGEVENTS_COMPRESSION_BASE_H_
-#define LIBBINLOGEVENTS_COMPRESSION_BASE_H_
+#ifndef MYSQL_BINLOG_EVENT_COMPRESSION_BASE_H
+#define MYSQL_BINLOG_EVENT_COMPRESSION_BASE_H
 
 #include <string>
 
-namespace binary_log::transaction::compression {
+namespace mysql::binlog::event::compression {
 
 // ZSTD version boundary below which instrumented
 // ZSTD_create[CD]Stream_advanced functions are allowed.
@@ -59,6 +59,14 @@ bool type_is_valid(T t) {
 
 std::string type_to_string(type t);
 
-}  // namespace binary_log::transaction::compression
+}  // namespace mysql::binlog::event::compression
 
-#endif  // ifndef LIBBINLOGEVENTS_COMPRESSION_BASE_H_
+namespace [[deprecated]] binary_log {
+namespace [[deprecated]] transaction {
+namespace [[deprecated]] compression {
+using namespace mysql::binlog::event::compression;
+}  // namespace compression
+}  // namespace transaction
+}  // namespace binary_log
+
+#endif  // MYSQL_BINLOG_EVENT_COMPRESSION_BASE_H

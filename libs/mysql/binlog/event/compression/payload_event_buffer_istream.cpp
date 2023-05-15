@@ -20,15 +20,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "compression/payload_event_buffer_istream.h"
+#include "mysql/binlog/event/compression/payload_event_buffer_istream.h"
 
-#include <byteorder.h>
-#include "string/concat.h"
-#include "wrapper_functions.h"
+#include "mysql/binlog/event/byteorder.h"
+#include "mysql/binlog/event/string/concat.h"
+#include "mysql/binlog/event/wrapper_functions.h"
 
-using mysqlns::string::concat;
+using mysql::binlog::event::string::concat;
 
-namespace binary_log::transaction::compression {
+namespace mysql::binlog::event::compression {
 
 Payload_event_buffer_istream::Payload_event_buffer_istream(
     const Transaction_payload_event &transaction_payload_log_event,
@@ -198,7 +198,7 @@ void Payload_event_buffer_istream::read_event() {
     assert(!reader.get_error());
 
     // Check validity of type code.
-    if (event_type == binary_log::TRANSACTION_PAYLOAD_EVENT) {
+    if (event_type == mysql::binlog::event::TRANSACTION_PAYLOAD_EVENT) {
       // A valid TPLE cannot contain a TPLE, so detect it and error
       // out.  Without such a check, a maliciously crafted TPLE may
       // contain itself compressed (a "quine"), which might lead to
@@ -339,4 +339,4 @@ void Payload_event_buffer_istream::set_grow_calculator(
   m_grow_calculator = grow_calculator;
 }
 
-}  // namespace binary_log::transaction::compression
+}  // namespace mysql::binlog::event::compression

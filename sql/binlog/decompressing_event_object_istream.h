@@ -27,6 +27,7 @@
 
 #include "libbinlogevents/include/compression/payload_event_buffer_istream.h"
 #include "libbinlogevents/include/nodiscard.h"
+#include "libbinlogevents/include/resource/memory_resource.h"  // Memory_resource
 #include "sql/binlog_reader.h"
 #include "sql/raii/targeted_stringstream.h"
 
@@ -74,6 +75,7 @@ class Decompressing_event_object_istream {
   using Fde_ref_t = const Format_description_event &;
   using Status_t = binary_log::transaction::compression::Decompress_status;
   using Grow_calculator_t = Buffer_stream_t::Grow_calculator_t;
+  using Memory_resource_t = mysqlns::resource::Memory_resource;
 
   /// Construct stream over a file, decompressing payload events.
   ///
@@ -82,8 +84,10 @@ class Decompressing_event_object_istream {
   /// events.
   ///
   /// @param reader The source file to read from.
+  /// @param memory_resource Instrumented memory allocator object
   explicit Decompressing_event_object_istream(
-      IBasic_binlog_file_reader &reader);
+      IBasic_binlog_file_reader &reader,
+      const Memory_resource_t &memory_resource = Memory_resource_t());
 
   /// Construct stream over a Transaction_payload_log_event.
   ///
@@ -96,9 +100,12 @@ class Decompressing_event_object_istream {
   /// @param transaction_payload_log_event The source file to read from.
   ///
   /// @param format_description_event The FD event used to parse events.
+  ///
+  /// @param memory_resource Instrumented memory allocator object
   Decompressing_event_object_istream(
       const Tple_ptr_t &transaction_payload_log_event,
-      Fde_ref_t format_description_event);
+      Fde_ref_t format_description_event,
+      const Memory_resource_t &memory_resource = Memory_resource_t());
 
   /// Construct stream over a Transaction_payload_log_event.
   ///
@@ -112,9 +119,12 @@ class Decompressing_event_object_istream {
   /// @param transaction_payload_log_event The source file to read from.
   ///
   /// @param format_description_event The FD event used to parse events.
+  ///
+  /// @param memory_resource Instrumented memory allocator object
   Decompressing_event_object_istream(
       const Transaction_payload_log_event &transaction_payload_log_event,
-      Fde_ref_t format_description_event);
+      Fde_ref_t format_description_event,
+      const Memory_resource_t &memory_resource = Memory_resource_t());
 
 #ifdef NDEBUG
   ~Decompressing_event_object_istream() = default;
@@ -211,6 +221,8 @@ class Decompressing_event_object_istream {
   /// embedded event of a TPLE.
   int m_embedded_event_number{0};
 
+  Memory_resource_t m_memory_resource;
+
   /// Return the current FDE.
   std::function<Fde_ref_t()> m_get_format_description_event;
 
@@ -266,7 +278,8 @@ class Decompressing_event_object_istream {
     m_embedded_event_number = 1;
     assert(!m_buffer_istream);
     try {
-      m_buffer_istream = std::make_unique<Buffer_stream_t>(ownership_tple);
+      m_buffer_istream = std::make_unique<Buffer_stream_t>(ownership_tple, 0,
+                                                           m_memory_resource);
     } catch (...) {
       // Leave m_buffer_istream empty.
       // Report error on next invocation of `operator>>`.

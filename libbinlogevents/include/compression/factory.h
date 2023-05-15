@@ -26,13 +26,18 @@
 #include <memory>
 #include "compressor.h"
 #include "decompressor.h"
+#include "libbinlogevents/include/resource/memory_resource.h"  // Memory_resource
 
 namespace binary_log::transaction::compression {
 
 class Factory {
+  using Memory_resource_t = mysqlns::resource::Memory_resource;
+
  public:
-  static std::unique_ptr<Compressor> build_compressor(type t);
-  static std::unique_ptr<Decompressor> build_decompressor(type t);
+  static std::unique_ptr<Compressor> build_compressor(
+      type t, const Memory_resource_t &memory_resource = Memory_resource_t());
+  static std::unique_ptr<Decompressor> build_decompressor(
+      type t, const Memory_resource_t &memory_resource = Memory_resource_t());
 };
 
 }  // namespace binary_log::transaction::compression
