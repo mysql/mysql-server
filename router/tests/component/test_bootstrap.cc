@@ -71,9 +71,19 @@ using namespace std::string_literals;
 using mysqlrouter::ClusterType;
 
 // for the test with no param
-class RouterBootstrapTest : public RouterComponentBootstrapTest {};
+class CrossExeRouterBootstrapTest : public RouterComponentBootstrapTest,
+                                    public testing::WithParamInterface<bool> {
+ public:
+  CrossExeRouterBootstrapTest() : RouterComponentBootstrapTest(GetParam()) {}
+};
+
+class RouterBootstrapTest : public RouterComponentBootstrapTest {
+ public:
+  RouterBootstrapTest() : RouterComponentBootstrapTest(false) {}
+};
 
 struct BootstrapTestParam {
+  bool new_executable;
   ClusterType cluster_type;
   std::string description;
   std::string trace_file;
@@ -88,7 +98,11 @@ auto get_test_description(
 
 class RouterBootstrapOkTest
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  RouterBootstrapOkTest()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -218,11 +232,18 @@ protocol=x)";
 
 INSTANTIATE_TEST_SUITE_P(
     BootstrapOkTest, RouterBootstrapOkTest,
-    ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar", "bootstrap_ar.js", "", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1", "bootstrap_gr_v1.js",
-                           "", ""}),
+    ::testing::Values(BootstrapTestParam{false, ClusterType::GR_V2, "gr",
+                                         "bootstrap_gr.js", "", ""},
+                      BootstrapTestParam{false, ClusterType::RS_V2, "ar",
+                                         "bootstrap_ar.js", "", ""},
+                      BootstrapTestParam{false, ClusterType::GR_V1, "gr_v1",
+                                         "bootstrap_gr_v1.js", "", ""},
+                      BootstrapTestParam{true, ClusterType::GR_V2, "new_gr",
+                                         "bootstrap_gr.js", "", ""},
+                      BootstrapTestParam{true, ClusterType::RS_V2, "new_ar",
+                                         "bootstrap_ar.js", "", ""},
+                      BootstrapTestParam{true, ClusterType::GR_V1, "new_gr_v1",
+                                         "bootstrap_gr_v1.js", "", ""}),
     get_test_description);
 
 struct BootstrapOkBasePortTestParam {
@@ -234,11 +255,16 @@ struct BootstrapOkBasePortTestParam {
   uint16_t expected_port_classic_ro;
   uint16_t expected_port_x_rw;
   uint16_t expected_port_x_ro;
+  bool new_executable;
 };
 
 class RouterBootstrapOkBasePortTest
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapOkBasePortTestParam> {};
+      public ::testing::WithParamInterface<BootstrapOkBasePortTestParam> {
+ public:
+  RouterBootstrapOkBasePortTest()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 namespace {
 
@@ -327,19 +353,37 @@ const BootstrapOkBasePortTestParam bootstrap_ok_base_port_test_param[] = {
      /* expected_port_classic_rw */ 6446,
      /* expected_port_classic_ro */ 6447,
      /* expected_port_x_rw */ 6448,
-     /* expected_port_x_ro */ 6449},
+     /* expected_port_x_ro */ 6449, false},
     {"legacy_default_ports",
      /* bs_params */ {"--conf-base-port=0"},
      /* expected_port_classic_rw */ 6446,
      /* expected_port_classic_ro */ 6447,
      /* expected_port_x_rw */ 64460,
-     /* expected_port_x_ro */ 64470},
+     /* expected_port_x_ro */ 64470, false},
     {"consecutive_ports",
      /* bs_params */ {"--conf-base-port=1234"},
      /* expected_port_classic_rw */ 1234,
      /* expected_port_classic_ro */ 1235,
      /* expected_port_x_rw */ 1236,
-     /* expected_port_x_ro */ 1237}};
+     /* expected_port_x_ro */ 1237, false},
+    {"new_default_ports",
+     /* bs_params */ {},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 6448,
+     /* expected_port_x_ro */ 6449, true},
+    {"new_legacy_default_ports",
+     /* bs_params */ {"--conf-base-port=0"},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 64460,
+     /* expected_port_x_ro */ 64470, true},
+    {"new_consecutive_ports",
+     /* bs_params */ {"--conf-base-port=1234"},
+     /* expected_port_classic_rw */ 1234,
+     /* expected_port_classic_ro */ 1235,
+     /* expected_port_x_rw */ 1236,
+     /* expected_port_x_ro */ 1237, true}};
 
 INSTANTIATE_TEST_SUITE_P(RouterBootstrapOkBasePort,
                          RouterBootstrapOkBasePortTest,
@@ -351,11 +395,16 @@ struct BootstrapErrorBasePortTestParam {
 
   std::vector<std::string> bs_params;
   std::string expected_error;
+  bool new_executable;
 };
 
 class RouterBootstrapErrorBasePortTest
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapErrorBasePortTestParam> {};
+      public ::testing::WithParamInterface<BootstrapErrorBasePortTestParam> {
+ public:
+  RouterBootstrapErrorBasePortTest()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -394,16 +443,36 @@ TEST_P(RouterBootstrapErrorBasePortTest, RouterBootstrapErrorBasePort) {
 const BootstrapErrorBasePortTestParam bootstrap_error_base_port_test_param[] = {
     {"negative",
      {"--conf-base-port=-1"},
-     "--conf-base-port needs value between 0 and 65532 inclusive, was '-1'"},
+     "--conf-base-port needs value between 0 and 65532 inclusive, was '-1'",
+     false},
     {"too_big",
      {"--conf-base-port=65533"},
-     "--conf-base-port needs value between 0 and 65532 inclusive, was '65533'"},
+     "--conf-base-port needs value between 0 and 65532 inclusive, was '65533'",
+     false},
     {"nan",
      {"--conf-base-port=abc"},
-     "--conf-base-port needs value between 0 and 65532 inclusive, was 'abc'"},
+     "--conf-base-port needs value between 0 and 65532 inclusive, was 'abc'",
+     false},
     {"empty",
      {"--conf-base-port="},
-     "--conf-base-port needs value between 0 and 65532 inclusive, was ''"},
+     "--conf-base-port needs value between 0 and 65532 inclusive, was ''",
+     false},
+    {"new_negative",
+     {"--conf-base-port=-1"},
+     "--conf-base-port needs value between 0 and 65532 inclusive, was '-1'",
+     true},
+    {"new_too_big",
+     {"--conf-base-port=65533"},
+     "--conf-base-port needs value between 0 and 65532 inclusive, was '65533'",
+     true},
+    {"new_nan",
+     {"--conf-base-port=abc"},
+     "--conf-base-port needs value between 0 and 65532 inclusive, was 'abc'",
+     true},
+    {"new_empty",
+     {"--conf-base-port="},
+     "--conf-base-port needs value between 0 and 65532 inclusive, was ''",
+     true},
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -420,11 +489,16 @@ struct ReBootstrapOkBasePortTestParam {
   uint16_t expected_port_classic_ro;
   uint16_t expected_port_x_rw;
   uint16_t expected_port_x_ro;
+  bool new_executable;
 };
 
 class RouterReBootstrapOkBasePortTest
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<ReBootstrapOkBasePortTestParam> {};
+      public ::testing::WithParamInterface<ReBootstrapOkBasePortTestParam> {
+ public:
+  RouterReBootstrapOkBasePortTest()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -498,7 +572,7 @@ const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
      /* expected_port_classic_rw */ 6446,
      /* expected_port_classic_ro */ 6447,
      /* expected_port_x_rw */ 64460,
-     /* expected_port_x_ro */ 64470},
+     /* expected_port_x_ro */ 64470, false},
 
     // create a config with custom ports [5000, 5001, 5002, 5003]
     // bootstrap again on top of that config with no conf-base-port parameter
@@ -509,7 +583,7 @@ const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
      /* expected_port_classic_rw */ 6446,
      /* expected_port_classic_ro */ 6447,
      /* expected_port_x_rw */ 6448,
-     /* expected_port_x_ro */ 6449},
+     /* expected_port_x_ro */ 6449, false},
 
     // create a config with legacy ports [6446, 6447, 64460, 64470]
     // bootstrap again on top of that config with --conf-base-port=1 parameter
@@ -520,7 +594,7 @@ const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
      /* expected_port_classic_rw */ 1,
      /* expected_port_classic_ro */ 2,
      /* expected_port_x_rw */ 3,
-     /* expected_port_x_ro */ 4},
+     /* expected_port_x_ro */ 4, false},
 
     // create a config with legacy defaults [6446, 6447, 64460, 64470]
     // bootstrap again on top of that config with specifying conf-base-port
@@ -533,7 +607,7 @@ const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
      /* expected_port_classic_rw */ 6446,
      /* expected_port_classic_ro */ 6447,
      /* expected_port_x_rw */ 6448,
-     /* expected_port_x_ro */ 6449},
+     /* expected_port_x_ro */ 6449, false},
 
     // create a config with custom ports [6666, 6667, 6668, 6669]
     // bootstrap again on top of that config with conf-base-port=0 parameter
@@ -545,7 +619,62 @@ const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
      /* expected_port_classic_rw */ 6446,
      /* expected_port_classic_ro */ 6447,
      /* expected_port_x_rw */ 64460,
-     /* expected_port_x_ro */ 64470},
+     /* expected_port_x_ro */ 64470, false},
+
+    {"new_overwrite_over_legacy_defaults_keep_them",
+     /* first_bs_params */ {"--conf-base-port=0"},
+     /* second_bs_params */ {},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 64460,
+     /* expected_port_x_ro */ 64470, true},
+
+    // create a config with custom ports [5000, 5001, 5002, 5003]
+    // bootstrap again on top of that config with no conf-base-port parameter
+    // we expect new default ports to be used
+    {"new_overwrite_custom_ports",
+     /* first_bs_params */ {"--conf-base-port=5000"},
+     /* second_bs_params */ {},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 6448,
+     /* expected_port_x_ro */ 6449, true},
+
+    // create a config with legacy ports [6446, 6447, 64460, 64470]
+    // bootstrap again on top of that config with --conf-base-port=1 parameter
+    // we expect 1, 2, 3, 4 ports to overwrite the legacy ports
+    {"new_overwrite_legacy_with_custom_ports",
+     /* first_bs_params */ {"--conf-base-port=0"},
+     /* second_bs_params */ {"--conf-base-port=1"},
+     /* expected_port_classic_rw */ 1,
+     /* expected_port_classic_ro */ 2,
+     /* expected_port_x_rw */ 3,
+     /* expected_port_x_ro */ 4, true},
+
+    // create a config with legacy defaults [6446, 6447, 64460, 64470]
+    // bootstrap again on top of that config with specifying conf-base-port
+    // parameter even though the existing conf uses legacy default we change
+    // them because the user used conf-base-port, so we should not be using
+    // defaults
+    {"new_overwrite_over_legacy_defaults_using_param_change_them",
+     /* first_bs_params */ {"--conf-base-port=0"},
+     /* second_bs_params */ {"--conf-base-port=6446"},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 6448,
+     /* expected_port_x_ro */ 6449, true},
+
+    // create a config with custom ports [6666, 6667, 6668, 6669]
+    // bootstrap again on top of that config with conf-base-port=0 parameter
+    // since the user requested legacy defaults the ports in the config should
+    // be [6446, 6447, 64460, 64470]
+    {"new_overwrite_custom_ports_with_legacy",
+     /* first_bs_params */ {"--conf-base-port=6666"},
+     /* second_bs_params */ {"--conf-base-port=0"},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 64460,
+     /* expected_port_x_ro */ 64470, true},
 
 #ifndef _WIN32
     // create a config with no tcp endpoints
@@ -557,7 +686,7 @@ const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
      /* expected_port_classic_rw */ 6446,
      /* expected_port_classic_ro */ 6447,
      /* expected_port_x_rw */ 6448,
-     /* expected_port_x_ro */ 6449},
+     /* expected_port_x_ro */ 6449, false},
 
     // create a config with no tcp endpoints
     // bootstrap again on top of that config with conf-base-port=0 parameter
@@ -569,7 +698,29 @@ const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
      /* expected_port_classic_rw */ 6446,
      /* expected_port_classic_ro */ 6447,
      /* expected_port_x_rw */ 64460,
-     /* expected_port_x_ro */ 64470}
+     /* expected_port_x_ro */ 64470, false},
+    // create a config with no tcp endpoints
+    // bootstrap again on top of that config with no conf-base-port parameter
+    // the new defaults should be used
+    {"new_overwrite_over_no_tcp_config_new_defaults",
+     /* first_bs_params */ {"--conf-skip-tcp"},
+     /* second_bs_params */ {},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 6448,
+     /* expected_port_x_ro */ 6449, true},
+
+    // create a config with no tcp endpoints
+    // bootstrap again on top of that config with conf-base-port=0 parameter
+    // since the user requested legacy defaults the ports in the config should
+    // be [6446, 6447, 64460, 64470]
+    {"new_overwrite_over_no_tcp_config_legacy_defaults",
+     /* first_bs_params */ {"--conf-skip-tcp"},
+     /* second_bs_params */ {"--conf-base-port=0"},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 64460,
+     /* expected_port_x_ro */ 64470, true}
 #endif
 };
 
@@ -594,7 +745,11 @@ INSTANTIATE_TEST_SUITE_P(
  */
 class RouterBootstrapUserIsCurrentUser
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  RouterBootstrapUserIsCurrentUser()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 TEST_P(RouterBootstrapUserIsCurrentUser, BootstrapUserIsCurrentUser) {
   const auto param = GetParam();
@@ -627,17 +782,28 @@ TEST_P(RouterBootstrapUserIsCurrentUser, BootstrapUserIsCurrentUser) {
 
 INSTANTIATE_TEST_SUITE_P(
     BootstrapUserIsCurrentUser, RouterBootstrapUserIsCurrentUser,
-    ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar", "bootstrap_ar.js", "", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1", "bootstrap_gr_v1.js",
-                           "", ""}),
+    ::testing::Values(BootstrapTestParam{false, ClusterType::GR_V2, "gr",
+                                         "bootstrap_gr.js", "", ""},
+                      BootstrapTestParam{false, ClusterType::RS_V2, "ar",
+                                         "bootstrap_ar.js", "", ""},
+                      BootstrapTestParam{false, ClusterType::GR_V1, "gr_v1",
+                                         "bootstrap_gr_v1.js", "", ""},
+                      BootstrapTestParam{true, ClusterType::GR_V2, "new_gr",
+                                         "bootstrap_gr.js", "", ""},
+                      BootstrapTestParam{true, ClusterType::RS_V2, "new_ar",
+                                         "bootstrap_ar.js", "", ""},
+                      BootstrapTestParam{true, ClusterType::GR_V1, "new_gr_v1",
+                                         "bootstrap_gr_v1.js", "", ""}),
     get_test_description);
 #endif
 
 class RouterBootstrapailoverClusterIdDiffers
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  RouterBootstrapailoverClusterIdDiffers()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -666,13 +832,22 @@ TEST_P(RouterBootstrapailoverClusterIdDiffers,
 INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverClusterIdDiffers, RouterBootstrapailoverClusterIdDiffers,
     ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr",
+        BootstrapTestParam{false, ClusterType::GR_V2, "gr",
                            "bootstrap_failover_super_read_only_1_gr.js",
                            "bootstrap_failover_super_read_only_1_gr.js", ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar",
+        BootstrapTestParam{false, ClusterType::RS_V2, "ar",
                            "bootstrap_failover_super_read_only_1_ar.js",
                            "bootstrap_failover_super_read_only_1_ar.js", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
+        BootstrapTestParam{false, ClusterType::GR_V1, "gr_v1",
+                           "bootstrap_failover_super_read_only_1_gr_v1.js",
+                           "bootstrap_failover_super_read_only_1_gr_v1.js", ""},
+        BootstrapTestParam{true, ClusterType::GR_V2, "new_gr",
+                           "bootstrap_failover_super_read_only_1_gr.js",
+                           "bootstrap_failover_super_read_only_1_gr.js", ""},
+        BootstrapTestParam{true, ClusterType::RS_V2, "new_ar",
+                           "bootstrap_failover_super_read_only_1_ar.js",
+                           "bootstrap_failover_super_read_only_1_ar.js", ""},
+        BootstrapTestParam{true, ClusterType::GR_V1, "new_gr_v1",
                            "bootstrap_failover_super_read_only_1_gr_v1.js",
                            "bootstrap_failover_super_read_only_1_gr_v1.js",
                            ""}),
@@ -689,7 +864,11 @@ INSTANTIATE_TEST_SUITE_P(
  */
 class RouterBootstrapOnlySockets
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  RouterBootstrapOnlySockets()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 TEST_P(RouterBootstrapOnlySockets, BootstrapOnlySockets) {
   const auto param = GetParam();
@@ -728,16 +907,37 @@ TEST_P(RouterBootstrapOnlySockets, BootstrapOnlySockets) {
 
 INSTANTIATE_TEST_SUITE_P(
     BootstrapOnlySockets, RouterBootstrapOnlySockets,
-    ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar", "bootstrap_ar.js", "", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1", "bootstrap_gr_v1.js",
-                           "", ""}),
+    ::testing::Values(BootstrapTestParam{false, ClusterType::GR_V2, "gr",
+                                         "bootstrap_gr.js", "", ""},
+                      BootstrapTestParam{false, ClusterType::RS_V2, "ar",
+                                         "bootstrap_ar.js", "", ""},
+                      BootstrapTestParam{false, ClusterType::GR_V1, "gr_v1",
+                                         "bootstrap_gr_v1.js", "", ""},
+
+                      BootstrapTestParam{true, ClusterType::GR_V2, "new_gr",
+                                         "bootstrap_gr.js", "", ""},
+                      BootstrapTestParam{true, ClusterType::RS_V2, "new_ar",
+                                         "bootstrap_ar.js", "", ""},
+                      BootstrapTestParam{true, ClusterType::GR_V1, "new_gr_v1",
+                                         "bootstrap_gr_v1.js", "", ""}),
     get_test_description);
+
+class TestMetadataSchemaVersion : public mysqlrouter::MetadataSchemaVersion {
+ public:
+  bool new_executable{false};
+};
+
+static std::string to_string(const TestMetadataSchemaVersion &version) {
+  const mysqlrouter::MetadataSchemaVersion &v = version;
+  return to_string(v);
+}
 
 class BootstrapUnsupportedSchemaVersionTest
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<mysqlrouter::MetadataSchemaVersion> {
+      public ::testing::WithParamInterface<TestMetadataSchemaVersion> {
+ public:
+  BootstrapUnsupportedSchemaVersionTest()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
 };
 
 /**
@@ -767,16 +967,27 @@ TEST_P(BootstrapUnsupportedSchemaVersionTest,
 
 INSTANTIATE_TEST_SUITE_P(
     BootstrapUnsupportedSchemaVersion, BootstrapUnsupportedSchemaVersionTest,
-    ::testing::Values(mysqlrouter::MetadataSchemaVersion{3, 0, 0},
-                      mysqlrouter::MetadataSchemaVersion{0, 0, 1},
-                      mysqlrouter::MetadataSchemaVersion{3, 1, 0}));
+    ::testing::Values(TestMetadataSchemaVersion{3, 0, 0},
+                      TestMetadataSchemaVersion{0, 0, 1},
+                      TestMetadataSchemaVersion{3, 1, 0},
+                      TestMetadataSchemaVersion{3, 0, 0, true},
+                      TestMetadataSchemaVersion{0, 0, 1, true},
+                      TestMetadataSchemaVersion{3, 1, 0, true}));
+
+class RouterComponentBootstrapTestOld
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  RouterComponentBootstrapTestOld()
+      : RouterComponentBootstrapTest(GetParam()) {}
+};
 
 /**
  * @test
  *       verify that the router errors out cleanly when received some unexpected
  *       error from the metadata server
  */
-TEST_F(RouterComponentBootstrapTest, BootstrapErrorOnFirstQuery) {
+TEST_P(RouterComponentBootstrapTestOld, BootstrapErrorOnFirstQuery) {
   std::vector<Config> mock_servers{
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
@@ -794,7 +1005,8 @@ TEST_F(RouterComponentBootstrapTest, BootstrapErrorOnFirstQuery) {
  *       verify that the router's \c --bootstrap detects an upgrade
  *       metadata schema version and gives a proper message
  */
-TEST_F(RouterComponentBootstrapTest, BootstrapWhileMetadataUpgradeInProgress) {
+TEST_P(RouterComponentBootstrapTestOld,
+       BootstrapWhileMetadataUpgradeInProgress) {
   std::vector<Config> mock_servers{
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
@@ -814,7 +1026,7 @@ TEST_F(RouterComponentBootstrapTest, BootstrapWhileMetadataUpgradeInProgress) {
  *       command line correctly
  *       TS_FR12_01
  */
-TEST_F(RouterComponentBootstrapTest, BootstrapPidfileOpt) {
+TEST_P(RouterComponentBootstrapTestOld, BootstrapPidfileOpt) {
   std::string pidfile =
       mysql_harness::Path(get_test_temp_dir_name()).join("test.pid").str();
 
@@ -836,8 +1048,8 @@ TEST_F(RouterComponentBootstrapTest, BootstrapPidfileOpt) {
 
   ASSERT_NO_FATAL_FAILURE(bootstrap_failover(
       config, ClusterType::GR_V2, router_options, EXIT_FAILURE,
-      {"^Error: Option --pid-file cannot be used together "
-       "with -B/--bootstrap"},
+      {"^(Error: Option --pid-file cannot be used together "
+       "with -B/--bootstrap|Error: unknown option '--pid-file')"},
       10s));
 }
 
@@ -847,7 +1059,7 @@ TEST_F(RouterComponentBootstrapTest, BootstrapPidfileOpt) {
  *       config file correctly
  *       TS_FR13_01
  */
-TEST_F(RouterComponentBootstrapTest, BootstrapPidfileCfg) {
+TEST_P(RouterComponentBootstrapTestOld, BootstrapPidfileCfg) {
   std::string pidfile = mysql_harness::Path(get_test_temp_dir_name())
                             .real_path()
                             .join("test.pid")
@@ -895,7 +1107,7 @@ TEST_F(RouterComponentBootstrapTest, BootstrapPidfileCfg) {
  *       ROUTER_PID is specified
  *       TS_FR13_02
  */
-TEST_F(RouterComponentBootstrapTest, BootstrapPidfileEnv) {
+TEST_P(RouterComponentBootstrapTestOld, BootstrapPidfileEnv) {
   // Set ROUTER_PID
   std::string pidfile = mysql_harness::Path(get_test_temp_dir_name())
                             .real_path()
@@ -942,9 +1154,16 @@ TEST_F(RouterComponentBootstrapTest, BootstrapPidfileEnv) {
       << config_file_str << std::endl;
 }
 
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap, RouterComponentBootstrapTestOld,
+                         ::testing::Values(false, true));
+
 class RouterBootstrapFailoverSuperReadonly
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  RouterBootstrapFailoverSuperReadonly()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -976,20 +1195,35 @@ TEST_P(RouterBootstrapFailoverSuperReadonly, BootstrapFailoverSuperReadonly) {
 INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverSuperReadonly, RouterBootstrapFailoverSuperReadonly,
     ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr",
+        BootstrapTestParam{false, ClusterType::GR_V2, "gr",
                            "bootstrap_failover_super_read_only_1_gr.js",
                            "bootstrap_gr.js", ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar",
+        BootstrapTestParam{false, ClusterType::RS_V2, "ar",
                            "bootstrap_failover_super_read_only_1_ar.js",
                            "bootstrap_ar.js", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
+        BootstrapTestParam{false, ClusterType::GR_V1, "gr_v1",
                            "bootstrap_failover_super_read_only_1_gr_v1.js",
-                           "bootstrap_gr_v1.js", ""}),
+                           "bootstrap_gr_v1.js", ""},
+        BootstrapTestParam{true, ClusterType::GR_V2, "new_gr",
+                           "bootstrap_failover_super_read_only_1_gr.js",
+                           "bootstrap_gr.js", ""},
+        BootstrapTestParam{true, ClusterType::RS_V2, "new_ar",
+                           "bootstrap_failover_super_read_only_1_ar.js",
+                           "bootstrap_ar.js", ""},
+        BootstrapTestParam{true, ClusterType::GR_V1, "new_gr_v1",
+                           "bootstrap_failover_super_read_only_1_gr_v1.js",
+                           "bootstrap_gr_v1.js", ""}
+
+        ),
     get_test_description);
 
 class RouterBootstrapFailoverSuperReadonly2ndNodeDead
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  RouterBootstrapFailoverSuperReadonly2ndNodeDead()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -1045,20 +1279,35 @@ INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverSuperReadonly2ndNodeDead,
     RouterBootstrapFailoverSuperReadonly2ndNodeDead,
     ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr",
+        BootstrapTestParam{false, ClusterType::GR_V2, "gr",
                            "bootstrap_failover_super_read_only_1_gr.js",
                            "bootstrap_gr.js", ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar",
+        BootstrapTestParam{false, ClusterType::RS_V2, "ar",
                            "bootstrap_failover_super_read_only_1_ar.js",
                            "bootstrap_ar.js", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
+        BootstrapTestParam{false, ClusterType::GR_V1, "gr_v1",
                            "bootstrap_failover_super_read_only_1_gr_v1.js",
-                           "bootstrap_gr_v1.js", ""}),
+                           "bootstrap_gr_v1.js", ""},
+        BootstrapTestParam{true, ClusterType::GR_V2, "new_gr",
+                           "bootstrap_failover_super_read_only_1_gr.js",
+                           "bootstrap_gr.js", ""},
+        BootstrapTestParam{true, ClusterType::RS_V2, "new_ar",
+                           "bootstrap_failover_super_read_only_1_ar.js",
+                           "bootstrap_ar.js", ""},
+        BootstrapTestParam{true, ClusterType::GR_V1, "new_gr_v1",
+                           "bootstrap_failover_super_read_only_1_gr_v1.js",
+                           "bootstrap_gr_v1.js", ""}
+
+        ),
     get_test_description);
 
 class RouterBootstrapFailoverPrimaryUnreachable
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  RouterBootstrapFailoverPrimaryUnreachable()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -1101,20 +1350,35 @@ INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverPrimaryUnreachable,
     RouterBootstrapFailoverPrimaryUnreachable,
     ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr",
+        BootstrapTestParam{false, ClusterType::GR_V2, "gr",
                            "bootstrap_failover_super_read_only_1_gr.js", "",
                            ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar",
+        BootstrapTestParam{false, ClusterType::RS_V2, "ar",
                            "bootstrap_failover_super_read_only_1_ar.js", "",
                            ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
+        BootstrapTestParam{false, ClusterType::GR_V1, "gr_v1",
                            "bootstrap_failover_super_read_only_1_gr_v1.js", "",
-                           ""}),
+                           ""},
+        BootstrapTestParam{true, ClusterType::GR_V2, "new_gr",
+                           "bootstrap_failover_super_read_only_1_gr.js", "",
+                           ""},
+        BootstrapTestParam{true, ClusterType::RS_V2, "new_ar",
+                           "bootstrap_failover_super_read_only_1_ar.js", "",
+                           ""},
+        BootstrapTestParam{true, ClusterType::GR_V1, "new_gr_v1",
+                           "bootstrap_failover_super_read_only_1_gr_v1.js", "",
+                           ""}
+
+        ),
     get_test_description);
 
 class RouterBootstrapFailoverSuperReadonlyCreateAccountFails
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  RouterBootstrapFailoverSuperReadonlyCreateAccountFails()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -1155,22 +1419,40 @@ INSTANTIATE_TEST_SUITE_P(
     RouterBootstrapFailoverSuperReadonlyCreateAccountFails,
     ::testing::Values(
         BootstrapTestParam{
-            ClusterType::GR_V2, "gr",
+            false, ClusterType::GR_V2, "gr",
             "bootstrap_failover_super_read_only_dead_2nd_1_gr.js",
             "bootstrap_failover_reconfigure_ok.js", ""},
         BootstrapTestParam{
-            ClusterType::RS_V2, "ar",
+            false, ClusterType::RS_V2, "ar",
             "bootstrap_failover_super_read_only_dead_2nd_1_ar.js",
             "bootstrap_failover_reconfigure_ok.js", ""},
         BootstrapTestParam{
-            ClusterType::GR_V1, "gr_v1",
+            false, ClusterType::GR_V1, "gr_v1",
             "bootstrap_failover_super_read_only_dead_2nd_1_gr_v1.js",
-            "bootstrap_failover_reconfigure_ok_v1.js", ""}),
+            "bootstrap_failover_reconfigure_ok_v1.js", ""},
+        BootstrapTestParam{
+            true, ClusterType::GR_V2, "new_gr",
+            "bootstrap_failover_super_read_only_dead_2nd_1_gr.js",
+            "bootstrap_failover_reconfigure_ok.js", ""},
+        BootstrapTestParam{
+            true, ClusterType::RS_V2, "new_ar",
+            "bootstrap_failover_super_read_only_dead_2nd_1_ar.js",
+            "bootstrap_failover_reconfigure_ok.js", ""},
+        BootstrapTestParam{
+            true, ClusterType::GR_V1, "new_gr_v1",
+            "bootstrap_failover_super_read_only_dead_2nd_1_gr_v1.js",
+            "bootstrap_failover_reconfigure_ok_v1.js", ""}
+
+        ),
     get_test_description);
 
 class RouterBootstrapFailoverSuperReadonlyCreateAccountGrantFails
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  RouterBootstrapFailoverSuperReadonlyCreateAccountGrantFails()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -1211,11 +1493,17 @@ INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverSuperReadonlyCreateAccountGrantFails,
     RouterBootstrapFailoverSuperReadonlyCreateAccountGrantFails,
     ::testing::Values(
-        BootstrapTestParam{ClusterType::GR_V2, "gr",
+        BootstrapTestParam{false, ClusterType::GR_V2, "gr",
                            "bootstrap_failover_at_grant_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::RS_V2, "ar",
+        BootstrapTestParam{false, ClusterType::RS_V2, "ar",
                            "bootstrap_failover_at_grant_ar.js", "", ""},
-        BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
+        BootstrapTestParam{false, ClusterType::GR_V1, "gr_v1",
+                           "bootstrap_failover_at_grant_gr_v1.js", "", ""},
+        BootstrapTestParam{true, ClusterType::GR_V2, "new_gr",
+                           "bootstrap_failover_at_grant_gr.js", "", ""},
+        BootstrapTestParam{true, ClusterType::RS_V2, "new_ar",
+                           "bootstrap_failover_at_grant_ar.js", "", ""},
+        BootstrapTestParam{true, ClusterType::GR_V1, "new_gr_v1",
                            "bootstrap_failover_at_grant_gr_v1.js", "", ""}),
     get_test_description);
 
@@ -1234,7 +1522,8 @@ INSTANTIATE_TEST_SUITE_P(
  *
  * @todo needs unix-socket support in the mock-server
  */
-TEST_F(RouterBootstrapTest, DISABLED_BootstrapFailoverSuperReadonlyFromSocket) {
+TEST_P(CrossExeRouterBootstrapTest,
+       DISABLED_BootstrapFailoverSuperReadonlyFromSocket) {
   std::vector<Config> mock_servers{
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
@@ -1258,7 +1547,11 @@ TEST_F(RouterBootstrapTest, DISABLED_BootstrapFailoverSuperReadonlyFromSocket) {
 
 class RouterBootstrapFailoverSuperReadonlyNewPrimaryCrash
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  RouterBootstrapFailoverSuperReadonlyNewPrimaryCrash()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -1298,17 +1591,32 @@ INSTANTIATE_TEST_SUITE_P(
     RouterBootstrapFailoverSuperReadonlyNewPrimaryCrash,
     ::testing::Values(
         BootstrapTestParam{
-            ClusterType::GR_V2, "gr",
+            false, ClusterType::GR_V2, "gr",
             "bootstrap_failover_super_read_only_dead_2nd_1_gr.js",
             "bootstrap_failover_at_crash.js",
             "bootstrap_failover_reconfigure_ok.js"},
         BootstrapTestParam{
-            ClusterType::RS_V2, "ar",
+            false, ClusterType::RS_V2, "ar",
             "bootstrap_failover_super_read_only_dead_2nd_1_ar.js",
             "bootstrap_failover_at_crash.js",
             "bootstrap_failover_reconfigure_ok.js"},
         BootstrapTestParam{
-            ClusterType::GR_V1, "gr_v1",
+            false, ClusterType::GR_V1, "gr_v1",
+            "bootstrap_failover_super_read_only_dead_2nd_1_gr_v1.js",
+            "bootstrap_failover_at_crash_v1.js",
+            "bootstrap_failover_reconfigure_ok_v1.js"},
+        BootstrapTestParam{
+            true, ClusterType::GR_V2, "new_gr",
+            "bootstrap_failover_super_read_only_dead_2nd_1_gr.js",
+            "bootstrap_failover_at_crash.js",
+            "bootstrap_failover_reconfigure_ok.js"},
+        BootstrapTestParam{
+            true, ClusterType::RS_V2, "new_ar",
+            "bootstrap_failover_super_read_only_dead_2nd_1_ar.js",
+            "bootstrap_failover_at_crash.js",
+            "bootstrap_failover_reconfigure_ok.js"},
+        BootstrapTestParam{
+            true, ClusterType::GR_V1, "new_gr_v1",
             "bootstrap_failover_super_read_only_dead_2nd_1_gr_v1.js",
             "bootstrap_failover_at_crash_v1.js",
             "bootstrap_failover_reconfigure_ok_v1.js"}),
@@ -1324,7 +1632,7 @@ INSTANTIATE_TEST_SUITE_P(
  * writing a config file and backing up the old one.  Therefore we use that
  * as the basis of assessing the above expectation is met.
  */
-TEST_F(RouterBootstrapTest,
+TEST_P(CrossExeRouterBootstrapTest,
        bootstrap_report_not_shown_until_bootstrap_succeeds) {
   TempDirectory bootstrap_directory;
 
@@ -1382,7 +1690,7 @@ TEST_F(RouterBootstrapTest,
  * @test
  *        verify connection times at bootstrap can be configured
  */
-TEST_F(RouterBootstrapTest,
+TEST_P(CrossExeRouterBootstrapTest,
        BootstrapSucceedWhenServerResponseLessThanReadTimeout) {
   std::vector<Config> mock_servers{
       {"127.0.0.1", port_pool_.get_next_available(),
@@ -1404,7 +1712,7 @@ TEST_F(RouterBootstrapTest,
                                              router_options, EXIT_SUCCESS, {}));
 }
 
-TEST_F(RouterBootstrapTest, BootstrapAccessErrorAtGrantStatement) {
+TEST_P(CrossExeRouterBootstrapTest, BootstrapAccessErrorAtGrantStatement) {
   std::vector<Config> config{
       // member-1: PRIMARY, fails after GRANT
       {"127.0.0.1", port_pool_.get_next_available(),
@@ -1428,7 +1736,11 @@ TEST_F(RouterBootstrapTest, BootstrapAccessErrorAtGrantStatement) {
 
 class RouterBootstrapBootstrapNoGroupReplicationSetup
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapTestParam> {};
+      public ::testing::WithParamInterface<BootstrapTestParam> {
+ public:
+  RouterBootstrapBootstrapNoGroupReplicationSetup()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -1457,17 +1769,24 @@ TEST_P(RouterBootstrapBootstrapNoGroupReplicationSetup,
 INSTANTIATE_TEST_SUITE_P(
     BootstrapNoGroupReplicationSetup,
     RouterBootstrapBootstrapNoGroupReplicationSetup,
-    ::testing::Values(BootstrapTestParam{ClusterType::GR_V2, "gr",
+    ::testing::Values(BootstrapTestParam{false, ClusterType::GR_V2, "gr",
                                          "bootstrap_no_gr.js", "", ""},
-                      BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
-                                         "bootstrap_no_gr_v1.js", "", ""}),
+                      BootstrapTestParam{false, ClusterType::GR_V1, "gr_v1",
+                                         "bootstrap_no_gr_v1.js", "", ""},
+
+                      BootstrapTestParam{true, ClusterType::GR_V2, "new_gr",
+                                         "bootstrap_no_gr.js", "", ""},
+                      BootstrapTestParam{true, ClusterType::GR_V1, "new_gr_v1",
+                                         "bootstrap_no_gr_v1.js", "", ""}
+
+                      ),
     get_test_description);
 
 /**
  * @test
  *       ensure a reasonable error message if metadata schema does not exist.
  */
-TEST_F(RouterBootstrapTest, BootstrapNoMetadataSchema) {
+TEST_P(CrossExeRouterBootstrapTest, BootstrapNoMetadataSchema) {
   std::vector<Config> config{
       // member-1: no metadata schema
       {
@@ -1487,7 +1806,8 @@ TEST_F(RouterBootstrapTest, BootstrapNoMetadataSchema) {
  * @test
  *        verify connection times at bootstrap can be configured
  */
-TEST_F(RouterBootstrapTest, BootstrapFailWhenServerResponseExceedsReadTimeout) {
+TEST_P(CrossExeRouterBootstrapTest,
+       BootstrapFailWhenServerResponseExceedsReadTimeout) {
   std::vector<Config> mock_servers{
       {"127.0.0.1", port_pool_.get_next_available(),
        port_pool_.get_next_available(),
@@ -1510,7 +1830,7 @@ TEST_F(RouterBootstrapTest, BootstrapFailWhenServerResponseExceedsReadTimeout) {
  *       verify that bootstrap succeeds when master key writer is used
  *
  */
-TEST_F(RouterBootstrapTest,
+TEST_P(CrossExeRouterBootstrapTest,
        NoMasterKeyFileWhenBootstrapPassWithMasterKeyReader) {
   std::vector<Config> config{
       {"127.0.0.1", port_pool_.get_next_available(),
@@ -1550,7 +1870,8 @@ TEST_F(RouterBootstrapTest,
  * @test
  *       verify that master key file is not overridden by subsequent bootstrap.
  */
-TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
+TEST_P(CrossExeRouterBootstrapTest,
+       MasterKeyFileNotChangedAfterSecondBootstrap) {
   std::string master_key_path =
       Path(bootstrap_dir.name()).join("master_key").str();
   std::string keyring_path =
@@ -1602,14 +1923,19 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
 }
 
 struct UseGrNotificationTestParams {
+  bool new_executable;
   std::vector<std::string> bootstrap_params;
   std::vector<std::string> expected_config_lines;
   mysqlrouter::MetadataSchemaVersion metadata_schema_version;
 };
 
 class ConfUseGrNotificationParamTest
-    : public RouterBootstrapTest,
-      public ::testing::WithParamInterface<UseGrNotificationTestParams> {};
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<UseGrNotificationTestParams> {
+ public:
+  ConfUseGrNotificationParamTest()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -1688,52 +2014,111 @@ INSTANTIATE_TEST_SUITE_P(
     ConfUseGrNotificationParam, ConfUseGrNotificationParamTest,
     ::testing::Values(
         // 0, 1) --conf-use-gr-notifications with no param
-        UseGrNotificationTestParams{{"--conf-use-gr-notifications"},
+        UseGrNotificationTestParams{false,
+                                    {"--conf-use-gr-notifications"},
                                     {"use_gr_notifications=1", "ttl=60",
                                      "auth_cache_refresh_interval=60"},
                                     {2, 0, 3}},
-        UseGrNotificationTestParams{{"--conf-use-gr-notifications"},
+        UseGrNotificationTestParams{false,
+                                    {"--conf-use-gr-notifications"},
                                     {"use_gr_notifications=1", "ttl=60",
                                      "auth_cache_refresh_interval=60"},
                                     {2, 1, 0}},
         // 2, 3) --conf-use-gr-notifications=1
         // [@FR5.2.2]
-        UseGrNotificationTestParams{{"--conf-use-gr-notifications=1"},
+        UseGrNotificationTestParams{false,
+                                    {"--conf-use-gr-notifications=1"},
                                     {"use_gr_notifications=1", "ttl=60",
                                      "auth_cache_refresh_interval=60"},
                                     {2, 0, 3}},
-        UseGrNotificationTestParams{{"--conf-use-gr-notifications=1"},
+        UseGrNotificationTestParams{false,
+                                    {"--conf-use-gr-notifications=1"},
                                     {"use_gr_notifications=1", "ttl=60",
                                      "auth_cache_refresh_interval=60"},
                                     {2, 1, 0}},
         // 4, 5) no --conf-use-gr-notifications param
-        UseGrNotificationTestParams{{},
+        UseGrNotificationTestParams{false,
+                                    {},
                                     {"use_gr_notifications=0", "ttl=0.5",
                                      "auth_cache_refresh_interval=2"},
                                     {2, 0, 3}},
-        UseGrNotificationTestParams{{},
+        UseGrNotificationTestParams{false,
+                                    {},
                                     {"use_gr_notifications=0", "ttl=0.5",
                                      "auth_cache_refresh_interval=2"},
                                     {2, 1, 0}},
         // 6, 7) --conf-use-gr-notification=0
         // [@FR5.2.1]
-        UseGrNotificationTestParams{{"--conf-use-gr-notifications=0"},
+        UseGrNotificationTestParams{false,
+                                    {"--conf-use-gr-notifications=0"},
                                     {"use_gr_notifications=0", "ttl=0.5",
                                      "auth_cache_refresh_interval=2"},
                                     {2, 0, 3}},
-        UseGrNotificationTestParams{{"--conf-use-gr-notifications=0"},
+        UseGrNotificationTestParams{false,
+                                    {"--conf-use-gr-notifications=0"},
+                                    {"use_gr_notifications=0", "ttl=0.5",
+                                     "auth_cache_refresh_interval=2"},
+                                    {2, 1, 0}},
+
+        // 0, 1) --conf-use-gr-notifications with no param
+        UseGrNotificationTestParams{true,
+                                    {"--conf-use-gr-notifications"},
+                                    {"use_gr_notifications=1", "ttl=60",
+                                     "auth_cache_refresh_interval=60"},
+                                    {2, 0, 3}},
+        UseGrNotificationTestParams{true,
+                                    {"--conf-use-gr-notifications"},
+                                    {"use_gr_notifications=1", "ttl=60",
+                                     "auth_cache_refresh_interval=60"},
+                                    {2, 1, 0}},
+        // 2, 3) --conf-use-gr-notifications=1
+        // [@FR5.2.2]
+        UseGrNotificationTestParams{true,
+                                    {"--conf-use-gr-notifications=1"},
+                                    {"use_gr_notifications=1", "ttl=60",
+                                     "auth_cache_refresh_interval=60"},
+                                    {2, 0, 3}},
+        UseGrNotificationTestParams{true,
+                                    {"--conf-use-gr-notifications=1"},
+                                    {"use_gr_notifications=1", "ttl=60",
+                                     "auth_cache_refresh_interval=60"},
+                                    {2, 1, 0}},
+        // 4, 5) no --conf-use-gr-notifications param
+        UseGrNotificationTestParams{true,
+                                    {},
+                                    {"use_gr_notifications=0", "ttl=0.5",
+                                     "auth_cache_refresh_interval=2"},
+                                    {2, 0, 3}},
+        UseGrNotificationTestParams{true,
+                                    {},
+                                    {"use_gr_notifications=0", "ttl=0.5",
+                                     "auth_cache_refresh_interval=2"},
+                                    {2, 1, 0}},
+        // 6, 7) --conf-use-gr-notification=0
+        // [@FR5.2.1]
+        UseGrNotificationTestParams{true,
+                                    {"--conf-use-gr-notifications=0"},
+                                    {"use_gr_notifications=0", "ttl=0.5",
+                                     "auth_cache_refresh_interval=2"},
+                                    {2, 0, 3}},
+        UseGrNotificationTestParams{true,
+                                    {"--conf-use-gr-notifications=0"},
                                     {"use_gr_notifications=0", "ttl=0.5",
                                      "auth_cache_refresh_interval=2"},
                                     {2, 1, 0}}));
 
-class ErrorReportTest : public RouterComponentBootstrapTest {};
+class CrossExeErrorReportTest : public RouterComponentBootstrapTest,
+                                public testing::WithParamInterface<bool> {
+ public:
+  CrossExeErrorReportTest() : RouterComponentBootstrapTest(GetParam()) {}
+};
 
 /**
  * @test
  *        verify that --conf-use-gr-notifications used with no bootstrap
  *        causes proper error report
  */
-TEST_F(ErrorReportTest, ConfUseGrNotificationsNoBootstrap) {
+TEST_P(CrossExeErrorReportTest, ConfUseGrNotificationsNoBootstrap) {
   auto &router = launch_router_for_bootstrap({"--conf-use-gr-notifications"},
                                              EXIT_FAILURE);
 
@@ -1745,9 +2130,18 @@ TEST_F(ErrorReportTest, ConfUseGrNotificationsNoBootstrap) {
   check_exit_code(router, EXIT_FAILURE);
 }
 
+struct TestParameterGRValue {
+  bool new_executable;
+  std::string value;
+};
+
 class ConfUseGrNotificationWrongValueParamTest
-    : public RouterBootstrapTest,
-      public ::testing::WithParamInterface<std::string> {};
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<TestParameterGRValue> {
+ public:
+  ConfUseGrNotificationWrongValueParamTest()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 /**
  * @test
@@ -1758,7 +2152,8 @@ class ConfUseGrNotificationWrongValueParamTest
 TEST_P(ConfUseGrNotificationWrongValueParamTest,
        ConfUseGrNotificationWrongValueParam) {
   auto &router = launch_router_for_bootstrap(
-      {"-B", "somehost:12345", "--conf-use-gr-notifications=" + GetParam()},
+      {"-B", "somehost:12345",
+       "--conf-use-gr-notifications=" + GetParam().value},
       EXIT_FAILURE);
 
   EXPECT_NO_THROW(router.wait_for_exit());
@@ -1771,18 +2166,28 @@ TEST_P(ConfUseGrNotificationWrongValueParamTest,
 
 INSTANTIATE_TEST_SUITE_P(ConfUseGrNotificationWrongValueParam,
                          ConfUseGrNotificationWrongValueParamTest,
-                         ::testing::Values("2", "true", "false", "N/A", "yes",
-                                           "no"));
+                         ::testing::Values(TestParameterGRValue{false, "2"},
+                                           TestParameterGRValue{false, "true"},
+                                           TestParameterGRValue{false, "false"},
+                                           TestParameterGRValue{false, "N/A"},
+                                           TestParameterGRValue{false, "yes"},
+                                           TestParameterGRValue{false, "no"},
+                                           TestParameterGRValue{true, "2"},
+                                           TestParameterGRValue{true, "true"},
+                                           TestParameterGRValue{true, "false"},
+                                           TestParameterGRValue{true, "N/A"},
+                                           TestParameterGRValue{true, "yes"},
+                                           TestParameterGRValue{true, "no"}));
 
 /**
  * @test
- *       verify that running bootstrap with -d with dir that already exists and
- *       is not empty gives an appropriate error to the user; particularly it
+ *       verify that running bootstrap with -d with dir that already exists
+ * and is not empty gives an appropriate error to the user; particularly it
  *       should mention:
  *         - directory name
  *         - error type (it's not empty)
  */
-TEST_F(ErrorReportTest, bootstrap_dir_exists_and_is_not_empty) {
+TEST_P(CrossExeErrorReportTest, bootstrap_dir_exists_and_is_not_empty) {
   const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
   const uint16_t server_port = port_pool_.get_next_available();
 
@@ -1817,7 +2222,7 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_and_is_not_empty) {
   check_exit_code(router, EXIT_FAILURE);
 }
 
-TEST_F(ErrorReportTest, bootstrap_conf_base_port_hex) {
+TEST_P(CrossExeErrorReportTest, bootstrap_conf_base_port_hex) {
   const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
   const uint16_t server_port = port_pool_.get_next_available();
 
@@ -1839,7 +2244,6 @@ TEST_F(ErrorReportTest, bootstrap_conf_base_port_hex) {
               ::testing::HasSubstr("--conf-base-port needs value between 0 and "
                                    "65532 inclusive, was '0x0'"));
 }
-
 // unfortunately it's not (reasonably) possible to make folders read-only on
 // Windows, therefore we can run the following tests only on Unix
 //
@@ -1847,14 +2251,14 @@ TEST_F(ErrorReportTest, bootstrap_conf_base_port_hex) {
 #ifndef _WIN32
 /**
  * @test
- *       verify that running bootstrap with -d with dir that already exists but
- *       is inaccessible gives an appropriate error to the user; particularly it
+ *       verify that running bootstrap with -d with dir that already exists
+ * but is inaccessible gives an appropriate error to the user; particularly it
  *       should mention:
  *         - directory name
  *         - error type (permission denied)
  *         - suggests AppArmor config might be at fault
  */
-TEST_F(ErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
+TEST_P(CrossExeErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
   const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
   const uint16_t server_port = port_pool_.get_next_available();
 
@@ -1880,8 +2284,8 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
       },
       EXIT_FAILURE);
 
-  // verify that appropriate message was logged (all but last) and error message
-  // printed (last line)
+  // verify that appropriate message was logged (all but last) and error
+  // message printed (last line)
   std::string err_msg =
       "Failed to open directory '.*" + bootstrap_directory.name() +
       "': Permission denied\n"
@@ -1893,14 +2297,14 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
 
 /**
  * @test
- *       verify that running bootstrap with -d with dir that doesn't exists and
- *       cannot be created gives an appropriate error to the user; particularly
+ *       verify that running bootstrap with -d with dir that doesn't exists
+ * and cannot be created gives an appropriate error to the user; particularly
  *       it should mention:
  *         - directory name
  *         - error type (permission denied)
  *         - suggests AppArmor config might be at fault
  */
-TEST_F(ErrorReportTest,
+TEST_P(CrossExeErrorReportTest,
        bootstrap_dir_does_not_exist_and_is_impossible_to_create) {
   const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
   const uint16_t server_port = port_pool_.get_next_available();
@@ -1929,8 +2333,8 @@ TEST_F(ErrorReportTest,
       },
       EXIT_FAILURE);
 
-  // verify that appropriate message was logged (all but last) and error message
-  // printed (last line)
+  // verify that appropriate message was logged (all but last) and error
+  // message printed (last line)
   std::string err_msg =
       "Cannot create directory '" + bootstrap_directory +
       "': Permission denied\n"
@@ -1943,10 +2347,10 @@ TEST_F(ErrorReportTest,
 
 /**
  * @test
- *       verify that using --conf-use-gr-notifications creates proper error when
- * the cluster type is ReplicaSet.
+ *       verify that using --conf-use-gr-notifications creates proper error
+ * when the cluster type is ReplicaSet.
  */
-TEST_F(ErrorReportTest, ConfUseGrNotificationsAsyncReplicaset) {
+TEST_P(CrossExeErrorReportTest, ConfUseGrNotificationsAsyncReplicaset) {
   TempDirectory bootstrap_directory;
   const auto server_port = port_pool_.get_next_available();
   const std::string json_stmts = get_data_dir().join("bootstrap_ar.js").str();
@@ -1968,12 +2372,15 @@ TEST_F(ErrorReportTest, ConfUseGrNotificationsAsyncReplicaset) {
   check_exit_code(router, EXIT_FAILURE);
 }
 
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap, CrossExeErrorReportTest,
+                         ::testing::Values(false, true));
+
 /**
  * @test
  *       verify that trying to register that is not unique in the metadata
  * gives expected results.
  */
-TEST_F(RouterBootstrapTest, BootstrapRouterDuplicateEntry) {
+TEST_P(CrossExeRouterBootstrapTest, BootstrapRouterDuplicateEntry) {
   TempDirectory bootstrap_directory;
   const auto server_port = port_pool_.get_next_available();
   const auto bootstrap_server_port = port_pool_.get_next_available();
@@ -2012,7 +2419,7 @@ TEST_F(RouterBootstrapTest, BootstrapRouterDuplicateEntry) {
   EXPECT_FALSE(router.expect_output("Could not delete file .*", true, 0ms));
 }
 
-TEST_F(RouterBootstrapTest, CheckAuthBackendWhenOldMetadata) {
+TEST_P(CrossExeRouterBootstrapTest, CheckAuthBackendWhenOldMetadata) {
   TempDirectory bootstrap_directory;
   const auto server_port = port_pool_.get_next_available();
   const auto http_port = port_pool_.get_next_available();
@@ -2054,14 +2461,18 @@ TEST_F(RouterBootstrapTest, CheckAuthBackendWhenOldMetadata) {
   ASSERT_TRUE(passwd_file.exists());
 }
 
-class ConfSetOptionTest : public RouterBootstrapTest {};
+class ConfSetOptionTest : public RouterComponentBootstrapTest,
+                          public testing::WithParamInterface<bool> {
+ public:
+  ConfSetOptionTest() : RouterComponentBootstrapTest(GetParam()) {}
+};
 
 /**
  * @test
  *       verify that using --conf-set-option for not bootstrap gives a proper
  * error
  */
-TEST_F(ConfSetOptionTest, ErrorIfNotBootstrap) {
+TEST_P(ConfSetOptionTest, ErrorIfNotBootstrap) {
   const std::string tracefile = "bootstrap_gr.js";
 
   std::vector<std::string> cmdline = {
@@ -2084,7 +2495,7 @@ TEST_F(ConfSetOptionTest, ErrorIfNotBootstrap) {
  * properly when used to set bind port of each route along with other config
  * options
  */
-TEST_F(ConfSetOptionTest, MultipleConfOptionsSet) {
+TEST_P(ConfSetOptionTest, MultipleConfOptionsSet) {
   const std::string tracefile = "bootstrap_gr.js";
 
   std::vector<Config> mock_servers{
@@ -2170,14 +2581,22 @@ TEST_F(ConfSetOptionTest, MultipleConfOptionsSet) {
       << config_file_str;
 }
 
+INSTANTIATE_TEST_SUITE_P(NewAndOldExe, ConfSetOptionTest,
+                         ::testing::Values(false, true));
+
 struct ConfSetOptionErrorTestParam {
   std::vector<std::string> con_set_option_params;
   std::string expected_error;
+  bool new_executable{false};
 };
 
 class ConfSetOptionErrorTest
-    : public ConfSetOptionTest,
-      public ::testing::WithParamInterface<ConfSetOptionErrorTestParam> {};
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<ConfSetOptionErrorTestParam> {
+ public:
+  ConfSetOptionErrorTest()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 TEST_P(ConfSetOptionErrorTest, ErrorTest) {
   const std::string tracefile = get_data_dir().join("bootstrap_gr.js").str();
@@ -2208,10 +2627,10 @@ INSTANTIATE_TEST_SUITE_P(
             {"--conf-set-option=:test_rw.bind_port=6666"},
             "Error: conf-set-option: invalid section name ':test_rw'"},
 
-        ConfSetOptionErrorTestParam{
-            {"--conf-set-option=routing:=6666"},
-            "Error: conf-set-option: invalid option 'routing:=6666', should be "
-            "section.option_name=value"},
+        ConfSetOptionErrorTestParam{{"--conf-set-option=routing:=6666"},
+                                    "Error: conf-set-option: invalid option "
+                                    "'routing:=6666', should be "
+                                    "section.option_name=value"},
 
         ConfSetOptionErrorTestParam{
             {"--conf-set-option=.para=value"},
@@ -2271,23 +2690,121 @@ INSTANTIATE_TEST_SUITE_P(
 
         ConfSetOptionErrorTestParam{
             {"--conf-set-option=DEFAULT:aa.option=xx"},
-            "Error: conf-set-option: DEFAULT section is not allowed to have a "
+            "Error: conf-set-option: DEFAULT section is not allowed to have "
+            "a "
             "key: 'DEFAULT:aa'"},
 
         ConfSetOptionErrorTestParam{
             {"--conf-set-option=abc"},
             "Error: conf-set-option: invalid option 'abc', should be "
-            "section.option_name=value"}));
+            "section.option_name=value"},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=:test_rw.bind_port=6666"},
+            "Error: conf-set-option: invalid section name ':test_rw'",
+            true},
+
+        ConfSetOptionErrorTestParam{{"--conf-set-option=routing:=6666"},
+                                    "Error: conf-set-option: invalid option "
+                                    "'routing:=6666', should be "
+                                    "section.option_name=value",
+                                    true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=.para=value"},
+            "Error: conf-set-option: invalid section name ''",
+            true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=.:="},
+            "Error: conf-set-option: invalid section name ''",
+            true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=:.="},
+            "Error: conf-set-option: invalid section name ':'",
+            true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=DEFAULT.read_timeout=1",
+             "--conf-set-option=DEFAULT.read_timeout=1"},
+            "Error: conf-set-option: duplicate value for option "
+            "'default.read_timeout'",
+            true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=DEFAULT.read_timeout=1",
+             "--conf-set-option=DEFAULT.read_timeout=2"},
+            "Error: conf-set-option: duplicate value for option "
+            "'default.read_timeout'",
+            true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=DEFAULT.connect_timeout=1",
+             "--connect-timeout=20",
+             "--conf-set-option=DEFAULT.connect_timeout=3"},
+            "Error: conf-set-option: duplicate value for option "
+            "'default.connect_timeout'",
+            true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=MySection:AB.read_timeout=1",
+             "--conf-set-option=mysection:ab.read_TimeOut=2"},
+            "Error: conf-set-option: duplicate value for option "
+            "'mysection:ab.read_timeout'",
+            true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=DEFAULT.read_timeout=1",
+             "--conf-set-option=DEFAULT.read_timeout=2",
+             "--conf-set-option=DEFAULT.read_timeout=3"},
+            "Error: conf-set-option: duplicate value for option "
+            "'default.read_timeout'",
+            true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=DEFAULT.=xx"},
+            "Error: conf-set-option: invalid option name ''",
+            true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=DEFAULT.:=xx"},
+            "Error: conf-set-option: invalid option name ':'"},
+
+        ConfSetOptionErrorTestParam{{"--conf-set-option=DEFAULT:.option=xx"},
+                                    "Error: conf-set-option: DEFAULT section "
+                                    "is not allowed to have a key: 'DEFAULT:",
+                                    true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=DEFAULT:aa.option=xx"},
+            "Error: conf-set-option: DEFAULT section is not allowed to have "
+            "a "
+            "key: 'DEFAULT:aa'",
+            true},
+
+        ConfSetOptionErrorTestParam{
+            {"--conf-set-option=abc"},
+            "Error: conf-set-option: invalid option 'abc', should be "
+            "section.option_name=value",
+            true}
+
+        ));
 
 struct ConfSetOptionTestParam {
   std::vector<std::string> bootstrap_params;
   std::vector<std::string> expected_conf_entries;
   std::vector<std::string> unexpected_conf_entries;
+  bool new_executable{false};
 };
 
 class ConfSetOptionParamTest
-    : public ConfSetOptionTest,
-      public ::testing::WithParamInterface<ConfSetOptionTestParam> {};
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<ConfSetOptionTestParam> {
+ public:
+  ConfSetOptionParamTest()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 TEST_P(ConfSetOptionParamTest, Spec) {
   const std::string tracefile = get_data_dir().join("bootstrap_gr.js").str();
@@ -2362,12 +2879,51 @@ INSTANTIATE_TEST_SUITE_P(
         ConfSetOptionTestParam{
             {"--name=Router01", "--conf-set-option=DEFAULT.name=Router02"},
             /*expected_conf_entries=*/{"name=Router02"},
-            /*unexpected_conf_entries=*/{"name=Router01"}}));
+            /*unexpected_conf_entries=*/{"name=Router01"}},
+
+        ConfSetOptionTestParam{
+            {"--connect-timeout=20",
+             "--conf-set-option=DEFAULT.connect_timeout=1"},
+            /*expected_conf_entries=*/{"connect_timeout=1"},
+            /*unexpected_conf_entries=*/{"connect_timeout=20"},
+            true},
+        ConfSetOptionTestParam{
+            {"--connect-timeout=1",
+             "--conf-set-option=DEFAULT.connect_timeout=20"},
+            /*expected_conf_entries=*/{"connect_timeout=20"},
+            /*unexpected_conf_entries=*/{"connect_timeout=1"},
+            true},
+        ConfSetOptionTestParam{
+            {"--read-timeout=20", "--conf-set-option=DEFAULT.read_timeout=1"},
+            /*expected_conf_entry=*/{"read_timeout=1"},
+            /*unexpected_conf_entry=*/{"read_timeout=20"},
+            true},
+        ConfSetOptionTestParam{
+            {"--conf-base-port=1000",
+             "--conf-set-option=routing:bootstrap_rw.bind_port=2000"},
+            /*expected_conf_entries=*/{"bind_port=2000"},
+            /*unexpected_conf_entries=*/{"bind_port=1000"},
+            true},
+        // ConfSetOptionTestParam{
+        //     {"--ssl-mode=REQUIRED",
+        //      "--conf-set-option=metadata_cache:bootstrap.ssl_mode=DISABLED"},
+        //     /*expected_conf_entries=*/{"ssl_mode=DISABLED"},
+        //     /*unexpected_conf_entries=*/{"ssl-mode=REQUIRED"}}
+        ConfSetOptionTestParam{
+            {"--https-port=101", "--conf-set-option=http_server.port=202"},
+            /*expected_conf_entries=*/{"port=202"},
+            /*unexpected_conf_entries=*/{"port=101"},
+            true},
+        ConfSetOptionTestParam{
+            {"--name=Router01", "--conf-set-option=DEFAULT.name=Router02"},
+            /*expected_conf_entries=*/{"name=Router02"},
+            /*unexpected_conf_entries=*/{"name=Router01"},
+            true}));
 
 /**
  * @test
- *       verify that the --conf-set-option section name and option name are case
- * insensitive
+ *       verify that the --conf-set-option section name and option name are
+ * case insensitive
  */
 INSTANTIATE_TEST_SUITE_P(
     CaseSensitivity, ConfSetOptionParamTest,
@@ -2451,7 +3007,100 @@ INSTANTIATE_TEST_SUITE_P(
                                /*expected_conf_entries=*/
                                {"name=\"MY router\""},
                                /*unexpected_conf_entries=*/
-                               {"name=\"My Router\""}}
+                               {"name=\"My Router\""}},
+
+        ConfSetOptionTestParam{
+            {"--conf-set-option=DEFAULt.read_timeout=1"},
+            /*expected_conf_entries=*/{"[DEFAULT]", "read_timeout=1"},
+            /*unexpected_conf_entries=*/{"[DEFAULt]", "[default]"},
+            true},
+
+        ConfSetOptionTestParam{
+            {"--conf-set-option=default.connect_timeout=15"},
+            /*expected_conf_entries=*/{"[DEFAULT]", "connect_timeout=15"},
+            /*unexpected_conf_entries=*/{"[default]"},
+            true},
+
+        ConfSetOptionTestParam{
+            {"--conf-set-option=LOGGER.level=DEBUG"},
+            /*expected_conf_entries=*/{"[logger]", "level=DEBUG"},
+            /*unexpected_conf_entries=*/{"[LOGGER]", "level=debug"},
+            true},
+
+        ConfSetOptionTestParam{
+            {"--conf-set-option=METADATA_cache:BOOTSTRAP.router_id=1"},
+            /*expected_conf_entries=*/
+            {"[metadata_cache:bootstrap]", "router_id=1"},
+            /*unexpected_conf_entries=*/
+            {"[METADATA_cache:BOOTSTRAP]", "[metadata_cache:BOOTSTRAP]"},
+            true},
+
+        ConfSetOptionTestParam{
+            {"--conf-set-option=test_section.para1=10",
+             "--conf-set-option=test_Section.para2=20",
+             "--conf-set-option=TEST_SECTION.para3=30"},
+            /*expected_conf_entries=*/
+            {"[test_section]", "para1=10", "para2=20", "para3=30"},
+            /*unexpected_conf_entries=*/
+            {"[test_Section]", "[TEST_SECTION]"},
+            true},
+
+        ConfSetOptionTestParam{
+            {"--conf-set-option=test_section:SUB.para1=10",
+             "--conf-set-option=test_Section:Sub.para2=20",
+             "--conf-set-option=TEST_SECTION:sub.para3=30"},
+            /*expected_conf_entries=*/
+            {"[test_section:sub]", "para1=10", "para2=20", "para3=30"},
+            /*unexpected_conf_entries=*/
+            {"[test_section:SUB]", "[TEST_SECTION:sub]", "[TEST_SECTION:sub]"},
+            true},
+
+        ConfSetOptionTestParam{{"--conf-set-option=DEFAULT.READ_TIMEOUT=1"},
+                               /*expected_conf_entries=*/
+                               {"read_timeout=1"},
+                               /*unexpected_conf_entries=*/
+                               {"READ_TIMEOUT=1"},
+                               true},
+
+        ConfSetOptionTestParam{{"--conf-set-option=DEFAULT.READ_Timeout=1"},
+                               /*expected_conf_entries=*/
+                               {"read_timeout=1"},
+                               /*unexpected_conf_entries=*/
+                               {"READ_Timeout=1"},
+                               true},
+
+        ConfSetOptionTestParam{{"--conf-set-option=test_section.para1=10",
+                                "--conf-set-option=test_section.Para2=20",
+                                "--conf-set-option=test_section.PARA3=30"},
+                               /*expected_conf_entries=*/
+                               {"para1=10", "para2=20", "para3=30"},
+                               /*unexpected_conf_entries=*/
+                               {"Para2=10", "PARA3=20"},
+                               true},
+
+        ConfSetOptionTestParam{{"--conf-set-option=DEFAULT.name=\"My Router\""},
+                               /*expected_conf_entries=*/
+                               {"name=\"My Router\""},
+                               /*unexpected_conf_entries=*/
+                               {},
+                               true},
+
+        ConfSetOptionTestParam{
+            {"--name=\"My Router\"",
+             "--conf-set-option=DEFAULT.name=\"other router\""},
+            /*expected_conf_entries=*/
+            {"name=\"other router\""},
+            /*unexpected_conf_entries=*/
+            {"name=\"My Router\""},
+            true},
+
+        ConfSetOptionTestParam{{"--name=\"My Router\"",
+                                "--conf-set-option=DEFAULT.name=\"MY router\""},
+                               /*expected_conf_entries=*/
+                               {"name=\"MY router\""},
+                               /*unexpected_conf_entries=*/
+                               {"name=\"My Router\""},
+                               true}
 
         ));
 
@@ -2460,7 +3109,7 @@ INSTANTIATE_TEST_SUITE_P(
  *       verify that using ssl options during the bootstrap creates the
  * configuration file that is usable by the Router
  */
-TEST_F(RouterBootstrapTest, SSLOptions) {
+TEST_P(CrossExeRouterBootstrapTest, SSLOptions) {
   TempDirectory bootstrap_directory;
   const auto server_port = port_pool_.get_next_available();
   const auto server_port2 = port_pool_.get_next_available();
@@ -2537,12 +3186,15 @@ TEST_F(RouterBootstrapTest, SSLOptions) {
   ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}));
 }
 
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap, CrossExeRouterBootstrapTest,
+                         ::testing::Values(false, true));
+
 /**
  * @test
  *       verify that Router can be re-bootstrapped using the same directory if
  * the cluster name has changed in the meantime
  */
-TEST_F(RouterComponentBootstrapTest, RouterReBootstrapClusetNameChange) {
+TEST_P(RouterComponentBootstrapTestOld, RouterReBootstrapClusetNameChange) {
   const std::string tracefile = "bootstrap_gr.js";
 
   const std::string kInitialClusterName = "initial_cluster_name";
@@ -2577,10 +3229,10 @@ TEST_F(RouterComponentBootstrapTest, RouterReBootstrapClusetNameChange) {
 
 /**
  * @test
- *       verify that using --force-password-validation when bootstrapping works
- * ok
+ *       verify that using --force-password-validation when bootstrapping
+ * works ok
  */
-TEST_F(RouterComponentBootstrapTest, ForcePasswordValidation) {
+TEST_P(RouterComponentBootstrapTestOld, ForcePasswordValidation) {
   const std::string tracefile = "bootstrap_gr_unhashed_passwd.js";
 
   const auto classic_port = port_pool_.get_next_available();
@@ -2602,7 +3254,7 @@ TEST_F(RouterComponentBootstrapTest, ForcePasswordValidation) {
   check_exit_code(router_bs, EXIT_SUCCESS);
 }
 
-TEST_F(RouterComponentBootstrapTest, ShowCipherInvalidResult) {
+TEST_P(RouterComponentBootstrapTestOld, ShowCipherInvalidResult) {
   const std::string tracefile =
       get_data_dir()
           .join("bootstrap_show_cipher_status_invalid_result.js")
@@ -2633,11 +3285,16 @@ TEST_F(RouterComponentBootstrapTest, ShowCipherInvalidResult) {
 struct BootstrapErrorTestParam {
   std::vector<std::string> bs_params;
   std::string expected_error;
+  bool new_executable{false};
 };
 
 class BootstrapErrorTest
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapErrorTestParam> {};
+      public ::testing::WithParamInterface<BootstrapErrorTestParam> {
+ public:
+  BootstrapErrorTest()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
+};
 
 TEST_P(BootstrapErrorTest, Spec) {
   std::vector<std::string> cmdline = {"-d", bootstrap_dir.name()};
@@ -2657,10 +3314,10 @@ TEST_P(BootstrapErrorTest, Spec) {
 INSTANTIATE_TEST_SUITE_P(
     Spec, BootstrapErrorTest,
     ::testing::Values(
-        BootstrapErrorTestParam{
-            {"-B=["},
-            "Error: invalid URI: expected to find IPv6 address, but failed at "
-            "position 9 for: mysql://[\n"},
+        BootstrapErrorTestParam{{"-B=["},
+                                "Error: invalid URI: expected to find IPv6 "
+                                "address, but failed at "
+                                "position 9 for: mysql://[\n"},
 
         BootstrapErrorTestParam{
             {"-B=abc.nodomain.com#fragment"},
@@ -2676,12 +3333,44 @@ INSTANTIATE_TEST_SUITE_P(
 
         BootstrapErrorTestParam{
             {"--bootstrap-socket=/mysock", "-B=abc.nodomain.com"},
-            "Error: --bootstrap-socket given, but --bootstrap option contains "
-            "a non-'localhost' hostname: abc.nodomain.com"}));
+            "Error: --bootstrap-socket given, but --bootstrap option "
+            "contains "
+            "a non-'localhost' hostname: abc.nodomain.com"},
+
+        BootstrapErrorTestParam{{"-B=["},
+                                "Error: invalid URI: expected to find IPv6 "
+                                "address, but failed at "
+                                "position 9 for: mysql://[\n",
+                                true},
+
+        BootstrapErrorTestParam{
+            {"-B=abc.nodomain.com#fragment"},
+            "Error: the bootstrap URI contains a #fragement, but shouldn't",
+            true},
+
+        BootstrapErrorTestParam{
+            {"-B=abc.nodomain.com?query=q"},
+            "Error: the bootstrap URI contains a ?query, but shouldn't",
+            true},
+
+        BootstrapErrorTestParam{
+            {"-B=abc.nodomain.com/path"},
+            "Error: the bootstrap URI contains a /path, but shouldn't",
+            true},
+
+        BootstrapErrorTestParam{
+            {"--bootstrap-socket=/mysock", "-B=abc.nodomain.com"},
+            "Error: --bootstrap-socket given, but --bootstrap option "
+            "contains "
+            "a non-'localhost' hostname: abc.nodomain.com",
+            true}));
 
 class BootstrapErrorTestWithMock
     : public RouterComponentBootstrapTest,
-      public ::testing::WithParamInterface<BootstrapErrorTestParam> {};
+      public ::testing::WithParamInterface<BootstrapErrorTestParam> {
+ public:
+  BootstrapErrorTestWithMock() : RouterComponentBootstrapTest(false) {}
+};
 
 TEST_P(BootstrapErrorTestWithMock, Spec) {
   const std::string tracefile = get_data_dir().join("bootstrap_gr.js").str();
@@ -2735,15 +3424,15 @@ INSTANTIATE_TEST_SUITE_P(
                 mysql_harness::truncate_string(std::string(256, 'a')) +
                 "' too long (max 255)."},
 
-        BootstrapErrorTestParam{
-            {"--password-retries=abc"},
-            "Configuration error: --password-retries needs value between 1 and "
-            "10000 inclusive, was 'abc'"},
+        BootstrapErrorTestParam{{"--password-retries=abc"},
+                                "Configuration error: --password-retries "
+                                "needs value between 1 and "
+                                "10000 inclusive, was 'abc'"},
 
-        BootstrapErrorTestParam{
-            {"--password-retries="},
-            "Configuration error: --password-retries needs value between 1 and "
-            "10000 inclusive, was ''"}));
+        BootstrapErrorTestParam{{"--password-retries="},
+                                "Configuration error: --password-retries "
+                                "needs value between 1 and "
+                                "10000 inclusive, was ''"}));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

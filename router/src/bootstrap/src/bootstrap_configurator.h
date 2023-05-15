@@ -45,7 +45,7 @@ using UniqueStrings = std::set<std::string>;
 
 class BootstrapConfigurator {
  public:
-  BootstrapConfigurator();
+  BootstrapConfigurator(std::ostream &out_stream, std::ostream &err_stream);
 
   void init(int argc, char **argv);
   void run();
@@ -54,19 +54,82 @@ class BootstrapConfigurator {
                                bool raw_mode = false);
 
  private:
+  class MySQLRouterAndMrsConf : public MySQLRouterConf {
+   public:
+    MySQLRouterAndMrsConf(bool &is_legacy, KeyringInfo &keyring_info,
+                          std::ostream &out_stream, std::ostream &err_stream,
+                          std::vector<std::string> &configs_)
+        : MySQLRouterConf(keyring_info, out_stream, err_stream),
+          is_legacy_{is_legacy},
+          config_files_{configs_} {}
+
+    void prepare_command_options(
+        CmdArgHandler &arg_handler,
+        const std::string &bootstrap_uri = "") noexcept override {
+      MySQLRouterConf::prepare_command_options(arg_handler, bootstrap_uri);
+      using OptionNames = CmdOption::OptionNames;
+
+#ifndef _WIN32
+      arg_handler.add_option(
+          OptionNames({"-u", "--user"}),
+          "Run the mysqlrouter as the user having the name user_name.",
+          CmdOptionValueReq::required, "username",
+          [this](const std::string &username) {
+            this->bootstrap_options_["_username"] = username;
+          },
+          [this](const std::string &) {
+            if (this->bootstrap_uri_.empty()) {
+              this->bootstrap_options_["user_cmd_line"] =
+                  this->bootstrap_options_["_username"];
+            } else {
+              check_user(this->bootstrap_options_["_username"], true,
+                         mysqlrouter::SysUserOperations::instance());
+              this->bootstrap_options_["user"] =
+                  this->bootstrap_options_["_username"];
+              // Remove temporary meta-options.
+              this->bootstrap_options_.erase("_username");
+            }
+          });
+#endif
+
+      arg_handler.add_option(
+          OptionNames({"-c", "--config"}),
+          "Only read configuration from given file.",
+          CmdOptionValueReq::required, "path",
+          [this](const std::string &value) {
+            if (!config_files_.empty()) {
+              throw std::runtime_error(
+                  "Option -c/--config can only be used once; "
+                  "use -a/--extra-config instead.");
+            }
+
+            check_and_add_conf(config_files_, value);
+          });
+    }
+    bool is_legacy() const override { return is_legacy_; }
+
+   private:
+    void check_and_add_conf(std::vector<std::string> &configs,
+                            const std::string &value);
+    bool &is_legacy_;
+    std::vector<std::string> &config_files_;
+  };
+
   std::string router_program_name_;
   mysql_harness::Path origin_;
   CmdArgHandler arg_handler_;
 
   KeyringHandler keyring_;
-  MySQLRouterConf bootstrapper_;
+  MySQLRouterAndMrsConf bootstrapper_;
 
-  bool bootstrap_mrs_ = false;
   BootstrapCredentials mrs_metadata_account_;
   BootstrapCredentials mrs_data_account_;
   std::string mrs_secret_;
 
-  bool showing_info_ = false;
+  bool bootstrap_mrs_{false};
+  bool is_legacy_{true};
+  bool showing_info_{false};
+  std::vector<std::string> config_files_;
 
   struct RoutingConfig {
     std::string key;

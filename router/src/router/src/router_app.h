@@ -96,7 +96,7 @@ class MySQLRouter {
         sys_user_operations_(mysqlrouter::SysUserOperations::instance())
 #endif
         ,
-        bootstrapper_(keyring_.get_ki(), true) {
+        bootstrapper_(keyring_.get_ki()) {
   }
 
   /** @brief Constructor with command line arguments as vector

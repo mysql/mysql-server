@@ -177,7 +177,7 @@ MySQLRouter::MySQLRouter(const std::string &program_name,
       sys_user_operations_(sys_user_operations)
 #endif
       ,
-      bootstrapper_(keyring_.get_ki(), true, out_stream_, err_stream_) {
+      bootstrapper_(keyring_.get_ki(), out_stream_, err_stream_) {
   signal_handler_.register_ignored_signals_handler();  // SIGPIPE
 
   init(program_name,

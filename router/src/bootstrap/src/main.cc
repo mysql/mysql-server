@@ -31,11 +31,37 @@
 
 #include "bootstrap_configurator.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/tty.h"
+#include "mysql/harness/utility/string.h"
 #include "mysql/harness/vt100.h"
+#include "mysql/harness/vt100_filter.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 
 IMPORT_LOG_FUNCTIONS()
+
+class Tty_init {
+ public:
+  Tty_init()
+      : cout_tty(Tty::fd_from_stream(std::cout)),
+        cerr_tty(Tty::fd_from_stream(std::cout)),
+        filtered_out_streambuf(std::cout.rdbuf(),
+                               !(cout_tty.is_tty() && cout_tty.ensure_vt100())),
+        filtered_err_streambuf(std::cerr.rdbuf(),
+                               !(cerr_tty.is_tty() && cerr_tty.ensure_vt100())),
+        out(&filtered_out_streambuf),
+        err(&filtered_err_streambuf) {}
+
+ private:
+  Tty cout_tty;
+  Tty cerr_tty;
+  Vt100Filter filtered_out_streambuf;
+  Vt100Filter filtered_err_streambuf;
+
+ public:
+  std::ostream out;
+  std::ostream err;
+};
 
 static void init_DIM() {
   mysql_harness::DIM &dim = mysql_harness::DIM::instance();
@@ -61,15 +87,16 @@ static void init_DIM() {
 }
 
 static void preconfig_log_init() noexcept {
+  using namespace mysql_harness;
   // setup registry object in DIM
   {
-    mysql_harness::DIM &dim = mysql_harness::DIM::instance();
+    DIM &dim = DIM::instance();
     dim.set_LoggingRegistry(
         []() {
-          static mysql_harness::logging::Registry registry;
+          static logging::Registry registry;
           return &registry;
         },
-        [](mysql_harness::logging::Registry *) {}  // don't delete our static!
+        [](logging::Registry *) {}  // don't delete our static!
     );
   }
 
@@ -90,12 +117,13 @@ static void preconfig_log_init() noexcept {
 }
 
 int main(int argc, char **argv) {
+  Tty_init tty;
   preconfig_log_init();
 
   init_DIM();
 
   try {
-    BootstrapConfigurator configurator;
+    BootstrapConfigurator configurator{tty.out, tty.err};
     configurator.init(argc, argv);
 
     configurator.run();

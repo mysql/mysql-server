@@ -105,6 +105,8 @@ auto make_matchers(const Container &container, UnaryOperation unary_op) {
 
 class AccountReuseTestBase : public RouterComponentBootstrapTest {
  public:
+  using RouterComponentBootstrapTest::RouterComponentBootstrapTest;
+
   template <typename Container, typename Func>
   static std::string make_list(const Container &items, Func generator) {
     if (items.empty()) return "";
@@ -964,7 +966,10 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-class AccountReuseBadCmdlineTest : public AccountReuseTestBase {};
+class AccountReuseBadCmdlineTest : public AccountReuseTestBase {
+ public:
+  AccountReuseBadCmdlineTest() : AccountReuseTestBase(false) {}
+};
 
 /**
  * @test
@@ -1170,7 +1175,10 @@ TEST_F(AccountReuseBadCmdlineTest, strict_without_bootstrap_switch) {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-class AccountReuseTest : public AccountReuseTestBase {};
+class AccountReuseTest : public AccountReuseTestBase {
+ public:
+  AccountReuseTest() : AccountReuseTestBase(false) {}
+};
 
 /**
  * @test
@@ -1359,6 +1367,8 @@ class AccountReuseCreateComboTestP
     : public AccountReuseTestBase,
       public ::testing::WithParamInterface<RouterAccountCreateComboTestParams> {
  public:
+  AccountReuseCreateComboTestP() : AccountReuseTestBase(false) {}
+
   static std::vector<RouterAccountCreateComboTestParams> gen_testcases() {
     const std::string A = kHostA_notInDB;
     const std::string B = kHostB_notInDB;
@@ -1880,7 +1890,10 @@ TEST_P(AccountReuseCreateComboTestP, config_does_not_exist_yet) {
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-class AccountReuseReconfigurationTest : public AccountReuseTestBase {};
+class AccountReuseReconfigurationTest : public AccountReuseTestBase {
+ public:
+  AccountReuseReconfigurationTest() : AccountReuseTestBase(false) {}
+};
 
 /**
  * @test
@@ -2558,7 +2571,10 @@ TEST_F(AccountReuseReconfigurationTest,
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-class ShowWarningsProcessorTest : public AccountReuseTestBase {};
+class ShowWarningsProcessorTest : public AccountReuseTestBase {
+ public:
+  ShowWarningsProcessorTest() : AccountReuseTestBase(false) {}
+};
 
 /**
  * @test
@@ -3454,7 +3470,10 @@ struct UndoCreateUserTestParams {
 
 class UndoCreateUserTestP
     : public AccountReuseTestBase,
-      public ::testing::WithParamInterface<UndoCreateUserTestParams> {};
+      public ::testing::WithParamInterface<UndoCreateUserTestParams> {
+ public:
+  UndoCreateUserTestP() : AccountReuseTestBase(false) {}
+};
 
 INSTANTIATE_TEST_SUITE_P(
     foo, UndoCreateUserTestP,
@@ -3792,7 +3811,10 @@ TEST_P(UndoCreateUserTestP, grant_fails_and_drop_user_also_fails) {
 }
 
 #ifndef _WIN32
-class UndoCreateUserTest : public AccountReuseTestBase {};
+class UndoCreateUserTest : public AccountReuseTestBase {
+ public:
+  UndoCreateUserTest() : AccountReuseTestBase(false) {}
+};
 
 /**
  * @test
@@ -4012,7 +4034,10 @@ TEST_F(UndoCreateUserTest,
 // ACCOUNT VALIDATION TESTS                                                   //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
-class AccountValidationTest : public AccountReuseTestBase {};
+class AccountValidationTest : public AccountReuseTestBase {
+ public:
+  AccountValidationTest() : AccountReuseTestBase(false) {}
+};
 
 /**
  * @test
@@ -4599,7 +4624,10 @@ TEST_F(AccountValidationTest, existing_user_missing_grants___strict) {
   }
 }
 
-class RouterAccountHostTest : public RouterComponentBootstrapTest {};
+class RouterAccountHostTest : public RouterComponentBootstrapTest {
+ public:
+  RouterAccountHostTest() : RouterComponentBootstrapTest(false) {}
+};
 
 /**
  * @test
@@ -4737,7 +4765,10 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
   check_exit_code(router, EXIT_FAILURE);
 }
 
-class RouterReportHostTest : public RouterComponentBootstrapTest {};
+class RouterReportHostTest : public RouterComponentBootstrapTest {
+ public:
+  RouterReportHostTest() : RouterComponentBootstrapTest(false) {}
+};
 
 /**
  * @test

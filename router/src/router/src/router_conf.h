@@ -50,20 +50,21 @@
 
 class MySQLRouterConf {
  public:
-  MySQLRouterConf(KeyringInfo &keyring_info, bool legacy_bootstrap,
+  MySQLRouterConf(KeyringInfo &keyring_info,
                   std::ostream &out_stream = std::cout,
                   std::ostream &err_stream = std::cerr)
       : keyring_info_(keyring_info),
-        legacy_bootstrap_(legacy_bootstrap),
         out_stream_(out_stream),
         err_stream_(err_stream) {}
 
   virtual ~MySQLRouterConf() = default;
 
-  void prepare_command_options(CmdArgHandler &arg_handler,
-                               const std::string &bootstrap_uri = "") noexcept;
+  virtual void prepare_command_options(
+      CmdArgHandler &arg_handler,
+      const std::string &bootstrap_uri = "") noexcept;
 
   bool is_bootstrap() const { return !bootstrap_uri_.empty(); }
+  virtual bool is_legacy() const { return true; }
 
   bool skipped() const { return skipped_; }
 
@@ -89,7 +90,7 @@ class MySQLRouterConf {
 #endif
   );
 
- private:
+ protected:
   friend class MySQLRouter;
 
 #ifdef FRIEND_TEST
@@ -123,7 +124,6 @@ class MySQLRouterConf {
 
   KeyringInfo &keyring_info_;
 
-  bool legacy_bootstrap_;
   bool skipped_ = false;
 
   std::ostream &out_stream_;

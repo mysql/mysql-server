@@ -48,6 +48,9 @@ using namespace std::chrono_literals;
 
 class RouterBootstrapSystemDeploymentTest : public RouterComponentBootstrapTest,
                                             public RouterSystemLayout {
+ public:
+  RouterBootstrapSystemDeploymentTest() : RouterComponentBootstrapTest(false) {}
+
  protected:
   void SetUp() override {
     RouterComponentTest::SetUp();

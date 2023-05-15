@@ -39,6 +39,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysqld_error.h"
+#include "mysqlrouter/config_files.h"
 #include "mysqlrouter/default_paths.h"
 #include "mysqlrouter/server_compatibility.h"
 #include "mysqlrouter/uri.h"
@@ -50,6 +51,7 @@
 
 IMPORT_LOG_FUNCTIONS()
 using namespace mysqlrouter;
+using namespace mysql_harness::utility;
 using namespace std::string_literals;
 
 using mysql_harness::DIM;
@@ -61,6 +63,32 @@ constexpr const char kRouterProgramName[] = "mysqlrouter";
 
 static const size_t kHelpScreenWidth = 72;
 static const size_t kHelpScreenIndent = 8;
+
+// throws std::runtime_error
+static mysql_harness::LoaderConfig *make_config(
+    const std::map<std::string, std::string> params,
+    const std::vector<std::string> &config_files) {
+  using namespace mysql_harness::utility;
+  constexpr const char *err_msg = "Configuration error: %s.";
+
+  try {
+    // LoaderConfig ctor throws bad_option (std::runtime_error)
+    std::unique_ptr<mysql_harness::LoaderConfig> config(
+        new mysql_harness::LoaderConfig(params, std::vector<std::string>(),
+                                        mysql_harness::Config::allow_keys, {}));
+
+    // throws std::invalid_argument, std::runtime_error, syntax_error, ...
+    for (const auto &config_file : config_files) {
+      config->read(config_file);
+    }
+
+    return config.release();
+  } catch (const mysql_harness::syntax_error &err) {
+    throw std::runtime_error(string_format(err_msg, err.what()));
+  } catch (const std::runtime_error &err) {
+    throw std::runtime_error(string_format(err_msg, err.what()));
+  }
+}
 
 static std::string generate_username(
     const std::string &prefix, uint32_t router_id,
@@ -83,8 +111,33 @@ static std::string string_after(std::string s, char c) {
   return s.substr(s.find(c) + 1);
 }
 
-BootstrapConfigurator::BootstrapConfigurator()
-    : bootstrapper_(keyring_.get_ki(), false) {}
+void BootstrapConfigurator::MySQLRouterAndMrsConf::check_and_add_conf(
+    std::vector<std::string> &configs, const std::string &value) {
+  mysql_harness::Path cfg_file_path;
+  try {
+    cfg_file_path = mysql_harness::Path(value);
+  } catch (const std::invalid_argument &exc) {
+    throw std::runtime_error(
+        string_format("Failed reading configuration file: %s", exc.what()));
+  }
+
+  if (cfg_file_path.is_regular()) {
+    configs.push_back(cfg_file_path.real_path().str());
+  } else if (!cfg_file_path.exists()) {
+    throw std::runtime_error(string_format(
+        "The configuration file '%s' does not exist.", value.c_str()));
+  } else {
+    throw std::runtime_error(string_format(
+        "The configuration file '%s' is expected to be a readable file, but it "
+        "is %s.",
+        value.c_str(), mysqlrouter::to_string(cfg_file_path.type()).c_str()));
+  }
+}
+
+BootstrapConfigurator::BootstrapConfigurator(std::ostream &out_stream,
+                                             std::ostream &err_stream)
+    : bootstrapper_(is_legacy_, keyring_.get_ki(), out_stream, err_stream,
+                    config_files_) {}
 
 void BootstrapConfigurator::init_main_logger(
     mysql_harness::LoaderConfig &config, bool raw_mode /*= false*/) {
@@ -152,12 +205,37 @@ void BootstrapConfigurator::init(int argc, char **argv) {
   if (bootstrap_mrs_ && bootstrapper_.bootstrap_options().count("disable-rest"))
     throw std::runtime_error(
         "invalid configuration, --mrs cannot be used with --disable-rest");
+
+  if (!config_files_.empty()) {
+    // default configuration for bootstrap is not supportedconfig_files_
+    // extra configuration for bootstrap is not supported
+    auto config_files_res =
+        ConfigFilePathValidator({}, config_files_, {}).validate();
+    std::vector<std::string> config_files;
+    if (config_files_res && !config_files_res.value().empty()) {
+      config_files = std::move(config_files_res.value());
+    }
+
+    DIM::instance().reset_Config();  // simplifies unit tests
+    DIM::instance().set_Config(
+        [this, &config_files]() { return make_config({}, config_files); },
+        std::default_delete<mysql_harness::LoaderConfig>());
+    auto &config = DIM::instance().get_Config();
+    try {
+      init_main_logger(config,
+                       true);  // true = raw logging mode
+    } catch (const std::runtime_error &) {
+      // If log init fails, there's not much we can do here (no way to log the
+      // error) except to catch this exception to prevent it from bubbling up
+      // to std::terminate()
+    }
+  }
 }
 
 void BootstrapConfigurator::run() {
   if (showing_info_) return;
 
-  bootstrapper_.connect();
+  //  bootstrapper_.connect();
 
   // TODO add check for target here
 
