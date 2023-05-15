@@ -437,9 +437,27 @@ class MysqlRoutingClassicConnectionBase
 
   ProtocolSplicerBase *socket_splicer() { return socket_splicer_.get(); }
 
-  std::string get_destination_id() const override { return destination_id_; }
+  std::string get_destination_id() const override {
+    return expected_server_mode() == mysqlrouter::ServerMode::ReadOnly
+               ? read_only_destination_id()
+               : read_write_destination_id();
+  }
 
-  void destination_id(const std::string &id) { destination_id_ = id; }
+  void destination_id(const std::string &id) {
+    expected_server_mode() == mysqlrouter::ServerMode::ReadOnly
+        ? read_only_destination_id(id)
+        : read_write_destination_id(id);
+  }
+
+  std::string read_only_destination_id() const { return ro_destination_id_; }
+  void read_only_destination_id(const std::string &destination_id) {
+    ro_destination_id_ = destination_id;
+  }
+
+  std::string read_write_destination_id() const { return rw_destination_id_; }
+  void read_write_destination_id(const std::string &destination_id) {
+    rw_destination_id_ = destination_id;
+  }
 
   /**
    * check if the connection is authenticated.
@@ -512,6 +530,13 @@ class MysqlRoutingClassicConnectionBase
 
   void some_state_changed(bool v) { some_state_changed_ = v; }
 
+  void expected_server_mode(mysqlrouter::ServerMode v) {
+    expected_server_mode_ = v;
+  }
+  mysqlrouter::ServerMode expected_server_mode() const {
+    return expected_server_mode_;
+  }
+
   RouteDestination *destinations() { return route_destination_; }
   Destinations &current_destinations() { return destinations_; }
 
@@ -529,7 +554,8 @@ class MysqlRoutingClassicConnectionBase
 
   std::unique_ptr<ProtocolSplicerBase> socket_splicer_;
 
-  std::string destination_id_;
+  std::string rw_destination_id_;  // read-write destination-id
+  std::string ro_destination_id_;  // read-only destination-id
 
   /**
    * client side handshake isn't finished yet.
@@ -598,6 +624,14 @@ class MysqlRoutingClassicConnectionBase
 
   // events for router.trace.
   TraceSpan events_;
+
+  // where to target the server-connections if access_mode is kAuto
+  //
+  // - Unavailable -> any destination (at connect)
+  // - ReadOnly    -> a read-only destination (if available)
+  // - ReadWrite   -> a read-write destination (if available)
+  mysqlrouter::ServerMode expected_server_mode_{
+      mysqlrouter::ServerMode::Unavailable};
 };
 
 #endif
