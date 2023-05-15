@@ -341,13 +341,18 @@ bool sp_lex_instr::execute_expression(THD *thd, uint *nextp) {
   /*
     Check privileges for tables in expression, open and lock those tables,
     bind data to expression so that it is ready for execution.
+
+    Notice that temporary tables must be opened before privilege checking.
+    This is because a session has all privileges for any temporary table that
+    it has created, however a table must be opened in order to identify it as
+    a temporary table.
   */
   if (m_lex->query_tables != nullptr) {
-    if (check_table_access(thd, SELECT_ACL, m_lex->query_tables, false,
-                           UINT_MAX, false)) {
+    if (open_temporary_tables(thd, m_lex->query_tables)) {
       return true;
     }
-    if (open_temporary_tables(thd, m_lex->query_tables)) {
+    if (check_table_access(thd, SELECT_ACL, m_lex->query_tables, false,
+                           UINT_MAX, false)) {
       return true;
     }
   }
