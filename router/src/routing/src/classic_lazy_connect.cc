@@ -39,12 +39,30 @@
 #include "classic_reset_connection_sender.h"
 #include "classic_set_option_sender.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql_com.h"
 #include "mysqlrouter/classic_protocol_message.h"
+#include "mysqlrouter/connection_pool_component.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 using namespace std::chrono_literals;
+
+namespace {
+
+class FailedQueryHandler : public QuerySender::Handler {
+ public:
+  FailedQueryHandler(LazyConnector &processor) : processor_(processor) {}
+
+  void on_error(const classic_protocol::message::server::Error &err) override {
+    log_warning("%s", err.message().c_str());
+
+    processor_.failed(err);
+  }
+
+ private:
+  LazyConnector &processor_;
+};
 
 /**
  * capture the system-variables.
@@ -133,6 +151,8 @@ class SelectSessionVariablesHandler : public QuerySender::Handler {
   std::deque<std::pair<std::string, Value>> session_variables_;
 };
 
+}  // namespace
+
 stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
   switch (stage()) {
     case Stage::Connect:
@@ -157,7 +177,20 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
       return fetch_sys_vars();
     case Stage::FetchSysVarsDone:
       return fetch_sys_vars_done();
+    case Stage::SetTrxCharacteristics:
+      return set_trx_characteristics();
+    case Stage::SetTrxCharacteristicsDone:
+      return set_trx_characteristics_done();
     case Stage::Done:
+      if (failed()) {
+        if (auto &tr = tracer()) {
+          tr.trace(Tracer::Event().stage("connect::failed"));
+        }
+
+        if (on_error_) on_error_(*failed());
+        connection()->authenticated(false);
+      }
+
       // reset the seq-id of the server side as this is a new command.
       if (connection()->server_protocol() != nullptr) {
         connection()->server_protocol()->seq_id(0xff);
@@ -220,6 +253,11 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
 
   trace_event_authenticate_ =
       trace_span(trace_event_connect_, "mysql/authenticate");
+
+  // remember the trx-stmt as it will be overwritten by set_session_vars.
+  if (connection()->trx_characteristics()) {
+    trx_stmt_ = connection()->trx_characteristics()->characteristics();
+  }
 
   /*
    * if the connection is from the pool, we need a change user.
@@ -435,8 +473,8 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
       }
     }
 
-    connection()->push_processor(
-        std::make_unique<QuerySender>(connection(), stmt));
+    connection()->push_processor(std::make_unique<QuerySender>(
+        connection(), stmt, std::make_unique<FailedQueryHandler>(*this)));
   } else {
     stage(Stage::SetServerOption);
   }
@@ -477,7 +515,19 @@ LazyConnector::set_server_option() {
 
 stdx::expected<Processor::Result, std::error_code>
 LazyConnector::set_server_option_done() {
-  stage(Stage::FetchSysVars);
+  if (failed()) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::set_server_option::failed"));
+    }
+    stage(Stage::Done);
+  } else {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::set_server_option::done"));
+    }
+
+    stage(Stage::FetchSysVars);
+  }
+
   return Result::Again;
 }
 
@@ -533,8 +583,13 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_schema() {
   auto server_schema = connection()->server_protocol()->schema();
 
   if (!client_schema.empty() && (client_schema != server_schema)) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::set_schema"));
+    }
+
     trace_event_set_schema_ =
         trace_span(trace_event_connect_, "mysql/set_schema");
+
     stage(Stage::SetSchemaDone);
 
     connection()->push_processor(
@@ -552,6 +607,87 @@ LazyConnector::set_schema_done() {
     trace_span_end(ev);
   }
 
-  stage(Stage::Done);
+  if (failed()) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::set_schema::failed"));
+    }
+
+    stage(Stage::Done);
+  } else {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::set_schema::done"));
+    }
+    stage(Stage::SetTrxCharacteristics);
+  }
+  return Result::Again;
+}
+
+// restore the transaction characteristics as provided by the server's
+// session-tracker.
+//
+// - zero-or-one isolation-level statement +
+//   zero-or-one transaction state/start statement
+// - seperated by semi-colon.
+//
+// - SET TRANSACTION ISOLATION LEVEL [...|SERIALIZABLE];
+//
+// - SET TRANSACTION READ ONLY;
+// - START TRANSACTION [READ ONLY|READ WRITE], WITH CONSISTENT SNAPSHOT;
+// - XA BEGIN;
+//
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::set_trx_characteristics() {
+  if (!trx_stmt_.empty()) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::trx_characteristics"));
+    }
+
+    trace_event_set_trx_characteristics_ =
+        trace_span(trace_event_connect_, "mysql/set_trx_characetristcs");
+
+    stage(Stage::SetTrxCharacteristicsDone);
+
+    // split the trx setup statements at the semi-colon
+    auto trx_stmt = trx_stmt_;
+
+    auto semi_pos = trx_stmt_.find(';');
+    if (semi_pos == std::string::npos) {
+      trx_stmt_.clear();
+    } else {
+      trx_stmt_.erase(0, semi_pos + 1);  // incl the semi-colon
+
+      // if there is a leading space after the semi-colon, remove it too.
+      if (!trx_stmt_.empty() && trx_stmt_[0] == ' ') {
+        trx_stmt_.erase(0, 1);
+      }
+
+      trx_stmt.resize(semi_pos);
+    }
+
+    connection()->push_processor(std::make_unique<QuerySender>(
+        connection(), trx_stmt, std::make_unique<FailedQueryHandler>(*this)));
+  } else {
+    stage(Stage::Done);  // skip set_trx_characteristics_done
+  }
+
+  return Result::Again;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+LazyConnector::set_trx_characteristics_done() {
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::trx_characteristics::done"));
+  }
+
+  if (failed()) {
+    trace_span_end(trace_event_set_trx_characteristics_,
+                   TraceEvent::StatusCode::kError);
+  } else {
+    trace_span_end(trace_event_set_trx_characteristics_);
+  }
+
+  // if there is more, execute the next part.
+  stage(trx_stmt_.empty() ? Stage::Done : Stage::SetTrxCharacteristics);
+
   return Result::Again;
 }

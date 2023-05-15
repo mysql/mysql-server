@@ -1937,7 +1937,7 @@ TEST_P(ShareConnectionTest, classic_protocol_debug_with_pool) {
                               Pair("statement/sql/select", 2),
                               Pair("statement/sql/set_option", 3)));
     } else {
-      // no sharing possible, router is not injection SET statements.
+      // no sharing possible, router is not injecting any statements.
       EXPECT_THAT(*events_res, ::testing::IsEmpty());
     }
   }
@@ -1960,7 +1960,7 @@ TEST_P(ShareConnectionTest, classic_protocol_debug_with_pool) {
                               Pair("statement/sql/select", 3),
                               Pair("statement/sql/set_option", 5)));
     } else {
-      // no sharing possible, router is not injection SET statements.
+      // no sharing possible, router is not injecting any statements.
       EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Debug", 1),
                                            Pair("statement/sql/select", 1)));
     }
@@ -4220,12 +4220,12 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock_in_transaction) {
     if (can_share) {
       EXPECT_THAT(
           *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
-                      Pair("statement/sql/begin", 1),      // START TRANSACTION
+          ElementsAre(Pair("statement/com/Reset Connection", 2),  // from-pool
+                      Pair("statement/sql/begin", 2),      // START TRANSACTION
                       Pair("statement/sql/do", 1),         // DO ...()
                       Pair("statement/sql/rollback", 1),   // ROLLBACK
                       Pair("statement/sql/select", 1),     //
-                      Pair("statement/sql/set_option", 2)  // connect, from-pool
+                      Pair("statement/sql/set_option", 3)  // connect, from-pool
                       ));
     } else {
       EXPECT_THAT(
@@ -4246,9 +4246,9 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock_in_transaction) {
     if (can_share) {
       EXPECT_THAT(*events_res, ElementsAre(
                                    // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 3),
+                                   Pair("statement/com/Reset Connection", 4),
                                    // START TRANSACTION
-                                   Pair("statement/sql/begin", 1),
+                                   Pair("statement/sql/begin", 2),
                                    // DO ...()
                                    Pair("statement/sql/do", 1),
                                    // ROLLBACK
@@ -4256,7 +4256,7 @@ TEST_P(ShareConnectionTest, classic_protocol_get_lock_in_transaction) {
                                    // events
                                    Pair("statement/sql/select", 2),
                                    // connect, from-pool, explicit, from-pool
-                                   Pair("statement/sql/set_option", 4)));
+                                   Pair("statement/sql/set_option", 5)));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(
                                    // explicit
@@ -4408,12 +4408,12 @@ TEST_P(ShareConnectionTest,
     if (can_share) {
       EXPECT_THAT(
           *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
-                      Pair("statement/sql/begin", 1),      // START TRANSACTION
+          ElementsAre(Pair("statement/com/Reset Connection", 2),  // from-pool
+                      Pair("statement/sql/begin", 2),      // START TRANSACTION
                       Pair("statement/sql/do", 1),         // DO ...()
                       Pair("statement/sql/rollback", 1),   // ROLLBACK
                       Pair("statement/sql/select", 1),     //
-                      Pair("statement/sql/set_option", 2)  // connect, from-pool
+                      Pair("statement/sql/set_option", 3)  // connect, from-pool
                       ));
     } else {
       EXPECT_THAT(
@@ -4448,9 +4448,9 @@ TEST_P(ShareConnectionTest,
     if (can_share) {
       EXPECT_THAT(*events_res, ElementsAre(
                                    // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 3),
+                                   Pair("statement/com/Reset Connection", 4),
                                    // START TRANSACTION
-                                   Pair("statement/sql/begin", 1),
+                                   Pair("statement/sql/begin", 2),
                                    // DO ...()
                                    Pair("statement/sql/do", 1),
                                    // ROLLBACK
@@ -4458,7 +4458,7 @@ TEST_P(ShareConnectionTest,
                                    // events, metadata-locks
                                    Pair("statement/sql/select", 3),
                                    // connect, from-pool, explicit, from-pool
-                                   Pair("statement/sql/set_option", 4)));
+                                   Pair("statement/sql/set_option", 5)));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(
                                    // from-pool
@@ -4623,12 +4623,12 @@ TEST_P(ShareConnectionTest,
     if (can_share) {
       EXPECT_THAT(
           *events_res,
-          ElementsAre(Pair("statement/com/Reset Connection", 1),  // from-pool
-                      Pair("statement/sql/begin", 1),      // START TRANSACTION
+          ElementsAre(Pair("statement/com/Reset Connection", 2),  // from-pool
+                      Pair("statement/sql/begin", 2),      // START TRANSACTION
                       Pair("statement/sql/do", 1),         // DO ...()
                       Pair("statement/sql/rollback", 1),   // ROLLBACK
                       Pair("statement/sql/select", 1),     //
-                      Pair("statement/sql/set_option", 2)  // connect, from-pool
+                      Pair("statement/sql/set_option", 3)  // connect, from-pool
                       ));
     } else {
       EXPECT_THAT(
@@ -4663,9 +4663,9 @@ TEST_P(ShareConnectionTest,
     if (can_share) {
       EXPECT_THAT(*events_res, ElementsAre(
                                    // from-pool, explicit, from-pool
-                                   Pair("statement/com/Reset Connection", 3),
+                                   Pair("statement/com/Reset Connection", 4),
                                    // START TRANSACTION
-                                   Pair("statement/sql/begin", 1),
+                                   Pair("statement/sql/begin", 2),
                                    // DO ...()
                                    Pair("statement/sql/do", 1),
                                    // ROLLBACK
@@ -4673,7 +4673,7 @@ TEST_P(ShareConnectionTest,
                                    // events, metadata-locks
                                    Pair("statement/sql/select", 3),
                                    // connect, from-pool, explicit, from-pool
-                                   Pair("statement/sql/set_option", 4)));
+                                   Pair("statement/sql/set_option", 5)));
     } else {
       EXPECT_THAT(*events_res, ElementsAre(
                                    // from-pool, explicit, from-pool

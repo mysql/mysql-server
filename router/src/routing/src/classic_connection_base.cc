@@ -784,14 +784,110 @@ bool MysqlRoutingClassicConnectionBase::connection_sharing_possible() const {
              Value("CHARACTERISTICS");
 }
 
+static bool trx_characteristics_is_sharable(
+    const std::optional<
+        classic_protocol::session_track::TransactionCharacteristics>
+        &trx_chars) {
+  if (!trx_chars.has_value()) return false;
+
+  auto stmt = trx_chars->characteristics();
+  if (stmt.empty()) return true;
+
+  std::string_view stmt_view(stmt);
+
+  constexpr const std::string_view kSetTrx("SET TRANSACTION ");
+  constexpr const std::string_view kSetTrxIsolationLevel(
+      "SET TRANSACTION ISOLATION LEVEL ");
+  constexpr const std::string_view kStartTrx("START TRANSACTION");
+
+  if (stmt_view.substr(0, kSetTrxIsolationLevel.size()) ==
+      kSetTrxIsolationLevel) {
+    using namespace std::string_view_literals;
+
+    stmt_view = stmt_view.substr(kSetTrxIsolationLevel.size());
+
+    auto match_isolation_level =
+        [](std::string_view stmt_view) -> std::optional<size_t> {
+      for (auto isolation_level : {
+               "READ COMMITTED"sv,
+               "READ UNCOMMITTED"sv,
+               "REPEATABLE READ"sv,
+               "SERIALIZABLE"sv,
+           }) {
+        if (stmt_view.substr(0, isolation_level.size()) == isolation_level) {
+          return isolation_level.size();
+        }
+      }
+      return {};
+    };
+
+    auto isolation_level_res = match_isolation_level(stmt_view);
+    if (!isolation_level_res) return false;
+
+    // skip the isolation level.
+    stmt_view = stmt_view.substr(isolation_level_res.value());
+
+    auto semi = stmt_view.substr(0, 2);
+
+    if (semi == ";") return true;  // end
+
+    if (semi != "; ") return false;  // unexpected
+
+    // SET TRANSACTION READ ... may follow
+    stmt_view = stmt_view.substr(semi.size());
+  }
+
+  if (stmt_view.substr(0, kSetTrx.size()) == kSetTrx) {
+    stmt_view = stmt_view.substr(kSetTrx.size());
+
+    using namespace std::string_view_literals;
+    for (auto suffix : {
+             "READ ONLY;"sv,
+             "READ WRITE;"sv,
+             ";"sv,
+         }) {
+      if (stmt_view == suffix) return true;
+    }
+  } else if (stmt_view.substr(0, kStartTrx.size()) == kStartTrx) {
+    stmt_view = stmt_view.substr(kStartTrx.size());
+
+    using namespace std::string_view_literals;
+    for (auto suffix : {
+             " READ ONLY;"sv,
+             " READ WRITE;"sv,
+             ";"sv,
+         }) {
+      if (stmt_view == suffix) return true;
+    }
+  }
+
+  return false;
+}
+
+static bool trx_state_is_sharable(
+    const std::optional<classic_protocol::session_track::TransactionState>
+        &trx_state) {
+  // at the start trx_state is not set.
+  if (!trx_state.has_value()) return true;
+
+  auto st = *trx_state;
+
+  // trx-type: _|T|I are "no", "explicit", "implicit" started transactions
+  //
+  // they have been started, but nothing has been executed in them yet which
+  // allows to replay the statements via session-tracker.trx_characteristics.
+  return (st.trx_type() == '_' || st.trx_type() == 'T' ||
+          st.trx_type() == 'I') &&
+         st.read_unsafe() == '_' && st.read_trx() == '_' &&    //
+         st.write_unsafe() == '_' && st.write_trx() == '_' &&  //
+         st.stmt_unsafe() == '_' && st.resultset() == '_' &&   //
+         st.locked_tables() == '_';
+}
+
 bool MysqlRoutingClassicConnectionBase::connection_sharing_allowed() const {
-  return connection_sharing_possible() &&
-         (!trx_state_.has_value() ||  // at the start trx_state is not set
-          *trx_state_ ==
-              classic_protocol::session_track::TransactionState{
-                  '_', '_', '_', '_', '_', '_', '_', '_'}) &&
-         (trx_characteristics_.has_value() &&
-          trx_characteristics_->characteristics().empty()) &&
+  return connection_sharing_possible() &&                          //
+         trx_state_is_sharable(trx_state_) &&                      //
+         trx_characteristics_is_sharable(trx_characteristics_) &&  //
          !some_state_changed_;
 }
 

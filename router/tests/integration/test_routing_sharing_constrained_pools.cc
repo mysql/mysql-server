@@ -2525,8 +2525,9 @@ class BlockChecker : public Checker {
             changed_event_counters(cli, "AND EVENT_NAME LIKE '%/com/%'");
         ASSERT_NO_ERROR(events_res);
 
-        EXPECT_THAT(*events_res,
-                    ElementsAre(Pair("statement/com/Reset Connection", 2)));
+        EXPECT_THAT(
+            *events_res,
+            ElementsAre(Pair("statement/com/Reset Connection", AnyOf(2, 5))));
       }
     };
   }
@@ -2635,8 +2636,9 @@ class ResetChecker : public Checker {
             changed_event_counters(cli, "AND EVENT_NAME LIKE '%/com/%'");
         ASSERT_NO_ERROR(events_res);
 
-        EXPECT_THAT(*events_res,
-                    ElementsAre(Pair("statement/com/Reset Connection", 1)));
+        EXPECT_THAT(
+            *events_res,
+            ElementsAre(Pair("statement/com/Reset Connection", AnyOf(1, 3))));
       }
       // - (+ select)
 
@@ -2651,8 +2653,9 @@ class ResetChecker : public Checker {
             changed_event_counters(cli, "AND EVENT_NAME LIKE '%/com/%'");
         ASSERT_NO_ERROR(events_res);
 
-        EXPECT_THAT(*events_res,
-                    ElementsAre(Pair("statement/com/Reset Connection", 3)));
+        EXPECT_THAT(
+            *events_res,
+            ElementsAre(Pair("statement/com/Reset Connection", AnyOf(3, 5))));
       }
     };
   }
@@ -2688,7 +2691,7 @@ class FailsIfSharableChecker : public Checker {
 
   std::function<void(MysqlClient &cli)> verifier() override {
     return [stmt = test_values_[ndx_]](MysqlClient &cli) {
-      ASSERT_NO_ERROR(cli.query("BEGIN"));
+      ASSERT_NO_ERROR(cli.query("START TRANSACTION WITH CONSISTENT SNAPSHOT"));
 
       {
         auto cmd_res = cli.query(stmt);
@@ -2749,23 +2752,21 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, not_sharable) {
 
   // FR5.1
   checkers.emplace_back(
-      "begin-commit", std::make_unique<BlockChecker>(
-                          BlockChecker::test_values_type{{"BEGIN", "COMMIT"}}));
+      "begin-commit",
+      std::make_unique<BlockChecker>(BlockChecker::test_values_type{
+          {"START TRANSACTION WITH CONSISTENT SNAPSHOT", "COMMIT"}}));
 
   checkers.emplace_back(
       "begin-rollback",
-      std::make_unique<BlockChecker>(
-          BlockChecker::test_values_type{{"BEGIN", "ROLLBACK"}}));
-
-  checkers.emplace_back(
-      "start-transaction-rollback",
-      std::make_unique<BlockChecker>(
-          BlockChecker::test_values_type{{"START TRANSACTION", "ROLLBACK"}}));
-
+      std::make_unique<BlockChecker>(BlockChecker::test_values_type{
+          {"START TRANSACTION WITH CONSISTENT SNAPSHOT", "ROLLBACK"}}));
+#if 0
+  // START TRANSACTION can be replayed and isn't blocking anymore.
   checkers.emplace_back(
       "start-transaction-reset",
       std::make_unique<ResetChecker>(
           ResetChecker::test_values_type{"START TRANSACTION"}));
+#endif
 
   // FR5.2
   checkers.emplace_back(
@@ -2774,10 +2775,13 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, not_sharable) {
           {"LOCK TABLES testing.t1 READ", "UNLOCK TABLES"}}));
 
   // FR5.3
+#if 0
+  // SET TRANSACTION ISOLATION LEVEL can be replayed and isn't blocking anymore.
   checkers.emplace_back(
       "set-isolation-level-rollback",
       std::make_unique<BlockChecker>(BlockChecker::test_values_type{
           {"SET TRANSACTION ISOLATION LEVEL SERIALIZABLE", "ROLLBACK"}}));
+#endif
 
   checkers.emplace_back(
       "flush-all-tables-with-read-lock",
@@ -2817,10 +2821,13 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, not_sharable) {
       std::make_unique<NotUnblockChecker>(
           NotUnblockChecker::test_values_type{{"SET @user := 1", "ROLLBACK"}}));
 
+#if 0
+  // SET TRANSACTION ISOLATION LEVEL can be replayed and isn't blocking anymore.
   checkers.emplace_back(
       "set-isolation-level-reset",
       std::make_unique<ResetChecker>(ResetChecker::test_values_type{
           "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"}));
+#endif
 
   checkers.emplace_back("set-user-var-eq-reset",
                         std::make_unique<ResetChecker>(
@@ -3471,7 +3478,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
       ASSERT_NO_ERROR(connect_res);
 
       // block sharing
-      ASSERT_NO_ERROR(cli.query("BEGIN"));
+      ASSERT_NO_ERROR(cli.query("START TRANSACTION WITH CONSISTENT SNAPSHOT"));
     }
 
     // fails at auth as the a SUPER account could still connect
@@ -3502,7 +3509,8 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
       ASSERT_NO_ERROR(connect_res);
 
       // block sharing
-      ASSERT_NO_ERROR(cli_super.query("BEGIN"));
+      ASSERT_NO_ERROR(
+          cli_super.query("START TRANSACTION WITH CONSISTENT SNAPSHOT"));
     }
 
     // fails at connect at greeting, as SUPER and max_connections are connected.
@@ -3626,7 +3634,8 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
         ASSERT_NO_ERROR(connect_res);
 
         // block the connection.
-        ASSERT_NO_ERROR(cli2.query("BEGIN"));
+        ASSERT_NO_ERROR(
+            cli2.query("START TRANSACTION WITH CONSISTENT SNAPSHOT"));
 
         // trigger a reconnect on the earlier connection should fail with
         // "max-connections"

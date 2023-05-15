@@ -548,6 +548,11 @@ class MysqlRoutingClassicConnectionBase
     return collation_connection_maybe_dirty_;
   }
 
+  std::optional<classic_protocol::session_track::TransactionCharacteristics>
+  trx_characteristics() const {
+    return trx_characteristics_;
+  }
+
  private:
   RouteDestination *route_destination_;
   Destinations destinations_;
