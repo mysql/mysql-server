@@ -30,6 +30,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/plugin/ndb_binlog_hooks.h"
 #include "storage/ndb/plugin/ndb_component.h"
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
@@ -316,7 +317,7 @@ class Ndb_binlog_thread : public Ndb_component {
                                  MY_BITMAP *defined, uchar *buf) const;
   int handle_error(NdbEventOperation *pOp) const;
   void handle_non_data_event(THD *thd, NdbEventOperation *pOp,
-                             ndb_binlog_index_row &row);
+                             NdbDictionary::Event::TableEvent type);
   int handle_data_event(const NdbEventOperation *pOp,
                         ndb_binlog_index_row **rows,
                         injector_transaction &trans, unsigned &trans_row_count,

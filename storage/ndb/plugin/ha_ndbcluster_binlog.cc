@@ -6057,20 +6057,12 @@ void Ndb_binlog_thread::inject_incident(
 
    @param thd          The thread handle
    @param pOp          The NdbEventOperation that received data
-   @param row          The ndb_binlog_index row
-
+   @param type         The type of event to handle
  */
-void Ndb_binlog_thread::handle_non_data_event(THD *thd, NdbEventOperation *pOp,
-                                              ndb_binlog_index_row &row) {
-  const NDBEVENT::TableEvent type = pOp->getEventType();
-
+void Ndb_binlog_thread::handle_non_data_event(
+    THD *thd, NdbEventOperation *pOp, NdbDictionary::Event::TableEvent type) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("type: %d", type));
-
-  if (type == NDBEVENT::TE_DROP || type == NDBEVENT::TE_ALTER) {
-    // Count schema events
-    row.n_schemaops++;
-  }
 
   const Ndb_event_data *event_data =
       Ndb_event_data::get_event_data(pOp->getCustomData());
@@ -6801,14 +6793,20 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
 
     assert(check_event_list_consistency(i_ndb, i_pOp));
 
-    if (i_pOp->getEventType() < NDBEVENT::TE_FIRST_NON_DATA_EVENT) {
+    const NdbDictionary::Event::TableEvent event_type = i_pOp->getEventType();
+    if (event_type < NDBEVENT::TE_FIRST_NON_DATA_EVENT) {
       if (handle_data_event(i_pOp, &rows, trans, trans_row_count,
                             replicated_row_count) != 0) {
         log_error("Failed to handle data event");
         return false;  // Error, failed to handle data event
       }
     } else {
-      handle_non_data_event(thd, i_pOp, *rows);
+      if (event_type == NDBEVENT::TE_DROP || event_type == NDBEVENT::TE_ALTER) {
+        // Count schema events
+        rows->n_schemaops++;
+      }
+
+      handle_non_data_event(thd, i_pOp, event_type);
     }
 
     i_pOp = i_ndb->nextEvent2();
@@ -7794,9 +7792,10 @@ restart_cluster_failure:
         e.g. node failure events
       */
       while (i_pOp != nullptr && i_pOp->getEpoch() == current_epoch) {
-        if (i_pOp->getEventType() >= NDBEVENT::TE_FIRST_NON_DATA_EVENT) {
-          ndb_binlog_index_row row;
-          handle_non_data_event(thd, i_pOp, row);
+        const NdbDictionary::Event::TableEvent event_type =
+            i_pOp->getEventType();
+        if (event_type >= NDBEVENT::TE_FIRST_NON_DATA_EVENT) {
+          handle_non_data_event(thd, i_pOp, event_type);
         }
         i_pOp = i_ndb->nextEvent2();
       }
