@@ -177,7 +177,14 @@ class Query_result_explain_into_var final : public Query_result_explain {
                                 std::string_view variable_name)
       : Query_result_explain(expr, child), m_variable_name(variable_name) {}
 
+  bool send_result_set_metadata(THD *, const mem_root_deque<Item *> &,
+                                uint) override {
+    return false;
+  }
+
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
+
+  bool send_eof(THD *thd) override;
 
  private:
   std::string_view m_variable_name;

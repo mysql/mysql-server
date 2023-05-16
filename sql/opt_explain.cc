@@ -2644,3 +2644,8 @@ bool Query_result_explain_into_var::send_data(
   if (suv->update()) return true;
   return false;
 }
+
+bool Query_result_explain_into_var::send_eof(THD *thd) {
+  my_ok(thd);
+  return false;
+}
