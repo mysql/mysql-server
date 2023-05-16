@@ -22,6 +22,9 @@
 
 #include "sql/join_optimizer/access_path.h"
 
+#include <algorithm>
+#include <vector>
+
 #include "my_base.h"
 #include "sql/filesort.h"
 #include "sql/item_cmpfunc.h"
@@ -57,9 +60,8 @@
 #include "sql/sql_update.h"
 #include "sql/table.h"
 
-#include <vector>
-
 using pack_rows::TableCollection;
+using std::all_of;
 using std::vector;
 
 AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
@@ -387,6 +389,44 @@ void SetupJobsForChildren(MEM_ROOT *mem_root, AccessPath *outer,
 }
 
 }  // namespace
+
+const Mem_root_array<Item *> *GetExtraHashJoinConditions(
+    MEM_ROOT *mem_root, bool using_hypergraph_optimizer,
+    const vector<HashJoinCondition> &equijoin_conditions,
+    const Mem_root_array<Item *> &other_conditions) {
+  if (!using_hypergraph_optimizer) {
+    // The old optimizer has already collected the necessary conditions in
+    // other_conditions or in a filter on top of the hash join.
+    return &other_conditions;
+  }
+
+  if (all_of(equijoin_conditions.begin(), equijoin_conditions.end(),
+             [](const HashJoinCondition &condition) {
+               return condition.store_full_sort_key();
+             })) {
+    // When we have no partially stored hash keys, there are no more conditions
+    // to add.
+    return &other_conditions;
+  }
+
+  // If we have at least one part of the hash key that cannot be stored fully in
+  // the hash join buffer, we need to add the corresponding equijoin condition
+  // as an extra condition to evaluate after the hash join. Append it to the
+  // non-equijoin predicates that we already have.
+  Mem_root_array<Item *> *extra_conditions =
+      new (mem_root) Mem_root_array<Item *>(mem_root, other_conditions);
+  if (extra_conditions == nullptr) return nullptr;
+
+  for (const HashJoinCondition &condition : equijoin_conditions) {
+    if (!condition.store_full_sort_key()) {
+      if (extra_conditions->push_back(condition.join_condition())) {
+        return nullptr;
+      }
+    }
+  }
+
+  return extra_conditions;
+}
 
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     THD *thd, MEM_ROOT *mem_root, AccessPath *top_path, JOIN *top_join,
@@ -770,9 +810,15 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         }
         const JoinPredicate *join_predicate = param.join_predicate;
         vector<HashJoinCondition> conditions;
+        conditions.reserve(join_predicate->expr->equijoin_conditions.size());
         for (Item_eq_base *cond : join_predicate->expr->equijoin_conditions) {
           conditions.emplace_back(cond, thd->mem_root);
         }
+        const Mem_root_array<Item *> *extra_conditions =
+            GetExtraHashJoinConditions(
+                mem_root, thd->lex->using_hypergraph_optimizer, conditions,
+                join_predicate->expr->join_conditions);
+        if (extra_conditions == nullptr) return nullptr;
         const bool probe_input_batch_mode =
             eligible_for_batch_mode && ShouldEnableBatchMode(param.outer);
         double estimated_build_rows = param.inner->num_output_rows();
@@ -836,9 +882,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             GetUsedTables(param.outer, /*include_pruned_tables=*/true),
             param.store_rowids, param.tables_to_get_rowid_for,
             thd->variables.join_buff_size, std::move(conditions),
-            param.allow_spill_to_disk, join_type,
-            join_predicate->expr->join_conditions, probe_input_batch_mode,
-            hash_table_generation);
+            param.allow_spill_to_disk, join_type, *extra_conditions,
+            probe_input_batch_mode, hash_table_generation);
         break;
       }
       case AccessPath::FILTER: {

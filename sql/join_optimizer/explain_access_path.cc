@@ -1230,6 +1230,7 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       RelationalExpression::Type type = path->hash_join().rewrite_semi_to_inner
                                             ? RelationalExpression::INNER_JOIN
                                             : predicate->expr->type;
+      THD *const thd = current_thd;
 
       string json_join_type;
       description = HashJoinTypeToString(type, &json_join_type);
@@ -1238,21 +1239,27 @@ static std::unique_ptr<Json_object> SetObjectMembers(
                                                      Json_array());
       if (hash_condition == nullptr) return nullptr;
 
-      if (predicate->expr->equijoin_conditions.empty()) {
+      vector<HashJoinCondition> equijoin_conditions;
+      equijoin_conditions.reserve(predicate->expr->equijoin_conditions.size());
+      for (Item_eq_base *cond : predicate->expr->equijoin_conditions) {
+        equijoin_conditions.emplace_back(cond, thd->mem_root);
+      }
+      if (equijoin_conditions.empty()) {
         description.append(" (no condition)");
       } else {
-        for (Item_eq_base *cond : predicate->expr->equijoin_conditions) {
-          if (cond != predicate->expr->equijoin_conditions[0]) {
+        bool first = true;
+        for (const HashJoinCondition &hj_cond : equijoin_conditions) {
+          if (!first) {
             description.push_back(',');
           }
+          first = false;
           string condition_str;
-          HashJoinCondition hj_cond(cond, *THR_MALLOC);
           if (!hj_cond.store_full_sort_key()) {
             condition_str =
                 "(<hash>(" + ItemToString(hj_cond.left_extractor()) +
                 ")=<hash>(" + ItemToString(hj_cond.right_extractor()) + "))";
           } else {
-            condition_str = ItemToString(cond);
+            condition_str = ItemToString(hj_cond.join_condition());
           }
           error |=
               AddElementToArray<Json_string>(hash_condition, condition_str);
@@ -1261,12 +1268,20 @@ static std::unique_ptr<Json_object> SetObjectMembers(
       }
       error |= obj->add_alias("hash_condition", std::move(hash_condition));
 
+      const Mem_root_array<Item *> *extra_join_conditions =
+          GetExtraHashJoinConditions(
+              thd->mem_root, thd->lex->using_hypergraph_optimizer,
+              equijoin_conditions, predicate->expr->join_conditions);
+      if (extra_join_conditions == nullptr) return nullptr;
+
       std::unique_ptr<Json_array> extra_condition(new (std::nothrow)
                                                       Json_array());
       if (extra_condition == nullptr) return nullptr;
-      for (Item *cond : predicate->expr->join_conditions) {
-        if (cond == predicate->expr->join_conditions[0]) {
+      bool first = true;
+      for (Item *cond : *extra_join_conditions) {
+        if (first) {
           description.append(", extra conditions: ");
+          first = false;
         } else {
           description += " and ";
         }

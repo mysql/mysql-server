@@ -46,6 +46,7 @@ template <class T>
 class Bounds_checked_array;
 class Common_table_expr;
 class Filesort;
+class HashJoinCondition;
 class Item;
 class Item_func_match;
 class JOIN;
@@ -1784,5 +1785,25 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
 
 /// Returns the tables that are part of a hash join.
 table_map GetHashJoinTables(AccessPath *path);
+
+/**
+  Get the conditions to put into the extra conditions of the HashJoinIterator.
+  This includes the non-equijoin conditions, as well as any equijoin conditions
+  on columns that are too big to include in the hash table. (The old optimizer
+  handles equijoin conditions on long columns elsewhere, so the last part only
+  applies to the hypergraph optimizer.)
+
+  @param mem_root The root on which to allocate memory, if needed.
+  @param using_hypergraph_optimizer True if using the hypergraph optimizer.
+  @param equijoin_conditions All the equijoin conditions of the join.
+  @param other_conditions All the non-equijoin conditions of the join.
+
+  @return All the conditions to evaluate as "extra conditions" in
+  HashJoinIterator, or nullptr on OOM.
+ */
+const Mem_root_array<Item *> *GetExtraHashJoinConditions(
+    MEM_ROOT *mem_root, bool using_hypergraph_optimizer,
+    const std::vector<HashJoinCondition> &equijoin_conditions,
+    const Mem_root_array<Item *> &other_conditions);
 
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H
