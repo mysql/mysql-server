@@ -114,6 +114,7 @@ IF(NOT WITHOUT_SERVER)
     plugin/ndb_index_stat_sample_table.cc
     plugin/ndb_applier.cc
     plugin/ndb_replica.cc
+    plugin/ndb_binlog_index_rows.cc
   )
 
   # Include directories used when building ha_ndbcluster
@@ -143,6 +144,7 @@ IF(NOT WITHOUT_SERVER)
 
   NDB_ADD_TEST("ndb_bitmap-t" "plugin/ndb_bitmap.cc" LIBS ndbgeneral)
   NDB_ADD_TEST("ndb_blobs_buffer-t" "plugin/ndb_blobs_buffer.cc" LIBS ndbgeneral)
+  NDB_ADD_TEST("ndb_binlog_index_rows-t" "plugin/ndb_binlog_index_rows.cc" LIBS ndbgeneral)
 ELSEIF(NOT WITH_NDB)
   IF(WITH_NDBCLUSTER_STORAGE_ENGINE)
     MESSAGE(WARNING "Skips building ndbcluster plugin, WITHOUT_SERVER=ON "

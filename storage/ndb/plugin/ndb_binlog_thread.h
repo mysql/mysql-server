@@ -32,6 +32,7 @@
 
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/plugin/ndb_binlog_hooks.h"
+#include "storage/ndb/plugin/ndb_binlog_index_rows.h"
 #include "storage/ndb/plugin/ndb_component.h"
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
 
@@ -39,7 +40,6 @@ class Ndb;
 class NdbEventOperation;
 class Ndb_sync_pending_objects_table;
 class Ndb_sync_excluded_objects_table;
-struct ndb_binlog_index_row;
 class injector;
 class injector_transaction;
 struct TABLE;
@@ -309,6 +309,8 @@ class Ndb_binlog_thread : public Ndb_component {
    */
   void fix_per_epoch_trans_settings(THD *thd);
 
+  Ndb_binlog_index_rows m_binlog_index_rows;
+
   // Functions for handling received events
   int handle_data_get_blobs(const TABLE *table,
                             const NdbValue *const value_array,
@@ -319,9 +321,8 @@ class Ndb_binlog_thread : public Ndb_component {
   void handle_non_data_event(THD *thd, NdbEventOperation *pOp,
                              NdbDictionary::Event::TableEvent type);
   int handle_data_event(const NdbEventOperation *pOp,
-                        ndb_binlog_index_row **rows,
                         injector_transaction &trans, unsigned &trans_row_count,
-                        unsigned &replicated_row_count) const;
+                        unsigned &replicated_row_count);
   bool handle_events_for_epoch(THD *thd, injector *inj, Ndb *i_ndb,
                                NdbEventOperation *&i_pOp,
                                const Uint64 current_epoch);
@@ -334,8 +335,7 @@ class Ndb_binlog_thread : public Ndb_component {
                        Uint64 gap_epoch) const;
   void inject_table_map(injector_transaction &trans, Ndb *ndb) const;
   void commit_trans(injector_transaction &trans, THD *thd, Uint64 current_epoch,
-                    ndb_binlog_index_row *rows, unsigned trans_row_count,
-                    unsigned replicated_row_count);
+                    unsigned trans_row_count, unsigned replicated_row_count);
 
   // Cache for NDB metadata
   class Metadata_cache {

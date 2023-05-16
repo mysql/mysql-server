@@ -128,26 +128,6 @@ extern Ndb_cluster_connection *g_ndb_cluster_connection;
 */
 static const int DEFAULT_SYNC_TIMEOUT = 120;
 
-/* Column numbers in the ndb_binlog_index table */
-enum Ndb_binlog_index_cols {
-  NBICOL_START_POS = 0,
-  NBICOL_START_FILE = 1,
-  NBICOL_EPOCH = 2,
-  NBICOL_NUM_INSERTS = 3,
-  NBICOL_NUM_UPDATES = 4,
-  NBICOL_NUM_DELETES = 5,
-  NBICOL_NUM_SCHEMAOPS = 6
-  /* Following columns in schema 'v2' */
-  ,
-  NBICOL_ORIG_SERVERID = 7,
-  NBICOL_ORIG_EPOCH = 8,
-  NBICOL_GCI = 9
-  /* Following columns in schema 'v3' */
-  ,
-  NBICOL_NEXT_POS = 10,
-  NBICOL_NEXT_FILE = 11
-};
-
 class Mutex_guard {
  public:
   Mutex_guard(mysql_mutex_t &mutex) : m_mutex(mutex) {
@@ -4336,36 +4316,6 @@ class Ndb_schema_event_handler {
   }
 };
 
-/*********************************************************************
-  Internal helper functions for handling of the cluster replication tables
-  - ndb_binlog_index
-  - ndb_apply_status
-*********************************************************************/
-
-/*
-  struct to hold the data to be inserted into the
-  ndb_binlog_index table
-*/
-struct ndb_binlog_index_row {
-  ulonglong epoch;
-  const char *start_master_log_file;
-  ulonglong start_master_log_pos;
-  ulong n_inserts;
-  ulong n_updates;
-  ulong n_deletes;
-  ulong n_schemaops;
-
-  ulong orig_server_id;
-  ulonglong orig_epoch;
-
-  ulong gci;
-
-  const char *next_master_log_file;
-  ulonglong next_master_log_pos;
-
-  struct ndb_binlog_index_row *next;
-};
-
 /**
   Utility class encapsulating the code which open and writes
   to the mysql.ndb_binlog_index table
@@ -4373,6 +4323,27 @@ struct ndb_binlog_index_row {
 class Ndb_binlog_index_table_util {
   static constexpr const char *const DB_NAME = "mysql";
   static constexpr const char *const TABLE_NAME = "ndb_binlog_index";
+
+  /* Column numbers in the ndb_binlog_index table */
+  enum Ndb_binlog_index_cols {
+    NBICOL_START_POS = 0,
+    NBICOL_START_FILE = 1,
+    NBICOL_EPOCH = 2,
+    NBICOL_NUM_INSERTS = 3,
+    NBICOL_NUM_UPDATES = 4,
+    NBICOL_NUM_DELETES = 5,
+    NBICOL_NUM_SCHEMAOPS = 6
+    /* Following columns in schema 'v2' */
+    ,
+    NBICOL_ORIG_SERVERID = 7,
+    NBICOL_ORIG_EPOCH = 8,
+    NBICOL_GCI = 9
+    /* Following columns in schema 'v3' */
+    ,
+    NBICOL_NEXT_POS = 10,
+    NBICOL_NEXT_FILE = 11
+  };
+
   /*
     Open the ndb_binlog_index table for writing
   */
@@ -4407,9 +4378,12 @@ class Ndb_binlog_index_table_util {
   /*
     Write rows to the ndb_binlog_index table
   */
-  static int write_rows_impl(THD *thd, ndb_binlog_index_row *row) {
+  static int write_rows_impl(THD *thd, std::string_view start_file,
+                             ulonglong start_pos, std::string_view next_file,
+                             ulonglong next_pos, Uint32 current_gci,
+                             Uint64 current_epoch, ulong schemaops,
+                             const Ndb_binlog_index_rows::Rows &rows) {
     int error = 0;
-    ndb_binlog_index_row *first = row;
     TABLE *ndb_binlog_index = nullptr;
     // Save previous option settings
     ulonglong option_bits = thd->variables.option_bits;
@@ -4441,19 +4415,19 @@ class Ndb_binlog_index_table_util {
 
     // Turn off autocommit to do all writes in one transaction
     thd->variables.option_bits |= OPTION_NOT_AUTOCOMMIT;
-    do {
+
+    for (auto row = rows.crbegin(); row != rows.crend();) {
       ulonglong epoch = 0, orig_epoch = 0;
       uint orig_server_id = 0;
 
       // Initialize ndb_binlog_index->record[0]
       empty_record(ndb_binlog_index);
 
-      ndb_binlog_index->field[NBICOL_START_POS]->store(
-          first->start_master_log_pos, true);
+      ndb_binlog_index->field[NBICOL_START_POS]->store(start_pos, true);
       ndb_binlog_index->field[NBICOL_START_FILE]->store(
-          first->start_master_log_file,
-          (uint)strlen(first->start_master_log_file), &my_charset_bin);
-      ndb_binlog_index->field[NBICOL_EPOCH]->store(epoch = first->epoch, true);
+          start_file.data(), start_file.length(), &my_charset_bin);
+      ndb_binlog_index->field[NBICOL_EPOCH]->store(epoch = current_epoch, true);
+
       if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID) {
         /* Table has ORIG_SERVERID / ORIG_EPOCH columns.
          * Write rows with different ORIG_SERVERID / ORIG_EPOCH
@@ -4465,42 +4439,39 @@ class Ndb_binlog_index_table_util {
                                                            true);
         ndb_binlog_index->field[NBICOL_NUM_DELETES]->store(row->n_deletes,
                                                            true);
-        ndb_binlog_index->field[NBICOL_NUM_SCHEMAOPS]->store(row->n_schemaops,
-                                                             true);
+        ndb_binlog_index->field[NBICOL_NUM_SCHEMAOPS]->store(schemaops, true);
+        schemaops = 0;  // Write only once
+
         ndb_binlog_index->field[NBICOL_ORIG_SERVERID]->store(
             orig_server_id = row->orig_server_id, true);
         ndb_binlog_index->field[NBICOL_ORIG_EPOCH]->store(
             orig_epoch = row->orig_epoch, true);
-        ndb_binlog_index->field[NBICOL_GCI]->store(first->gci, true);
+        ndb_binlog_index->field[NBICOL_GCI]->store(current_gci, true);
 
         if (ndb_binlog_index->s->fields > NBICOL_NEXT_POS) {
           /* Table has next log pos fields, fill them in */
-          ndb_binlog_index->field[NBICOL_NEXT_POS]->store(
-              first->next_master_log_pos, true);
+          ndb_binlog_index->field[NBICOL_NEXT_POS]->store(next_pos, true);
           ndb_binlog_index->field[NBICOL_NEXT_FILE]->store(
-              first->next_master_log_file,
-              (uint)strlen(first->next_master_log_file), &my_charset_bin);
+              next_file.data(), next_file.length(), &my_charset_bin);
         }
-        row = row->next;
+        row++;
       } else {
         /* Old schema : Table has no separate
          * ORIG_SERVERID / ORIG_EPOCH columns.
          * Merge operation counts and write one row
          */
-        while ((row = row->next)) {
-          first->n_inserts += row->n_inserts;
-          first->n_updates += row->n_updates;
-          first->n_deletes += row->n_deletes;
-          first->n_schemaops += row->n_schemaops;
+        ulonglong inserts = row->n_inserts;
+        ulonglong updates = row->n_updates;
+        ulonglong deletes = row->n_deletes;
+        while (++row != rows.crend()) {
+          inserts += row->n_inserts;
+          updates += row->n_updates;
+          deletes += row->n_deletes;
         }
-        ndb_binlog_index->field[NBICOL_NUM_INSERTS]->store(
-            (ulonglong)first->n_inserts, true);
-        ndb_binlog_index->field[NBICOL_NUM_UPDATES]->store(
-            (ulonglong)first->n_updates, true);
-        ndb_binlog_index->field[NBICOL_NUM_DELETES]->store(
-            (ulonglong)first->n_deletes, true);
-        ndb_binlog_index->field[NBICOL_NUM_SCHEMAOPS]->store(
-            (ulonglong)first->n_schemaops, true);
+        ndb_binlog_index->field[NBICOL_NUM_INSERTS]->store(inserts, true);
+        ndb_binlog_index->field[NBICOL_NUM_UPDATES]->store(updates, true);
+        ndb_binlog_index->field[NBICOL_NUM_DELETES]->store(deletes, true);
+        ndb_binlog_index->field[NBICOL_NUM_SCHEMAOPS]->store(schemaops, true);
       }
 
       error = ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
@@ -4524,8 +4495,7 @@ class Ndb_binlog_index_table_util {
             uint(orig_epoch >> 32), uint(orig_epoch), error);
 
         bool seen_error_row = false;
-        ndb_binlog_index_row *cursor = first;
-        do {
+        for (auto cursor = rows.crbegin(); cursor != rows.crend(); cursor++) {
           char tmp[128];
           if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
             snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u", uint(epoch >> 32),
@@ -4535,18 +4505,17 @@ class Ndb_binlog_index_table_util {
           else
             snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
 
-          bool error_row = (row == (cursor->next));
+          const bool error_row = (row == cursor);
           ndb_log_error(
               "Binlog: Writing row (%s) to ndb_binlog_index - %s", tmp,
               (error_row ? "ERROR" : (seen_error_row ? "Discarded" : "OK")));
           seen_error_row |= error_row;
-
-        } while ((cursor = cursor->next));
+        }
 
         error = -1;
         goto add_ndb_binlog_index_err;
       }
-    } while (row);
+    }
 
   add_ndb_binlog_index_err:
     /*
@@ -4596,7 +4565,12 @@ class Ndb_binlog_index_table_util {
     Write rows to the ndb_binlog_index table using a separate THD
     to avoid the write being killed
   */
-  static void write_rows_with_new_thd(ndb_binlog_index_row *rows) {
+  static void write_rows_with_new_thd(std::string_view start_file,
+                                      ulonglong start_pos,
+                                      std::string_view next_file,
+                                      ulonglong next_pos, Uint32 current_gci,
+                                      Uint64 current_epoch, ulong schemaops,
+                                      const Ndb_binlog_index_rows::Rows &rows) {
     // Create a new THD and retry the write
     THD *new_thd = new THD;
     new_thd->set_new_thread_id();
@@ -4609,7 +4583,9 @@ class Ndb_binlog_index_table_util {
     new_thd->set_current_stmt_binlog_format_row();
 
     // Retry the write
-    const int retry_result = write_rows_impl(new_thd, rows);
+    const int retry_result =
+        write_rows_impl(new_thd, start_file, start_pos, next_file, next_pos,
+                        current_gci, current_epoch, schemaops, rows);
     if (retry_result) {
       ndb_log_error(
           "Binlog: Failed writing to ndb_binlog_index table "
@@ -4625,8 +4601,13 @@ class Ndb_binlog_index_table_util {
   /*
     Write rows to the ndb_binlog_index table
   */
-  static inline int write_rows(THD *thd, ndb_binlog_index_row *rows) {
-    return write_rows_impl(thd, rows);
+  static inline int write_rows(THD *thd, std::string_view start_file,
+                               ulonglong start_pos, std::string_view next_file,
+                               ulonglong next_pos, Uint32 current_gci,
+                               Uint64 current_epoch, ulong schemaops,
+                               const Ndb_binlog_index_rows::Rows &rows) {
+    return write_rows_impl(thd, start_file, start_pos, next_file, next_pos,
+                           current_gci, current_epoch, schemaops, rows);
   }
 
   /*
@@ -4641,12 +4622,16 @@ class Ndb_binlog_index_table_util {
     a feature to have the THD in the list of global session since it
     should show up in SHOW PROCESSLIST.
   */
-  static void write_rows_retry_after_kill(THD *orig_thd,
-                                          ndb_binlog_index_row *rows) {
+  static void write_rows_retry_after_kill(
+      THD *orig_thd, std::string_view start_file, ulonglong start_pos,
+      std::string_view next_file, ulonglong next_pos, Uint32 current_gci,
+      Uint64 current_epoch, ulong schemaops,
+      const Ndb_binlog_index_rows::Rows &rows) {
     // Should only be called when original THD has been killed
     assert(orig_thd->is_killed());
 
-    write_rows_with_new_thd(rows);
+    write_rows_with_new_thd(start_file, start_pos, next_file, next_pos,
+                            current_gci, current_epoch, schemaops, rows);
 
     // Relink this thread with original THD
     orig_thd->store_globals();
@@ -6102,50 +6087,6 @@ void Ndb_binlog_thread::handle_non_data_event(
   }
 }
 
-static inline ndb_binlog_index_row *ndb_find_binlog_index_row(
-    ndb_binlog_index_row **rows, uint orig_server_id, int flag) {
-  ndb_binlog_index_row *row = *rows;
-  if (opt_ndb_log_orig) {
-    ndb_binlog_index_row *first = row, *found_id = nullptr;
-    for (;;) {
-      if (row->orig_server_id == orig_server_id) {
-        /* */
-        if (!flag || !row->orig_epoch) return row;
-        if (!found_id) found_id = row;
-      }
-      if (row->orig_server_id == 0) break;
-      row = row->next;
-      if (row == nullptr) {
-        // Allocate memory in current MEM_ROOT
-        row = (ndb_binlog_index_row *)(*THR_MALLOC)
-                  ->Alloc(sizeof(ndb_binlog_index_row));
-        memset(row, 0, sizeof(ndb_binlog_index_row));
-        row->next = first;
-        *rows = row;
-        if (found_id) {
-          /*
-            If we found index_row with same server id already
-            that row will contain the current stats.
-            Copy stats over to new and reset old.
-          */
-          row->n_inserts = found_id->n_inserts;
-          row->n_updates = found_id->n_updates;
-          row->n_deletes = found_id->n_deletes;
-          found_id->n_inserts = 0;
-          found_id->n_updates = 0;
-          found_id->n_deletes = 0;
-        }
-        /* keep track of schema ops only on "first" index_row */
-        row->n_schemaops = first->n_schemaops;
-        first->n_schemaops = 0;
-        break;
-      }
-    }
-    row->orig_server_id = orig_server_id;
-  }
-  return row;
-}
-
 #ifndef NDEBUG
 
 /**
@@ -6243,17 +6184,15 @@ class injector_transaction : public injector::transaction {};
    @brief Handle one data event received from NDB
 
    @param pOp           The NdbEventOperation that received data
-   @param rows          The rows which will be written to ndb_binlog_index
    @param trans         The injector transaction
    @param[out] trans_row_count       Counter for rows in event
    @param[out] replicated_row_count  Counter for replicated rows in event
    @return 0 for success, other values (normally -1) for error
  */
 int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
-                                         ndb_binlog_index_row **rows,
                                          injector_transaction &trans,
                                          unsigned &trans_row_count,
-                                         unsigned &replicated_row_count) const {
+                                         unsigned &replicated_row_count) {
   bool reflected_op = false;
   bool refresh_op = false;
   bool read_op = false;
@@ -6359,10 +6298,8 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
         }
 
         if (opt_ndb_log_orig) {
-          /* store */
-          ndb_binlog_index_row *row =
-              ndb_find_binlog_index_row(rows, orig_server_id, 1);
-          row->orig_epoch = orig_epoch;
+          /* store orig_epoch */
+          (void)m_binlog_index_rows.find_row(orig_server_id, orig_epoch);
         }
       }
     }  // opt_ndb_log_apply_status || opt_ndb_log_orig)
@@ -6461,8 +6398,8 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
    (saves moving data about many times)
   */
 
-  ndb_binlog_index_row *row =
-      ndb_find_binlog_index_row(rows, originating_server_id, 0);
+  Ndb_binlog_index_rows::Row &row =
+      m_binlog_index_rows.find_row(originating_server_id, 0);
 
   // The data of any received blobs will live in these buffers for a short
   // time while processing one event. The buffers are populated in
@@ -6474,7 +6411,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
   switch (pOp->getEventType()) {
     case NDBEVENT::TE_INSERT:
       if (likely(count_this_event)) {
-        row->n_inserts++;
+        row.n_inserts++;
         trans_row_count++;
       }
       DBUG_PRINT("info", ("INSERT INTO %s.%s", table->s->db.str,
@@ -6504,7 +6441,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
       break;
     case NDBEVENT::TE_DELETE:
       if (likely(count_this_event)) {
-        row->n_deletes++;
+        row.n_deletes++;
         trans_row_count++;
       }
       DBUG_PRINT("info", ("DELETE FROM %s.%s", table->s->db.str,
@@ -6549,7 +6486,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
       break;
     case NDBEVENT::TE_UPDATE:
       if (likely(count_this_event)) {
-        row->n_updates++;
+        row.n_updates++;
         trans_row_count++;
       }
       DBUG_PRINT("info",
@@ -6720,9 +6657,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
   // No error has occurred in event stream, continue processing
   thd->set_proc_info("Processing events");
 
-  ndb_binlog_index_row _row;
-  ndb_binlog_index_row *rows = &_row;
-  memset(&_row, 0, sizeof(_row));
+  m_binlog_index_rows.init();
 
   fix_per_epoch_trans_settings(thd);
 
@@ -6730,8 +6665,6 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
   injector_transaction trans;
   inj->new_trans(thd, &trans, opt_ndb_log_trans_dependency);
 
-  unsigned trans_row_count = 0;
-  unsigned replicated_row_count = 0;
   if (event_type == NdbDictionary::Event::TE_EMPTY) {
     // Handle empty epoch
     if (opt_ndb_log_empty_epochs) {
@@ -6741,8 +6674,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
                           (uint)(ndb_latest_handled_binlog_epoch >> 32),
                           (uint)(ndb_latest_handled_binlog_epoch)));
 
-      commit_trans(trans, thd, current_epoch, rows, trans_row_count,
-                   replicated_row_count);
+      commit_trans(trans, thd, current_epoch, 0, 0);
     }
 
     i_pOp = i_ndb->nextEvent2();
@@ -6784,6 +6716,8 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
     }
   }
 
+  unsigned trans_row_count = 0;
+  unsigned replicated_row_count = 0;
   do {
     if (i_pOp->hasError() && handle_error(i_pOp) < 0) {
       // NOTE! The 'handle_error' function currently always return 0
@@ -6795,7 +6729,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
 
     const NdbDictionary::Event::TableEvent event_type = i_pOp->getEventType();
     if (event_type < NDBEVENT::TE_FIRST_NON_DATA_EVENT) {
-      if (handle_data_event(i_pOp, &rows, trans, trans_row_count,
+      if (handle_data_event(i_pOp, trans, trans_row_count,
                             replicated_row_count) != 0) {
         log_error("Failed to handle data event");
         return false;  // Error, failed to handle data event
@@ -6803,7 +6737,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
     } else {
       if (event_type == NDBEVENT::TE_DROP || event_type == NDBEVENT::TE_ALTER) {
         // Count schema events
-        rows->n_schemaops++;
+        m_binlog_index_rows.inc_schemaops();
       }
 
       handle_non_data_event(thd, i_pOp, event_type);
@@ -6817,7 +6751,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
     or is == NULL
   */
 
-  commit_trans(trans, thd, current_epoch, rows, trans_row_count,
+  commit_trans(trans, thd, current_epoch, trans_row_count,
                replicated_row_count);
 
   return true;  // OK
@@ -7112,7 +7046,6 @@ static Uint64 find_epoch_to_handle(const NdbEventOperation *s_pOp,
 
 void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
                                      Uint64 current_epoch,
-                                     ndb_binlog_index_row *rows,
                                      unsigned trans_row_count,
                                      unsigned replicated_row_count) {
   if (!trans.good()) {
@@ -7152,24 +7085,23 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
 
   injector::transaction::binlog_pos start = trans.start_pos();
   injector::transaction::binlog_pos next = trans.next_pos();
-  rows->gci = (Uint32)(current_epoch >> 32);  //  Expose gci hi/lo
-  rows->epoch = current_epoch;
-  rows->start_master_log_file = start.file_name();
-  rows->start_master_log_pos = start.file_pos();
   if (next.file_pos() == 0 && opt_ndb_log_empty_epochs) {
     /* Empty transaction 'committed' due to log_empty_epochs
      * therefore no next position
      */
-    rows->next_master_log_file = start.file_name();
-    rows->next_master_log_pos = start.file_pos();
-  } else {
-    rows->next_master_log_file = next.file_name();
-    rows->next_master_log_pos = next.file_pos();
+    next = start;
   }
+
+  //  Expose gci hi/lo
+  const Uint32 current_gci = static_cast<Uint32>(current_epoch >> 32);
 
   DBUG_PRINT("info", ("COMMIT epoch: %lu", (ulong)current_epoch));
   if (opt_ndb_log_binlog_index) {
-    if (Ndb_binlog_index_table_util::write_rows(thd, rows)) {
+    if (Ndb_binlog_index_table_util::write_rows(
+            thd, start.file_name(), start.file_pos(), next.file_name(),
+            next.file_pos(), current_gci, current_epoch,
+            m_binlog_index_rows.get_schemaops(),
+            m_binlog_index_rows.get_rows())) {
       /*
         Writing to ndb_binlog_index failed, check if it's because THD have
         been killed and retry in such case
@@ -7178,7 +7110,11 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
         DBUG_PRINT(
             "error",
             ("Failed to write to ndb_binlog_index at shutdown, retrying"));
-        Ndb_binlog_index_table_util::write_rows_retry_after_kill(thd, rows);
+        Ndb_binlog_index_table_util::write_rows_retry_after_kill(
+            thd, start.file_name(), start.file_pos(), next.file_name(),
+            next.file_pos(), current_gci, current_epoch,
+            m_binlog_index_rows.get_schemaops(),
+            m_binlog_index_rows.get_rows());
       }
     }
   }
@@ -7976,7 +7912,7 @@ err:
   in result of SHOW ENGINE NDB STATUS
 
   @param     buf     The buffer where to print status string
-  @param     bufzies Size of the buffer
+  @param     buf_size Size of the buffer
 
   @return    Length of the string printed to "buf" or 0 if no string
              is printed
