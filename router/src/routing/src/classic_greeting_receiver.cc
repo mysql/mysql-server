@@ -103,6 +103,8 @@ stdx::expected<Processor::Result, std::error_code> ClientGreetor::process() {
       return request_plaintext_password();
     case Stage::PlaintextPassword:
       return plaintext_password();
+    case Stage::DecryptPassword:
+      return decrypt_password();
 
     case Stage::Accepted:
       return accepted();
@@ -370,11 +372,13 @@ ClientGreetor::client_greeting() {
     if (msg.auth_method_data() == "\x00"sv) {
       // password is empty.
       src_protocol->password("");
-    } else {
+    } else if (connection()->source_ssl_mode() != SslMode::kPassthrough) {
       const bool client_conn_is_secure =
           connection()->socket_splicer()->client_conn().is_secure_transport();
 
-      if (client_conn_is_secure &&
+      if ((client_conn_is_secure ||
+           connection()->context().source_ssl_ctx() != nullptr) &&
+          connection()->context().connection_sharing() &&
           src_protocol->auth_method_name() == AuthCachingSha2Password::kName) {
         stage(Stage::RequestPlaintextPassword);
         return Result::Again;
@@ -647,14 +651,11 @@ ClientGreetor::request_plaintext_password() {
  * @returns the payload without the trailing NUL-char.
  * @retval false in there is no password.
  */
-static std::optional<std::string> password_from_auth_method_data(
-    std::string auth_data) {
+static std::optional<std::string_view> password_from_auth_method_data(
+    std::string_view auth_data) {
   if (auth_data.empty() || auth_data.back() != '\0') return std::nullopt;
 
-  // strip the trailing \0
-  auth_data.pop_back();
-
-  return auth_data;
+  return auth_data.substr(0, auth_data.size() - 1);
 }
 
 /**
@@ -667,17 +668,113 @@ ClientGreetor::plaintext_password() {
   auto *src_channel = connection()->socket_splicer()->client_channel();
   auto *src_protocol = connection()->client_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<classic_protocol::wire::String>(
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      src_channel, src_protocol);
+  if (!msg_res) return recv_client_failed(msg_res.error());
+
+  const bool client_conn_is_secure =
+      connection()->socket_splicer()->client_conn().is_secure_transport();
+
+  if (client_conn_is_secure) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("client::auth::plain"));
+    }
+
+    if (auto pwd =
+            password_from_auth_method_data(msg_res->auth_method_data())) {
+      src_protocol->password(std::string(*pwd));
+    }
+    // discard the current frame.
+    discard_current_msg(src_channel, src_protocol);
+
+    stage(Stage::Accepted);
+    return Result::Again;
+  }
+
+  if (AuthCachingSha2Password::is_public_key_request(
+          msg_res->auth_method_data())) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("client::auth::public_key_request"));
+    }
+
+    auto pubkey_res = AuthCachingSha2Password::public_key_from_ssl_ctx_as_pem(
+        connection()->context().source_ssl_ctx()->get());
+    if (!pubkey_res) {
+      // couldn't get the public key, fail the auth.
+      auto send_res = ClassicFrame::send_msg<
+          classic_protocol::borrowed::message::server::Error>(
+          src_channel, src_protocol,
+          {ER_ACCESS_DENIED_ERROR, "Access denied", "HY000"});
+      if (!send_res) return send_client_failed(send_res.error());
+
+      discard_current_msg(src_channel, src_protocol);
+
+      stage(Stage::Error);
+      return Result::SendToClient;
+    }
+
+    auto send_res = AuthCachingSha2Password::send_public_key(
+        src_channel, src_protocol, *pubkey_res);
+    if (!send_res) return send_client_failed(send_res.error());
+
+    discard_current_msg(src_channel, src_protocol);
+
+    stage(Stage::DecryptPassword);
+    return Result::SendToClient;
+  }
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::auth::???"));
+  }
+
+  const auto send_res = ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::server::Error>(
+      src_channel, src_protocol,
+      {CR_AUTH_PLUGIN_CANNOT_LOAD, "Unexpected message ...", "HY000"});
+  if (!send_res) return send_client_failed(send_res.error());
+
+  discard_current_msg(src_channel, src_protocol);
+
+  stage(Stage::Error);
+  return Result::SendToClient;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+ClientGreetor::decrypt_password() {
+  auto *src_channel = connection()->socket_splicer()->client_channel();
+  auto *src_protocol = connection()->client_protocol();
+
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
       src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("client::auth::plain"));
+    tr.trace(Tracer::Event().stage("client::auth::encrypted"));
   }
 
-  if (auto pwd = password_from_auth_method_data(msg_res->value())) {
-    src_protocol->password(*pwd);
+  auto nonce = src_protocol->server_greeting()->auth_method_data();
+
+  // if there is a trailing zero, strip it.
+  if (nonce.size() == AuthCachingSha2Password::kNonceLength + 1 &&
+      nonce[AuthCachingSha2Password::kNonceLength] == 0x00) {
+    nonce = nonce.substr(0, AuthCachingSha2Password::kNonceLength);
   }
+
+  auto recv_res = AuthCachingSha2Password::rsa_decrypt_password(
+      connection()->context().source_ssl_ctx()->get(),
+      msg_res->auth_method_data(), nonce);
+  if (!recv_res) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("client::auth::encrypted::failed: " +
+                                     recv_res.error().message()));
+    }
+
+    return recv_client_failed(recv_res.error());
+  }
+
+  src_protocol->password(*recv_res);
 
   // discard the current frame.
   discard_current_msg(src_channel, src_protocol);

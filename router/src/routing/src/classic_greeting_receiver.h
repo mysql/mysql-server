@@ -49,6 +49,7 @@ class ClientGreetor : public Processor {
     ClientGreetingAfterTls,
     RequestPlaintextPassword,
     PlaintextPassword,
+    DecryptPassword,
     Accepted,
     Authenticated,
 
@@ -71,6 +72,7 @@ class ClientGreetor : public Processor {
   stdx::expected<Result, std::error_code> client_greeting_after_tls();
   stdx::expected<Result, std::error_code> request_plaintext_password();
   stdx::expected<Result, std::error_code> plaintext_password();
+  stdx::expected<Result, std::error_code> decrypt_password();
   stdx::expected<Result, std::error_code> accepted();
   stdx::expected<Result, std::error_code> authenticated();
   stdx::expected<Result, std::error_code> error();
