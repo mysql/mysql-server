@@ -11,7 +11,6 @@ CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (1), (3), (5), (7);
 INSERT INTO t2 VALUES (1), (2), (5), (6);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree
   SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
@@ -23,7 +22,6 @@ CREATE TABLE t2 (col1 VARCHAR(255));
 INSERT INTO t1 VALUES (1), (3), (5), (7);
 INSERT INTO t2 VALUES (1), (2), (5), (6);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree
   SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
@@ -43,14 +41,11 @@ INSERT INTO t2 VALUES ('2018-01-01 00:00:00.000000'),
                       ('2019-01-02 00:00:00.000001'),
                       (NULL), (NULL), (NULL);
 ANALYZE TABLE t1, t2;
-# Filter out cost and row estimates, as they are different with hypergraph.
-# Also normalize the order of the predicates, which is different in hypergraph.
---replace_regex / *\(cost=.*// /t2\.col1 = t1\.col1/t1.col1 = t2.col1/
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
-# Filter out cost and row estimates, as they are different with hypergraph.
---replace_regex / *\(cost=.*//
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1;
 --sorted_result
@@ -65,12 +60,10 @@ INSERT INTO t1 VALUES ('2001-01-01 00:00:00'), (NULL);
 CREATE TABLE t2 (b VARCHAR(64));
 INSERT INTO t2 VALUES ('2001#01#01'), (NULL), (NULL);
 ANALYZE TABLE t1, t2;
-# Filter out cost and row estimates, as they are different with hypergraph.
---replace_regex / *\(cost=.*//
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE a=b;
 SELECT * FROM t1, t2 WHERE a=b;
-# Filter out cost and row estimates, as they are different with hypergraph.
---replace_regex / *\(cost=.*//
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE a<=>b;
 --sorted_result
 SELECT * FROM t1, t2 WHERE a<=>b;
@@ -82,11 +75,11 @@ CREATE TABLE t2 (col1 DOUBLE);
 INSERT INTO t1 VALUES (0), (1.1), (3.3), (5.5), (7.7), (NULL);
 INSERT INTO t2 VALUES (0), (1.1), (1.11), (5.5), (6.6), (NULL);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1;
 --sorted_result
@@ -99,11 +92,11 @@ CREATE TABLE t2 (col1 DECIMAL(6, 2));
 INSERT INTO t1 VALUES (0), (1.1), (3.3), (5.5), (7.7), (NULL);
 INSERT INTO t2 VALUES (0), (1.1), (1.10), (5.5), (6.6), (NULL);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 <=> t2.col1;
 --sorted_result
@@ -119,12 +112,10 @@ INSERT INTO t1 VALUES (0), (1), (5), (NULL);
 INSERT INTO t2 VALUES (0), (0.1), (0.000000000000000000000000000001),
                       (5.000000000000000000000000000000), (NULL);
 ANALYZE TABLE t1, t2;
-# Filter out cost and row estimates, as they are different with hypergraph.
---replace_regex / *\(cost=.*//
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE t1.col1 = t2.col1;
 SELECT * FROM t1,t2 WHERE t1.col1 = t2.col1;
-# Filter out cost and row estimates, as they are different with hypergraph.
---replace_regex / *\(cost=.*//
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE t1.col1 <=> t2.col1;
 --sorted_result
 SELECT * FROM t1,t2 WHERE t1.col1 <=> t2.col1;
@@ -135,12 +126,10 @@ CREATE TABLE t2 (col1 BIGINT);
 INSERT INTO t1 VALUES (1), (NULL);
 INSERT INTO t2 VALUES (1), (0), (NULL);
 ANALYZE TABLE t1, t2;
-# Filter out cost and row estimates, as they are different with hypergraph.
---replace_regex / *\(cost=.*//
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1,t2 where t1.col1=t2.col1;
 SELECT * FROM t1,t2 where t1.col1=t2.col1;
-# Filter out cost and row estimates, as they are different with hypergraph.
---replace_regex / *\(cost=.*//
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1,t2 where t1.col1<=>t2.col1;
 --sorted_result
 SELECT * FROM t1,t2 where t1.col1<=>t2.col1;
@@ -153,10 +142,10 @@ create table t2 (id2 int, b2 bit(1)) engine = myisam;
 insert into t1 values (2, 0), (3, 1), (null, null);
 insert into t2 values (2, 1), (3, 0), (null, null);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE id1 = id2;
 SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 = id2;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE id1 <=> id2;
 --sorted_result
 SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 <=> id2;
@@ -167,10 +156,10 @@ create table t2 (id2 int, b2 bit(64)) engine = innodb;
 insert into t1 values (2, 0), (3, 2), (null, null);
 insert into t2 values (2, 2), (3, 0), (null, null);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE id1 = id2;
 SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 = id2;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE id1 <=> id2;
 --sorted_result
 SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 <=> id2;
@@ -182,10 +171,10 @@ CREATE TABLE t2 (col1 VARCHAR(255));
 INSERT INTO t1 VALUES (NULL), ('a');
 INSERT INTO t2 VALUES (''), (NULL), ('x'), ('y');
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Bug#33824300.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
 SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
---skip_if_hypergraph  # Bug#33824300.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE t1.col1 <=> t2.col1;
 SELECT * FROM t1, t2 WHERE t1.col1 <=> t2.col1;
 DROP TABLE t1,t2;
@@ -219,8 +208,7 @@ let $hash_join_file_operations =
     WHERE event_name LIKE '%hash_join%';
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex $elide_cost
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT SUM(t1.col1), SUM(t2.col1) FROM t1, t2 WHERE t1.col1 = t2.col1;
 
@@ -228,7 +216,7 @@ TRUNCATE performance_schema.file_summary_by_event_name;
 
 eval $hash_join_file_operations;
 SELECT SUM(t1.col1), SUM(t2.col1) FROM t1, t2 WHERE t1.col1 = t2.col1;
---skip_if_hypergraph  # Chooses different plan.
+--replace_regex $elide_costs
 eval $hash_join_file_operations;
 
 SET join_buffer_size = DEFAULT;
@@ -345,11 +333,10 @@ ORDER BY
 ANALYZE TABLE t1;
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex $elide_cost
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query1;
 eval $query1;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query2;
 eval $query2;
 
@@ -368,8 +355,7 @@ CREATE TABLE t2 (i BIGINT);
 INSERT INTO t1 VALUES (1), (2), (3);
 INSERT INTO t2 VALUES (2), (3);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 SELECT * FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 
@@ -391,15 +377,15 @@ let $hash_join_file_operations =
     WHERE event_name LIKE '%hash_join%';
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex $elide_cost
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 TRUNCATE performance_schema.file_summary_by_event_name;
 
 eval $hash_join_file_operations;
 SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
---skip_if_hypergraph  # Does not use weedout, so does not need row ID, and thus does not spill to disk.
+# Hypergraph does not use weedout, so does not need row ID, and thus
+# does not spill to disk.
 eval $hash_join_file_operations;
 
 DROP TABLE t1, t2;
@@ -414,7 +400,7 @@ INSERT INTO t VALUES
 (1, 2, 3, NULL), (NULL, NULL, NULL, NULL), (1, NULL, 3, NULL),
 (0, 0, 0, 0), (NULL, 0, NULL, 0), (0, NULL, 0, NULL);
 ANALYZE TABLE t;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE
 SELECT * FROM t t1, t t2
 WHERE t1.a = t2.a AND t1.b <=> t2.b AND t1.c = t2.c AND t1.d <=> t2.d;
@@ -444,7 +430,7 @@ WHERE
   t1.col1 = t2.col1
   AND t1.col1 = FLOOR(RAND() / 2 + 2);
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE t1, t2;
@@ -465,7 +451,7 @@ FROM
   JOIN (SELECT * FROM c) AS table2
   ON table2.col1 = table1.col1;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN format=tree $query;
 eval $query;
 DROP TABLE c;
@@ -491,7 +477,7 @@ INSERT INTO t1 VALUES (2);
 INSERT INTO t2 VALUES (2);
 ANALYZE TABLE t1, t2;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
@@ -509,7 +495,7 @@ ANALYZE TABLE t1, t3;
 
 let $query = SELECT * FROM t1, t3 WHERE t3.b = t1.a + 9 AND t3.a = t1.a;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -523,9 +509,8 @@ CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (2);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
 DROP TABLE t1, t2;
 
 --echo # See that we can replace a BNL with hash join, even if we have extra
@@ -538,7 +523,7 @@ INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
 INSERT INTO t2 VALUES (1, 1), (2, 4), (3, 6);
 ANALYZE TABLE t1, t2;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 AND t1.col2 < t2.col2;
 
@@ -550,7 +535,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (col1 BIGINT);
 INSERT INTO t1 VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1);
 ANALYZE TABLE t1;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT SUM(t1.col1)
   FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
 SELECT SUM(t1.col1) FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
@@ -579,7 +564,7 @@ let $query = SELECT STRAIGHT_JOIN * FROM t1
   JOIN t2 ON t1.col1 + 10 = t2.col1
   JOIN t3 ON t2.col1 = t3.col1;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
 --disable_query_log
@@ -588,7 +573,6 @@ eval EXPLAIN FORMAT=tree $query;
 # dictionary tables to get the necessary metadata. This extra query will be
 # counted in the performance schema, so we run a query against session_status
 # once here so we are sure that the necessary metadata is fetched.
---skip_if_hypergraph  # Depends on the query plan.
 SELECT SUM(variable_value) AS Total_handler_reads
    FROM performance_schema.session_status
    WHERE variable_name LIKE 'Handler_read%';
@@ -597,7 +581,6 @@ eval $query;
 --enable_result_log
 --enable_query_log
 
---skip_if_hypergraph  # Depends on the query plan.
 SELECT SUM(variable_value) AS Total_handler_reads
    FROM performance_schema.session_status
    WHERE variable_name LIKE 'Handler_read%';
@@ -636,7 +619,7 @@ GROUP BY
   field1;
 
 ANALYZE TABLE t1;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -662,8 +645,7 @@ let $query = SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
 ANALYZE TABLE t1, t2;
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex $elide_cost
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
 # We do not care about the result. The only thing we want to see is that we do
@@ -704,7 +686,7 @@ let $query = SELECT 1 FROM (b AS table1
       WHERE alias3.pk >= table1.pk));
 
 ANALYZE TABLE a, b;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 # The result is not important; we only want to see that we do not assert.
 --disable_result_log
@@ -725,8 +707,7 @@ CREATE TABLE t1 (col1 TEXT);
 INSERT INTO t1 VALUES (REPEAT('A', 50000)), (REPEAT('A', 50000));
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex $elide_cost
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT a.col1 FROM t1 AS a, t1 AS b;
 --disable_result_log
 SET join_buffer_size = 128;
@@ -757,8 +738,7 @@ SET GLOBAL innodb_stats_persistent_sample_pages = DEFAULT;
 let $query = SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex $elide_cost
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 --disable_result_log
 SET join_buffer_size = 1024;
@@ -808,7 +788,7 @@ INSERT INTO t1 VALUES (0);
 CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t2 VALUES (0);
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 DROP TABLE t1, t2;
@@ -827,7 +807,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES ("foo");
 
 SET sql_mode="PAD_CHAR_TO_FULL_LENGTH";
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 SET sql_mode=DEFAULT;
@@ -946,7 +926,7 @@ SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
 COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
 WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
       ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 eval $query;
@@ -1047,7 +1027,7 @@ WHERE
         AND sq2_alias1.col_int > alias2.pk
     );
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 --echo # We only want to see that the query does not hit an assertion, so ignore
 --echo # the results.
@@ -1240,7 +1220,7 @@ ORDER BY
   alias1.col_int_key DESC, field1
 LIMIT 2 OFFSET 2;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -1300,7 +1280,7 @@ FROM
               b AS subquery3_t1
           );
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -1354,7 +1334,6 @@ eval $hash_join_file_operations;
 --echo # This should spill to disk since we have sorting.
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1 ORDER BY t1.col1 LIMIT 1;
---skip_if_hypergraph  # Chooses different plan.
 eval $hash_join_file_operations;
 
 --echo # This should spill to disk since we have (implicit) grouping.
@@ -1395,7 +1374,7 @@ let $query = SELECT /*+ JOIN_ORDER(t2, t1) INDEX_MERGE(t2) */ t1.col1
   JOIN t2 ON t1.col1 = t2.col1
   WHERE t2.col2 > 0 OR t2.col3 > 0 LIMIT 10;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE t1, t2;
@@ -1425,7 +1404,7 @@ FROM
   WHERE table1.col1 = 1
 LIMIT 50;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE t1, t2;
@@ -1462,7 +1441,7 @@ INSERT INTO t1 VALUES ('foo');
 INSERT INTO t2 VALUES ('foo ');
 
 let $query = SELECT * FROM t1 JOIN t2 ON t1.c = t2.c;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE t1, t2;
@@ -1494,7 +1473,7 @@ let $query =
     JOIN t3 ON t2.i = t3.i;
 
 SET join_buffer_size = 128;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
 --sorted_result
@@ -1537,7 +1516,7 @@ let $query = SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
     WHERE t1.col1 <> t2.col1
   ) AND t2.col1 < 49;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -1578,7 +1557,7 @@ let $query =
       JOIN t3 AS t4 USING (pk)
       WHERE t2.pk = 9
   ) FROM t1;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval explain format=tree $query;
 eval $query;
 
@@ -1587,7 +1566,7 @@ DROP TABLE t1, t2, t3;
 CREATE TABLE t1 (col1 INT);
 CREATE TABLE t2 (col1 INT);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 < t2.col1;
 DROP TABLE t1, t2;
 
@@ -1597,7 +1576,7 @@ CREATE TABLE t2 (i INTEGER);
 INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1), (1);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
 SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
 DROP TABLE t1, t2;
@@ -1607,7 +1586,7 @@ CREATE TABLE t2 (col1 INTEGER, col2 INTEGER);
 INSERT INTO t1 VALUES (1, 1), (2, 2);
 INSERT INTO t2 VALUES (1, 1), (1, 2);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT * FROM t1 WHERE (t1.col1) IN
     (SELECT t2.col1 FROM t2 WHERE t2.col2 < 3);
@@ -1624,7 +1603,7 @@ INSERT INTO t2 VALUES (2), (3), (4), (6);
 ANALYZE TABLE t1, t2;
 
 let $query = SELECT * FROM t1 WHERE 1 IN (SELECT t1.col1 = t2.col1 FROM t2);
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE t1, t2;
@@ -1644,7 +1623,7 @@ SET optimizer_switch="materialization=off,duplicateweedout=off";
 let $query = SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
   WHERE (t1.a,t2.a) IN (SELECT a, a FROM t3);
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 SET optimizer_switch=DEFAULT;
@@ -1675,11 +1654,11 @@ let $query_with_extra_conditions =
 SET join_buffer_size = 1024;
 SET optimizer_switch = "materialization=off";
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query_no_extra_conditions;
 eval $query_no_extra_conditions;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query_with_extra_conditions;
 eval $query_with_extra_conditions;
 
@@ -1715,7 +1694,7 @@ SELECT COUNT(*) AS expected_num_rows FROM probe;
 SET join_buffer_size = 128;
 SET optimizer_switch="materialization=off";
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -1751,7 +1730,7 @@ SET join_buffer_size = 1024;
 # a deterministic output.
 let $query = SELECT * FROM probe WHERE col1 IN (SELECT * FROM build);
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
 --sorted_result
@@ -1787,7 +1766,7 @@ ANALYZE TABLE t1, t2;
 
 SET join_buffer_size = 128;
 let $query = SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
 # The results are not interesting. We only want to see that we do not assert.
@@ -1805,7 +1784,7 @@ INSERT INTO t1 VALUES (1), (2), (3);
 CREATE TABLE t2 (f1 INTEGER NOT NULL);
 INSERT INTO t2 VALUES (1), (2), (3), (4);
 ANALYZE TABLE t1, t2;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
 SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
 DROP TABLE t1,t2;
@@ -1827,7 +1806,7 @@ ANALYZE TABLE t1, t2;
 let $query = SELECT * FROM t1
   WHERE t1.aid NOT IN (SELECT aid FROM t2 WHERE bid = t1.bid);
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE t1, t2;
@@ -1838,7 +1817,7 @@ CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (NULL);
 let $query = SELECT * FROM t1
   WHERE 1 IN (SELECT 1 FROM t2 WHERE t1.col1 = t2.col1) IS FALSE;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE t1, t2;
@@ -1868,11 +1847,11 @@ let $query_with_extra_conditions =
 SET join_buffer_size = 1024;
 SET optimizer_switch = "materialization=off";
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query_no_extra_conditions;
 eval $query_no_extra_conditions;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query_with_extra_conditions;
 eval $query_with_extra_conditions;
 
@@ -1910,9 +1889,8 @@ let $query = SELECT * FROM probe WHERE col1 NOT IN (SELECT col1 FROM build);
 SET join_buffer_size = 128;
 SET optimizer_switch="materialization=off";
 
---skip_if_hypergraph  # Depends on the query plan.
 # Mask out the cost estimates, since they will differ by how much of the data is in RAM.
---replace_regex $elide_cost
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -1926,7 +1904,7 @@ CREATE TABLE t2 (col1 INTEGER);
 INSERT INTO t1 VALUES (1), (2);
 INSERT INTO t2 VALUES (1);
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
 SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
 DROP TABLE t1,t2;
@@ -1946,7 +1924,7 @@ let $query = SELECT t1.col1, t2.col1, t3.col1 FROM t1
   ON t2.col1 = t1.col1
   ORDER BY t1.col1, t2.col1, t3.col1;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -1973,7 +1951,7 @@ let $query = SELECT * FROM
  )
  ON t2.i = t1.i;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -1987,7 +1965,7 @@ CREATE TABLE t3 (col1 INTEGER);
 let $query = SELECT * FROM t1 LEFT JOIN (t2 INNER JOIN t3 ON t2.col1 = t3.col1)
   ON t1.col1 = t2.col1;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 DROP TABLE t1, t2, t3;
 
@@ -2001,7 +1979,7 @@ INSERT INTO t2 VALUES (1);
 
 # RAND() always returns a number in the range [0.0, 1.0), so the query is
 # deterministic (the condition will always be false).
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON RAND() < -1;
 SELECT * FROM t1 LEFT JOIN t2 ON RAND() < -1;
 DROP TABLE t1, t2;
@@ -2031,7 +2009,7 @@ FROM
   LEFT JOIN t1 ON tt.t = 'crash2' AND tt.f2 = t1.f2
 WHERE
   tt.t = 'crash1';
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE t1;
@@ -2045,7 +2023,7 @@ DROP TABLE t1;
 --echo # condition.
 CREATE TABLE t1 (col1 INTEGER);
 CREATE TABLE t2 (col1 INTEGER);
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND RAND() < RAND();
 DROP TABLE t1, t2;
@@ -2073,11 +2051,11 @@ let $query_with_extra_conditions =
 
 SET join_buffer_size = 1024;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query_no_extra_conditions;
 eval $query_no_extra_conditions;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query_with_extra_conditions;
 eval $query_with_extra_conditions;
 
@@ -2088,7 +2066,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
 CREATE TABLE t3 (i INTEGER);
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT * FROM t1 LEFT JOIN
     (t2 LEFT JOIN t3 ON ABS(t2.i) = t3.i)
@@ -2099,7 +2077,7 @@ DROP TABLE t1, t2, t3;
 --echo # join iterator.
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=1;
 DROP TABLE t1, t2;
 
@@ -2110,7 +2088,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (i INTEGER);
 CREATE TABLE t2 (i INTEGER);
 CREATE TABLE t3 (i INTEGER);
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree
   SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON TRUE) ON t3.i = t2.i;
 DROP TABLE t1, t2, t3;
@@ -2134,7 +2112,7 @@ ANALYZE TABLE t1, t2;
 
 SET join_buffer_size = 128;
 let $query = SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
 # The results are not interesting. We only want to see that we do not assert.
@@ -2163,7 +2141,7 @@ let $query =
 # Verify that we get a nested loop for the left join (since the inner
 # conditions refer to something on the outside, we cannot use hash join),
 # but that the antijoin stays a hash join.
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 --sorted_result
 eval $query;
@@ -2184,7 +2162,7 @@ let $query =
 
 # Verify that we get a hash antijoin, a nested loop outer join, and that the
 # f1=f1 join condition is properly added (inside the nested loop).
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -2220,7 +2198,7 @@ let $query =
 # Like in the previous bug, verify that the outer join is a nested loop
 # (it needs to, because the BKA lookup references it), while the BKA remains
 # a BKA.
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -2268,7 +2246,7 @@ let $query =
     );
 
 SET optimizer_switch='mrr=on,mrr_cost_based=off,batched_key_access=on';
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 SET optimizer_switch=DEFAULT;
@@ -2286,16 +2264,16 @@ ANALYZE TABLE t1, t2;
 
 # Conditions referring to no sides should be pushed, and the entire right side
 # should be removed.
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=2;
 
 # Conditions referring to the right side only should be pushed.
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 > 3;
 
 # Conditions referring to the left side should _not_ be pushed,
 # but remain as extra conditions.
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.f1 > 3;
 
 DROP TABLE t1, t2;
@@ -2312,11 +2290,11 @@ CREATE TABLE t1 (
 INSERT INTO t1 (a) VALUES ('abc');
 ANALYZE TABLE t1;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT 1 FROM t1 JOIN t1 AS t2 ON t1.a=t2.a;
 SELECT 1 FROM t1 JOIN t1 AS t2 ON t1.a=t2.a;
 
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT 1 FROM t1 LEFT JOIN t1 AS t2 ON t1.a=t2.a;
 SELECT 1 FROM t1 LEFT JOIN t1 AS t2 ON t1.a=t2.a;
 
@@ -2360,7 +2338,7 @@ let $query =
   );
 
 SET sql_mode = '';
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 # We only want to see that we do not assert, so ignore the results.
 --disable_result_log
@@ -2379,7 +2357,7 @@ CREATE TABLE t (
 
 # The join condition attached to the topmost hash join iterator should not be
 # inside a "found_match" trigger.
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 EXPLAIN FORMAT=tree SELECT c FROM
 (
   SELECT 1 AS c FROM t AS a
@@ -2408,7 +2386,7 @@ ANALYZE TABLE t1;
 # conditions, and not as join conditions.
 let $query = SELECT * FROM t1 as table1
   WHERE (SELECT a, b FROM t1 WHERE table1.a <> 6) IN (SELECT a, b FROM t1);
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -2416,7 +2394,7 @@ eval $query;
 # as a proper join condition.
 let $query = SELECT * FROM t1 as table1
   WHERE (SELECT a FROM t1 WHERE table1.a <> 6) IN (SELECT a FROM t1);
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -2435,14 +2413,15 @@ INSERT INTO t VALUES (1), (2);
 # "JSON_EXTRACT(t1.i, t1.i)" is used as the hash table key (giving a number as
 # the first argument results in an error).
 let $query = SELECT * FROM t t1, t t2 WHERE JSON_EXTRACT(t1.i, t1.i) = t2.i;
---skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
 --error ER_INVALID_TYPE_FOR_JSON
 eval $query;
 
 # See that only one error was raised.
---skip_if_hypergraph  # Joins the tables in opposite order, so gets different number of errors.
+# Hypergraph joins the tables in opposite order, so gets different
+# number of errors.
 SHOW ERRORS;
 DROP TABLE t;
 
@@ -2475,8 +2454,7 @@ ANALYZE TABLE t1;
 # Verify that:
 #  a) There's a LIMIT 1 being put on the hash.
 #  b) The outer side of the hash join is never executed.
---replace_regex $elide_time
---skip_if_hypergraph   # Not being rewritten to antijoins yet.
+--replace_regex $elide_costs_and_time
 EXPLAIN ANALYZE SELECT t1.a FROM t1 LEFT JOIN t1 AS t2 ON TRUE WHERE t2.a IS NULL;
 
 DROP TABLE t1;
@@ -2498,7 +2476,7 @@ let $query =
 # Check that we get two prunings; first, prune away b due to the ON FALSE
 # join condition, and then, prune away c due to the equijoin condition
 # requiring b.
---skip_if_hypergraph
+--replace_regex $elide_costs
 eval EXPLAIN FORMAT=tree $query;
 
 eval $query;
@@ -2587,7 +2565,8 @@ CREATE TABLE t (
 INSERT INTO t(a, b) VALUES('h','k'), ('w','e');
 let $query =
 SELECT 1 FROM t AS a INNER JOIN t AS b ON a.a=b.b;
-eval explain $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 DROP TABLE t;
 
@@ -2602,7 +2581,8 @@ INSERT INTO t2 VALUES('9337a53f-cfd6-4a68-a1fc-e2d84eba8079');
 let $query =
 SELECT wstr_name, str_name
 FROM t1 INNER JOIN t2 ON t1.wstr_name = t2.str_name;
-eval explain $query;
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 DROP TABLE t1, t2;
@@ -2680,16 +2660,12 @@ ANALYZE TABLE t1, t2;
 # string in t1 as equal to NULL in t2, and return wrong results.
 
 --let $query = SELECT id FROM t1 LEFT JOIN t2 USING (varchar_col)
-# Filter out minor plan differences between old optimizer and hypergraph.
---let $patterns = $elide_metrics /t2\.varchar_col = t1\.varchar_col/t1.varchar_col = t2.varchar_col/
---replace_regex $patterns
+--replace_regex $elide_costs
 --eval EXPLAIN FORMAT=TREE $query
 --eval $query
 
 --let $query = SELECT id FROM t1 LEFT JOIN t2 USING (decimal_col)
-# Filter out minor plan differences between old optimizer and hypergraph.
---let $patterns = $elide_metrics /t2\.decimal_col = t1\.decimal_col/t1.decimal_col = t2.decimal_col/
---replace_regex $patterns
+--replace_regex $elide_costs
 --eval EXPLAIN FORMAT=TREE $query
 --eval $query
 
