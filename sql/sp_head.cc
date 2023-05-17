@@ -2410,6 +2410,56 @@ done:
   return err_status;
 }
 
+bool sp_head::execute_external_routine(THD *thd) {
+  bool err_status = false;
+
+  char saved_cur_db_name_buf[NAME_LEN + 1];
+  LEX_STRING saved_cur_db_name = {saved_cur_db_name_buf,
+                                  sizeof(saved_cur_db_name_buf)};
+  bool cur_db_changed = false;
+  if (m_db.length && (err_status = mysql_opt_change_db(
+                          thd, to_lex_cstring(m_db), &saved_cur_db_name, false,
+                          &cur_db_changed))) {
+    return err_status;
+  }
+
+  /*
+    Use context used at routine creation time. Context sets client charset,
+    connection charset, database charset and collation.
+  */
+  Object_creation_ctx *saved_creation_ctx = m_creation_ctx->set_n_backup(thd);
+
+  // For each SQL statements, new unique query id is used. So save query id to
+  // restore query id of a routine.
+  query_id_t old_query_id = thd->query_id;
+
+  // Use sql_mode used at routine creation time.
+  sql_mode_t saved_sql_mode = thd->variables.sql_mode;
+  thd->variables.sql_mode = m_sql_mode;
+
+  my_service<SERVICE_TYPE(external_program_execution)> service(
+      "external_program_execution", srv_registry);
+  if (!(err_status = init_external_routine(service))) {
+    err_status = service->execute(m_language_stored_program, nullptr);
+    if (!err_status && thd->killed) err_status = true;
+  }
+
+  // Restore sql_mode.
+  thd->variables.sql_mode = saved_sql_mode;
+
+  // Restore query id.
+  thd->set_query_id(old_query_id);
+
+  // Restore context.
+  m_creation_ctx->restore_env(thd, saved_creation_ctx);
+
+  if (cur_db_changed && thd->killed != THD::KILL_CONNECTION) {
+    err_status |= mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true);
+  }
+
+  return err_status;
+}
+
 bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
                               const LEX_CSTRING &table_name,
                               GRANT_INFO *grant_info) {
@@ -2695,15 +2745,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   locker = MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
   if (!err_status) {
-    if (is_sql()) {
-      err_status = execute(thd, true);
-    } else {
-      my_service<SERVICE_TYPE(external_program_execution)> service(
-          "external_program_execution", srv_registry);
-      if (!(err_status = init_external_routine(service))) {
-        err_status = service->execute(m_language_stored_program, nullptr);
-      }
-    }
+    err_status = is_sql() ? execute(thd, true) : execute_external_routine(thd);
   }
 #ifdef HAVE_PSI_SP_INTERFACE
   MYSQL_END_SP(locker);
@@ -2908,15 +2950,7 @@ bool sp_head::execute_procedure(THD *thd, mem_root_deque<Item *> *args) {
   locker = MYSQL_START_SP(&psi_state, m_sp_share);
 #endif
   if (!err_status) {
-    if (is_sql()) {
-      err_status = execute(thd, true);
-    } else {
-      my_service<SERVICE_TYPE(external_program_execution)> service(
-          "external_program_execution", srv_registry);
-      if (!(err_status = init_external_routine(service))) {
-        err_status = service->execute(m_language_stored_program, nullptr);
-      }
-    }
+    err_status = is_sql() ? execute(thd, true) : execute_external_routine(thd);
   }
 #ifdef HAVE_PSI_SP_INTERFACE
   MYSQL_END_SP(locker);

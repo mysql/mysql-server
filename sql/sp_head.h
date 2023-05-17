@@ -997,6 +997,15 @@ class sp_head {
   bool execute(THD *thd, bool merge_da_on_success);
 
   /**
+    Execute external routine.
+
+    @param thd                  Thread context.
+
+    @return Error status.
+  */
+  bool execute_external_routine(THD *thd);
+
+  /**
     Perform a forward flow analysis in the generated code.
     Mark reachable instructions, for the optimizer.
   */
