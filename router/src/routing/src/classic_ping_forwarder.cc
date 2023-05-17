@@ -200,7 +200,10 @@ stdx::expected<Processor::Result, std::error_code> PingForwarder::ok() {
 
   if (!connection()->events().empty()) {
     msg.warning_count(msg.warning_count() + 1);
+  }
 
+  if (!connection()->events().empty() ||
+      !message_can_be_forwarded_as_is(src_protocol, dst_protocol, msg)) {
     auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
     if (!send_res) return stdx::make_unexpected(send_res.error());
 

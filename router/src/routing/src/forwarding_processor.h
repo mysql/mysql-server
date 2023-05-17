@@ -27,6 +27,7 @@
 
 #include <chrono>
 
+#include "classic_connection_base.h"
 #include "processor.h"
 
 /**
@@ -69,6 +70,38 @@ class ForwardingProcessor : public Processor {
    */
   stdx::expected<Result, std::error_code> forward_client_to_server(
       bool noflush = false);
+
+  /**
+   * check of the capabilities of the source and the destination are the same
+   * for this message.
+   *
+   * @param src_protocol the source protocol state
+   * @param dst_protocol the destination protocol state
+   * @param msg the message that shall be forwarded
+   *
+   * @retval true if the msg can be forwarded as is.
+   */
+  template <class T>
+  static bool message_can_be_forwarded_as_is(ClassicProtocolState *src_protocol,
+                                             ClassicProtocolState *dst_protocol,
+                                             const T &msg [[maybe_unused]]) {
+    const auto mask = classic_protocol::Codec<T>::depends_on_capabilities();
+
+    return (src_protocol->shared_capabilities() & mask) ==
+           (dst_protocol->shared_capabilities() & mask);
+  }
+
+  /**
+   * adjust the end-of-columns packet.
+   *
+   * if source and destination don't have the same CLIENT_DEPRECATE_EOF, the Eof
+   * packet has to be add/removed between columns and rows.
+   *
+   * @param no_flush if the packet is forwarded, don't force a send as there is
+   * more data coming.
+   */
+  stdx::expected<Processor::Result, std::error_code>
+  skip_or_inject_end_of_columns(bool no_flush = false);
 
   /**
    * move the server connection to the pool.

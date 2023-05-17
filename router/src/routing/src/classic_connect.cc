@@ -285,6 +285,9 @@ ConnectProcessor::from_pool() {
         .reset(classic_protocol::capabilities::pos::query_attributes)
         .reset(classic_protocol::capabilities::pos::compress)
         .reset(classic_protocol::capabilities::pos::compress_zstd)
+        .reset(classic_protocol::capabilities::pos::session_track)
+        .reset(classic_protocol::capabilities::pos::
+                   text_result_with_session_tracking)
         // session specific capabilities which can be recovered by
         // set_server_option()
         .reset(classic_protocol::capabilities::pos::multi_statements);
@@ -298,6 +301,9 @@ ConnectProcessor::from_pool() {
               .reset(classic_protocol::capabilities::pos::query_attributes)
               .reset(classic_protocol::capabilities::pos::compress)
               .reset(classic_protocol::capabilities::pos::compress_zstd)
+              .reset(classic_protocol::capabilities::pos::session_track)
+              .reset(classic_protocol::capabilities::pos::
+                         text_result_with_session_tracking)
               .reset(classic_protocol::capabilities::pos::multi_statements);
 
           return (pooled_conn.endpoint() == ep &&  //

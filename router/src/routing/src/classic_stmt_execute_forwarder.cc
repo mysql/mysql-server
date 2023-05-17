@@ -265,8 +265,8 @@ StmtExecuteForwarder::forward_done() {
 stdx::expected<Processor::Result, std::error_code>
 StmtExecuteForwarder::response() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
 
   auto read_res =
       ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
@@ -295,8 +295,8 @@ StmtExecuteForwarder::response() {
 stdx::expected<Processor::Result, std::error_code>
 StmtExecuteForwarder::column_count() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
 
   auto column_count_res = ClassicFrame::recv_msg<
       classic_protocol::borrowed::message::server::ColumnCount>(src_channel,
@@ -320,17 +320,10 @@ StmtExecuteForwarder::column() {
     tr.trace(Tracer::Event().stage("stmt_execute::column"));
   }
 
-  auto src_protocol = connection()->server_protocol();
+  auto *src_protocol = connection()->server_protocol();
 
   if (--src_protocol->columns_left == 0) {
-    if (src_protocol->shared_capabilities().test(
-            classic_protocol::capabilities::pos::
-                text_result_with_session_tracking)) {
-      // no end-of-columns packet.
-      stage(Stage::Row);
-    } else {
-      stage(Stage::EndOfColumns);
-    }
+    stage(Stage::EndOfColumns);
   }
 
   return forward_server_to_client(true);
@@ -344,7 +337,7 @@ StmtExecuteForwarder::end_of_columns() {
 
   stage(Stage::Row);
 
-  return forward_server_to_client(true);
+  return skip_or_inject_end_of_columns(true);
 }
 
 stdx::expected<Processor::Result, std::error_code> StmtExecuteForwarder::row() {
@@ -406,20 +399,23 @@ StmtExecuteForwarder::end_of_rows() {
 
   trace_command_end(trace_event_command_);
 
+  dst_protocol->status_flags(msg.status_flags());
+
   stage(Stage::Done);
 
   if (!connection()->events().empty()) {
-    discard_current_msg(src_channel, src_protocol);
-
     msg.warning_count(msg.warning_count() + 1);
+  }
 
+  if (!connection()->events().empty() ||
+      !message_can_be_forwarded_as_is(src_protocol, dst_protocol, msg)) {
     auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
     if (!send_res) return stdx::make_unexpected(send_res.error());
 
+    discard_current_msg(src_channel, src_protocol);
+
     return Result::SendToClient;
   }
-
-  dst_protocol->status_flags(msg.status_flags());
 
   return forward_server_to_client();
 }
@@ -457,12 +453,15 @@ stdx::expected<Processor::Result, std::error_code> StmtExecuteForwarder::ok() {
   stage(Stage::Done);
 
   if (!connection()->events().empty()) {
-    discard_current_msg(src_channel, src_protocol);
-
     msg.warning_count(msg.warning_count() + 1);
+  }
 
+  if (!connection()->events().empty() ||
+      !message_can_be_forwarded_as_is(src_protocol, dst_protocol, msg)) {
     auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
     if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    discard_current_msg(src_channel, src_protocol);
 
     return Result::SendToClient;
   }

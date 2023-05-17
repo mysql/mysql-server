@@ -169,3 +169,47 @@ bool ForwardingProcessor::connect_error_is_transient(
     const classic_protocol::message::server::Error &err) {
   return err.error_code() == ER_CON_COUNT_ERROR;  // 1040
 }
+
+stdx::expected<Processor::Result, std::error_code>
+ForwardingProcessor::skip_or_inject_end_of_columns(bool no_flush) {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+  auto *dst_channel = socket_splicer->client_channel();
+  auto *dst_protocol = connection()->client_protocol();
+
+  const auto skips_eof =
+      classic_protocol::capabilities::pos::text_result_with_session_tracking;
+  const auto server_skips = src_protocol->shared_capabilities().test(skips_eof);
+  const auto router_skips = dst_protocol->shared_capabilities().test(skips_eof);
+
+  if (server_skips) {
+    // server does not send a EOF
+
+    // no end-of-params packet.
+    if (router_skips) return Result::Again;
+
+    // ... but client expects a EOF packet.
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Eof>(dst_channel,
+                                                          dst_protocol, {});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    return Result::SendToClient;
+  }
+
+  if (router_skips) {
+    // drop the Eof packet the server sent as the client does not want it.
+    auto msg_res = ClassicFrame::recv_msg<
+        classic_protocol::borrowed::message::server::Eof>(src_channel,
+                                                          src_protocol);
+    if (!msg_res) return stdx::make_unexpected(msg_res.error());
+
+    discard_current_msg(src_channel, src_protocol);
+
+    return Result::Again;
+  }
+
+  // forward the message as is.
+  return forward_server_to_client(no_flush);
+}

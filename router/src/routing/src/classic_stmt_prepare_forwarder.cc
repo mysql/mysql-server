@@ -204,7 +204,8 @@ stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
     tr.trace(Tracer::Event().stage(
         "stmt_prepare::ok: stmt-id: " +
         std::to_string(msg_res->statement_id()) +
-        ", param-count: " + std::to_string(msg_res->param_count())));
+        ", param-count: " + std::to_string(msg_res->param_count()) +
+        ", column-count: " + std::to_string(msg_res->column_count())));
   }
 
   auto stmt_prep_ok = *msg_res;
@@ -224,8 +225,6 @@ stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
   stage(Stage::Param);
 
   if (!connection()->events().empty()) {
-    discard_current_msg(src_channel, src_protocol);
-
     auto msg = *msg_res;
 
     msg.warning_count(msg.warning_count() + 1);
@@ -233,7 +232,9 @@ stdx::expected<Processor::Result, std::error_code> StmtPrepareForwarder::ok() {
     auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
     if (!send_res) return stdx::make_unexpected(send_res.error());
 
-    return Result::SendToClient;
+    discard_current_msg(src_channel, src_protocol);
+
+    return has_more_messages() ? Result::Again : Result::SendToClient;
   }
 
   return forward_server_to_client(has_more_messages());
@@ -246,6 +247,7 @@ bool StmtPrepareForwarder::has_more_messages() const {
 stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::param() {
   if (params_left_ == 0) {
+    // if there are no params, then there is no end-of-params either.
     stage(Stage::Column);
     return Result::Again;
   }
@@ -253,6 +255,10 @@ StmtPrepareForwarder::param() {
   auto *socket_splicer = connection()->socket_splicer();
   auto *src_channel = socket_splicer->server_channel();
   auto *src_protocol = connection()->server_protocol();
+  auto *dst_protocol = connection()->client_protocol();
+
+  const auto skips_eof =
+      classic_protocol::capabilities::pos::text_result_with_session_tracking;
 
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::message::server::ColumnMeta>(
@@ -274,30 +280,66 @@ StmtPrepareForwarder::param() {
     stage(Stage::EndOfParams);
   }
 
-  return forward_server_to_client(has_more_messages());
+  return forward_server_to_client(
+      has_more_messages() ||
+      // there will be EOF, no need to flush the column already.
+      !dst_protocol->shared_capabilities().test(skips_eof));
 }
 
 stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::end_of_params() {
-  auto src_protocol = connection()->server_protocol();
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+  auto *dst_channel = socket_splicer->client_channel();
+  auto *dst_protocol = connection()->client_protocol();
 
   stage(Stage::Column);
 
-  if (src_protocol->shared_capabilities().test(
-          classic_protocol::capabilities::pos::
-              text_result_with_session_tracking)) {
-    // no end-of-params packet.
-    return Result::Again;
-  }
+  const auto skips_eof =
+      classic_protocol::capabilities::pos::text_result_with_session_tracking;
+  const auto server_skips = src_protocol->shared_capabilities().test(skips_eof);
+  const auto router_skips = dst_protocol->shared_capabilities().test(skips_eof);
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_prepare::end_of_params"));
   }
+
+  if (server_skips) {
+    // server does not send a EOF
+
+    // no end-of-params packet.
+    if (router_skips) return Result::Again;
+
+    // ... but client expects a EOF packet.
+    auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Eof>(dst_channel,
+                                                          dst_protocol, {});
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+
+    return has_more_messages() ? Result::Again : Result::SendToClient;
+  }
+
+  if (router_skips) {
+    // drop the Eof packet the server sent as the client does not want it.
+    auto msg_res = ClassicFrame::recv_msg<
+        classic_protocol::borrowed::message::server::Eof>(src_channel,
+                                                          src_protocol);
+    if (!msg_res) return stdx::make_unexpected(msg_res.error());
+
+    discard_current_msg(src_channel, src_protocol);
+
+    return Result::Again;
+  }
+
+  // forward the end-of-params
   return forward_server_to_client(has_more_messages());
 }
 
 stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::column() {
+  auto *dst_protocol = connection()->client_protocol();
+
   if (columns_left_ > 0) {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("stmt_prepare::column"));
@@ -305,7 +347,13 @@ StmtPrepareForwarder::column() {
     if (--columns_left_ == 0) {
       stage(Stage::EndOfColumns);
     }
-    return forward_server_to_client(has_more_messages());
+    auto skips_eof =
+        classic_protocol::capabilities::pos::text_result_with_session_tracking;
+
+    return forward_server_to_client(
+        has_more_messages() ||
+        // there will be EOF, no need to flush the column already.
+        !dst_protocol->shared_capabilities().test(skips_eof));
   }
 
   stage(Stage::OkDone);
@@ -314,22 +362,15 @@ StmtPrepareForwarder::column() {
 
 stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::end_of_columns() {
-  auto src_protocol = connection()->server_protocol();
-
   stage(Stage::OkDone);
-
-  if (src_protocol->shared_capabilities().test(
-          classic_protocol::capabilities::pos::
-              text_result_with_session_tracking)) {
-    // no end-of-columns packet.
-    return Result::Again;
-  }
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("stmt_prepare::end_of_columns"));
   }
-  return forward_server_to_client();
+
+  return skip_or_inject_end_of_columns();
 }
+
 stdx::expected<Processor::Result, std::error_code>
 StmtPrepareForwarder::ok_done() {
   auto *dst_protocol = connection()->client_protocol();

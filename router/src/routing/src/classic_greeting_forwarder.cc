@@ -662,6 +662,12 @@ ServerGreetor::client_greeting() {
   // contain more than what the router advertised.
   auto client_caps = src_protocol->shared_capabilities();
 
+  if (connection()->context().connection_sharing()) {
+    client_caps.set(classic_protocol::capabilities::pos::session_track)
+        .set(classic_protocol::capabilities::pos::
+                 text_result_with_session_tracking);
+  }
+
   switch (connection()->dest_ssl_mode()) {
     case SslMode::kDisabled:
       client_caps.reset(classic_protocol::capabilities::pos::ssl);

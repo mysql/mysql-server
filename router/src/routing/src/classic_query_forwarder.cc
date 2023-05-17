@@ -55,6 +55,7 @@
 #include "mysqlrouter/classic_protocol_binary.h"
 #include "mysqlrouter/classic_protocol_codec_binary.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
+#include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/client_error_code.h"
 #include "mysqlrouter/utils.h"  // to_string
@@ -444,8 +445,8 @@ static uint64_t get_warning_count(
 
 static stdx::expected<void, std::error_code> send_resultset(
     Channel *src_channel, ClassicProtocolState *src_protocol,
-    std::vector<classic_protocol::message::server::ColumnMeta> columns,
-    std::vector<classic_protocol::message::server::Row> rows) {
+    const std::vector<classic_protocol::message::server::ColumnMeta> &columns,
+    const std::vector<classic_protocol::message::server::Row> &rows) {
   {
     const auto send_res = ClassicFrame::send_msg<
         classic_protocol::borrowed::message::server::ColumnCount>(
@@ -456,6 +457,20 @@ static stdx::expected<void, std::error_code> send_resultset(
   for (auto const &col : columns) {
     const auto send_res =
         ClassicFrame::send_msg(src_channel, src_protocol, col);
+    if (!send_res) return stdx::make_unexpected(send_res.error());
+  }
+
+  const auto skips_eof_pos =
+      classic_protocol::capabilities::pos::text_result_with_session_tracking;
+
+  const bool router_skips_end_of_columns{
+      src_protocol->shared_capabilities().test(skips_eof_pos)};
+
+  if (!router_skips_end_of_columns) {
+    // add a EOF after columns if the client expects it.
+    const auto send_res = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Eof>(src_channel,
+                                                          src_protocol, {});
     if (!send_res) return stdx::make_unexpected(send_res.error());
   }
 
@@ -1561,6 +1576,18 @@ class ForwardedShowWarningsHandler : public QuerySender::Handler {
     }
 
     ++col_cur_;
+
+    if (col_cur_ == 3 && !dst_protocol->shared_capabilities().test(
+                             classic_protocol::capabilities::pos::
+                                 text_result_with_session_tracking)) {
+      // client needs a Eof packet after the columns.
+      auto send_res = ClassicFrame::send_msg<
+          classic_protocol::borrowed::message::server::Eof>(dst_channel,
+                                                            dst_protocol, {});
+      if (!send_res) {
+        something_failed_ = true;
+      }
+    }
   }
 
   void on_row(const classic_protocol::message::server::Row &msg) override {
@@ -2295,61 +2322,13 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::column() {
 
 stdx::expected<Processor::Result, std::error_code>
 QueryForwarder::column_end() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
-  auto dst_channel = socket_splicer->client_channel();
-  auto dst_protocol = connection()->client_protocol();
-
-  auto skips_eof_pos =
-      classic_protocol::capabilities::pos::text_result_with_session_tracking;
-
-  bool server_skips_end_of_columns{
-      src_protocol->shared_capabilities().test(skips_eof_pos)};
-
-  bool router_skips_end_of_columns{
-      dst_protocol->shared_capabilities().test(skips_eof_pos)};
-
-  if (server_skips_end_of_columns && router_skips_end_of_columns) {
-    // this is a Row, not a EOF packet.
-    stage(Stage::RowOrEnd);
-    return Result::Again;
-  } else if (!server_skips_end_of_columns && !router_skips_end_of_columns) {
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("query::column_end::eof"));
-    }
-    stage(Stage::RowOrEnd);
-    return forward_server_to_client(true);
-  } else if (!server_skips_end_of_columns && router_skips_end_of_columns) {
-    // client is new, server is old: drop the server's EOF.
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("query::column_end::skip_eof"));
-    }
-
-    auto msg_res = ClassicFrame::recv_msg<
-        classic_protocol::borrowed::message::server::Eof>(src_channel,
-                                                          src_protocol);
-    if (!msg_res) return recv_server_failed(msg_res.error());
-
-    discard_current_msg(src_channel, src_protocol);
-
-    stage(Stage::RowOrEnd);
-    return Result::Again;
-  } else {
-    // client is old, server is new: inject an EOF between column-meta and
-    // rows.
-    if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("query::column_end::add_eof"));
-    }
-
-    auto msg_res = ClassicFrame::send_msg<
-        classic_protocol::borrowed::message::server::Eof>(dst_channel,
-                                                          dst_protocol, {});
-    if (!msg_res) return recv_server_failed(msg_res.error());
-
-    stage(Stage::RowOrEnd);
-    return Result::SendToServer;
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("query::end_of_columns"));
   }
+
+  stage(Stage::RowOrEnd);
+
+  return skip_or_inject_end_of_columns(true);
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -2433,6 +2412,17 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
       tr.trace(Tracer::Event().stage("query::more_resultsets"));
     }
 
+    if (!message_can_be_forwarded_as_is(src_protocol, dst_protocol, msg)) {
+      auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
+      if (!send_res) return stdx::make_unexpected(send_res.error());
+
+      // msg refers to src-channel's recv-buf. discard after send.
+      discard_current_msg(src_channel, src_protocol);
+
+      return Result::Again;  // no need to send this now as there will be more
+                             // packets.
+    }
+
     return forward_server_to_client(true);
   }
 
@@ -2453,10 +2443,11 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::row_end() {
   stage(Stage::ResponseDone);  // once the message is forwarded, we are done.
   if (!connection()->events().empty()) {
     msg.warning_count(msg.warning_count() + 1);
+  }
 
-    auto send_res = ClassicFrame::send_msg<
-        classic_protocol::borrowed::message::server::Eof>(dst_channel,
-                                                          dst_protocol, msg);
+  if (!connection()->events().empty() ||
+      !message_can_be_forwarded_as_is(src_protocol, dst_protocol, msg)) {
+    auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
     if (!send_res) return stdx::make_unexpected(send_res.error());
 
     // msg refers to src-channel's recv-buf. discard after send.
@@ -2522,12 +2513,17 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::ok() {
   }
 
   stage(Stage::ResponseDone);  // once the message is forwarded, we are done.
+
   if (!connection()->events().empty()) {
     msg.warning_count(msg.warning_count() + 1);
+  }
 
+  if (!connection()->events().empty() ||
+      !message_can_be_forwarded_as_is(src_protocol, dst_protocol, msg)) {
     auto send_res = ClassicFrame::send_msg(dst_channel, dst_protocol, msg);
     if (!send_res) return stdx::make_unexpected(send_res.error());
 
+    // msg refers to src-channel's recv-buf. discard after send.
     discard_current_msg(src_channel, src_protocol);
 
     return Result::SendToClient;
