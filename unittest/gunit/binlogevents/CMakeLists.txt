@@ -49,3 +49,8 @@ FOREACH(test ${TESTS})
     LINK_LIBRARIES binlogstandalone_static gunit_small
     COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}")
 ENDFOREACH()
+
+MYSQL_ADD_EXECUTABLE(gtid_set-t gtid_set-t.cc
+  ADD_TEST gtid_set
+  LINK_LIBRARIES gunit_large server_unittest_library
+  COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}")
