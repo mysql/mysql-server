@@ -366,18 +366,23 @@ bool get_allow_single_leader() {
  * @param thd     THD object of the connection
  * @param fd      File descriptor of the connections
  * @param ssl_ctx SSL data of the connection
+ *
+ * @return int Returns 1 in case of any error. 0 otherwise.
  */
-void handle_group_replication_incoming_connection(THD *thd, int fd,
-                                                  SSL *ssl_ctx) {
+
+int handle_group_replication_incoming_connection(THD *thd, int fd,
+                                                 SSL *ssl_ctx) {
   auto *new_connection = new Network_connection(fd, ssl_ctx);
   new_connection->has_error = false;
+  int error_return = 1;
 
-  Gcs_mysql_network_provider *mysql_provider =
-      gcs_module->get_mysql_network_provider();
-
-  if (mysql_provider) {
+  if (auto mysql_provider = gcs_module->get_mysql_network_provider();
+      mysql_provider) {
     mysql_provider->set_new_connection(thd, new_connection);
+    error_return = 0;
   }
+
+  return error_return;
 }
 
 /**
@@ -1789,6 +1794,7 @@ bool attempt_rejoin() {
   */
   DBUG_EXECUTE_IF("group_replication_fail_rejoin", goto end;);
   view_change_notifier->start_view_modification();
+
   join_state =
       gcs_module->join(*events_handler, *events_handler, view_change_notifier);
   if (join_state == GCS_OK) {

@@ -12334,6 +12334,9 @@ ER_THREAD_STILL_ALIVE
 ER_NUM_THREADS_STILL_ALIVE
   eng "Waiting for forceful disconnection of %ld thread(s) to end."
 
+ER_GRP_RPL_MYSQL_NETWORK_PROVIDER_SERVER_ERROR_COMMAND_ERR
+   eng "Failed to accept a MySQL connection for Group Replication. %s. Please retry."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

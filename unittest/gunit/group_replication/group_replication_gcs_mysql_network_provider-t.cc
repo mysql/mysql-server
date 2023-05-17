@@ -25,11 +25,13 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-void handle_group_replication_incoming_connection(THD *thd, int fd,
-                                                  SSL *ssl_ctx) {
+int handle_group_replication_incoming_connection(THD *thd, int fd,
+                                                 SSL *ssl_ctx) {
   (void)thd;
   (void)fd;
   (void)ssl_ctx;
+
+  return 0;
 }
 
 // To fool the compiler

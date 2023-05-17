@@ -87,7 +87,7 @@ bool get_group_replication_view_change_uuid(std::string &uuid);
 bool is_group_replication_member_secondary();
 
 // Callback definition for socket donation
-typedef void (*gr_incoming_connection_cb)(THD *thd, int fd, SSL *ssl_ctx);
+typedef int (*gr_incoming_connection_cb)(THD *thd, int fd, SSL *ssl_ctx);
 void set_gr_incoming_connection(gr_incoming_connection_cb x);
 
 #endif /* RPL_GROUP_REPLICATION_INCLUDED */
