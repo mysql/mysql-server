@@ -396,6 +396,11 @@ class Basic_binlog_file_reader : public IBasic_binlog_file_reader {
   }
   my_off_t event_start_pos() { return m_event_start_pos; }
 
+  /**
+    @brief Resets the error. Sets it to Binlog_read_error::SUCCESS.
+   */
+  void reset_error() { m_error.set_type(Binlog_read_error::SUCCESS); }
+
  private:
   Binlog_read_error m_error;
 

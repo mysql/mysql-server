@@ -1,0 +1,547 @@
+include/gtid_utils.inc
+include/install_replication_observers_example.inc
+CALL mtr.add_suppression(".*was not purged because it was being read by.*");
+RESET MASTER;
+###
+### Scenario 1: several transactions, multiple log files
+###
+USE test;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:1";
+CREATE TABLE t1 (c1 INT);
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:2";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:3";
+FLUSH LOGS;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:4";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:5";
+FLUSH LOGS;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:6";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries;
+entry	transaction_uuid	transaction_gno	storage
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Query	00000000-0000-0000-0000-000000000000	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	2	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Transaction_payload	00000000-0000-0000-0000-000000000000	2	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Rotate	NULL	NULL	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	3	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Query	00000000-0000-0000-0000-000000000000	3	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Query	00000000-0000-0000-0000-000000000000	3	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	4	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Transaction_payload	00000000-0000-0000-0000-000000000000	4	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Rotate	NULL	NULL	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	5	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Query	00000000-0000-0000-0000-000000000000	5	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Query	00000000-0000-0000-0000-000000000000	5	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	6	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Transaction_payload	00000000-0000-0000-0000-000000000000	6	{ "filename" : "./binlog.000003",  "position" : POSITION }
+DROP TABLE t1;
+RESET MASTER;
+###
+### End of Scenario #1
+###
+###
+### Scenario 2: several transactions commit after the iterator is opened.
+###
+USE test;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:1";
+CREATE TABLE t1 (c1 INT);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:2";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET DEBUG_SYNC='test_binlog_storage_iterator_debug_sync_opened_iterator SIGNAL signal.proceed_creating_transactions WAIT_FOR signal.resume';
+SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries;
+SET DEBUG_SYNC='now WAIT_FOR signal.proceed_creating_transactions';
+SET GTID_NEXT="22222222-2222-2222-2222-222222222222:5";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="22222222-2222-2222-2222-222222222222:4";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="22222222-2222-2222-2222-222222222222:3";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="22222222-2222-2222-2222-222222222222:2";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="22222222-2222-2222-2222-222222222222:1";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET DEBUG_SYNC='now SIGNAL signal.resume';
+entry	transaction_uuid	transaction_gno	storage
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Query	00000000-0000-0000-0000-000000000000	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	2	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Transaction_payload	00000000-0000-0000-0000-000000000000	2	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	22222222-2222-2222-2222-222222222222	5	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Transaction_payload	22222222-2222-2222-2222-222222222222	5	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	22222222-2222-2222-2222-222222222222	4	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Transaction_payload	22222222-2222-2222-2222-222222222222	4	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	22222222-2222-2222-2222-222222222222	3	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Transaction_payload	22222222-2222-2222-2222-222222222222	3	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	22222222-2222-2222-2222-222222222222	2	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Transaction_payload	22222222-2222-2222-2222-222222222222	2	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	22222222-2222-2222-2222-222222222222	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Transaction_payload	22222222-2222-2222-2222-222222222222	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
+DROP TABLE t1;
+RESET MASTER;
+###
+### End of Scenario #2
+###
+###
+### Scenario #3: several transactions commit after the iterator is opened and the file is rotated.
+###
+USE test;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:1";
+CREATE TABLE t1 (c1 INT);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:2";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET DEBUG_SYNC='test_binlog_storage_iterator_debug_sync_opened_iterator SIGNAL signal.proceed_creating_transactions WAIT_FOR signal.resume';
+SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries;
+SET DEBUG_SYNC='now WAIT_FOR signal.proceed_creating_transactions';
+FLUSH BINARY LOGS;
+SET GTID_NEXT="33333333-3333-3333-3333-333333333333:5";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="33333333-3333-3333-3333-333333333333:4";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="33333333-3333-3333-3333-333333333333:3";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="33333333-3333-3333-3333-333333333333:2";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="33333333-3333-3333-3333-333333333333:1";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+FLUSH BINARY LOGS;
+SET GTID_NEXT="44444444-4444-4444-4444-444444444444:5";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="44444444-4444-4444-4444-444444444444:4";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="44444444-4444-4444-4444-444444444444:3";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="44444444-4444-4444-4444-444444444444:2";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="44444444-4444-4444-4444-444444444444:1";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET DEBUG_SYNC='now SIGNAL signal.resume';
+entry	transaction_uuid	transaction_gno	storage
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Query	00000000-0000-0000-0000-000000000000	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	2	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Transaction_payload	00000000-0000-0000-0000-000000000000	2	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Rotate	NULL	NULL	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Gtid	33333333-3333-3333-3333-333333333333	5	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Transaction_payload	33333333-3333-3333-3333-333333333333	5	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Gtid	33333333-3333-3333-3333-333333333333	4	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Transaction_payload	33333333-3333-3333-3333-333333333333	4	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Gtid	33333333-3333-3333-3333-333333333333	3	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Transaction_payload	33333333-3333-3333-3333-333333333333	3	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Gtid	33333333-3333-3333-3333-333333333333	2	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Transaction_payload	33333333-3333-3333-3333-333333333333	2	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Gtid	33333333-3333-3333-3333-333333333333	1	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Transaction_payload	33333333-3333-3333-3333-333333333333	1	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Rotate	NULL	NULL	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Gtid	44444444-4444-4444-4444-444444444444	5	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Transaction_payload	44444444-4444-4444-4444-444444444444	5	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Gtid	44444444-4444-4444-4444-444444444444	4	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Transaction_payload	44444444-4444-4444-4444-444444444444	4	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Gtid	44444444-4444-4444-4444-444444444444	3	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Transaction_payload	44444444-4444-4444-4444-444444444444	3	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Gtid	44444444-4444-4444-4444-444444444444	2	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Transaction_payload	44444444-4444-4444-4444-444444444444	2	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Gtid	44444444-4444-4444-4444-444444444444	1	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Transaction_payload	44444444-4444-4444-4444-444444444444	1	{ "filename" : "./binlog.000003",  "position" : POSITION }
+DROP TABLE t1;
+RESET MASTER;
+###
+### End of Scenario #3
+###
+###
+### Scenario #4: test PURGE stops while iterator is reading from a file meant to be purged.
+###
+# query log suppressed
+[connection con1]
+SET DEBUG_SYNC='test_binlog_storage_iterator_debug_sync_opened_iterator SIGNAL signal.proceed_purge_logs WAIT_FOR signal.resume';
+SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries;
+[connection con2]
+include/assert.inc [Assert that binlog.000001 exists in the pfs.file_instances table BEFORE the purge command]
+include/assert.inc [Assert that binlog.000002 exists in the pfs.file_instances table BEFORE the purge command]
+include/assert.inc [Assert that binlog.000003 exists in the pfs.file_instances table BEFORE the purge command]
+SET DEBUG_SYNC='now WAIT_FOR signal.proceed_purge_logs';
+PURGE BINARY LOGS TO 'binlog.000003';
+Warnings:
+Warning	1867	file ./binlog.000001 was not purged because it was being read by 1 thread(s), purged only 0 out of 2 files.
+include/assert.inc [Assert that binlog.000001 exists in the pfs.file_instances table AFTER the purge command]
+include/assert.inc [Assert that binlog.000002 exists in the pfs.file_instances table AFTER the purge command]
+include/assert.inc [Assert that binlog.000003 exists in the pfs.file_instances table AFTER the purge command]
+SET DEBUG_SYNC='now SIGNAL signal.resume';
+[connection con1]
+# query log suppressed
+# result log suppressed
+[connection default]
+###
+### End of Scenario #4
+###
+###
+### Scenario 6: several transactions, multiple log files, iterator filters a few
+###
+SET GTID_NEXT="11111111-1111-1111-1111-111111111111:1";
+CREATE TABLE t1 (c1 INT);
+USE test;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:1";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:2";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:3";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:4";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:5";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:6";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:7";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:8";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:9";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:10";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+FLUSH LOGS;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:11";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:12";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:13";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:14";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:15";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+FLUSH LOGS;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:16";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:17";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+FLUSH LOGS;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:18";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:19";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:20";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+FLUSH LOGS;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:21";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:22";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:23";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:24";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:25";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:26";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:27";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:28";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:29";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:30";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+# gtid set excluded: '11111111-1111-1111-1111-111111111111:1,00000000-0000-0000-0000-000000000000:1-5:10-15:20-25'
+# Adding debug point 'test_binlog_storage_iterator_filter_gtids' to @@GLOBAL.debug
+SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries WHERE entry = "Gtid";
+entry	transaction_uuid	transaction_gno	storage
+Gtid	00000000-0000-0000-0000-000000000000	6	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	7	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	8	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	9	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	16	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	17	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	18	{ "filename" : "./binlog.000004",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	19	{ "filename" : "./binlog.000004",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	26	{ "filename" : "./binlog.000005",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	27	{ "filename" : "./binlog.000005",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	28	{ "filename" : "./binlog.000005",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	29	{ "filename" : "./binlog.000005",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	30	{ "filename" : "./binlog.000005",  "position" : POSITION }
+# Removing debug point 'test_binlog_storage_iterator_filter_gtids' from @@GLOBAL.debug
+DROP TABLE t1;
+RESET MASTER;
+###
+### End of Scenario #6
+###
+###
+### Scenario 7: several transactions, multiple log files, purge, then select from table
+###
+SET GTID_NEXT="11111111-1111-1111-1111-111111111111:1";
+CREATE TABLE t1 (c1 INT);
+USE test;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:1";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:2";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:3";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:4";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:5";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:6";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:7";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:8";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:9";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:10";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+FLUSH LOGS;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:11";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:12";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:13";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:14";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:15";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+FLUSH LOGS;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:16";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:17";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+FLUSH LOGS;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:18";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:19";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:20";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+FLUSH LOGS;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:21";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:22";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:23";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:24";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:25";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:26";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:27";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:28";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:29";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:30";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+PURGE BINARY LOGS TO 'binlog.000005';
+SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries;
+ERROR HY000: Invalid performance_schema usage.
+DROP TABLE t1;
+RESET MASTER;
+###
+### End of Scenario #7
+###
+###
+### Scenario 8: Iterator returns EOF, new transaction, caller gets extra transactions
+###
+USE test;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:1";
+CREATE TABLE t1 (c1 INT);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:2";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+# Adding debug point 'test_binlog_storage_iterator_try_again_on_eof' to @@GLOBAL.debug
+SET DEBUG_SYNC='test_binlog_storage_iterator_debug_sync_iterator_eof SIGNAL signal.proceed_creating_transactions WAIT_FOR signal.resume';
+SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries;
+SET DEBUG_SYNC='now WAIT_FOR signal.proceed_creating_transactions';
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:3";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+FLUSH LOGS;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:4";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+SET DEBUG_SYNC='now SIGNAL signal.resume';
+entry	transaction_uuid	transaction_gno	storage
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Query	00000000-0000-0000-0000-000000000000	1	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	2	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Transaction_payload	00000000-0000-0000-0000-000000000000	2	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	3	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Transaction_payload	00000000-0000-0000-0000-000000000000	3	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Rotate	NULL	NULL	{ "filename" : "./binlog.000001",  "position" : POSITION }
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	4	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Transaction_payload	00000000-0000-0000-0000-000000000000	4	{ "filename" : "./binlog.000002",  "position" : POSITION }
+# Removing debug point 'test_binlog_storage_iterator_try_again_on_eof' from @@GLOBAL.debug
+DROP TABLE t1;
+RESET MASTER;
+###
+### End of Scenario #8
+###
+###
+### Scenario 9: Restart the server so that Stop events are dealt with
+###
+# restart
+USE test;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:1";
+CREATE TABLE t1 (c1 INT);
+SET GTID_NEXT=AUTOMATIC;
+# restart
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:2";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+# restart
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:3";
+INSERT INTO t1 VALUES (2);
+SET GTID_NEXT=AUTOMATIC;
+SELECT entry, transaction_uuid, transaction_gno, storage FROM performance_schema.binlog_storage_iterator_entries;
+entry	transaction_uuid	transaction_gno	storage
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	1	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Query	00000000-0000-0000-0000-000000000000	1	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Stop	00000000-0000-0000-0000-000000000000	1	{ "filename" : "./binlog.000002",  "position" : POSITION }
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	2	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Transaction_payload	00000000-0000-0000-0000-000000000000	2	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Stop	00000000-0000-0000-0000-000000000000	2	{ "filename" : "./binlog.000003",  "position" : POSITION }
+Format_desc	NULL	NULL	{ "filename" : "./binlog.000004",  "position" : POSITION }
+Previous_gtids	NULL	NULL	{ "filename" : "./binlog.000004",  "position" : POSITION }
+Gtid	00000000-0000-0000-0000-000000000000	3	{ "filename" : "./binlog.000004",  "position" : POSITION }
+Transaction_payload	00000000-0000-0000-0000-000000000000	3	{ "filename" : "./binlog.000004",  "position" : POSITION }
+DROP TABLE t1;
+RESET MASTER;
+###
+### End of Scenario #9
+###
+###
+### Scenario 10: Crash the server, watch service rotate properly to next file
+###
+USE test;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:1";
+CREATE TABLE t1 (c1 INT);
+SET GTID_NEXT=AUTOMATIC;
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:2";
+INSERT INTO t1 VALUES (1);
+SET GTID_NEXT=AUTOMATIC;
+# Adding debug point 'crash_commit_before_log' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (2);
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+SET GTID_NEXT="00000000-0000-0000-0000-000000000000:4";
+INSERT INTO t1 VALUES (3);
+SET GTID_NEXT=AUTOMATIC;
+include/assert.inc [Asset that iterator returns 00000000-0000-0000-0000-000000000000:1]
+include/assert.inc [Asset that iterator returns 00000000-0000-0000-0000-000000000000:2]
+include/assert.inc [Asset that iterator does not return 00000000-0000-0000-0000-000000000000:3]
+include/assert.inc [Asset that iterator returns 00000000-0000-0000-0000-000000000000:4]
+include/assert.inc [Assert that there is no Stop and no Rotate event]
+DROP TABLE t1;
+RESET MASTER;
+include/uninstall_replication_observers_example.inc
+include/gtid_utils_end.inc

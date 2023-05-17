@@ -36,6 +36,8 @@
 #include <mysqld_error.h>
 #include <sys/types.h>
 #include "plugin/replication_observers_example/gr_message_service_example.h"
+#include "plugin/replication_observers_example/src/binlog/service/iterator/tests/pfs.h"
+#include "plugin/replication_observers_example/src/binlog/service/iterator/tests/status_vars.h"
 
 #include <include/mysql/components/services/ongoing_transaction_query_service.h>
 #include "my_dbug.h"
@@ -1100,6 +1102,22 @@ static int replication_observers_example_plugin_init(MYSQL_PLUGIN plugin_info) {
     return 1;
   }
 
+  if (binlog::service::iterators::tests::register_pfs_tables()) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failure on init PFS tables");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+    return 1;
+    /* purecov: end */
+  }
+
+  if (binlog::service::iterators::tests::register_status_variables()) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Failure on init STATS VARS");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+    return 1;
+    /* purecov: end */
+  }
+
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "replication_observers_example_plugin: init finished");
 
@@ -1128,6 +1146,9 @@ static int replication_observers_example_plugin_deinit(void *p) {
   dump_server_state_calls();
   dump_transaction_calls();
   dump_binlog_relay_calls();
+
+  binlog::service::iterators::tests::unregister_status_variables();
+  binlog::service::iterators::tests::unregister_pfs_tables();
 
   if (unregister_server_state_observer(&server_state_observer, p)) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,

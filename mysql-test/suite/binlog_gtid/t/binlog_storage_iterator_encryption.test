@@ -1,0 +1,23 @@
+#
+# This file is a wrapper for the actual file that contain the tests
+# to be run. This makes it possible to cover compression and encryption
+# without having to duplicate the tests on different files. For test
+# details check the file included.
+#
+# This file runs tests with binlog encryption on
+#
+--source include/have_binlog_format_row.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_encryption_on.inc
+
+# The content of the binary log changes when compression is enabled
+# and therefore this running this test with compression would cause
+# an artificial failure.
+--source include/not_binlog_transaction_compression_on.inc
+
+--source include/gtid_utils.inc
+
+# run the tests
+--source extra/binlog_tests/binlog_storage_iterator.inc
+
+--source include/gtid_utils_end.inc

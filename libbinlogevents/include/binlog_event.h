@@ -365,6 +365,14 @@ enum Log_event_type {
 };
 
 /**
+ @brief Get the event type as string object
+
+  @param type the event type for which to get a textual representation.
+  @return std::string a text representing the event name.
+*/
+const std::string &get_event_type_as_string(Log_event_type type);
+
+/**
   Struct to pass basic information about a event: type, query, is it ignorable
 */
 struct Log_event_basic_info {

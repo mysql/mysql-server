@@ -1,0 +1,4 @@
+include/install_replication_observers_example.inc
+SELECT * FROM performance_schema.binlog_storage_iterator_entries;
+ERROR HY000: Invalid performance_schema usage.
+include/uninstall_replication_observers_example.inc

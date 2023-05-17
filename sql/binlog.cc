@@ -93,6 +93,7 @@
 #include "sql/binlog/global.h"
 #include "sql/binlog/group_commit/bgc_ticket_manager.h"  // Bgc_ticket_manager
 #include "sql/binlog/recovery.h"  // binlog::Binlog_recovery
+#include "sql/binlog/services/iterator/file_storage.h"
 #include "sql/binlog_ostream.h"
 #include "sql/binlog_reader.h"
 #include "sql/create_field.h"
@@ -8890,6 +8891,7 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
       close did not close index file.
     */
     if (is_open()) {
+      binlog::services::iterator::FileStorage::unregister_service();
       LogErr(ERROR_LEVEL, ER_TURNING_LOGGING_OFF_FOR_THE_DURATION, errmsg);
     }
     close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT, false /*need_lock_log=false*/,

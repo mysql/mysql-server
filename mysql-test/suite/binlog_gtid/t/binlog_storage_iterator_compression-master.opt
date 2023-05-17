@@ -1,0 +1,2 @@
+--binlog-transaction-compression=ON
+$RPL_OBS_EXAMPLE_OPT

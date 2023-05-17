@@ -892,6 +892,7 @@ MySQL clients support the protocol:
 #include "thr_mutex.h"
 #include "typelib.h"
 #include "violite.h"
+#include "sql/binlog/services/iterator/file_storage.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
@@ -2690,6 +2691,9 @@ static void clean_up(bool print_message) {
   table_def_start_shutdown();
   delegates_shutdown();
   plugin_shutdown();
+  // needs to be done after plugin shutdown, since plugins can still
+  // hold references to the service
+  binlog::services::iterator::FileStorage::unregister_service();
   gtid_server_cleanup();  // after plugin_shutdown
   delete_optimizer_cost_module();
   ha_end();
@@ -6281,6 +6285,13 @@ static int init_server_components() {
     LogErr(ERROR_LEVEL, ER_OOM);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
+
+  // We initialize the binlog services here so that if any plugin that is loaded
+  // automatically and that requires it, gets access to the service already. The
+  // interaction with the service will fail until the binary log is actually
+  // opened, but the handle to the service will remain valid.
+  if (binlog::services::iterator::FileStorage::register_service())
+    unireg_abort(MYSQLD_ABORT_EXIT); /* purecov: inspected */
 
   /*
     initialize delegates for extension observers, errors have already

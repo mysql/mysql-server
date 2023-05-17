@@ -1000,6 +1000,7 @@ SET(BINLOG_SOURCE
   binlog/group_commit/atomic_bgc_ticket_guard.cc
   binlog/monitoring/context.cc
   binlog/decompressing_event_object_istream.cc
+  binlog/services/iterator/file_storage.cc
   binlog.cc
   binlog_istream.cc
   binlog_ostream.cc

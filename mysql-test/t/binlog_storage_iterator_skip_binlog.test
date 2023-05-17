@@ -1,0 +1,10 @@
+#
+# This test validates that the iterator will return a graceful
+# error if the binary log is disabled, instead of asserting.
+#
+--source include/install_replication_observers_example.inc
+
+--error ER_WRONG_PERFSCHEMA_USAGE
+SELECT * FROM performance_schema.binlog_storage_iterator_entries;
+
+--source include/uninstall_replication_observers_example.inc
