@@ -1,0 +1,65 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# 1. Bootstrap a group with M1.
+#
+#######
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/disable_binlog.inc
+call mtr.add_suppression(".*Failed to accept a MySQL connection for Group Replication. Group Replication plugin has an ongoing exclusive operation, like START, STOP or FORCE MEMBERS.*");
+include/restore_binlog.inc
+[connection server2]
+include/disable_binlog.inc
+call mtr.add_suppression("Timeout on wait for view after joining group");
+call mtr.add_suppression("Timeout while waiting for the group communication engine to be ready!");
+call mtr.add_suppression("The group communication engine is not ready for the member to join. Local port: *.*");
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
+call mtr.add_suppression("Error connecting to all peers. Member join failed. Local port: *.*");
+include/restore_binlog.inc
+#
+# 2. Enable fail_incoming_connection_ongoing_operation and try to
+#    join M2.
+#
+#######
+[connection server1]
+# Adding debug point 'fail_incoming_connection_ongoing_operation' to @@GLOBAL.debug
+[connection server2]
+#
+# 3. Join M2 will fail. Assert that the error message exists
+#    in the log of M1.
+#
+#######
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+[connection server1]
+include/assert.inc ['Failed to accept a MySQL connection for Group Replication. Group Replication plugin has an ongoing exclusive operation, like START, STOP or FORCE MEMBERS.']
+#
+# 4. Start M2 with the send command
+#
+#######
+[connection server2]
+START GROUP_REPLICATION;;
+[connection server_1_1]
+#
+# 5. Sleep for 10 seconds and then clear
+#    fail_incoming_connection_ongoing_operation
+#
+#######
+# Removing debug point 'fail_incoming_connection_ongoing_operation' from @@GLOBAL.debug
+#
+# 6. reap the start command and M2 must be able to join the group.
+#
+#######
+[connection server2]
+#
+# 7. Clean-up
+#
+######
+[connection server1]
+include/group_replication_end.inc

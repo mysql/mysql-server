@@ -34,8 +34,8 @@
 #include "sql/rpl_group_replication.h"
 
 // Forward declaration of Group Replication callback...
-void handle_group_replication_incoming_connection(THD *thd, int fd,
-                                                  SSL *ssl_ctx);
+int handle_group_replication_incoming_connection(THD *thd, int fd,
+                                                 SSL *ssl_ctx);
 
 bool Gcs_mysql_network_provider_auth_interface_impl::get_credentials(
     std::string &username, std::string &password) {

@@ -1629,28 +1629,51 @@ gr_incoming_connection_cb get_gr_incoming_connection() {
   return retval;
 }
 
-void call_gr_incoming_connection_cb(THD *thd, int fd, SSL *ssl_ctx) {
-  gr_incoming_connection_cb gr_connection_callback =
-      get_gr_incoming_connection();
+/**
+ * @brief Call the registered GR callback that delegates an
+ * incoming connection which is destined to GR.
+ *
+ * @param thd Connection THD
+ * @param fd Connection file descriptor
+ * @param ssl_ctx Connection SSL Context
+ *
+ * @return int 1 in case of error delegating the connection.
+ *             0, otherwise.
+ */
+int call_gr_incoming_connection_cb(THD *thd, int fd, SSL *ssl_ctx) {
+  int error_return = 1;
 
-  if (gr_connection_callback) {
-    gr_connection_callback(thd, fd, ssl_ctx);
-
-    PSI_stage_info saved_stage;
-    mysql_mutex_lock(&thd->LOCK_group_replication_connection_mutex);
-    thd->ENTER_COND(&thd->COND_group_replication_connection_cond_var,
-                    &thd->LOCK_group_replication_connection_mutex,
-                    &stage_communication_delegation, &saved_stage);
-    while (thd->is_killed() == THD::NOT_KILLED) {
-      struct timespec abstime;
-      set_timespec(&abstime, 1);
-      mysql_cond_timedwait(&thd->COND_group_replication_connection_cond_var,
-                           &thd->LOCK_group_replication_connection_mutex,
-                           &abstime);
-    }
-    mysql_mutex_unlock(&thd->LOCK_group_replication_connection_mutex);
-    thd->EXIT_COND(&saved_stage);
+  if (gr_incoming_connection_cb gr_connection_callback =
+          get_gr_incoming_connection();
+      gr_connection_callback) {
+    error_return = gr_connection_callback(thd, fd, ssl_ctx);
   }
+
+  return error_return;
+}
+
+/**
+ * @brief Wait for a delegated connection to GR, until it ends or GR
+ *        is shutdown.
+ *
+ * @param thd THD of the delegated connection.
+ */
+void wait_for_gr_connection_end(THD *thd) {
+  PSI_stage_info saved_stage;
+  mysql_mutex_lock(&thd->LOCK_group_replication_connection_mutex);
+  thd->ENTER_COND(&thd->COND_group_replication_connection_cond_var,
+                  &thd->LOCK_group_replication_connection_mutex,
+                  &stage_communication_delegation, &saved_stage);
+  while (get_gr_incoming_connection() != nullptr &&
+         thd->is_killed() == THD::NOT_KILLED) {
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+    mysql_cond_timedwait(&thd->COND_group_replication_connection_cond_var,
+                         &thd->LOCK_group_replication_connection_mutex,
+                         &abstime);
+  }
+  mysql_mutex_unlock(&thd->LOCK_group_replication_connection_mutex);
+  thd->EXIT_COND(&saved_stage);
 }
 
 /**
@@ -1895,7 +1918,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         break;
       }
 
-      if (!error && get_gr_incoming_connection() == nullptr) {
+      if (!error && call_gr_incoming_connection_cb(
+                        thd, thd->active_vio->mysql_socket.fd,
+                        thd->active_vio->ssl_arg
+                            ? static_cast<SSL *>(thd->active_vio->ssl_arg)
+                            : nullptr)) {
         my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
         error = true;
         break;
@@ -2480,10 +2507,7 @@ done:
   }
 
   if (command == COM_SUBSCRIBE_GROUP_REPLICATION_STREAM && !error) {
-    call_gr_incoming_connection_cb(
-        thd, thd->active_vio->mysql_socket.fd,
-        thd->active_vio->ssl_arg ? static_cast<SSL *>(thd->active_vio->ssl_arg)
-                                 : nullptr);
+    wait_for_gr_connection_end(thd);
   }
 
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);

@@ -814,12 +814,28 @@ Gcs_mysql_network_provider *Gcs_operations::get_mysql_network_provider() {
   DBUG_TRACE;
   Gcs_mysql_network_provider *result = nullptr;
 
-  gcs_operations_lock->rdlock();
-  if (gcs_interface != nullptr && gcs_mysql_net_provider != nullptr &&
-      gcs_interface->is_initialized()) {
-    result = gcs_mysql_net_provider.get();
+  auto fail_incoming_connection_ongoing_operation_log = []() {
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_MYSQL_NETWORK_PROVIDER_SERVER_ERROR_COMMAND_ERR,
+                 "Group Replication plugin has an ongoing exclusive operation, "
+                 "like START, STOP or FORCE MEMBERS");
+  };
+
+  DBUG_EXECUTE_IF("fail_incoming_connection_ongoing_operation", {
+    fail_incoming_connection_ongoing_operation_log();
+    return result;
+  });
+
+  Checkable_rwlock::Guard g(*gcs_operations_lock,
+                            Checkable_rwlock::TRY_READ_LOCK);
+  if (g.is_rdlocked()) {
+    if (gcs_interface != nullptr && gcs_mysql_net_provider != nullptr &&
+        gcs_interface->is_initialized()) {
+      result = gcs_mysql_net_provider.get();
+    }
+  } else {
+    fail_incoming_connection_ongoing_operation_log();
   }
-  gcs_operations_lock->unlock();
 
   return result;
 }
