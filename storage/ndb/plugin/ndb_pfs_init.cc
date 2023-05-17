@@ -37,14 +37,18 @@ static PFS_engine_table_share_proxy *pfs_proxy_shares[2] = {
     ndb_sync_pending_objects_share, ndb_sync_excluded_objects_share};
 
 PSI_memory_key key_memory_thd_ndb_batch_mem_root;
+PSI_memory_key key_memory_ndb_dd_client_mem_root;
 
 bool ndb_pfs_init() {
   {
     // List of memory keys to register
-    PSI_memory_info mem_keys[] = {{&key_memory_thd_ndb_batch_mem_root,
-                                   "Thd_ndb::batch_mem_root",
-                                   (PSI_FLAG_THREAD | PSI_FLAG_MEM_COLLECT), 0,
-                                   "Memory used for transaction batching"}};
+    PSI_memory_info mem_keys[] = {
+        {&key_memory_thd_ndb_batch_mem_root, "Thd_ndb::batch_mem_root",
+         (PSI_FLAG_THREAD | PSI_FLAG_MEM_COLLECT), 0,
+         "Memory used for transaction batching"},
+        {&key_memory_ndb_dd_client_mem_root, "Ndb_dd_client::dd_mem_root",
+         (PSI_FLAG_THREAD | PSI_FLAG_MEM_COLLECT), 0,
+         "Memory used for DD access"}};
     mysql_memory_register("ndbcluster", mem_keys,
                           sizeof(mem_keys) / sizeof(mem_keys[0]));
   }

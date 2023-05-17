@@ -51,13 +51,19 @@
 #include "storage/ndb/plugin/ndb_dd_upgrade_table.h"
 #include "storage/ndb/plugin/ndb_fk_util.h"
 #include "storage/ndb/plugin/ndb_log.h"
+#include "storage/ndb/plugin/ndb_pfs_init.h"
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
 #include "storage/ndb/plugin/ndb_thd.h"
+
+constexpr size_t NDB_DD_CLIENT_MEMROOT_BLOCK_SIZE = 1024;
 
 Ndb_dd_client::Ndb_dd_client(THD *thd)
     : m_thd(thd),
       m_client(thd->dd_client()),
-      m_save_mdl_locks(thd->mdl_context.mdl_savepoint()) {
+      m_save_mdl_locks(thd->mdl_context.mdl_savepoint()),
+      m_dd_mem_root(key_memory_ndb_dd_client_mem_root,
+                    NDB_DD_CLIENT_MEMROOT_BLOCK_SIZE),
+      m_prev_mem_root(thd->mem_root) {
   DBUG_TRACE;
   disable_autocommit();
 
@@ -66,13 +72,18 @@ Ndb_dd_client::Ndb_dd_client(THD *thd)
   // Dictionary_client in the ndb_dd_client header file
   m_auto_releaser =
       (void *)new dd::cache::Dictionary_client::Auto_releaser(m_client);
+
+  // Use dedicated MEM_ROOT while acessing DD
+  thd->mem_root = &m_dd_mem_root;
 }
 
 Ndb_dd_client::~Ndb_dd_client() {
   DBUG_TRACE;
   // Automatically restore the option_bits in THD if they have
   // been modified
-  if (m_save_option_bits) m_thd->variables.option_bits = m_save_option_bits;
+  if (m_save_option_bits != 0) {
+    m_thd->variables.option_bits = m_save_option_bits;
+  }
 
   if (m_auto_rollback) {
     // Automatically rollback unless commit has been called
@@ -81,6 +92,9 @@ Ndb_dd_client::~Ndb_dd_client() {
 
   // Release MDL locks
   mdl_locks_release();
+
+  // Restore previous MEM_ROOT
+  m_thd->mem_root = m_prev_mem_root;
 
   // Free the dictionary client auto releaser
   dd::cache::Dictionary_client::Auto_releaser *ar =
