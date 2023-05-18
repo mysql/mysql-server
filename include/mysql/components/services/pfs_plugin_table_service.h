@@ -695,4 +695,15 @@ DECLARE_METHOD(void, get, (PSI_field * f, PSI_year *value));
 /* No support for indexes. */
 END_SERVICE_DEFINITION(pfs_plugin_column_year_v1)
 
+/*
+  SERVICE_DEFINITION(pfs_plugin_column_text_v1)
+  Introduced in MySQL 8.0.34
+  Status: Active.
+*/
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_text_v1)
+DECLARE_METHOD(void, set,
+               (PSI_field * f, const char *str, unsigned int length));
+DECLARE_METHOD(void, get, (PSI_field * f, char *val, unsigned int *len));
+END_SERVICE_DEFINITION(pfs_plugin_column_text_v1)
+
 #endif

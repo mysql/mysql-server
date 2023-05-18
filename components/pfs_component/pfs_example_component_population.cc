@@ -46,8 +46,8 @@ Continent_record continent_array[] =
 /* Records to be inserted into pfs_example_country table from component code */
 Country_record country_array[] =
 {
-    {"foo1", 4, "bar1", 4, {2016, false}, {10000, false}, {1.11, false}, true},
-    {"foo2", 4, "bar2", 4, {2016, false}, {1000, false}, {2.22, false}, true}
+    {"foo1", 4, "bar1", 4, "FO1", 3, {2016, false}, {10000, false}, {1.11, false}, true},
+    {"foo2", 4, "bar2", 4, "FO2", 3, {2016, false}, {1000, false}, {2.22, false}, true}
 };
 /* clang-format on */
 
@@ -106,6 +106,10 @@ int country_prepare_insert_row() {
             country_array[i].continent_name_length);
     handle.current_row.continent_name_length =
         country_array[i].continent_name_length;
+    strncpy(handle.current_row.country_code, country_array[i].country_code,
+            country_array[i].country_code_length);
+    handle.current_row.country_code_length =
+        country_array[i].country_code_length;
     handle.current_row.year = country_array[i].year;
     handle.current_row.population = country_array[i].population;
     handle.current_row.growth_factor = country_array[i].growth_factor;
@@ -238,6 +242,7 @@ REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_string_v2, pc_string_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_year_v1, pc_year_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_bigint_v1, pc_bigint_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_double_v1, pc_double_srv);
+REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_text_v1, pc_text_srv);
 
 BEGIN_COMPONENT_REQUIRES(pfs_example_component_population)
 REQUIRES_SERVICE_AS(pfs_plugin_table_v1, pt_srv),
@@ -245,6 +250,7 @@ REQUIRES_SERVICE_AS(pfs_plugin_table_v1, pt_srv),
     REQUIRES_SERVICE_AS(pfs_plugin_column_year_v1, pc_year_srv),
     REQUIRES_SERVICE_AS(pfs_plugin_column_bigint_v1, pc_bigint_srv),
     REQUIRES_SERVICE_AS(pfs_plugin_column_double_v1, pc_double_srv),
+    REQUIRES_SERVICE_AS(pfs_plugin_column_text_v1, pc_text_srv),
     END_COMPONENT_REQUIRES();
 
 /* A list of metadata to describe the Component. */
