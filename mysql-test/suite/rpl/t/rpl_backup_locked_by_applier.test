@@ -1,0 +1,84 @@
+# === Purpose ===
+# Check PURGE BINARY LOGS operation is mutually exclusive with BACKUP lock.
+#
+# === Requirements ===
+# R1. PURGE BINARY LOGS must be mutually exclusive with BACKUP operation.
+#
+# === Implementation ===
+# 1. Initialization
+# 2. Trigger log purge on replica
+# 3. Check backup cannot be held
+# 4. Unblock applier
+# 5. Check LOCK INSTANCE FOR BACKUP can be executed
+#
+# === References ===
+# Bug#35342521	Binary log purge should hold IX backup lock
+#
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Initialization
+--echo #
+
+--connection slave
+--let $debug_point = syncpoint_purge_applied_logs_after_backup_lock
+--source include/add_debug_point.inc
+
+--echo #
+--echo # Trigger log purge on replica
+--echo #
+
+--source include/rpl_connection_master.inc
+FLUSH BINARY LOGS;
+
+--echo #
+--echo # Check backup cannot be held
+--echo #
+
+--source include/rpl_connection_slave.inc
+
+## Wait for applier thread to reach purge_applied_logs_after_backup_lock
+SET DEBUG_SYNC = 'now WAIT_FOR reached_purge_applied_logs_after_backup_lock';
+
+SET SESSION lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+LOCK INSTANCE FOR BACKUP;
+
+--echo #
+--echo # Unblock applier
+--echo #
+
+SET DEBUG_SYNC = 'now SIGNAL continue_purge_applied_logs_after_backup_lock';
+
+--let $debug_point = syncpoint_purge_applied_logs_after_backup_lock
+--source include/remove_debug_point.inc
+
+--echo #
+--echo # Wait for replica to process the rest of the binlog
+--echo #
+
+# This is necessary to ensure that the replica doesn't have pending
+# rotate events at the time we acquire the backup locks. Such pending
+# rotate events would generate warnings in the log.
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t (a INT);
+DROP TABLE t;
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Check LOCK INSTANCE FOR BACKUP can be executed
+--echo #
+
+SET SESSION lock_wait_timeout = 30;
+LOCK INSTANCE FOR BACKUP;
+UNLOCK INSTANCE;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--source include/rpl_end.inc

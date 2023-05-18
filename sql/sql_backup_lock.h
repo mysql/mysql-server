@@ -73,6 +73,50 @@ class Sql_cmd_unlock_instance : public Sql_cmd {
 };
 
 /**
+   MDL_key::BACKUP_LOCK RAII.
+ */
+class Shared_backup_lock_guard {
+ public:
+  /**
+    There are three possible results while checking if the instance is locked
+    for backup.
+  */
+  enum class Lock_result { not_locked = 0, locked = 1, oom = 2 };
+
+  Shared_backup_lock_guard(THD *thd);
+  Shared_backup_lock_guard(const Shared_backup_lock_guard &o) = delete;
+  Shared_backup_lock_guard(Shared_backup_lock_guard &&o) = default;
+  Shared_backup_lock_guard &operator=(const Shared_backup_lock_guard &o) =
+      delete;
+  Shared_backup_lock_guard &operator=(Shared_backup_lock_guard &&o) = default;
+
+  ~Shared_backup_lock_guard();
+
+  operator Lock_result() const;
+
+ private:
+  /**
+    Try to acquire shared backup lock.
+
+    @param[in] thd                Current thread context
+    @param[in] for_trx            true if MDL duration is MDL_TRANSACTION
+                                  false if MDL duration is MDL_EXPLICIT
+
+    @return Operation status.
+      @retval Shared_backup_lock_guard::Lock_result::locked       Locked shared
+    BACKUP lock.
+      @retval Shared_backup_lock_guard::Lock_result::not_locked   Could not lock
+    shared BACKUP lock. Conflicting lock exists.
+      @retval Shared_backup_lock_guard::Lock_result::oom          Error. Could
+    not lock shared BACKUP lock.
+  */
+  Shared_backup_lock_guard::Lock_result try_acquire_shared_backup_lock(
+      THD *thd, bool for_trx);
+  Shared_backup_lock_guard::Lock_result m_lock_state;
+  THD *m_thd;
+};
+
+/**
   Acquire exclusive Backup Lock.
 
   @param[in] thd                Current thread context
@@ -111,29 +155,5 @@ bool acquire_shared_backup_lock(THD *thd, unsigned long lock_wait_timeout,
 */
 
 void release_backup_lock(THD *thd);
-
-/**
-  There are three possible results while checking if the instance is locked for
-  backup.
-*/
-
-enum class Is_instance_backup_locked_result {
-  NOT_LOCKED = 0,
-  LOCKED = 1,
-  OOM = 2
-};
-
-/**
-  Check if this server instance is locked with Backup Lock. In fact, it checks
-  if any thread owns BACKUP_LOCK.
-
-  @param[in] thd  Current thread context
-
-  @retval NOT_LOCKED Backup Lock is not acquired by any thread.
-  @retval LOCKED     Backup Lock is acquired by a thread.
-  @retval OOM        Error occurred (OOM) when checking lock ownership.
-*/
-
-Is_instance_backup_locked_result is_instance_backup_locked(THD *thd);
 
 #endif /* SQL_LOCK_INCLUDED */
