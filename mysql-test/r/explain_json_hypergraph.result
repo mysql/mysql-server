@@ -781,7 +781,6 @@ CREATE TABLE t (a INT);
 # Used to hit assertion in debug builds.
 EXPLAIN FORMAT=JSON INTO @var
 SELECT 1 + 1 AS x FROM t GROUP BY x WITH ROLLUP HAVING x = 1;
-EXPLAIN
 # Used to show the GROUP BY clause as "group by ``".
 SELECT JSON_UNQUOTE(JSON_EXTRACT(@var, '$.query')) AS query;
 query
