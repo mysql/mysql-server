@@ -11550,6 +11550,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
 
   // Initiate loading into or unloading from secondary engine.
   if (is_load) {
+    DEBUG_SYNC(thd, "before_secondary_engine_load_table");
     if (DBUG_EVALUATE_IF("sim_secload_fail",
                          (my_error(ER_SECONDARY_ENGINE, MYF(0),
                                    "Simulated failure of secondary_load()"),

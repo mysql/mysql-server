@@ -12237,6 +12237,9 @@ ER_WARN_SCHEDULED_TASK_RUN_FAILED
 ER_AUDIT_LOG_INVALID_FLUSH_INTERVAL_VALUE
    eng "Invalid flush interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
 
+ER_LOG_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
+  eng "Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

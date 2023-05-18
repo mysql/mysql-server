@@ -1,0 +1,33 @@
+#
+# Initialization
+#
+CREATE TABLE t1 (c INT);
+FLUSH BINARY LOGS;
+#
+# Lock the instance for backup using con1
+#
+LOCK INSTANCE FOR BACKUP;
+#
+# Check errors for purge operations
+#
+[connection default]
+PURGE BINARY LOGS TO 'BINLOG_FILE';
+ERROR HY000: Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock.
+PURGE BINARY LOGS BEFORE '2019-04-02 22:46:26';
+ERROR HY000: Could not purge binary logs since another session is executing LOCK INSTANCE FOR BACKUP. Wait for that session to release the lock.
+#
+# Unlock the instance for backup using con1
+#
+[connection con1]
+UNLOCK INSTANCE;
+#
+# Check no errors for purge operations
+#
+[connection default]
+PURGE BINARY LOGS TO 'BINLOG_FILE';
+PURGE BINARY LOGS BEFORE '2019-04-02 22:46:26';
+#
+# Cleanup
+#
+[connection default]
+DROP TABLE t1;

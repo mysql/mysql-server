@@ -1,0 +1,82 @@
+# === Purpose ===
+# Check PURGE BINARY LOGS operation is mutually exclusive with BACKUP lock.
+#
+# === Requirements ===
+# R1. PURGE BINARY LOGS must be mutually exclusive with BACKUP operation.
+#
+# === Implementation ===
+#
+# 1. Create database and tables
+# 2. Create second connection
+# 2.1. LOCK INSTANCE FOR BACKUP
+# 3. Use first connection
+# 3.1. Check PURGE BINARY LOGS TO/BEFORE cannot proceed
+# 4. Use second connection
+# 4.1. UNLOCK INSTANCE
+# 5. Check PURGE BINARY LOGS TO/BEFORE can proceed
+# 6. Cleanup
+#
+# === References ===
+#
+# Bug#35342521	Binary log purge should hold IX backup lock
+#
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Initialization
+--echo #
+
+CREATE TABLE t1 (c INT);
+--let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH BINARY LOGS;
+
+--echo #
+--echo # Lock the instance for backup using con1
+--echo #
+
+--connect (con1, localhost, root,,)
+LOCK INSTANCE FOR BACKUP;
+
+--echo #
+--echo # Check errors for purge operations
+--echo #
+
+--let $rpl_connection_name = default
+--source include/rpl_connection.inc
+
+--replace_result $binlog_file BINLOG_FILE
+--error ER_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
+--eval PURGE BINARY LOGS TO '$binlog_file'
+
+--error ER_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK
+PURGE BINARY LOGS BEFORE '2019-04-02 22:46:26';
+
+--echo #
+--echo # Unlock the instance for backup using con1
+--echo #
+
+--let $rpl_connection_name = con1
+--source include/rpl_connection.inc
+UNLOCK INSTANCE;
+
+--echo #
+--echo # Check no errors for purge operations
+--echo #
+
+--let $rpl_connection_name = default
+--source include/rpl_connection.inc
+
+--replace_result $binlog_file BINLOG_FILE
+--eval PURGE BINARY LOGS TO '$binlog_file'
+
+PURGE BINARY LOGS BEFORE '2019-04-02 22:46:26';
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--let $rpl_connection_name = default
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
