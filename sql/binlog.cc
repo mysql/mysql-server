@@ -60,6 +60,7 @@
 #include <string>
 
 #include "dur_prop.h"
+#include "include/mysqld_errmsg.h"  // ER_OUT_OF_RESOURCES_MSG
 #include "libbinlogevents/include/buffer/grow_calculator.h"
 #include "libbinlogevents/include/compression/compressor.h"
 #include "libbinlogevents/include/compression/payload_event_buffer_istream.h"
@@ -125,7 +126,7 @@
 #include "sql/rpl_transaction_ctx.h"
 #include "sql/rpl_trx_boundary_parser.h"  // Transaction_boundary_parser
 #include "sql/rpl_utility.h"
-#include "sql/sql_backup_lock.h"  // is_instance_backup_locked
+#include "sql/sql_backup_lock.h"  // is_instance_backup_locked et al.
 #include "sql/sql_base.h"         // find_temporary_table
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"  // THD
@@ -223,7 +224,6 @@ static int binlog_set_prepared_in_tc(handlerton *hton, THD *thd);
 static void exec_binlog_error_action_abort(const char *err_string);
 static void binlog_prepare_row_images(const THD *thd, TABLE *table);
 static bool is_loggable_xa_prepare(THD *thd);
-static int check_instance_backup_locked();
 
 namespace {
 /**
@@ -311,12 +311,6 @@ static std::pair<bool, int> check_purge_conditions(const MYSQL_BIN_LOG &log) {
   // is the binary log open?
   if (!log.is_open()) {
     return std::make_pair(true, 0);
-  }
-
-  // is instance locked for backup ?
-  int error{0};
-  if ((error = check_instance_backup_locked()) != 0) {
-    return std::make_pair(true, error);
   }
 
   // go ahead, validations checked successfully
@@ -3205,6 +3199,17 @@ bool purge_source_logs_to_file(THD *thd, const char *to_log) {
   auto [is_invalid, invalid_error] = check_purge_conditions(mysql_bin_log);
   if (is_invalid) return purge_error_message(thd, invalid_error);
 
+  // lock BACKUP lock for the duration of PURGE operation
+  Shared_backup_lock_guard backup_lock{thd};
+  switch (backup_lock) {
+    case Shared_backup_lock_guard::Lock_result::locked:
+      break;
+    case Shared_backup_lock_guard::Lock_result::not_locked:
+      return purge_error_message(thd, LOG_INFO_BACKUP_LOCK);
+    case Shared_backup_lock_guard::Lock_result::oom:
+      return purge_error_message(thd, LOG_INFO_MEM);
+  }
+
   char search_file_name[FN_REFLEN];
   constexpr auto auto_purge{false};
   constexpr auto include_to_log{false};
@@ -3234,35 +3239,22 @@ bool purge_source_logs_before_date(THD *thd, time_t purge_time) {
       check_purge_conditions(mysql_bin_log);
   if (is_invalid) return purge_error_message(thd, invalid_error);
 
-  // validations done, now purge
+  // lock BACKUP lock for the duration of PURGE operation
+  Shared_backup_lock_guard backup_lock{thd};
+  switch (backup_lock) {
+    case Shared_backup_lock_guard::Lock_result::locked:
+      break;
+    case Shared_backup_lock_guard::Lock_result::not_locked:
+      return purge_error_message(thd, LOG_INFO_BACKUP_LOCK);
+    case Shared_backup_lock_guard::Lock_result::oom:
+      return purge_error_message(thd, LOG_INFO_MEM);
+  }
+
+  // purge
   constexpr auto auto_purge{false};
   auto purge_error =
       mysql_bin_log.purge_logs_before_date(purge_time, auto_purge);
   return purge_error_message(thd, purge_error);
-}
-
-/**
-  Check whether the instance is backup locked.
-
-  @retval 0 Instance is not backup locked
-  @retval other Instance is backup locked or failure
-*/
-int check_instance_backup_locked() {
-  int res{0};
-
-  auto is_instance_locked = is_instance_backup_locked(current_thd);
-  switch (is_instance_locked) {
-    case Is_instance_backup_locked_result::OOM:
-      res = LOG_INFO_MEM;
-      break;
-    case Is_instance_backup_locked_result::LOCKED:
-      res = LOG_INFO_BACKUP_LOCK;
-      break;
-    case Is_instance_backup_locked_result::NOT_LOCKED:
-      break;
-  }
-
-  return res;
 }
 
 /*
@@ -5964,6 +5956,8 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log, bool included,
     goto err;
   }
 
+  DEBUG_SYNC(thd, "before_purge_logs");
+
   no_of_log_files_to_purge = log_info.entry_index;
 
   if ((error = open_purge_index_file(true))) {
@@ -7232,11 +7226,26 @@ void MYSQL_BIN_LOG::auto_purge() {
           "Out of memory happened while checking if "
           "instance was locked for backup");
       /* purecov: end */
+    } else if (purge_error == LOG_INFO_BACKUP_LOCK) {
+      LogErr(WARNING_LEVEL, ER_LOG_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK);
     }
     return;
   }
 
-  assert(purge_error == 0);
+  // lock BACKUP lock for the duration of PURGE operation
+  Shared_backup_lock_guard backup_lock{current_thd};
+  switch (backup_lock) {
+    case Shared_backup_lock_guard::Lock_result::locked:
+      break;
+    case Shared_backup_lock_guard::Lock_result::not_locked: {
+      LogErr(WARNING_LEVEL, ER_LOG_CANNOT_PURGE_BINLOG_WITH_BACKUP_LOCK);
+      return;
+    }
+    case Shared_backup_lock_guard::Lock_result::oom: {
+      exec_binlog_error_action_abort(ER_OUT_OF_RESOURCES_MSG);
+      return;
+    }
+  }
 
   DEBUG_SYNC(current_thd, "at_purge_logs_before_date");
 

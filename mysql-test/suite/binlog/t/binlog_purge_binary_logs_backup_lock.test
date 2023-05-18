@@ -1,0 +1,83 @@
+# === Purpose ===
+# Check PURGE BINARY LOGS operation is mutually exclusive with BACKUP lock.
+#
+# === Requirements ===
+# R1. PURGE BINARY LOGS must be mutually exclusive when
+#     LOCK INSTANCE FOR BACKUP statement is executed.
+#
+# === Implementation ===
+#
+# 1. Create database and tables
+# 2. Create second connection
+# 2.1. Execute PURGE BINARY LOGS but stop it on a sync point
+# 3. Use first connection
+# 3.1. Check LOCK INSTANCE FOR BACKUP cannot proceed
+# 4. Use second connection
+# 4.1. Finish PURGE BINARY LOGS
+# 5. Check LOCK INSTANCE FOR BACKUP can proceed
+# 6. Cleanup
+#
+# === References ===
+#
+# Bug#35342521	Binary log purge should hold IX backup lock
+#
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Initialization
+--echo #
+
+RESET MASTER;
+CREATE TABLE t1 (c INT);
+
+--let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH BINARY LOGS;
+--replace_column 2 SIZE
+SHOW BINARY LOGS;
+
+--connect (con1, localhost, root,,)
+
+--echo #
+--echo # Execute PURGE BINARY LOGS but stop on a sync point
+--echo #
+
+--let $rpl_connection_name = default
+--source include/rpl_connection.inc
+
+--eval PURGE BINARY LOGS TO '$binlog_file'
+--let $statement_connection = con1
+--let $statement = PURGE BINARY LOGS TO '$binlog_file'
+--let $sync_point = before_purge_logs
+--source include/execute_to_sync_point.inc
+
+--echo #
+--echo # Check errors for LOCK INSTANCE FOR BACKUP operation
+--echo #
+
+SET SESSION lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+LOCK INSTANCE FOR BACKUP;
+
+--echo #
+--echo # Continue PURGE BINARY LOGS operation
+--echo #
+
+# Resume PURGE LOGS
+--source include/execute_from_sync_point.inc
+
+--echo #
+--echo # Check no errors for LOCK INSTANCE FOR BACKUP operation
+--echo #
+
+LOCK INSTANCE FOR BACKUP;
+UNLOCK INSTANCE;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--let $rpl_connection_name = default
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
