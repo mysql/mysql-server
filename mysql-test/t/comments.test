@@ -101,3 +101,30 @@ DO 1 /*!80034+1*/;
 
 --echo # Space (0x20). Should pass without warning.
 DO 1 /*!80034 +1*/;
+
+--echo #
+--echo # Six digit version numbers.
+--echo #
+
+--echo # No whitespace after version number. Should be interpreted as five digit version number.
+# Interpreted as 1 + 1+0 + 0 in version 8.0.0 or higher (and not 1 + +0 + 0 in version 80.0.1 or higher).
+SELECT 1 + /*!800001+0 */ + 0 AS should_return_2;
+
+--echo # Horizontal tab (0x09). Should be interpreted as six digit version number.
+SELECT 1 /*!080100	+1*/ AS should_return_2;
+
+--echo # Line feed (0x0a). Should be interpreted as six digit version number.
+SELECT 1 /*!080100
++1*/ AS should_return_2;
+
+--echo # Vertical tab (0x0b). Should be interpreted as six digit version number.
+SELECT 1 /*!080100+1*/ AS should_return_2;
+
+--echo # Form feed (0x0c). Should be interpreted as six digit version number.
+SELECT 1 /*!080100+1*/ AS should_return_2;
+
+--echo # Carriage return (0x0d). Should be interpreted as six digit version number.
+SELECT 1 /*!080100+1*/ AS should_return_2;
+
+--echo # Space (0x20). Should be interpreted as six digit version number.
+SELECT 1 /*!080100 +1*/ AS should_return_2;

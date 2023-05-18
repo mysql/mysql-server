@@ -1892,31 +1892,41 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
 
           /*
             The special comment format is very strict:
-            '/' '*' '!', followed by exactly
-            1 digit (major), 2 digits (minor), then 2 digits (dot).
-            32302 -> 3.23.02
+            '/' '*' '!', followed by either
+
+            6 digits: 2 digits (major), 2 digits (mionr), 2 digits (dot), then a
+            white-space character.
+            032302 -> 3.23.2
+            050032 -> 5.0.32
+            050114 -> 5.1.14
+            100000 -> 10.0.0
+
+            or, if that format is not matched:
+
+            5 digits: 1 digit (major), 2 digits (minor), then 2 digits (dot).
+            32302 -> 3.23.2
             50032 -> 5.0.32
             50114 -> 5.1.14
           */
-          char version_str[6];
+          char version_str[7] = {0};
           if (my_isdigit(cs, (version_str[0] = lip->yyPeekn(0))) &&
               my_isdigit(cs, (version_str[1] = lip->yyPeekn(1))) &&
               my_isdigit(cs, (version_str[2] = lip->yyPeekn(2))) &&
               my_isdigit(cs, (version_str[3] = lip->yyPeekn(3))) &&
               my_isdigit(cs, (version_str[4] = lip->yyPeekn(4)))) {
-            if (!my_isspace(cs, lip->yyPeekn(5))) {
+            if (my_isdigit(cs, lip->yyPeekn(5)) &&
+                my_isspace(cs, lip->yyPeekn(6))) {
+              version_str[5] = lip->yyPeekn(5);
+            } else if (!my_isspace(cs, lip->yyPeekn(5))) {
               push_warning(thd, Sql_condition::SL_WARNING,
                            ER_WARN_NO_SPACE_VERSION_COMMENT,
                            ER_THD(thd, ER_WARN_NO_SPACE_VERSION_COMMENT));
             }
 
-            version_str[5] = 0;
-            ulong version;
-            version = strtol(version_str, nullptr, 10);
-
+            ulong version = strtol(version_str, nullptr, 10);
             if (version <= MYSQL_VERSION_ID) {
-              /* Accept 'M' 'm' 'm' 'd' 'd' */
-              lip->yySkipn(5);
+              /* Accept ('M') 'M' 'm' 'm' 'd' 'd' */
+              lip->yySkipn(strlen(version_str));
               /* Expand the content of the special comment as real code */
               lip->set_echo(true);
               state = MY_LEX_START;

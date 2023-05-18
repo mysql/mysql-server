@@ -13,8 +13,6 @@ select 1 /*!32301 +1 */;
 select 1 /*!999999 +1 */;
 1
 1
-Warnings:
-Warning	4164	Immediately starting the version comment after the version number is deprecated and may change behavior in a future release. Please insert a white-space character after the version number.
 select 1--1;
 1--1
 2
@@ -94,3 +92,37 @@ DO 1 /*!80034+1*/;
 DO 1 /*!80034+1*/;
 # Space (0x20). Should pass without warning.
 DO 1 /*!80034 +1*/;
+#
+# Six digit version numbers.
+#
+# No whitespace after version number. Should be interpreted as five digit version number.
+SELECT 1 + /*!800001+0 */ + 0 AS should_return_2;
+should_return_2
+2
+Warnings:
+Warning	4164	Immediately starting the version comment after the version number is deprecated and may change behavior in a future release. Please insert a white-space character after the version number.
+# Horizontal tab (0x09). Should be interpreted as six digit version number.
+SELECT 1 /*!080100	+1*/ AS should_return_2;
+should_return_2
+2
+# Line feed (0x0a). Should be interpreted as six digit version number.
+SELECT 1 /*!080100
++1*/ AS should_return_2;
+should_return_2
+2
+# Vertical tab (0x0b). Should be interpreted as six digit version number.
+SELECT 1 /*!080100+1*/ AS should_return_2;
+should_return_2
+2
+# Form feed (0x0c). Should be interpreted as six digit version number.
+SELECT 1 /*!080100+1*/ AS should_return_2;
+should_return_2
+2
+# Carriage return (0x0d). Should be interpreted as six digit version number.
+SELECT 1 /*!080100+1*/ AS should_return_2;
+should_return_2
+2
+# Space (0x20). Should be interpreted as six digit version number.
+SELECT 1 /*!080100 +1*/ AS should_return_2;
+should_return_2
+2
