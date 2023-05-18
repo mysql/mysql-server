@@ -47,10 +47,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/table_access_service.h"
 
 // pfs services
-#include "storage/perfschema/pfs.h"
-#include "storage/perfschema/pfs_plugin_table.h"
-
 #include <stddef.h>
+
 #include <new>
 #include <stdexcept>  // std::exception subclasses
 
@@ -58,6 +56,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "audit_api_message_service_imp.h"
 #include "component_status_var_service_imp.h"
 #include "component_sys_var_service_imp.h"
+#include "debug_keyword_service_imp.h"
+#include "debug_sync_service_imp.h"
 #include "dynamic_loader_path_filter_imp.h"
 #include "dynamic_loader_service_notification_imp.h"
 #include "event_tracking_information_imp.h"
@@ -98,6 +98,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/server_component/mysql_admin_session_imp.h"
 #include "sql/server_component/mysql_query_attributes_imp.h"
 #include "sql/udf_registration_imp.h"
+#include "storage/perfschema/pfs.h"
+#include "storage/perfschema/pfs_plugin_table.h"
 #include "storage/perfschema/pfs_services.h"
 #include "system_variable_source_imp.h"
 #include "thread_cleanup_register_imp.h"
@@ -106,7 +108,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 // Must come after sql/log.h.
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_sink_perfschema.h"
-
 #include "table_access_service_impl.h"
 
 /* Implementation located in the mysql_server component. */
@@ -626,6 +627,15 @@ Event_tracking_general_information_imp::init,
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, thread_cleanup_register)
 thread_cleanup_register_imp::register_cleanup END_SERVICE_IMPLEMENTATION();
 
+#if !defined(NDEBUG)
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_debug_keyword_service)
+mysql_debug_keyword_service_imp::lookup_debug_keyword
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_debug_sync_service)
+mysql_debug_sync_service_imp::debug_sync END_SERVICE_IMPLEMENTATION();
+#endif
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_stored_program_metadata_query)
 mysql_stored_program_metadata_query_imp::get END_SERVICE_IMPLEMENTATION();
 
@@ -958,6 +968,10 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_stored_program_return_value_float),
     PROVIDES_SERVICE(mysql_server, thread_cleanup_register),
     PROVIDES_SERVICE(mysql_server, mysql_simple_error_log),
+#if !defined(NDEBUG)
+    PROVIDES_SERVICE(mysql_server, mysql_debug_keyword_service),
+    PROVIDES_SERVICE(mysql_server, mysql_debug_sync_service),
+#endif
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

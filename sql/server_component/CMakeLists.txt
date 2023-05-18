@@ -26,6 +26,8 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   clone_protocol_service.cc
   component_status_var_service.cc
   component_sys_var_service.cc
+  debug_keyword_service_imp.cc
+  debug_sync_service_imp.cc
   dynamic_loader_path_filter.cc
   host_application_signal_imp.cc
   keyring_iterator_service_imp.cc
