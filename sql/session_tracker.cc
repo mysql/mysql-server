@@ -356,7 +356,7 @@ class Session_gtids_tracker
      Unregister the listener if the tracker is being freed. This is needed
      since this may happen after a change user command.
      */
-    if (m_enabled && current_thd)
+    if (current_thd)
       current_thd->rpl_thd_ctx.session_gtids_ctx()
           .unregister_ctx_change_listener(this);
     if (m_encoder) delete m_encoder;
