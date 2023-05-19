@@ -27,19 +27,26 @@
   @file include/password.h
 */
 
+#include "config.h"
+
+#if !defined(WITHOUT_MYSQL_NATIVE_PASSWORD) || \
+    WITHOUT_MYSQL_NATIVE_PASSWORD == 0
 #include <stddef.h>
 #include <sys/types.h>
-
 #include "my_macros.h"
-
-struct rand_struct *get_sql_rand();
-
-// extern "C" since it is an (undocumented) part of the libmysql ABI.
-extern "C" void my_make_scrambled_password(char *to, const char *password,
-                                           size_t pass_len);
 void my_make_scrambled_password_sha1(char *to, const char *password,
                                      size_t pass_len);
+/*
+  These functions are used for authentication by client and
+  implemented in sql-common/mysql_native_password_client.cc
+*/
 
-void hash_password(ulong *result, const char *password, uint password_len);
+void make_scrambled_password(char *to, const char *password);
+void scramble(char *to, const char *message, const char *password);
+bool check_scramble(const unsigned char *reply, const char *message,
+                    const unsigned char *hash_stage2);
+void get_salt_from_password(unsigned char *res, const char *password);
+void make_password_from_salt(char *to, const unsigned char *hash_stage2);
+#endif
 
 #endif /* PASSWORD_INCLUDED */

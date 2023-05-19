@@ -806,6 +806,12 @@ SET(SQL_SOURCE
   srv_session_service.cc
   )
 
+IF ((NOT WITHOUT_MYSQL_NATIVE_PASSWORD)
+  OR (WITHOUT_MYSQL_NATIVE_PASSWORD EQUAL 0))
+  LIST(APPEND SQL_SOURCE ../sql-common/mysql_native_authentication_client.cc)
+ENDIF()
+
+
 IF(NOT HAVE_SETNS)
   LIST(REMOVE_ITEM SQL_SOURCE ../sql-common/net_ns.cc)
 ENDIF()
@@ -937,6 +943,12 @@ ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
+
+MYSQL_ADD_PLUGIN(mysql_native_password
+  auth/mysql_native_password.cc
+  SYSTEM_INCLUDE_DIRECTORIES "${RAPIDJSON_INCLUDE_DIR}"
+  STATIC_ONLY DEFAULT)
+
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys strings vio
   binlogevents_static ${LIBWRAP} ${LIBDL} ${SSL_LIBRARIES}

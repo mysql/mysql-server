@@ -754,7 +754,7 @@ MySQL clients support the protocol:
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
-#include "mysql_com.h"
+#include "my_rnd.h"
 #include "mysql_time.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"

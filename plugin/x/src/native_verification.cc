@@ -26,6 +26,7 @@
 
 #include <cstdint>
 
+#include "config.h"
 #include "my_inttypes.h"  // fix 'ulong' in 'password.h' NOLINT(build/include_subdir)
 #include "mysql_com.h"  // NOLINT(build/include_subdir)
 #include "password.h"   // NOLINT(build/include_subdir)
@@ -39,12 +40,17 @@ bool Native_verification::verify_authentication_string(
 
   if (db_string.empty()) return false;
 
+#if !defined(WITHOUT_MYSQL_NATIVE_PASSWORD) || \
+    WITHOUT_MYSQL_NATIVE_PASSWORD == 0
   uint8_t db_hash[SCRAMBLE_LENGTH + 1] = {0};
   uint8_t user_hash[SCRAMBLE_LENGTH + 1] = {0};
   ::get_salt_from_password(db_hash, db_string.c_str());
   ::get_salt_from_password(user_hash, client_string.c_str());
   return 0 == ::check_scramble(static_cast<const uint8_t *>(user_hash),
                                k_salt.c_str(), db_hash);
+#else
+  return false;
+#endif
 }
 
 }  // namespace xpl

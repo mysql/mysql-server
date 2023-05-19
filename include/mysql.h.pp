@@ -251,24 +251,6 @@ typedef long long (*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, unsigned char *,
 typedef char *(*Udf_func_string)(UDF_INIT *, UDF_ARGS *, char *,
                                  unsigned long *, unsigned char *,
                                  unsigned char *);
-void randominit(struct rand_struct *, unsigned long seed1, unsigned long seed2);
-double my_rnd(struct rand_struct *);
-void create_random_string(char *to, unsigned int length,
-                          struct rand_struct *rand_st);
-void hash_password(unsigned long *to, const char *password,
-                   unsigned int password_len);
-void make_scrambled_password_323(char *to, const char *password);
-void scramble_323(char *to, const char *message, const char *password);
-bool check_scramble_323(const unsigned char *reply, const char *message,
-                        unsigned long *salt);
-void get_salt_from_password_323(unsigned long *res, const char *password);
-void make_password_from_salt_323(char *to, const unsigned long *salt);
-void make_scrambled_password(char *to, const char *password);
-void scramble(char *to, const char *message, const char *password);
-bool check_scramble(const unsigned char *reply, const char *message,
-                    const unsigned char *hash_stage2);
-void get_salt_from_password(unsigned char *res, const char *password);
-void make_password_from_salt(char *to, const unsigned char *hash_stage2);
 char *octet2hex(char *to, const char *str, unsigned int len);
 bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
                               const char *src, size_t src_size, const char *rnd,

@@ -206,6 +206,12 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
   )
 ENDIF()
 
+IF ((NOT WITHOUT_MYSQL_NATIVE_PASSWORD)
+  OR (WITHOUT_MYSQL_NATIVE_PASSWORD EQUAL 0))
+  LIST(APPEND CLIENT_SOURCES
+    ../sql-common/mysql_native_authentication_client.cc)
+ENDIF()
+
 #
 # Include protocol tracing infrastructure and the test
 # trace plugin if enabled by build options.

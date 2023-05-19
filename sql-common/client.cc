@@ -68,6 +68,7 @@
 #include "base64.h"
 #include "client_async_authentication.h"
 #include "compression.h"  // validate_compression_attributes
+#include "config.h"
 #include "errmsg.h"
 #include "lex_string.h"
 #include "map_helpers.h"
@@ -88,6 +89,7 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/strings/int2str.h"
+#include "mysql_native_authentication_client.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "strmake.h"
@@ -156,7 +158,6 @@ using std::swap;
         list_add(M->info_list[type].head_node, element); \
   }
 
-#define native_password_plugin_name "mysql_native_password"
 #define caching_sha2_password_plugin_name "caching_sha2_password"
 
 PSI_memory_key key_memory_mysql_options;
@@ -4004,26 +4005,7 @@ int mysql_init_character_set(MYSQL *mysql) {
 static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO *, const uchar *, int);
 static net_async_status client_mpvio_write_packet_nonblocking(
     struct MYSQL_PLUGIN_VIO *, const uchar *, int, int *);
-static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
-static net_async_status native_password_auth_client_nonblocking(
-    MYSQL_PLUGIN_VIO *vio, MYSQL *mysql, int *result);
 static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
-
-static auth_plugin_t native_password_client_plugin = {
-    MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
-    MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
-    native_password_plugin_name,
-    MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE,
-    "Native MySQL authentication",
-    {1, 0, 0},
-    "GPL",
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    native_password_auth_client,
-    native_password_auth_client_nonblocking};
 
 static auth_plugin_t clear_password_client_plugin = {
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
@@ -4088,7 +4070,10 @@ extern auth_plugin_t test_trace_plugin;
 #endif
 
 struct st_mysql_client_plugin *mysql_client_builtins[] = {
+#if !defined(WITHOUT_MYSQL_NATIVE_PASSWORD) || \
+    WITHOUT_MYSQL_NATIVE_PASSWORD == 0
     (struct st_mysql_client_plugin *)&native_password_client_plugin,
+#endif
     (struct st_mysql_client_plugin *)&clear_password_client_plugin,
     (struct st_mysql_client_plugin *)&sha256_password_client_plugin,
     (struct st_mysql_client_plugin *)&caching_sha2_password_client_plugin,
@@ -9519,136 +9504,6 @@ const char *STDCALL mysql_sqlstate(MYSQL *mysql) {
   return mysql ? mysql->net.sqlstate : cant_connect_sqlstate;
 }
 
-/**
-  Client authentication plugin that does native MySQL authentication
-   using a 20-byte (4.1+) scramble
-
-   @param vio    the channel to operate on
-   @param mysql  the MYSQL structure to operate on
-
-   @retval -1    ::CR_OK : Success
-   @retval 1     ::CR_ERROR : error reading
-   @retval 2012  ::CR_SERVER_HANDSHAKE_ERR : malformed handshake data
-*/
-static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
-  int pkt_len;
-  uchar *pkt;
-
-  DBUG_TRACE;
-
-  /* read the scramble */
-  if ((pkt_len = vio->read_packet(vio, &pkt)) < 0) return CR_ERROR;
-
-  if (pkt_len != SCRAMBLE_LENGTH + 1) return CR_SERVER_HANDSHAKE_ERR;
-
-  /* save it in MYSQL */
-  memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
-  mysql->scramble[SCRAMBLE_LENGTH] = 0;
-
-  if (mysql->passwd[0]) {
-    char scrambled[SCRAMBLE_LENGTH + 1];
-    DBUG_PRINT("info", ("sending scramble"));
-    scramble(scrambled, (char *)pkt, mysql->passwd);
-    if (vio->write_packet(vio, (uchar *)scrambled, SCRAMBLE_LENGTH))
-      return CR_ERROR;
-  } else {
-    DBUG_PRINT("info", ("no password"));
-    if (vio->write_packet(vio, nullptr, 0)) /* no password */
-      return CR_ERROR;
-  }
-
-  return CR_OK;
-}
-
-/**
-  Client authentication plugin that does native MySQL authentication
-  in a nonblocking way.
-
-   @param[in]    vio    the channel to operate on
-   @param[in]    mysql  the MYSQL structure to operate on
-   @param[out]   result CR_OK : Success, CR_ERROR : error reading,
-                        CR_SERVER_HANDSHAKE_ERR : malformed handshake data
-
-   @retval     NET_ASYNC_NOT_READY  authentication not yet complete
-   @retval     NET_ASYNC_COMPLETE   authentication done
-*/
-static net_async_status native_password_auth_client_nonblocking(
-    MYSQL_PLUGIN_VIO *vio, MYSQL *mysql, int *result) {
-  DBUG_TRACE;
-  int io_result;
-  uchar *pkt;
-  mysql_async_auth *ctx = ASYNC_DATA(mysql)->connect_context->auth_context;
-
-  switch (static_cast<client_auth_native_password_plugin_status>(
-      ctx->client_auth_plugin_state)) {
-    case client_auth_native_password_plugin_status::NATIVE_READING_PASSWORD:
-      if (((MCPVIO_EXT *)vio)->mysql_change_user) {
-        /* mysql_change_user_nonblocking not implemented yet. */
-        assert(false);
-      } else {
-        /* read the scramble */
-        const net_async_status status =
-            vio->read_packet_nonblocking(vio, &pkt, &io_result);
-        if (status == NET_ASYNC_NOT_READY) {
-          return NET_ASYNC_NOT_READY;
-        }
-
-        if (io_result < 0) {
-          *result = CR_ERROR;
-          return NET_ASYNC_COMPLETE;
-        }
-
-        if (io_result != SCRAMBLE_LENGTH + 1) {
-          *result = CR_SERVER_HANDSHAKE_ERR;
-          return NET_ASYNC_COMPLETE;
-        }
-
-        /* save it in MYSQL */
-        memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
-        mysql->scramble[SCRAMBLE_LENGTH] = 0;
-      }
-      ctx->client_auth_plugin_state = (int)
-          client_auth_native_password_plugin_status::NATIVE_WRITING_RESPONSE;
-
-      [[fallthrough]];
-
-    case client_auth_native_password_plugin_status::NATIVE_WRITING_RESPONSE:
-      if (mysql->passwd[0]) {
-        char scrambled[SCRAMBLE_LENGTH + 1];
-        DBUG_PRINT("info", ("sending scramble"));
-        scramble(scrambled, (char *)pkt, mysql->passwd);
-        const net_async_status status = vio->write_packet_nonblocking(
-            vio, (uchar *)scrambled, SCRAMBLE_LENGTH, &io_result);
-        if (status == NET_ASYNC_NOT_READY) {
-          return NET_ASYNC_NOT_READY;
-        }
-
-        if (io_result < 0) {
-          *result = CR_ERROR;
-          return NET_ASYNC_COMPLETE;
-        }
-      } else {
-        DBUG_PRINT("info", ("no password"));
-        const net_async_status status = vio->write_packet_nonblocking(
-            vio, nullptr, 0, &io_result); /* no password */
-
-        if (status == NET_ASYNC_NOT_READY) {
-          return NET_ASYNC_NOT_READY;
-        }
-
-        if (io_result < 0) {
-          *result = CR_ERROR;
-          return NET_ASYNC_COMPLETE;
-        }
-      }
-      break;
-    default:
-      assert(0);
-  }
-
-  *result = CR_OK;
-  return NET_ASYNC_COMPLETE;
-}
 /* clang-format off */
 /**
   @page page_protocol_connection_phase_authentication_methods_clear_text_password Clear text client plugin

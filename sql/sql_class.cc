@@ -36,6 +36,7 @@
 #include "mutex_lock.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_rnd.h"
 #include "my_systime.h"
 #include "my_thread.h"
 #include "my_time.h"

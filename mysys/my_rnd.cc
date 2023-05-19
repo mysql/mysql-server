@@ -34,10 +34,19 @@
 #include <mysql_com.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
+#include "my_inttypes.h"  // uint
 
 /*
   A wrapper to use OpenSSL PRNGs.
 */
+
+void randominit(struct rand_struct *rand_st, ulong seed1,
+                ulong seed2) { /* For mysql 3.21.# */
+  rand_st->max_value = 0x3FFFFFFFL;
+  rand_st->max_value_dbl = (double)rand_st->max_value;
+  rand_st->seed1 = seed1 % rand_st->max_value;
+  rand_st->seed2 = seed2 % rand_st->max_value;
+}
 
 /**
   Generate random number.
