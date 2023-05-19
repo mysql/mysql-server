@@ -1839,7 +1839,6 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
   expressions, and Items performing CAST-like tasks, such as JSON_VALUE.
 
   @param thd        thread handler
-  @param pos        the location of the expression
   @param arg        the value to cast
   @param cast_type  the target type of the cast
   @param as_array   true if the target type is an array type
@@ -1847,11 +1846,15 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
   @param[out] precision  gets set to the precision of the target type
   @return true on error, false on success
 */
-static bool validate_cast_type_and_extract_length(
-    const THD *thd, const POS &pos, Item *arg, const Cast_type &cast_type,
-    bool as_array, int64_t *length, uint *precision) {
+static bool validate_cast_type_and_extract_length(const THD *thd, Item *arg,
+                                                  const Cast_type &cast_type,
+                                                  bool as_array,
+                                                  int64_t *length,
+                                                  uint *precision) {
   // earlier syntax error detected
   if (arg == nullptr) return true;
+
+  const POS pos(arg->m_pos);
 
   if (as_array) {
     // Disallow arrays in stored routines.
@@ -2079,8 +2082,8 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *arg,
                        const Cast_type &type, bool as_array) {
   int64_t length = 0;
   unsigned precision = 0;
-  if (validate_cast_type_and_extract_length(thd, pos, arg, type, as_array,
-                                            &length, &precision))
+  if (validate_cast_type_and_extract_length(thd, arg, type, as_array, &length,
+                                            &precision))
     return nullptr;
 
   if (as_array) {
@@ -2147,8 +2150,8 @@ Item *create_func_json_value(THD *thd, const POS &pos, Item *arg, Item *path,
                              Item *on_error_default) {
   int64_t length = 0;
   unsigned precision = 0;
-  if (validate_cast_type_and_extract_length(thd, pos, arg, cast_type, false,
-                                            &length, &precision))
+  if (validate_cast_type_and_extract_length(thd, arg, cast_type, false, &length,
+                                            &precision))
     return nullptr;
 
   // Create dummy items for the default values, if they haven't been specified.

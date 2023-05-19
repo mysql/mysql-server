@@ -2002,6 +2002,13 @@ void Item_typecast_decimal::print(const THD *thd, String *str,
   str->append(')');
 }
 
+void Item_typecast_decimal::add_json_info(Json_object *obj) {
+  const uint precision =
+      my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
+  obj->add_alias("precision", create_dom_ptr<Json_uint>(precision));
+  obj->add_alias("scale", create_dom_ptr<Json_uint>(decimals));
+}
+
 String *Item_typecast_real::val_str(String *str) {
   return val_string_from_real(str);
 }
@@ -7788,6 +7795,15 @@ void Item_func_match::print(const THD *thd, String *str,
   else if (flags & FT_EXPAND)
     str->append(STRING_WITH_LEN(" with query expansion"));
   str->append(STRING_WITH_LEN("))"));
+}
+
+void Item_func_match::add_json_info(Json_object *obj) {
+  if (flags & FT_BOOL)
+    obj->add_alias("match_options",
+                   create_dom_ptr<Json_string>("in boolean mode"));
+  else if (flags & FT_EXPAND)
+    obj->add_alias("match_options",
+                   create_dom_ptr<Json_string>("with query expansion"));
 }
 
 /**

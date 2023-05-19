@@ -1408,6 +1408,8 @@ void warn_on_deprecated_user_defined_collation(
 
 %token                DOLLAR_QUOTED_STRING_SYM   1204   /* INTERNAL (used in lexer) */
 
+%token<lexer.keyword> PARSE_TREE_SYM     1205      /* MYSQL */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -1944,6 +1946,7 @@ void warn_on_deprecated_user_defined_collation(
         show_keys_stmt
         show_master_status_stmt
         show_open_tables_stmt
+        show_parse_tree_stmt
         show_plugins_stmt
         show_privileges_stmt
         show_procedure_code_stmt
@@ -2444,6 +2447,7 @@ simple_statement:
         | show_keys_stmt
         | show_master_status_stmt
         | show_open_tables_stmt
+        | show_parse_tree_stmt
         | show_plugins_stmt
         | show_privileges_stmt
         | show_procedure_code_stmt
@@ -9882,7 +9886,7 @@ select_stmt_with_into:
           '(' select_stmt_with_into ')'
           {
             $$ = $2;
-            $$->m_pos = @$;
+            if ($$ != nullptr) $$->m_pos = @$;
           }
         | query_expression into_clause
           {
@@ -9975,11 +9979,11 @@ query_expression_body:
 query_expression_parens:
           '(' query_expression_parens ')'
           { $$ = $2;
-            $$->m_pos = @$;
+            if ($$ != nullptr) $$->m_pos = @$;
           }
         | '(' query_expression_with_opt_locking_clauses')'
           { $$ = $2;
-            $$->m_pos = @$;
+            if ($$ != nullptr) $$->m_pos = @$;
           }
         ;
 
@@ -10317,7 +10321,7 @@ predicate:
           }
         | bit_expr IN_SYM '(' expr ')'
           {
-            $$= NEW_PTN PTI_handle_sql2003_note184_exception(@$, $1, true, $4);
+            $$= NEW_PTN PTI_handle_sql2003_note184_exception(@$, $1, false, $4);
           }
         | bit_expr IN_SYM '(' expr ',' expr_list ')'
           {
@@ -10328,7 +10332,7 @@ predicate:
           }
         | bit_expr not IN_SYM '(' expr ')'
           {
-            $$= NEW_PTN PTI_handle_sql2003_note184_exception(@$, $1, false, $5);
+            $$= NEW_PTN PTI_handle_sql2003_note184_exception(@$, $1, true, $5);
           }
         | bit_expr not IN_SYM '(' expr ',' expr_list ')'
           {
@@ -10523,6 +10527,7 @@ simple_expr:
         | '+' simple_expr %prec NEG
           {
             $$= $2; // TODO: do we really want to ignore unary '+' before any kind of literals?
+            if ($$ != nullptr) $$->m_pos = @$;
           }
         | '-' simple_expr %prec NEG
           {
@@ -10540,7 +10545,11 @@ simple_expr:
           {
             $$= NEW_PTN PTI_singlerow_subselect(@$, $1);
           }
-        | '(' expr ')' { $$= $2; }
+        | '(' expr ')'
+          {
+            $$= $2;
+            if ($$ != nullptr) $$->m_pos = @$;
+          }
         | '(' expr ',' expr_list ')'
           {
             $$= NEW_PTN Item_row(@$, $2, $4->value);
@@ -10564,11 +10573,11 @@ simple_expr:
         | BINARY_SYM simple_expr %prec NEG
           {
             push_deprecated_warn(YYTHD, "BINARY expr", "CAST");
-            $$= create_func_cast(YYTHD, @2, $2, ITEM_CAST_CHAR, &my_charset_bin);
+            $$= create_func_cast(YYTHD, @$, $2, ITEM_CAST_CHAR, &my_charset_bin);
           }
         | CAST_SYM '(' expr AS cast_type opt_array_cast ')'
           {
-            $$= create_func_cast(YYTHD, @3, $3, $5, $6);
+            $$= create_func_cast(YYTHD, @$, $3, $5, $6);
           }
         | CAST_SYM '(' expr AT_SYM LOCAL_SYM AS cast_type opt_array_cast ')'
           {
@@ -10580,7 +10589,7 @@ simple_expr:
             Cast_type cast_type{ITEM_CAST_DATETIME, nullptr, nullptr, $11};
             auto datetime_factor =
                 NEW_PTN Item_func_at_time_zone(@3, $3, $8.str, $7);
-            $$ = create_func_cast(YYTHD, @3, datetime_factor, cast_type, false);
+            $$ = create_func_cast(YYTHD, @$, datetime_factor, cast_type, false);
           }
         | CASE_SYM opt_expr when_list opt_else END
           {
@@ -10588,7 +10597,7 @@ simple_expr:
           }
         | CONVERT_SYM '(' expr ',' cast_type ')'
           {
-            $$= create_func_cast(YYTHD, @3, $3, $5, false);
+            $$= create_func_cast(YYTHD, @$, $3, $5, false);
           }
         | CONVERT_SYM '(' expr USING charset_name ')'
           {
@@ -10610,14 +10619,14 @@ simple_expr:
         | simple_ident JSON_SEPARATOR_SYM TEXT_STRING_literal
           {
             Item_string *path=
-              NEW_PTN Item_string(@$, $3.str, $3.length,
+              NEW_PTN Item_string(@3, $3.str, $3.length,
                                   YYTHD->variables.collation_connection);
             $$= NEW_PTN Item_func_json_extract(YYTHD, @$, $1, path);
           }
          | simple_ident JSON_UNQUOTED_SEPARATOR_SYM TEXT_STRING_literal
           {
             Item_string *path=
-              NEW_PTN Item_string(@$, $3.str, $3.length,
+              NEW_PTN Item_string(@3, $3.str, $3.length,
                                   YYTHD->variables.collation_connection);
             Item *extr= NEW_PTN Item_func_json_extract(YYTHD, @$, $1, path);
             $$= NEW_PTN Item_func_json_unquote(@$, extr);
@@ -11030,7 +11039,7 @@ geometry_function:
 function_call_generic:
           IDENT_sys '(' opt_udf_expr_list ')'
           {
-            $$= NEW_PTN PTI_function_call_generic_ident_sys(@1, $1, $3);
+            $$= NEW_PTN PTI_function_call_generic_ident_sys(@$, $1, $3);
           }
         | ident '.' ident '(' opt_expr_list ')'
           {
@@ -11389,7 +11398,7 @@ window_spec:
           '(' window_spec_details ')'
           {
             $$= $2;
-            $$->m_pos = @$;
+            if ($$ != nullptr) $$->m_pos = @$;
           }
         ;
 
@@ -11432,6 +11441,7 @@ opt_partition_clause:
         | PARTITION_SYM BY group_list
           {
             $$= $3;
+            if ($$ != nullptr) $$->m_pos = @$;
           }
         ;
 
@@ -11443,6 +11453,7 @@ opt_window_order_by_clause:
         | ORDER_SYM BY order_list
           {
             $$= $3;
+            if ($$ != nullptr) $$->m_pos = @$;
           }
         ;
 
@@ -11814,6 +11825,8 @@ expr_list:
             if ($1 == NULL || $1->push_back($3))
               MYSQL_YYABORT;
             $$= $1;
+            // This will override location of earlier list, until we get the
+            // whole location.
             $$->m_pos = @$;
           }
         ;
@@ -11835,8 +11848,6 @@ ident_list:
             if ($1 == NULL || $1->push_back($3))
               MYSQL_YYABORT;
             $$= $1;
-            // This will override location of earlier list, until we get the
-            // whole location.
             $$->m_pos = @$;
           }
         ;
@@ -13970,6 +13981,17 @@ show_create_user_stmt:
           }
         ;
 
+show_parse_tree_stmt:
+          SHOW PARSE_TREE_SYM simple_statement
+          {
+#ifndef WITH_SHOW_PARSE_TREE
+            YYTHD->syntax_error_at(@2);
+            MYSQL_YYABORT;
+#endif
+            $$ = NEW_PTN PT_show_parse_tree(@$, $3);
+          }
+        ;
+
 engine_or_all:
           ident_or_text
         | ALL           { $$ = {}; }
@@ -15575,6 +15597,7 @@ ident_keywords_unambiguous:
         | PACK_KEYS_SYM
         | PAGE_SYM
         | PARSER_SYM
+        | PARSE_TREE_SYM
         | PARTIAL
         | PARTITIONING_SYM
         | PARTITIONS_SYM

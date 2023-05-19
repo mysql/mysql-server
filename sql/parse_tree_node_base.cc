@@ -21,12 +21,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/parse_tree_node_base.h"
-
 #include "sql/query_term.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
-Parse_context::Parse_context(THD *thd_arg, Query_block *sl_arg)
-    : thd(thd_arg),
+
+#ifdef HAVE_ABI_CXA_DEMANGLE
+#include <cxxabi.h>
+#endif
+
+Parse_context::Parse_context(THD *thd_arg, Query_block *sl_arg,
+                             bool show_parse_tree,
+                             Show_parse_tree *parent_show_parent_tree)
+    : Parse_context_base(show_parse_tree, parent_show_parent_tree),
+      thd(thd_arg),
       mem_root(thd->mem_root),
       select(sl_arg),
       m_stack(thd->mem_root) {
@@ -70,4 +77,125 @@ bool Parse_context::is_top_level_union_all(Surrounding_context op) {
     }
   }
   return true;
+}
+
+/**
+  Given a mangled class name, return an unmangled one.
+ */
+static std::string unmangle_typename(const char *name) {
+#ifdef HAVE_ABI_CXA_DEMANGLE
+  int status = 0;
+  char *const readable_name =
+      abi::__cxa_demangle(name, nullptr, nullptr, &status);
+  if (status == 0) {
+    std::string ret_string = readable_name;
+    free(readable_name);
+    return ret_string;
+  }
+#endif
+  // Failback mechanism.
+  // Exclude the leading mangled characters from the class name. The assumption
+  // is that the class names start with PT_, PTI_ or Item_, since they are
+  // derived from either Parse_tree_node, Item or Parse_tree_root.
+  std::string class_name(name);
+  size_t strpos = class_name.find("PT_");
+  if (strpos == std::string::npos) strpos = class_name.find("PTI_");
+  if (strpos == std::string::npos) strpos = class_name.find("Item_");
+  if (strpos == std::string::npos) strpos = 0;
+  return class_name.substr(strpos);
+}
+
+bool Show_parse_tree::push_level(const POS &pos, const char *typname) {
+  Json_object *ret_obj = new (std::nothrow) Json_object;
+  if (ret_obj == nullptr) return true;  // OOM
+
+  // If position is not set, can't extract the text of the SQL clause.
+  if (!pos.is_empty()) {
+    ret_obj->add_alias(
+        "text", create_dom_ptr<Json_string>(pos.cpp.start, pos.cpp.length()));
+
+    // If this is the very first object, treat it's position as a reference
+    // position. All the subsequent objects' positions will be relative to this
+    // position.
+    if (m_json_obj_stack.empty()) m_reference_pos = pos.cpp.start;
+
+    // Position is required to sort children.
+    ret_obj->add_alias(
+        "startpos", create_dom_ptr<Json_int>(pos.cpp.start - m_reference_pos));
+  }
+
+  // Assign the class name as the node type.
+  std::string unmangled_name = unmangle_typename(typname);
+  if (unmangled_name.empty()) return true;  // Unexpected.
+  ret_obj->add_alias("type", create_dom_ptr<Json_string>(unmangled_name));
+
+  m_json_obj_stack.push_back(ret_obj);
+  return false;
+}
+
+Json_object *Show_parse_tree::pop_json_object() {
+  Json_object *obj = m_json_obj_stack.back();
+
+  m_json_obj_stack.pop_back();
+
+  // Object is being popped out; it implies that we are done adding children for
+  // this object. So it's time to sort the children by their syntax position.
+  Json_array *children = dynamic_cast<Json_array *>(obj->get("components"));
+  if (children != nullptr) {
+    children->sort(m_comparator);
+    // Don't require the position field anymore, now that sorting is done.
+    for (size_t i = 0; i < children->size(); ++i) {
+      (down_cast<Json_object *>((*children)[i]))->remove("startpos");
+    }
+  }
+  return obj;
+}
+
+std::string Show_parse_tree::get_parse_tree() {
+  if (m_root_obj == nullptr) return "";
+
+  // This will be the root node. Serialize the JSON tree to a string.
+  Json_wrapper wrapper(m_root_obj.get(), /*alias=*/true);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> jsonstring;
+  if (wrapper.to_pretty_string(&jsonstring, "Show_parse_tree::get_parse_tree()",
+                               JsonDocumentDefaultDepthHandler)) {
+    return "";
+  }
+  return {jsonstring.ptr(), jsonstring.length()};
+}
+
+/**
+  If there is a current parent, assign this object as child of that parent.
+  If there is no parent, make this object the root of this parse tree,
+  unless there is a parent parse tree in which case make this object a child
+  of the parent explain tree's leaf parent.
+*/
+bool Show_parse_tree::make_child(Json_object *obj) {
+  Json_object *parent = get_current_parent();
+
+  if (parent == nullptr && m_parent_show_parse_tree != nullptr) {
+    parent = m_parent_show_parse_tree->get_current_parent();
+    assert(parent != nullptr);
+  }
+  if (parent == nullptr) {
+    // This will be the root node.
+    m_root_obj = std::unique_ptr<Json_object>(obj);
+    // It's the parent that removes it's children's position field. Since this
+    // is the root node, we need to explicitly remove it's position because
+    // there is no parent.
+    obj->remove("startpos");
+  } else {
+    Json_array *children =
+        dynamic_cast<Json_array *>(parent->get("components"));
+    // If parent has no children yet, create a new array for it's children.
+    if (children == nullptr) {
+      children = new (std::nothrow) Json_array();
+      if (children == nullptr) return true;
+      parent->add_alias("components", std::unique_ptr<Json_array>(children));
+    }
+    // Add this obj as one of the children of the parent.
+    children->append_alias(std::unique_ptr<Json_object>(obj));
+  }
+
+  return false;
 }

@@ -1,0 +1,2579 @@
+SHOW PARSE_TREE SELECT t3.col3, t1.col1 / t2. col2 FROM tab t1
+JOIN tab t2 ON t1.col1=t2.col2 JOIN tab t3 ON t1.col1 <= t3.col3;
+Show_parse_tree
+{
+  "text": "SELECT t3.col3, t1.col1 / t2. col2 FROM tab t1\nJOIN tab t2 ON t1.col1=t2.col2 JOIN tab t3 ON t1.col1 <= t3.col3",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT t3.col3, t1.col1 / t2. col2 FROM tab t1\nJOIN tab t2 ON t1.col1=t2.col2 JOIN tab t3 ON t1.col1 <= t3.col3",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT t3.col3, t1.col1 / t2. col2 FROM tab t1\nJOIN tab t2 ON t1.col1=t2.col2 JOIN tab t3 ON t1.col1 <= t3.col3",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "t3.col3, t1.col1 / t2. col2",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "t3.col3",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "t3.col3",
+                      "type": "PTI_simple_ident_q_2d"
+                    }
+                  ]
+                },
+                {
+                  "text": "t1.col1 / t2. col2",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "t1.col1 / t2. col2",
+                      "type": "Item_func_div",
+                      "components": [
+                        {
+                          "text": "t1.col1",
+                          "type": "PTI_simple_ident_q_2d"
+                        },
+                        {
+                          "text": "t2. col2",
+                          "type": "PTI_simple_ident_q_2d"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "PT_joined_table_on",
+              "join_type": "INNER JOIN",
+              "components": [
+                {
+                  "type": "PT_joined_table_on",
+                  "join_type": "INNER JOIN",
+                  "components": [
+                    {
+                      "text": "tab t1",
+                      "type": "PT_table_factor_table_ident",
+                      "table_alias": "t1",
+                      "table_ident": "`tab`"
+                    },
+                    {
+                      "text": "tab t2",
+                      "type": "PT_table_factor_table_ident",
+                      "table_alias": "t2",
+                      "table_ident": "`tab`"
+                    },
+                    {
+                      "text": "t1.col1=t2.col2",
+                      "type": "PTI_comp_op",
+                      "operator": "=",
+                      "components": [
+                        {
+                          "text": "t1.col1",
+                          "type": "PTI_simple_ident_q_2d"
+                        },
+                        {
+                          "text": "t2.col2",
+                          "type": "PTI_simple_ident_q_2d"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "tab t3",
+                  "type": "PT_table_factor_table_ident",
+                  "table_alias": "t3",
+                  "table_ident": "`tab`"
+                },
+                {
+                  "text": "t1.col1 <= t3.col3",
+                  "type": "PTI_comp_op",
+                  "operator": "<=",
+                  "components": [
+                    {
+                      "text": "t1.col1",
+                      "type": "PTI_simple_ident_q_2d"
+                    },
+                    {
+                      "text": "t3.col3",
+                      "type": "PTI_simple_ident_q_2d"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT a, b, func(c), SUM(c) OVER (PARTITION BY a,b ) FROM Y;
+Show_parse_tree
+{
+  "text": "SELECT a, b, func(c), SUM(c) OVER (PARTITION BY a,b ) FROM Y",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT a, b, func(c), SUM(c) OVER (PARTITION BY a,b ) FROM Y",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT a, b, func(c), SUM(c) OVER (PARTITION BY a,b ) FROM Y",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "a, b, func(c), SUM(c) OVER (PARTITION BY a,b )",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "a",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "a",
+                      "type": "PTI_simple_ident_ident"
+                    }
+                  ]
+                },
+                {
+                  "text": "b",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "b",
+                      "type": "PTI_simple_ident_ident"
+                    }
+                  ]
+                },
+                {
+                  "text": "func(c)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "func(c)",
+                      "type": "PTI_function_call_generic_ident_sys",
+                      "func_name": "func",
+                      "components": [
+                        {
+                          "text": "c",
+                          "type": "PTI_udf_expr",
+                          "components": [
+                            {
+                              "text": "c",
+                              "type": "PTI_simple_ident_ident"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "SUM(c) OVER (PARTITION BY a,b )",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "SUM(c) OVER (PARTITION BY a,b )",
+                      "type": "Item_sum_sum",
+                      "distinct": false,
+                      "components": [
+                        {
+                          "text": "c",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "(PARTITION BY a,b )",
+                          "type": "PT_window",
+                          "components": [
+                            {
+                              "text": "PARTITION BY a,b",
+                              "type": "PT_order_list",
+                              "components": [
+                                {
+                                  "desc": false,
+                                  "text": "a",
+                                  "type": "PT_order_expr",
+                                  "components": [
+                                    {
+                                      "text": "a",
+                                      "type": "PTI_simple_ident_ident"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "desc": false,
+                                  "text": "b",
+                                  "type": "PT_order_expr",
+                                  "components": [
+                                    {
+                                      "text": "b",
+                                      "type": "PTI_simple_ident_ident"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "Y",
+              "type": "PT_table_factor_table_ident",
+              "table_ident": "`Y`"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT a, b, c, SUM(c) OVER
+(PARTITION BY a,b
+OrDER              BY a,b RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+FROM Y;
+Show_parse_tree
+{
+  "text": "SELECT a, b, c, SUM(c) OVER\n(PARTITION BY a,b\nOrDER              BY a,b RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)\nFROM Y",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT a, b, c, SUM(c) OVER\n(PARTITION BY a,b\nOrDER              BY a,b RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)\nFROM Y",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT a, b, c, SUM(c) OVER\n(PARTITION BY a,b\nOrDER              BY a,b RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)\nFROM Y",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "a, b, c, SUM(c) OVER\n(PARTITION BY a,b\nOrDER              BY a,b RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "a",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "a",
+                      "type": "PTI_simple_ident_ident"
+                    }
+                  ]
+                },
+                {
+                  "text": "b",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "b",
+                      "type": "PTI_simple_ident_ident"
+                    }
+                  ]
+                },
+                {
+                  "text": "c",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "c",
+                      "type": "PTI_simple_ident_ident"
+                    }
+                  ]
+                },
+                {
+                  "text": "SUM(c) OVER\n(PARTITION BY a,b\nOrDER              BY a,b RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "SUM(c) OVER\n(PARTITION BY a,b\nOrDER              BY a,b RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)",
+                      "type": "Item_sum_sum",
+                      "distinct": false,
+                      "components": [
+                        {
+                          "text": "c",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "(PARTITION BY a,b\nOrDER              BY a,b RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)",
+                          "type": "PT_window",
+                          "components": [
+                            {
+                              "text": "PARTITION BY a,b",
+                              "type": "PT_order_list",
+                              "components": [
+                                {
+                                  "desc": false,
+                                  "text": "a",
+                                  "type": "PT_order_expr",
+                                  "components": [
+                                    {
+                                      "text": "a",
+                                      "type": "PTI_simple_ident_ident"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "desc": false,
+                                  "text": "b",
+                                  "type": "PT_order_expr",
+                                  "components": [
+                                    {
+                                      "text": "b",
+                                      "type": "PTI_simple_ident_ident"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "text": "OrDER              BY a,b",
+                              "type": "PT_order_list",
+                              "components": [
+                                {
+                                  "desc": false,
+                                  "text": "a",
+                                  "type": "PT_order_expr",
+                                  "components": [
+                                    {
+                                      "text": "a",
+                                      "type": "PTI_simple_ident_ident"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "desc": false,
+                                  "text": "b",
+                                  "type": "PT_order_expr",
+                                  "components": [
+                                    {
+                                      "text": "b",
+                                      "type": "PTI_simple_ident_ident"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "text": "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW",
+                              "type": "PT_frame",
+                              "components": [
+                                {
+                                  "text": "UNBOUNDED PRECEDING",
+                                  "type": "PT_border"
+                                },
+                                {
+                                  "text": "CURRENT ROW",
+                                  "type": "PT_border"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "Y",
+              "type": "PT_table_factor_table_ident",
+              "table_ident": "`Y`"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT id, FIRST_VALUE(id) OVER w FROM t_date
+WINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL col1 DAY PRECEDING AND INTERVAL 1 DAY PRECEDING);
+Show_parse_tree
+{
+  "text": "SELECT id, FIRST_VALUE(id) OVER w FROM t_date\nWINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL col1 DAY PRECEDING AND INTERVAL 1 DAY PRECEDING)",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT id, FIRST_VALUE(id) OVER w FROM t_date\nWINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL col1 DAY PRECEDING AND INTERVAL 1 DAY PRECEDING)",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT id, FIRST_VALUE(id) OVER w FROM t_date\nWINDOW w AS (ORDER BY id RANGE BETWEEN INTERVAL col1 DAY PRECEDING AND INTERVAL 1 DAY PRECEDING)",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "id, FIRST_VALUE(id) OVER w",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "id",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "id",
+                      "type": "PTI_simple_ident_ident"
+                    }
+                  ]
+                },
+                {
+                  "text": "FIRST_VALUE(id) OVER w",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "FIRST_VALUE(id) OVER w",
+                      "type": "Item_first_last_value",
+                      "distinct": false,
+                      "components": [
+                        {
+                          "text": "id",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "w",
+                          "type": "PT_window",
+                          "window_name": "w"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "t_date",
+              "type": "PT_table_factor_table_ident",
+              "table_ident": "`t_date`"
+            },
+            {
+              "text": "w AS (ORDER BY id RANGE BETWEEN INTERVAL col1 DAY PRECEDING AND INTERVAL 1 DAY PRECEDING)",
+              "type": "PT_window_list",
+              "components": [
+                {
+                  "text": "w AS (ORDER BY id RANGE BETWEEN INTERVAL col1 DAY PRECEDING AND INTERVAL 1 DAY PRECEDING)",
+                  "type": "PT_window",
+                  "components": [
+                    {
+                      "text": "ORDER BY id",
+                      "type": "PT_order_list",
+                      "components": [
+                        {
+                          "desc": false,
+                          "text": "id",
+                          "type": "PT_order_expr",
+                          "components": [
+                            {
+                              "text": "id",
+                              "type": "PTI_simple_ident_ident"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "text": "RANGE BETWEEN INTERVAL col1 DAY PRECEDING AND INTERVAL 1 DAY PRECEDING",
+                      "type": "PT_frame",
+                      "components": [
+                        {
+                          "text": "INTERVAL col1 DAY PRECEDING",
+                          "type": "PT_border",
+                          "components": [
+                            {
+                              "text": "col1",
+                              "type": "PTI_simple_ident_ident"
+                            }
+                          ]
+                        },
+                        {
+                          "text": "INTERVAL 1 DAY PRECEDING",
+                          "type": "PT_border",
+                          "components": [
+                            {
+                              "text": "1",
+                              "type": "Item_int"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "window_name": "w"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE select (select 1) from t ORDER BY 1 DESC, 2;
+Show_parse_tree
+{
+  "text": "select (select 1) from t ORDER BY 1 DESC, 2",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "select (select 1) from t ORDER BY 1 DESC, 2",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "select (select 1) from t",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "(select 1)",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "(select 1)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "(select 1)",
+                      "type": "PTI_singlerow_subselect",
+                      "components": [
+                        {
+                          "text": "(select 1)",
+                          "type": "PT_subquery",
+                          "components": [
+                            {
+                              "text": "(select 1)",
+                              "type": "PT_query_expression",
+                              "components": [
+                                {
+                                  "text": "select 1",
+                                  "type": "PT_query_specification",
+                                  "components": [
+                                    {
+                                      "text": "1",
+                                      "type": "PT_select_item_list",
+                                      "components": [
+                                        {
+                                          "text": "1",
+                                          "type": "PTI_expr_with_alias",
+                                          "components": [
+                                            {
+                                              "text": "1",
+                                              "type": "Item_int"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "t",
+              "type": "PT_table_factor_table_ident",
+              "table_ident": "`t`"
+            }
+          ]
+        },
+        {
+          "text": "ORDER BY 1 DESC, 2",
+          "type": "PT_order",
+          "components": [
+            {
+              "text": "1 DESC, 2",
+              "type": "PT_order_list",
+              "components": [
+                {
+                  "desc": true,
+                  "text": "1 DESC",
+                  "type": "PT_order_expr",
+                  "components": [
+                    {
+                      "text": "1",
+                      "type": "Item_int"
+                    }
+                  ]
+                },
+                {
+                  "desc": false,
+                  "text": "2",
+                  "type": "PT_order_expr",
+                  "components": [
+                    {
+                      "text": "2",
+                      "type": "Item_int"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT 1 < 2, col1 NOT between 1 and 2, 1 IN (1, 2), 1 IN (1), 1 NOT IN (1);
+Show_parse_tree
+{
+  "text": "SELECT 1 < 2, col1 NOT between 1 and 2, 1 IN (1, 2), 1 IN (1), 1 NOT IN (1)",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT 1 < 2, col1 NOT between 1 and 2, 1 IN (1, 2), 1 IN (1), 1 NOT IN (1)",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT 1 < 2, col1 NOT between 1 and 2, 1 IN (1, 2), 1 IN (1), 1 NOT IN (1)",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "1 < 2, col1 NOT between 1 and 2, 1 IN (1, 2), 1 IN (1), 1 NOT IN (1)",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "1 < 2",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "1 < 2",
+                      "type": "PTI_comp_op",
+                      "operator": "<",
+                      "components": [
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        },
+                        {
+                          "text": "2",
+                          "type": "Item_int"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "col1 NOT between 1 and 2",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "col1 NOT between 1 and 2",
+                      "type": "Item_func_between",
+                      "negated": true,
+                      "components": [
+                        {
+                          "text": "col1",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        },
+                        {
+                          "text": "2",
+                          "type": "Item_int"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "1 IN (1, 2)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "1 IN (1, 2)",
+                      "type": "Item_func_in",
+                      "negated": false,
+                      "components": [
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        },
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        },
+                        {
+                          "text": "2",
+                          "type": "Item_int"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "1 IN (1)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "1 IN (1)",
+                      "type": "PTI_handle_sql2003_note184_exception",
+                      "negated": false,
+                      "components": [
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        },
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "1 NOT IN (1)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "1 NOT IN (1)",
+                      "type": "PTI_handle_sql2003_note184_exception",
+                      "negated": true,
+                      "components": [
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        },
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT avg(distinct col1) from tab GROUP BY col2, col3;
+Show_parse_tree
+{
+  "text": "SELECT avg(distinct col1) from tab GROUP BY col2, col3",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT avg(distinct col1) from tab GROUP BY col2, col3",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT avg(distinct col1) from tab GROUP BY col2, col3",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "avg(distinct col1)",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "avg(distinct col1)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "avg(distinct col1)",
+                      "type": "Item_sum_avg",
+                      "distinct": true,
+                      "components": [
+                        {
+                          "text": "col1",
+                          "type": "PTI_simple_ident_ident"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "tab",
+              "type": "PT_table_factor_table_ident",
+              "table_ident": "`tab`"
+            },
+            {
+              "text": "GROUP BY col2, col3",
+              "type": "PT_group",
+              "components": [
+                {
+                  "text": "col2, col3",
+                  "type": "PT_order_list",
+                  "components": [
+                    {
+                      "desc": false,
+                      "text": "col2",
+                      "type": "PT_order_expr",
+                      "components": [
+                        {
+                          "text": "col2",
+                          "type": "PTI_simple_ident_ident"
+                        }
+                      ]
+                    },
+                    {
+                      "desc": false,
+                      "text": "col3",
+                      "type": "PT_order_expr",
+                      "components": [
+                        {
+                          "text": "col3",
+                          "type": "PTI_simple_ident_ident"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT not 1 or 2 is true or 0 is not false alias_name;
+Show_parse_tree
+{
+  "text": "SELECT not 1 or 2 is true or 0 is not false alias_name",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT not 1 or 2 is true or 0 is not false alias_name",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT not 1 or 2 is true or 0 is not false alias_name",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "not 1 or 2 is true or 0 is not false alias_name",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "not 1 or 2 is true or 0 is not false alias_name",
+                  "type": "PTI_expr_with_alias",
+                  "alias": "alias_name",
+                  "components": [
+                    {
+                      "text": "not 1 or 2 is true or 0 is not false",
+                      "type": "Item_cond_or",
+                      "components": [
+                        {
+                          "text": "not 1",
+                          "type": "PTI_truth_transform",
+                          "components": [
+                            {
+                              "text": "1",
+                              "type": "Item_int"
+                            }
+                          ],
+                          "truth_test": "NOT"
+                        },
+                        {
+                          "text": "2 is true",
+                          "type": "PTI_truth_transform",
+                          "components": [
+                            {
+                              "text": "2",
+                              "type": "Item_int"
+                            }
+                          ],
+                          "truth_test": "IS TRUE"
+                        },
+                        {
+                          "text": "0 is not false",
+                          "type": "PTI_truth_transform",
+                          "components": [
+                            {
+                              "text": "0",
+                              "type": "Item_int"
+                            }
+                          ],
+                          "truth_test": "IS NOT FALSE"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE select 1 and 2 or 3 and 4, {u '2022/22/2' }, 1 < all (select 1);
+Show_parse_tree
+{
+  "text": "select 1 and 2 or 3 and 4, {u '2022/22/2' }, 1 < all (select 1)",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "select 1 and 2 or 3 and 4, {u '2022/22/2' }, 1 < all (select 1)",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "select 1 and 2 or 3 and 4, {u '2022/22/2' }, 1 < all (select 1)",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "1 and 2 or 3 and 4, {u '2022/22/2' }, 1 < all (select 1)",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "1 and 2 or 3 and 4",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "1 and 2 or 3 and 4",
+                      "type": "Item_cond_or",
+                      "components": [
+                        {
+                          "text": "1 and 2",
+                          "type": "Item_cond_and",
+                          "components": [
+                            {
+                              "text": "1",
+                              "type": "Item_int"
+                            },
+                            {
+                              "text": "2",
+                              "type": "Item_int"
+                            }
+                          ]
+                        },
+                        {
+                          "text": "3 and 4",
+                          "type": "Item_cond_and",
+                          "components": [
+                            {
+                              "text": "3",
+                              "type": "Item_int"
+                            },
+                            {
+                              "text": "4",
+                              "type": "Item_int"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "{u '2022/22/2' }",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "{u '2022/22/2' }",
+                      "type": "PTI_odbc_date",
+                      "date_type": "u",
+                      "components": [
+                        {
+                          "text": "'2022/22/2'",
+                          "type": "PTI_text_literal_text_string"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "1 < all (select 1)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "1 < all (select 1)",
+                      "type": "PTI_comp_op_all",
+                      "is_all": true,
+                      "operator": "<",
+                      "components": [
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        },
+                        {
+                          "text": "(select 1)",
+                          "type": "PT_subquery",
+                          "components": [
+                            {
+                              "text": "(select 1)",
+                              "type": "PT_query_expression",
+                              "components": [
+                                {
+                                  "text": "select 1",
+                                  "type": "PT_query_specification",
+                                  "components": [
+                                    {
+                                      "text": "1",
+                                      "type": "PT_select_item_list",
+                                      "components": [
+                                        {
+                                          "text": "1",
+                                          "type": "PTI_expr_with_alias",
+                                          "components": [
+                                            {
+                                              "text": "1",
+                                              "type": "Item_int"
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT 1 - INTERVAL 2 HOUR_MINUTE, curtime(4), utc_time(2);
+Show_parse_tree
+{
+  "text": "SELECT 1 - INTERVAL 2 HOUR_MINUTE, curtime(4), utc_time(2)",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT 1 - INTERVAL 2 HOUR_MINUTE, curtime(4), utc_time(2)",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT 1 - INTERVAL 2 HOUR_MINUTE, curtime(4), utc_time(2)",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "1 - INTERVAL 2 HOUR_MINUTE, curtime(4), utc_time(2)",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "1 - INTERVAL 2 HOUR_MINUTE",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "1 - INTERVAL 2 HOUR_MINUTE",
+                      "type": "Item_date_add_interval",
+                      "subtract": true,
+                      "func_name": "date_add_interval",
+                      "components": [
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        },
+                        {
+                          "text": "2",
+                          "type": "Item_int"
+                        }
+                      ],
+                      "interval_type": "hour_minute"
+                    }
+                  ]
+                },
+                {
+                  "text": "curtime(4)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "curtime(4)",
+                      "type": "Item_func_curtime_local",
+                      "precision": 4
+                    }
+                  ]
+                },
+                {
+                  "text": "utc_time(2)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "utc_time(2)",
+                      "type": "Item_func_curtime_utc",
+                      "precision": 2
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT * FROM t1 WHERE
+MATCH(a,b) AGAINST ("collections" IN BOOLEAN MODE ) OR
+MATCH(a,b) AGAINST ("indexes" IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION);
+Show_parse_tree
+{
+  "text": "SELECT * FROM t1 WHERE\nMATCH(a,b) AGAINST (\"collections\" IN BOOLEAN MODE ) OR\nMATCH(a,b) AGAINST (\"indexes\" IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT * FROM t1 WHERE\nMATCH(a,b) AGAINST (\"collections\" IN BOOLEAN MODE ) OR\nMATCH(a,b) AGAINST (\"indexes\" IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT * FROM t1 WHERE\nMATCH(a,b) AGAINST (\"collections\" IN BOOLEAN MODE ) OR\nMATCH(a,b) AGAINST (\"indexes\" IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "*",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "*",
+                  "type": "Item_asterisk"
+                }
+              ]
+            },
+            {
+              "text": "t1",
+              "type": "PT_table_factor_table_ident",
+              "table_ident": "`t1`"
+            },
+            {
+              "text": "MATCH(a,b) AGAINST (\"collections\" IN BOOLEAN MODE ) OR\nMATCH(a,b) AGAINST (\"indexes\" IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)",
+              "type": "PTI_where",
+              "components": [
+                {
+                  "text": "MATCH(a,b) AGAINST (\"collections\" IN BOOLEAN MODE ) OR\nMATCH(a,b) AGAINST (\"indexes\" IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)",
+                  "type": "Item_cond_or",
+                  "components": [
+                    {
+                      "text": "MATCH(a,b) AGAINST (\"collections\" IN BOOLEAN MODE )",
+                      "type": "Item_func_match",
+                      "components": [
+                        {
+                          "text": "a",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "b",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "\"collections\"",
+                          "type": "PTI_text_literal_text_string"
+                        }
+                      ],
+                      "match_options": "in boolean mode"
+                    },
+                    {
+                      "text": "MATCH(a,b) AGAINST (\"indexes\" IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)",
+                      "type": "Item_func_match",
+                      "components": [
+                        {
+                          "text": "a",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "b",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "\"indexes\"",
+                          "type": "PTI_text_literal_text_string"
+                        }
+                      ],
+                      "match_options": "with query expansion"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT cast('30' as time(2)), cast(30 as decimal(6, 3)),
+cast(30 as decimal), cast(30 as float), cast('30' as char(40) charset utf8mb3),
+cast(30 as decimal array);
+Show_parse_tree
+{
+  "text": "SELECT cast('30' as time(2)), cast(30 as decimal(6, 3)),\ncast(30 as decimal), cast(30 as float), cast('30' as char(40) charset utf8mb3),\ncast(30 as decimal array)",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT cast('30' as time(2)), cast(30 as decimal(6, 3)),\ncast(30 as decimal), cast(30 as float), cast('30' as char(40) charset utf8mb3),\ncast(30 as decimal array)",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT cast('30' as time(2)), cast(30 as decimal(6, 3)),\ncast(30 as decimal), cast(30 as float), cast('30' as char(40) charset utf8mb3),\ncast(30 as decimal array)",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "cast('30' as time(2)), cast(30 as decimal(6, 3)),\ncast(30 as decimal), cast(30 as float), cast('30' as char(40) charset utf8mb3),\ncast(30 as decimal array)",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "cast('30' as time(2))",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "cast('30' as time(2))",
+                      "type": "Item_typecast_time",
+                      "precision": 2,
+                      "components": [
+                        {
+                          "text": "'30'",
+                          "type": "PTI_text_literal_text_string"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "cast(30 as decimal(6, 3))",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "cast(30 as decimal(6, 3))",
+                      "type": "Item_typecast_decimal",
+                      "scale": 3,
+                      "precision": 6,
+                      "components": [
+                        {
+                          "text": "30",
+                          "type": "Item_int"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "cast(30 as decimal)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "cast(30 as decimal)",
+                      "type": "Item_typecast_decimal",
+                      "scale": 0,
+                      "precision": 10,
+                      "components": [
+                        {
+                          "text": "30",
+                          "type": "Item_int"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "cast(30 as float)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "cast(30 as float)",
+                      "type": "Item_typecast_real",
+                      "is_double": false,
+                      "components": [
+                        {
+                          "text": "30",
+                          "type": "Item_int"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "cast('30' as char(40) charset utf8mb3)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "cast('30' as char(40) charset utf8mb3)",
+                      "type": "Item_typecast_char",
+                      "length": 40,
+                      "charset": "utf8mb3",
+                      "func_name": "cast_as_char",
+                      "components": [
+                        {
+                          "text": "'30'",
+                          "type": "PTI_text_literal_text_string"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "cast(30 as decimal array)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "cast(30 as decimal array)",
+                      "type": "Item_func_array_cast",
+                      "cast_type": "decimal(10, 0)",
+                      "components": [
+                        {
+                          "text": "30",
+                          "type": "Item_int"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+SHOW PARSE_TREE SELECT CASE a WHEN b THEN c WHEN d THEN e ELSE f END,
+CASE a WHEN b THEN c END,
+CASE WHEN a THEN b ELSE c END;
+Show_parse_tree
+{
+  "text": "SELECT CASE a WHEN b THEN c WHEN d THEN e ELSE f END,\nCASE a WHEN b THEN c END,\nCASE WHEN a THEN b ELSE c END",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT CASE a WHEN b THEN c WHEN d THEN e ELSE f END,\nCASE a WHEN b THEN c END,\nCASE WHEN a THEN b ELSE c END",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT CASE a WHEN b THEN c WHEN d THEN e ELSE f END,\nCASE a WHEN b THEN c END,\nCASE WHEN a THEN b ELSE c END",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "CASE a WHEN b THEN c WHEN d THEN e ELSE f END,\nCASE a WHEN b THEN c END,\nCASE WHEN a THEN b ELSE c END",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "CASE a WHEN b THEN c WHEN d THEN e ELSE f END",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "CASE a WHEN b THEN c WHEN d THEN e ELSE f END",
+                      "type": "Item_func_case",
+                      "components": [
+                        {
+                          "text": "a",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "b",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "c",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "d",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "e",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "f",
+                          "type": "PTI_simple_ident_ident"
+                        }
+                      ],
+                      "has_case_expression": true
+                    }
+                  ]
+                },
+                {
+                  "text": "CASE a WHEN b THEN c END",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "CASE a WHEN b THEN c END",
+                      "type": "Item_func_case",
+                      "components": [
+                        {
+                          "text": "a",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "b",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "c",
+                          "type": "PTI_simple_ident_ident"
+                        }
+                      ],
+                      "has_case_expression": true
+                    }
+                  ]
+                },
+                {
+                  "text": "CASE WHEN a THEN b ELSE c END",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "CASE WHEN a THEN b ELSE c END",
+                      "type": "Item_func_case",
+                      "components": [
+                        {
+                          "text": "a",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "b",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "c",
+                          "type": "PTI_simple_ident_ident"
+                        }
+                      ],
+                      "has_case_expression": false
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT
+CASE a
+WHEN
+CASE WHEN a1 THEN b2 END
+THEN c
+ELSE f END;
+Show_parse_tree
+{
+  "text": "SELECT\nCASE a\nWHEN\nCASE WHEN a1 THEN b2 END\nTHEN c\nELSE f END",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT\nCASE a\nWHEN\nCASE WHEN a1 THEN b2 END\nTHEN c\nELSE f END",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT\nCASE a\nWHEN\nCASE WHEN a1 THEN b2 END\nTHEN c\nELSE f END",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "CASE a\nWHEN\nCASE WHEN a1 THEN b2 END\nTHEN c\nELSE f END",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "CASE a\nWHEN\nCASE WHEN a1 THEN b2 END\nTHEN c\nELSE f END",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "CASE a\nWHEN\nCASE WHEN a1 THEN b2 END\nTHEN c\nELSE f END",
+                      "type": "Item_func_case",
+                      "components": [
+                        {
+                          "text": "a",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "CASE WHEN a1 THEN b2 END",
+                          "type": "Item_func_case",
+                          "components": [
+                            {
+                              "text": "a1",
+                              "type": "PTI_simple_ident_ident"
+                            },
+                            {
+                              "text": "b2",
+                              "type": "PTI_simple_ident_ident"
+                            }
+                          ],
+                          "has_case_expression": false
+                        },
+                        {
+                          "text": "c",
+                          "type": "PTI_simple_ident_ident"
+                        },
+                        {
+                          "text": "f",
+                          "type": "PTI_simple_ident_ident"
+                        }
+                      ],
+                      "has_case_expression": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT 1 union (select 2 intersect ALL select 3 limit 2 offset 10) limit 1, 5;
+Show_parse_tree
+{
+  "text": "SELECT 1 union (select 2 intersect ALL select 3 limit 2 offset 10) limit 1, 5",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT 1 union (select 2 intersect ALL select 3 limit 2 offset 10) limit 1, 5",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT 1 union (select 2 intersect ALL select 3 limit 2 offset 10)",
+          "type": "PT_union",
+          "distinct": true,
+          "components": [
+            {
+              "text": "SELECT 1",
+              "type": "PT_query_specification",
+              "components": [
+                {
+                  "text": "1",
+                  "type": "PT_select_item_list",
+                  "components": [
+                    {
+                      "text": "1",
+                      "type": "PTI_expr_with_alias",
+                      "components": [
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "text": "(select 2 intersect ALL select 3 limit 2 offset 10)",
+              "type": "PT_query_expression",
+              "components": [
+                {
+                  "text": "select 2 intersect ALL select 3",
+                  "type": "PT_intersect",
+                  "distinct": false,
+                  "components": [
+                    {
+                      "text": "select 2",
+                      "type": "PT_query_specification",
+                      "components": [
+                        {
+                          "text": "2",
+                          "type": "PT_select_item_list",
+                          "components": [
+                            {
+                              "text": "2",
+                              "type": "PTI_expr_with_alias",
+                              "components": [
+                                {
+                                  "text": "2",
+                                  "type": "Item_int"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "text": "select 3",
+                      "type": "PT_query_specification",
+                      "components": [
+                        {
+                          "text": "3",
+                          "type": "PT_select_item_list",
+                          "components": [
+                            {
+                              "text": "3",
+                              "type": "PTI_expr_with_alias",
+                              "components": [
+                                {
+                                  "text": "3",
+                                  "type": "Item_int"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "rhs_in_parentheses": false
+                },
+                {
+                  "text": "limit 2 offset 10",
+                  "type": "PT_limit_clause",
+                  "components": [
+                    {
+                      "text": "2",
+                      "type": "Item_uint"
+                    },
+                    {
+                      "text": "10",
+                      "type": "Item_uint"
+                    }
+                  ],
+                  "is_offset_first": false
+                }
+              ]
+            }
+          ],
+          "rhs_in_parentheses": true
+        },
+        {
+          "text": "limit 1, 5",
+          "type": "PT_limit_clause",
+          "components": [
+            {
+              "text": "1",
+              "type": "Item_uint"
+            },
+            {
+              "text": "5",
+              "type": "Item_uint"
+            }
+          ],
+          "is_offset_first": true
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE select SQL_SMALL_RESULT STRAIGHT_JOIN SQL_BUFFER_RESULT 1 and 2 and 3;
+Show_parse_tree
+{
+  "text": "select SQL_SMALL_RESULT STRAIGHT_JOIN SQL_BUFFER_RESULT 1 and 2 and 3",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "select SQL_SMALL_RESULT STRAIGHT_JOIN SQL_BUFFER_RESULT 1 and 2 and 3",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "select SQL_SMALL_RESULT STRAIGHT_JOIN SQL_BUFFER_RESULT 1 and 2 and 3",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "1 and 2 and 3",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "1 and 2 and 3",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "1 and 2 and 3",
+                      "type": "Item_cond_and",
+                      "components": [
+                        {
+                          "text": "1",
+                          "type": "Item_int"
+                        },
+                        {
+                          "text": "2",
+                          "type": "Item_int"
+                        },
+                        {
+                          "text": "3",
+                          "type": "Item_int"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "query_spec_options": "straight_join sql_small_result sql_buffer_result"
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE WITH der(col1, col2) AS (SELECT 1, 2), der1 AS (SELECT 2) SELECT * FROM der;
+Show_parse_tree
+{
+  "text": "WITH der(col1, col2) AS (SELECT 1, 2), der1 AS (SELECT 2) SELECT * FROM der",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "WITH der(col1, col2) AS (SELECT 1, 2), der1 AS (SELECT 2) SELECT * FROM der",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "WITH der(col1, col2) AS (SELECT 1, 2), der1 AS (SELECT 2)",
+          "type": "PT_with_clause",
+          "recursive": false,
+          "components": [
+            {
+              "text": "der(col1, col2) AS (SELECT 1, 2)",
+              "type": "PT_common_table_expr",
+              "cte_name": "der",
+              "components": [
+                {
+                  "text": "(SELECT 1, 2)",
+                  "type": "PT_subquery",
+                  "components": [
+                    {
+                      "text": "(SELECT 1, 2)",
+                      "type": "PT_query_expression",
+                      "components": [
+                        {
+                          "text": "SELECT 1, 2",
+                          "type": "PT_query_specification",
+                          "components": [
+                            {
+                              "text": "1, 2",
+                              "type": "PT_select_item_list",
+                              "components": [
+                                {
+                                  "text": "1",
+                                  "type": "PTI_expr_with_alias",
+                                  "components": [
+                                    {
+                                      "text": "1",
+                                      "type": "Item_int"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "text": "2",
+                                  "type": "PTI_expr_with_alias",
+                                  "components": [
+                                    {
+                                      "text": "2",
+                                      "type": "Item_int"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "cte_columns": " (`col1`,`col2`)"
+            },
+            {
+              "text": "der1 AS (SELECT 2)",
+              "type": "PT_common_table_expr",
+              "cte_name": "der1",
+              "components": [
+                {
+                  "text": "(SELECT 2)",
+                  "type": "PT_subquery",
+                  "components": [
+                    {
+                      "text": "(SELECT 2)",
+                      "type": "PT_query_expression",
+                      "components": [
+                        {
+                          "text": "SELECT 2",
+                          "type": "PT_query_specification",
+                          "components": [
+                            {
+                              "text": "2",
+                              "type": "PT_select_item_list",
+                              "components": [
+                                {
+                                  "text": "2",
+                                  "type": "PTI_expr_with_alias",
+                                  "components": [
+                                    {
+                                      "text": "2",
+                                      "type": "Item_int"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "text": "SELECT * FROM der",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "*",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "*",
+                  "type": "Item_asterisk"
+                }
+              ]
+            },
+            {
+              "text": "der",
+              "type": "PT_table_factor_table_ident",
+              "table_ident": "`der`"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT * FROM t STRAIGHT_JOIN t2 USING (col1, col2);
+Show_parse_tree
+{
+  "text": "SELECT * FROM t STRAIGHT_JOIN t2 USING (col1, col2)",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT * FROM t STRAIGHT_JOIN t2 USING (col1, col2)",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT * FROM t STRAIGHT_JOIN t2 USING (col1, col2)",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "*",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "*",
+                  "type": "Item_asterisk"
+                }
+              ]
+            },
+            {
+              "type": "PT_joined_table_using",
+              "join_type": "STRAIGHT_JOIN",
+              "components": [
+                {
+                  "text": "t",
+                  "type": "PT_table_factor_table_ident",
+                  "table_ident": "`t`"
+                },
+                {
+                  "text": "t2",
+                  "type": "PT_table_factor_table_ident",
+                  "table_ident": "`t2`"
+                }
+              ],
+              "using_fields": "`col1`,`col2`"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT * FROM t RIGHT OUTER JOIN t3 on col1/col2;
+Show_parse_tree
+{
+  "text": "SELECT * FROM t RIGHT OUTER JOIN t3 on col1/col2",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT * FROM t RIGHT OUTER JOIN t3 on col1/col2",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT * FROM t RIGHT OUTER JOIN t3 on col1/col2",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "*",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "*",
+                  "type": "Item_asterisk"
+                }
+              ]
+            },
+            {
+              "type": "PT_joined_table_on",
+              "join_type": "RIGHT OUTER JOIN",
+              "components": [
+                {
+                  "text": "t",
+                  "type": "PT_table_factor_table_ident",
+                  "table_ident": "`t`"
+                },
+                {
+                  "text": "t3",
+                  "type": "PT_table_factor_table_ident",
+                  "table_ident": "`t3`"
+                },
+                {
+                  "text": "col1/col2",
+                  "type": "Item_func_div",
+                  "components": [
+                    {
+                      "text": "col1",
+                      "type": "PTI_simple_ident_ident"
+                    },
+                    {
+                      "text": "col2",
+                      "type": "PTI_simple_ident_ident"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT * FROM LATERAL (SELECT * FROM mydb.bar bar_alias) AS t(i, j);
+Show_parse_tree
+{
+  "text": "SELECT * FROM LATERAL (SELECT * FROM mydb.bar bar_alias) AS t(i, j)",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT * FROM LATERAL (SELECT * FROM mydb.bar bar_alias) AS t(i, j)",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT * FROM LATERAL (SELECT * FROM mydb.bar bar_alias) AS t(i, j)",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "*",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "*",
+                  "type": "Item_asterisk"
+                }
+              ]
+            },
+            {
+              "text": "LATERAL (SELECT * FROM mydb.bar bar_alias) AS t(i, j)",
+              "type": "PT_derived_table",
+              "lateral": true,
+              "components": [
+                {
+                  "text": "(SELECT * FROM mydb.bar bar_alias)",
+                  "type": "PT_subquery",
+                  "components": [
+                    {
+                      "text": "(SELECT * FROM mydb.bar bar_alias)",
+                      "type": "PT_query_expression",
+                      "components": [
+                        {
+                          "text": "SELECT * FROM mydb.bar bar_alias",
+                          "type": "PT_query_specification",
+                          "components": [
+                            {
+                              "text": "*",
+                              "type": "PT_select_item_list",
+                              "components": [
+                                {
+                                  "text": "*",
+                                  "type": "Item_asterisk"
+                                }
+                              ]
+                            },
+                            {
+                              "text": "mydb.bar bar_alias",
+                              "type": "PT_table_factor_table_ident",
+                              "table_alias": "bar_alias",
+                              "table_ident": "`mydb`.`bar`"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "table_alias": "t",
+              "table_columns": " (`i`,`j`)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT * FROM t JOIN t2 JOIN t3 JOIN t4;
+Show_parse_tree
+{
+  "text": "SELECT * FROM t JOIN t2 JOIN t3 JOIN t4",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT * FROM t JOIN t2 JOIN t3 JOIN t4",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT * FROM t JOIN t2 JOIN t3 JOIN t4",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "*",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "*",
+                  "type": "Item_asterisk"
+                }
+              ]
+            },
+            {
+              "type": "PT_cross_join",
+              "join_type": "INNER JOIN",
+              "components": [
+                {
+                  "type": "PT_cross_join",
+                  "join_type": "INNER JOIN",
+                  "components": [
+                    {
+                      "type": "PT_cross_join",
+                      "join_type": "INNER JOIN",
+                      "components": [
+                        {
+                          "text": "t",
+                          "type": "PT_table_factor_table_ident",
+                          "table_ident": "`t`"
+                        },
+                        {
+                          "text": "t2",
+                          "type": "PT_table_factor_table_ident",
+                          "table_ident": "`t2`"
+                        }
+                      ]
+                    },
+                    {
+                      "text": "t3",
+                      "type": "PT_table_factor_table_ident",
+                      "table_ident": "`t3`"
+                    }
+                  ]
+                },
+                {
+                  "text": "t4",
+                  "type": "PT_table_factor_table_ident",
+                  "table_ident": "`t4`"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT * FROM t JOIN t2 JOIN (t3 JOIN t4);
+Show_parse_tree
+{
+  "text": "SELECT * FROM t JOIN t2 JOIN (t3 JOIN t4)",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT * FROM t JOIN t2 JOIN (t3 JOIN t4)",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT * FROM t JOIN t2 JOIN (t3 JOIN t4)",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "*",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "*",
+                  "type": "Item_asterisk"
+                }
+              ]
+            },
+            {
+              "type": "PT_cross_join",
+              "join_type": "INNER JOIN",
+              "components": [
+                {
+                  "type": "PT_cross_join",
+                  "join_type": "INNER JOIN",
+                  "components": [
+                    {
+                      "text": "t",
+                      "type": "PT_table_factor_table_ident",
+                      "table_ident": "`t`"
+                    },
+                    {
+                      "text": "t2",
+                      "type": "PT_table_factor_table_ident",
+                      "table_ident": "`t2`"
+                    }
+                  ]
+                },
+                {
+                  "text": "(t3 JOIN t4)",
+                  "type": "PT_table_factor_joined_table",
+                  "components": [
+                    {
+                      "type": "PT_cross_join",
+                      "join_type": "INNER JOIN",
+                      "components": [
+                        {
+                          "text": "t3",
+                          "type": "PT_table_factor_table_ident",
+                          "table_ident": "`t3`"
+                        },
+                        {
+                          "text": "t4",
+                          "type": "PT_table_factor_table_ident",
+                          "table_ident": "`t4`"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT * FROM t JOIN t2 NATURAL JOIN t3 LEFT JOIN t4 USING (col1, col2);
+Show_parse_tree
+{
+  "text": "SELECT * FROM t JOIN t2 NATURAL JOIN t3 LEFT JOIN t4 USING (col1, col2)",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT * FROM t JOIN t2 NATURAL JOIN t3 LEFT JOIN t4 USING (col1, col2)",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT * FROM t JOIN t2 NATURAL JOIN t3 LEFT JOIN t4 USING (col1, col2)",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "*",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "*",
+                  "type": "Item_asterisk"
+                }
+              ]
+            },
+            {
+              "type": "PT_joined_table_using",
+              "join_type": "LEFT OUTER JOIN",
+              "components": [
+                {
+                  "type": "PT_joined_table_using",
+                  "join_type": "NATURAL INNER JOIN",
+                  "components": [
+                    {
+                      "type": "PT_cross_join",
+                      "join_type": "INNER JOIN",
+                      "components": [
+                        {
+                          "text": "t",
+                          "type": "PT_table_factor_table_ident",
+                          "table_ident": "`t`"
+                        },
+                        {
+                          "text": "t2",
+                          "type": "PT_table_factor_table_ident",
+                          "table_ident": "`t2`"
+                        }
+                      ]
+                    },
+                    {
+                      "text": "t3",
+                      "type": "PT_table_factor_table_ident",
+                      "table_ident": "`t3`"
+                    }
+                  ]
+                },
+                {
+                  "text": "t4",
+                  "type": "PT_table_factor_table_ident",
+                  "table_ident": "`t4`"
+                }
+              ],
+              "using_fields": "`col1`,`col2`"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT * FROM t JOIN t2 NATURAL JOIN (t3 LEFT JOIN t4 USING (col1, col2));
+Show_parse_tree
+{
+  "text": "SELECT * FROM t JOIN t2 NATURAL JOIN (t3 LEFT JOIN t4 USING (col1, col2))",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT * FROM t JOIN t2 NATURAL JOIN (t3 LEFT JOIN t4 USING (col1, col2))",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT * FROM t JOIN t2 NATURAL JOIN (t3 LEFT JOIN t4 USING (col1, col2))",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "*",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "*",
+                  "type": "Item_asterisk"
+                }
+              ]
+            },
+            {
+              "type": "PT_joined_table_using",
+              "join_type": "NATURAL INNER JOIN",
+              "components": [
+                {
+                  "type": "PT_cross_join",
+                  "join_type": "INNER JOIN",
+                  "components": [
+                    {
+                      "text": "t",
+                      "type": "PT_table_factor_table_ident",
+                      "table_ident": "`t`"
+                    },
+                    {
+                      "text": "t2",
+                      "type": "PT_table_factor_table_ident",
+                      "table_ident": "`t2`"
+                    }
+                  ]
+                },
+                {
+                  "text": "(t3 LEFT JOIN t4 USING (col1, col2))",
+                  "type": "PT_table_factor_joined_table",
+                  "components": [
+                    {
+                      "type": "PT_joined_table_using",
+                      "join_type": "LEFT OUTER JOIN",
+                      "components": [
+                        {
+                          "text": "t3",
+                          "type": "PT_table_factor_table_ident",
+                          "table_ident": "`t3`"
+                        },
+                        {
+                          "text": "t4",
+                          "type": "PT_table_factor_table_ident",
+                          "table_ident": "`t4`"
+                        }
+                      ],
+                      "using_fields": "`col1`,`col2`"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT * FROM t JOIN t2 JOIN t3 USING (col1, col2) JOIN (SELECT * FROM tab) AS t4;
+Show_parse_tree
+{
+  "text": "SELECT * FROM t JOIN t2 JOIN t3 USING (col1, col2) JOIN (SELECT * FROM tab) AS t4",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT * FROM t JOIN t2 JOIN t3 USING (col1, col2) JOIN (SELECT * FROM tab) AS t4",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT * FROM t JOIN t2 JOIN t3 USING (col1, col2) JOIN (SELECT * FROM tab) AS t4",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "*",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "*",
+                  "type": "Item_asterisk"
+                }
+              ]
+            },
+            {
+              "type": "PT_cross_join",
+              "join_type": "INNER JOIN",
+              "components": [
+                {
+                  "type": "PT_joined_table_using",
+                  "join_type": "INNER JOIN",
+                  "components": [
+                    {
+                      "type": "PT_cross_join",
+                      "join_type": "INNER JOIN",
+                      "components": [
+                        {
+                          "text": "t",
+                          "type": "PT_table_factor_table_ident",
+                          "table_ident": "`t`"
+                        },
+                        {
+                          "text": "t2",
+                          "type": "PT_table_factor_table_ident",
+                          "table_ident": "`t2`"
+                        }
+                      ]
+                    },
+                    {
+                      "text": "t3",
+                      "type": "PT_table_factor_table_ident",
+                      "table_ident": "`t3`"
+                    }
+                  ],
+                  "using_fields": "`col1`,`col2`"
+                },
+                {
+                  "text": "(SELECT * FROM tab) AS t4",
+                  "type": "PT_derived_table",
+                  "lateral": false,
+                  "components": [
+                    {
+                      "text": "(SELECT * FROM tab)",
+                      "type": "PT_subquery",
+                      "components": [
+                        {
+                          "text": "(SELECT * FROM tab)",
+                          "type": "PT_query_expression",
+                          "components": [
+                            {
+                              "text": "SELECT * FROM tab",
+                              "type": "PT_query_specification",
+                              "components": [
+                                {
+                                  "text": "*",
+                                  "type": "PT_select_item_list",
+                                  "components": [
+                                    {
+                                      "text": "*",
+                                      "type": "Item_asterisk"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "text": "tab",
+                                  "type": "PT_table_factor_table_ident",
+                                  "table_ident": "`tab`"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "table_alias": "t4"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE SELECT db.func(), char(col1), char(col1 USING utf8mb4), concat(a,b), concat(a,b) COLLATE utf8mb4_turkish_ci;
+Show_parse_tree
+{
+  "text": "SELECT db.func(), char(col1), char(col1 USING utf8mb4), concat(a,b), concat(a,b) COLLATE utf8mb4_turkish_ci",
+  "type": "PT_select_stmt",
+  "components": [
+    {
+      "text": "SELECT db.func(), char(col1), char(col1 USING utf8mb4), concat(a,b), concat(a,b) COLLATE utf8mb4_turkish_ci",
+      "type": "PT_query_expression",
+      "components": [
+        {
+          "text": "SELECT db.func(), char(col1), char(col1 USING utf8mb4), concat(a,b), concat(a,b) COLLATE utf8mb4_turkish_ci",
+          "type": "PT_query_specification",
+          "components": [
+            {
+              "text": "db.func(), char(col1), char(col1 USING utf8mb4), concat(a,b), concat(a,b) COLLATE utf8mb4_turkish_ci",
+              "type": "PT_select_item_list",
+              "components": [
+                {
+                  "text": "db.func()",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "db.func()",
+                      "type": "PTI_function_call_generic_2d",
+                      "func_name": "`db`.`func`"
+                    }
+                  ]
+                },
+                {
+                  "text": "char(col1)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "char(col1)",
+                      "type": "Item_func_char",
+                      "charset": "binary",
+                      "func_name": "char",
+                      "components": [
+                        {
+                          "text": "col1",
+                          "type": "PTI_simple_ident_ident"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "char(col1 USING utf8mb4)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "char(col1 USING utf8mb4)",
+                      "type": "Item_func_char",
+                      "charset": "utf8mb4",
+                      "func_name": "char",
+                      "components": [
+                        {
+                          "text": "col1",
+                          "type": "PTI_simple_ident_ident"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "concat(a,b)",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "concat(a,b)",
+                      "type": "PTI_function_call_generic_ident_sys",
+                      "func_name": "concat",
+                      "components": [
+                        {
+                          "text": "a",
+                          "type": "PTI_udf_expr",
+                          "components": [
+                            {
+                              "text": "a",
+                              "type": "PTI_simple_ident_ident"
+                            }
+                          ]
+                        },
+                        {
+                          "text": "b",
+                          "type": "PTI_udf_expr",
+                          "components": [
+                            {
+                              "text": "b",
+                              "type": "PTI_simple_ident_ident"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "text": "concat(a,b) COLLATE utf8mb4_turkish_ci",
+                  "type": "PTI_expr_with_alias",
+                  "components": [
+                    {
+                      "text": "concat(a,b) COLLATE utf8mb4_turkish_ci",
+                      "type": "Item_func_set_collation",
+                      "collation": "utf8mb4_turkish_ci",
+                      "components": [
+                        {
+                          "text": "concat(a,b)",
+                          "type": "PTI_function_call_generic_ident_sys",
+                          "func_name": "concat",
+                          "components": [
+                            {
+                              "text": "a",
+                              "type": "PTI_udf_expr",
+                              "components": [
+                                {
+                                  "text": "a",
+                                  "type": "PTI_simple_ident_ident"
+                                }
+                              ]
+                            },
+                            {
+                              "text": "b",
+                              "type": "PTI_udf_expr",
+                              "components": [
+                                {
+                                  "text": "b",
+                                  "type": "PTI_simple_ident_ident"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+SHOW PARSE_TREE UPDATE tab SET O = 1;
+ERROR 42000: This version of MySQL doesn't yet support 'Parse tree display of this statement'
+SHOW PARSE_TREE CREATE TABLE tab(id INT);
+ERROR 42000: This version of MySQL doesn't yet support 'Parse tree display of this statement'
+SHOW PARSE_TREE CREATE TABLE tab(id INVALID_SYNTAX);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVALID_SYNTAX)' at line 1

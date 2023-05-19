@@ -485,6 +485,13 @@ class Sql_cmd_show_processlist : public Sql_cmd_show {
   bool m_use_pfs{false};
 };
 
+/// Represents SHOW PARSE_TREE statement.
+
+class Sql_cmd_show_parse_tree : public Sql_cmd_show {
+ public:
+  Sql_cmd_show_parse_tree() : Sql_cmd_show(SQLCOM_SHOW_PARSE_TREE) {}
+};
+
 /// Represents SHOW PROFILE statement.
 
 class Sql_cmd_show_profile : public Sql_cmd_show {

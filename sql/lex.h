@@ -507,6 +507,7 @@ static const SYMBOL symbols[] = {
     {SYM("OWNER", OWNER_SYM)},
     {SYM("PACK_KEYS", PACK_KEYS_SYM)},
     {SYM("PATH", PATH_SYM)},
+    {SYM("PARSE_TREE", PARSE_TREE_SYM)},
     {SYM("PARSER", PARSER_SYM)},
     {SYM("PAGE", PAGE_SYM)},
     {SYM("PARTIAL", PARTIAL)},

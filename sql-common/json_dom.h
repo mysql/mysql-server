@@ -659,6 +659,12 @@ class Json_array final : public Json_container {
 
   /// Sort the array
   void sort(const CHARSET_INFO *cs = nullptr);
+  /// Sort the array using a user-defined comparator.
+  template <class T>
+  void sort(const T &comparator) {
+    std::sort(m_v.begin(), m_v.end(), comparator);
+  }
+
   /**
     Check if the given value appears in the array
 

@@ -4777,4 +4777,5 @@ bool accept_for_join(mem_root_deque<Table_ref *> *tables,
 Table_ref *nest_join(THD *thd, Query_block *select, Table_ref *embedding,
                      mem_root_deque<Table_ref *> *jlist, size_t table_cnt,
                      const char *legend);
+void get_select_options_str(ulonglong options, std::string *str);
 #endif /* SQL_LEX_INCLUDED */

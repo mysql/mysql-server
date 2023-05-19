@@ -48,6 +48,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
+#include "sql/sql_show.h"  // append_identifier()
 #include "sql/sql_udf.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -98,12 +99,12 @@ static Item *change_truth_value_of_condition(Parse_context *pc, Item *expr,
   <code>left [NOT] IN ( expr )</code>
   @param pc the current parse context
   @param left the in predicand
-  @param equal true for IN predicates, false for NOT IN predicates
+  @param is_negation false for IN predicates, true for NOT IN predicates
   @param expr first and only expression of the in value list
   @return an expression representing the IN predicate.
 */
 static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
-                                              bool equal, Item *expr) {
+                                              bool is_negation, Item *expr) {
   /*
     Relevant references for this issue:
     - SQL:2003, Part 2, section 8.4 <in predicate>, page 383,
@@ -148,7 +149,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
       subselect = expr3->invalidate_and_restore_query_block();
       result = new (pc->mem_root) Item_in_subselect(left, subselect);
 
-      if (!equal)
+      if (is_negation)
         result =
             change_truth_value_of_condition(pc, result, Item::BOOL_NEGATED);
 
@@ -156,10 +157,10 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
     }
   }
 
-  if (equal)
-    result = new (pc->mem_root) Item_func_eq(left, expr);
-  else
+  if (is_negation)
     result = new (pc->mem_root) Item_func_ne(left, expr);
+  else
+    result = new (pc->mem_root) Item_func_eq(left, expr);
 
   return result;
 }
@@ -273,6 +274,18 @@ bool PTI_function_call_generic_ident_sys::do_itemize(Parse_context *pc,
   return *res == nullptr || (*res)->itemize(pc, res);
 }
 
+void PTI_function_call_generic_2d::add_json_info(Json_object *obj) {
+  String func_str;
+
+  if (db.length > 0) {
+    append_identifier(nullptr, &func_str, db.str, db.length);
+    func_str.append('.');
+  }
+  append_identifier(nullptr, &func_str, func.str, func.length);
+  obj->add_alias("func_name", create_dom_ptr<Json_string>(func_str.ptr(),
+                                                          func_str.length()));
+}
+
 bool PTI_function_call_generic_2d::do_itemize(Parse_context *pc, Item **res) {
   if (super::do_itemize(pc, res)) return true;
 
@@ -349,6 +362,12 @@ bool PTI_expr_with_alias::do_itemize(Parse_context *pc, Item **res) {
   }
   *res = expr;
   return false;
+}
+
+void PTI_expr_with_alias::add_json_info(Json_object *obj) {
+  if (alias.str != nullptr)
+    obj->add_alias("alias",
+                   create_dom_ptr<Json_string>(alias.str, alias.length));
 }
 
 bool PTI_simple_ident_ident::do_itemize(Parse_context *pc, Item **res) {
@@ -477,6 +496,31 @@ bool PTI_truth_transform::do_itemize(Parse_context *pc, Item **res) {
 
   *res = change_truth_value_of_condition(pc, expr, truth_test);
   return *res == nullptr;
+}
+
+void PTI_truth_transform::add_json_info(Json_object *obj) {
+  const char *truth_str = nullptr;
+  switch (truth_test) {
+    case BOOL_NEGATED:
+      truth_str = "NOT";
+      break;
+    case BOOL_IS_TRUE:
+      truth_str = "IS TRUE";
+      break;
+    case BOOL_NOT_TRUE:
+      truth_str = "IS NOT TRUE";
+      break;
+    case BOOL_IS_FALSE:
+      truth_str = "IS FALSE";
+      break;
+    case BOOL_NOT_FALSE:
+      truth_str = "IS NOT FALSE";
+      break;
+    default:
+      break;
+  }
+  if (truth_str != nullptr)
+    obj->add_alias("truth_test", create_dom_ptr<Json_string>(truth_str));
 }
 
 bool PTI_function_call_nonkeyword_now::do_itemize(Parse_context *pc,

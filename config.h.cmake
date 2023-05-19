@@ -220,6 +220,7 @@
 #cmakedefine SCRAM_LIB_CONFIGURED
 #cmakedefine WITH_HYPERGRAPH_OPTIMIZER
 #cmakedefine KERBEROS_LIB_SSPI
+#cmakedefine WITH_SHOW_PARSE_TREE
 
 /* Lock Order */
 #cmakedefine WITH_LOCK_ORDER 1

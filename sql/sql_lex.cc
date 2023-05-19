@@ -3227,21 +3227,10 @@ bool Query_block::print_error(const THD *thd, String *str) {
 }
 
 void Query_block::print_select_options(String *str) {
-  /* First add options */
-  if (active_options() & SELECT_STRAIGHT_JOIN)
-    str->append(STRING_WITH_LEN("straight_join "));
-  if (active_options() & SELECT_HIGH_PRIORITY)
-    str->append(STRING_WITH_LEN("high_priority "));
-  if (active_options() & SELECT_DISTINCT)
-    str->append(STRING_WITH_LEN("distinct "));
-  if (active_options() & SELECT_SMALL_RESULT)
-    str->append(STRING_WITH_LEN("sql_small_result "));
-  if (active_options() & SELECT_BIG_RESULT)
-    str->append(STRING_WITH_LEN("sql_big_result "));
-  if (active_options() & OPTION_BUFFER_RESULT)
-    str->append(STRING_WITH_LEN("sql_buffer_result "));
-  if (active_options() & OPTION_FOUND_ROWS)
-    str->append(STRING_WITH_LEN("sql_calc_found_rows "));
+  std::string select_options_str;
+  get_select_options_str(active_options(), &select_options_str);
+  str->append(select_options_str);
+  if (!select_options_str.empty()) str->append(" ");
 }
 
 void Query_block::print_update_options(String *str) {
@@ -5198,3 +5187,25 @@ void LEX_GRANT_AS::cleanup() {
 }
 
 LEX_GRANT_AS::LEX_GRANT_AS() { cleanup(); }
+
+void get_select_options_str(ulonglong options, std::string *str) {
+  size_t len = str->length();
+
+  if ((options & SELECT_STRAIGHT_JOIN) != 0u)
+    str->append(STRING_WITH_LEN("straight_join "));
+  if ((options & SELECT_HIGH_PRIORITY) != 0u)
+    str->append(STRING_WITH_LEN("high_priority "));
+  if ((options & SELECT_DISTINCT) != 0u)
+    str->append(STRING_WITH_LEN("distinct "));
+  if ((options & SELECT_SMALL_RESULT) != 0u)
+    str->append(STRING_WITH_LEN("sql_small_result "));
+  if ((options & SELECT_BIG_RESULT) != 0u)
+    str->append(STRING_WITH_LEN("sql_big_result "));
+  if ((options & OPTION_BUFFER_RESULT) != 0u)
+    str->append(STRING_WITH_LEN("sql_buffer_result "));
+  if ((options & OPTION_FOUND_ROWS) != 0u)
+    str->append(STRING_WITH_LEN("sql_calc_found_rows "));
+
+  // Delete the last space character.
+  if (str->length() > len) str->pop_back();
+}

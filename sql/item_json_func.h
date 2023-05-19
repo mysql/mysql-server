@@ -992,6 +992,9 @@ class Item_func_array_cast final : public Item_func {
   */
   unique_ptr_destroy_only<Json_array> m_result_array;
 
+ protected:
+  void add_json_info(Json_object *obj) override;
+
  public:
   Item_func_array_cast(const POS &pos, Item *a, Cast_target type, uint len_arg,
                        uint dec_arg, const CHARSET_INFO *cs_arg);

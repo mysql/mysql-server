@@ -1298,6 +1298,11 @@ class Item_func_opt_neg : public Item_int_func {
   }
   bool eq(const Item *item, bool binary_cmp) const override;
   bool subst_argument_checker(uchar **) override { return true; }
+
+ protected:
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("negated", create_dom_ptr<Json_boolean>(negated));
+  }
 };
 
 class Item_func_between final : public Item_func_opt_neg {
@@ -1988,6 +1993,12 @@ class Item_func_case final : public Item_func {
   DTCollation cmp_collation;
   cmp_item *cmp_items[5]; /* For all result types */
   cmp_item *case_item;
+
+ protected:
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("has_case_expression",
+                   create_dom_ptr<Json_boolean>(get_first_expr_num() != -1));
+  }
 
  public:
   Item_func_case(const POS &pos, mem_root_deque<Item *> *list,

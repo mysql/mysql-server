@@ -2678,6 +2678,13 @@ void Item_date_add_interval::print(const THD *thd, String *str,
   str->append(')');
 }
 
+void Item_date_add_interval::add_json_info(Json_object *obj) {
+  super::add_json_info(obj);
+  obj->add_alias("interval_type",
+                 create_dom_ptr<Json_string>(interval_names[m_interval_type]));
+  obj->add_alias("subtract", create_dom_ptr<Json_boolean>(m_subtract));
+}
+
 void Item_extract::print(const THD *thd, String *str,
                          enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("extract("));

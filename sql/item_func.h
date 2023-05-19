@@ -1049,6 +1049,9 @@ class Item_typecast_unsigned final : public Item_int_func {
 };
 
 class Item_typecast_decimal final : public Item_func {
+ protected:
+  void add_json_info(Json_object *obj) override;
+
  public:
   Item_typecast_decimal(const POS &pos, Item *a, int len, int dec)
       : Item_func(pos, a) {
@@ -1080,6 +1083,12 @@ class Item_typecast_decimal final : public Item_func {
   Class used to implement CAST to floating-point data types.
 */
 class Item_typecast_real final : public Item_func {
+ protected:
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("is_double", create_dom_ptr<Json_boolean>(
+                                    data_type() == MYSQL_TYPE_DOUBLE));
+  }
+
  public:
   Item_typecast_real(const POS &pos, Item *a, bool as_double)
       : Item_func(pos, a) {
@@ -3407,6 +3416,9 @@ class JOIN;
 
 class Item_func_match final : public Item_real_func {
   typedef Item_real_func super;
+
+ protected:
+  void add_json_info(Json_object *obj) override;
 
  public:
   Item *against;

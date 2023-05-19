@@ -41,11 +41,6 @@
   Build a replacement query for SHOW STATUS.
   When the parser accepts the following syntax:
 
-  TODO: pos parameter is probably not required. For PT_* class construction,
-  pos is required only for json parse tree generation, which we are not doing
-  here. For PTI_* class construction, pos parameter is just a dummy parameter;
-  so we can just generate one here rather than getting it from the caller.
-
   <code>
     SHOW GLOBAL STATUS
   </code>

@@ -666,6 +666,7 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_SHOW_PROC_CODE] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_FUNC_CODE] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_EVENT] = CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PARSE_TREE] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROFILES] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROFILE] = CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_BINLOG_BASE64_EVENT] =
@@ -4738,6 +4739,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_SHOW_KEYS:
     case SQLCOM_SHOW_MASTER_STAT:
     case SQLCOM_SHOW_OPEN_TABLES:
+    case SQLCOM_SHOW_PARSE_TREE:
     case SQLCOM_SHOW_PLUGINS:
     case SQLCOM_SHOW_PRIVILEGES:
     case SQLCOM_SHOW_PROC_CODE:
@@ -5779,7 +5781,8 @@ bool Query_block::find_common_table_expr(THD *thd, Table_ident *table_name,
                                          Table_ref *tl, Parse_context *pc,
                                          bool *found) {
   *found = false;
-  if (!pc) return false;
+  // For SHOW PARSE_TREE, we don't want to show the CTE under a table.
+  if (pc == nullptr || pc->m_show_parse_tree != nullptr) return false;
 
   PT_with_clause *wc;
   PT_common_table_expr *cte = nullptr;

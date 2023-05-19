@@ -479,6 +479,12 @@ class Item_temporal_func : public Item_func {
  protected:
   bool check_precision();
 
+ protected:
+  void add_json_info(Json_object *obj) override {
+    if (decimals > 0)
+      obj->add_alias("precision", create_dom_ptr<Json_uint>(decimals));
+  }
+
  public:
   Item_temporal_func() : Item_func() {}
   explicit Item_temporal_func(const POS &pos) : Item_func(pos) {}
@@ -533,6 +539,9 @@ class Item_temporal_hybrid_func : public Item_str_func {
   virtual bool val_datetime(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date) = 0;
   type_conversion_status save_in_field_inner(Field *field,
                                              bool no_conversions) override;
+  void add_json_info(Json_object *obj) override {
+    Item_str_func::add_json_info(obj);
+  }
 
  public:
   Item_temporal_hybrid_func(Item *a, Item *b)
@@ -1015,6 +1024,10 @@ class Item_func_curtime : public Item_time_func {
   // Abstract method that defines which time zone is used for conversion.
   virtual Time_zone *time_zone() = 0;
 
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("precision", create_dom_ptr<Json_uint>(decimals));
+  }
+
  public:
   /**
     Constructor for Item_func_curtime.
@@ -1129,6 +1142,11 @@ class Item_func_now : public Item_datetime_func {
   virtual Time_zone *time_zone() = 0;
   type_conversion_status save_in_field_inner(Field *to,
                                              bool no_conversions) override;
+
+  void add_json_info(Json_object *obj) override {
+    if (decimals > 0)
+      obj->add_alias("precision", create_dom_ptr<Json_uint>(decimals));
+  }
 
  public:
   /**
@@ -1316,6 +1334,8 @@ extern const char *interval_names[];
   Also used for the synonym functions ADDDATE and SUBDATE.
 */
 class Item_date_add_interval final : public Item_temporal_hybrid_func {
+  typedef Item_temporal_hybrid_func super;
+
  public:
   Item_date_add_interval(const POS &pos, Item *a, Item *b, interval_type type,
                          bool subtract)
@@ -1338,6 +1358,9 @@ class Item_date_add_interval final : public Item_temporal_hybrid_func {
              enum_query_type query_type) const override;
   interval_type get_interval_type() const { return m_interval_type; }
   bool is_subtract() const { return m_subtract; }
+
+ protected:
+  void add_json_info(Json_object *obj) override;
 
  private:
   bool val_datetime(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date) override;

@@ -3739,6 +3739,13 @@ void Item_func_array_cast::print(const THD *thd, String *str,
   str->append(STRING_WITH_LEN(" array)"));
 }
 
+void Item_func_array_cast::add_json_info(Json_object *obj) {
+  String cast_type_str;
+  print_cast_type(cast_type, this, &cast_type_str);
+  obj->add_alias("cast_type", create_dom_ptr<Json_string>(
+                                  cast_type_str.ptr(), cast_type_str.length()));
+}
+
 bool Item_func_array_cast::resolve_type(THD *) {
   set_nullable(true);
   return false;

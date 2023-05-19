@@ -1173,9 +1173,19 @@ class Item : public Parse_tree_node {
   MY_COMPILER_DIAGNOSTIC_PUSH()
   MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(26435)
   virtual bool itemize(Parse_context *pc, Item **res) final {
-    // Json parse tree related things to be done pre-do_itemize().
+    // For condition#2 below ... If position is empty, this item was not
+    // created in the parser; so don't show it in the parse tree.
+    if (pc->m_show_parse_tree == nullptr || this->m_pos.is_empty())
+      return do_itemize(pc, res);
+
+    Show_parse_tree *tree = pc->m_show_parse_tree.get();
+
+    if (begin_parse_tree(tree)) return true;
+
     if (do_itemize(pc, res)) return true;
-    // Json parse tree related things to be done post-do_itemize().
+
+    if (end_parse_tree(tree)) return true;
+
     return false;
   }
   MY_COMPILER_DIAGNOSTIC_POP()

@@ -53,6 +53,9 @@ class PTI_truth_transform : public Parse_tree_item {
       : super(pos), expr(expr_arg), truth_test(truth_test) {}
 
   bool do_itemize(Parse_context *pc, Item **res) override;
+
+ protected:
+  void add_json_info(Json_object *obj) override;
 };
 
 class PTI_comp_op : public Parse_tree_item {
@@ -72,6 +75,12 @@ class PTI_comp_op : public Parse_tree_item {
         right(right_arg) {}
 
   bool do_itemize(Parse_context *pc, Item **res) override;
+
+ protected:
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("operator", create_dom_ptr<Json_string>(
+                                   (*boolfunc2creator)(false)->symbol(false)));
+  }
 };
 
 class PTI_comp_op_all : public Parse_tree_item {
@@ -81,6 +90,13 @@ class PTI_comp_op_all : public Parse_tree_item {
   chooser_compare_func_creator comp_op;
   bool is_all;
   PT_subquery *subselect;
+
+ protected:
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("is_all", create_dom_ptr<Json_boolean>(is_all));
+    obj->add_alias("operator", create_dom_ptr<Json_string>(
+                                   (*comp_op)(false)->symbol(false)));
+  }
 
  public:
   PTI_comp_op_all(const POS &pos, Item *left_arg,
@@ -211,6 +227,12 @@ class PTI_function_call_generic_ident_sys : public Parse_tree_item {
         opt_udf_expr_list(opt_udf_expr_list_arg) {}
 
   bool do_itemize(Parse_context *pc, Item **res) override;
+
+ protected:
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("func_name",
+                   create_dom_ptr<Json_string>(ident.str, ident.length));
+  }
 };
 
 /**
@@ -233,6 +255,9 @@ class PTI_function_call_generic_2d : public Parse_tree_item {
         opt_expr_list(opt_expr_list_arg) {}
 
   bool do_itemize(Parse_context *pc, Item **res) override;
+
+ protected:
+  void add_json_info(Json_object *obj) override;
 };
 
 class PTI_text_literal : public Item_string {
@@ -460,6 +485,12 @@ class PTI_odbc_date : public Parse_tree_item {
   LEX_STRING ident;
   Item *expr;
 
+ protected:
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("date_type",
+                   create_dom_ptr<Json_string>(ident.str, ident.length));
+  }
+
  public:
   PTI_odbc_date(const POS &pos, const LEX_STRING &ident_arg, Item *expr_arg)
       : super(pos), ident(ident_arg), expr(expr_arg) {}
@@ -483,6 +514,9 @@ class PTI_handle_sql2003_note184_exception : public Parse_tree_item {
         right(right_arg) {}
 
   bool do_itemize(Parse_context *pc, Item **res) override;
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("negated", create_dom_ptr<Json_boolean>(is_negation));
+  }
 };
 
 class PTI_expr_with_alias : public Parse_tree_item {
@@ -499,6 +533,9 @@ class PTI_expr_with_alias : public Parse_tree_item {
       : super(pos), expr(expr_arg), expr_loc(expr_loc_arg), alias(alias_arg) {}
 
   bool do_itemize(Parse_context *pc, Item **res) override;
+
+ protected:
+  void add_json_info(Json_object *obj) override;
 };
 
 class PTI_int_splocal : public Parse_tree_item {

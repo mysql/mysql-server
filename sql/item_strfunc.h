@@ -135,6 +135,10 @@ class Item_str_func : public Item_func {
     @return error_str().
    */
   String *push_packet_overflow_warning(THD *thd, const char *func);
+
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("func_name", create_dom_ptr<Json_string>(func_name()));
+  }
 };
 
 /*
@@ -785,6 +789,11 @@ class Item_func_char final : public Item_str_func {
     return false;
   }
   const char *func_name() const override { return "char"; }
+  void add_json_info(Json_object *obj) override {
+    Item_str_func::add_json_info(obj);
+    obj->add_alias("charset",
+                   create_dom_ptr<Json_string>(collation.collation->csname));
+  }
 };
 
 class Item_func_repeat final : public Item_str_func {
@@ -974,6 +983,11 @@ class Item_charset_conversion : public Item_str_func {
 
   bool resolve_type(THD *thd) override;
 
+  void add_json_info(Json_object *obj) override {
+    Item_str_func::add_json_info(obj);
+    obj->add_alias("charset", create_dom_ptr<Json_string>(m_cast_cs->csname));
+  }
+
  public:
   Item_charset_conversion(THD *thd, Item *a, const CHARSET_INFO *cs_arg,
                           bool cache_if_const)
@@ -1001,6 +1015,9 @@ class Item_charset_conversion : public Item_str_func {
 };
 
 class Item_typecast_char final : public Item_charset_conversion {
+ protected:
+  void add_json_info(Json_object *obj) override;
+
  public:
   Item_typecast_char(THD *thd, Item *a, longlong length_arg,
                      const CHARSET_INFO *cs_arg)
@@ -1111,6 +1128,13 @@ class Item_func_set_collation final : public Item_str_func {
   Item_field *field_for_view_update() override {
     /* this function is transparent for view updating */
     return args[0]->field_for_view_update();
+  }
+
+ protected:
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("collation",
+                   create_dom_ptr<Json_string>(collation_string.str,
+                                               collation_string.length));
   }
 };
 

@@ -50,6 +50,9 @@ class PT_window : public Parse_tree_node, public Window {
   PT_window(const POS &pos, Item_string *name) : super(pos), Window(name) {}
 
   bool do_contextualize(Parse_context *pc) override;
+
+ protected:
+  void add_json_info(Json_object *obj) override;
 };
 
 /**

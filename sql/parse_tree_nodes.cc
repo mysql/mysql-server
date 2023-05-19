@@ -52,6 +52,7 @@
 #include "sql/item_func.h"
 #include "sql/item_timefunc.h"
 #include "sql/key_spec.h"
+#include "sql/lex.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"                   // global_system_variables
 #include "sql/opt_explain_json.h"         // Explain_format_JSON
@@ -59,6 +60,7 @@
 #include "sql/parse_location.h"
 #include "sql/parse_tree_column_attrs.h"  // PT_field_def_base
 #include "sql/parse_tree_hints.h"
+#include "sql/parse_tree_items.h"
 #include "sql/parse_tree_partitions.h"  // PT_partition
 #include "sql/parse_tree_window.h"      // PT_window
 #include "sql/parser_yystype.h"
@@ -87,6 +89,7 @@
 #include "sql/sql_show_processlist.h"
 #include "sql/sql_show_status.h"  // build_show_session_status, ...
 #include "sql/sql_update.h"       // Sql_cmd_update...
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table_function.h"
 #include "sql/thr_malloc.h"
@@ -123,6 +126,15 @@ bool contextualize_safe(Context *pc, mem_root_deque<Item *> *list) {
 template <typename Context, typename Node, typename... Nodes>
 bool contextualize_safe(Context *pc, Node node, Nodes... nodes) {
   return contextualize_safe(pc, node) || contextualize_safe(pc, nodes...);
+}
+
+static void print_table_ident(const THD *thd, const Table_ident *ident,
+                              String *s) {
+  if (ident->db.length > 0) {
+    append_identifier(thd, s, ident->db.str, ident->db.length);
+    s->append('.');
+  }
+  append_identifier(thd, s, ident->table.str, ident->table.length);
 }
 
 /**
@@ -706,6 +718,35 @@ bool PT_select_sp_var::do_contextualize(Parse_context *pc) {
   return false;
 }
 
+std::string PT_select_stmt::get_printable_parse_tree(THD *thd) {
+  Parse_context pc(thd, thd->lex->current_query_block(),
+                   /*show_parse_tree=*/true);
+
+  pc.m_show_parse_tree->push_level(m_pos, typeid(*this).name());
+
+  thd->lex->sql_command = m_sql_command;
+
+  if (m_qe->contextualize(&pc)) {
+    return "";
+  }
+
+  const bool has_into_clause_inside_query_block = thd->lex->result != nullptr;
+
+  if (has_into_clause_inside_query_block && m_into != nullptr) {
+    my_error(ER_MULTIPLE_INTO_CLAUSES, MYF(0));
+    return "";
+  }
+  if (contextualize_safe(&pc, m_into)) {
+    return "";
+  }
+
+  if (pc.finalize_query_expression()) return "";
+
+  pc.m_show_parse_tree->pop_level();
+
+  return pc.m_show_parse_tree->get_parse_tree();
+}
+
 Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
   Parse_context pc(thd, thd->lex->current_query_block());
 
@@ -1229,6 +1270,15 @@ bool PT_query_specification::do_contextualize(Parse_context *pc) {
   return (opt_hints != nullptr ? opt_hints->contextualize(pc) : false);
 }
 
+void PT_query_specification::add_json_info(Json_object *obj) {
+  std::string select_options;
+
+  get_select_options_str(options.query_spec_options, &select_options);
+  if (!select_options.empty())
+    obj->add_alias("query_spec_options",
+                   create_dom_ptr<Json_string>(select_options));
+}
+
 bool PT_table_value_constructor::do_contextualize(Parse_context *pc) {
   pc->m_stack.push_back(QueryLevel(pc->mem_root, SC_TABLE_VALUE_CONSTRUCTOR));
 
@@ -1371,6 +1421,20 @@ bool PT_derived_table::do_contextualize(Parse_context *pc) {
   if (pc->select->add_joined_table(m_table_ref)) return true;
 
   return false;
+}
+
+void PT_derived_table::add_json_info(Json_object *obj) {
+  if (m_table_alias != nullptr) {
+    obj->add_alias("table_alias", create_dom_ptr<Json_string>(m_table_alias));
+  }
+  if (column_names.size() != 0) {
+    String column_names_str;
+    print_derived_column_names(nullptr, &column_names_str, &column_names);
+    obj->add_alias("table_columns",
+                   create_dom_ptr<Json_string>(column_names_str.ptr(),
+                                               column_names_str.length()));
+  }
+  obj->add_alias("lateral", create_dom_ptr<Json_boolean>(m_lateral));
 }
 
 bool PT_table_factor_joined_table::do_contextualize(Parse_context *pc) {
@@ -1937,10 +2001,35 @@ PT_common_table_expr::PT_common_table_expr(
   m_postparse.name = m_name;
 }
 
+bool PT_common_table_expr::do_contextualize(Parse_context *pc) {
+  // The subquery node is reparsed and contextualized under the table, not
+  // here. But for showing parse tree, we need to show it at it's originally
+  // supplied place, i.e. under the WITH clause.
+  if (pc->m_show_parse_tree != nullptr && m_subq_node != nullptr)
+    return m_subq_node->contextualize(pc);
+  return false;
+}
+
+void PT_common_table_expr::add_json_info(Json_object *obj) {
+  obj->add_alias("cte_name",
+                 create_dom_ptr<Json_string>(m_name.str, m_name.length));
+  if (m_column_names.size() != 0) {
+    String column_names_str;
+    print_derived_column_names(nullptr, &column_names_str, &m_column_names);
+    obj->add_alias("cte_columns",
+                   create_dom_ptr<Json_string>(column_names_str.ptr(),
+                                               column_names_str.length()));
+  }
+}
+
 bool PT_with_clause::do_contextualize(Parse_context *pc) {
   if (super::do_contextualize(pc)) return true; /* purecov: inspected */
   // WITH complements a query expression (a unit).
   pc->select->master_query_expression()->m_with_clause = this;
+
+  for (auto *el : m_list->elements())
+    if (el->contextualize(pc)) return true;
+
   return false;
 }
 
@@ -3555,6 +3644,59 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
   return ret;
 }
 
+/**
+  Build a parsed tree for :
+  SELECT '...json tree string...' as show_parse_tree.
+  Essentially the SHOW PARSE_TREE statement is converted into the above
+  SQL and passed to the executor.
+*/
+static Query_block *build_query_for_show_parse(
+    const POS &pos, THD *thd, const std::string_view &json_tree) {
+  // No query options.
+  static const Query_options options = {0 /* query_spec_options */};
+
+  /* '<json_tree>' */
+  LEX_STRING json_tree_copy;
+  if (lex_string_strmake(thd->mem_root, &json_tree_copy, json_tree.data(),
+                         json_tree.length()))
+    return nullptr;
+  PTI_text_literal_text_string *literal_string = new (thd->mem_root)
+      PTI_text_literal_text_string(pos, false, json_tree_copy);
+  if (literal_string == nullptr) return nullptr;
+
+  /* Literal string with alias ('<json_tree>' AS show_parse_tree ...) */
+  PTI_expr_with_alias *expr_name = new (thd->mem_root) PTI_expr_with_alias(
+      pos, literal_string, pos.cpp, {STRING_WITH_LEN("Show_parse_tree")});
+  if (expr_name == nullptr) return nullptr;
+
+  PT_select_item_list *item_list = new (thd->mem_root) PT_select_item_list(pos);
+  if (item_list == nullptr) return nullptr;
+  item_list->push_back(expr_name);
+
+  PT_query_primary *query_specification =
+      new (thd->mem_root) PT_query_specification(
+          pos, options, item_list,
+          Mem_root_array<PT_table_reference *>() /* Empty FROM list */,
+          nullptr /*where*/);
+  if (query_specification == nullptr) return nullptr;
+
+  PT_query_expression *query_expression =
+      new (thd->mem_root) PT_query_expression(pos, query_specification);
+  if (query_expression == nullptr) return nullptr;
+
+  LEX *lex = thd->lex;
+  Query_block *current_query_block = lex->current_query_block();
+  Parse_context pc(thd, current_query_block);
+  if (thd->is_error()) return nullptr;
+
+  lex->sql_command = SQLCOM_SELECT;
+  if (query_expression->contextualize(&pc)) return nullptr;
+  if (pc.finalize_query_expression()) return nullptr;
+  lex->sql_command = SQLCOM_SHOW_PARSE_TREE;
+
+  return current_query_block;
+}
+
 Sql_cmd *PT_load_table::make_cmd(THD *thd) {
   LEX *const lex = thd->lex;
   Query_block *const select = lex->current_query_block();
@@ -3653,6 +3795,17 @@ bool PT_table_factor_table_ident::do_contextualize(Parse_context *pc) {
   return false;
 }
 
+void PT_table_factor_table_ident::add_json_info(Json_object *obj) {
+  String s;
+
+  print_table_ident(nullptr, table_ident, &s);
+  obj->add_alias("table_ident",
+                 create_dom_ptr<Json_string>(s.ptr(), s.length()));
+
+  if (opt_table_alias != nullptr)
+    obj->add_alias("table_alias", create_dom_ptr<Json_string>(opt_table_alias));
+}
+
 bool PT_table_reference_list_parens::do_contextualize(Parse_context *pc) {
   if (super::do_contextualize(pc) || contextualize_array(pc, &table_list))
     return true;
@@ -3671,6 +3824,39 @@ bool PT_joined_table::do_contextualize(Parse_context *pc) {
   if (m_type & JTT_STRAIGHT) m_right_table_ref->straight = true;
 
   return false;
+}
+
+void PT_joined_table::add_json_info(Json_object *obj) {
+  std::string type_string;
+
+  // Join nodes can re-stucture their child trees (see add_cross_join). It's
+  // not worth changing the corresponding text of the modified join tree. Users
+  // can anyway generate the text using the join type and leaf table
+  // references. So just omit the text field.
+  obj->remove("text");
+
+  if (m_type & JTT_STRAIGHT)
+    type_string += "STRAIGHT_JOIN";
+  else {
+    if (m_type & JTT_NATURAL) type_string += "NATURAL ";
+
+    // Join type can't be both inner and outer.
+    assert(!((m_type & JTT_INNER) &&
+             ((m_type & JTT_LEFT) || (m_type & JTT_RIGHT))));
+
+    if (m_type & JTT_INNER)
+      type_string += "INNER ";
+    else if (m_type & JTT_LEFT)
+      type_string += "LEFT OUTER ";
+    else if (m_type & JTT_RIGHT)
+      type_string += "RIGHT OUTER ";
+    else
+      assert(0);  // Has to be inner or outer.
+
+    type_string += "JOIN";
+  }
+
+  obj->add_alias("join_type", create_dom_ptr<Json_string>(type_string));
 }
 
 bool PT_cross_join::do_contextualize(Parse_context *pc) {
@@ -3718,14 +3904,22 @@ bool PT_joined_table_using::do_contextualize(Parse_context *pc) {
   return false;
 }
 
-void PT_table_locking_clause::print_table_ident(const THD *thd,
-                                                const Table_ident *ident,
-                                                String *s) {
-  if (ident->db.length > 0) {
-    append_identifier(thd, s, ident->db.str, ident->db.length);
-    s->append('.');
+void PT_joined_table_using::add_json_info(Json_object *obj) {
+  super::add_json_info(obj);
+
+  if (using_fields == nullptr || using_fields->is_empty()) return;
+
+  List_iterator<String> using_fields_it(*using_fields);
+  String using_fields_str;
+
+  for (String *curr_str = using_fields_it++;;) {
+    append_identifier(&using_fields_str, curr_str->ptr(), curr_str->length());
+    if ((curr_str = using_fields_it++) == nullptr) break;
+    using_fields_str.append(",", 1, system_charset_info);
   }
-  append_identifier(thd, s, ident->table.str, ident->table.length);
+  obj->add_alias("using_fields",
+                 create_dom_ptr<Json_string>(using_fields_str.ptr(),
+                                             using_fields_str.length()));
 }
 
 bool PT_table_locking_clause::raise_error(THD *thd, const Table_ident *name,
@@ -3834,7 +4028,8 @@ bool PT_option_value_list_head::do_contextualize(Parse_context *pc) {
 
   sp_create_assignment_lex(thd, delimiter_pos.raw.end);
   assert(thd->lex->query_block == thd->lex->current_query_block());
-  Parse_context inner_pc(pc->thd, thd->lex->query_block);
+  Parse_context inner_pc(pc->thd, thd->lex->query_block,
+                         pc->m_show_parse_tree.get());
 
   if (value->contextualize(&inner_pc)) return true;
 
@@ -4125,7 +4320,7 @@ bool PT_subquery::do_contextualize(Parse_context *pc) {
   Query_block *child = lex->new_query(pc->select);
   if (child == nullptr) return true;
 
-  Parse_context inner_pc(pc->thd, child);
+  Parse_context inner_pc(pc->thd, child, pc->m_show_parse_tree.get());
   inner_pc.m_stack.push_back(QueryLevel(pc->mem_root, SC_SUBQUERY));
 
   if (m_is_derived_table) child->linkage = DERIVED_TABLE_TYPE;
@@ -4408,6 +4603,29 @@ Sql_cmd *PT_show_grants::make_cmd(THD *thd) {
   return &sql_cmd;
 }
 
+Sql_cmd *PT_show_parse_tree::make_cmd(THD *thd) {
+  LEX *lex = thd->lex;
+
+  std::string parse_tree_str = m_parse_tree_stmt->get_printable_parse_tree(thd);
+
+  if (parse_tree_str.empty()) return nullptr;
+
+  // get_printable_parse_tree() must have updated lex, and we want to
+  // start-over with a new query. So reset lex.
+  // 'result' may be non-null for an INTO clause. lex->reset() doesn't like
+  // non-null 'result'.
+  lex->result = nullptr;
+  lex_start(thd);
+
+  lex->sql_command = m_sql_command;
+
+  if (build_query_for_show_parse(m_pos, thd, parse_tree_str) == nullptr)
+    return nullptr;
+
+  lex->sql_command = SQLCOM_SHOW_PARSE_TREE;
+  return &m_sql_cmd;
+}
+
 bool PT_alter_table_action::do_contextualize(Table_ddl_parse_context *pc) {
   if (super::do_contextualize(pc)) return true;
   pc->alter_info->flags |= flag;
@@ -4559,8 +4777,9 @@ bool PT_preload_keys::do_contextualize(Table_ddl_parse_context *pc) {
   return false;
 }
 
-Alter_tablespace_parse_context::Alter_tablespace_parse_context(THD *thd)
-    : thd(thd), mem_root(thd->mem_root) {}
+Alter_tablespace_parse_context::Alter_tablespace_parse_context(
+    THD *thd, bool show_parse_tree)
+    : Parse_context_base(show_parse_tree), thd(thd), mem_root(thd->mem_root) {}
 
 bool PT_alter_tablespace_option_nodegroup::do_contextualize(
     Alter_tablespace_parse_context *pc) {

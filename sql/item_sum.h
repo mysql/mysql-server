@@ -787,6 +787,10 @@ class Item_sum : public Item_func {
     snprintf(buff, sizeof(buff), "%s as window function", func_name());
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), buff);
   }
+
+  void add_json_info(Json_object *obj) override {
+    obj->add_alias("distinct", create_dom_ptr<Json_boolean>(with_distinct));
+  }
 };
 
 class Unique;

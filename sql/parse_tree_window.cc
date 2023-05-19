@@ -42,16 +42,34 @@ bool PT_window::do_contextualize(Parse_context *pc) {
     if (m_order_by->contextualize(pc)) return true;
   }
 
-  if (m_frame != nullptr) {
-    for (auto bound : {m_frame->m_from, m_frame->m_to}) {
-      if (bound->m_border_type == WBT_VALUE_PRECEDING ||
-          bound->m_border_type == WBT_VALUE_FOLLOWING) {
-        auto **bound_i_ptr = bound->border_ptr();
-        if ((*bound_i_ptr)->itemize(pc, bound_i_ptr)) return true;
-      }
-    }
+  if (m_frame != nullptr && !m_frame->m_originally_absent) {
+    if (m_frame->contextualize(pc)) return true;
   }
 
+  return false;
+}
+
+void PT_window::add_json_info(Json_object *obj) {
+  if (m_name != nullptr)
+    obj->add_alias("window_name",
+                   create_dom_ptr<Json_string>(m_name->item_name.ptr(),
+                                               m_name->item_name.length()));
+}
+
+bool PT_frame::do_contextualize(Parse_context *pc) {
+  for (auto *bound : {m_from, m_to})
+    if (bound->contextualize(pc)) return true;
+  if (m_exclusion != nullptr)
+    if (m_exclusion->contextualize(pc)) return true;
+  return false;
+}
+
+bool PT_border::do_contextualize(Parse_context *pc) {
+  if (m_border_type == WBT_VALUE_PRECEDING ||
+      m_border_type == WBT_VALUE_FOLLOWING) {
+    auto **bound_i_ptr = border_ptr();
+    if ((*border_ptr())->itemize(pc, bound_i_ptr)) return true;
+  }
   return false;
 }
 

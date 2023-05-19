@@ -3482,6 +3482,12 @@ void Item_typecast_char::print(const THD *thd, String *str,
   str->append(')');
 }
 
+void Item_typecast_char::add_json_info(Json_object *obj) {
+  Item_charset_conversion::add_json_info(obj);
+  if (m_cast_length >= 0)
+    obj->add_alias("length", create_dom_ptr<Json_uint>(m_cast_length));
+}
+
 String *Item_charset_conversion::val_str(String *str) {
   assert(fixed);
   /* Cache is only ever used by Item_func_conv_charset */

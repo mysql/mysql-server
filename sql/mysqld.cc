@@ -4423,6 +4423,10 @@ SHOW_VAR com_status_vars[] = {
      (char *)offsetof(System_status_var,
                       com_stat[(uint)SQLCOM_SHOW_OPEN_TABLES]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"show_parse_tree",
+     reinterpret_cast<char *>(
+         offsetof(System_status_var, com_stat[(uint)SQLCOM_SHOW_PARSE_TREE])),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"show_plugins",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_SHOW_PLUGINS]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
