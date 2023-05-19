@@ -4248,13 +4248,16 @@ DROP TABLE t1, t2;
 CREATE TABLE t(b LONGBLOB);
 INSERT INTO t VALUES
 (0x0800), (0x04b9), (0x0c00), (0x06cb), (0x1000), (0x0f6b), (0x0b73);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT HEX(t1.b), HEX(t2.b) FROM t AS t1, t AS t2 WHERE t1.b = t2.b;
 EXPLAIN
--> Filter: (t2.b = t1.b)  (cost=6.12 rows=7)
-    -> Inner hash join (<hash>(t2.b)=<hash>(t1.b))  (cost=6.12 rows=7)
-        -> Table scan on t2  (cost=0.0522 rows=7)
+-> Filter: (t2.b = t1.b)  (rows=7)
+    -> Inner hash join (<hash>(t2.b)=<hash>(t1.b))  (rows=7)
+        -> Table scan on t2  (rows=7)
         -> Hash
-            -> Table scan on t1  (cost=0.95 rows=7)
+            -> Table scan on t1  (rows=7)
 
 SELECT HEX(t1.b), HEX(t2.b) FROM t AS t1, t AS t2 WHERE t1.b = t2.b;
 HEX(t1.b)	HEX(t2.b)

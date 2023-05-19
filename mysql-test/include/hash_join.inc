@@ -2679,9 +2679,10 @@ DROP TABLE t1, t2;
 CREATE TABLE t(b LONGBLOB);
 INSERT INTO t VALUES
   (0x0800), (0x04b9), (0x0c00), (0x06cb), (0x1000), (0x0f6b), (0x0b73);
+ANALYZE TABLE t;
 let $query =
   SELECT HEX(t1.b), HEX(t2.b) FROM t AS t1, t AS t2 WHERE t1.b = t2.b;
---replace_regex $elide_cost
+--replace_regex $elide_costs
 --eval EXPLAIN FORMAT=TREE $query
 --sorted_result
 --eval $query
