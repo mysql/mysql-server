@@ -50,4 +50,8 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
 void generate_user_salt(char *buffer, int buffer_len);
 void xor_string(char *to, int to_len, char *pattern, int pattern_len);
 
+// extern "C" since it is an (undocumented) part of the libmysql ABI.
+extern "C" void my_make_scrambled_password(char *to, const char *password,
+                                           size_t pass_len);
+
 #endif

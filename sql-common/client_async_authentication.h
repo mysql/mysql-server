@@ -28,6 +28,8 @@
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 
+#include "my_inttypes.h"
+#include "mysql/client_plugin.h"
 #include "mysql/plugin_auth_common.h"
 #include "mysql_async.h"
 #include "mysql_com.h"

@@ -25,6 +25,7 @@
 #include "mysql_com.h"  // NOLINT(build/include_subdir)
 #include "sha1.h"       // for SHA1_HASH_SIZE NOLINT(build/include_subdir)
 
+#include "password.h"
 #include "plugin/x/src/cache_based_verification.h"
 #include "plugin/x/src/native_plain_verification.h"
 #include "plugin/x/src/native_verification.h"

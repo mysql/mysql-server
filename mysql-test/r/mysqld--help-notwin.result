@@ -745,6 +745,10 @@ The following options may be given as the first argument:
  NULLS_UNEQUAL (default behavior for 4.1 and later),
  NULLS_EQUAL (emulate 4.0 behavior), and NULLS_IGNORED
  --myisam-use-mmap   Use memory mapping for reading and writing MyISAM tables
+ --mysql-native-password[=name] 
+ Enable or disable mysql_native_password plugin. Possible
+ values are ON, OFF, FORCE (don't start if the plugin
+ fails to load).
  --mysql-native-password-proxy-users 
  If set to FALSE (the default), then the
  mysql_native_password plugin will not signal for
@@ -1850,6 +1854,7 @@ myisam-recover-options OFF
 myisam-sort-buffer-size 8388608
 myisam-stats-method nulls_unequal
 myisam-use-mmap FALSE
+mysql-native-password ON
 mysql-native-password-proxy-users FALSE
 net-buffer-length 16384
 net-read-timeout 30

@@ -24,7 +24,7 @@
 
 #include "plugin/x/src/helper/generate_hash.h"
 
-#include "mysql_com.h"
+#include "password.h"
 #include "sha1.h"  // for SHA1_HASH_SIZE
 
 namespace xpl {

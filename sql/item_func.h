@@ -46,7 +46,6 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "sql-common/my_decimal.h"  // str2my_decimal

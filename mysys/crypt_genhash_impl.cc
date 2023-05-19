@@ -439,3 +439,13 @@ void xor_string(char *to, int to_len, char *pattern, int pattern_len) {
     ++loop;
   }
 }
+
+// extern "C" since it is an (undocumented) part of the libmysql ABI.
+extern "C" void my_make_scrambled_password(char *to, const char *password,
+                                           size_t pass_len) {
+  char salt[CRYPT_SALT_LENGTH + 1];
+
+  generate_user_salt(salt, CRYPT_SALT_LENGTH + 1);
+  my_crypt_genhash(to, CRYPT_MAX_PASSWORD_SIZE, password, pass_len, salt,
+                   nullptr);
+}
