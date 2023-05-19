@@ -40,6 +40,23 @@ struct MYSQL_LEX_STRING;
 struct MYSQL_LEX_CSTRING;
 
 /**
+  What type of Sql_cmd we're dealing with (DML, DDL, other).
+
+  "Other" may be used for commands that are neither DML or DDL, such as
+  shutdown.
+
+  Theoretically, a command can run through code paths of both DDL and DML
+  (e.g. CREATE TABLE ... AS SELECT ...), but at this point, a command
+  must identify as only one thing.
+*/
+enum enum_sql_cmd_type {
+  SQL_CMD_UNDETERMINED = 0,
+  SQL_CMD_DDL = 1,
+  SQL_CMD_DML = 2,
+  SQL_CMD_OTHER = 4
+};
+
+/**
   Representation of an SQL command.
 
   This class is an interface between the parser and the runtime.
@@ -141,13 +158,15 @@ class Sql_cmd {
   /// @returns true if statement is part of a stored procedure
   bool is_part_of_sp() const { return m_part_of_sp; }
 
-  /// @return true if SQL command is a DML statement
-  virtual bool is_dml() const { return false; }
+  /// @return SQL command type (DML, DDL, ... -- "undetermined" by default)
+  virtual enum enum_sql_cmd_type sql_cmd_type() const {
+    return SQL_CMD_UNDETERMINED;
+  }
 
   /// @return true if implemented as single table plan, DML statement only
   virtual bool is_single_table_plan() const {
     /* purecov: begin inspected */
-    assert(is_dml());
+    assert(sql_cmd_type() == SQL_CMD_DML);
     return false;
     /* purecov: end */
   }

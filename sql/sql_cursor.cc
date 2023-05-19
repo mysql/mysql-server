@@ -186,9 +186,10 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   Query_result_materialize *result_materialize = nullptr;
   LEX *lex = thd->lex;
 
-  Sql_cmd_dml *sql_cmd = lex->m_sql_cmd != nullptr && lex->m_sql_cmd->is_dml()
-                             ? down_cast<Sql_cmd_dml *>(lex->m_sql_cmd)
-                             : nullptr;
+  Sql_cmd_dml *sql_cmd =
+      lex->m_sql_cmd != nullptr && lex->m_sql_cmd->sql_cmd_type() == SQL_CMD_DML
+          ? down_cast<Sql_cmd_dml *>(lex->m_sql_cmd)
+          : nullptr;
 
   // Only DML statements may have assigned a cursor.
   if (sql_cmd == nullptr) {
