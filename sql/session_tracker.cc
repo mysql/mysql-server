@@ -1305,12 +1305,44 @@ void Transaction_state_tracker::add_trx_state(THD *thd, uint add) {
   // always report to the client).
   if (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) return;
 
+#ifndef NDEBUG
+  /*
+    Assert that we do not set TX_STMT_DML while the current state is
+    TX_STMT_DDL. We currently allow transitions from DML to DDL,
+    but not vice versa. Allowing this would not be bad per se, it's
+    more a "we don't know of any such cases, so if this assertion
+    fails, double-check whether the call/transition wasn't a bug.
+    If the call was not in error, remove this assertion and update
+    the comment to note that this state transition has become valid.
+  */
+  assert((add != TX_STMT_DML) || !(tx_curr_state & TX_STMT_DDL));
+#endif
+
   if (add == TX_EXPLICIT) {
     /*
       Always send chistics item (if tracked), always replace state.
     */
     tx_changed |= TX_CHG_CHISTICS;
     tx_curr_state = TX_EXPLICIT;
+  }
+
+  else if (add == TX_STMT_DDL) {
+    /*
+      Always replace state: A DML-statement can transition to DDL here
+      (as currently, we flag each statement as only one of DML/DDL,
+      never both). DDL will also implicitly end an explicit transaction
+      (e.g. one started with BEGIN).
+
+      It is possible that we arrive here with TX_STMT_DML already set, e.g. in
+      rpl_gtid.rpl_gtid_mixed_row_create_drop_temporary_in_function_or_trigger
+      where we do an INSERT INTO ... VALUES (func1()) with the func1
+      containing DDL (CREATE TEMPORARY TABLE etc.).
+
+      Send chistics if client is tracking this information and we're
+      in a transaction.
+    */
+    if (tx_curr_state & TX_EXPLICIT) tx_changed |= TX_CHG_CHISTICS;
+    tx_curr_state = TX_STMT_DDL;
   }
 
   /*

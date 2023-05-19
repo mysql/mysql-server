@@ -1,0 +1,9 @@
+############################################################
+# Validate that `group_replication_set_as_primary()` does
+# wait for a ongoing CREATE TABLE to complete before
+# actually change the primary.
+############################################################
+--let $ddl_preparation_statement=
+--let $ddl_statement= CREATE TABLE t1 (c1 INT PRIMARY KEY)
+--let $ddl_cleanup_statement= DROP TABLE t1
+--source ../include/gr_primary_manual_failover_vs_ddl.inc

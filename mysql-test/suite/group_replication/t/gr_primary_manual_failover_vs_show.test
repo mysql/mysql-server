@@ -1,0 +1,12 @@
+############################################################
+# Validate that `group_replication_set_as_primary()` does
+# NOT wait for a ongoing SHOW to complete before
+# actually changing the primary. (It should of course wait
+# for many other statements that write data in a transactional
+# fashion. We test for that in other test cases.)
+############################################################
+
+--let $nop_preparation_statement=
+--let $nop_statement= SHOW STATUS LIKE 'Slow_queries'
+--let $nop_cleanup_statement=
+--source ../include/gr_primary_manual_failover_vs_nop.inc

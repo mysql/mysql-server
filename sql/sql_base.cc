@@ -5240,12 +5240,32 @@ int run_before_dml_hook(THD *thd) {
   int out_value = 0;
 
   TX_TRACKER_GET(tst);
-  tst->add_trx_state(thd, TX_STMT_DML);
+
+  /*
+    Track this as DML only if it hasn't already been identified as DDL.
+
+    Some statements such as "CREATE TABLE ... AS SELECT ..."
+    are DDL ("CREATE TABLE ..."), but also pass through here
+    because of the DML part ("SELECT ...").
+
+    For now, a statement has to be one or the other, DDL or DML.
+    In the above example, the statement's sql_cmd_type() would be
+    SQL_CMD_DDL because of the "CREATE TABLE".
+
+    As tracking goes, a statement having only one type is a matter
+    of convention rather than one of necessity; if the convention
+    changes, document that change, and update the assertions in
+    the tracker code.
+  */
+  if ((tst->get_trx_state() & TX_STMT_DDL) == 0)
+    tst->add_trx_state(thd, TX_STMT_DML);
+  else
+    tst = nullptr;
 
   (void)RUN_HOOK(transaction, before_dml, (thd, out_value));
 
   if (out_value) {
-    tst->clear_trx_state(thd, TX_STMT_DML);
+    if (tst != nullptr) tst->clear_trx_state(thd, TX_STMT_DML);
     my_error(ER_BEFORE_DML_VALIDATION_ERROR, MYF(0));
   }
 

@@ -1,0 +1,56 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a group in single-primary mode.  server1 is the
+#    primary.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 2. Start a NOP-like statement on the primary, server1,
+#    but do not let it complete yet.
+[connection server_1_1]
+SET DEBUG_SYNC= 'execute_command_before_main_switch SIGNAL nop_running WAIT_FOR nop_resume';
+# The statement to test with that shouldn't hold up switching the primary:
+SHOW STATUS LIKE 'Slow_queries';
+[connection server1]
+SET DEBUG_SYNC= 'now WAIT_FOR nop_running';
+
+############################################################
+# 3. Set server2 as primary.  The primary change should
+#    succeed immediately; it should NOT wait until the
+#    NOP is complete.
+[connection server_1]
+SELECT group_replication_set_as_primary("SERVER2_UUID");;
+group_replication_set_as_primary("SERVER2_UUID")
+Primary server switched to: SERVER2_UUID
+
+############################################################
+# 4. Assert that server2 is now the primary.
+[connection server1]
+include/assert.inc ['server2 is now the primary']
+include/gr_assert_secondary_member.inc
+[connection server2]
+include/gr_assert_primary_member.inc
+
+############################################################
+# 5. Resume the NOP.
+[connection server1]
+SET DEBUG_SYNC= 'now SIGNAL nop_resume';
+[connection server_1_1]
+SET DEBUG_SYNC= 'RESET';
+
+############################################################
+# 6. Clean up.
+[connection server2]
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+include/group_replication_end.inc

@@ -24,17 +24,19 @@
 #include <sql/mysqld_thd_manager.h>
 #include <sql/sql_lex.h>
 #include "mutex_lock.h"  // MUTEX_LOCK
+#include "mysql/components/services/log_builtins.h"
 #include "mysql_ongoing_transaction_query_imp.h"
 #include "sql/sql_class.h"  // THD
+#include "sql/sql_parse.h"  // sql_command_flags
 
 class Get_running_transactions : public Do_THD_Impl {
  public:
   Get_running_transactions() = default;
 
   /*
-   This method relies on the assumption that a thread running query will either
-   have an active query plan, or is in the middle of a multi statement
-   transaction.
+   This method relies on the assumption that a thread running a query
+   will either have an active query plan, or is in the middle of a
+   multi-statement transaction.
   */
   void operator()(THD *thd) override {
     if (thd->is_killed() || thd->is_error()) return;
@@ -42,32 +44,103 @@ class Get_running_transactions : public Do_THD_Impl {
     MUTEX_LOCK(lock_thd_data, &thd->LOCK_thd_data);
     if (thd->is_being_disposed()) return;
 
+    LEX *l = thd->lex;
+
+    /*
+      In an ideal world, we might be able to just look at whether
+
+          sql_command_flags[sql_command] &
+            (CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS)
+
+      is true to identify interesting DDL. Unfortunately, sql_command
+      is not always set to a valid command. It will be SQLCOM_END
+      before parsing, and during e.g. stored routine processing.
+      To further muddy the waters, we change sql_command at various
+      locations in the code.
+
+      That said, this still wouldn't detect being in the middle of a
+      multi-statement transaction, so we also explicitly inspect
+      transaction state below.
+    */
+
+    // "Command not otherwise specified"
+    enum_sql_command sql_command = SQLCOM_END;
+
+    /*
+      No flags (blocking or otherwise) found yet.
+      We must fail-open as we may never get a usable lex on some threads.
+    */
+    int blocked_by_sql_command = 0;
+
+    /*
+      Get command code set on the lex.
+      If we get something valid, we'll inspect the flags for that command
+      to see whether the command auto-commits. DDL commands should match
+      this pattern.
+    */
+    if ((l != nullptr) && ((sql_command = l->sql_command) != SQLCOM_END)) {
+      /*
+        If we got something better than SQLCOM_END from the lex,
+        the lex was set up.
+
+        See whether this is a "new-style" command (i.e. it has
+        an object derived from Sql_cmd set on thd->lex->m_sql_cmd).
+        If so, that's the info we'll use.
+
+        Unfortunately, while there are situations where sql_command
+        is SQLCOM_END but there is valid non-NULL value in m_sql_cmd,
+        there are others where that value is garbage, so we may not
+        deref in such cases. But what we can't identify as a specific
+        command here, we still may have identified as TX_STMT_DDL in
+        the transaction tracker (see below).
+      */
+      if (l->m_sql_cmd != nullptr)
+        sql_command = l->m_sql_cmd->sql_command_code();
+
+      blocked_by_sql_command =
+          sql_command_flags[sql_command] &
+          (CF_CHANGES_DATA | CF_IMPLICIT_COMMIT_BEGIN | CF_IMPLICIT_COMMIT_END);
+    }
+
+    /*
+      Query the transaction tracker for relevant flags.
+
+      TX_EXPLICIT indicates a transaction that was started explicitly,
+      e.g. with BEGIN / START TRANSACTION.
+      (See also in_active_multi_stmt_transaction().)
+
+      TX_STMT_DML is turned on if the statement "behaves like DML"
+      (by passing through run_before_dml_hook()).
+
+      TX_STMT_DDL is turned on if after parsing, the statement
+      identifies as DDL (by means of sql_cmd_type()) and
+      "behaves like DDL" (by passing through mark_trx_read_write()).
+
+      Due to the different life-cycles,
+
+        ((tst->get_trx_state() & TX_STMT_DDL) > 0)
+
+      may differ from
+
+        (blocked_by_sql_command > 0)
+
+      This works to our advantage in certain corner cases as it
+      extends our gaze.
+    */
     TX_TRACKER_GET(tst);
+    int blocked_by_trx_tracker =
+        tst->get_trx_state() & (TX_EXPLICIT | TX_STMT_DML | TX_STMT_DDL);
 
     /*
-      Show we're at least as restrictive detecting transactions as the
-      original code for BUG#28327838 that we're replacing!!
+      Now add this thread to the list of showstoppers for change-primary
+      if we found a reason to.
     */
-    assert(((tst->get_trx_state() & TX_EXPLICIT)) ||
-           !(thd->in_active_multi_stmt_transaction()));
-
-    /*
-      Show we're detecting DML at least in all cases the original code does.
-
-      NB  TX_STMT_DML starts off false, and is turned on if after parsing, the
-          statement self-identifies as DML.  This specifically means that for
-          scenarios that somehow don't actually go through the parser, or
-          haven't gone through the parser yet at the time of examining, results
-          will differ between these two approaches. For the sake of this
-          assertion though, we'll pass it if TX_STMT_DML is not set as long as
-          no query is set on that THD, either.
-    */
-
-    if ((tst->get_trx_state() & (TX_EXPLICIT | TX_STMT_DML)) > 0)
+    if ((blocked_by_sql_command > 0) || (blocked_by_trx_tracker > 0)) {
       thread_ids.push_back(thd->thread_id());
+    }
   }
 
-  ulong get_transaction_number() { return thread_ids.size(); }
+  ulong get_transaction_count() { return thread_ids.size(); }
 
   void fill_transaction_ids(unsigned long **ids) {
     size_t number_thd = thread_ids.size();
@@ -88,10 +161,10 @@ class Get_running_transactions : public Do_THD_Impl {
 
 DEFINE_BOOL_METHOD(
     mysql_ongoing_transactions_query_imp::get_ongoing_server_transactions,
-    (unsigned long **thread_ids, unsigned long *lenght)) {
+    (unsigned long **thread_ids, unsigned long *length)) {
   Get_running_transactions trx_counter;
   Global_THD_manager::get_instance()->do_for_all_thd(&trx_counter);
   trx_counter.fill_transaction_ids(thread_ids);
-  *lenght = trx_counter.get_transaction_number();
+  *length = trx_counter.get_transaction_count();
   return false;
 }

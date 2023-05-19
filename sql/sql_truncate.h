@@ -28,7 +28,7 @@
 
 #include "my_sqlcommand.h"
 #include "sql/dd/types/table.h"
-#include "sql/sql_cmd.h"
+#include "sql/sql_cmd_ddl.h"
 
 class MDL_ticket;
 class THD;
@@ -40,7 +40,7 @@ using Up_table = std::unique_ptr<dd::Table>;
 /**
   Sql_cmd_truncate_table represents the TRUNCATE statement.
 */
-class Sql_cmd_truncate_table : public Sql_cmd {
+class Sql_cmd_truncate_table : public Sql_cmd_ddl {
   /** Set if a lock must be downgraded after truncate is done. */
   MDL_ticket *m_ticket_downgrade = nullptr;
 

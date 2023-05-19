@@ -218,7 +218,8 @@ enum enum_tx_state {
   TX_RESULT_SET = 128,     ///< result-set was sent
   TX_WITH_SNAPSHOT = 256,  ///< WITH CONSISTENT SNAPSHOT was used
   TX_LOCKED_TABLES = 512,  ///< LOCK TABLES is active
-  TX_STMT_DML = 1024       ///< a DML statement (known before data is accessed)
+  TX_STMT_DML = 1024,      ///< a DML statement (known before data is accessed)
+  TX_STMT_DDL = 2048       ///< a DDL statement
 };
 
 /**
@@ -299,11 +300,11 @@ class Transaction_state_tracker : public State_tracker {
 
   inline void update_change_flags(THD *thd) {
     tx_changed &= ~TX_CHG_STATE;
-    // Flag state changes other than "is DML"
-    tx_changed |=
-        ((tx_curr_state & ~TX_STMT_DML) != (tx_reported_state & ~TX_STMT_DML))
-            ? TX_CHG_STATE
-            : 0;
+    // Flag state changes other than "is DDL/DML"
+    tx_changed |= ((tx_curr_state & ~(TX_STMT_DML | TX_STMT_DDL)) !=
+                   (tx_reported_state & ~(TX_STMT_DML | TX_STMT_DDL)))
+                      ? TX_CHG_STATE
+                      : 0;
     if (tx_changed != TX_CHG_NONE) mark_as_changed(thd, {});
   }
 };

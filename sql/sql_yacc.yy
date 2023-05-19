@@ -12844,6 +12844,10 @@ drop_table_stmt:
             if (Select->add_tables(YYTHD, $5, TL_OPTION_UPDATING,
                                    YYPS->m_lock_type, YYPS->m_mdl_type))
               MYSQL_YYABORT;
+
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_drop_table();
+            if (!Lex->m_sql_cmd)
+              MYSQL_YYABORT; /* purecov: inspected */ //OOM
           }
         ;
 

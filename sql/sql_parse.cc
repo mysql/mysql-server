@@ -3390,6 +3390,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
     until we have the MDL, and LOCK TABLE could massively delay this.
   */
 
+  DEBUG_SYNC(thd, "execute_command_before_main_switch");
+
   switch (lex->sql_command) {
     case SQLCOM_PREPARE: {
       mysql_sql_stmt_prepare(thd);

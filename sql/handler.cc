@@ -4733,6 +4733,31 @@ void handler::mark_trx_read_write() {
       ha_info->set_trx_read_write();
     }
   }
+
+  /*
+    Flag DDL statements as such in the transaction session tracker.
+
+    There are no guarantees we have a valid and complete lex at this
+    point, so we're playing this safe. For example when cleaning up
+    a THD, we may pass through here via close_temporary_tables(),
+    at which point is_being_disposed() may or may not be true
+    (test with main.reset_connection!), and thd->lex->sql_command
+    would have been fudged to SQLCOM_DROP_TABLE (making testing
+    against "!= SQLCOM_END" insufficient), and thd->get_command()
+    could be various values (COM_SLEEP, COM_RESET_CONNECTION, ...).
+    thd->killed should be KILL_CONNECTION during cleanup() (and thus,
+    during the offending close_temporary_tables()), even if bounces
+    back to NOT_KILLED afterwards in cleanup_connection().
+  */
+  THD *thd = ha_thd();
+
+  if (!thd->is_being_disposed() && (thd->is_killed() == THD::NOT_KILLED) &&
+      (thd->lex->sql_command != SQLCOM_END) &&
+      (thd->lex->m_sql_cmd != nullptr) &&
+      (thd->lex->m_sql_cmd->sql_cmd_type() == SQL_CMD_DDL)) {
+    TX_TRACKER_GET(tst);
+    if (tst) tst->add_trx_state(thd, TX_STMT_DDL);
+  }
 }
 
 /**

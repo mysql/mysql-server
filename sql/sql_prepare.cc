@@ -3394,10 +3394,10 @@ bool Prepared_statement::execute(THD *thd, String *expanded_query,
                                   sizeof(saved_cur_db_name_buf)};
   bool cur_db_changed = false;
 
-  Sql_cmd_dml *sql_cmd =
-      m_lex->m_sql_cmd != nullptr && m_lex->m_sql_cmd->is_dml()
-          ? down_cast<Sql_cmd_dml *>(m_lex->m_sql_cmd)
-          : nullptr;
+  Sql_cmd_dml *sql_cmd = m_lex->m_sql_cmd != nullptr &&
+                                 m_lex->m_sql_cmd->sql_cmd_type() == SQL_CMD_DML
+                             ? down_cast<Sql_cmd_dml *>(m_lex->m_sql_cmd)
+                             : nullptr;
 
   resourcegroups::Resource_group *src_res_grp = nullptr;
   resourcegroups::Resource_group *dest_res_grp = nullptr;

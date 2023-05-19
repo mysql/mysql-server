@@ -1,0 +1,11 @@
+############################################################
+# Validate that `group_replication_set_as_primary()` does
+# wait for a ongoing ANALYZE TABLE to before changing the
+# primary.
+############################################################
+--let $ddl_transaction_statement= START TRANSACTION
+# Not actually a DDL statement, but that's kind of the point this time. :)
+--let $ddl_statement= COMMIT
+
+SET autocommit=0;
+--source ../include/gr_primary_manual_failover_vs_ddl.inc
