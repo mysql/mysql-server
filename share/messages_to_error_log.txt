@@ -12231,6 +12231,12 @@ ER_SECONDARY_ENGINE_DDL_FAILED
 ER_THREAD_POOL_CONNECTION_REPORT
    eng "TP conn (port: managed(delta), active, opened, closed, added, dropped): %s"
 
+ER_WARN_SCHEDULED_TASK_RUN_FAILED
+   eng "Scheduled run of task %s failed"
+
+ER_AUDIT_LOG_INVALID_FLUSH_INTERVAL_VALUE
+   eng "Invalid flush interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
+
 ER_LANGUAGE_COMPONENT_INFO
   eng "%s"
 
@@ -12266,12 +12272,6 @@ ER_SERVER_CERT_VERIFY_FAILED
 
 ER_WARN_CERTIFICATE_ERROR_STRING
   eng "Failed to validate certificate %s because %s"
-
-ER_WARN_SCHEDULED_TASK_RUN_FAILED
-   eng "Scheduled run of task %s failed"
-
-ER_AUDIT_LOG_INVALID_FLUSH_INTERVAL_VALUE
-   eng "Invalid flush interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
 
 ER_TELEMETRY_INFO
   eng "%s"
