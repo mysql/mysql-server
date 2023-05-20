@@ -75,7 +75,6 @@ while(<IN_FILE>)
    # Replacing path in Other lines
    s/^Usage:(\s+.*)ibd2sdi(.*)$/IBD2SDI$2/;
    s/(Copyright\s\(c\))\s([0-9]*),\s([0-9]*)(.*)/$1 YEAR, YEAR$4/g;
-   s/refman\/\d+.\d+/refman\/#.#/g;
 
    unless ($_=~ /^.*de?bug.*$/) {
      print $_;
