@@ -2109,7 +2109,8 @@ void update_program_share_derived_flags(PFS_thread *thread) {
 
 ulonglong gtid_monitoring_getsystime() {
   if (pfs_enabled) {
-    return my_getsystime();
+    // Divide by 10 to get the time in microseconds
+    return my_getsystime() / 10;
   }
   return 0;
 }

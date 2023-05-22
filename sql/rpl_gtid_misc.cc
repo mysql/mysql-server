@@ -300,7 +300,7 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
     }
     *original_commit_ts_arg = original_commit_timestamp;
     *immediate_commit_ts_arg = immediate_commit_timestamp;
-    *start_time_arg = start_time / 10;
+    *start_time_arg = start_time;
   } else {
     // This monitoring info is not populated, so let's zero the input
     memcpy(gtid_arg, "", 1);
@@ -319,7 +319,7 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
                                            ulonglong *end_time_arg) const {
   assert(end_time_arg);
 
-  *end_time_arg = is_info_set ? end_time / 10 : 0;
+  *end_time_arg = is_info_set ? end_time : 0;
   copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
                    immediate_commit_ts_arg, start_time_arg);
 }
@@ -340,7 +340,7 @@ void Trx_monitoring_info::copy_to_ps_table(
     *last_transient_errno_arg = last_transient_error_number;
     strcpy(last_transient_errmsg_arg, last_transient_error_message);
     *last_transient_errmsg_length_arg = strlen(last_transient_error_message);
-    *last_transient_timestamp_arg = last_transient_error_timestamp / 10;
+    *last_transient_timestamp_arg = last_transient_error_timestamp;
     *retries_count_arg = transaction_retries;
   } else {
     *last_transient_errno_arg = 0;
@@ -362,7 +362,7 @@ void Trx_monitoring_info::copy_to_ps_table(
     ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) const {
   assert(end_time_arg);
 
-  *end_time_arg = is_info_set ? end_time / 10 : 0;
+  *end_time_arg = is_info_set ? end_time : 0;
   copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
                    immediate_commit_ts_arg, start_time_arg,
                    last_transient_errno_arg, last_transient_errmsg_arg,

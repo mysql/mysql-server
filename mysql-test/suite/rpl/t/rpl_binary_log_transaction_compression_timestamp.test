@@ -1,0 +1,73 @@
+# ==== Purpose ====
+#
+# Test the value of first and last timestamp value in the performance_schema
+# table binary_log_transaction_compression_stats and assert that they are correct.
+#
+# ==== Requirements ====
+#
+# R1. The value of first_transaction_timestamp and last_transaction_timestamp
+#     should be within valid range and not in far future or past.
+#
+# ==== Implementation ====
+#
+# 1) Record the start time
+# 2) Create a table and insert a row
+# 3) Query the values for first and last transaction timestamp and convert them
+#    into unix timestamp style
+# 4) Sleep for 1 second and then record the end time
+# 5) Assert that the values of first and last transaction timestamp are within
+#    valid range
+# 6) Clean up, truncate the binary_log_transaction_compression_stats table too
+#
+# ==== References ====
+#
+# Bug#32022794: TIMESTAMP FIELD SHOWS WRONG VALUE FOR COMPRESSED BINLOG PS TABLE
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+# 1) Record the start time
+
+--let $start_time = `SELECT UNIX_TIMESTAMP()`
+
+# Truncate the table to remove any data from previous runs
+--source include/rpl_connection_slave.inc
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+
+# 2) Create a table and insert a row
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t(s INT);
+INSERT INTO t VALUES(10);
+
+--source include/sync_slave_sql_with_master.inc
+
+# 3) Query the values for first and last transaction timestamp and convert them
+#    into unix timestamp style
+
+--let $first_transaction_timestamp = `SELECT FIRST_TRANSACTION_TIMESTAMP FROM performance_schema.binary_log_transaction_compression_stats WHERE log_type = 'RELAY'`
+--let $first_transaction_unix_timestamp =`SELECT  UNIX_TIMESTAMP('$first_transaction_timestamp')`
+
+--let $last_transaction_timestamp = `SELECT LAST_TRANSACTION_TIMESTAMP FROM performance_schema.binary_log_transaction_compression_stats WHERE log_type = 'RELAY'`
+--let $last_transaction_unix_timestamp =`SELECT  UNIX_TIMESTAMP('$last_transaction_timestamp')`
+
+# 4) Sleep for 1 second and then record the end time
+
+# Add sleep time, to see visible difference while comparing with end_time as it doesn't have milliosecond precision.
+--sleep 1
+--let $end_time = `SELECT UNIX_TIMESTAMP()`
+
+# 5) Assert that the values of first and last transaction timestamp are within
+#    valid range
+
+--let $assert_cond = $start_time <= $first_transaction_unix_timestamp AND $end_time > $first_transaction_unix_timestamp
+--let $assert_text = The first transaction timestamp has a valid value
+--source include/assert.inc
+--let $assert_cond = $start_time <= $last_transaction_unix_timestamp AND $end_time > $last_transaction_unix_timestamp
+--let $assert_text = The last transaction timestamp has a valid value
+--source include/assert.inc
+
+# 6) Clean up
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+--source include/rpl_end.inc
