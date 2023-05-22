@@ -32,8 +32,6 @@
 #include "mysql/harness/tls_error.h"
 #include "openssl_version.h"
 
-#include <dh_ecdh_config.h>
-
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
 #define TLS_CLIENT_METHOD() TLS_client_method()
 #else
@@ -47,7 +45,6 @@ TlsClientContext::TlsClientContext(TlsVerify mode, bool session_cache_mode,
       session_cache_mode_(session_cache_mode),
       session_cache_size_(session_cache_size),
       session_cache_timeout_(session_cache_timeout) {
-  (void)set_ecdh(ssl_ctx_.get());
   verify(mode);
 
   const auto cache_mode =
