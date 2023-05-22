@@ -6627,6 +6627,34 @@ void Ndb_binlog_thread::fix_per_epoch_trans_settings(THD *thd) {
   thd->variables.character_set_client = &my_charset_latin1;
 }
 
+void Ndb_binlog_thread::release_thd_resources(THD *thd) {
+  {
+    // Check if THD::mem_root need to be released, normally there is nothing
+    // allocated from this mem_root and thus it's only released when exceeding
+    // given threshold. First attempt to reuse the largest block, but if also
+    // the largest block exceeds the threshold, entirely clear the mem_root.
+    constexpr size_t EPOCH_MEM_TRIM_THRESHOLD = 64 * 1024UL;
+    MEM_ROOT *const root = thd->mem_root;
+    if (root->allocated_size() > EPOCH_MEM_TRIM_THRESHOLD) {
+      root->ClearForReuse();
+      if (root->allocated_size() > EPOCH_MEM_TRIM_THRESHOLD) {
+        root->Clear();
+      }
+
+      // Release the "position and file" buffer allocated from THD::mem_root
+      // when comitting to binlog. This is done by setting an empty position.
+      // Failing to perform this steps lead to dangling pointer.
+      thd->set_trans_pos(nullptr, 0);
+    }
+  }
+
+  // Check that the THD::main_mem_root has not been utilized for list of "binlog
+  // acessed dbs" use by MTS, it's not possible to release THD::main_mem_root
+  // and it should not be allowed to grow. Manual code inspection shows that as
+  // long as this function returns nothing, it should not be growing.
+  assert(thd->get_binlog_accessed_db_names() == nullptr);
+}
+
 /**
    @brief Handle events for one epoch
 
@@ -7664,17 +7692,8 @@ restart_cluster_failure:
       break;
     }
 
-    MEM_ROOT **root_ptr = THR_MALLOC;
-    MEM_ROOT *old_root = *root_ptr;
-    MEM_ROOT mem_root;
-    init_sql_alloc(PSI_INSTRUMENT_ME, &mem_root, 4096);
-
-    // The Ndb_schema_event_handler does not necessarily need
-    // to use the same memroot(or vice versa)
     Ndb_schema_event_handler schema_event_handler(
         thd, g_ndb_cluster_connection->node_id(), schema_dist_data);
-
-    *root_ptr = &mem_root;
 
     if (unlikely(s_pOp != nullptr && s_pOp->getEpoch() == current_epoch)) {
       thd->set_proc_info("Processing events from schema table");
@@ -7775,8 +7794,7 @@ restart_cluster_failure:
              i_pOp->getState() != NdbEventOperation::EO_DROPPED);
     }
 
-    mem_root.Clear();
-    *root_ptr = old_root;
+    release_thd_resources(thd);
 
     if (current_epoch > ndb_latest_handled_binlog_epoch) {
       Mutex_guard injector_mutex_g(injector_data_mutex);

@@ -309,6 +309,20 @@ class Ndb_binlog_thread : public Ndb_component {
    */
   void fix_per_epoch_trans_settings(THD *thd);
 
+  /**
+    @brief Release THD resources (if necessary).
+    @note The common use case for THD's usage in a session thread is to reset
+    its state and clear used memory after each statement, thus most
+    called MySQL functions assume that memory can be allocated in any of the
+    mem_root's of THD and it will be released at a later time.  The THD owned
+    by the long lived ndb_binlog thread also need to release resources
+    at regular intervals, this functon is called after each epoch
+    (instead of statement) to check if there are any resources to release.
+
+     @param thd Thread handle
+  */
+  static void release_thd_resources(THD *thd);
+
   Ndb_binlog_index_rows m_binlog_index_rows;
 
   // Functions for handling received events
