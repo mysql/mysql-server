@@ -179,6 +179,7 @@ SET(CLIENT_API_NONBLOCKING_FUNCTIONS
   mysql_send_query_nonblocking
   mysql_store_result_nonblocking
   mysql_get_connect_nonblocking_stage
+  mysql_reset_connection_nonblocking
 
   CACHE INTERNAL "Nonblocking functions exported by client API"
 )

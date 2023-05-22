@@ -23672,6 +23672,39 @@ static void test_wl14839() {
   mysql_close(lmysql);
 }
 
+static void test_wl15633(void) {
+  myheader("test_wl15633");
+  MYSQL *mysql_local;
+  net_async_status status;
+
+  fprintf(stdout, "\n Establishing a test connection ...");
+  if (!(mysql_local = mysql_client_init(nullptr))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+
+  if (!(mysql_real_connect(mysql_local, opt_host, opt_user, opt_password,
+                           current_db, opt_port, opt_unix_socket, 0))) {
+    myerror("connection failed");
+    exit(1);
+  }
+
+  do {
+    status = mysql_reset_connection_nonblocking(mysql_local);
+  } while (status == NET_ASYNC_NOT_READY);
+
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n connection reset failed(%s)", mysql_error(mysql_local));
+    exit(1);
+  }
+
+  if (status == NET_ASYNC_COMPLETE) {
+    fprintf(stdout, "\n connection reset done in nonblocking way");
+  }
+
+  mysql_close(mysql_local);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -23992,6 +24025,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug34869076", test_bug34869076},
     {"test_wl15651", test_wl15651},
     {"test_wl14839", test_wl14839},
+    {"test_wl15633", test_wl15633},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }
