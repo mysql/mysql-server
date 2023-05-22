@@ -569,6 +569,7 @@ void STDCALL myodbc_remove_escape(MYSQL *mysql, char *name);
 unsigned int STDCALL mysql_thread_safe(void);
 bool STDCALL mysql_read_query_result(MYSQL *mysql);
 int STDCALL mysql_reset_connection(MYSQL *mysql);
+enum net_async_status STDCALL mysql_reset_connection_nonblocking(MYSQL *mysql);
 
 int STDCALL mysql_binlog_open(MYSQL *mysql, MYSQL_RPL *rpl);
 int STDCALL mysql_binlog_fetch(MYSQL *mysql, MYSQL_RPL *rpl);

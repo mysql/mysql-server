@@ -9367,20 +9367,39 @@ const char *STDCALL mysql_info(MYSQL *mysql) {
   return mysql->info;
 }
 
+static void reset_connection(MYSQL *mysql) {
+  mysql_detach_stmt_list(&mysql->stmts, "mysql_reset_connection");
+  /* reset some of the members in mysql */
+  mysql->insert_id = 0;
+  mysql->affected_rows = ~(uint64_t)0;
+  free_old_query(mysql);
+  mysql->status = MYSQL_STATUS_READY;
+  mysql_extension_bind_free(MYSQL_EXTENSION_PTR(mysql));
+}
+
 int STDCALL mysql_reset_connection(MYSQL *mysql) {
   DBUG_TRACE;
   if (simple_command(mysql, COM_RESET_CONNECTION, nullptr, 0, 0))
     return 1;
   else {
-    mysql_detach_stmt_list(&mysql->stmts, "mysql_reset_connection");
-    /* reset some of the members in mysql */
-    mysql->insert_id = 0;
-    mysql->affected_rows = ~(uint64_t)0;
-    free_old_query(mysql);
-    mysql->status = MYSQL_STATUS_READY;
-    mysql_extension_bind_free(MYSQL_EXTENSION_PTR(mysql));
+    reset_connection(mysql);
     return 0;
   }
+}
+
+net_async_status STDCALL mysql_reset_connection_nonblocking(MYSQL *mysql) {
+  DBUG_TRACE;
+  bool error;
+  net_async_status status = simple_command_nonblocking(
+      mysql, COM_RESET_CONNECTION, nullptr, 0, 0, &error);
+  if (status == NET_ASYNC_COMPLETE) {
+    if (error) {
+      return NET_ASYNC_ERROR;
+    } else {
+      reset_connection(mysql);
+    }
+  }
+  return status;
 }
 
 /********************************************************************
