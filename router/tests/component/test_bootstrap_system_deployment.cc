@@ -46,20 +46,28 @@ using namespace std::chrono_literals;
  */
 #ifndef SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS
 
-class RouterBootstrapSystemDeploymentTest : public RouterComponentBootstrapTest,
-                                            public RouterSystemLayout {
+class RouterBootstrapSystemDeploymentTest
+    : public RouterComponentBootstrapTest,
+      public RouterSystemLayout,
+      public testing::WithParamInterface<bool> {
  public:
-  RouterBootstrapSystemDeploymentTest() : RouterComponentBootstrapTest(false) {}
+  RouterBootstrapSystemDeploymentTest()
+      : RouterComponentBootstrapTest(GetParam()) {}
 
  protected:
   void SetUp() override {
+    auto new_exe = GetParam();
     RouterComponentTest::SetUp();
     // this test modifies the origin path so we need to restore it
     ProcessManager::set_origin(g_origin_path);
-    init_system_layout_dir(get_mysqlrouter_exec(),
-                           ProcessManager::get_origin());
+    init_system_layout_dir(
+        new_exe ? get_mysqlrouter_bootstrap_exec() : get_mysqlrouter_exec(),
+        ProcessManager::get_origin());
 
-    set_mysqlrouter_exec(Path(exec_file_));
+    if (new_exe)
+      set_mysqlrouter_bootstrap_exec(Path(exec_file_));
+    else
+      set_mysqlrouter_exec(Path(exec_file_));
   }
 
   void TearDown() override {
@@ -81,9 +89,8 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentBootstrapTest,
       int expected_exit_code = EXIT_SUCCESS,
       ProcessWrapper::OutputResponder output_responder =
           RouterComponentBootstrapTest::kBootstrapOutputResponder) {
-    return ProcessManager::launch_router(
-        params, expected_exit_code, /*catch_stderr=*/true, /*with_sudo=*/false,
-        /*wait_for_notify_ready=*/-1s, output_responder);
+    return RouterComponentBootstrapTest::launch_router_for_bootstrap(
+        params, expected_exit_code, true, output_responder);
   }
 
   uint16_t server_port_;
@@ -94,7 +101,7 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentBootstrapTest,
  * Windows. Bootstrap for other layouts uses directories to which tests don't
  * have access (see install_layout.cmake).
  */
-TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
+TEST_P(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
   run_server_mock();
 
   // launch the router in bootstrap mode
@@ -118,7 +125,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
  * Windows. Bootstrap for other layouts uses directories to which tests don't
  * have access (see install_layout.cmake).
  */
-TEST_F(RouterBootstrapSystemDeploymentTest,
+TEST_P(RouterBootstrapSystemDeploymentTest,
        No_mysqlrouter_conf_tmp_WhenBootstrapFailed) {
   /*
    * Create directory with the same name as mysql router's config file to force
@@ -152,7 +159,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
  * Windows. Bootstrap for other layouts uses directories to which tests don't
  * have access (see install_layout.cmake).
  */
-TEST_F(RouterBootstrapSystemDeploymentTest,
+TEST_P(RouterBootstrapSystemDeploymentTest,
        No_mysqlrouter_key_WhenBootstrapFailed) {
   /*
    * Create directory with the same name as mysql router's config file to force
@@ -185,7 +192,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
  * Windows. Bootstrap for other layouts uses directories to which tests don't
  * have access (see install_layout.cmake).
  */
-TEST_F(RouterBootstrapSystemDeploymentTest,
+TEST_P(RouterBootstrapSystemDeploymentTest,
        IsKeyringRevertedWhenBootstrapFail) {
   const std::array<char, 5> kMasterKeyFileSignature = {'M', 'R', 'K', 'F',
                                                        '\0'};
@@ -239,7 +246,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
  * Windows. Bootstrap for other layouts uses directories to which tests don't
  * have access (see install_layout.cmake).
  */
-TEST_F(RouterBootstrapSystemDeploymentTest,
+TEST_P(RouterBootstrapSystemDeploymentTest,
        Keep_mysqlrouter_log_WhenBootstrapFailed) {
   /*
    * Create directory with the same name as mysql router's config file to force
@@ -266,6 +273,10 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   mysql_harness::Path mysqlrouter_log_path(tmp_dir_ + "/stage/mysqlrouter.log");
   EXPECT_TRUE(mysqlrouter_log_path.exists());
 }
+
+INSTANTIATE_TEST_SUITE_P(NewAndOldBootstrap,
+                         RouterBootstrapSystemDeploymentTest,
+                         ::testing::Values(false, true));
 
 #endif
 

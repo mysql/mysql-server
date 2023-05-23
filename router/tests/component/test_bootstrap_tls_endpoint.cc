@@ -46,13 +46,15 @@ struct BootstrapTlsEndpointFailParams {
   const std::vector<std::string> cmdline_args;
 
   stdx::expected<void, std::string> expected_result;
+  bool new_executable{false};
 };
 
 class BootstrapTlsEndpointFail
     : public RouterComponentBootstrapTest,
       public ::testing::WithParamInterface<BootstrapTlsEndpointFailParams> {
  public:
-  BootstrapTlsEndpointFail() : RouterComponentBootstrapTest(false) {}
+  BootstrapTlsEndpointFail()
+      : RouterComponentBootstrapTest(GetParam().new_executable) {}
 };
 
 TEST_P(BootstrapTlsEndpointFail, check) {
