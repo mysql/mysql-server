@@ -2,12 +2,12 @@
 .\"     Title: ndb_mgm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2023
+.\"      Date: 05/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.0
+.\"    Source: MySQL 8.1
 .\"  Language: English
 .\"
-.TH "NDB_MGM" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_MGM" "1" "05/23/2023" "MySQL 8\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -75,7 +75,7 @@ are shown in the following table\&. Additional descriptions follow the table\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.27.\ \&Command\-line options used with the program ndb_mgm
+.B Table\ \&23.26.\ \&Command\-line options used with the program ndb_mgm
 .TS
 allbox tab(:);
 lB lB lB.
@@ -105,9 +105,6 @@ lB l l
 lB l l
 lB l l
 lB l l
-lB l l
-lB l l
-lB l l
 lB l l.
 T{
 .PP
@@ -117,16 +114,7 @@ Get decryption password in a secure fashion from STDIN; use together
               with --execute and ndb_mgm START BACKUP command
 T}:T{
 .PP
-ADDED: NDB 8.0.24
-T}
-T{
-.PP
-\fB \fR\fB--character-sets-dir=path\fR\fB \fR
-T}:T{
-Directory containing character sets
-T}:T{
-.PP
-REMOVED: 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -136,7 +124,7 @@ Set number of times to retry connection before giving up; 0 means 1
               attempt only (and no retries)
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -145,7 +133,7 @@ T}:T{
 Number of seconds to wait between attempts to contact management server
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -156,16 +144,7 @@ T}:T{
 Same as --ndb-connectstring
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--core-file\fR\fB \fR
-T}:T{
-Write core file on error; used in debugging
-T}:T{
-.PP
-REMOVED: 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -174,7 +153,7 @@ T}:T{
 Read given file after global files are read
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -183,7 +162,7 @@ T}:T{
 Read default options from given file only
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -192,7 +171,7 @@ T}:T{
 Also read groups with concat(group, suffix)
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -202,7 +181,7 @@ Cause START BACKUP to encrypt whenever making a backup, prompting for
               password if not supplied by user
 T}:T{
 .PP
-ADDED: NDB 8.0.24
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -213,7 +192,7 @@ T}:T{
 Execute command and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -224,7 +203,7 @@ T}:T{
 Display help text and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -233,7 +212,7 @@ T}:T{
 Read given path from login file
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -246,7 +225,7 @@ Set connect string for connecting to ndb_mgmd. Syntax:
               NDB_CONNECTSTRING and my.cnf
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -257,7 +236,7 @@ T}:T{
 Same as --ndb-connectstring
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -266,18 +245,7 @@ T}:T{
 Set node ID for this node, overriding any ID set by --ndb-connectstring
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--ndb-optimized-node-selection\fR\fB \fR
-T}:T{
-Enable optimizations for selection of nodes for transactions. Enabled by
-              default; use --skip-ndb-optimized-node-selection to
-              disable
-T}:T{
-.PP
-REMOVED: 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -286,7 +254,7 @@ T}:T{
 Do not read default options from any option file other than login file
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -295,7 +263,7 @@ T}:T{
 Print program argument list and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -307,7 +275,7 @@ Set number of times to retry connection before giving up; synonym for
               --connect-retries
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -318,7 +286,7 @@ T}:T{
 Display help text and exit; same as --help
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -329,7 +297,7 @@ T}:T{
 Display version information and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 .TE
 .sp 1
@@ -345,17 +313,11 @@ T}
 \fB\-\-backup\-password\-from\-stdin[=TRUE|FALSE]\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --backup-password-from-stdin
-T}
-T{
-Introduced
-T}:T{
-8.0.24-ndb-8.0.24
 T}
 .TE
 .sp 1
@@ -377,17 +339,11 @@ as well\&.
 \fB\-\-character\-sets\-dir\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --character-sets-dir=path
-T}
-T{
-Removed
-T}:T{
-8.0.31
 T}
 .TE
 .sp 1
@@ -537,17 +493,11 @@ Same as
 \fB\-\-core\-file\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --core-file
-T}
-T{
-Removed
-T}:T{
-8.0.31
 T}
 .TE
 .sp 1
@@ -667,17 +617,11 @@ Also read groups with concat(group, suffix)\&.
 \fB\-\-encrypt\-backup\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --encrypt-backup
-T}
-T{
-Introduced
-T}:T{
-8.0.24-ndb-8.0.24
 T}
 .TE
 .sp 1
@@ -927,17 +871,11 @@ Same as
 \fB\-\-ndb\-optimized\-node\-selection\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ndb-optimized-node-selection
-T}
-T{
-Removed
-T}:T{
-8.0.31
 T}
 .TE
 .sp 1

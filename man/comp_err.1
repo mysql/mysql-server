@@ -2,12 +2,12 @@
 .\"     Title: comp_err
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2023
+.\"      Date: 05/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.0
+.\"    Source: MySQL 8.1
 .\"  Language: English
 .\"
-.TH "COMP_ERR" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "COMP_ERR" "1" "05/23/2023" "MySQL 8\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -44,42 +44,18 @@ to determine the error messages to display for different error codes\&.
 normally is run automatically when MySQL is built\&. It compiles the
 errmsg\&.sys
 file from text\-format error information in MySQL source distributions:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-As of MySQL 8\&.0\&.19, the error information comes from the
+.PP
+The error information comes from the
 messages_to_error_log\&.txt
 and
 messages_to_clients\&.txt
 files in the
 share
 directory\&.
-.sp
+.PP
 For more information about defining error messages, see the comments within those files, along with the
 errmsg_readme\&.txt
 file\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-Prior to MySQL 8\&.0\&.19, the error information comes from the
-errmsg\-utf8\&.txt
-file in the
-sql/share
-directory\&.
-.RE
 .PP
 \fBcomp_err\fR
 also generates the
@@ -173,7 +149,7 @@ Print some debugging information when the program exits\&.
 \fB\-\-errmsg\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-H \fR\fB\fIfile_name\fR\fR
 The name of the error message file\&. The default is
-mysqld_errmsg\&.h\&. This option was added in MySQL 8\&.0\&.18\&.
+mysqld_errmsg\&.h\&.
 .RE
 .sp
 .RS 4
@@ -198,32 +174,10 @@ mysqld_error\&.h\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-in\-file=\fR\fB\fIfile_name\fR\fR,
-\fB\-F \fR\fB\fIfile_name\fR\fR
-The name of the input file\&. The default is
-\&.\&./share/errmsg\-utf8\&.txt\&.
-.sp
-This option was removed in MySQL 8\&.0\&.19 and replaced by the
-\fB\-\-in\-file\-errlog\fR
-and
-\fB\-\-in\-file\-toclient\fR
-options\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-in\-file\-errlog=\fR\fB\fIfile_name\fR\fR,
 \fB\-e \fR\fB\fIfile_name\fR\fR
 The name of the input file that defines error messages intended to be written to the error log\&. The default is
 \&.\&./share/messages_to_error_log\&.txt\&.
-.sp
-This option was added in MySQL 8\&.0\&.19\&.
 .RE
 .sp
 .RS 4
@@ -238,8 +192,6 @@ This option was added in MySQL 8\&.0\&.19\&.
 \fB\-c \fR\fB\fIfile_name\fR\fR
 The name of the input file that defines error messages intended to be written to clients\&. The default is
 \&.\&./share/messages_to_clients\&.txt\&.
-.sp
-This option was added in MySQL 8\&.0\&.19\&.
 .RE
 .sp
 .RS 4

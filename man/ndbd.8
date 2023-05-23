@@ -2,12 +2,12 @@
 .\"     Title: ndbd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2023
+.\"      Date: 05/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.0
+.\"    Source: MySQL 8.1
 .\"  Language: English
 .\"
-.TH "NDBD" "8" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBD" "8" "05/23/2023" "MySQL 8\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -49,7 +49,7 @@ are shown in the following table\&. Additional descriptions follow the table\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.24.\ \&Command\-line options used with the program ndbd
+.B Table\ \&23.23.\ \&Command\-line options used with the program ndbd
 .TS
 allbox tab(:);
 lB lB lB.
@@ -91,8 +91,6 @@ lB l l
 lB l l
 lB l l
 lB l l
-lB l l
-lB l l
 lB l l.
 T{
 .PP
@@ -101,7 +99,7 @@ T}:T{
 Local bind address
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -110,17 +108,7 @@ T}:T{
 Directory containing character sets
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--connect-delay=#\fR\fB \fR
-T}:T{
-Obsolete synonym for --connect-retry-delay, which should be used instead
-              of this option
-T}:T{
-.PP
-REMOVED: NDB 8.0.28
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -131,7 +119,7 @@ Set the number of times to retry a connection before giving up; 0 means
               retrying indefinitely
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -141,7 +129,7 @@ Time to wait between attempts to contact a management server, in
               seconds; 0 means do not wait between attempts
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -152,7 +140,7 @@ T}:T{
 Same as --ndb-connectstring
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -161,7 +149,7 @@ T}:T{
 Write core file on error; used in debugging
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -172,7 +160,7 @@ T}:T{
 Start ndbd as daemon (default); override with --nodaemon
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -181,7 +169,7 @@ T}:T{
 Read given file after global files are read
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -190,7 +178,7 @@ T}:T{
 Read default options from given file only
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -199,7 +187,7 @@ T}:T{
 Also read groups with concat(group, suffix)
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -209,7 +197,7 @@ Password for node file system encryption; can be passed from stdin, tty,
               or my.cnf file
 T}:T{
 .PP
-ADDED: 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -218,7 +206,7 @@ T}:T{
 Get password for node file system encryption, passed from stdin
 T}:T{
 .PP
-ADDED: 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -228,7 +216,7 @@ Run ndbd in foreground, provided for debugging purposes (implies
               --nodaemon)
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -239,7 +227,7 @@ T}:T{
 Display help text and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -249,7 +237,7 @@ Perform initial start of ndbd, including file system cleanup; consult
               documentation before using this option
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -258,7 +246,7 @@ T}:T{
 Perform partial initial start (requires --nowait-nodes)
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -268,7 +256,7 @@ Used to install data node process as Windows service; does not apply on
               other platforms
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -279,7 +267,7 @@ Control size of log buffer; for use when debugging with many log
               operations
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -288,7 +276,7 @@ T}:T{
 Read given path from login file
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -301,7 +289,7 @@ Set connect string for connecting to ndb_mgmd. Syntax:
               NDB_CONNECTSTRING and my.cnf
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -312,7 +300,7 @@ T}:T{
 Same as --ndb-connectstring
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -321,7 +309,7 @@ T}:T{
 Set node ID for this node, overriding any ID set by --ndb-connectstring
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -330,7 +318,7 @@ T}:T{
 Do not start ndbd as daemon; provided for testing purposes
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -339,7 +327,7 @@ T}:T{
 Do not read default options from any option file other than login file
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -351,7 +339,7 @@ Do not start ndbd immediately; ndbd waits for command to start from
               ndb_mgm
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -361,18 +349,7 @@ Do not wait for these data nodes to start (takes comma-separated list of
               node IDs); requires --ndb-nodeid
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--ndb-optimized-node-selection\fR\fB \fR
-T}:T{
-Enable optimizations for selection of nodes for transactions. Enabled by
-              default; use --skip-ndb-optimized-node-selection to
-              disable
-T}:T{
-.PP
-REMOVED: 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -381,7 +358,7 @@ T}:T{
 Print program argument list and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -391,7 +368,7 @@ Used to remove data node process that was previously installed as
               Windows service; does not apply on other platforms
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -402,7 +379,7 @@ T}:T{
 Display help text and exit; same as --help
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -413,7 +390,7 @@ T}:T{
 Write extra debugging information to node log
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -424,7 +401,7 @@ T}:T{
 Display version information and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 .TE
 .sp 1
@@ -531,7 +508,7 @@ T}
 T{
 Deprecated
 T}:T{
-Yes (removed in 8.0.28-ndb-8.0.28)
+Yes
 T}
 T{
 Type
@@ -579,9 +556,6 @@ lB l
 lB l
 lB l
 lB l
-lB l
-lB l
-lB l
 lB l.
 T{
 Command-Line Format
@@ -599,24 +573,9 @@ T}:T{
 12
 T}
 T{
-Minimum Value (≥ 8.0.28-ndb-8.0.28)
-T}:T{
--1
-T}
-T{
 Minimum Value
 T}:T{
 -1
-T}
-T{
-Minimum Value
-T}:T{
--1
-T}
-T{
-Minimum Value (≤ 8.0.27-ndb-8.0.27)
-T}:T{
-0
 T}
 T{
 Maximum Value
@@ -629,7 +588,7 @@ Set the number of times to retry a connection before giving up; 0 means 1 attemp
 \fB\-\-connect\-retry\-delay\fR
 option\&.
 .sp
-Beginning with NDB 8\&.0\&.28, you can set this option to \-1, in which case, the data node process continues indefinitely to try to connect\&.
+It is also possible to set this option to \-1, in which case, the data node process continues indefinitely to try to connect\&.
 .RE
 .sp
 .RS 4
@@ -685,7 +644,7 @@ option, which is now deprecated and subject to removal in a future release of ND
 .sp
 The short form
 \fB\-r\fR
-for this option is deprecated as of NDB 8\&.0\&.28, and subject to removal in a future release of NDB Cluster\&. Use the long form instead\&.
+for this option is also deprecated, and thus subject to removal\&. Use the long form instead\&.
 .RE
 .sp
 .RS 4
@@ -893,17 +852,11 @@ Also read groups with concat(group, suffix)\&.
 \fB\-\-filesystem\-password\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --filesystem-password=password
-T}
-T{
-Introduced
-T}:T{
-8.0.31
 T}
 .TE
 .sp 1
@@ -931,17 +884,11 @@ Section\ \&23.6.14, \(lqFile System Encryption for NDB Cluster\(rq\&.
 \fB\-\-filesystem\-password\-from\-stdin\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --filesystem-password-from-stdin={TRUE|FALSE}
-T}
-T{
-Introduced
-T}:T{
-8.0.31
 T}
 .TE
 .sp 1
@@ -1036,6 +983,9 @@ Instructs
 to perform an initial start\&. An initial start erases any files created for recovery purposes by earlier instances of
 \fBndbd\fR\&. It also re\-creates recovery log files\&. On some operating systems, this process can take a substantial amount of time\&.
 .sp
+The option also causes the removal of all data files associated with Disk Data tablespaces and undo log files associated with log file groups that existed previously on this data node (see
+Section\ \&23.6.11, \(lqNDB Cluster Disk Data Tables\(rq)\&.
+.sp
 An
 \fB\-\-initial\fR
 start is to be used
@@ -1126,11 +1076,6 @@ configuration parameters from having any effect\&.
 This option does
 \fInot\fR
 affect backup files that have already been created by the affected node\&.
-.sp
-Prior to NDB 8\&.0\&.21, the
-\fB\-\-initial\fR
-option also did not affect any Disk Data files\&. In NDB 8\&.0\&.21 and later, when used to perform an initial restart of the cluster, the option causes the removal of all data files associated with Disk Data tablespaces and undo log files associated with log file groups that existed previously on this data node (see
-Section\ \&23.6.11, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .sp
 This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running (unless they also were started with
 \fB\-\-initial\fR, as part of an initial restart)\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
@@ -1460,17 +1405,11 @@ Set node ID for this node, overriding any ID set by \-\-ndb\-connectstring\&.
 \fB\-\-ndb\-optimized\-node\-selection\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ndb-optimized-node-selection
-T}
-T{
-Removed
-T}:T{
-8.0.31
 T}
 .TE
 .sp 1
@@ -1931,7 +1870,7 @@ process can consume up to 2 CPUs if permitted to do so\&.
 .PP
 For a machine with many CPUs it is possible to use several
 \fBndbd\fR
-processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 8\&.0 in a production setting\&. See
+processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 8\&.1 in a production setting\&. See
 Section\ \&23.2.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br

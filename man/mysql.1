@@ -2,12 +2,12 @@
 .\"     Title: mysql
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2023
+.\"      Date: 05/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.0
+.\"    Source: MySQL 8.1
 .\"  Language: English
 .\"
-.TH "MYSQL" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQL" "1" "05/23/2023" "MySQL 8\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -366,7 +366,7 @@ mysql> \fBSELECT CONVERT(UNHEX(\*(Aq41\*(Aq) USING utf8mb4);\fR
 .\}
 .RE
 .sp
-As of MySQL 8\&.0\&.19, when
+When
 \fBmysql\fR
 operates in interactive mode, this option is enabled by default\&. In addition, output from the
 status
@@ -485,11 +485,10 @@ data structures\&. See
 .\}
 \fB\-\-comments\fR,
 \fB\-c\fR
-Whether to strip or preserve comments in statements sent to the server\&. The default is
-\fB\-\-skip\-comments\fR
-(strip comments), enable with
-\fB\-\-comments\fR
-(preserve comments)\&.
+Whether to preserve or strip comments in statements sent to the server\&. The default is to preserve them; to strip them, start
+\fBmysql\fR
+with
+\fB\-\-skip\-comments\fR\&.
 .if n \{\
 .sp
 .\}
@@ -524,7 +523,7 @@ Comment stripping is deprecated\&. Expect this feature and the options to contro
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
-As of MySQL 8\&.0\&.18, this option is deprecated\&. Expect it be removed in a future version of MySQL\&. See
+This option is deprecated\&. Expect it to be removed in a future version of MySQL\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp
@@ -544,8 +543,6 @@ uncompressed\&.
 .sp
 For more information, see
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
-.sp
-This option was added in MySQL 8\&.0\&.18\&.
 .RE
 .sp
 .RS 4
@@ -847,8 +844,6 @@ command is subsequently used at runtime and specifies a host name argument, that
 option given at
 \fBmysql\fR
 startup to specify a DNS SRV record\&.
-.sp
-This option was added in MySQL 8\&.0\&.22\&.
 .RE
 .sp
 .RS 4
@@ -1114,6 +1109,22 @@ SQL statement to execute after connecting to the server\&. If auto\-reconnect is
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-init\-command\-add=str\fR
+Add an additional SQL statement to execute after connecting or reconnecting to the MySQL server\&. It\*(Aqs usable without
+\fB\-\-init\-command\fR
+but has no effect if used before it because
+\fBinit\-command\fR
+resets the list of commands to call\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-line\-numbers\fR
 Write line numbers for errors\&. Disable this with
 \fB\-\-skip\-line\-numbers\fR\&.
@@ -1204,10 +1215,6 @@ load operations within
 \fBmysql\fR
 also requires that the server permits local loading; see
 Section\ \&6.1.6, \(lqSecurity Considerations for LOAD DATA LOCAL\(rq
-.sp
-The
-\fB\-\-load\-data\-local\-dir\fR
-option was added in MySQL 8\&.0\&.21\&.
 .RE
 .sp
 .RS 4
@@ -1343,7 +1350,7 @@ The buffer size for TCP/IP and socket communication\&. (Default value is 16KB\&.
 The network namespace to use for TCP/IP connections\&. If omitted, the connection uses the default (global) namespace\&. For information about network namespaces, see
 Section\ \&5.1.14, \(lqNetwork Namespace Support\(rq\&.
 .sp
-This option was added in MySQL 8\&.0\&.22\&. It is available only on platforms that implement network namespace support\&.
+This option is available only on platforms that implement network namespace support\&.
 .RE
 .sp
 .RS 4
@@ -2084,6 +2091,7 @@ STRICT
 causes the client to produce a warning at startup and to operate in non\-FIPS mode\&.
 .sp .5v
 .RE
+This option is deprecated\&. Expect it to be removed in a future version of MySQL\&.
 .RE
 .sp
 .RS 4
@@ -2162,8 +2170,6 @@ the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses tee files further\&.
 \fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
 The permissible ciphersuites for encrypted connections that use TLSv1\&.3\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.3.2, \(lqEncrypted Connection TLS Protocols and Ciphers\(rq\&.
-.sp
-This option was added in MySQL 8\&.0\&.16\&.
 .RE
 .sp
 .RS 4
@@ -2342,8 +2348,6 @@ compression\&.
 .sp
 For more information, see
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
-.sp
-This option was added in MySQL 8\&.0\&.18\&.
 .RE
 .SH "MYSQL CLIENT COMMANDS"
 .PP
@@ -2999,10 +3003,6 @@ system \fIcommand\fR,
 \e! \fIcommand\fR
 .sp
 Execute the given command using your default command interpreter\&.
-.sp
-Prior to MySQL 8\&.0\&.19, the
-system
-command works only in Unix\&. As of 8\&.0\&.19, it also works on Windows\&.
 .RE
 .sp
 .RS 4
@@ -3351,7 +3351,7 @@ T{
 \T
 T}:T{
 Print an asterisk (*) if the current session is
-              inside a transaction block (from MySQL 8.0.28)
+              inside a transaction block
 T}
 T{
 \t
@@ -4697,7 +4697,7 @@ WHERE c1 = 2222\&. For such comparisons, the string value is converted to a numb
 Section\ \&12.3, \(lqType Conversion in Expression Evaluation\(rq), preventing use of the index\&. If safe\-updates mode is enabled, an error occurs\&.
 .RE
 .PP
-As of MySQL 8\&.0\&.13, safe\-updates mode also includes these behaviors:
+These behaviors are included in safe\-updates mode:
 .sp
 .RS 4
 .ie n \{\
@@ -4879,22 +4879,22 @@ MySQL Shell 8.0
 .IP " 2." 4
 C API Basic Data Structures
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.0/en/c-api-data-structures.html
+\%https://dev.mysql.com/doc/c-api/8.1/en/c-api-data-structures.html
 .RE
 .IP " 3." 4
 Multiple Statement Execution Support
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.0/en/c-api-multiple-queries.html
+\%https://dev.mysql.com/doc/c-api/8.1/en/c-api-multiple-queries.html
 .RE
 .IP " 4." 4
 mysql_change_user()
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.0/en/mysql-change-user.html
+\%https://dev.mysql.com/doc/c-api/8.1/en/mysql-change-user.html
 .RE
 .IP " 5." 4
 Automatic Reconnection Control
 .RS 4
-\%https://dev.mysql.com/doc/c-api/8.0/en/c-api-auto-reconnect.html
+\%https://dev.mysql.com/doc/c-api/8.1/en/c-api-auto-reconnect.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
