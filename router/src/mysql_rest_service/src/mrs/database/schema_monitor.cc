@@ -34,6 +34,8 @@
 #include "mrs/database/query_entries_content_file.h"
 #include "mrs/database/query_entries_db_object.h"
 #include "mrs/database/query_statistics.h"
+#include "mrs/observability/entity.h"
+#include "mrs/router_observation_entities.h"
 
 #include "router_config.h"
 #include "socket_operations.h"
@@ -85,6 +87,7 @@ void SchemaMonitor::run() {
 
   do {
     try {
+      using namespace observability;
       auto session = cache_->get_instance(collector::kMySQLConnectionMetadata);
       session.set_dirty();
 
@@ -100,9 +103,23 @@ void SchemaMonitor::run() {
                   turn_state.was_changed() ? "yes" : "no");
       }
 
-      auth_manager_->update(authentication_fetcher->entries);
-      dbobject_manager_->update(route_fetcher->entries);
-      dbobject_manager_->update(content_file_fetcher->entries);
+      if (!authentication_fetcher->entries.empty()) {
+        auth_manager_->update(authentication_fetcher->entries);
+        EntityCounter<kEntityCounterUpdatesAuthentications>::increment(
+            authentication_fetcher->entries.size());
+      }
+
+      if (!route_fetcher->entries.empty()) {
+        dbobject_manager_->update(route_fetcher->entries);
+        EntityCounter<kEntityCounterUpdatesObjects>::increment(
+            route_fetcher->entries.size());
+      }
+
+      if (!content_file_fetcher->entries.empty()) {
+        dbobject_manager_->update(content_file_fetcher->entries);
+        EntityCounter<kEntityCounterUpdatesFiles>::increment(
+            content_file_fetcher->entries.size());
+      }
 
       if (!full_fetch_compleated) {
         full_fetch_compleated = true;

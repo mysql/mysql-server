@@ -44,6 +44,9 @@ enum EntitiesCounters {
   kEntityCounterMySQLPrepareRemove,
   kEntityCounterRestReturnedItems,
   kEntityCounterRestAffectedItems,
+  kEntityCounterUpdatesObjects,
+  kEntityCounterUpdatesFiles,
+  kEntityCounterUpdatesAuthentications,
   kEntityCounterLast
 };
 
