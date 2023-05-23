@@ -10981,6 +10981,10 @@ bool mysqld_get_one_option(int optid,
       break;
     case OPT_OLD_STYLE_USER_LIMITS:
       push_deprecated_warn_no_replacement(nullptr, "--old-style-user-limits");
+      break;
+    case OPT_SYNC_RELAY_LOG_INFO:
+      LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT,
+             "--sync-relay-log-info");
   }
   return false;
 }
