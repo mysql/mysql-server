@@ -122,6 +122,13 @@ void initialize_entities(observability::EntitiesManager *manager) {
       "restReturnedItems");
   reg.register_entity_with_id<kEntityCounterRestAffectedItems>(
       "restAffectedItems");
+
+  reg.register_entity_with_id_not_resetable<kEntityCounterUpdatesObjects>(
+      "changesObjects");
+  reg.register_entity_with_id_not_resetable<kEntityCounterUpdatesFiles>(
+      "changesFiles");
+  reg.register_entity_with_id_not_resetable<
+      kEntityCounterUpdatesAuthentications>("changesAuthentications");
   reg.last_is(kEntityCounterLast);
 }
 

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `basic_schema`.`table1` (
   `id` INTEGER NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`));
   
-INSERT INTO`basic_schema`.`table1` (`id`)
+INSERT INTO `basic_schema`.`table1` (`id`)
   VALUES(1),(20),(30),(31),(50),(100);
 
 CREATE TABLE IF NOT EXISTS `basic_schema`.`table2` (
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS `basic_schema`.`table2` (
   `date` DATETIME NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `name_UNIQUE` (`name` ASC) VISIBLE);
-  
+
 INSERT INTO `basic_schema`.`table2` (`name`, `comments`, `date`)
   VALUES("First row", "First comment", "1977-01-21"),
   ("Second row", NULL, "1977-01-21"),
@@ -70,6 +70,18 @@ INSERT INTO `basic_schema`.`table3`
     32767, 9223372036854775807, b'111', 999.9999, 999.9999, 999.99, "value3", "value1,value2,value3"
     , b'1', b'1', b'1111111111',127, 8388607, x'0011ab0000122333');
 
+
+CREATE TABLE IF NOT EXISTS `basic_schema`.`table4`(
+  `id` INTEGER NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `first_name` TEXT,
+  `last_name` TEXT,
+  `table2_id` INTEGER DEFAULT NULL,
+  FOREIGN KEY (table2_id) REFERENCES table2(id));
+
+INSERT INTO `basic_schema`.`table4` VALUES
+  (1,"Clarissa","Barton",NULL),
+  (2,"Haley","White",2),
+  (3,"George","Simmons",4);
 
 DROP procedure IF EXISTS `procedure1`;
 
