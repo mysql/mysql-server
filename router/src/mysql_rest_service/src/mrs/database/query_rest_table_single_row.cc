@@ -104,10 +104,10 @@ void QueryRestTableSingleRow::build_query(
                       primary_key.type_json == helper::JsonType::kBlob);
   if (is_bit_blob) {
     mysqlrouter::sqlstring column{"cast(! as BINARY)"};
-    column << primary_key.name;
+    column << qb.get_reference_base_table_column(primary_key.name);
     query_ << column;
   } else {
-    query_ << primary_key.name;
+    query_ << qb.get_reference_base_table_column(primary_key.name);
   }
   query_ << pri_value;
 }

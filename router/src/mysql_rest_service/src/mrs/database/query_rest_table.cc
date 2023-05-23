@@ -236,7 +236,7 @@ void QueryRestTable::build_query(
     mysqlrouter::sqlstring fmt{
         "'links', "
         "JSON_ARRAY(JSON_OBJECT('rel','self','href',CONCAT(?,'/',!)))"};
-    fmt << url << primary;
+    fmt << url << qb.get_reference_base_table_column(primary);
     json_object_fields.push_back(fmt);
   }
 

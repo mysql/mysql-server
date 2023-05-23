@@ -228,6 +228,12 @@ mysqlrouter::sqlstring JsonQueryBuilder::join_condition(
   return cond;
 }
 
+mysqlrouter::sqlstring JsonQueryBuilder::get_reference_base_table_column(
+    const std::string &column_name) {
+  mysqlrouter::sqlstring ref{"!.!"};
+  return ref << m_base_tables.front()->table_alias << column_name;
+}
+
 mysqlrouter::sqlstring JsonQueryBuilder::from_clause() const {
   mysqlrouter::sqlstring from{"!.! as !"};
   from << m_base_tables.front()->schema << m_base_tables.front()->table
