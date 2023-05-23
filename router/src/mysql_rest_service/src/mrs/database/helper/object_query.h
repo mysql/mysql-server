@@ -67,6 +67,9 @@ class JsonQueryBuilder {
     return q;
   }
 
+  mysqlrouter::sqlstring get_reference_base_table_column(
+      const std::string &column_name);
+
   const mysqlrouter::sqlstring &select_items() const { return m_select_items; }
   mysqlrouter::sqlstring from_clause() const;
 
