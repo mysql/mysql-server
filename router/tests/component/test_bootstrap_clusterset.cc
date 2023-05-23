@@ -93,6 +93,8 @@ struct TargetClusterTestParams {
 
   // vector of strings expected on the console after the bootstrap
   std::vector<std::string> expected_output_strings;
+
+  bool new_executable{false};
 };
 
 class ClusterSetBootstrapTargetClusterTest

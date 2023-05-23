@@ -559,6 +559,13 @@ class ProcessManager {
     return mysqlserver_mock_exec_;
   }
 
+  const Path &get_mysqlrouter_bootstrap_exec() const {
+    return mysqlrouter_bootstrap_exec_;
+  }
+
+  void set_mysqlrouter_bootstrap_exec(const Path &path) {
+    mysqlrouter_bootstrap_exec_ = path;
+  }
   void set_mysqlrouter_exec(const Path &path) { mysqlrouter_exec_ = path; }
 
   std::string get_test_temp_dir_name() const { return test_dir_.name(); }
