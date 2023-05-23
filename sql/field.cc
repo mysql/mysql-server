@@ -50,6 +50,7 @@
 #include "myisampack.h"
 #include "mysql/strings/dtoa.h"
 #include "mysql/strings/int2str.h"
+#include "scope_guard.h"
 #include "sql-common/json_binary.h"  // json_binary::serialize
 #include "sql-common/json_dom.h"     // Json_dom, Json_wrapper
 #include "sql/create_field.h"
@@ -90,7 +91,6 @@
 #include "string_with_len.h"
 #include "template_utils.h"  // pointer_cast
 #include "typelib.h"
-
 namespace dd {
 class Spatial_reference_system;
 }  // namespace dd
@@ -9954,6 +9954,40 @@ Field *Field_typed_array::new_key_field(MEM_ROOT *root, TABLE *new_table,
     res->part_of_key = part_of_key;
   }
   return res;
+}
+
+int Field_typed_array::key_cmp(const uchar *key_ptr, uint key_length) const {
+  Json_wrapper col_val;
+  Json_wrapper key;
+  String value, tmp;
+  uchar buff[MAX_KEY_LENGTH];
+
+  // Convert key into json object for easy comparison.
+  const size_t org_length =
+      m_conv_item->field->get_key_image(buff, key_length, imagetype::itRAW);
+  auto cleanup_guard = create_scope_guard([&] {
+    // Restore original key image.
+    m_conv_item->field->set_key_image(buff, org_length);
+  });
+
+  m_conv_item->field->set_key_image(key_ptr, key_length);
+  if (sql_scalar_to_json(m_conv_item, "<Field_typed_array::key_cmp>", &value,
+                         &tmp, &key, nullptr, true)) {
+    return -1;
+  }
+
+  // Compare colum value with the key.
+  if (val_json(&col_val)) {
+    return -1;
+  }
+  assert(col_val.type() == enum_json_type::J_ARRAY);
+  for (uint i = 0; i < col_val.length(); i++) {
+    Json_wrapper elt = col_val[i];
+    if (key.compare(elt) == 0) {
+      return 0;
+    }
+  }
+  return -1;
 }
 
 void Field_typed_array::init(TABLE *table_arg) {
