@@ -2,12 +2,12 @@
 .\"     Title: ndb_print_file
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2023
+.\"      Date: 05/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.0
+.\"    Source: MySQL 8.1
 .\"  Language: English
 .\"
-.TH "NDB_PRINT_FILE" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_PRINT_FILE" "1" "05/23/2023" "MySQL 8\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -65,7 +65,7 @@ Options.sp
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.40.\ \&Command\-line options used with the program ndb_print_file
+.B Table\ \&23.39.\ \&Command\-line options used with the program ndb_print_file
 .TS
 allbox tab(:);
 lB lB lB.
@@ -93,7 +93,7 @@ T}:T{
 Supply encryption key using stdin, tty, or my.cnf file
 T}:T{
 .PP
-ADDED: NDB 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -102,7 +102,7 @@ T}:T{
 Supply encryption key using stdin
 T}:T{
 .PP
-ADDED: NDB 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -113,7 +113,7 @@ T}:T{
 Display help text and exit; same as --usage
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -124,7 +124,7 @@ T}:T{
 Reduce verbosity of output
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -135,7 +135,7 @@ T}:T{
 Display help text and exit; same as --help
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -146,7 +146,7 @@ T}:T{
 Increase verbosity of output
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -157,7 +157,7 @@ T}:T{
 Display version information and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 .TE
 .sp 1
@@ -177,17 +177,11 @@ supports the following options:
 \fB\-K\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --file-key=hex_data
-T}
-T{
-Introduced
-T}:T{
-8.0.31-ndb-8.0.31
 T}
 .TE
 .sp 1
@@ -212,17 +206,11 @@ allbox tab(:);
 lB l
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --file-key-from-stdin
-T}
-T{
-Introduced
-T}:T{
-8.0.31-ndb-8.0.31
 T}
 T{
 Type

@@ -2,12 +2,12 @@
 .\"     Title: ndb_mgmd
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2023
+.\"      Date: 05/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.0
+.\"    Source: MySQL 8.1
 .\"  Language: English
 .\"
-.TH "NDB_MGMD" "8" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_MGMD" "8" "05/23/2023" "MySQL 8\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -44,7 +44,7 @@ are shown in the following table\&. Additional descriptions follow the table\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.26.\ \&Command\-line options used with the program ndb_mgmd
+.B Table\ \&23.25.\ \&Command\-line options used with the program ndb_mgmd
 .TS
 allbox tab(:);
 lB lB lB.
@@ -87,11 +87,6 @@ lB l l
 lB l l
 lB l l
 lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
 lB l l.
 T{
 .PP
@@ -100,16 +95,7 @@ T}:T{
 Local bind address
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--character-sets-dir=path\fR\fB \fR
-T}:T{
-Directory containing character sets
-T}:T{
-.PP
-REMOVED: 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -119,7 +105,7 @@ Override defaults group suffix when reading cluster_config sections in
               my.cnf file; used in testing
 T}:T{
 .PP
-ADDED: NDB 8.0.24
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -128,7 +114,7 @@ T}:T{
 Enable management server configuration cache; true by default
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -140,7 +126,7 @@ Specify cluster configuration file; also specify --reload or --initial
               to override configuration cache if present
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -151,25 +137,7 @@ T}:T{
 Specify cluster management server configuration cache directory
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--connect-retries=#\fR\fB \fR
-T}:T{
-Number of times to retry connection before giving up
-T}:T{
-.PP
-REMOVED: 8.0.31
-T}
-T{
-.PP
-\fB \fR\fB--connect-retry-delay=#\fR\fB \fR
-T}:T{
-Number of seconds to wait between attempts to contact management server
-T}:T{
-.PP
-REMOVED: 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -180,16 +148,7 @@ T}:T{
 Same as --ndb-connectstring
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--core-file\fR\fB \fR
-T}:T{
-Write core file on error; used in debugging
-T}:T{
-.PP
-REMOVED: 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -200,7 +159,7 @@ T}:T{
 Run ndb_mgmd in daemon mode (default)
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -209,7 +168,7 @@ T}:T{
 Read given file after global files are read
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -218,7 +177,7 @@ T}:T{
 Read default options from given file only
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -227,7 +186,7 @@ T}:T{
 Also read groups with concat(group, suffix)
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -238,7 +197,7 @@ T}:T{
 Display help text and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -248,7 +207,7 @@ Causes management server to reload configuration data from configuration
               file, bypassing configuration cache
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -258,7 +217,7 @@ Used to install management server process as Windows service; does not
               apply on other platforms
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -268,7 +227,7 @@ Run ndb_mgmd in interactive mode (not officially supported in
               production; for testing purposes only)
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -277,7 +236,7 @@ T}:T{
 Name to use when writing cluster log messages applying to this node
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -286,7 +245,7 @@ T}:T{
 Read given path from login file
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -295,7 +254,7 @@ T}:T{
 Read cluster configuration data from my.cnf file
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -308,7 +267,7 @@ Set connect string for connecting to ndb_mgmd. Syntax:
               NDB_CONNECTSTRING and my.cnf
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -319,7 +278,7 @@ T}:T{
 Same as --ndb-connectstring
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -328,18 +287,7 @@ T}:T{
 Set node ID for this node, overriding any ID set by --ndb-connectstring
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--ndb-optimized-node-selection\fR\fB \fR
-T}:T{
-Enable optimizations for selection of nodes for transactions. Enabled by
-              default; use --skip-ndb-optimized-node-selection to
-              disable
-T}:T{
-.PP
-REMOVED: 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -348,7 +296,7 @@ T}:T{
 Do not read default options from any option file other than login file
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -357,7 +305,7 @@ T}:T{
 Do not perform any node ID checks
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -366,7 +314,7 @@ T}:T{
 Do not run ndb_mgmd as a daemon
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -376,7 +324,7 @@ Do not wait for management nodes specified when starting this management
               server; requires --ndb-nodeid option
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -385,7 +333,7 @@ T}:T{
 Print program argument list and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -396,7 +344,7 @@ T}:T{
 Print full configuration and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -406,7 +354,7 @@ Causes management server to compare configuration file with
               configuration cache
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -417,7 +365,7 @@ Used to remove management server process that was previously installed
               to be removed; does not apply on other platforms
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -428,7 +376,7 @@ T}:T{
 Display help text and exit; same as --help
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -437,7 +385,7 @@ T}:T{
 Do not use configuration file
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -448,7 +396,7 @@ T}:T{
 Write additional information to log
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -459,7 +407,7 @@ T}:T{
 Display version information and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 .TE
 .sp 1
@@ -509,17 +457,11 @@ Causes the management server to bind to a specific network interface (host name 
 \fB\-\-character\-sets\-dir\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --character-sets-dir=path
-T}
-T{
-Removed
-T}:T{
-8.0.31
 T}
 .TE
 .sp 1
@@ -539,17 +481,11 @@ Directory containing character sets\&.
 allbox tab(:);
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --cluster-config-suffix=name
-T}
-T{
-Introduced
-T}:T{
-8.0.24-ndb-8.0.24
 T}
 T{
 Type
@@ -764,14 +700,14 @@ was started with the
 \fB\-\-reload\fR
 or
 \fB\-\-initial\fR
-option, or because the management server could not find any configuration cache\&. Beginning with NDB 8\&.0\&.26,
-\fBndb_mgmd\fR
-refuses to start if
+option, or because the management server could not find any configuration cache\&. If
 \fB\-\-config\-file\fR
 is specified without either of
 \fB\-\-initial\fR
 or
-\fB\-\-reload\fR\&.
+\fB\-\-reload\fR,
+\fBndb_mgmd\fR
+refuses to start\&.
 .sp
 The
 \fB\-\-config\-file\fR
@@ -816,11 +752,10 @@ $INSTALLDIR/mysql-cluster
 T}
 .TE
 .sp 1
-Specifies the cluster management server\*(Aqs configuration cache directory\&.
+Specifies the cluster management server\*(Aqs configuration cache directory\&. This must be an absolute path\&. Otherwise, the management server refuses to start\&.
+.sp
 \fB\-\-config\-dir\fR
 is an alias for this option\&.
-.sp
-In NDB 8\&.0\&.27 and later, this must be an absolute path\&. Otherwise, the management server refuses to start\&.
 .RE
 .sp
 .RS 4
@@ -838,17 +773,11 @@ lB l
 lB l
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --connect-retries=#
-T}
-T{
-Removed
-T}:T{
-8.0.31
 T}
 T{
 Type
@@ -890,17 +819,11 @@ lB l
 lB l
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --connect-retry-delay=#
-T}
-T{
-Removed
-T}:T{
-8.0.31
 T}
 T{
 Type
@@ -972,17 +895,11 @@ Same as \-\-ndb\-connectstring\&.
 \fB\-\-core\-file\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --core-file
-T}
-T{
-Removed
-T}:T{
-8.0.31
 T}
 .TE
 .sp 1
@@ -1405,7 +1322,7 @@ NDB_CONNECTSTRING
 and
 my\&.cnf\&. Ignored if
 \fB\-\-config\-file\fR
-is specified; beginning with NDB 8\&.0\&.27, a warning is issued when both options are used\&.
+is specified; a warning is issued if both options are used concurrently\&.
 .RE
 .sp
 .RS 4
@@ -1487,17 +1404,11 @@ Set node ID for this node, overriding any ID set by \-\-ndb\-connectstring\&.
 \fB\-\-ndb\-optimized\-node\-selection\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ndb-optimized-node-selection
-T}
-T{
-Removed
-T}:T{
-8.0.31
 T}
 .TE
 .sp 1

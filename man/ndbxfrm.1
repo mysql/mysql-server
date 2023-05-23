@@ -2,12 +2,12 @@
 .\"     Title: ndbxfrm
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2023
+.\"      Date: 05/23/2023
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 8.0
+.\"    Source: MySQL 8.1
 .\"  Language: English
 .\"
-.TH "NDBXFRM" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDBXFRM" "1" "05/23/2023" "MySQL 8\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,13 +36,13 @@ ndbxfrm \- compress, decompress, encrypt, and decrypt files created by NDB Clust
 .PP
 The
 \fBndbxfrm\fR
-utility, introduced in NDB 8\&.0\&.22, can be used to decompress, decrypt, and output information about files created by NDB Cluster that are compressed, encrypted, or both\&. It can also be used to compress or encrypt files\&.
+utility can be used to decompress, decrypt, and output information about files created by NDB Cluster that are compressed, encrypted, or both\&. It can also be used to compress or encrypt files\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.52.\ \&Command\-line options used with the program ndbxfrm
+.B Table\ \&23.51.\ \&Command\-line options used with the program ndbxfrm
 .TS
 allbox tab(:);
 lB lB lB.
@@ -86,7 +86,7 @@ T}:T{
 Compress file
 T}:T{
 .PP
-ADDED: NDB 8.0.22
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -95,7 +95,7 @@ T}:T{
 Supply file decryption key
 T}:T{
 .PP
-ADDED: NDB 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -104,7 +104,7 @@ T}:T{
 Supply file decryption key from stdin
 T}:T{
 .PP
-ADDED: NDB 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -113,7 +113,7 @@ T}:T{
 Use this password to decrypt file
 T}:T{
 .PP
-ADDED: NDB 8.0.22
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -122,7 +122,7 @@ T}:T{
 Get decryption password in a secure fashion from STDIN
 T}:T{
 .PP
-ADDED: NDB 8.0.24
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -131,7 +131,7 @@ T}:T{
 Read given file after global files are read
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -140,7 +140,7 @@ T}:T{
 Also read groups with concat(group, suffix)
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -149,7 +149,7 @@ T}:T{
 Read default options from given file only
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -158,7 +158,7 @@ T}:T{
 Print info about file including file header and trailer
 T}:T{
 .PP
-ADDED: NDB 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -168,7 +168,7 @@ Size of input data chunks encrypted as a unit. Used with XTS, set to
               zero for CBC mode
 T}:T{
 .PP
-ADDED: NDB 8.0.29
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -177,7 +177,7 @@ T}:T{
 Encryption cipher: 1 for CBC, 2 for XTS
 T}:T{
 .PP
-ADDED: NDB 8.0.29
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -188,7 +188,7 @@ T}:T{
 Number of iterations used in key definition
 T}:T{
 .PP
-ADDED: NDB 8.0.22
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -197,7 +197,7 @@ T}:T{
 Use this key to encrypt file
 T}:T{
 .PP
-ADDED: NDB 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -206,7 +206,7 @@ T}:T{
 Use key supplied from stdin to encrypt file
 T}:T{
 .PP
-ADDED: NDB 8.0.31
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -215,7 +215,7 @@ T}:T{
 Use this password to encrypt file
 T}:T{
 .PP
-ADDED: NDB 8.0.22
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -224,7 +224,7 @@ T}:T{
 Get encryption password in a secure fashion from STDIN
 T}:T{
 .PP
-ADDED: NDB 8.0.24
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -235,7 +235,7 @@ T}:T{
 Print usage information
 T}:T{
 .PP
-ADDED: NDB 8.0.22
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -246,7 +246,7 @@ T}:T{
 Print file information
 T}:T{
 .PP
-ADDED: NDB 8.0.22
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -255,7 +255,7 @@ T}:T{
 Read given path from login file
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -264,7 +264,7 @@ T}:T{
 Do not read default options from any option file other than login file
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -273,7 +273,7 @@ T}:T{
 Print program argument list and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -284,7 +284,7 @@ T}:T{
 Prints usage information; synonym for --help
 T}:T{
 .PP
-ADDED: NDB 8.0.22
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 T{
 .PP
@@ -295,7 +295,7 @@ T}:T{
 Output version information
 T}:T{
 .PP
-ADDED: NDB 8.0.22
+(Supported in all NDB releases based on MySQL 8.1)
 T}
 .TE
 .sp 1
@@ -332,17 +332,11 @@ Options
 \fB\-c\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --compress
-T}
-T{
-Introduced
-T}:T{
-8.0.22-ndb-8.0.22
 T}
 .TE
 .sp 1
@@ -366,17 +360,11 @@ using the names of the compressed file and an output file (with no options requi
 \fIkey\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --decrypt-key=key
-T}
-T{
-Introduced
-T}:T{
-8.0.31-ndb-8.0.31
 T}
 .TE
 .sp 1
@@ -412,17 +400,11 @@ This option cannot be used together with
 \fB\-\-decrypt\-key\-from\-stdin\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --decrypt-key-from-stdin
-T}
-T{
-Introduced
-T}:T{
-8.0.31-ndb-8.0.31
 T}
 .TE
 .sp 1
@@ -445,17 +427,11 @@ stdin\&.
 allbox tab(:);
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --decrypt-password=password
-T}
-T{
-Introduced
-T}:T{
-8.0.22-ndb-8.0.22
 T}
 T{
 Type
@@ -501,17 +477,11 @@ This option cannot be used together with
 \fB\-\-decrypt\-password\-from\-stdin[=TRUE|FALSE]\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --decrypt-password-from-stdin
-T}
-T{
-Introduced
-T}:T{
-8.0.24-ndb-8.0.24
 T}
 .TE
 .sp 1
@@ -638,17 +608,11 @@ CONCAT(\fIgroup\fR, \fIsuffix\fR)\&.
 allbox tab(:);
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --encrypt-block-size=#
-T}
-T{
-Introduced
-T}:T{
-8.0.31-ndb-8.0.31
 T}
 T{
 Type
@@ -757,17 +721,11 @@ lB l
 lB l
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --encrypt-block-size=#
-T}
-T{
-Introduced
-T}:T{
-8.0.29-ndb-8.0.29
 T}
 T{
 Type
@@ -811,17 +769,11 @@ lB l
 lB l
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --encrypt-cipher=#
-T}
-T{
-Introduced
-T}:T{
-8.0.29-ndb-8.0.29
 T}
 T{
 Type
@@ -868,17 +820,11 @@ lB l
 lB l
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --encrypt-kdf-iter-count=#
-T}
-T{
-Introduced
-T}:T{
-8.0.22-ndb-8.0.22
 T}
 T{
 Type
@@ -918,17 +864,11 @@ option\&.
 \fB\-\-encrypt\-key=\fR\fB\fIkey\fR\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --encrypt-key=key
-T}
-T{
-Introduced
-T}:T{
-8.0.31-ndb-8.0.31
 T}
 .TE
 .sp 1
@@ -962,17 +902,11 @@ This option cannot be used together with
 \fB\-\-encrypt\-key\-from\-stdin\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --encrypt-key-from-stdin
-T}
-T{
-Introduced
-T}:T{
-8.0.31-ndb-8.0.31
 T}
 .TE
 .sp 1
@@ -993,17 +927,11 @@ stdin\&.
 allbox tab(:);
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --encrypt-password=password
-T}
-T{
-Introduced
-T}:T{
-8.0.22-ndb-8.0.22
 T}
 T{
 Type
@@ -1089,17 +1017,11 @@ This option cannot be used together with
 \fB\-\-encrypt\-password\-from\-stdin[=TRUE|FALSE]\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --encrypt-password-from-stdin
-T}
-T{
-Introduced
-T}:T{
-8.0.24-ndb-8.0.24
 T}
 .TE
 .sp 1
@@ -1121,17 +1043,11 @@ with no password following the option\&.
 \fB\-?\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --help
-T}
-T{
-Introduced
-T}:T{
-8.0.22-ndb-8.0.22
 T}
 .TE
 .sp 1
@@ -1150,17 +1066,11 @@ Prints usage information for the program\&.
 \fB\-i\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --info
-T}
-T{
-Introduced
-T}:T{
-8.0.22-ndb-8.0.22
 T}
 .TE
 .sp 1
@@ -1218,7 +1128,7 @@ File=BACKUP\-10\&.5\&.log, compression=no, encryption=yes
 .RE
 .\}
 .sp
-Beginning with NDB 8\&.0\&.31, you can also see the file\*(Aqs header and trailer using the
+You can also see the file\*(Aqs header and trailer using the
 \fB\-\-detailed\-info\fR
 option\&.
 .RE
@@ -1313,17 +1223,11 @@ Print program argument list and exit\&.
 \fB\-?\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --usage
-T}
-T{
-Introduced
-T}:T{
-8.0.22-ndb-8.0.22
 T}
 .TE
 .sp 1
@@ -1343,17 +1247,11 @@ Synonym for
 \fB\-V\fR
 .TS
 allbox tab(:);
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --version
-T}
-T{
-Introduced
-T}:T{
-8.0.22-ndb-8.0.22
 T}
 .TE
 .sp 1
@@ -1368,8 +1266,7 @@ can encrypt backups created by any version of NDB Cluster\&. The
 files comprising the backup must be encrypted separately, and these files must be encrypted separately for each data node\&. Once encrypted, such backups can be decrypted only by
 \fBndbxfrm\fR,
 \fBndb_restore\fR, or
-\fBndb_print_backup\fR
-from NDB Cluster 8\&.0\&.22 or later\&.
+\fBndb_print_backup\fR\&.
 .PP
 An encrypted file can be re\-encrypted with a new password using the
 \fB\-\-encrypt\-password\fR
