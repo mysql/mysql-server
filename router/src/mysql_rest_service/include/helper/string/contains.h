@@ -25,6 +25,7 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_HELPER_STRING_CONTAINS_H_
 #define ROUTER_SRC_REST_MRS_SRC_HELPER_STRING_CONTAINS_H_
 
+#include <cstdint>
 #include <string>
 
 namespace helper {
@@ -60,7 +61,7 @@ bool index(const std::string &value, const String &inside, uint32_t *idx) {
 inline bool index(const char *value, const char *inside, uint32_t *idx) {
   auto ptr = strstr(value, inside);
   if (nullptr == ptr) return false;
-  if (idx) *idx = reinterpret_cast<intptr_t>(value - ptr);
+  if (idx) *idx = reinterpret_cast<std::intptr_t>(value - ptr);
   return true;
 }
 
