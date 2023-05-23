@@ -54,15 +54,15 @@
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/basic1
 --let $mrs_add_schema_auth=TRUE
---source ../include/mrs_add_schema.inc
+--source ../include/mrs_db_schema/add.inc
 
 --let $mrs_add_db_object=table1
 --let $mrs_add_db_object_path=/o1
---source ../include/mrs_add_db_object.inc
+--source ../include/mrs_db_object/add.inc
 
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/o2
---source ../include/mrs_add_db_object.inc
+--source ../include/mrs_db_object/add.inc
 
 --let $mrs_add_auth_app=default authentication
 --let $mrs_add_auth_vendor=MySQL Internal
@@ -79,16 +79,16 @@
 
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/basic2
---source ../include/mrs_add_schema.inc
+--source ../include/mrs_db_schema/add.inc
 
 --let $mrs_add_db_object=table1
 --let $mrs_add_db_object_path=/o3
 --let $mrs_add_db_object_auth=TRUE
---source ../include/mrs_add_db_object.inc
+--source ../include/mrs_db_object/add.inc
 
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/o4
---source ../include/mrs_add_db_object.inc
+--source ../include/mrs_db_object/add.inc
 
 --let $mrs_add_auth_app=default authentication
 --let $mrs_add_auth_vendor=MySQL Internal

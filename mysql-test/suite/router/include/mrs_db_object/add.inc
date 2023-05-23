@@ -50,6 +50,11 @@ if (!$mrs_add_db_object_options)
   --let $mrs_add_db_object_options=DEFAULT
 }
 
+if (!$mrs_add_db_object_table_filter)
+{
+  --let $mrs_add_db_object_table_filter=
+}
+
 --disable_query_log
 --disable_result_log
 eval SET $mrs_sql_id_variable=mysql_rest_service_metadata.get_sequence_id();
@@ -69,16 +74,16 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
 {
  if ($mrs_add_db_object_type=="TABLE")
  {
-    if (!$mrs_sql_id_variable_ob)
-    {
-      --let $mrs_sql_id_variable_ob=@object_id
-    }
-    --let $_schema_name=`SELECT name FROM mysql_rest_service_metadata.db_schema WHERE id=$mrs_schema_id_sql_variable`
-    eval SET $mrs_sql_id_variable_ob=mysql_rest_service_metadata.get_sequence_id();
-    eval INSERT INTO mysql_rest_service_metadata.object(id, db_object_id, name) VALUES($mrs_sql_id_variable_ob, $mrs_sql_id_variable, "$mrs_add_db_object");
-    eval INSERT INTO mysql_rest_service_metadata.object_field(id, name, object_id, enabled, position, db_column)
-           SELECT mysql_rest_service_metadata.get_sequence_id(), z.cname, $mrs_sql_id_variable_ob, true, z.pos, z.js
-           FROM (SELECT COLUMN_NAME as cname, ORDINAL_POSITION as pos, JSON_SET("{}","$.name",column_name,"$.datatype",COLUMN_TYPE, "$.auto_inc", EXTRA like "%auto_increment%", "$.not_null", is_NULLABLE <> "YES", "$.is_primary", COLUMN_KEY like "%PRI%") as js FROM information_schema.columns where TABLE_SCHEMA="$_schema_name" and TABLE_NAME="$mrs_add_db_object") as z;
+ 
+   if (!$mrs_sql_id_variable_ob)
+   {
+     --let $mrs_sql_id_variable_ob=@object_id
+     eval SET $mrs_sql_id_variable_ob=NULL;
+   }
+
+   --source add_table_columns.inc
+   --disable_query_log
+   --disable_result_log
  }
 
  if ($mrs_add_db_object_type=="PROCEDURE")
@@ -112,6 +117,7 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
 
 
 --let $mrs_schema_id_sql_variable=
+--let $mrs_sql_id_variable_ob=
 --let $mrs_sql_id_variable=
 --let $mrs_add_db_object_type=
 --let $mrs_add_db_object=

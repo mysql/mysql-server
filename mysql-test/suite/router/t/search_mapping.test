@@ -33,15 +33,15 @@
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/basic
 --let $mrs_add_schema_items_on_page=NULL
---source ../include/mrs_add_schema.inc
+--source ../include/mrs_db_schema/add.inc
 
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/table
---source ../include/mrs_add_db_object.inc
+--source ../include/mrs_db_object/add.inc
 
 --let $mrs_modify_columns=id, name, comments, date
 --let $mrs_modify_fields=my_id, my_name, my_comments, my_date
---source ../include/mrs_modify_db_object_fields.inc
+--source ../include/mrs_db_object/modify_fields.inc
 
 # Sync with newly created REST object
 # wait for the creation
