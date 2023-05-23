@@ -268,7 +268,8 @@ bool key_cmp_if_same(const TABLE *table, const uchar *key, uint idx,
   uint store_length;
   KEY_PART_INFO *key_part;
   const uchar *key_end = key + key_length;
-  ;
+  const bool is_multi_valued_index =
+      table->key_info[idx].flags & HA_MULTI_VALUED_KEY;
 
   for (key_part = table->key_info[idx].key_part; key < key_end;
        key_part++, key += store_length) {
@@ -282,7 +283,11 @@ bool key_cmp_if_same(const TABLE *table, const uchar *key, uint idx,
       key++;
       store_length--;
     }
-    if (key_part->bin_cmp &&
+    /*
+      Multi-valued column's are compared using MEMBER OF operation implemented
+      in Field_typed_array::key_cmp() instead of mem compare.
+    */
+    if (key_part->bin_cmp && !is_multi_valued_index &&
         !(key_part->key_part_flag &
           (HA_BLOB_PART | HA_VAR_LENGTH_PART | HA_BIT_PART))) {
       // We can use memcpy.

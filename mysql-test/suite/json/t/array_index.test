@@ -1,3 +1,5 @@
+--source include/elide_costs.inc
+
 CREATE TABLE t1 (f1 json);
 create index i1 on t1((cast(f1 as unsigned array)));
 show create table t1;
@@ -1893,6 +1895,56 @@ SELECT * FROM t
 WHERE JSON_OVERLAPS(doc->'$[*].date', '["2020-01-01", "2021-01-01"]');
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#35012146 Multivalued index creation results in partial result for
+--echo # query with ORDER BY DESC
+--echo #
+
+CREATE TABLE test (id INT NOT NULL, json_value JSON, PRIMARY KEY (id),
+    INDEX multivalued_index ((CAST(json_value->'$' AS UNSIGNED ARRAY))));
+INSERT INTO test VALUES (1,'[1, 2, 3, 4]');
+INSERT INTO test VALUES (2,'[4, 5, 6, 7]');
+INSERT INTO test VALUES (3,'[7, 8, 9, 1]');
+INSERT INTO test VALUES (4,'[9, 1, 2, 3]');
+INSERT INTO test VALUES (5,'[3, 4, 5, 6]');
+INSERT INTO test VALUES (6,'[6, 7, 8, 9]');
+ANALYZE TABLE test;
+SELECT id, json_value FROM test WHERE 4 MEMBER OF (json_value->'$') ORDER BY id;
+EXPLAIN SELECT id, json_value FROM test WHERE 4 MEMBER OF (json_value->'$')
+    ORDER BY id DESC;
+--replace_regex $elide_time
+--skip_if_hypergraph # Different plan.
+EXPLAIN ANALYZE SELECT id, json_value FROM test WHERE
+    4 MEMBER OF (json_value->'$') ORDER BY id DESC;
+SELECT id, json_value FROM test WHERE 4 MEMBER OF (json_value->'$')
+    ORDER BY id DESC;
+DROP TABLE test;
+
+CREATE TABLE test (id INT PRIMARY KEY, j JSON,
+    INDEX multivalued_index ((CAST(j->'$[*]' AS CHAR(10) ARRAY))));
+INSERT INTO test VALUES (1, '["10"]'),
+                        (2, '["9"]'),
+                        (3, '["8", "10", "25"]'),
+                        (4, '["7", "15" ,"3", "27"]'),
+                        (5, '["6", "3", "10", "95"]'),
+                        (6, '["5"]'),
+                        (7, '["4"]'),
+                        (8, '["3"]'),
+                        (9, '["2"]'),
+                        (10, '["1"]');
+ANALYZE TABLE test;
+--replace_regex $elide_time
+--skip_if_hypergraph # Different plan.
+EXPLAIN ANALYZE SELECT * FROM test WHERE "10" MEMBER OF (j->'$[*]')
+    ORDER BY id DESC;
+SELECT * FROM test WHERE "10" MEMBER OF (j->'$[*]') ORDER BY id DESC;
+--replace_regex $elide_time
+--skip_if_hypergraph # Different plan.
+EXPLAIN ANALYZE SELECT * FROM test WHERE "3" MEMBER OF (j->'$[*]')
+    ORDER BY id DESC;
+SELECT * FROM test WHERE "3" MEMBER OF (j->'$[*]') ORDER BY id DESC;
+DROP TABLE test;
 
 # If the unique record filter is not properly closed by any of queries above,
 # then the TempTable plugin will have ref_count > 0 on restart. This should be
