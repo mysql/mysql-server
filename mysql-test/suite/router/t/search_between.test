@@ -36,11 +36,11 @@
 --let $mrs_add_schema=paging_schema
 --let $mrs_add_schema_path=/test_between
 --let $mrs_add_schema_items_on_page=NULL
---source ../include/mrs_add_schema.inc
+--source ../include/mrs_db_schema/add.inc
 
 --let $mrs_add_db_object=long101
 --let $mrs_add_db_object_path=/table
---source ../include/mrs_add_db_object.inc
+--source ../include/mrs_db_object/add.inc
 
 # Sync with newly created REST object
 # wait for the creation

@@ -47,7 +47,7 @@
 --let $mrs_add_schema=paging_schema
 --let $mrs_add_schema_path=/paging
 --let $mrs_add_schema_items_on_page=NULL
---source ../include/mrs_add_schema.inc
+--source ../include/mrs_db_schema/add.inc
 
 
 --echo
@@ -56,7 +56,7 @@
 --let $mrs_add_db_object=long101
 --let $mrs_add_db_object_path=/m2
 --let $mrs_add_db_object_items_on_page=2
---source ../include/mrs_add_db_object.inc
+--source ../include/mrs_db_object/add.inc
 
 exec $MRS_CLIENT_ARGS
   --path /svc/paging/m2
@@ -86,7 +86,7 @@ exec $MRS_CLIENT_ARGS
 --let $mrs_add_db_object=long101
 --let $mrs_add_db_object_path=/l101
 --let $mrs_add_db_object_items_on_page=NULL
---source ../include/mrs_add_db_object.inc
+--source ../include/mrs_db_object/add.inc
 
 exec $MRS_CLIENT_ARGS
   --path /svc/paging/l101

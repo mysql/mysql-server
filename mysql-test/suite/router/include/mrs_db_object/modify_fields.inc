@@ -18,12 +18,12 @@ if (!$mrs_modify_fields)
 --disable_query_log
 --disable_result_log
 
-
 let $_columns=$mrs_modify_columns;
 let $_fileds=$mrs_modify_fields;
 
 while($_columns)
 {
+
   #
   # split columns variable names using "," as delimiter
   #
@@ -43,7 +43,6 @@ while($_columns)
 
 --enable_query_log
 --enable_result_log
-
 
 --let $$mrs_modify_columns=
 --let $mrs_modify_fields=
