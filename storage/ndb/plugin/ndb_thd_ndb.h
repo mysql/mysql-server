@@ -29,12 +29,12 @@
 #include <vector>
 
 #include "map_helpers.h"
-#include "storage/ndb/plugin/ndb_applier.h"
 #include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 
 class THD;
 class Relay_log_info;
+class Ndb_applier;
 
 /*
   Class for ndbcluster thread specific data
