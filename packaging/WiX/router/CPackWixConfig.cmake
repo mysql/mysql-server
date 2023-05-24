@@ -43,14 +43,15 @@ FOREACH(comp1 ${CPACK_COMPONENTS_USED})
 ENDFOREACH()
 SET(CPACK_COMPONENTS_ALL ${CPACK_ALL})
 
-# Always install (hidden), includes Readme files
+# Always install (hidden)
 SET(CPACK_COMPONENT_GROUP_ALWAYSINSTALL_HIDDEN 1)
+
+# Feature Readme (hidden, always install)
 SET(CPACK_COMPONENT_README_GROUP "AlwaysInstall")
 
 # Feature MySQL Router
 SET(CPACK_COMPONENT_ROUTER_DISPLAY_NAME "MySQL Router")
 SET(CPACK_COMPONENT_ROUTER_DESCRIPTION "Install MySQL Router")
 
-
-SET(CPACK_COMPONENT_GROUP_ALWAYSINSTALL_HIDDEN 1)
+# Feature "Shared libraries" (hidden, always install)
 SET(CPACK_COMPONENT_SHAREDLIBRARIES_GROUP "AlwaysInstall")
