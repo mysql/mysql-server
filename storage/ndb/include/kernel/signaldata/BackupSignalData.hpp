@@ -52,6 +52,7 @@ public:
   static constexpr Uint32 USE_UNDO_LOG = 0x4;
   static constexpr Uint32 MT_BACKUP = 0x8;
   static constexpr Uint32 ENCRYPTED_BACKUP = 0x10;
+  static constexpr Uint32 NOWAIT_REPLY = 0x20;
 
 private:
   Uint32 senderData;
