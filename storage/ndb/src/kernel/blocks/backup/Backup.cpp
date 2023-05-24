@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2501,7 +2501,19 @@ Backup::execBACKUP_REQ(Signal* signal)
                   BackupRef::IAmNotMaster);
     return;
   }//if
-
+  else if(flags & BackupReq::NOWAIT_REPLY)
+  {
+    /*
+     * Inform MgmtSrvr that I am the master node, this way MgmtSrvr can stop
+     * waiting for feedback from Backup when NOWAIT option is specified in the
+     * start backup command
+     */
+    BackupConf * conf = (BackupConf*)signal->getDataPtrSend();
+    conf->backupId = 0;
+    conf->senderData = req->senderData;
+    sendSignal(senderRef, GSN_BACKUP_CONF, signal,
+               BackupConf::SignalLength, JBB);
+  }
   if (c_defaults.m_diskless)
   {
     jam();
@@ -2642,17 +2654,25 @@ Backup::sendBackupRef(BlockReference senderRef, Uint32 flags, Signal *signal,
 		      Uint32 senderData, Uint32 errorCode)
 {
   jam();
-  if (SEND_BACKUP_STARTED_FLAG(flags))
+  if (SEND_BACKUP_STARTED_FLAG(flags) ||
+      (flags & BackupReq::NOWAIT_REPLY && errorCode == BackupRef::IAmNotMaster))
   {
     jam();
-    BackupRef* ref = (BackupRef*)signal->getDataPtrSend();
+    BackupRef *ref = (BackupRef *)signal->getDataPtrSend();
     ref->senderData = senderData;
     ref->errorCode = errorCode;
     ref->masterRef = numberToRef(BACKUP, getMasterNodeId());
     sendSignal(senderRef, GSN_BACKUP_REF, signal, BackupRef::SignalLength, JBB);
   }
-
-  if (errorCode != BackupRef::IAmNotMaster)
+  /*
+   * Log event if the error is other than IAmNotMaster,
+   * or, if error is IAmNotMaster, the NOWAIT option is set and data node
+   * version is >= 7.5.31 or >= 7.6.27 or >= 8.0.34  or >= 8.2.0 
+   * (see NDBD_START_BACKUP_NOWAIT_REPLY)
+   */
+  if ((errorCode != BackupRef::IAmNotMaster) ||
+      (errorCode == BackupRef::IAmNotMaster &&
+       !SEND_BACKUP_STARTED_FLAG(flags) && !(flags & BackupReq::NOWAIT_REPLY)))
   {
     jam();
     signal->theData[0] = NDB_LE_BackupFailedToStart;

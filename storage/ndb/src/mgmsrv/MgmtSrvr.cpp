@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1396,10 +1396,10 @@ MgmtSrvr::sendall_STOP_REQ(NodeBitmask &stoppedNodes,
 int
 MgmtSrvr::guess_master_node(SignalSender& ss)
 {
+  NodeId guess = m_master_node;
   /**
    * First check if m_master_node is started
    */
-  NodeId guess = m_master_node;
   if (guess != 0)
   {
     trp_node node = ss.getNodeInfo(guess);
@@ -1408,43 +1408,65 @@ MgmtSrvr::guess_master_node(SignalSender& ss)
   }
 
   /**
-   * Check for any started node
+   * Check started nodes based on dynamicId
    */
-  guess = 0;
-  while(getNextNodeId(&guess, NDB_MGM_NODE_TYPE_NDB))
+  Uint32 min = UINT32_MAX;
+  NodeId node_id = 0;
+  while(getNextNodeId(&node_id, NDB_MGM_NODE_TYPE_NDB))
   {
-    trp_node node = ss.getNodeInfo(guess);
-    if (node.m_state.startLevel == NodeState::SL_STARTED)
+    trp_node node = ss.getNodeInfo(node_id);
+    if(node.m_state.dynamicId < min)
     {
-      return guess;
+      if(node.m_state.startLevel == NodeState::SL_STARTED)
+      {
+        min = node.m_state.dynamicId;
+        guess = node_id;
+      }
     }
   }
+  //found
+  if(min < UINT32_MAX)
+    return guess;
 
   /**
-   * Check any confirmed node
+   * Check confirmed nodes based on dynamicId
    */
-  guess = 0;
-  while(getNextNodeId(&guess, NDB_MGM_NODE_TYPE_NDB))
+  node_id = 0;
+  while(getNextNodeId(&node_id, NDB_MGM_NODE_TYPE_NDB))
   {
-    trp_node node = ss.getNodeInfo(guess);
-    if (node.is_confirmed())
+    trp_node node = ss.getNodeInfo(node_id);
+    if(node.m_state.dynamicId < min)
     {
-      return guess;
+      if(node.is_confirmed())
+      {
+        min = node.m_state.dynamicId;
+        guess = node_id;
+      }
     }
   }
+  //found
+  if(min < UINT32_MAX)
+    return guess;
 
   /**
-   * Check any connected node
+   * Check connected nodes based on dynamicId
    */
-  guess = 0;
-  while(getNextNodeId(&guess, NDB_MGM_NODE_TYPE_NDB))
+  node_id = 0;
+  while(getNextNodeId(&node_id, NDB_MGM_NODE_TYPE_NDB))
   {
-    trp_node node = ss.getNodeInfo(guess);
-    if (node.is_connected())
+    trp_node node = ss.getNodeInfo(node_id);
+    if(node.m_state.dynamicId < min)
     {
-      return guess;
+      if(node.is_connected())
+      {
+        min = node.m_state.dynamicId;
+        guess = node_id;
+      }
     }
   }
+  //found
+  if(min < UINT32_MAX)
+    return guess;
 
   return 0; // give up
 }
@@ -3420,8 +3442,13 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
 
       /* Clear local nodeid reservation(if any) */
       release_local_nodeid_reservation(i);
-
       clear_connect_address_cache(i);
+
+      /* Clear m_master_node when master disconnects */
+      if(i == m_master_node)
+      {
+        m_master_node = 0;
+      }
     }
     return;
   }
@@ -4331,16 +4358,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
   SignalSender ss(theFacade);
   ss.lock(); // lock will be released on exit
 
-  NodeId nodeId = m_master_node;
-  if (okToSendTo(nodeId, false) != 0)
-  {
-    bool next;
-    nodeId = m_master_node = 0;
-    while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
-          okToSendTo(nodeId, false) != 0);
-    if(!next)
-      return NO_CONTACT_WITH_DB_NODES;
-  }
+  NodeId nodeId = guess_master_node(ss);
 
   SimpleSignal ssig;
   BackupReq* req = CAST_PTR(BackupReq, ssig.getDataPtrSend());
@@ -4370,11 +4388,26 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
   while (1) {
     if (do_send)
     {
+      nodeId = guess_master_node(ss);
+
+      if(waitCompleted == 0 &&
+          ndbd_start_backup_nowait_reply(getNodeInfo(nodeId).m_info.m_version))
+      {
+        req->flags |= BackupReq::NOWAIT_REPLY;
+      }
+      else
+      {
+        req->flags &= ~((Uint32)BackupReq::NOWAIT_REPLY);
+      }
+
       if (ss.sendSignal(nodeId, &ssig) != SEND_OK) {
 	return SEND_OR_RECEIVE_FAILED;
       }
-      if (waitCompleted == 0)
-	return 0;
+      if (waitCompleted == 0 &&
+          !ndbd_start_backup_nowait_reply(getNodeInfo(nodeId).m_info.m_version))
+      {
+        return 0;
+      }
       do_send = 0;
     }
     SimpleSignal *signal = ss.waitFor();
@@ -4382,6 +4415,21 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
     int gsn = signal->readSignalNumber();
     switch (gsn) {
     case GSN_BACKUP_CONF:{
+
+  /*
+   * BACKUP NOWAIT case.
+   * BACKUP_CONF received from Backup. It is only used to confirm that
+   * the node is the master node and the backup can proceed.
+   * No more feedback expected from data node in this case.
+   */
+    if(waitCompleted == 0)
+    {
+      return 0;
+    }
+
+    /*
+     * BACKUP WAIT case.
+     */
       const BackupConf * const conf = 
 	CAST_CONSTPTR(BackupConf, signal->getDataPtr());
 #ifdef VM_TRACE
