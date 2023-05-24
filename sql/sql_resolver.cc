@@ -5731,13 +5731,7 @@ bool Query_block::replace_item_in_expression(Item **expr, bool was_hidden,
     // Save our original item name at this level
     auto saved_item_name =
         (*expr)->orig_name.is_set() ? (*expr)->orig_name : (*expr)->item_name;
-    // Replace in base_ref_items
-    for (size_t i = 0; i < fields.size(); i++) {
-      if (base_ref_items[i] == *expr) {
-        base_ref_items[i] = new_item;
-        break;
-      }
-    }
+    replace_referenced_item(*expr, new_item);
     // Replace in fields
     const auto it = find(fields.begin(), fields.end(), new_item);
     if (it == fields.end()) {
