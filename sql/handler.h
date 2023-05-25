@@ -5479,6 +5479,7 @@ class handler {
 
   /// @see index_read_map().
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
+
   /**
     The following functions works like index_read, but it find the last
     row with the current key value or prefix.

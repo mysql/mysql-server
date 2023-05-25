@@ -3282,4 +3282,81 @@ EXPLAIN
     -> Index range scan on t using functional_index_2 over ('2021-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date'))) OR ('2020-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date')))  (cost=1.1 rows=2)
 
 DROP TABLE t;
+#
+# Bug#35012146 Multivalued index creation results in partial result for
+# query with ORDER BY DESC
+#
+CREATE TABLE test (id INT NOT NULL, json_value JSON, PRIMARY KEY (id),
+INDEX multivalued_index ((CAST(json_value->'$' AS UNSIGNED ARRAY))));
+INSERT INTO test VALUES (1,'[1, 2, 3, 4]');
+INSERT INTO test VALUES (2,'[4, 5, 6, 7]');
+INSERT INTO test VALUES (3,'[7, 8, 9, 1]');
+INSERT INTO test VALUES (4,'[9, 1, 2, 3]');
+INSERT INTO test VALUES (5,'[3, 4, 5, 6]');
+INSERT INTO test VALUES (6,'[6, 7, 8, 9]');
+ANALYZE TABLE test;
+Table	Op	Msg_type	Msg_text
+test.test	analyze	status	OK
+SELECT id, json_value FROM test WHERE 4 MEMBER OF (json_value->'$') ORDER BY id;
+id	json_value
+1	[1, 2, 3, 4]
+2	[4, 5, 6, 7]
+5	[3, 4, 5, 6]
+EXPLAIN SELECT id, json_value FROM test WHERE 4 MEMBER OF (json_value->'$')
+ORDER BY id DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test	NULL	ref	multivalued_index	multivalued_index	9	const	3	100.00	Using where; Backward index scan
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test`.`id` AS `id`,`test`.`test`.`json_value` AS `json_value` from `test`.`test` where json'4' member of (cast(json_extract(`json_value`,_utf8mb4'$') as unsigned array)) order by `test`.`test`.`id` desc
+EXPLAIN ANALYZE SELECT id, json_value FROM test WHERE
+4 MEMBER OF (json_value->'$') ORDER BY id DESC;
+EXPLAIN
+-> Filter: json'4' member of (cast(json_extract(`json_value`,_utf8mb4'$') as unsigned array))  (cost=0.8 rows=3) (actual rows=3 loops=1)
+    -> Index lookup on test using multivalued_index (cast(json_extract(`json_value`,_utf8mb4'$') as unsigned array)=json'4') (reverse)  (cost=0.8 rows=3) (actual rows=3 loops=1)
+
+SELECT id, json_value FROM test WHERE 4 MEMBER OF (json_value->'$')
+ORDER BY id DESC;
+id	json_value
+5	[3, 4, 5, 6]
+2	[4, 5, 6, 7]
+1	[1, 2, 3, 4]
+DROP TABLE test;
+CREATE TABLE test (id INT PRIMARY KEY, j JSON,
+INDEX multivalued_index ((CAST(j->'$[*]' AS CHAR(10) ARRAY))));
+INSERT INTO test VALUES (1, '["10"]'),
+(2, '["9"]'),
+(3, '["8", "10", "25"]'),
+(4, '["7", "15" ,"3", "27"]'),
+(5, '["6", "3", "10", "95"]'),
+(6, '["5"]'),
+(7, '["4"]'),
+(8, '["3"]'),
+(9, '["2"]'),
+(10, '["1"]');
+ANALYZE TABLE test;
+Table	Op	Msg_type	Msg_text
+test.test	analyze	status	OK
+EXPLAIN ANALYZE SELECT * FROM test WHERE "10" MEMBER OF (j->'$[*]')
+ORDER BY id DESC;
+EXPLAIN
+-> Filter: json'"10"' member of (cast(json_extract(j,_utf8mb4'$[*]') as char(10) array))  (cost=0.8 rows=3) (actual rows=3 loops=1)
+    -> Index lookup on test using multivalued_index (cast(json_extract(j,_utf8mb4'$[*]') as char(10) array)=json'"10"') (reverse)  (cost=0.8 rows=3) (actual rows=3 loops=1)
+
+SELECT * FROM test WHERE "10" MEMBER OF (j->'$[*]') ORDER BY id DESC;
+id	j
+5	["6", "3", "10", "95"]
+3	["8", "10", "25"]
+1	["10"]
+EXPLAIN ANALYZE SELECT * FROM test WHERE "3" MEMBER OF (j->'$[*]')
+ORDER BY id DESC;
+EXPLAIN
+-> Filter: json'"3"' member of (cast(json_extract(j,_utf8mb4'$[*]') as char(10) array))  (cost=0.8 rows=3) (actual rows=3 loops=1)
+    -> Index lookup on test using multivalued_index (cast(json_extract(j,_utf8mb4'$[*]') as char(10) array)=json'"3"') (reverse)  (cost=0.8 rows=3) (actual rows=3 loops=1)
+
+SELECT * FROM test WHERE "3" MEMBER OF (j->'$[*]') ORDER BY id DESC;
+id	j
+8	["3"]
+5	["6", "3", "10", "95"]
+4	["7", "15", "3", "27"]
+DROP TABLE test;
 # restart:

@@ -4173,7 +4173,25 @@ class Field_typed_array final : public Field_json {
     SE to be returned to server. They will be filtered by WHERE condition later.
   */
   int key_cmp(const uchar *, const uchar *) const override { return -1; }
-  int key_cmp(const uchar *, uint) const override { return -1; }
+  /**
+   * @brief This function will behave similarly to MEMBER OF json operation,
+   *        unlike regular key_cmp. The key value will be checked against
+   *        members of the array and the presence of the key will be considered
+   *        as the record matching the given key. This particular definition is
+   *        used in descending ref index scans. Descending index scan uses
+   *        handler::ha_index_prev() function to read from the storage engine
+   *        which does not compare the index key with the search key [unlike
+   *        handler::ha_index_next_same()]. Hence each retrieved record needs
+   *        to be validated to find a stop point. Refer key_cmp_if_same() and
+   *        RefIterator<true>::Read() for more details.
+   *
+   * @param   key_ptr         Pointer to the key
+   * @param   key_length      Key length
+   * @return
+   *      0   Key found in the record
+   *      -1  Key not found in the record
+   */
+  int key_cmp(const uchar *key_ptr, uint key_length) const override;
   /**
     Multi-valued index always works only as a pre-filter for actual
     condition check, and the latter always use binary collation, so no point
