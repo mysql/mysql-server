@@ -94,10 +94,30 @@ stdx::expected<std::string, std::error_code> openssl_msg_content_to_string(
           return "handshake_failure";
         case SSL3_AD_NO_CERTIFICATE:
           return "no_certificate";
+        case SSL3_AD_CERTIFICATE_UNKNOWN:
+          return "certificate_unknown";
+        case SSL3_AD_CERTIFICATE_REVOKED:
+          return "certificate_revoked";
+        case SSL3_AD_CERTIFICATE_EXPIRED:
+          return "certificate_expired";
+        case TLS1_AD_UNKNOWN_CA:
+          return "unknown_ca";  // 48
+        case TLS1_AD_ACCESS_DENIED:
+          return "access_denied";  // 49
+        case TLS1_AD_DECODE_ERROR:
+          return "decode_error";  // 50
+        case TLS1_AD_DECRYPT_ERROR:
+          return "decrypt_error";  // 51
+        case TLS1_AD_EXPORT_RESTRICTION:
+          return "export_restriction";  // 60
         case TLS1_AD_PROTOCOL_VERSION:
-          return "protocol_version";
+          return "protocol_version";  // 70
+        case TLS1_AD_INSUFFICIENT_SECURITY:
+          return "insufficient_security";  // 71
         case TLS1_AD_INTERNAL_ERROR:
-          return "internal_error";
+          return "internal_error";  // 80
+        case TLS1_AD_USER_CANCELLED:
+          return "user_cancelled";  // 90
         default:
           return std::to_string(code);
       }
