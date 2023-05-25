@@ -8603,6 +8603,9 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
       mysql->options.report_data_truncation = *static_cast<const bool *>(arg);
       break;
     case MYSQL_OPT_RECONNECT:
+      fprintf(stderr,
+              "WARNING: MYSQL_OPT_RECONNECT is deprecated and will be "
+              "removed in a future version.\n");
       mysql->reconnect = *static_cast<const bool *>(arg);
       break;
     case MYSQL_OPT_BIND:
@@ -8930,6 +8933,9 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
           mysql->options.report_data_truncation;
       break;
     case MYSQL_OPT_RECONNECT:
+      fprintf(stderr,
+              "WARNING: MYSQL_OPT_RECONNECT is deprecated and will be "
+              "removed in a future version.\n");
       *(const_cast<bool *>(static_cast<const bool *>(arg))) = mysql->reconnect;
       break;
     case MYSQL_OPT_BIND:
