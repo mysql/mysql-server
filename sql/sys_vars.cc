@@ -6329,9 +6329,12 @@ static Sys_var_uint Sys_sync_relayloginfo_period(
     "sync_relay_log_info",
     "Synchronously flush relay log info "
     "to disk after every #th transaction. Use 0 to disable "
-    "synchronous flushing",
-    GLOBAL_VAR(sync_relayloginfo_period), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, UINT_MAX), DEFAULT(10000), BLOCK_SIZE(1));
+    "synchronous flushing. This variable is deprecated and will be removed in "
+    "a future version.",
+    GLOBAL_VAR(sync_relayloginfo_period),
+    CMD_LINE(REQUIRED_ARG, OPT_SYNC_RELAY_LOG_INFO), VALID_RANGE(0, UINT_MAX),
+    DEFAULT(10000), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static Sys_var_uint Sys_replica_checkpoint_period(
     "replica_checkpoint_period",
