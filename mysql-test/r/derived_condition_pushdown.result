@@ -2115,7 +2115,12 @@ SET @b = '2023-05-06 16:49:45';
 SET timestamp=UNIX_TIMESTAMP('2023-05-06 16:49:45');
 EXECUTE stmt USING @a, @b;
 EXPLAIN
--> Zero rows (no matching row in const table)  (rows=0)
+-> Table scan on dt  (rows=2)
+    -> Union materialize with deduplication  (rows=2)
+        -> Filter: (t1.f1 = 2)  (rows=1)
+            -> Table scan on t1  (rows=1)
+        -> Filter: (t1.f1 = 0)  (rows=1)
+            -> Table scan on t1  (rows=1)
 
 SET timestamp=default;
 DROP TABLE t1;
