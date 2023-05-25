@@ -1,0 +1,31 @@
+# Restart Node 2 to force Node 1 to be master
+Node 2 is being restarted
+
+Database node 2 is being started.
+
+# Cluster running after restart node 2
+# (Node 1 is the master node)
+ndbd(s)
+id=1	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)
+id=2	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0)
+id=3	LOCALHOST  (MYSQL_VERSION NDB_VERSION)
+ndb_mgmd(s)
+mysqld(s)
+id=16	LOCALHOST  (MYSQL_VERSION NDB_VERSION)
+# Start backup with NOWAIT option
+# Repeat above steps with node 2 as master
+# Restart Node 1 to force Node 2 to be master
+Node 1 is being restarted
+
+Database node 1 is being started.
+
+# Cluster running after restart node 1
+# (Node 2 is the master node)
+ndbd(s)
+id=1	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0)
+id=2	LOCALHOST  (MYSQL_VERSION NDB_VERSION, Nodegroup: 0, *)
+id=3	LOCALHOST  (MYSQL_VERSION NDB_VERSION)
+ndb_mgmd(s)
+mysqld(s)
+id=16	LOCALHOST  (MYSQL_VERSION NDB_VERSION)
+# Start backup with NOWAIT option
