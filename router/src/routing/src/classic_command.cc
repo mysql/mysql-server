@@ -447,6 +447,12 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
       }
     }
 
+    if (ec == TlsErrc::kZeroReturn) {
+      // close the connection without a quit.
+      stage(Stage::Done);
+      return Result::Again;
+    }
+
     return recv_client_failed(ec);
   }
 

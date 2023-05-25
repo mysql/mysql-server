@@ -772,12 +772,24 @@ TEST_P(SplicerConnectParamTest, check) {
 
   const auto conf_file = create_config_file(conf_dir_.name(), config);
 
-  launch_router({"-c", conf_file}, EXIT_SUCCESS,
-                /* catch_stderr */ true, /* with_sudo */ false,
-                /* wait_for_notify_ready */ 30s);
+  auto &proc = launch_router({"-c", conf_file}, EXIT_SUCCESS,
+                             /* catch_stderr */ true, /* with_sudo */ false,
+                             /* wait_for_notify_ready */ 30s);
   EXPECT_TRUE(wait_for_port_ready(router_port));
 
   EXPECT_NO_FATAL_FAILURE(GetParam().checker(router_host_, router_port));
+
+  proc.send_clean_shutdown_event();
+  EXPECT_NO_THROW(proc.wait_for_exit());
+
+  // check the log doesn't contain:
+  //
+  // classic::loop() processor failed:
+  // error:0A000418:SSL routines::tlsv1 alert unknown ca (tls_err:167773208)
+  //
+  // or similar.
+  EXPECT_THAT(proc.get_logfile_content(),
+              testing::Not(testing::HasSubstr("processor failed")));
 }
 
 const SplicerConnectParam splicer_connect_params[] = {
