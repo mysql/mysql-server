@@ -134,3 +134,7 @@ cmd: testSingleUserMode
 args: T1
 max-time: 1620
 
+cmd: testNdbApi
+args: -n NdbPKUpdateWithSetValue T1
+max-time: 180
+
