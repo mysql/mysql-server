@@ -199,9 +199,14 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
         path->set_num_output_rows(std::min(
             path->num_output_rows(), block.subquery_path->num_output_rows()));
       }
-      subquery_cost += block.subquery_path->cost;
-      if (block.join != nullptr && block.join->query_block->is_cacheable()) {
-        cost_for_cacheable += block.subquery_path->cost;
+      // For implicit grouping block.subquery_path->num_output_rows() may be set
+      // (to 1.0) even if block.subquery_path->cost is undefined (cf.
+      // Bug#35240913).
+      if (block.subquery_path->cost > 0.0) {
+        subquery_cost += block.subquery_path->cost;
+        if (block.join != nullptr && block.join->query_block->is_cacheable()) {
+          cost_for_cacheable += block.subquery_path->cost;
+        }
       }
     }
     left_block = false;
