@@ -25,7 +25,9 @@
 #ifndef DH_KEYS_INCLUDED
 #define DH_KEYS_INCLUDED
 
+#ifdef MYSQL_SERVER
 #include "my_dbug.h"
+#endif /* MYSQL_SERVER */
 
 #include <openssl/dh.h>
 #include <openssl/evp.h>
@@ -203,10 +205,14 @@ bool set_dh(SSL_CTX *ctx) {
   int security_level = 2;
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
   security_level = SSL_CTX_get_security_level(ctx);
+#ifdef MYSQL_SERVER
   assert(security_level <= 5);
+#endif /* MYSQL_SERVER */
   if (security_level < 2) security_level = 2;
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
+#ifdef MYSQL_SERVER
   DBUG_EXECUTE_IF("crypto_policy_3", security_level = 3;);
+#endif /* MYSQL_SERVER */
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   OSSL_PARAM params[2];
@@ -324,8 +330,8 @@ bool set_dh(SSL_CTX *ctx) {
 bool set_ecdh(SSL_CTX *ctx) {
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
   EC_KEY *eckey = nullptr;
-  /* We choose NID_secp384r1 curve. */
-  eckey = EC_KEY_new_by_curve_name(NID_secp384r1);
+  /* We choose NID_X9_62_prime256v1 curve. */
+  eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
   if (SSL_CTX_set_tmp_ecdh(ctx, eckey) != 1) {
     if (eckey) EC_KEY_free(eckey);
     return true;
