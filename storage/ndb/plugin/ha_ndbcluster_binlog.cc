@@ -1253,6 +1253,7 @@ static void ndbcluster_binlog_event_operation_teardown(THD *thd, Ndb *is_ndb,
 
   // Drop the NdbEventOperation from NdbApi
   mysql_mutex_lock(&injector_event_mutex);
+  pOp->setCustomData(nullptr);
   is_ndb->dropEventOperation(pOp);
   mysql_mutex_unlock(&injector_event_mutex);
 
@@ -2548,6 +2549,7 @@ class Ndb_schema_event_handler {
 
         // Drop the op from NdbApi
         mysql_mutex_lock(&injector_event_mutex);
+        old_op->setCustomData(nullptr);
         injector_ndb->dropEventOperation(old_op);
         mysql_mutex_unlock(&injector_event_mutex);
 
@@ -2686,6 +2688,7 @@ class Ndb_schema_event_handler {
 
     // Drop old event operation
     mysql_mutex_lock(&injector_event_mutex);
+    old_op->setCustomData(nullptr);
     injector_ndb->dropEventOperation(old_op);
     mysql_mutex_unlock(&injector_event_mutex);
 
@@ -5360,6 +5363,7 @@ NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
                         event_name.c_str(), j, op->getNdbError().code,
                         op->getNdbError().message);
             mysql_mutex_assert_owner(&injector_event_mutex);
+            op->setCustomData(nullptr);
             ndb->dropEventOperation(op);
             return nullptr;
           }
@@ -5392,8 +5396,8 @@ NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
                     event_name.c_str(), ndb_err.code, ndb_err.message);
       }
       mysql_mutex_assert_owner(&injector_event_mutex);
+      op->setCustomData(nullptr);
       (void)ndb->dropEventOperation(op);  // Never fails, drop is in NdbApi only
-
       if (retries && !m_thd->killed) {
         // fairly high retry sleep, temporary error on schema operation can
         // take some time to resolve
@@ -5494,6 +5498,7 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
                 "Failed to create event operation, could not save in share");
 
     mysql_mutex_assert_owner(&injector_event_mutex);
+    new_op->setCustomData(nullptr);
     (void)ndb->dropEventOperation(new_op);  // Never fails
 
     Ndb_event_data::destroy(event_data);
@@ -6833,6 +6838,7 @@ void Ndb_binlog_thread::remove_event_operations(Ndb *ndb) {
 
     // Drop the op from NdbApi
     mysql_mutex_lock(&injector_event_mutex);
+    op->setCustomData(nullptr);
     (void)ndb->dropEventOperation(op);
     mysql_mutex_unlock(&injector_event_mutex);
 
