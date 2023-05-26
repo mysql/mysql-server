@@ -238,9 +238,6 @@ static ulonglong ndb_latest_applied_binlog_epoch = 0;
 static ulonglong ndb_latest_handled_binlog_epoch = 0;
 static ulonglong ndb_latest_received_binlog_epoch = 0;
 
-extern bool opt_log_replica_updates;
-static bool g_ndb_log_replica_updates;
-
 static bool g_injector_v1_warning_emitted = false;
 
 /*
@@ -1806,7 +1803,6 @@ class Ndb_schema_event_handler {
       return;
     }
 
-    Uint32 queryServerId = ndbcluster_anyvalue_get_serverid(schema->any_value);
     /*
        Start with serverId as received AnyValue, in case it's a composite
        (server_id_bits < 31).
@@ -1817,14 +1813,10 @@ class Ndb_schema_event_handler {
     */
     Uint32 loggedServerId = schema->any_value;
 
-    if (queryServerId) {
-      /*
-         AnyValue has non-zero serverId, must be a query applied by a slave
-         mysqld.
-         TODO : Assert that we are running in the Binlog injector thread?
-      */
-      if (!g_ndb_log_replica_updates) {
-        /* This MySQLD does not log slave updates */
+    if (ndbcluster_anyvalue_get_serverid(schema->any_value)) {
+      // The anyvalue contains serverid, which means it's applied by a replica.
+      if (!opt_log_replica_updates) {
+        /* This MySQLD does not log replica updates */
         return;
       }
     } else {
@@ -3304,7 +3296,7 @@ class Ndb_schema_event_handler {
     }
 
     // Possibly change server id for binlog, or disable binlogging:
-    sql_runner.set_binlog_options(g_ndb_log_replica_updates, schema->any_value);
+    sql_runner.set_binlog_options(opt_log_replica_updates, schema->any_value);
 
     /* For SOT_ACL_SNAPSHOT, update the snapshots for the users listed.
      */
@@ -5271,6 +5263,63 @@ inline int is_ndb_compatible_type(Field *field) {
          field->pack_length() != 0;
 }
 
+struct AnyValueFilter {
+  // Bits used to record any-value indication
+  static constexpr Uint32 REPLICA_UPDATE = 1 << 0;
+  static constexpr Uint32 NOT_REPLICA_UPDATE = 1 << 1;
+  static constexpr Uint32 NO_LOGGING_NOT_SET = 1 << 2;
+  static constexpr Uint32 NO_LOGGING_SET = 1 << 3;
+
+  /**
+     @brief Function for filtering the any_value in each row change
+     received for a NdbEventOperation.
+
+     @param any_value The any_value belonging to received row change
+     @return The 32 bit value describing what was "found" in the
+     current any_value. The NdbApi will do a bitwise OR with all other
+     row changes in same epoch and then return that value when
+     iterating over all the event operations (i.e. tables) received in
+     an epoch.
+   */
+  static Uint32 do_filter(Uint32 any_value) {
+    DBUG_TRACE;
+    Uint32 filtered_value = 0;
+
+    if (ndbcluster_anyvalue_is_reserved(any_value)) {
+      if (!ndbcluster_anyvalue_is_nologging(any_value)) {
+        // Received row change where no logging was not set
+        filtered_value |= NO_LOGGING_NOT_SET;
+      } else {
+        // Received row change where no logging was set
+        filtered_value |= NO_LOGGING_SET;
+      }
+    } else {
+      if (ndbcluster_anyvalue_get_serverid(any_value) == 0) {
+        // Received row change with server_id part of any_value being zero, this
+        // indicates that it was not a replica that performed this row change
+        filtered_value |= NOT_REPLICA_UPDATE;
+      } else {
+        // Received row change with server_id set, this indicates replica
+        // update.
+        filtered_value |= REPLICA_UPDATE;
+      }
+    }
+    return filtered_value;
+  }
+
+  // Must be sole no-logging
+  static bool is_only_nologging(Uint32 any_value) {
+    return any_value == NO_LOGGING_SET;
+  }
+  // The any_value must *not* contain the bit for NOT_REPLICA_UPDATE
+  // to be deemed as a replica only update of rows.
+  static bool is_only_replica_update(Uint32 any_value) {
+    const Uint32 is_replica = (any_value & REPLICA_UPDATE) == REPLICA_UPDATE;
+    const Uint32 no_replica = (any_value & NOT_REPLICA_UPDATE) == 0;
+    return is_replica && no_replica;
+  }
+};
+
 /**
    Create event operation in NDB and setup Ndb_event_data for receiving events.
 
@@ -5319,6 +5368,8 @@ NdbEventOperation *Ndb_binlog_client::create_event_op_in_NDB(
 
     /* Check if user explicitly requires monitoring of empty updates */
     op->setAllowEmptyUpdate(opt_ndb_log_empty_update);
+
+    op->setAnyValueFilter(AnyValueFilter::do_filter);
 
     // Setup the attributes that should be subscribed.
     const TABLE *table = event_data->shadow_table;
@@ -6290,7 +6341,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
   }
 
   uint32 originating_server_id = ndbcluster_anyvalue_get_serverid(anyValue);
-  bool log_this_slave_update = g_ndb_log_replica_updates;
+  bool log_this_slave_update = opt_log_replica_updates;
   bool count_this_event = true;
 
   if (share == m_apply_status_share) {
@@ -6776,7 +6827,6 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
 
   // Apply changes to user configurable variables once per epoch
   i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
-  g_ndb_log_replica_updates = opt_log_replica_updates;
   i_ndb->setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
   i_ndb->setReportThreshEventFreeMem(opt_ndb_report_thresh_binlog_mem_usage);
 
@@ -7204,47 +7254,60 @@ void Ndb_binlog_thread::inject_table_map(injector_transaction &trans,
                                          Ndb *ndb) const {
   DBUG_TRACE;
   Uint32 iter = 0;
-  const NdbEventOperation *gci_op;
-  Uint32 event_types;
-  Uint32 cumulative_any_value;
-  while ((gci_op = ndb->getNextEventOpInEpoch3(
-              &iter, &event_types, &cumulative_any_value)) != nullptr) {
-    const Ndb_event_data *const event_data =
-        Ndb_event_data::get_event_data(gci_op->getCustomData());
+  const NdbEventOperation *gci_op = nullptr;
+  Uint32 event_types = 0;
+  Uint32 unused_param = 0;  // used as buffer
+  Uint32 any_value = 0;
+  while ((gci_op = ndb->getNextEventOpInEpoch4(&iter, event_types, unused_param,
+                                               any_value)) != nullptr) {
+    if ((event_types &
+         (NdbDictionary::Event::TE_INSERT | NdbDictionary::Event::TE_UPDATE |
+          NdbDictionary::Event::TE_DELETE)) == 0) {
+      DBUG_PRINT("info", ("Skipping non data event"));
+      continue;
+    }
 
     if ((event_types & ~NdbDictionary::Event::TE_STOP) == 0) {
-      // workaround for interface returning TE_STOP events
+      // Workaround for interface returning TE_STOP events
       // which are normally filtered out in the nextEvent loop
       DBUG_PRINT("info", ("Skipped TE_STOP on table %s",
                           gci_op->getEvent()->getTable()->getName()));
       continue;
     }
 
+    const Ndb_event_data *const event_data =
+        Ndb_event_data::get_event_data(gci_op->getCustomData());
     const NDB_SHARE *const share = event_data->share;
     if (share == m_apply_status_share) {
       // skip this table, it is handled specially
       continue;
     }
 
-    TABLE *const table = event_data->shadow_table;
-    if ((event_types &
-         (NdbDictionary::Event::TE_INSERT | NdbDictionary::Event::TE_UPDATE |
-          NdbDictionary::Event::TE_DELETE)) == 0) {
-      DBUG_PRINT("info", ("Skipping non data event, table: %s",
-                          table->s->table_name.str));
-      continue;
-    }
+    DBUG_PRINT("info", ("Filtered any_value: %u", any_value));
 
-    if (ndbcluster_anyvalue_is_reserved(cumulative_any_value) &&
-        ndbcluster_anyvalue_is_nologging(cumulative_any_value)) {
-      // All events for this table in this epoch are marked as
-      // nologging, therefore we do not include the table in the epoch
-      // transaction.
+    if (AnyValueFilter::is_only_nologging(any_value)) {
+      // At least one row change asked for "no logging" and no other row change
+      // wanted logging. This means that all changes are marked as nologging and
+      // therefore the table is skipped.
       DBUG_PRINT("info",
-                 ("Skip binlogging, table: %s", table->s->table_name.str));
+                 ("Skip, nologging detected and no-one requested logging"));
       continue;
     }
 
+    if (!opt_log_replica_updates) {
+      // This server should not log row changes that only contain changes from
+      // replicas. Thus if there is a row change from at least one node
+      // which is not a replica it should be logged. Otherwise, it is skipped.
+      if (AnyValueFilter::is_only_replica_update(any_value)) {
+        // Only row changes from replicas, skip logging of Table_map_log_event
+        // to avoid that an empty Table_map_log_event without row changes appear
+        // in the binlog.
+        DBUG_PRINT("info", ("Skip, all rows are from replica"));
+        continue;
+      }
+    }
+
+    TABLE *const table = event_data->shadow_table;
     DBUG_PRINT("info", ("Use table, name: %s, fields: %u",
                         table->s->table_name.str, table->s->fields));
     injector::transaction::table tbl(table, true);
@@ -7729,7 +7792,6 @@ restart_cluster_failure:
 
     if (unlikely(s_pOp != nullptr && s_pOp->getEpoch() == current_epoch)) {
       thd->set_proc_info("Processing events from schema table");
-      g_ndb_log_replica_updates = opt_log_replica_updates;
       s_ndb->setReportThreshEventGCISlip(
           opt_ndb_report_thresh_binlog_epoch_slip);
       s_ndb->setReportThreshEventFreeMem(
@@ -7858,6 +7920,10 @@ restart_cluster_failure:
     // Synchronize 1 object from the queue of objects detected for automatic
     // synchronization
     synchronize_detected_object(thd);
+
+    // Self test functionality
+    DBUG_EXECUTE_IF("ndb_binlog_log_table_maps",
+                    { dbug_log_table_maps(i_ndb, current_epoch); });
   }
 
   // Check if loop has been terminated without properly handling all events

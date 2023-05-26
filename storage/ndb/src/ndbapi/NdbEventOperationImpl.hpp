@@ -337,6 +337,7 @@ struct Gci_op  //A helper
   NdbEventOperationImpl* op;
   Uint32 event_types;
   Uint32 cumulative_any_value;// Merged for table/epoch events
+  Uint32 filtered_any_value; // Filtered union for table/epoch events
 };
 
 class Gci_container
@@ -678,6 +679,11 @@ public:
   // Used for allowing empty updates be passed to the user
   bool m_allow_empty_update;
 
+  // Default implementation that performs no filtering
+  static Uint32 default_anyvalue_filter(Uint32 any_value) { return any_value; }
+  // Callback for filtering any_value in received row changes
+  AnyValueFilterFn m_any_value_filter{default_anyvalue_filter};
+
 private:
   void receive_data(NdbRecAttr *r, const Uint32 *data, Uint32 sz);
   void print_blob_part_bufs(const NdbBlob *blob,
@@ -908,9 +914,10 @@ public:
   bool isConsistent(Uint64& gci);
   bool isConsistentGCI(Uint64 gci);
 
-  NdbEventOperationImpl* getEpochEventOperations(Uint32* iter,
-                                                 Uint32* event_types,
-                                                 Uint32* cumulative_any_value);
+  NdbEventOperationImpl *getEpochEventOperations(Uint32 *iter,
+                                                 Uint32 &event_types,
+                                                 Uint32 &cumulative_any_value,
+                                                 Uint32 &filtered_any_value) const;
   void deleteUsedEventOperations(MonotonicEpoch last_consumed_gci);
 
   EventBufDataHead *move_data();

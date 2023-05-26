@@ -1,0 +1,7 @@
+!include ../my.cnf
+
+[mysqld.1.1]
+log-replica-updates=ON
+
+[mysqld.2.1]
+log-replica-updates=OFF

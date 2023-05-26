@@ -41,8 +41,11 @@
    A better future approach would be to support > 1 tag word
    per operation.
 
+   Description of the bits used in anyvalue, the two lines should be read by
+   combining one digit from the upper line with the one directly below, using
+   zero based bit indexes.
 
-   332        21        10        0
+    3         2         1         0
    10987654321098765432109876543210
    roooooooooooooooooooooooosssssss
 
@@ -97,7 +100,7 @@ extern ulong opt_server_id_mask;
 #define NDB_ANYVALUE_REFLECT_OP_CODE 0x8000007d
 #define NDB_ANYVALUE_READ_OP_CODE 0x8000007c
 
-/* Next reserved code : 0x8000007c */
+/* Next reserved code : 0x8000007b */
 
 #ifndef NDEBUG
 void dbug_ndbcluster_anyvalue_set_userbits(Uint32 &anyValue) {

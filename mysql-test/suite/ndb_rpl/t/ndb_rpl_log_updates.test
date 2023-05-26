@@ -1,0 +1,98 @@
+--source include/have_ndb.inc
+
+# This test setups a replication topology with two upstream clusters
+# and a replica cluster, where every replica binlogs their applied
+# updates(log-replica-updates=ON) but no source does. One of the
+# sources (source.4) applies updates with no-logging bit set
+# (SQL_BIN_LOG=OFF) so that they are not applied on the replica
+# cluster.
+
+# set up replication
+--let $rpl_topology= 1->6,2->3,5->7
+# --let $rpl_debug= 1
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= source.1
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= source.2
+--let $rpl_server_number= 2
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= replica.3
+--let $rpl_server_number= 3
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= source.4
+--let $rpl_server_number= 4
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= source.5
+--let $rpl_server_number= 5
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= replica.6
+--let $rpl_server_number= 6
+--source include/rpl_connect.inc
+
+--let $rpl_connection_name= replica.7
+--let $rpl_server_number= 7
+--source include/rpl_connect.inc
+
+# Create a table, insert data and check that replicas apply the correct updates
+--let $rpl_connection_name= source.1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (k INT PRIMARY KEY, c CHAR) ENGINE = NDB;
+--save_master_pos
+INSERT INTO t1 VALUES (1, 'a');
+
+--let $rpl_connection_name= source.2
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (2, 'b');
+
+--let $rpl_connection_name= source.4
+--source include/rpl_connection.inc
+SET sql_log_bin= OFF;
+INSERT INTO t1 VALUES (3, 'c');
+SET sql_log_bin= ON;
+INSERT INTO t1 VALUES (4, 'd');
+
+--let $rpl_connection_name= source.5
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (5, 'e');
+--save_master_pos
+
+# Verify replica.3
+--let $rpl_connection_name= replica.3
+--source include/rpl_connection.inc
+SELECT * FROM t1 ORDER BY k;
+
+# Verfiy source.4
+--let $rpl_connection_name= source.4
+--source include/rpl_connection.inc
+SELECT * FROM t1 ORDER BY k;
+
+# Verify source.5
+--let $rpl_connection_name= source.5
+--source include/rpl_connection.inc
+SELECT * FROM t1 ORDER BY k;
+
+# Verify replica.7
+--let $rpl_connection_name= replica.7
+--source include/rpl_connection.inc
+--echo # Must not have k = 3
+SELECT * FROM t1 ORDER BY k;
+
+# Verify replica.6
+--let $rpl_connection_name= replica.6
+--source include/rpl_connection.inc
+--echo # Must not have k = 3
+SELECT * FROM t1 ORDER BY k;
+
+--echo Cleanup
+--echo [connection source.1]
+--connection source.1
+DROP TABLE t1;
+
+--source include/rpl_end.inc

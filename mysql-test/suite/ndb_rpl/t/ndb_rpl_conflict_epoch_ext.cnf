@@ -6,26 +6,29 @@
 # on each cluster having the same server-id
 
 [mysqld]
-log-replica-updates
 ndb-log-apply-status
 
 [mysqld.1.1]
 server-id= 1
 log-bin = pref-master-1
+log-replica-updates
 
 [mysqld.2.1]
 server-id= 2
 log-bin = pref-master-2
+log-replica-updates
 
 [mysqld.1.slave]
 server-id= 3
 log-bin = sec-master-1
 skip-replica-start
+log-replica-updates
 
 [mysqld.2.slave]
 server-id= 4
 log-bin = sec-master-2
 skip-replica-start
+log-replica-updates
 
 [ENV]
 

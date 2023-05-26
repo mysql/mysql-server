@@ -18,7 +18,6 @@ MaxNoOfExecutionThreads=8
 mysqld=,
 
 [mysqld]
-log-replica-updates
 ndb-log-apply-status
 ndb-log-transaction-id
 log-bin-use-v1-row-events=false
@@ -26,14 +25,17 @@ log-bin-use-v1-row-events=false
 [mysqld.1.1]
 server-id= 1
 log-bin = pref-master-1
+log-replica-updates
 
 [mysqld.2.1]
 server-id= 2
 log-bin = pref-master-2
+log-replica-updates
 
 [mysqld.1.slave]
 server-id= 3
 log-bin = sec-master-1
+log-replica-updates
 skip-replica-start
 
 [cluster_config.mysqld.2.slave]
@@ -44,6 +46,7 @@ Dedicated=1
 ndb-cluster-connection-pool-nodeids=16,48,127
 server-id= 4
 log-bin = sec-master-2
+log-replica-updates
 skip-replica-start
 ndb_connectstring=	@mysql_cluster.slave.ndb_connectstring
 

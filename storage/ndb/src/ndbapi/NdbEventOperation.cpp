@@ -257,6 +257,11 @@ void * NdbEventOperation::getCustomData() const
   return m_impl.m_custom_data;
 }
 
+void NdbEventOperation::setAnyValueFilter(AnyValueFilterFn fn)
+{
+  m_impl.m_any_value_filter = fn;
+}
+
 int NdbEventOperation::getReqNodeId() const
 {
   return SubTableData::getReqNodeId(m_impl.m_data_item->sdata->requestInfo);

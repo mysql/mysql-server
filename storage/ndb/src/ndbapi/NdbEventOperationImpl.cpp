@@ -1912,29 +1912,31 @@ NdbEventBuffer::isConsistentGCI(Uint64 gci)
   DBUG_RETURN(true);
 }
 
-NdbEventOperationImpl*
-NdbEventBuffer::getEpochEventOperations(Uint32* iter, Uint32* event_types, Uint32* cumulative_any_value)
-{
-  DBUG_ENTER("NdbEventBuffer::getEpochEventOperations");
-  EpochData *epoch = m_event_queue.first_epoch();
+NdbEventOperationImpl *
+NdbEventBuffer::getEpochEventOperations(Uint32 *iter,
+                                        Uint32 &event_types,
+                                        Uint32 &cumulative_any_value,
+                                        Uint32 &filtered_any_value) const {
+  DBUG_TRACE;
+  const EpochData *const epoch = m_event_queue.first_epoch();
   while (*iter < epoch->m_gci_op_count)
   {
-    Gci_op g = epoch->m_gci_op_list[(*iter)++];
-    if (g.op->m_state == NdbEventOperation::EO_EXECUTING)
-    {
-      if (event_types != nullptr)
-        *event_types = g.event_types;
-      if (cumulative_any_value != nullptr)
-        *cumulative_any_value = g.cumulative_any_value;
-      DBUG_PRINT("info", ("gci: %u  g.op: %p  g.event_types: 0x%lx"
-                          "g.cumulative_any_value: 0x%lx 0x%x %s",
-          (unsigned) epoch->m_gci.getGCI(), g.op,
-          (long) g.event_types, (long) g.cumulative_any_value,
-          m_ndb->getReference(), m_ndb->getNdbObjectName()));
-      DBUG_RETURN(g.op);
+    const Gci_op gci_op = epoch->m_gci_op_list[(*iter)++];
+    if (gci_op.op->m_state == NdbEventOperation::EO_EXECUTING) {
+      event_types = gci_op.event_types;
+      cumulative_any_value = gci_op.cumulative_any_value;
+      filtered_any_value = gci_op.filtered_any_value;
+      DBUG_PRINT("info",
+                 ("gci: %u  op: %p  event_types: 0x%lx"
+                  "cumulative_any_value: 0x%lx "
+                  "reference: '0x%x %s'",
+                  (unsigned)epoch->m_gci.getGCI(), gci_op.op, (long)event_types,
+                  (long)cumulative_any_value,
+                  m_ndb->getReference(), m_ndb->getNdbObjectName()));
+      return gci_op.op;
     }
   }
-  DBUG_RETURN(NULL);
+  return nullptr;
 }
 
 void
@@ -3372,13 +3374,17 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         // XXX fix by doing merge at end of epoch (extra mem cost)
         {
           Uint32 any_value = sdata->anyValue;
-          Gci_op g = { op, (1U << operation), any_value };
+          Uint32 filtered = op->m_any_value_filter(any_value);
+          Gci_op g = { op, (1U << operation), any_value, filtered };
           bucket->add_gci_op(g);
         }
         {
           Uint32 any_value = data->sdata->anyValue;
+          Uint32 filtered = op->m_any_value_filter(any_value);
           Gci_op g = { op, 
-                       (1U << SubTableData::getOperation(data->sdata->requestInfo)), any_value};
+                       (1U << SubTableData::getOperation(data->sdata->requestInfo)),
+                       any_value,
+                       filtered };
           bucket->add_gci_op(g);
         }
       }
@@ -4180,9 +4186,12 @@ NdbEventBuffer::move_data()
 void
 Gci_container::append_data(EventBufDataHead *data)
 {
-  Gci_op g = {data->m_event_op,
-              1U << SubTableData::getOperation(data->sdata->requestInfo),
-              data->sdata->anyValue};
+  const Uint32 any_value = data->sdata->anyValue;
+  const Uint32 filtered = data->m_event_op->m_any_value_filter(any_value);
+  Gci_op g = { data->m_event_op,
+               1U << SubTableData::getOperation(data->sdata->requestInfo),
+               any_value,
+               filtered };
   add_gci_op(g);
 
   data->m_next = nullptr;
@@ -4204,14 +4213,15 @@ Gci_container::add_gci_op(Gci_op g)
   DBUG_ENTER_EVENT("Gci_container::add_gci_op");
   DBUG_PRINT_EVENT("info", ("p.op: %p  g.event_types: %x g.cumulative_any_value: %x", g.op, g.event_types, g.cumulative_any_value));
   assert(g.op != nullptr && g.op->theMainOp == nullptr); // as in nextEvent
-  Uint32 i;
-  for (i = 0; i < m_gci_op_count; i++) {
+  Uint32 i = 0;
+  for (; i < m_gci_op_count; i++) {
     if (m_gci_op_list[i].op == g.op)
       break;
   }
   if (i < m_gci_op_count) {
     m_gci_op_list[i].event_types |= g.event_types;
     m_gci_op_list[i].cumulative_any_value &= g.cumulative_any_value;
+    m_gci_op_list[i].filtered_any_value |= g.filtered_any_value;
   } else {
     if (m_gci_op_count == m_gci_op_alloc) {
       Uint32 n = 1 + 2 * m_gci_op_alloc;

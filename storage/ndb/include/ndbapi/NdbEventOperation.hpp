@@ -318,6 +318,18 @@ public:
   void setCustomData(void * data);
   void * getCustomData() const;
 
+  /**
+    @brief Callback for filtering any_value in all incoming row
+    changes. The filtered value will be aggregated for the epoch,
+    i.e. OR'ed together with other filtered values. The final result
+    is returned when iterating events in an epoch using
+    Ndb::getNextEventOpInEpoch4().
+    NOTE! Since the function is invoked for every row change,
+    care should be taken to avoid costly calculations in the callback.
+  */
+  using AnyValueFilterFn = Uint32(*)(Uint32);
+  void setAnyValueFilter(AnyValueFilterFn);
+
   void clearError();
   int hasError() const;
 
