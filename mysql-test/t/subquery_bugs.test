@@ -1972,3 +1972,27 @@ CREATE TABLE t (a INT);
 INSERT INTO t VALUES (1), (2), (3);
 SELECT NULL IN (SELECT (a IN (SELECT a FROM t)) FROM t);
 DROP TABLE t;
+
+--echo #
+--echo # Bug#35240913 Assertion `path->cost >= 0.0' failed.
+--echo #
+
+SET @old_opt_switch=@@optimizer_switch;
+
+SET optimizer_switch='batched_key_access=on,mrr_cost_based=off';
+
+CREATE TABLE num (n INT);
+INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1 (a INT, KEY(a), b INT, c INT);
+INSERT INTO t1 SELECT k, k, k FROM (SELECT x1.n+x2.n*10 k FROM num x1, num x2) d1;
+ANALYZE TABLE t1;
+
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 x0 WHERE x0.c IN
+  (SELECT MAX(x2.c) FROM t1 x1 JOIN t1 x2 ON x1.b=x2.a);
+
+DROP TABLE num, t1;
+
+SET @@optimizer_switch=@old_opt_switch;
