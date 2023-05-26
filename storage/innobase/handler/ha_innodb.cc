@@ -20469,15 +20469,15 @@ static void innodb_extend_and_initialize_update(THD *thd, SYS_VAR *,
                                                 const void *save) {
   bool extend_and_initialize [[maybe_unused]] =
       *static_cast<const bool *>(save);
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+#ifdef UNIV_LINUX
   *static_cast<bool *>(var_ptr) = extend_and_initialize;
-#else  /* !NO_FALLOCATE && UNIV_LINUX */
+#else  /* UNIV_LINUX */
   push_warning_printf(thd, Sql_condition::SL_WARNING,
                       ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED,
                       ER_THD(thd, ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED),
                       "innodb_extend_and_initialize");
   *static_cast<bool *>(var_ptr) = true;
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
+#endif /* UNIV_LINUX */
 }
 
 /** Update the system variable innodb_buffer_pool_size using the "saved"

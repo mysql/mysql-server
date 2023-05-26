@@ -128,7 +128,7 @@ static ulint os_io_ptr_align = UNIV_SECTOR_SIZE;
 @retval true    if O_DIRECT is supported.
 @retval false   if O_DIRECT is not supported. */
 bool os_is_o_direct_supported() {
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+#ifdef UNIV_LINUX
   char *path = srv_data_home;
   char *file_name;
   os_file_t file_handle;
@@ -186,7 +186,7 @@ bool os_is_o_direct_supported() {
   return (true);
 #else
   return (false);
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
+#endif /* UNIV_LINUX */
 }
 
 /* This specifies the file permissions InnoDB uses when it creates files in
@@ -5500,8 +5500,7 @@ void os_file_set_nocache(int fd [[maybe_unused]],
 
 bool os_file_set_size_fast(const char *name, pfs_os_file_t pfs_file,
                            os_offset_t offset, os_offset_t size, bool flush) {
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX) && \
-    defined(HAVE_FALLOC_FL_ZERO_RANGE)
+#if defined(UNIV_LINUX) && defined(HAVE_FALLOC_FL_ZERO_RANGE)
   ut_a(size >= offset);
 
   static bool print_message = true;
@@ -5525,7 +5524,7 @@ bool os_file_set_size_fast(const char *name, pfs_os_file_t pfs_file,
                              << " - falling back to writing NULLs.";
     print_message = false;
   }
-#endif /* !NO_FALLOCATE && UNIV_LINUX && HAVE_FALLOC_FL_ZERO_RANGE */
+#endif /* UNIV_LINUX && HAVE_FALLOC_FL_ZERO_RANGE */
 
   return os_file_set_size(name, pfs_file, offset, size, flush);
 }
@@ -6396,7 +6395,7 @@ void AIO::shutdown() {
   s_reads = nullptr;
 }
 #endif /* !UNIV_HOTBACKUP*/
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+#ifdef UNIV_LINUX
 
 /** Max disk sector size */
 static const ulint MAX_SECTOR_SIZE = 4096;
@@ -6479,7 +6478,7 @@ void os_fusionio_get_sector_size() {
     os_io_ptr_align = sector_size;
   }
 }
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
+#endif /* UNIV_LINUX */
 
 /** Creates and initializes block_cache. Creates array of MAX_BLOCKS
 and allocates the memory in each block to hold BUFFER_BLOCK_SIZE
@@ -6543,9 +6542,9 @@ bool os_aio_init(ulint n_readers, ulint n_writers) {
 
   /* Get sector size for DIRECT_IO. In this case, we need to
   know the sector size for aligning the write buffer. */
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+#ifdef UNIV_LINUX
   os_fusionio_get_sector_size();
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
+#endif /* UNIV_LINUX */
 
   return (AIO::start(limit, n_readers, n_writers));
 }

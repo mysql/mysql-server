@@ -1985,13 +1985,13 @@ inline void fil_space_open_if_needed(fil_space_t *space) {
   }
 }
 
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+#ifdef UNIV_LINUX
 /**
 Try and enable FusionIO atomic writes.
 @param[in] file         OS file handle
 @return true if successful */
 [[nodiscard]] bool fil_fusionio_enable_atomic_write(pfs_os_file_t file);
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
+#endif /* UNIV_LINUX */
 
 /** Note that the file system where the file resides doesn't support PUNCH HOLE.
 Called from AIO handlers when IO returns DB_IO_NO_PUNCH_HOLE

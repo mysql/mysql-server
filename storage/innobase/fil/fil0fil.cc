@@ -2292,7 +2292,7 @@ bool Fil_shard::space_is_flushed(const fil_space_t *space) {
   return true;
 }
 
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+#ifdef UNIV_LINUX
 
 #include <sys/ioctl.h>
 
@@ -2315,7 +2315,7 @@ bool fil_fusionio_enable_atomic_write(pfs_os_file_t file) {
 
   return false;
 }
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
+#endif /* UNIV_LINUX */
 
 /** Attach a file to a tablespace
 @param[in]      name            file name of a file that is not open
@@ -5467,7 +5467,7 @@ dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
   const page_size_t page_size(space_flags);
   const auto sz = ulonglong{size * page_size.physical()};
 
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+#ifdef UNIV_LINUX
   {
     int ret = 0;
 #ifdef UNIV_DEBUG
@@ -5490,7 +5490,7 @@ dberr_t fil_write_initial_pages(pfs_os_file_t file, const char *path,
       ib::warn(ER_IB_MSG_303, path, sz, ret, strerror(errno));
     }
   }
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
+#endif /* UNIV_LINUX */
 
   if (!success || (tbsp_extend_and_initialize && !atomic_write)) {
     success = os_file_set_size(path, file, 0, sz, true);
@@ -5798,12 +5798,12 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     return DB_CANNOT_OPEN_FILE;
   }
 
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+#ifdef UNIV_LINUX
   const bool atomic_write =
       !dblwr::is_enabled() && fil_fusionio_enable_atomic_write(df.handle());
 #else
   const bool atomic_write = false;
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
+#endif /* UNIV_LINUX */
 
   dberr_t err;
 
@@ -6657,7 +6657,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     }
 #endif /* !UNIV_HOTBACKUP && UNIV_LINUX */
 
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+#ifdef UNIV_LINUX
     /* This is required by FusionIO HW/Firmware */
 
     int ret = posix_fallocate(file->handle.m_file, node_start, len);
@@ -6694,7 +6694,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 
       err = DB_IO_ERROR;
     }
-#endif /* NO_FALLOCATE || !UNIV_LINUX */
+#endif /* UNIV_LINUX */
 
     if ((tbsp_extend_and_initialize && !file->atomic_write) ||
         err == DB_IO_ERROR) {

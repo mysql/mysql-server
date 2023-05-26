@@ -840,7 +840,7 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
       return (err);
     }
 
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+#ifdef UNIV_LINUX
     /* Note: This should really be per node and not per
     tablespace because a tablespace can contain multiple
     files (nodes). The implication is that all files of
@@ -860,7 +860,7 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
     }
 #else
     it->m_atomic_write = false;
-#endif /* !NO_FALLOCATE && UNIV_LINUX*/
+#endif /* UNIV_LINUX */
   }
 
   if (flush_lsn != nullptr) {
