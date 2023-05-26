@@ -46,8 +46,6 @@
 
   For the user manual, see http://dev.mysql.com/doc/refman/8.0/en/
 
-  For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
-
   This documentation is published for each release, starting with MySQL 8.0.
 
   The present document corresponds to:
