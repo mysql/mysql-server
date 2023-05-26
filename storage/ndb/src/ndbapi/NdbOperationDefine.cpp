@@ -519,7 +519,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   Uint32 tAttrId;
   Uint32 tData;
   Uint32 tempData[ NDB_MAX_TUPLE_SIZE_IN_WORDS ];
-  OperationType tOpType = theOperationType;
+  const OperationType tOpType = theOperationType;
   
   if ((tOpType == UpdateRequest) ||
       (tOpType == WriteRequest)) {
@@ -605,11 +605,8 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
     DBUG_RETURN(-1);
   }//if
   if (tAttrInfo->m_pk) {
-    if (theOperationType == InsertRequest) {
+    if (tOpType == InsertRequest) {
       DBUG_RETURN(equal_impl(tAttrInfo, aValuePassed));
-    } else {
-      setErrorCodeAbort(4202);      
-      DBUG_RETURN(-1);
     }//if
   }//if
   
@@ -1335,14 +1332,6 @@ NdbOperation::handleOperationOptions (const OperationType type,
         {
           // Column is NULL in Get/SetValueSpec structure
           return 4295;
-        }
-
-        if (type == UpdateRequest && pcol->getPrimaryKey())
-        {
-          // It is not possible to update a primary key column.
-          // It can be set like this for insert and write (but it
-          // still needs to be included in the key NdbRecord and row).
-          return 4202;
         }
 
         if (pvalue == nullptr)
