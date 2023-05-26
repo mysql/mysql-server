@@ -96,9 +96,7 @@ ERROR 42000: Identifier name 'user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaa
 # 11. Default resource groups can't be altered.
 ALTER RESOURCE GROUP SYS_default VCPU=0;
 ERROR HY000: Alter operation is disallowed on default resource groups.
-ALTER RESOURCE GROUP SYS_internal VCPU=0;
-ERROR HY000: Alter operation is disallowed on default resource groups.
-ALTER RESOURCE GROUP USR_default VCPU=0;
+ALTER RESOURCE GROUP USR_default VCPU=1;
 ERROR HY000: Alter operation is disallowed on default resource groups.
 # 11. Alter VCPU IDS and/or thread priority
 SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS WHERE RESOURCE_GROUP_NAME='user_resource';
@@ -153,8 +151,6 @@ DROP RESOURCE GROUP USR_default;
 ERROR HY000: Drop operation  operation is disallowed on default resource groups.
 DROP RESOURCE GROUP SYS_default;
 ERROR HY000: Drop operation  operation is disallowed on default resource groups.
-DROP RESOURCE GROUP SYS_internal;
-ERROR HY000: Drop operation  operation is disallowed on default resource groups.
 # SET resource group tests.
 SET RESOURCE GROUP user_resource;
 ERROR HY000: Resource Group 'user_resource' does not exist.
@@ -201,11 +197,6 @@ ERROR 42000: Identifier name 'user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaa
 # 11. Do not allow a system resource group to be assigned to user thread.
 SET RESOURCE GROUP SYS_default;
 ERROR HY000: Unable to bind resource group SYS_default with thread id ID.(System resource group can't be applied to user thread.).
-# 12. Assigning system internal resource group is not allowed.
-SET RESOURCE GROUP SYS_internal;
-ERROR HY000: SET RESOURCE GROUP operation is disallowed on SYS_internal resource group.
-SET RESOURCE GROUP SYS_internal FOR pfs_system_thread_id1;
-ERROR HY000: SET RESOURCE GROUP operation is disallowed on SYS_internal resource group.
 # Query Hint Tests
 # 1. Hint on non-existent Resource Group.
 SELECT /*+ RESOURCE_GROUP(rg) */ 1;
@@ -233,7 +224,6 @@ SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS;
 RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
 USR_default	USER	1	NUM_VCPUS	0
 SYS_default	SYSTEM	1	NUM_VCPUS	0
-SYS_internal	SYSTEM	1	NUM_VCPUS	0
 system_resource	SYSTEM	1	NUM_VCPUS	-1
 CREATE USER u1;
 SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS;
@@ -247,7 +237,6 @@ SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS;
 RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
 USR_default	USER	1	NUM_VCPUS	0
 SYS_default	SYSTEM	1	NUM_VCPUS	0
-SYS_internal	SYSTEM	1	NUM_VCPUS	0
 system_resource	SYSTEM	1	NUM_VCPUS	-1
 DROP USER u1;
 DROP RESOURCE GROUP system_resource FORCE;

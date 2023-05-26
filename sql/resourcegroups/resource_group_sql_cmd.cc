@@ -161,15 +161,8 @@ class Move_thread_to_default_group {
         Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
         THD_ptr thd_ptr =
             Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-        if (thd_ptr != nullptr) {
-          /*
-            If some system thread is referencing THD's resouce group then apply
-            default resource group to system thread too.
-          */
-          applied_res_grp->controller()->apply_control(
-              thd_ptr->resource_group_ctx()->m_bound_system_thread_os_id);
+        if (thd_ptr)
           thd_ptr->resource_group_ctx()->m_cur_resource_group = nullptr;
-        }
       }
     }
   }
@@ -188,19 +181,6 @@ inline bool is_default_resource_group(const char *res_grp_name) {
                        res_grp_name) == 0 ||
          my_strcasecmp(system_charset_info,
                        resourcegroups::SYS_DEFAULT_RESOURCE_GROUP_NAME,
-                       res_grp_name) == 0;
-}
-
-/**
-  Check if given resource group name is a SYS_internal resource group.
-
-  @param   res_grp_name   Resource group name.
-
-  @returns true of res_grp_name is SYS_internal false otherwise.
-*/
-inline bool is_sys_internal_resource_group(const char *res_grp_name) {
-  return my_strcasecmp(system_charset_info,
-                       resourcegroups::SYS_INTERNAL_RESOURCE_GROUP_NAME,
                        res_grp_name) == 0;
 }
 
@@ -245,8 +225,7 @@ bool resourcegroups::Sql_cmd_create_resource_group::execute(THD *thd) {
 
   auto res_grp_mgr = Resource_group_mgr::instance();
   // Check whether resource group exists in-memory.
-  auto res_grp = res_grp_mgr->get_resource_group(m_name.str);
-  if (res_grp != nullptr) {
+  if (res_grp_mgr->get_resource_group(m_name.str) != nullptr) {
     my_error(ER_RESOURCE_GROUP_EXISTS, MYF(0), m_name.str);
     return true;
   }
@@ -326,7 +305,6 @@ static inline resourcegroups::Resource_group *check_and_load_resource_group(
     }
   }
 
-  assert(!resource_group->is_defunct());
   return resource_group;
 }
 
@@ -344,9 +322,8 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd) {
   // Resource group name validation.
   if (is_invalid_string(m_name, system_charset_info)) return true;
 
-  // Disallow altering USR_default, SYS_default & SYS_internal resource group.
-  if (is_default_resource_group(m_name.str) ||
-      is_sys_internal_resource_group(m_name.str)) {
+  // Disallow altering USR_default & SYS_default resource group.
+  if (is_default_resource_group(m_name.str)) {
     my_error(ER_DISALLOWED_OPERATION, MYF(0), "Alter",
              "default resource groups.");
     return true;
@@ -416,35 +393,16 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd) {
     the thread resource controls and the resource group is enabled.
   */
   if (thr_res_ctrl_change) {
-    resource_group->apply_control_func([resource_group](
-                                           ulonglong pfs_thread_id) {
-      auto res_grp_mgr_ptr = Resource_group_mgr::instance();
-      PSI_thread_attrs pfs_thread_attr;
-      memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
-      if (!res_grp_mgr_ptr->get_thread_attributes(&pfs_thread_attr,
-                                                  pfs_thread_id)) {
-        resource_group->controller()->apply_control(
-            pfs_thread_attr.m_thread_os_id);
-        if (!pfs_thread_attr.m_system_thread) {
-          Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
-          THD_ptr thd_ptr =
-              Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-          /*
-            If some system thread is referencing THD's resouce group then apply
-            new default resource group to system thread too.
-          */
-          if (thd_ptr != nullptr)
+    resource_group->apply_control_func(
+        [resource_group](ulonglong pfs_thread_id) {
+          auto res_grp_mgr_ptr = Resource_group_mgr::instance();
+          PSI_thread_attrs pfs_thread_attr;
+          memset(&pfs_thread_attr, 0, sizeof(pfs_thread_attr));
+          if (!res_grp_mgr_ptr->get_thread_attributes(&pfs_thread_attr,
+                                                      pfs_thread_id))
             resource_group->controller()->apply_control(
-                thd_ptr->resource_group_ctx()->m_bound_system_thread_os_id);
-        }
-      }
-    });
-
-    /*
-      Update version so that other system threads referencing resource group
-      also re-applies controls.
-    */
-    resource_group->version()++;
+                pfs_thread_attr.m_thread_os_id);
+        });
   }
 
   /*
@@ -480,9 +438,8 @@ bool resourcegroups::Sql_cmd_drop_resource_group::execute(THD *thd) {
   // Resource group name validation.
   if (is_invalid_string(m_name, system_charset_info)) return true;
 
-  // Disallow dropping USR_default, SYS_default & SYS_internal resource group.
-  if (is_default_resource_group(m_name.str) ||
-      is_sys_internal_resource_group(m_name.str)) {
+  // Disallow dropping USR_default & SYS_default resource group.
+  if (is_default_resource_group(m_name.str)) {
     my_error(ER_DISALLOWED_OPERATION, MYF(0), "Drop operation ",
              "default resource groups.");
     return true;
@@ -516,27 +473,8 @@ bool resourcegroups::Sql_cmd_drop_resource_group::execute(THD *thd) {
   if (dd::drop_resource_group(thd, m_name.str)) return true;
 
   // Remove from in-memory hash the resource group.
-  if (resource_group != nullptr) {
-    if (resource_group->reference_count().load() != 0) {
-      /*
-        System threads still refers to user thread resource group so keep
-        in-memory instance of this resource group. In-memory instance is deleted
-        once system thread removes reference from resource group.
-      */
-      assert(resource_group->type() ==
-             resourcegroups::Type::USER_RESOURCE_GROUP);
-
-      /*
-        Mark resource group as defunct and extract(unlink) resource group from
-        the map.
-      */
-      Resource_group_mgr::instance()->extract_resource_group(m_name.str);
-      resource_group->set_defunct();
-    } else {
-      // Remove and erase resource group from the map.
-      Resource_group_mgr::instance()->remove_resource_group(m_name.str);
-    }
-  }
+  if (resource_group != nullptr)
+    Resource_group_mgr::instance()->remove_resource_group(m_name.str);
 
   my_ok(thd);
   return false;
@@ -593,22 +531,6 @@ static inline bool check_and_apply_resource_grp(
     return true;
   }
 
-  if (is_sys_internal_resource_group(pfs_thread_attr.m_groupname)) {
-    if (error)
-      my_error(ER_RESOURCE_GROUP_BIND_FAILED, MYF(0),
-               resource_group->name().c_str(), thread_id,
-               "Binding resource group to a thread associated with "
-               "'SYS_internal' resource group is not allowed.");
-    else
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_RESOURCE_GROUP_BIND_FAILED,
-                          ER_THD(thd, ER_RESOURCE_GROUP_BIND_FAILED),
-                          resource_group->name().c_str(), thread_id,
-                          "Binding resource group to a thread associated with"
-                          "'SYS_internal' resource group is not allowed.");
-    return true;
-  }
-
   if (!res_grp_mgr->thread_priority_available() &&
       resource_group->controller()->priority() != 0)
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -662,16 +584,8 @@ static inline bool check_and_apply_resource_grp(
     Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
     THD_ptr cur_thd_ptr =
         Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
-    if (cur_thd_ptr != nullptr) {
+    if (cur_thd_ptr)
       cur_thd_ptr->resource_group_ctx()->m_cur_resource_group = resource_group;
-
-      /*
-        If some system thread is referencing THD's resouce group then apply
-        new default resource group to system thread too.
-      */
-      resource_group->controller()->apply_control(
-          cur_thd_ptr->resource_group_ctx()->m_bound_system_thread_os_id);
-    }
   }
 
   if (prev_cur_res_grp != nullptr)
@@ -726,12 +640,6 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
     return true;
   }
 
-  if (is_sys_internal_resource_group(resource_group->name().c_str())) {
-    my_error(ER_DISALLOWED_OPERATION, MYF(0), "SET RESOURCE GROUP",
-             "SYS_internal resource group.");
-    return true;
-  }
-
   if (m_thread_id_list == nullptr || m_thread_id_list->empty()) {
     ulonglong pfs_thread_id = 0;
 #ifdef HAVE_PSI_THREAD_INTERFACE
@@ -752,13 +660,6 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
     if (cur_res_grp != nullptr)
       resource_group_name = cur_res_grp->name().c_str();
     mysql_mutex_unlock(&thd->LOCK_thd_data);
-
-    if (cur_res_grp != nullptr &&
-        res_grp_mgr->is_sys_internal_resource_group(cur_res_grp)) {
-      my_error(ER_DISALLOWED_OPERATION, MYF(0), "SET RESOURCE GROUP",
-               "thread bound to SYS_internal resource group.");
-      return true;
-    }
 
     MDL_ticket *ticket = nullptr;
     if (resource_group_name != nullptr &&
