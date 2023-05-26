@@ -33,8 +33,6 @@ disconnect con1;
 
 drop table t1;
 
---source include/wait_until_count_sessions.inc
-
 --echo #
 --echo # Scenario 2: The row format is REDUNDANT (no blob prefix).  The READ
 --echo # UNCOMMITTED transaction will see only the local prefix of f2.
@@ -63,8 +61,6 @@ disconnect con1;
 
 drop table t1;
 
---source include/wait_until_count_sessions.inc
-
 --echo #
 --echo # Scenario 3: The row format is REDUNDANT (no blob prefix).  The READ
 --echo # UNCOMMITTED transaction will see the local prefix of new blob and
@@ -91,8 +87,6 @@ connection default;
 disconnect con1;
 
 drop table t1;
-
---source include/wait_until_count_sessions.inc
 
 --echo #
 --echo # Scenario 4: The row format is REDUNDANT (no blob prefix).
@@ -127,4 +121,3 @@ disconnect con1;
 drop table t1;
 
 --source include/wait_until_count_sessions.inc
-

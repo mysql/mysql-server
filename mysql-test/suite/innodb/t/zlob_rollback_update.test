@@ -50,6 +50,6 @@ ROLLBACK;
 connection default;
 disconnect conn1;
 DROP TABLE t1;
---source include/count_sessions.inc
+--source include/wait_until_count_sessions.inc
 
 set global innodb_compression_level = default;

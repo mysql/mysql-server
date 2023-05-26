@@ -318,8 +318,6 @@ disconnect con1;
 
 SET DEBUG_SYNC = 'RESET';
 
---source include/wait_until_count_sessions.inc
-
 --echo #
 --echo # Bug#24658707 ASSERT: BUF0BUF.CC:2469:BUF_BLOCK_GET_STATE(BLOCK)
 --echo # == BUF_BLOCK_FILE_PAGE#
@@ -678,8 +676,6 @@ CHECK TABLE t1;
 
 DROP TABLE t1;
 
---source include/wait_until_count_sessions.inc
-
 --echo #
 --echo # Bug 31279528 - CRASH IN MYSQL SERVER, ASSERTION FAILURE: DICT0DICT.CC
 --echo #
@@ -822,3 +818,5 @@ delete from t limit 1;
 disconnect con1;
 DROP TABLE t;
 SET @@session.binlog_row_image = @old_binlog_row_image;
+
+--source include/wait_until_count_sessions.inc

@@ -251,6 +251,8 @@ if ($is_debug)
   --echo # -----------------------
   --echo # ONLINE DDL 3 :
   --echo # -----------------------
+  --source include/count_sessions.inc
+  
   --eval create table t1 (c1 char(10), c2 char(10)) ROW_FORMAT=$row_format
   Insert into t1 values ("r1c1", "r1c2");
   Select * from t1;

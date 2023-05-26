@@ -155,7 +155,6 @@ if ($MTR_RECORD == 1) {
 drop table t1;
 drop table t480;
 SET DEBUG_SYNC='RESET';
---source include/wait_until_count_sessions.inc
 
 --echo #
 --echo #  BUG#21612714 ALTER TABLE SORTING SKIPPED WHEN CHANGE PK AND DROP

@@ -73,9 +73,6 @@ connection default;
 
 drop table t1;
 
-# Wait till all disconnects are completed
---source include/wait_until_count_sessions.inc
-
 --echo #
 --echo # Bug #27753193  ASSERTION `PREBUILT->TRX->ERROR_KEY_NUM <
 --echo #                HA_ALTER_INFO->KEY_COUNT'
