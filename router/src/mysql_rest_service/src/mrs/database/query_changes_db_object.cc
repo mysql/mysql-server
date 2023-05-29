@@ -30,18 +30,21 @@
 #include "mrs/database/query_entry_fields.h"
 #include "mrs/database/query_entry_group_row_security.h"
 
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
+
 namespace mrs {
 namespace database {
 
 const std::string kParameterTableName = "field";
+const std::string kObjTableName = "object";
+const std::string kObjRefTableName = "object_reference";
+const std::string kObjFieldTableName = "object_field";
 
 QueryChangesDbObject::QueryChangesDbObject(const uint64_t last_audit_id) {
   audit_log_id_ = last_audit_id;
   query_length_ = query_.str().length();
-}
-
-static bool is_table_id_is_in_set(const std::string &table) {
-  return table == kParameterTableName;
 }
 
 void QueryChangesDbObject::query_entries(MySQLSession *session) {
@@ -53,7 +56,8 @@ void QueryChangesDbObject::query_entries(MySQLSession *session) {
   uint64_t max_audit_log_id = audit_log_id_;
   audit_entries.query_entries(
       session,
-      {"service", "db_schema", "db_object", "url_host", kParameterTableName},
+      {"service", "db_schema", "db_object", "url_host", kParameterTableName,
+       kObjTableName, kObjRefTableName, kObjFieldTableName},
       audit_log_id_);
 
   for (const auto &audit_entry : audit_entries.entries) {
@@ -89,6 +93,8 @@ void QueryChangesDbObject::query_path_entries(MySQLSession *session,
                                               const std::string &table_name,
                                               const entry::UniversalId &id) {
   entries.clear();
+  log_debug("Checking audit-log entry for table:%s, id:%s", table_name.c_str(),
+            id.to_string().c_str());
 
   query(session, build_query(table_name, id));
 
@@ -110,17 +116,42 @@ void QueryChangesDbObject::query_path_entries(MySQLSession *session,
 
 std::string QueryChangesDbObject::build_query(const std::string &table_name,
                                               const entry::UniversalId &id) {
-  auto is_set = is_table_id_is_in_set(table_name);
   mysqlrouter::sqlstring query = query_;
 
-  if (is_set) {
-    mysqlrouter::sqlstring where = "WHERE FIND_IN_SET(?, !)";
-    mysqlrouter::sqlstring additonal_fields =
-        ",(SELECT GROUP_CONCAT(p.id) FROM "
-        "mysql_rest_service_metadata.field as p WHERE "
-        "p.db_object_id=o.id GROUP BY p.db_object_id) as field_id";
-    where << id << (table_name + "_id");
-    query << additonal_fields;
+  if (kParameterTableName == table_name) {
+    mysqlrouter::sqlstring where =
+        " WHERE id in (select db_object_id from "
+        "mysql_rest_service_metadata.field as f where f.id=? GROUP BY "
+        "db_object_id) ";
+    where << id;
+    query << mysqlrouter::sqlstring{""};
+    return query.str() + where.str();
+  } else if (kObjTableName == table_name) {
+    mysqlrouter::sqlstring where =
+        " WHERE id in (select db_object_id from "
+        "mysql_rest_service_metadata.object as f where f.id=? GROUP BY "
+        "db_object_id)";
+    where << id;
+    query << mysqlrouter::sqlstring{""};
+    return query.str() + where.str();
+  } else if (kObjRefTableName == table_name) {
+    mysqlrouter::sqlstring where =
+        " WHERE id in (SELECT o.db_object_id FROM "
+        "mysql_rest_service_metadata.object_field AS f JOIN "
+        "mysql_rest_service_metadata.object AS o ON o.id=f.object_id WHERE "
+        "(f.parent_reference_id=? or f.represents_reference_id=?) GROUP BY "
+        "db_object_id)";
+    where << id << id;
+    query << mysqlrouter::sqlstring{""};
+    return query.str() + where.str();
+  } else if (kObjFieldTableName == table_name) {
+    mysqlrouter::sqlstring where =
+        " WHERE id in (SELECT o.db_object_id FROM "
+        "mysql_rest_service_metadata.object_field AS f  JOIN "
+        "mysql_rest_service_metadata.object AS o ON o.id=f.object_id WHERE "
+        "f.id=? GROUP BY db_object_id)";
+    where << id;
+    query << mysqlrouter::sqlstring{""};
     return query.str() + where.str();
   }
 
