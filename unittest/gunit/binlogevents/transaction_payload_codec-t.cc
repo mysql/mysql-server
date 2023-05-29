@@ -23,12 +23,10 @@
 
 #include <gtest/gtest.h>
 #include <vector>
-#include "libbinlogevents/include/binary_log.h"
-#include "libbinlogevents/include/codecs/binary.h"
+#include "mysql/binlog/event/binary_log.h"
+#include "mysql/binlog/event/codecs/binary.h"
 
-namespace binary_log {
-namespace codecs {
-namespace unittests {
+namespace mysql::binlog::event::codecs::unittests {
 
 class TransactionPayloadCodecTest : public ::testing::Test {
  protected:
@@ -39,12 +37,12 @@ class TransactionPayloadCodecTest : public ::testing::Test {
 
   void TearDown() override { m_payloads.clear(); }
 
-  void run_codec_idempotency_test(binary_log::codecs::Codec &codec) {
+  void run_codec_idempotency_test(mysql::binlog::event::codecs::Codec &codec) {
     for (auto payload_size : m_payloads) {
       unsigned char *payload = new unsigned char[payload_size];
 
       memset(payload, 'a', payload_size);
-      auto ctype = binary_log::transaction::compression::type::ZSTD;
+      auto ctype = mysql::binlog::event::compression::type::ZSTD;
       TransactionPayloadCodecTest::codec_idempotency_test(
           codec, payload, payload_size, ctype, payload_size * 2);
 
@@ -53,9 +51,9 @@ class TransactionPayloadCodecTest : public ::testing::Test {
   }
 
   static void codec_idempotency_test(
-      binary_log::codecs::Codec &codec, unsigned char *payload,
+      mysql::binlog::event::codecs::Codec &codec, unsigned char *payload,
       size_t payload_size,
-      binary_log::transaction::compression::type compression_type,
+      mysql::binlog::event::compression::type compression_type,
       size_t uncompressed_size) {
     const Format_description_event fde(BINLOG_VERSION, "8.0.17");
 
@@ -84,7 +82,7 @@ class TransactionPayloadCodecTest : public ::testing::Test {
 
     Transaction_payload_event decoded(
         static_cast<const char *>(nullptr), static_cast<uint64_t>(0),
-        transaction::compression::type::NONE, payload_size);
+        mysql::binlog::event::compression::type::NONE, payload_size);
 
     // decode the post LOG_EVENT header
     auto buffer = enc_buffer;
@@ -111,10 +109,8 @@ class TransactionPayloadCodecTest : public ::testing::Test {
 };
 
 TEST_F(TransactionPayloadCodecTest, EncodeDecodeIdempotencyBinaryTest) {
-  binary_log::codecs::binary::Transaction_payload codec;
+  mysql::binlog::event::codecs::binary::Transaction_payload codec;
   TransactionPayloadCodecTest::run_codec_idempotency_test(codec);
 }
 
-}  // namespace unittests
-}  // namespace codecs
-}  // namespace binary_log
+}  // namespace mysql::binlog::event::codecs::unittests

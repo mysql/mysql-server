@@ -52,7 +52,6 @@
 #include "decimal.h"
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
-#include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"  // my_stpncpy
 #include "map_helpers.h"
 #include "mem_root_deque.h"
@@ -72,6 +71,7 @@
 #include "my_systime.h"
 #include "my_thread_local.h"
 #include "my_time.h"
+#include "mysql/binlog/event/binlog_event.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"
@@ -201,7 +201,7 @@ namespace dd {
 class View;
 }  // namespace dd
 
-using binary_log::checksum_crc32;
+using mysql::binlog::event::checksum_crc32;
 using std::max;
 using std::min;
 using std::string;

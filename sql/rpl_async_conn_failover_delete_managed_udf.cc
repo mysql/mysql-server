@@ -107,7 +107,7 @@ bool Rpl_async_conn_failover_delete_managed::delete_managed_init(
     return true;
   }
 
-  if (!binary_log::Uuid::is_valid(args->args[1], args->lengths[1])) {
+  if (!mysql::gtid::Uuid::is_valid(args->args[1], args->lengths[1])) {
     my_stpcpy(message,
               "Wrong value: Please specify valid UUID for managed name.");
     return true;

@@ -28,18 +28,16 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include "libbinlogevents/include/binary_log.h"
-#include "libbinlogevents/include/compression/none_comp.h"
-#include "libbinlogevents/include/compression/payload_event_buffer_istream.h"
-#include "libbinlogevents/include/compression/zstd_comp.h"
-#include "libbinlogevents/include/string/concat.h"
 #include "my_byteorder.h"
+#include "mysql/binlog/event/binary_log.h"
+#include "mysql/binlog/event/compression/none_comp.h"
+#include "mysql/binlog/event/compression/payload_event_buffer_istream.h"
+#include "mysql/binlog/event/compression/zstd_comp.h"
+#include "mysql/binlog/event/string/concat.h"
 
-using mysqlns::string::concat;
+using mysql::binlog::event::string::concat;
 
-namespace binary_log {
-namespace transaction {
-namespace unittests {
+namespace mysql::binlog::event::unittests {
 
 /// Wrapper around an Iterator, providing an iterator that restarts
 /// from the beginning, whenever the underlying one reaches the end.
@@ -76,21 +74,22 @@ class Cyclic_iterator {
 template <class Compressor_tp>
 class PayloadEventBufferStreamTest {
  public:
-  using Managed_buffer_t = mysqlns::buffer::Managed_buffer<>;
-  using Managed_Buffer_sequence_t = mysqlns::buffer::Managed_buffer_sequence<>;
+  using Managed_buffer_t =
+      mysql::binlog::event::compression::buffer::Managed_buffer<>;
+  using Managed_Buffer_sequence_t =
+      mysql::binlog::event::compression::buffer::Managed_buffer_sequence<>;
   using Compressor_t = Compressor_tp;
-  using Compress_status_t =
-      binary_log::transaction::compression::Compress_status;
+  using Compress_status_t = mysql::binlog::event::compression::Compress_status;
   using Decompress_status_t =
-      binary_log::transaction::compression::Decompress_status;
+      mysql::binlog::event::compression::Decompress_status;
   using Size_t = typename Compressor_t::Size_t;
   using Char_t = typename Compressor_t::Char_t;
   using String_t = std::basic_string<Char_t>;
   using Stream_t =
-      binary_log::transaction::compression::Payload_event_buffer_istream;
+      mysql::binlog::event::compression::Payload_event_buffer_istream;
   using Buffer_ptr_t = Stream_t::Buffer_ptr_t;
   static constexpr auto type_code = Compressor_t::type_code;
-  using Memory_resource_t = mysqlns::resource::Memory_resource;
+  using Memory_resource_t = mysql::binlog::event::resource::Memory_resource;
 
   // Change to true to get more debug info
   static constexpr bool m_trace = false;
@@ -554,7 +553,7 @@ class PayloadEventBufferStreamTest {
     test_truncated_compressed_data();
     test_exceeds_max_size();
     test_allocation_failure();
-    if (type_code != binary_log::transaction::compression::NONE)
+    if (type_code != mysql::binlog::event::compression::NONE)
       // "NONE" can't be corrupted
       test_corrupted_compressed_data();
     test_frame_boundaries();
@@ -564,30 +563,24 @@ class PayloadEventBufferStreamTest {
 
 TEST(PayloadEventBufferStreamTest, NoneCompressDecompressTest) {
   // 50 trials, each time creating up to 20 events, each of size up to 65536.
-  PayloadEventBufferStreamTest<
-      binary_log::transaction::compression::None_comp>()
+  PayloadEventBufferStreamTest<mysql::binlog::event::compression::None_comp>()
       .test_multiple_random_scenarios(50, 20, 65536);
 }
 
 TEST(PayloadEventBufferStreamTest, ZstdCompressDecompressTest) {
   // 50 trials, each time creating up to 20 events, each of size up to 65536.
-  PayloadEventBufferStreamTest<
-      binary_log::transaction::compression::Zstd_comp>()
+  PayloadEventBufferStreamTest<mysql::binlog::event::compression::Zstd_comp>()
       .test_multiple_random_scenarios(50, 20, 65536);
 }
 
 TEST(PayloadEventBufferStreamTest, NoneDecompressErrorTest) {
-  PayloadEventBufferStreamTest<
-      binary_log::transaction::compression::None_comp>()
+  PayloadEventBufferStreamTest<mysql::binlog::event::compression::None_comp>()
       .test_error_cases();
 }
 
 TEST(PayloadEventBufferStreamTest, ZstdDecompressErrorTest) {
-  PayloadEventBufferStreamTest<
-      binary_log::transaction::compression::Zstd_comp>()
+  PayloadEventBufferStreamTest<mysql::binlog::event::compression::Zstd_comp>()
       .test_error_cases();
 }
 
-}  // namespace unittests
-}  // namespace transaction
-}  // namespace binary_log
+}  // namespace mysql::binlog::event::unittests

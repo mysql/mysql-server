@@ -27,7 +27,7 @@
 namespace cs::reader::codec::pb::example {
 
 void read_from_stream(std::istream &stream, cs::reader::State &out) {
-  binary_log::gtids::Gtid_set gtid_set;
+  mysql::gtid::Gtid_set gtid_set;
   cs::reader::codec::pb::example::State state_codec;
   std::string sibuf;
 
@@ -56,8 +56,8 @@ void read_from_stream(std::istream &stream, cs::reader::State &out) {
   for (const auto &gtids : state_codec.gtids()) {
     std::string suuid = gtids.uuid();
     for (const auto &range : gtids.range()) {
-      binary_log::gtids::Gno_interval interval{range.start(), range.end()};
-      binary_log::gtids::Uuid uuid;
+      mysql::gtid::Gno_interval interval{range.start(), range.end()};
+      mysql::gtid::Uuid uuid;
       if (uuid.parse(suuid.c_str(), suuid.length())) {
         /* purecov: begin inspected */
         stream.setstate(std::ios_base::failbit);

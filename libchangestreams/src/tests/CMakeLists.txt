@@ -37,7 +37,7 @@ SET(TESTS "")
 
 SET(TEST_LINK_LIBRARIES
   changestreams_standalone_static
-  binlogstandalone_static
+  mysql_binlog_event_standalone
   mysqlclient
   ${GTEST_LIBRARIES})
 

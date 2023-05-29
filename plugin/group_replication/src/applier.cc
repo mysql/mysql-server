@@ -380,7 +380,8 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
     delete pevent;
 
     DBUG_EXECUTE_IF("stop_applier_channel_after_reading_write_rows_log_event", {
-      if (payload[EVENT_TYPE_OFFSET] == binary_log::WRITE_ROWS_EVENT) {
+      if (payload[EVENT_TYPE_OFFSET] ==
+          mysql::binlog::event::WRITE_ROWS_EVENT) {
         error = 1;
       }
     });
@@ -479,7 +480,8 @@ int Applier_module::applier_thread_handle() {
     replication channel connected to a master that does not add checksum to its
     binary log files.
   */
-  fde_evt->common_footer->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+  fde_evt->common_footer->checksum_alg =
+      mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
   cont = new Continuation();
 
   // Give the handlers access to the applier THD

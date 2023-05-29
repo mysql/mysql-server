@@ -27,9 +27,9 @@
 #include <sys/types.h>
 #include <chrono>
 
-#include "libbinlogevents/include/binlog_event.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "mysql/binlog/event/binlog_event.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql/binlog.h"    // LOG_INFO
@@ -67,7 +67,7 @@ class Binlog_sender {
 
     @param type The last processed event type.
   */
-  inline void set_prev_event_type(binary_log::Log_event_type type) {
+  inline void set_prev_event_type(mysql::binlog::event::Log_event_type type) {
     m_prev_event_type = type;
   }
 
@@ -97,8 +97,8 @@ class Binlog_sender {
   /* The binlog file it is reading */
   LOG_INFO m_linfo;
 
-  binary_log::enum_binlog_checksum_alg m_event_checksum_alg;
-  binary_log::enum_binlog_checksum_alg m_slave_checksum_alg;
+  mysql::binlog::event::enum_binlog_checksum_alg m_event_checksum_alg;
+  mysql::binlog::event::enum_binlog_checksum_alg m_slave_checksum_alg;
   std::chrono::nanoseconds m_heartbeat_period;
   std::chrono::nanoseconds m_last_event_sent_ts;
   /*
@@ -144,7 +144,7 @@ class Binlog_sender {
      - binlog_row_event_max_size is defined as an unsigned long,
        thence in theory row events can be bigger than UINT_MAX32.
 
-     - max_allowed_packet is set to binary_log::max_log_event_size
+     - max_allowed_packet is set to mysql::binlog::event::max_log_event_size
        which is in turn defined as 1GB (i.e., 1024*1024*1024). (@c
        Binlog_sender::init()).
 
@@ -193,7 +193,7 @@ class Binlog_sender {
   /**
     Type of the previously processed event.
   */
-  binary_log::Log_event_type m_prev_event_type;
+  mysql::binlog::event::Log_event_type m_prev_event_type;
   /*
     It initializes the context, checks if the dump request is valid and
     if binlog status is correct.
@@ -351,8 +351,8 @@ class Binlog_sender {
     calls set_fatal_error().
     @retval false The event is allowed.
   */
-  bool check_event_type(binary_log::Log_event_type type, const char *log_file,
-                        my_off_t log_pos);
+  bool check_event_type(mysql::binlog::event::Log_event_type type,
+                        const char *log_file, my_off_t log_pos);
   /**
     It checks if the event is in m_exclude_gtid.
 
@@ -439,8 +439,10 @@ class Binlog_sender {
   }
 
   inline bool event_checksum_on() {
-    return m_event_checksum_alg > binary_log::BINLOG_CHECKSUM_ALG_OFF &&
-           m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END;
+    return m_event_checksum_alg >
+               mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF &&
+           m_event_checksum_alg <
+               mysql::binlog::event::BINLOG_CHECKSUM_ALG_ENUM_END;
   }
 
   inline void set_last_pos(my_off_t log_pos) {

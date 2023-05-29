@@ -29,10 +29,10 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "libbinlogevents/export/binary_log_funcs.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql/binlog/event/export/binary_log_funcs.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
@@ -44,10 +44,10 @@ struct TYPELIB;
 
 #include <algorithm>
 
-#include "libbinlogevents/include/binlog_event.h"  // checksum_crv32
 #include "m_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "mysql/binlog/event/binlog_event.h"  // checksum_crv32
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/strings/m_ctype.h"
@@ -77,7 +77,7 @@ struct TYPELIB;
 #include "template_utils.h"  // delete_container_pointers
 #include "typelib.h"
 
-using binary_log::checksum_crc32;
+using mysql::binlog::event::checksum_crc32;
 using std::max;
 using std::min;
 using std::unique_ptr;

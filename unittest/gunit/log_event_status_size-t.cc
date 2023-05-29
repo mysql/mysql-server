@@ -24,19 +24,16 @@
 #include <array>
 
 #include <gtest/gtest.h>
-#include "libbinlogevents/include/binary_log.h"
+#include "mysql/binlog/event/binary_log.h"
 
 #include <memory>
 #include "sql/binlog_ostream.h"
 #include "sql/current_thd.h"
+#include "sql/log_event.h"
 #include "sql/sql_class.h"
 #include "unittest/gunit/test_utils.h"
 
-#define private public
-#include "sql/log_event.h"
-#undef private
-
-namespace binary_log::unittests {
+namespace mysql::binlog::event::unittests {
 
 using namespace std;
 
@@ -136,4 +133,4 @@ TEST_F(LogEventStatusSizeTest, LogEventBoundaryConditions) {
   LogEventStatusSizeTest::test_query_log_event_max_status_size();
 }
 
-}  // namespace binary_log::unittests
+}  // namespace mysql::binlog::event::unittests

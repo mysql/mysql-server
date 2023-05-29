@@ -31,12 +31,12 @@
 #endif
 #include <list>
 
-#include "libbinlogevents/include/control_events.h"
 #include "my_base.h"
 #include "my_command.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/binlog/event/control_events.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -211,7 +211,8 @@ int Gtid_table_persistor::fill_fields(Field **fields, const char *sid,
 
   /* Store SID */
   fields[0]->set_notnull();
-  if (fields[0]->store(sid, binary_log::Uuid::TEXT_LENGTH, &my_charset_bin)) {
+  if (fields[0]->store(sid, mysql::gtid::Uuid::TEXT_LENGTH, &my_charset_bin) !=
+      0U) {
     my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[0]->field_name);
     goto err;
   }
@@ -279,7 +280,8 @@ int Gtid_table_persistor::update_row(TABLE *table, const char *sid,
 
   /* Store SID */
   fields[0]->set_notnull();
-  if (fields[0]->store(sid, binary_log::Uuid::TEXT_LENGTH, &my_charset_bin)) {
+  if (fields[0]->store(sid, mysql::gtid::Uuid::TEXT_LENGTH, &my_charset_bin) !=
+      0U) {
     my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0), fields[0]->field_name);
     return -1;
   }
@@ -341,7 +343,7 @@ int Gtid_table_persistor::save(THD *thd, const Gtid *gtid) {
   int error = 0;
   TABLE *table = nullptr;
   Gtid_table_access_context table_access_ctx;
-  char buf[binary_log::Uuid::TEXT_LENGTH + 1];
+  char buf[mysql::gtid::Uuid::TEXT_LENGTH + 1];
 
   /* Get source id */
   global_sid_lock->rdlock();
@@ -417,7 +419,7 @@ int Gtid_table_persistor::save(TABLE *table, const Gtid_set *gtid_set) {
   gtid_set->get_gtid_intervals(&gtid_intervals);
   for (iter = gtid_intervals.begin(); iter != gtid_intervals.end(); iter++) {
     /* Get source id. */
-    char buf[binary_log::Uuid::TEXT_LENGTH + 1];
+    char buf[mysql::gtid::Uuid::TEXT_LENGTH + 1];
     rpl_sid sid = gtid_set->get_sid_map()->sidno_to_sid(iter->sidno);
     sid.to_string(buf);
 

@@ -30,13 +30,13 @@
 
 #include "field_types.h"
 #include "lex_string.h"
-#include "libbinlogevents/include/table_id.h"  // Table_id
 #include "map_helpers.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
+#include "mysql/binlog/event/table_id.h"  // Table_id
 
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -920,7 +920,7 @@ struct TABLE_SHARE {
   bool crashed{false};
   bool is_view{false};
   bool m_open_in_progress{false}; /* True: alloc'ed, false: def opened */
-  Table_id table_map_id;          /* for row-based replication */
+  mysql::binlog::event::Table_id table_map_id; /* for row-based replication */
 
   /*
     Cache for row-based replication table share checks that does not
@@ -3617,7 +3617,8 @@ class Table_ref {
   /* Index names in a "... JOIN ... USE/IGNORE INDEX ..." clause. */
   List<Index_hint> *index_hints{nullptr};
   TABLE *table{nullptr}; /* opened table */
-  Table_id table_id{};   /* table id (from binlog) for opened table */
+  mysql::binlog::event::Table_id
+      table_id{}; /* table id (from binlog) for opened table */
   /*
     Query_result for derived table to pass it from table creation to table
     filling procedure

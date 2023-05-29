@@ -28,12 +28,12 @@
 #include <list>
 #include <mutex>  // std::adopt_lock_t
 
-#include "libbinlogevents/include/compression/base.h"  // binary_log::transaction::compression::type
-#include "libbinlogevents/include/gtids/global.h"
-#include "libbinlogevents/include/uuid.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_thread_local.h"
+#include "mysql/binlog/event/compression/base.h"  // mysql::binlog::event::compression::type
+#include "mysql/gtid/global.h"
+#include "mysql/gtid/uuid.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_rwlock.h"  // mysql_rwlock_t
 #include "mysql/strings/m_ctype.h"   // my_isspace
@@ -99,8 +99,8 @@ class THD;
 /// Type of SIDNO (source ID number, first component of GTID)
 typedef int rpl_sidno;
 /// GNO, the second (numeric) component of a GTID, is an alias of
-/// binary_log::gtids::gno_t
-using rpl_gno = binary_log::gtids::gno_t;
+/// mysql::gtid::gno_t
+using rpl_gno = mysql::gtid::gno_t;
 typedef int64 rpl_binlog_pos;
 
 /**
@@ -290,7 +290,7 @@ rpl_gno parse_gno(const char **s);
 */
 int format_gno(char *s, rpl_gno gno);
 
-typedef binary_log::Uuid rpl_sid;
+typedef mysql::gtid::Uuid rpl_sid;
 
 /**
   This has the functionality of mysql_rwlock_t, with two differences:
@@ -859,7 +859,7 @@ class Sid_map {
 
   static const uchar *sid_map_get_key(const uchar *ptr, size_t *length) {
     const Node *node = pointer_cast<const Node *>(ptr);
-    *length = binary_log::Uuid::BYTE_LENGTH;
+    *length = mysql::gtid::Uuid::BYTE_LENGTH;
     return node->sid.bytes;
   }
 
@@ -887,7 +887,8 @@ class Sid_map {
   /**
     Hash that maps SID to SIDNO.
   */
-  malloc_unordered_map<rpl_sid, unique_ptr_my_free<Node>, binary_log::Hash_Uuid>
+  malloc_unordered_map<rpl_sid, unique_ptr_my_free<Node>,
+                       mysql::gtid::Hash_Uuid>
       _sid_to_sidno{key_memory_Sid_map_Node};
   /**
     Array that maps numbers in the interval [0, get_max_sidno()-1] to
@@ -1065,7 +1066,7 @@ struct Gtid_interval {
 };
 
 /**
-  TODO: Move this structure to libbinlogevents/include/control_events.h
+  TODO: Move this structure to mysql/binlog/event/control_events.h
         when we start using C++11.
   Holds information about a GTID: the sidno and the gno.
 
@@ -1109,7 +1110,7 @@ struct Gtid {
     including the terminating '\0'.
   */
   static const int MAX_TEXT_LENGTH =
-      binary_log::Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
+      mysql::gtid::Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
   /**
     Return true if parse() would succeed, but don't store the
     result anywhere.
@@ -1194,7 +1195,7 @@ struct Trx_monitoring_info {
   /// True when the transaction is retrying
   bool is_retrying;
   /// The compression type
-  binary_log::transaction::compression::type compression_type;
+  mysql::binlog::event::compression::type compression_type;
   /// The compressed bytes
   ulonglong compressed_bytes;
   /// The uncompressed bytes
@@ -1398,7 +1399,7 @@ class Gtid_monitoring_info {
   void start(Gtid gtid_arg, ulonglong original_ts_arg,
              ulonglong immediate_ts_arg, bool skipped_arg = false);
 
-  void update(binary_log::transaction::compression::type t, size_t payload_size,
+  void update(mysql::binlog::event::compression::type t, size_t payload_size,
               size_t uncompressed_size);
 
   /**
@@ -2526,7 +2527,7 @@ class Owned_gtids {
       size_t records = get_hash(sidno)->size();
       if (records > 0)
         ret +=
-            binary_log::Uuid::TEXT_LENGTH +
+            mysql::gtid::Uuid::TEXT_LENGTH +
             records * (1 + MAX_GNO_TEXT_LENGTH + 1 + MAX_THREAD_ID_TEXT_LENGTH);
     }
     return 1 + ret;

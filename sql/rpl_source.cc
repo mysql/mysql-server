@@ -265,7 +265,7 @@ bool show_replicas(THD *thd) {
     protocol->store((uint32)si->master_id);
 
     if (si->valid_replica_uuid) {
-      char text_buf[binary_log::Uuid::TEXT_LENGTH + 1];
+      char text_buf[mysql::gtid::Uuid::TEXT_LENGTH + 1];
       si->replica_uuid.to_string(text_buf);
       protocol->store(text_buf, &my_charset_bin);
     } else {
@@ -834,7 +834,7 @@ bool show_replicas(THD *thd) {
       <td>seconds since unix epoch</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>event_type</td>
-      <td>See binary_log::Log_event_type</td></tr>
+      <td>See mysql::binlog::event::Log_event_type</td></tr>
   <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
       <td>server-id</td>
       <td>server-id of the originating mysql-server. Used to filter out events

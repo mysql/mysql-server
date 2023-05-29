@@ -255,7 +255,7 @@ static int before_commit_tests(Trans_param *param,
 
     case POSITIVE_CERTIFICATION_WITH_GTID:
       fake_sid.parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                     binary_log::Uuid::TEXT_LENGTH);
+                     mysql::gtid::Uuid::TEXT_LENGTH);
       fake_sidno = get_sidno_from_global_sid_map(fake_sid);
       fake_gno = get_last_executed_gno(fake_sidno);
       fake_gno++;
@@ -502,7 +502,7 @@ int validate_plugin_server_requirements(Trans_param *param) {
   */
   rpl_sid fake_sid;
   fake_sid.parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                 binary_log::Uuid::TEXT_LENGTH);
+                 mysql::gtid::Uuid::TEXT_LENGTH);
   const rpl_sidno fake_sidno = get_sidno_from_global_sid_map(fake_sid);
   const rpl_gno fake_gno = get_last_executed_gno(fake_sidno) + 1;
 
@@ -684,7 +684,7 @@ int test_channel_service_interface() {
   // Get the last delivered gno (should be 0)
   rpl_sid fake_sid;
   fake_sid.parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                 binary_log::Uuid::TEXT_LENGTH);
+                 mysql::gtid::Uuid::TEXT_LENGTH);
   const rpl_sidno fake_sidno = get_sidno_from_global_sid_map(fake_sid);
   rpl_gno gno = channel_get_last_delivered_gno(interface_channel, fake_sidno);
   assert(gno == 0);

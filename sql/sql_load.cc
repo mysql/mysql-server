@@ -37,7 +37,6 @@
 #include <atomic>
 #include <limits>
 
-#include "libbinlogevents/include/load_data_events.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -47,6 +46,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/binlog/event/load_data_events.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_file.h"
@@ -723,9 +723,9 @@ bool Sql_cmd_load_table::write_execute_load_query_log_event(
   Execute_load_query_log_event e(
       thd, query->ptr(), query->length(), fname_start, fname_end,
       (duplicates == DUP_REPLACE)
-          ? binary_log::LOAD_DUP_REPLACE
-          : (thd->lex->is_ignore() ? binary_log::LOAD_DUP_IGNORE
-                                   : binary_log::LOAD_DUP_ERROR),
+          ? mysql::binlog::event::LOAD_DUP_REPLACE
+          : (thd->lex->is_ignore() ? mysql::binlog::event::LOAD_DUP_IGNORE
+                                   : mysql::binlog::event::LOAD_DUP_ERROR),
       transactional_table, false, false, errcode);
 
   return mysql_bin_log.write_event(&e);

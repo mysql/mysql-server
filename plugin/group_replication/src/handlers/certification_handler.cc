@@ -109,13 +109,13 @@ int Certification_handler::handle_event(Pipeline_event *pevent,
                                         Continuation *cont) {
   DBUG_TRACE;
 
-  Log_event_type ev_type = pevent->get_event_type();
+  mysql::binlog::event::Log_event_type ev_type = pevent->get_event_type();
   switch (ev_type) {
-    case binary_log::TRANSACTION_CONTEXT_EVENT:
+    case mysql::binlog::event::TRANSACTION_CONTEXT_EVENT:
       return handle_transaction_context(pevent, cont);
-    case binary_log::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_LOG_EVENT:
       return handle_transaction_id(pevent, cont);
-    case binary_log::VIEW_CHANGE_EVENT:
+    case mysql::binlog::event::VIEW_CHANGE_EVENT:
       return extract_certification_info(pevent, cont);
     default:
       next(pevent, cont);

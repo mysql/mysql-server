@@ -26,12 +26,12 @@
 #include <string>
 #include <vector>
 
-#include "libbinlogevents/include/binlog_event.h"
-#include "libbinlogevents/include/control_events.h"
 #include "libchangestreams/include/mysql/cs/reader/binary/tracker.h"
 #include "libchangestreams/include/mysql/cs/reader/reader.h"
 #include "libchangestreams/include/mysql/cs/reader/state.h"
 #include "mysql.h"
+#include "mysql/binlog/event/binlog_event.h"
+#include "mysql/binlog/event/control_events.h"
 
 namespace cs::reader::binary {
 
@@ -57,8 +57,8 @@ class Mysql_protocol : public cs::reader::Reader {
  private:
   void reset();
   bool setup();
-  bool encode_gtid_set_to_mysql_protocol(
-      const binary_log::gtids::Gtid_set &gtid_set, std::string &output) const;
+  bool encode_gtid_set_to_mysql_protocol(const mysql::gtid::Gtid_set &gtid_set,
+                                         std::string &output) const;
 
  public:
   /**

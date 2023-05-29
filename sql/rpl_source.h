@@ -26,10 +26,10 @@
 #include <stddef.h>
 #include <string>  // std::string
 
-#include "libbinlogevents/include/uuid.h"  // UUID
-#include "my_hostname.h"                   // HOSTNAME_LENGTH
+#include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
 #include "my_thread_local.h"       // my_thread_id
+#include "mysql/gtid/uuid.h"       // UUID
 #include "mysql_com.h"             // USERNAME_LENGTH
 #include "sql/resource_blocker.h"  // resource_blocker::User and Resource
 #include "sql/sql_const.h"         // MAX_PASSWORD_LENGTH
@@ -54,7 +54,7 @@ struct REPLICA_INFO {
   char password[MAX_PASSWORD_LENGTH + 1];
   uint16 port;
   my_thread_id thd_id;
-  binary_log::Uuid replica_uuid;
+  mysql::gtid::Uuid replica_uuid;
   bool valid_replica_uuid;
 };
 

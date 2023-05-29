@@ -23,19 +23,17 @@
 
 #include <gtest/gtest.h>
 #include <vector>
-#include "libbinlogevents/include/codecs/binary.h"
-#include "libbinlogevents/include/codecs/factory.h"
+#include "mysql/binlog/event/codecs/binary.h"
+#include "mysql/binlog/event/codecs/factory.h"
 
-namespace binary_log {
-namespace codecs {
-namespace unittests {
+namespace mysql::binlog::event::codecs::unittests {
 
 class HeartbeatCodecTest : public ::testing::Test {
  protected:
   HeartbeatCodecTest() {}
 
   void run_codec_idempotency_test(
-      std::unique_ptr<binary_log::codecs::Codec> &codec) {
+      std::unique_ptr<mysql::binlog::event::codecs::Codec> &codec) {
     std::vector<uint64_t> positions{UINT8_MAX, UINT16_MAX, UINT32_MAX,
                                     UINT64_MAX};
     for (auto pos : positions)
@@ -43,7 +41,7 @@ class HeartbeatCodecTest : public ::testing::Test {
   }
 
   static void codec_idempotency_test(
-      std::unique_ptr<binary_log::codecs::Codec> &codec,
+      std::unique_ptr<mysql::binlog::event::codecs::Codec> &codec,
       const std::string logname, uint64_t pos) {
     const Format_description_event fde(BINLOG_VERSION, "8.0.22");
 
@@ -84,10 +82,9 @@ class HeartbeatCodecTest : public ::testing::Test {
 };
 
 TEST_F(HeartbeatCodecTest, EncodeDecodeIdempotencyBinaryTest) {
-  auto codec = binary_log::codecs::Factory::build_codec(HEARTBEAT_LOG_EVENT_V2);
+  auto codec = mysql::binlog::event::codecs::Factory::build_codec(
+      HEARTBEAT_LOG_EVENT_V2);
   HeartbeatCodecTest::run_codec_idempotency_test(codec);
 }
 
-}  // namespace unittests
-}  // namespace codecs
-}  // namespace binary_log
+}  // namespace mysql::binlog::event::codecs::unittests

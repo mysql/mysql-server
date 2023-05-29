@@ -21,25 +21,28 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "libbinlogevents/include/buffer/managed_buffer.h"
+#include "mysql/binlog/event/compression/buffer/managed_buffer.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <functional>  // std::function
 #include <iterator>    // std::distance
 
-#include "libbinlogevents/include/math/math.h"
-#include "libbinlogevents/include/string/concat.h"
+#include "mysql/binlog/event/math/math.h"
+#include "mysql/binlog/event/string/concat.h"
 
-using mysqlns::string::concat;
+using mysql::binlog::event::string::concat;
 
-namespace mysqlns::buffer::managed_buffer::unittest {
+namespace mysql::binlog::event::compression::buffer {
+namespace managed_buffer::unittest {
 
-using Grow_calculator_t = mysqlns::buffer::Grow_calculator;
-using Grow_status_t = mysqlns::buffer::Grow_status;
-using Size_t = mysqlns::buffer::Buffer_view<>::Size_t;
+using Grow_calculator_t =
+    mysql::binlog::event::compression::buffer::Grow_calculator;
+using Grow_status_t = mysql::binlog::event::compression::buffer::Grow_status;
+using Size_t = mysql::binlog::event::compression::buffer::Buffer_view<>::Size_t;
 using Debug_function = const std::function<std::string(std::string)>;
-using Difference_t = mysqlns::buffer::Rw_buffer<>::Difference_t;
+using Difference_t =
+    mysql::binlog::event::compression::buffer::Rw_buffer<>::Difference_t;
 
 // Return the current file and line as a string delimited and ended by
 // colons.
@@ -356,4 +359,5 @@ TEST(ManagedBufferTest, CombinatorialGrowTestUchar) {
   Grow_tester<unsigned char>().combinatorial_grow_test();
 }
 
-}  // namespace mysqlns::buffer::managed_buffer::unittest
+}  // namespace managed_buffer::unittest
+}  // namespace mysql::binlog::event::compression::buffer

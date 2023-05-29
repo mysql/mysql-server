@@ -26,12 +26,12 @@
 #include <algorithm>
 #include <atomic>
 
-#include "libbinlogevents/include/control_events.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_thread.h"
+#include "mysql/binlog/event/control_events.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "nulls.h"
 #include "sql/rpl_gtid.h"
@@ -75,10 +75,10 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
   SKIP_WHITESPACE();
 
   // parse sid
-  if (sid.parse(s, binary_log::Uuid::TEXT_LENGTH) == 0) {
+  if (sid.parse(s, mysql::gtid::Uuid::TEXT_LENGTH) == 0) {
     rpl_sidno sidno_var = sid_map->add_sid(sid);
     if (sidno_var <= 0) RETURN_REPORTED_ERROR;
-    s += binary_log::Uuid::TEXT_LENGTH;
+    s += mysql::gtid::Uuid::TEXT_LENGTH;
 
     SKIP_WHITESPACE();
 
@@ -158,12 +158,12 @@ bool Gtid::is_valid(const char *text) {
   DBUG_TRACE;
   const char *s = text;
   SKIP_WHITESPACE();
-  if (!rpl_sid::is_valid(s, binary_log::Uuid::TEXT_LENGTH)) {
+  if (!rpl_sid::is_valid(s, mysql::gtid::Uuid::TEXT_LENGTH)) {
     DBUG_PRINT("info",
                ("not a uuid at char %d in '%s'", (int)(s - text), text));
     return false;
   }
-  s += binary_log::Uuid::TEXT_LENGTH;
+  s += mysql::gtid::Uuid::TEXT_LENGTH;
   SKIP_WHITESPACE();
   if (*s != ':') {
     DBUG_PRINT("info",
@@ -268,7 +268,7 @@ void Trx_monitoring_info::clear() {
   last_transient_error_timestamp = 0;
   transaction_retries = 0;
   is_retrying = false;
-  compression_type = binary_log::transaction::compression::type::NONE;
+  compression_type = mysql::binlog::event::compression::type::NONE;
   compressed_bytes = 0;
   uncompressed_bytes = 0;
 }
@@ -436,7 +436,7 @@ void Gtid_monitoring_info::clear_last_processed_trx() {
   atomic_unlock();
 }
 
-void Gtid_monitoring_info::update(binary_log::transaction::compression::type t,
+void Gtid_monitoring_info::update(mysql::binlog::event::compression::type t,
                                   size_t payload_size,
                                   size_t uncompressed_size) {
   processing_trx->compression_type = t;
@@ -468,7 +468,7 @@ void Gtid_monitoring_info::start(Gtid gtid_arg, ulonglong original_ts_arg,
     processing_trx->last_transient_error_timestamp = 0;
     processing_trx->transaction_retries = 0;
     processing_trx->compression_type =
-        binary_log::transaction::compression::type::NONE;
+        mysql::binlog::event::compression::type::NONE;
     processing_trx->compressed_bytes = 0;
     processing_trx->uncompressed_bytes = 0;
     atomic_unlock();

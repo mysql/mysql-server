@@ -165,7 +165,7 @@ bool validate_uuid_parameter(std::string &uuid, size_t length,
     return true;
   }
 
-  if (!binary_log::Uuid::is_valid(uuid.c_str(), length)) {
+  if (!mysql::gtid::Uuid::is_valid(uuid.c_str(), length)) {
     *error_message = server_uuid_not_valid_str;
     return true;
   }

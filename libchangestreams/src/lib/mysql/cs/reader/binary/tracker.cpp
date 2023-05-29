@@ -21,11 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "libchangestreams/include/mysql/cs/reader/binary/tracker.h"
-#include "libbinlogevents/include/control_events.h"
-#include "libbinlogevents/include/statement_events.h"
 #include "libchangestreams/include/mysql/cs/reader/state.h"
 #include "my_byteorder.h"
 #include "my_config.h"
+#include "mysql/binlog/event/control_events.h"
+#include "mysql/binlog/event/statement_events.h"
 namespace cs::reader::binary {
 
 Tracker::Tracker() {
@@ -39,17 +39,17 @@ Tracker::Tracker() {
   //       necessarily the server itself. (If they go hand-in-hand
   //       chances are that they are are synchronized most of the time,
   //       but it is not mandatory.)
-  m_fde = std::make_unique<binary_log::Format_description_event>(
+  m_fde = std::make_unique<mysql::binlog::event::Format_description_event>(
       BINLOG_VERSION, VERSION /* server version */);
 }
 
 bool Tracker::track_and_update(std::shared_ptr<State> state,
                                const std::vector<uint8_t> &data) {
-  binary_log::Log_event_basic_info ev_info{};
+  mysql::binlog::event::Log_event_basic_info ev_info{};
   auto buffer = reinterpret_cast<const char *>(data.data());
   auto was_inside_transaction{m_trx_boundary_parser.is_inside_transaction()};
-  auto ev_type{
-      static_cast<binary_log::Log_event_type>(data[EVENT_TYPE_OFFSET])};
+  auto ev_type{static_cast<mysql::binlog::event::Log_event_type>(
+      data[EVENT_TYPE_OFFSET])};
 
 #ifndef NDEBUG
   BAPI_ASSERT(
@@ -58,7 +58,7 @@ bool Tracker::track_and_update(std::shared_ptr<State> state,
 #endif
 
   switch (ev_type) {
-    case binary_log::GTID_LOG_EVENT: {
+    case mysql::binlog::event::GTID_LOG_EVENT: {
       BAPI_ASSERT(!was_inside_transaction);
       BAPI_ASSERT(m_current_gtid_event_buffer.empty());
       // save the gtid buffer, so we can instantiate the event later and
@@ -67,17 +67,18 @@ bool Tracker::track_and_update(std::shared_ptr<State> state,
       m_current_gtid_event_buffer.assign(buffer, data.size());
       break;
     }
-    case binary_log::FORMAT_DESCRIPTION_EVENT: {
-      auto next_fde = std::make_unique<binary_log::Format_description_event>(
-          buffer, m_fde.get());
+    case mysql::binlog::event::FORMAT_DESCRIPTION_EVENT: {
+      auto next_fde =
+          std::make_unique<mysql::binlog::event::Format_description_event>(
+              buffer, m_fde.get());
       m_fde = std::move(next_fde);
       if (!m_fde->header()->get_is_valid()) return true;
       break;
     }
-    case binary_log::QUERY_EVENT: {
+    case mysql::binlog::event::QUERY_EVENT: {
       // TODO: (optimization)
       // consider not decoding the entire event to extract the query
-      binary_log::Query_event qev{buffer, m_fde.get(), ev_type};
+      mysql::binlog::event::Query_event qev{buffer, m_fde.get(), ev_type};
       if (!qev.header()->get_is_valid()) return true;
       ev_info.query = qev.query;
       ev_info.query_length = strlen(qev.query);
@@ -108,10 +109,10 @@ bool Tracker::track_and_update(std::shared_ptr<State> state,
       m_trx_boundary_parser.is_not_inside_transaction()) {
     BAPI_ASSERT(!m_current_gtid_event_buffer.empty());
     // the event received terminated the transaction - save the gtid
-    binary_log::Gtid_event gev{m_current_gtid_event_buffer.c_str(),
-                               m_fde.get()};
+    mysql::binlog::event::Gtid_event gev{m_current_gtid_event_buffer.c_str(),
+                                         m_fde.get()};
     if (!gev.header()->get_is_valid()) return true;
-    binary_log::gtids::Gtid gtid(gev.get_uuid(), gev.get_gno());
+    mysql::gtid::Gtid gtid(gev.get_uuid(), gev.get_gno());
     state->add_gtid(gtid);
     m_current_gtid_event_buffer.clear();
   }

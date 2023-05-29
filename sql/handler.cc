@@ -44,7 +44,6 @@
 #include <vector>
 
 #include "keycache.h"
-#include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
 #include "my_bit.h"     // my_count_bits
 #include "my_bitmap.h"  // MY_BITMAP
@@ -56,6 +55,7 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"  // MEM_DEFINED_IF_ADDRESSABLE()
 #include "myisam.h"  // TT_FOR_UPGRADE
+#include "mysql/binlog/event/binlog_event.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
@@ -1860,7 +1860,7 @@ end:
       if (thd->slave_thread && thd->rli_slave &&
           thd->rli_slave->current_event &&
           thd->rli_slave->current_event->get_type_code() ==
-              binary_log::XID_EVENT &&
+              mysql::binlog::event::XID_EVENT &&
           !thd->is_operating_substatement_implicitly &&
           !thd->is_operating_gtid_table_implicitly && !transaction_to_skip)
         DBUG_SUICIDE();

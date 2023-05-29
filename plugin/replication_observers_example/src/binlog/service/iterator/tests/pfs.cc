@@ -377,22 +377,23 @@ int rnd_next(PSI_table_handle *h) {
 
       extra << "{ ";
 
-      row.event_type =
-          static_cast<binary_log::Log_event_type>(buffer[EVENT_TYPE_OFFSET]);
-      row.event_name = binary_log::get_event_type_as_string(row.event_type);
+      row.event_type = static_cast<mysql::binlog::event::Log_event_type>(
+          buffer[EVENT_TYPE_OFFSET]);
+      row.event_name =
+          mysql::binlog::event::get_event_type_as_string(row.event_type);
 
       switch (row.event_type) {
-        case binary_log::ANONYMOUS_GTID_LOG_EVENT:
-        case binary_log::FORMAT_DESCRIPTION_EVENT:
-        case binary_log::ROTATE_EVENT:
+        case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT:
+        case mysql::binlog::event::FORMAT_DESCRIPTION_EVENT:
+        case mysql::binlog::event::ROTATE_EVENT:
           row.trx_uuid = "";
           row.trx_seqno = 0;
 
           // TODO: extend to other events
           break;
-        case binary_log::GTID_LOG_EVENT: {
-          binary_log::Gtid_event gev(buffer, &handle->fde);
-          char suuid[binary_log::Uuid::TEXT_LENGTH + 1];
+        case mysql::binlog::event::GTID_LOG_EVENT: {
+          mysql::binlog::event::Gtid_event gev(buffer, &handle->fde);
+          char suuid[mysql::gtid::Uuid::TEXT_LENGTH + 1];
           row.trx_seqno = gev.get_gno();
           gev.get_uuid().to_string(suuid);
           row.trx_uuid = suuid;
@@ -403,8 +404,8 @@ int rnd_next(PSI_table_handle *h) {
                 << gev.original_commit_timestamp << "\", ";
           break;
         }
-        case binary_log::PREVIOUS_GTIDS_LOG_EVENT: {
-          binary_log::Previous_gtids_event pgev(buffer, &handle->fde);
+        case mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT: {
+          mysql::binlog::event::Previous_gtids_event pgev(buffer, &handle->fde);
           // TODO: show the contents on the extra part
           break;
         }

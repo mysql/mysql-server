@@ -29,7 +29,6 @@
 #include <algorithm>
 #include <regex>
 
-#include "libbinlogevents/include/binlog_event.h"
 #include "mutex_lock.h"  // Mutex_lock
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -37,6 +36,7 @@
 #include "my_sqlcommand.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/binlog/event/binlog_event.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"
@@ -135,8 +135,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       save_temporary_tables(nullptr),
       mi(nullptr),
       error_on_rli_init_info(false),
-      transaction_parser(
-          Transaction_boundary_parser::TRX_BOUNDARY_PARSER_APPLIER),
+      transaction_parser(mysql::binlog::event::Transaction_boundary_parser::
+                             TRX_BOUNDARY_PARSER_APPLIER),
       group_relay_log_pos(0),
       event_relay_log_number(0),
       event_relay_log_pos(0),
@@ -256,7 +256,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       log files.
     */
     if (channel_map.is_group_replication_channel_name(param_channel, true)) {
-      relay_log.relay_log_checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+      relay_log.relay_log_checksum_alg =
+          mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
     }
   }
   gtid_monitoring_info = new Gtid_monitoring_info();
@@ -2242,9 +2243,9 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   if (lines >=
       LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE) {
     char temp_assign_gtids_to_anonymous_transactions_value
-        [binary_log::Uuid::TEXT_LENGTH + 1] = {0};
+        [mysql::gtid::Uuid::TEXT_LENGTH + 1] = {0};
     status = from->get_info(temp_assign_gtids_to_anonymous_transactions_value,
-                            binary_log::Uuid::TEXT_LENGTH + 1, "");
+                            mysql::gtid::Uuid::TEXT_LENGTH + 1, "");
     if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
 
     if (temp_assign_gtids_to_anonymous_transactions >
@@ -2931,7 +2932,8 @@ void Relay_log_info::set_group_source_log_start_end_pos(const Log_event *ev) {
                 ev->common_header->data_written, group_source_log_start_pos));
   }
 
-  if (ev->ends_group() || (ev->get_type_code() == binary_log::QUERY_EVENT)) {
+  if (ev->ends_group() ||
+      (ev->get_type_code() == mysql::binlog::event::QUERY_EVENT)) {
     group_source_log_seen_start_pos = false;
     group_source_log_end_pos = ev->common_header->log_pos;
     DBUG_PRINT("exit",
@@ -3350,7 +3352,7 @@ bool Assign_gtids_to_anonymous_transactions_info::set_info(
       global_sid_lock->rdlock();
       m_sidno = global_sid_map->add_sid(rename_sid);
       global_sid_lock->unlock();
-      char normalized_uuid[binary_log::Uuid::TEXT_LENGTH + 1];
+      char normalized_uuid[mysql::gtid::Uuid::TEXT_LENGTH + 1];
       rename_sid.to_string(normalized_uuid);
       m_value.assign(normalized_uuid);
       break;
@@ -3509,7 +3511,8 @@ bool Applier_security_context_guard::has_access(
     for (auto tpl : extra_privileges) {
       std::tie(priv, table, event) = tpl;
 
-      if (event->get_general_type_code() == binary_log::DELETE_ROWS_EVENT) {
+      if (event->get_general_type_code() ==
+          mysql::binlog::event::DELETE_ROWS_EVENT) {
         if (this->m_current->is_table_blocked(priv, table)) return false;
       } else {
         std::vector<std::string> columns;
@@ -3540,9 +3543,10 @@ void Applier_security_context_guard::extract_columns_to_check(
     std::vector<std::string> &columns) const {
   MY_BITMAP const *bitmap{nullptr};
 
-  if (event->get_general_type_code() == binary_log::WRITE_ROWS_EVENT)
+  if (event->get_general_type_code() == mysql::binlog::event::WRITE_ROWS_EVENT)
     bitmap = event->get_cols();
-  else if (event->get_general_type_code() == binary_log::UPDATE_ROWS_EVENT)
+  else if (event->get_general_type_code() ==
+           mysql::binlog::event::UPDATE_ROWS_EVENT)
     bitmap = event->get_cols_ai();
   else
     return;

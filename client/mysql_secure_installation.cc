@@ -53,7 +53,7 @@ static char *opt_user = nullptr;
 static uint opt_port = 0;
 static uint opt_protocol = 0;
 static char *opt_socket = nullptr;
-static MYSQL mysql;
+static MYSQL mysql_handle;
 static char *password = nullptr;
 static bool password_provided = false;
 static bool g_expire_password_on_exit = false;
@@ -129,7 +129,7 @@ static void free_resources() {
   if (opt_socket) my_free(opt_socket);
   if (opt_user) my_free(opt_user);
   if (password) my_free(password);
-  mysql_close(&mysql);
+  mysql_close(&mysql_handle);
 }
 
 extern "C" {
@@ -228,20 +228,20 @@ static void execute_query_with_message(const char *query,
                                        const char *opt_message) {
   if (opt_message) fprintf(stdout, "%s", opt_message);
 
-  if (!mysql_query(&mysql, query))
+  if (!mysql_query(&mysql_handle, query))
     fprintf(stdout, "Success.\n\n");
-  else if ((mysql_errno(&mysql) == ER_PROCACCESS_DENIED_ERROR) ||
-           (mysql_errno(&mysql) == ER_TABLEACCESS_DENIED_ERROR) ||
-           (mysql_errno(&mysql) == ER_COLUMNACCESS_DENIED_ERROR)) {
+  else if ((mysql_errno(&mysql_handle) == ER_PROCACCESS_DENIED_ERROR) ||
+           (mysql_errno(&mysql_handle) == ER_TABLEACCESS_DENIED_ERROR) ||
+           (mysql_errno(&mysql_handle) == ER_COLUMNACCESS_DENIED_ERROR)) {
     fprintf(stdout,
             "The user provided does not have enough permissions "
             "to continue.\nmysql_secure_installation is exiting.\n");
     free_resources();
     exit(1);
   } else
-    fprintf(stdout, " ... Failed! Error: %s\n", mysql_error(&mysql));
+    fprintf(stdout, " ... Failed! Error: %s\n", mysql_error(&mysql_handle));
 
-  if (mysql_errno(&mysql) == CR_SERVER_GONE_ERROR) {
+  if (mysql_errno(&mysql_handle) == CR_SERVER_GONE_ERROR) {
     free_resources();
     exit(1);
   }
@@ -259,16 +259,16 @@ static void execute_query_with_message(const char *query,
             true  in case of failure
 */
 static bool execute_query(const char **query, size_t length) {
-  if (!mysql_real_query(&mysql, (const char *)*query, (ulong)length))
+  if (!mysql_real_query(&mysql_handle, (const char *)*query, (ulong)length))
     return false;
-  else if (mysql_errno(&mysql) == CR_SERVER_GONE_ERROR) {
-    fprintf(stdout, " ... Failed! Error: %s\n", mysql_error(&mysql));
+  else if (mysql_errno(&mysql_handle) == CR_SERVER_GONE_ERROR) {
+    fprintf(stdout, " ... Failed! Error: %s\n", mysql_error(&mysql_handle));
     free_resources();
     exit(1);
   }
-  if ((mysql_errno(&mysql) == ER_PROCACCESS_DENIED_ERROR) ||
-      (mysql_errno(&mysql) == ER_TABLEACCESS_DENIED_ERROR) ||
-      (mysql_errno(&mysql) == ER_COLUMNACCESS_DENIED_ERROR)) {
+  if ((mysql_errno(&mysql_handle) == ER_PROCACCESS_DENIED_ERROR) ||
+      (mysql_errno(&mysql_handle) == ER_TABLEACCESS_DENIED_ERROR) ||
+      (mysql_errno(&mysql_handle) == ER_COLUMNACCESS_DENIED_ERROR)) {
     fprintf(stdout,
             "The user provided does not have enough permissions "
             "to continue.\nmysql_secure_installation is exiting.\n");
@@ -290,7 +290,7 @@ static bool validate_password_exists() {
       "= \'file://component_validate_password\'";
   if (!execute_query(&query, strlen(query)))
     DBUG_PRINT("info", ("query success!"));
-  MYSQL_RES *result = mysql_store_result(&mysql);
+  MYSQL_RES *result = mysql_store_result(&mysql_handle);
   if (!result) return false;
   row = mysql_fetch_row(result);
   if (!row) res = false;
@@ -360,7 +360,7 @@ static int install_password_validation_component() {
                                 MYF(MY_WME));
       end = my_stpcpy(query, "SET GLOBAL validate_password.policy = ");
       *end++ = '\'';
-      end += mysql_real_escape_string_quote(&mysql, end, strength,
+      end += mysql_real_escape_string_quote(&mysql_handle, end, strength,
                                             (ulong)strength_length, '\'');
       *end++ = '\'';
       const char *query_const = query;
@@ -394,13 +394,13 @@ static void estimate_password_strength(char *password_string) {
                             MYF(MY_WME));
   end = my_stpcpy(query, "SELECT validate_password_strength(");
   *end++ = '\'';
-  end += mysql_real_escape_string_quote(&mysql, end, password_string,
+  end += mysql_real_escape_string_quote(&mysql_handle, end, password_string,
                                         (ulong)password_length, '\'');
   *end++ = '\'';
   *end++ = ')';
   const char *query_const = query;
   if (!execute_query(&query_const, (unsigned int)(end - query))) {
-    MYSQL_RES *result = mysql_store_result(&mysql);
+    MYSQL_RES *result = mysql_store_result(&mysql_handle);
     MYSQL_ROW row = mysql_fetch_row(result);
     printf("\nEstimated strength of the password: %s \n", row[0]);
     mysql_free_result(result);
@@ -527,7 +527,7 @@ static void set_opt_user_password(int component_set) {
                                 MYF(MY_WME));
       end = my_stpcpy(query, "SET PASSWORD=");
       *end++ = '\'';
-      end += mysql_real_escape_string_quote(&mysql, end, password1,
+      end += mysql_real_escape_string_quote(&mysql_handle, end, password1,
                                             (ulong)pass_length, '\'');
       *end++ = '\'';
       my_free(password1);
@@ -539,7 +539,7 @@ static void set_opt_user_password(int component_set) {
         my_free(query);
         break;
       } else
-        fprintf(stdout, " ... Failed! Error: %s\n", mysql_error(&mysql));
+        fprintf(stdout, " ... Failed! Error: %s\n", mysql_error(&mysql_handle));
     }
   }
 }
@@ -560,10 +560,10 @@ static int get_opt_user_password() {
       No password is provided on the command line. Attempt to connect using
       a blank password.
     */
-    MYSQL *con = mysql_real_connect(&mysql, opt_host, opt_user, "", "",
+    MYSQL *con = mysql_real_connect(&mysql_handle, opt_host, opt_user, "", "",
                                     opt_port, opt_socket, 0);
     if (con != nullptr ||
-        mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN) {
+        mysql_errno(&mysql_handle) == ER_MUST_CHANGE_PASSWORD_LOGIN) {
       fprintf(stdout, "Connecting to MySQL using a blank password.\n");
       my_free(password);
       password = nullptr;
@@ -575,21 +575,22 @@ static int get_opt_user_password() {
       // Request password from user
       password = get_tty_password(prompt);
     }
-    init_connection_options(&mysql);
+    init_connection_options(&mysql_handle);
   }  // if !password_provided
 
   /*
     A password candidate is identified. Use it to establish a connection.
   */
-  if (!mysql_real_connect(&mysql, opt_host, opt_user, password, "", opt_port,
-                          opt_socket, 0)) {
-    if (mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN) {
+  if (!mysql_real_connect(&mysql_handle, opt_host, opt_user, password, "",
+                          opt_port, opt_socket, 0)) {
+    if (mysql_errno(&mysql_handle) == ER_MUST_CHANGE_PASSWORD_LOGIN) {
       bool can = true;
-      init_connection_options(&mysql);
-      mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &can);
-      if (!mysql_real_connect(&mysql, opt_host, opt_user, password, "",
+      init_connection_options(&mysql_handle);
+      mysql_options(&mysql_handle, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
+                    &can);
+      if (!mysql_real_connect(&mysql_handle, opt_host, opt_user, password, "",
                               opt_port, opt_socket, 0)) {
-        fprintf(stdout, "Error: %s\n", mysql_error(&mysql));
+        fprintf(stdout, "Error: %s\n", mysql_error(&mysql_handle));
         free_resources();
         exit(1);
       }
@@ -601,8 +602,9 @@ static int get_opt_user_password() {
         it to expire.
       */
       if (using_temporary_password) {
-        if (!mysql_set_password(&mysql, password)) {
-          fprintf(stdout, "... Failed! Error: %s\n", mysql_error(&mysql));
+        if (!mysql_set_password(&mysql_handle, password)) {
+          fprintf(stdout, "... Failed! Error: %s\n",
+                  mysql_error(&mysql_handle));
           free_resources();
           exit(1);
         }
@@ -619,7 +621,7 @@ static int get_opt_user_password() {
         set_opt_user_password(0);
       }
     } else {
-      fprintf(stdout, "Error: %s\n", mysql_error(&mysql));
+      fprintf(stdout, "Error: %s\n", mysql_error(&mysql_handle));
       free_resources();
       exit(1);
     }
@@ -653,12 +655,12 @@ static void drop_users(MYSQL_RES *result) {
         ((user_length + host_length) * 2 + tmp) * sizeof(char), MYF(MY_WME));
     end = my_stpcpy(query, "DROP USER ");
     *end++ = '\'';
-    end += mysql_real_escape_string_quote(&mysql, end, user_tmp,
+    end += mysql_real_escape_string_quote(&mysql_handle, end, user_tmp,
                                           (ulong)user_length, '\'');
     *end++ = '\'';
     *end++ = '@';
     *end++ = '\'';
-    end += mysql_real_escape_string_quote(&mysql, end, host_tmp,
+    end += mysql_real_escape_string_quote(&mysql_handle, end, host_tmp,
                                           (ulong)host_length, '\'');
     *end++ = '\'';
     const char *query_const = query;
@@ -688,7 +690,7 @@ static void remove_anonymous_users() {
     query = "SELECT USER, HOST FROM mysql.user WHERE USER=''";
     if (!execute_query(&query, strlen(query)))
       DBUG_PRINT("info", ("query success!"));
-    MYSQL_RES *result = mysql_store_result(&mysql);
+    MYSQL_RES *result = mysql_store_result(&mysql_handle);
     if (result) drop_users(result);
     mysql_free_result(result);
     fprintf(stdout, "Success.\n\n");
@@ -714,7 +716,7 @@ static void remove_remote_root() {
         "AND HOST NOT IN ('localhost', '127.0.0.1', '::1')";
     if (!execute_query(&query, strlen(query)))
       DBUG_PRINT("info", ("query success!"));
-    MYSQL_RES *result = mysql_store_result(&mysql);
+    MYSQL_RES *result = mysql_store_result(&mysql_handle);
     if (result) drop_users(result);
     mysql_free_result(result);
     fprintf(stdout, "Success.\n\n");
@@ -772,7 +774,7 @@ int main(int argc, char *argv[]) {
   MY_INIT(argv[0]);
   DBUG_TRACE;
   DBUG_PROCESS(argv[0]);
-  if (mysql_init(&mysql) == nullptr) {
+  if (mysql_init(&mysql_handle) == nullptr) {
     printf("... Failed to initialize the MySQL client framework.\n");
     exit(1);
   }
@@ -796,7 +798,7 @@ int main(int argc, char *argv[]) {
     assert(0);
   }
 
-  init_connection_options(&mysql);
+  init_connection_options(&mysql_handle);
 
   fprintf(stdout, "\nSecuring the MySQL server deployment.\n\n");
 
@@ -850,12 +852,12 @@ int main(int argc, char *argv[]) {
     one.
   */
   if (g_expire_password_on_exit == true) {
-    if (mysql_expire_password(&mysql) == false) {
+    if (mysql_expire_password(&mysql_handle) == false) {
       fprintf(stdout,
               "... Failed to expire password!\n"
               "** Please consult the MySQL server documentation. **\n"
               "Error: %s\n",
-              mysql_error(&mysql));
+              mysql_error(&mysql_handle));
       // Reload privilege tables before exiting
       reload_privilege_tables();
       free_resources();

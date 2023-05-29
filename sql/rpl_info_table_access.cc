@@ -24,12 +24,12 @@
 
 #include <stddef.h>
 
-#include "libbinlogevents/include/binlog_event.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/binlog/event/binlog_event.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
 #include "mysqld_error.h"
@@ -67,7 +67,7 @@ void Rpl_info_table_access::before_open(THD *thd) {
       (thd->slave_thread &&
        ((!thd->rli_slave || !thd->rli_slave->current_event ||
          thd->rli_slave->current_event->get_type_code() !=
-             binary_log::QUERY_EVENT) ||
+             mysql::binlog::event::QUERY_EVENT) ||
         !static_cast<Query_log_event *>(thd->rli_slave->current_event)
              ->has_ddl_committed))) {
     lex_start(thd);
@@ -106,7 +106,7 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE *table,
   DBUG_EXECUTE_IF("replica_crash_after_commit_no_atomic_ddl", {
     if (thd->slave_thread && thd->rli_slave && thd->rli_slave->current_event &&
         thd->rli_slave->current_event->get_type_code() ==
-            binary_log::QUERY_EVENT &&
+            mysql::binlog::event::QUERY_EVENT &&
         !static_cast<Query_log_event *>(thd->rli_slave->current_event)
              ->has_ddl_committed) {
       assert(thd->lex->sql_command == SQLCOM_END);

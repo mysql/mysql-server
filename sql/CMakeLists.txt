@@ -940,7 +940,7 @@ ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   mysql_server_component_services mysys strings vio
-  binlogevents_static ${LIBWRAP} ${LIBDL} ${SSL_LIBRARIES}
+  mysql_binlog_event ${LIBWRAP} ${LIBDL} ${SSL_LIBRARIES}
   extra::rapidjson)
 
 # sql/immutable_string.h uses
@@ -1034,7 +1034,7 @@ SET(BINLOG_SOURCE
   stream_cipher.cc
   )
 ADD_LIBRARY(binlog STATIC ${BINLOG_SOURCE})
-TARGET_LINK_LIBRARIES(binlog binlogevents_static)
+TARGET_LINK_LIBRARIES(binlog mysql_binlog_event)
 TARGET_LINK_LIBRARIES(binlog rpl)
 
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc rpl_context.cc)
@@ -1219,7 +1219,7 @@ IF(MSVC)
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/mysqld.def
     COMMAND create_def
     "$<TARGET_FILE:binlog>"
-    "$<TARGET_FILE:binlogevents_static>"
+    "$<TARGET_FILE:mysql_binlog_event>"
     "$<TARGET_FILE:mysys>"
     "$<TARGET_FILE:mytime>"
     "$<TARGET_FILE:rpl>"
@@ -1229,7 +1229,7 @@ IF(MSVC)
     "$<TARGET_FILE:vio>"
     > mysqld.def
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}"
-    DEPENDS create_def binlog binlogevents_static mysys mytime rpl rpl_replica sql_main strings vio
+    DEPENDS create_def binlog mysql_binlog_event mysys mytime rpl rpl_replica sql_main strings vio
   )
   MY_ADD_CUSTOM_TARGET(GenMysqldDef ALL
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/mysqld.def)
@@ -1241,7 +1241,7 @@ ENDIF()
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
 TARGET_LINK_LIBRARIES(mysqld
   sql_main sql_gis binlog rpl rpl_source rpl_replica sql_dd mysys
-  minchassis binlogevents_static ext::icu)
+  minchassis mysql_binlog_event ext::icu)
 
 # Add dependency on ldap library, to ensure it is not unloaded
 # when we shutdown the authentication plugin.

@@ -2791,7 +2791,7 @@ end:
 bool Item_func_uuid_to_bin::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (Item_str_func::resolve_type(thd)) return true;
-  set_data_type_string(uint32(binary_log::Uuid::BYTE_LENGTH), &my_charset_bin);
+  set_data_type_string(uint32(mysql::gtid::Uuid::BYTE_LENGTH), &my_charset_bin);
   set_nullable(true);
   return false;
 }
@@ -2803,7 +2803,11 @@ String *Item_func_uuid_to_bin::val_str(String *str) {
   String *res = args[0]->val_str(str);
   if (!res || args[0]->null_value) return nullptr;
 
-  if (binary_log::Uuid::parse(res->ptr(), res->length(), m_bin_buf)) goto err;
+  if (mysql::gtid::Uuid::parse(res->ptr(), res->length(), m_bin_buf) != 0) {
+    const ErrConvString err(res);
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "string", err.ptr(), func_name());
+    return nullptr;
+  }
 
   /*
     If there is a second argument which is true, it means
@@ -2819,21 +2823,15 @@ String *Item_func_uuid_to_bin::val_str(String *str) {
   }
 
   null_value = false;
-  str->set(reinterpret_cast<char *>(m_bin_buf), binary_log::Uuid::BYTE_LENGTH,
+  str->set(reinterpret_cast<char *>(m_bin_buf), mysql::gtid::Uuid::BYTE_LENGTH,
            &my_charset_bin);
   return str;
-
-err:
-  const ErrConvString err(res);
-  my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "string", err.ptr(), func_name());
-
-  return nullptr;
 }
 
 bool Item_func_bin_to_uuid::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   if (Item_str_func::resolve_type(thd)) return true;
-  set_data_type_string(uint32(binary_log::Uuid::TEXT_LENGTH),
+  set_data_type_string(uint32(mysql::gtid::Uuid::TEXT_LENGTH),
                        default_charset());
   set_nullable(true);
   return false;
@@ -2846,7 +2844,11 @@ String *Item_func_bin_to_uuid::val_str_ascii(String *str) {
   String *res = args[0]->val_str(str);
   if (!res || args[0]->null_value) return nullptr;
 
-  if (res->length() != binary_log::Uuid::BYTE_LENGTH) goto err;
+  if (res->length() != mysql::gtid::Uuid::BYTE_LENGTH) {
+    const ErrConvString err(res);
+    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "string", err.ptr(), func_name());
+    return nullptr;
+  }
 
   /*
     If there is a second argument which is true,
@@ -2856,7 +2858,7 @@ String *Item_func_bin_to_uuid::val_str_ascii(String *str) {
     (time-high)-(time-mid)-(time-low) => (time-low)-(time-mid)-(time-high)
   */
   if (arg_count == 2 && args[1]->val_bool()) {
-    uchar rearranged[binary_log::Uuid::BYTE_LENGTH];
+    uchar rearranged[mysql::gtid::Uuid::BYTE_LENGTH];
     // The first 4 bytes are restored to "time-low".
     std::copy_n(&res->ptr()[4], 4, &rearranged[0]);
     // Bytes starting with 4th will be restored to "time-mid".
@@ -2865,20 +2867,14 @@ String *Item_func_bin_to_uuid::val_str_ascii(String *str) {
     std::copy_n(&res->ptr()[0], 2, &rearranged[6]);
     // The last 8 bytes were not changed so we just copy them.
     std::copy_n(&res->ptr()[8], 8, &rearranged[8]);
-    binary_log::Uuid::to_string(rearranged, m_text_buf);
+    mysql::gtid::Uuid::to_string(rearranged, m_text_buf);
   } else
-    binary_log::Uuid::to_string(reinterpret_cast<const uchar *>(res->ptr()),
-                                m_text_buf);
+    mysql::gtid::Uuid::to_string(reinterpret_cast<const uchar *>(res->ptr()),
+                                 m_text_buf);
 
   null_value = false;
-  str->set(m_text_buf, binary_log::Uuid::TEXT_LENGTH, default_charset());
+  str->set(m_text_buf, mysql::gtid::Uuid::TEXT_LENGTH, default_charset());
   return str;
-
-err:
-  const ErrConvString err(res);
-  my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "string", err.ptr(), func_name());
-
-  return nullptr;
 }
 
 longlong Item_func_is_uuid::val_int() {
@@ -2891,7 +2887,8 @@ longlong Item_func_is_uuid::val_int() {
   if (!arg_str) return 0;
 
   null_value = false;
-  return binary_log::Uuid::is_valid(arg_str->ptr(), arg_str->length());
+  return static_cast<longlong>(
+      mysql::gtid::Uuid::is_valid(arg_str->ptr(), arg_str->length()));
 }
 
 String *Item_func_lpad::val_str(String *str) {

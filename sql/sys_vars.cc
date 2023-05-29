@@ -70,9 +70,6 @@
 #include <utility>
 
 #include "ft_global.h"
-#include "libbinlogevents/include/binlog_event.h"
-#include "libbinlogevents/include/binlog_event.h"  // binary_log::max_log_event_size
-#include "libbinlogevents/include/compression/zstd_comp.h"  // DEFAULT_COMPRESSION_LEVEL
 #include "m_string.h"
 #include "my_aes.h"  // my_aes_opmode_names
 #include "my_command.h"
@@ -86,7 +83,9 @@
 #include "my_thread.h"
 #include "my_thread_local.h"
 #include "my_time.h"
-#include "myisam.h"  // myisam_flush
+#include "myisam.h"                           // myisam_flush
+#include "mysql/binlog/event/binlog_event.h"  // mysql::binlog::event::max_log_event_size
+#include "mysql/binlog/event/compression/zstd_comp.h"  // DEFAULT_COMPRESSION_LEVEL
 #include "mysql/plugin_group_replication.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/strings/dtoa.h"
@@ -1509,7 +1508,7 @@ static Sys_var_uint Sys_binlog_transaction_compression_level_zstd(
     "transaction compression in the binary log.",
     SESSION_VAR(binlog_trx_compression_level_zstd), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(1, 22),
-    DEFAULT(binary_log::transaction::compression::Zstd_comp::
+    DEFAULT(mysql::binlog::event::compression::Zstd_comp::
                 default_compression_level),
     BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_binlog_trx_compression), ON_UPDATE(nullptr));
@@ -2905,8 +2904,8 @@ static Sys_var_ulong Sys_replica_max_allowed_packet(
     "The maximum size of packets sent from an upstream source server to this "
     "server.",
     GLOBAL_VAR(replica_max_allowed_packet), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1024, binary_log::max_log_event_size),
-    DEFAULT(binary_log::max_log_event_size), BLOCK_SIZE(1024));
+    VALID_RANGE(1024, mysql::binlog::event::max_log_event_size),
+    DEFAULT(mysql::binlog::event::max_log_event_size), BLOCK_SIZE(1024));
 
 static Sys_var_deprecated_alias Sys_slave_max_allowed_packet(
     "slave_max_allowed_packet", Sys_replica_max_allowed_packet);
@@ -4299,14 +4298,14 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var) {
     mysql_bin_log.rotate(true, &check_purge);
     if (alg_changed)
       mysql_bin_log.checksum_alg_reset =
-          binary_log::BINLOG_CHECKSUM_ALG_UNDEF;  // done
+          mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF;  // done
   } else {
     binlog_checksum_options =
         static_cast<ulong>(var->save_result.ulonglong_value);
   }
   assert(binlog_checksum_options == var->save_result.ulonglong_value);
   assert(mysql_bin_log.checksum_alg_reset ==
-         binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+         mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
 
   if (check_purge) mysql_bin_log.auto_purge();
@@ -4808,8 +4807,9 @@ static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
     "log events in the binary log. Possible values are NONE and CRC32; "
     "default is CRC32.",
     GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
-    binlog_checksum_type_names, DEFAULT(binary_log::BINLOG_CHECKSUM_ALG_CRC32),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_trx));
+    binlog_checksum_type_names,
+    DEFAULT(mysql::binlog::event::BINLOG_CHECKSUM_ALG_CRC32), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(check_outside_trx));
 
 static Sys_var_bool Sys_source_verify_checksum(
     "source_verify_checksum",

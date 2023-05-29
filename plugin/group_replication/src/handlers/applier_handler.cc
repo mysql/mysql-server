@@ -124,10 +124,11 @@ int Applier_handler::handle_event(Pipeline_event *event, Continuation *cont) {
     server applier, this event is only need for certification,
     performed on the previous handler.
   */
-  if (event->get_event_type() != binary_log::TRANSACTION_CONTEXT_EVENT) {
+  if (event->get_event_type() !=
+      mysql::binlog::event::TRANSACTION_CONTEXT_EVENT) {
     error = channel_interface.queue_packet((const char *)p->payload, p->len);
 
-    if (event->get_event_type() == binary_log::GTID_LOG_EVENT) {
+    if (event->get_event_type() == mysql::binlog::event::GTID_LOG_EVENT) {
       applier_module->get_pipeline_stats_member_collector()
           ->increment_transactions_waiting_apply();
     }

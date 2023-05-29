@@ -28,11 +28,11 @@
 #include <set>
 #include <utility>
 
-#include "libbinlogevents/include/binlog_event.h"  // SEQ_UNINIT
 #include "log_event.h"
 #include "my_inttypes.h"
-#include "my_thread_local.h"   // my_thread_id
-#include "prealloced_array.h"  // Prealloced_array
+#include "my_thread_local.h"                  // my_thread_id
+#include "mysql/binlog/event/binlog_event.h"  // SEQ_UNINIT
+#include "prealloced_array.h"                 // Prealloced_array
 
 class Log_event;
 class Query_log_event;
@@ -116,9 +116,9 @@ class Mts_submode_database : public Mts_submode {
                                           Log_event &ev) override;
 
  private:
-  bool unfold_transaction_payload_event(Format_description_event &fde,
-                                        Transaction_payload_log_event &tple,
-                                        std::vector<Log_event *> &events);
+  bool unfold_transaction_payload_event(
+      mysql::binlog::event::Format_description_event &fde,
+      Transaction_payload_log_event &tple, std::vector<Log_event *> &events);
 };
 
 /**

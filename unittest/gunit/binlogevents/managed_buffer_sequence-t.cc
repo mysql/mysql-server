@@ -21,19 +21,20 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "libbinlogevents/include/buffer/managed_buffer_sequence.h"
+#include "mysql/binlog/event/compression/buffer/managed_buffer_sequence.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <functional>  // std::function
 #include <iterator>    // std::distance
 
-#include "libbinlogevents/include/math/math.h"
-#include "libbinlogevents/include/string/concat.h"
+#include "mysql/binlog/event/math/math.h"
+#include "mysql/binlog/event/string/concat.h"
 
-using mysqlns::string::concat;
+using mysql::binlog::event::string::concat;
 
-namespace mysqlns::buffer::managed_buffer_sequence::unittest {
+namespace mysql::binlog::event::compression::buffer {
+namespace managed_buffer_sequence::unittest {
 
 /// "Token" used for the template argument for Accessor.  In case
 /// another unittest needs an Accessor too, the use of different
@@ -41,8 +42,8 @@ namespace mysqlns::buffer::managed_buffer_sequence::unittest {
 class Grow_test_access_token {};
 
 template <>
-class Accessor<mysqlns::buffer::managed_buffer_sequence::unittest::
-                   Grow_test_access_token> {
+class Accessor<mysql::binlog::event::compression::buffer::
+                   managed_buffer_sequence::unittest::Grow_test_access_token> {
  public:
   /// Export Grow_buffer_sequence::get_boundaries
   template <class MBS, class BS>
@@ -59,17 +60,15 @@ class Accessor<mysqlns::buffer::managed_buffer_sequence::unittest::
   }
 };
 
-using Access = Accessor<
-    mysqlns::buffer::managed_buffer_sequence::unittest::Grow_test_access_token>;
+using Access =
+    Accessor<mysql::binlog::event::compression::buffer::
+                 managed_buffer_sequence::unittest::Grow_test_access_token>;
 
-}  // namespace mysqlns::buffer::managed_buffer_sequence::unittest
-
-namespace mysqlns::buffer::managed_buffer_sequence::unittest {
-
-using Grow_status_t = mysqlns::buffer::Grow_status;
-using Size_t = mysqlns::buffer::Buffer_view<>::Size_t;
+using Grow_status_t = mysql::binlog::event::compression::buffer::Grow_status;
+using Size_t = mysql::binlog::event::compression::buffer::Buffer_view<>::Size_t;
 using Debug_function = const std::function<std::string(std::string)>;
-using Difference_t = mysqlns::buffer::Rw_buffer_sequence<>::Difference_t;
+using Difference_t = mysql::binlog::event::compression::buffer::
+    Rw_buffer_sequence<>::Difference_t;
 
 // Return the current file and line as a string delimited and ended by
 // colons.
@@ -384,10 +383,11 @@ class Grow_tester {
 
     // offset of each part boundary from beginning of container
     auto end_distance = [&](Size_t s) {
-      return mysqlns::math::ceil_div(s, buffer_size);
+      return mysql::binlog::event::math::ceil_div(s, buffer_size);
     };
     auto begin_distance = [&](Size_t s) {
-      if (s == capacity) return mysqlns::math::ceil_div(s, buffer_size);
+      if (s == capacity)
+        return mysql::binlog::event::math::ceil_div(s, buffer_size);
       return s / buffer_size;
     };
     auto r_end = end_distance(position);
@@ -502,4 +502,5 @@ TEST(ManagedBufferSequenceTest, CombinatorialGrowTestUcharList) {
   Grow_tester<unsigned char, std::list>().combinatorial_grow_test();
 }
 
-}  // namespace mysqlns::buffer::managed_buffer_sequence::unittest
+}  // namespace managed_buffer_sequence::unittest
+}  // namespace mysql::binlog::event::compression::buffer

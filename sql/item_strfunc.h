@@ -30,7 +30,7 @@
 #include <cstdint>  // uint32_t
 
 #include "lex_string.h"
-#include "libbinlogevents/include/uuid.h"  // Uuid
+#include "mysql/gtid/uuid.h"  // Uuid
 
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
@@ -839,7 +839,7 @@ class Item_func_lpad final : public Item_str_func {
 
 class Item_func_uuid_to_bin final : public Item_str_func {
   /// Buffer to store the binary result
-  uchar m_bin_buf[binary_log::Uuid::BYTE_LENGTH];
+  uchar m_bin_buf[mysql::gtid::Uuid::BYTE_LENGTH];
 
  public:
   Item_func_uuid_to_bin(const POS &pos, Item *arg1)
@@ -853,7 +853,7 @@ class Item_func_uuid_to_bin final : public Item_str_func {
 
 class Item_func_bin_to_uuid final : public Item_str_ascii_func {
   /// Buffer to store the text result
-  char m_text_buf[binary_log::Uuid::TEXT_LENGTH + 1];
+  char m_text_buf[mysql::gtid::Uuid::TEXT_LENGTH + 1];
 
  public:
   Item_func_bin_to_uuid(const POS &pos, Item *arg1)

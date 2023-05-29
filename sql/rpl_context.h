@@ -26,11 +26,11 @@
 #include <sys/types.h>
 #include <memory>
 
-#include "libbinlogevents/include/compression/compressor.h"  // binary_log::transaction::compression::Compressor
-#include "libbinlogevents/include/nodiscard.h"
-#include "my_inttypes.h"  // IWYU pragma: keep
+#include "my_inttypes.h"                                // IWYU pragma: keep
+#include "mysql/binlog/event/compression/compressor.h"  // mysql::binlog::event::compression::Compressor
+#include "mysql/binlog/event/nodiscard.h"
 
-#include "libbinlogevents/include/compression/factory.h"
+#include "mysql/binlog/event/compression/factory.h"
 #include "sql/binlog/group_commit/bgc_ticket.h"
 #include "sql/memory/aligned_atomic.h"
 #include "sql/resource_blocker.h"  // resource_blocker::User
@@ -269,9 +269,10 @@ class Last_used_gtid_tracker_ctx {
 };
 
 class Transaction_compression_ctx {
-  using Compressor_t = binary_log::transaction::compression::Compressor;
-  using Grow_calculator_t = mysqlns::buffer::Grow_calculator;
-  using Factory_t = binary_log::transaction::compression::Factory;
+  using Compressor_t = mysql::binlog::event::compression::Compressor;
+  using Grow_calculator_t =
+      mysql::binlog::event::compression::buffer::Grow_calculator;
+  using Factory_t = mysql::binlog::event::compression::Factory;
 
  public:
   using Compressor_ptr_t = std::shared_ptr<Compressor_t>;

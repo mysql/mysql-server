@@ -867,6 +867,7 @@ INCLUDE(fprofile)
 INCLUDE(gloves)
 INCLUDE(fido2)
 INCLUDE(win_jemalloc)
+INCLUDE(libs_mysql_create_library)
 
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
@@ -1639,6 +1640,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/libs
   )
 
 IF(WITH_LTO)
@@ -2219,8 +2221,8 @@ ADD_SUBDIRECTORY(strings)
 ADD_SUBDIRECTORY(vio)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)
-ADD_SUBDIRECTORY(libbinlogevents)
-ADD_SUBDIRECTORY(libbinlogstandalone)
+# Directory for MySQL Database libraries (Client/Server)
+ADD_SUBDIRECTORY(libs/mysql)
 ADD_SUBDIRECTORY(libchangestreams)
 ADD_SUBDIRECTORY(sql-common/oci)
 

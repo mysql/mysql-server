@@ -48,10 +48,6 @@
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
 #include "compression.h"
-#include "libbinlogevents/include/codecs/factory.h"
-#include "libbinlogevents/include/compression/factory.h"
-#include "libbinlogevents/include/compression/payload_event_buffer_istream.h"
-#include "libbinlogevents/include/trx_boundary_parser.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -60,6 +56,10 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_time.h"
+#include "mysql/binlog/event/codecs/factory.h"
+#include "mysql/binlog/event/compression/factory.h"
+#include "mysql/binlog/event/compression/payload_event_buffer_istream.h"
+#include "mysql/binlog/event/trx_boundary_parser.h"
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
 #include "nulls.h"
@@ -79,6 +79,11 @@
 
 #include <tuple>
 
+using mysql::binlog::event::Binary_log_event;
+using mysql::binlog::event::checksum_crc32;
+using mysql::binlog::event::enum_binlog_checksum_alg;
+using mysql::binlog::event::Format_description_event;
+using mysql::binlog::event::Log_event_type;
 using std::max;
 using std::min;
 
@@ -139,9 +144,9 @@ class Database_rewrite {
     };
 
     Rewrite_payload_result rewrite_inner_events(
-        binary_log::transaction::compression::type compression_type,
+        mysql::binlog::event::compression::type compression_type,
         const char *orig_payload, std::size_t orig_payload_size,
-        const binary_log::Format_description_event &fde) {
+        const mysql::binlog::event::Format_description_event &fde) {
       // to return error or not
       auto err{false};
       auto error_val = Rewrite_payload_result{nullptr, 0, 0, 0, true};
@@ -158,7 +163,7 @@ class Database_rewrite {
 
       // stream to decompress events
       using Buffer_istream_t =
-          binary_log::transaction::compression::Payload_event_buffer_istream;
+          mysql::binlog::event::compression::Payload_event_buffer_istream;
       using Buffer_ptr_t = Buffer_istream_t::Buffer_ptr_t;
 
       Buffer_istream_t istream(
@@ -168,13 +173,13 @@ class Database_rewrite {
 
       // compressor to compress again
       using Compress_status_t =
-          binary_log::transaction::compression::Compress_status;
+          mysql::binlog::event::compression::Compress_status;
       using Managed_buffer_sequence_t =
-          mysqlns::buffer::Managed_buffer_sequence<>;
+          mysql::binlog::event::compression::buffer::Managed_buffer_sequence<>;
       using Char_t = Managed_buffer_sequence_t::Char_t;
       Managed_buffer_sequence_t managed_buffer_sequence;
       auto compressor =
-          binary_log::transaction::compression::Factory::build_compressor(
+          mysql::binlog::event::compression::Factory::build_compressor(
               compression_type);
 
       // rewrite and compress
@@ -239,10 +244,11 @@ class Database_rewrite {
      */
     Rewrite_result rewrite_transaction_payload(
         unsigned char *buffer, std::size_t buffer_capacity,
-        binary_log::Format_description_event const &fde) {
+        mysql::binlog::event::Format_description_event const &fde) {
       assert(buffer[EVENT_TYPE_OFFSET] ==
-             binary_log::TRANSACTION_PAYLOAD_EVENT);
-      binary_log::Transaction_payload_event tpe((const char *)buffer, &fde);
+             mysql::binlog::event::TRANSACTION_PAYLOAD_EVENT);
+      mysql::binlog::event::Transaction_payload_event tpe(
+          reinterpret_cast<char *>(buffer), &fde);
 
       auto orig_payload{tpe.get_payload()};
       auto orig_payload_size{tpe.get_payload_size()};
@@ -255,7 +261,7 @@ class Database_rewrite {
 
       auto rewrite_payload_res{false};
       auto has_crc{fde.footer()->checksum_alg ==
-                   binary_log::BINLOG_CHECKSUM_ALG_CRC32};
+                   mysql::binlog::event::BINLOG_CHECKSUM_ALG_CRC32};
 
       // Rewrite its contents as needed
       std::tie(rewritten_payload, rewritten_payload_capacity,
@@ -267,15 +273,15 @@ class Database_rewrite {
       if (rewrite_payload_res) return Rewrite_result{nullptr, 0, 0, true};
 
       // create a new TPE with the new buffer
-      binary_log::Transaction_payload_event new_tpe(
+      mysql::binlog::event::Transaction_payload_event new_tpe(
           reinterpret_cast<const char *>(rewritten_payload),
           rewritten_payload_size, orig_payload_compression_type,
           rewritten_payload_uncompressed_size);
 
       // start encoding it
-      auto codec =
-          binary_log::codecs::Factory::build_codec(tpe.header()->type_code);
-      uchar tpe_buffer[binary_log::Transaction_payload_event::
+      auto codec = mysql::binlog::event::codecs::Factory::build_codec(
+          tpe.header()->type_code);
+      uchar tpe_buffer[mysql::binlog::event::Transaction_payload_event::
                            max_payload_data_header_length];
       auto result = codec->encode(new_tpe, tpe_buffer, sizeof(tpe_buffer));
       if (result.second == true) return Rewrite_result{nullptr, 0, 0, true};
@@ -355,7 +361,7 @@ class Database_rewrite {
   */
   std::tuple<my_off_t, my_off_t, bool, bool> get_dbname_and_dblen_offsets(
       const unsigned char *buffer, size_t buffer_size,
-      binary_log::Format_description_event const &fde) {
+      mysql::binlog::event::Format_description_event const &fde) {
     my_off_t off_dbname = 0;
     my_off_t off_dbname_len = 0;
     bool error = false;
@@ -363,7 +369,7 @@ class Database_rewrite {
     auto event_type = (Log_event_type)buffer[EVENT_TYPE_OFFSET];
 
     switch (event_type) {
-      case binary_log::TABLE_MAP_EVENT: {
+      case mysql::binlog::event::TABLE_MAP_EVENT: {
         /*
           Before rewriting:
 
@@ -374,13 +380,14 @@ class Database_rewrite {
           Note that table map log event uses only one byte for database length.
 
         */
-        off_dbname_len = fde.common_header_len +
-                         fde.post_header_len[binary_log::TABLE_MAP_EVENT - 1];
+        off_dbname_len =
+            fde.common_header_len +
+            fde.post_header_len[mysql::binlog::event::TABLE_MAP_EVENT - 1];
         off_dbname = off_dbname_len + 1;
         needs_rewrite_check = true;
       } break;
-      case binary_log::EXECUTE_LOAD_QUERY_EVENT:
-      case binary_log::QUERY_EVENT: {
+      case mysql::binlog::event::EXECUTE_LOAD_QUERY_EVENT:
+      case mysql::binlog::event::QUERY_EVENT: {
         /*
           The QUERY_EVENT buffer structure:
 
@@ -410,7 +417,7 @@ class Database_rewrite {
         */
         const uint8 common_header_len = fde.common_header_len;
         uint8 query_header_len =
-            fde.post_header_len[binary_log::QUERY_EVENT - 1];
+            fde.post_header_len[mysql::binlog::event::QUERY_EVENT - 1];
         const unsigned char *ptr = buffer;
         uint sv_len = 0;
 
@@ -423,14 +430,15 @@ class Database_rewrite {
 
         /* Check if there are status variables in the event */
         if ((query_header_len -
-             binary_log::Query_event::QUERY_HEADER_MINIMAL_LEN) > 0) {
-          sv_len = uint2korr(ptr + common_header_len +
-                             binary_log::Query_event::Q_STATUS_VARS_LEN_OFFSET);
+             mysql::binlog::event::Query_event::QUERY_HEADER_MINIMAL_LEN) > 0) {
+          sv_len = uint2korr(
+              ptr + common_header_len +
+              mysql::binlog::event::Query_event::Q_STATUS_VARS_LEN_OFFSET);
         }
 
         /* now we have a pointer to the position where the database is. */
-        off_dbname_len =
-            common_header_len + binary_log::Query_event::Q_DB_LEN_OFFSET;
+        off_dbname_len = common_header_len +
+                         mysql::binlog::event::Query_event::Q_DB_LEN_OFFSET;
         off_dbname = common_header_len + query_header_len + sv_len;
 
         if (off_dbname_len > buffer_size || off_dbname > buffer_size) {
@@ -438,7 +446,7 @@ class Database_rewrite {
           goto end;
         }
 
-        if (event_type == binary_log::EXECUTE_LOAD_QUERY_EVENT)
+        if (event_type == mysql::binlog::event::EXECUTE_LOAD_QUERY_EVENT)
           off_dbname += Binary_log_event::EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN;
         needs_rewrite_check = true;
       } break;
@@ -451,10 +459,10 @@ class Database_rewrite {
                            error);
   }
 
-  Rewrite_result rewrite_event(unsigned char *buffer, size_t buffer_capacity,
-                               size_t data_size,
-                               binary_log::Format_description_event const &fde,
-                               bool recalculate_crc = false) {
+  Rewrite_result rewrite_event(
+      unsigned char *buffer, size_t buffer_capacity, size_t data_size,
+      mysql::binlog::event::Format_description_event const &fde,
+      bool recalculate_crc = false) {
     auto the_buffer{buffer};
     auto the_buffer_capacity{buffer_capacity};
     auto the_data_size{data_size};
@@ -550,10 +558,10 @@ class Database_rewrite {
    */
   bool is_rewrite_needed_for_event(Log_event_type event_type) {
     switch (event_type) {
-      case binary_log::TABLE_MAP_EVENT:
-      case binary_log::EXECUTE_LOAD_QUERY_EVENT:
-      case binary_log::QUERY_EVENT:
-      case binary_log::TRANSACTION_PAYLOAD_EVENT:
+      case mysql::binlog::event::TABLE_MAP_EVENT:
+      case mysql::binlog::event::EXECUTE_LOAD_QUERY_EVENT:
+      case mysql::binlog::event::QUERY_EVENT:
+      case mysql::binlog::event::TRANSACTION_PAYLOAD_EVENT:
         return true;
       default:
         return false;
@@ -612,17 +620,17 @@ class Database_rewrite {
             - The event data size.
             - A boolean specifying whether there was an error or not.
    */
-  Rewrite_result rewrite_raw(unsigned char *buffer, size_t buffer_capacity,
-                             size_t data_size,
-                             binary_log::Format_description_event const &fde,
-                             bool skip_transaction_payload_event = false) {
+  Rewrite_result rewrite_raw(
+      unsigned char *buffer, size_t buffer_capacity, size_t data_size,
+      mysql::binlog::event::Format_description_event const &fde,
+      bool skip_transaction_payload_event = false) {
     assert(buffer_capacity >= data_size);
     auto event_type = (Log_event_type)buffer[EVENT_TYPE_OFFSET];
     if (m_dict.empty() || !is_rewrite_needed_for_event(event_type))
       return Rewrite_result{buffer, buffer_capacity, data_size, false};
 
     switch (event_type) {
-      case binary_log::TRANSACTION_PAYLOAD_EVENT: {
+      case mysql::binlog::event::TRANSACTION_PAYLOAD_EVENT: {
         if (!skip_transaction_payload_event) {
           if (m_transaction_payload_rewriter == nullptr)
             m_transaction_payload_rewriter =
@@ -634,8 +642,8 @@ class Database_rewrite {
                                 false};
       }
       default: {
-        bool recalculate_crc =
-            fde.footer()->checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_CRC32;
+        bool recalculate_crc = fde.footer()->checksum_alg ==
+                               mysql::binlog::event::BINLOG_CHECKSUM_ALG_CRC32;
         return rewrite_event(buffer, buffer_capacity, data_size, fde,
                              recalculate_crc);
       }
@@ -655,9 +663,9 @@ class Database_rewrite {
             the rewritten buffer capacity, the rewritten buffer meaningful
             bytes, and whether there was an error or not.
    */
-  Rewrite_result rewrite(unsigned char *buffer, size_t buffer_capacity,
-                         size_t data_size,
-                         binary_log::Format_description_event const &fde) {
+  Rewrite_result rewrite(
+      unsigned char *buffer, size_t buffer_capacity, size_t data_size,
+      mysql::binlog::event::Format_description_event const &fde) {
     return rewrite_raw(buffer, buffer_capacity, data_size, fde, true);
   }
 };
@@ -771,7 +779,7 @@ static ulonglong start_position, stop_position;
 static char *start_datetime_str, *stop_datetime_str;
 static my_time_t start_datetime = 0, stop_datetime = MYTIME_MAX_VALUE;
 static ulonglong rec_count = 0;
-static MYSQL *mysql = nullptr;
+static MYSQL *mysql_handle = nullptr;
 static char *dirname_for_local_load = nullptr;
 static uint opt_server_id_bits = 0;
 ulong opt_server_id_mask = 0;
@@ -1116,8 +1124,8 @@ static bool shall_skip_gtids(const Log_event *ev) {
   bool filtered = false;
 
   switch (ev->get_type_code()) {
-    case binary_log::GTID_LOG_EVENT:
-    case binary_log::ANONYMOUS_GTID_LOG_EVENT: {
+    case mysql::binlog::event::GTID_LOG_EVENT:
+    case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT: {
       Gtid_log_event *gtid =
           const_cast<Gtid_log_event *>(down_cast<const Gtid_log_event *>(ev));
       if (opt_include_gtids_str != nullptr) {
@@ -1133,7 +1141,7 @@ static bool shall_skip_gtids(const Log_event *ev) {
       filtered = filtered || opt_skip_gtids;
     } break;
     /* Skip previous gtids if --skip-gtids is set. */
-    case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
+    case mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT:
       filtered = opt_skip_gtids;
       break;
 
@@ -1151,11 +1159,11 @@ static bool shall_skip_gtids(const Log_event *ev) {
       Events on the second file would not be outputted, even
       though they should.
     */
-    case binary_log::XID_EVENT:
+    case mysql::binlog::event::XID_EVENT:
       filtered = filter_based_on_gtids;
       filter_based_on_gtids = false;
       break;
-    case binary_log::QUERY_EVENT:
+    case mysql::binlog::event::QUERY_EVENT:
       filtered = filter_based_on_gtids;
       if (down_cast<const Query_log_event *>(ev)->ends_group())
         filter_based_on_gtids = false;
@@ -1177,12 +1185,12 @@ static bool shall_skip_gtids(const Log_event *ev) {
       In this case, ROTATE and FD events should be processed and
       outputted.
     */
-    case binary_log::SLAVE_EVENT: /* for completion */
-    case binary_log::STOP_EVENT:
-    case binary_log::FORMAT_DESCRIPTION_EVENT:
-    case binary_log::ROTATE_EVENT:
-    case binary_log::IGNORABLE_LOG_EVENT:
-    case binary_log::INCIDENT_EVENT:
+    case mysql::binlog::event::SLAVE_EVENT: /* for completion */
+    case mysql::binlog::event::STOP_EVENT:
+    case mysql::binlog::event::FORMAT_DESCRIPTION_EVENT:
+    case mysql::binlog::event::ROTATE_EVENT:
+    case mysql::binlog::event::IGNORABLE_LOG_EVENT:
+    case mysql::binlog::event::INCIDENT_EVENT:
       filtered = false;
       break;
     default:
@@ -1382,8 +1390,8 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
   */
   if (((rec_count >= offset) &&
        ((my_time_t)(ev->common_header->when.tv_sec) >= start_datetime)) ||
-      (ev_type == binary_log::FORMAT_DESCRIPTION_EVENT)) {
-    if (ev_type != binary_log::FORMAT_DESCRIPTION_EVENT) {
+      (ev_type == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT)) {
+    if (ev_type != mysql::binlog::event::FORMAT_DESCRIPTION_EVENT) {
       /*
         We have found an event after start_datetime, from now on print
         everything (in case the binlog has timestamps increasing and
@@ -1399,8 +1407,8 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         the format_description event so that we can parse subsequent
         events.
       */
-      if (ev_type != binary_log::ROTATE_EVENT && filter_server_id &&
-          (filter_server_id != ev->server_id))
+      if (ev_type != mysql::binlog::event::ROTATE_EVENT &&
+          filter_server_id != 0 && (filter_server_id != ev->server_id))
         goto end;
     }
 
@@ -1432,11 +1440,11 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
     if (shall_skip_gtids(ev)) goto end;
 
     switch (ev_type) {
-      case binary_log::TRANSACTION_PAYLOAD_EVENT:
+      case mysql::binlog::event::TRANSACTION_PAYLOAD_EVENT:
         ev->print(result_file, print_event_info);
         if (head->error == -1) goto err;
         break;
-      case binary_log::QUERY_EVENT: {
+      case mysql::binlog::event::QUERY_EVENT: {
         Query_log_event *qle = (Query_log_event *)ev;
         const bool parent_query_skips =
             !qle->is_trans_keyword() && shall_skip_database(qle->db);
@@ -1497,7 +1505,9 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         break;
       }
 
-      case binary_log::INTVAR_EVENT: {
+      case mysql::binlog::event::INTVAR_EVENT:
+      case mysql::binlog::event::RAND_EVENT:
+      case mysql::binlog::event::USER_VAR_EVENT: {
         buff_event.event = ev;
         buff_event.event_pos = pos;
         buff_ev->push_back(buff_event);
@@ -1505,22 +1515,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         break;
       }
 
-      case binary_log::RAND_EVENT: {
-        buff_event.event = ev;
-        buff_event.event_pos = pos;
-        buff_ev->push_back(buff_event);
-        ev = nullptr;
-        break;
-      }
-
-      case binary_log::USER_VAR_EVENT: {
-        buff_event.event = ev;
-        buff_event.event_pos = pos;
-        buff_ev->push_back(buff_event);
-        ev = nullptr;
-        break;
-      }
-      case binary_log::APPEND_BLOCK_EVENT:
+      case mysql::binlog::event::APPEND_BLOCK_EVENT:
         /*
           Append_block_log_events can safely print themselves even if
           the subsequent call load_processor.process fails, because the
@@ -1532,7 +1527,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
             OK_CONTINUE)
           goto end;
         break;
-      case binary_log::FORMAT_DESCRIPTION_EVENT: {
+      case mysql::binlog::event::FORMAT_DESCRIPTION_EVENT: {
         /*
           end_binlog is not called on faked fd and relay log's fd.
           Faked FD's log_pos is always 0.
@@ -1575,14 +1570,14 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         }
         break;
       }
-      case binary_log::BEGIN_LOAD_QUERY_EVENT:
+      case mysql::binlog::event::BEGIN_LOAD_QUERY_EVENT:
         ev->print(result_file, print_event_info);
         if (head->error == -1) goto err;
         if ((retval = load_processor.process(
                  (Begin_load_query_log_event *)ev)) != OK_CONTINUE)
           goto end;
         break;
-      case binary_log::EXECUTE_LOAD_QUERY_EVENT: {
+      case mysql::binlog::event::EXECUTE_LOAD_QUERY_EVENT: {
         Execute_load_query_log_event *exlq = (Execute_load_query_log_event *)ev;
         char *fname = load_processor.grab_fname(exlq->file_id);
         if (shall_skip_database(exlq->db))
@@ -1605,7 +1600,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         if (fname) my_free(fname);
         break;
       }
-      case binary_log::TABLE_MAP_EVENT: {
+      case mysql::binlog::event::TABLE_MAP_EVENT: {
         Table_map_log_event *map = ((Table_map_log_event *)ev);
         if (shall_skip_database(map->get_db_name())) {
           print_event_info->skipped_event_in_transaction = true;
@@ -1616,23 +1611,23 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         }
       }
         [[fallthrough]];
-      case binary_log::ROWS_QUERY_LOG_EVENT:
-      case binary_log::WRITE_ROWS_EVENT:
-      case binary_log::DELETE_ROWS_EVENT:
-      case binary_log::UPDATE_ROWS_EVENT:
-      case binary_log::WRITE_ROWS_EVENT_V1:
-      case binary_log::UPDATE_ROWS_EVENT_V1:
-      case binary_log::DELETE_ROWS_EVENT_V1:
-      case binary_log::PARTIAL_UPDATE_ROWS_EVENT: {
+      case mysql::binlog::event::ROWS_QUERY_LOG_EVENT:
+      case mysql::binlog::event::WRITE_ROWS_EVENT:
+      case mysql::binlog::event::DELETE_ROWS_EVENT:
+      case mysql::binlog::event::UPDATE_ROWS_EVENT:
+      case mysql::binlog::event::WRITE_ROWS_EVENT_V1:
+      case mysql::binlog::event::UPDATE_ROWS_EVENT_V1:
+      case mysql::binlog::event::DELETE_ROWS_EVENT_V1:
+      case mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT: {
         bool stmt_end = false;
         Table_map_log_event *ignored_map = nullptr;
-        if (ev_type == binary_log::WRITE_ROWS_EVENT ||
-            ev_type == binary_log::DELETE_ROWS_EVENT ||
-            ev_type == binary_log::UPDATE_ROWS_EVENT ||
-            ev_type == binary_log::WRITE_ROWS_EVENT_V1 ||
-            ev_type == binary_log::DELETE_ROWS_EVENT_V1 ||
-            ev_type == binary_log::UPDATE_ROWS_EVENT_V1 ||
-            ev_type == binary_log::PARTIAL_UPDATE_ROWS_EVENT) {
+        if (ev_type == mysql::binlog::event::WRITE_ROWS_EVENT ||
+            ev_type == mysql::binlog::event::DELETE_ROWS_EVENT ||
+            ev_type == mysql::binlog::event::UPDATE_ROWS_EVENT ||
+            ev_type == mysql::binlog::event::WRITE_ROWS_EVENT_V1 ||
+            ev_type == mysql::binlog::event::DELETE_ROWS_EVENT_V1 ||
+            ev_type == mysql::binlog::event::UPDATE_ROWS_EVENT_V1 ||
+            ev_type == mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT) {
           Rows_log_event *new_ev = (Rows_log_event *)ev;
           if (new_ev->get_flags(Rows_log_event::STMT_END_F)) stmt_end = true;
           ignored_map = print_event_info->m_table_map_ignored.get_table(
@@ -1702,8 +1697,8 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
           row events.
         */
         if (!print_event_info->printed_fd_event && !short_form &&
-            ev_type != binary_log::TABLE_MAP_EVENT &&
-            ev_type != binary_log::ROWS_QUERY_LOG_EVENT &&
+            ev_type != mysql::binlog::event::TABLE_MAP_EVENT &&
+            ev_type != mysql::binlog::event::ROWS_QUERY_LOG_EVENT &&
             opt_base64_output_mode != BASE64_OUTPUT_DECODE_ROWS) {
           const char *type_str = ev->get_type_str();
           if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
@@ -1740,8 +1735,8 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         }
         break;
       }
-      case binary_log::ANONYMOUS_GTID_LOG_EVENT:
-      case binary_log::GTID_LOG_EVENT: {
+      case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT:
+      case mysql::binlog::event::GTID_LOG_EVENT: {
         seen_gtid = true;
         print_event_info->immediate_server_version =
             down_cast<Gtid_log_event *>(ev)->immediate_server_version;
@@ -1754,7 +1749,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         if (head->error == -1) goto err;
         break;
       }
-      case binary_log::XID_EVENT: {
+      case mysql::binlog::event::XID_EVENT: {
         in_transaction = false;
         print_event_info->skipped_event_in_transaction = false;
         seen_gtid = false;
@@ -1762,7 +1757,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         if (head->error == -1) goto err;
         break;
       }
-      case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
+      case mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT:
         if (one_database && !opt_skip_gtids)
           warning(
               "The option --database has been used. It may filter "
@@ -2167,7 +2162,7 @@ static void cleanup() {
   }
   delete buff_ev;
 
-  if (mysql) mysql_close(mysql);
+  if (mysql_handle) mysql_close(mysql_handle);
 }
 
 static void usage() {
@@ -2343,59 +2338,60 @@ static Exit_status safe_connect() {
     at new connect attempt. The final safe_connect resources
     are mysql_closed at the end of program, explicitly.
   */
-  mysql_close(mysql);
-  mysql = mysql_init(nullptr);
+  mysql_close(mysql_handle);
+  mysql_handle = mysql_init(nullptr);
 
-  if (!mysql) {
+  if (!mysql_handle) {
     error("Failed on mysql_init.");
     return ERROR_STOP;
   }
 
-  if (SSL_SET_OPTIONS(mysql)) {
+  if (SSL_SET_OPTIONS(mysql_handle)) {
     error("%s", SSL_SET_OPTIONS_ERROR);
     return ERROR_STOP;
   }
   if (opt_plugin_dir && *opt_plugin_dir)
-    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+    mysql_options(mysql_handle, MYSQL_PLUGIN_DIR, opt_plugin_dir);
 
   if (opt_compress_algorithm)
-    mysql_options(mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+    mysql_options(mysql_handle, MYSQL_OPT_COMPRESSION_ALGORITHMS,
                   opt_compress_algorithm);
 
-  mysql_options(mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+  mysql_options(mysql_handle, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
                 &opt_zstd_compress_level);
 
   if (opt_default_auth && *opt_default_auth)
-    mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+    mysql_options(mysql_handle, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
   if (opt_protocol)
-    mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
-  if (opt_bind_addr) mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
+    mysql_options(mysql_handle, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
+  if (opt_bind_addr) mysql_options(mysql_handle, MYSQL_OPT_BIND, opt_bind_addr);
 
-  if (opt_compress) mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
+  if (opt_compress) mysql_options(mysql_handle, MYSQL_OPT_COMPRESS, NullS);
 
 #if defined(_WIN32)
   if (shared_memory_base_name)
-    mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
+    mysql_options(mysql_handle, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
 #endif
-  mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, nullptr);
-  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name",
+  mysql_options(mysql_handle, MYSQL_OPT_CONNECT_ATTR_RESET, nullptr);
+  mysql_options4(mysql_handle, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name",
                  "mysqlbinlog");
-  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_client_role",
+  mysql_options4(mysql_handle, MYSQL_OPT_CONNECT_ATTR_ADD, "_client_role",
                  "binary_log_listener");
-  set_server_public_key(mysql);
-  set_get_server_public_key_option(mysql);
+  set_server_public_key(mysql_handle);
+  set_get_server_public_key_option(mysql_handle);
 
-  if (!mysql_real_connect(mysql, host, user, pass, nullptr, port, sock, 0)) {
-    error("Failed on connect: %s", mysql_error(mysql));
+  if (!mysql_real_connect(mysql_handle, host, user, pass, nullptr, port, sock,
+                          0)) {
+    error("Failed on connect: %s", mysql_error(mysql_handle));
     return ERROR_STOP;
   }
 
   if (ssl_client_check_post_connect_ssl_setup(
-          mysql, [](const char *err) { error("%s", err); }))
+          mysql_handle, [](const char *err) { error("%s", err); }))
     return ERROR_STOP;
-  mysql->reconnect = true;
+  mysql_handle->reconnect = true;
   return OK_CONTINUE;
 }
 
@@ -2518,10 +2514,10 @@ static Exit_status check_master_version() {
   MYSQL_ROW row;
   const char *version;
 
-  if (mysql_query(mysql, "SELECT VERSION()") ||
-      !(res = mysql_store_result(mysql))) {
+  if (mysql_query(mysql_handle, "SELECT VERSION()") ||
+      !(res = mysql_store_result(mysql_handle))) {
     error("Could not find server version: Query failed: %s",
-          mysql_error(mysql));
+          mysql_error(mysql_handle));
     return ERROR_STOP;
   }
   if (!(row = mysql_fetch_row(res))) {
@@ -2543,13 +2539,13 @@ static Exit_status check_master_version() {
      necessary checksummed.
      That preference is specified below.
   */
-  if (mysql_query(mysql,
+  if (mysql_query(mysql_handle,
                   "SET @master_binlog_checksum = 'NONE', "
                   "@source_binlog_checksum = 'NONE'")) {
     error(
         "Could not notify source server about checksum awareness."
         "Server returned '%s'",
-        mysql_error(mysql));
+        mysql_error(mysql_handle));
     goto err;
   }
 
@@ -2695,26 +2691,28 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     rpl.gtid_set_arg = (void *)gtid_set_excluded;
   }
 
-  if (mysql_binlog_open(mysql, &rpl)) {
-    error("Open binlog error: %s", mysql_error(mysql));
+  if (mysql_binlog_open(mysql_handle, &rpl)) {
+    error("Open binlog error: %s", mysql_error(mysql_handle));
     return ERROR_STOP;
   }
 
-  Transaction_boundary_parser transaction_parser(
-      Transaction_boundary_parser::TRX_BOUNDARY_PARSER_RECEIVER);
+  mysql::binlog::event::Transaction_boundary_parser transaction_parser(
+      mysql::binlog::event::Transaction_boundary_parser::
+          TRX_BOUNDARY_PARSER_RECEIVER);
   transaction_parser.reset();
 
   for (;;) {
     bool res{false};
-    if (mysql_binlog_fetch(mysql, &rpl))  // Error packet
+    if (mysql_binlog_fetch(mysql_handle, &rpl))  // Error packet
     {
-      error("Got error reading packet from server: %s", mysql_error(mysql));
+      error("Got error reading packet from server: %s",
+            mysql_error(mysql_handle));
       return ERROR_STOP;
     } else if (rpl.size == 0)  // EOF
       break;
 
     DBUG_PRINT("info", ("len: %lu  net->read_pos[5]: %d\n", rpl.size,
-                        mysql->net.read_pos[5]));
+                        mysql_handle->net.read_pos[5]));
     /*
       In raw mode We only need the full event details if it is a
       ROTATE_EVENT or FORMAT_DESCRIPTION_EVENT
@@ -2743,8 +2741,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       return ERROR_STOP;
     }
 
-    if (!raw_mode || (type == binary_log::ROTATE_EVENT) ||
-        (type == binary_log::FORMAT_DESCRIPTION_EVENT)) {
+    if (!raw_mode || (type == mysql::binlog::event::ROTATE_EVENT) ||
+        (type == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT)) {
       Binlog_read_error read_status = binlog_event_deserialize(
           reinterpret_cast<unsigned char *>(event_buf), event_len,
           &glob_description_event, opt_verify_binlog_checksum, &ev);
@@ -2767,7 +2765,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         detection below: relay logs contain Rotate events which are about the
         binlogs, so which would trigger the end-detection below.
       */
-      if (type == binary_log::ROTATE_EVENT) {
+      if (type == mysql::binlog::event::ROTATE_EVENT) {
         Rotate_log_event *rev = (Rotate_log_event *)ev;
         /*
           If this is a fake Rotate event, and not about our log, we can stop
@@ -2807,7 +2805,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           rpl.size = 1;  // fake Rotate, so don't increment old_off
           event_len = 0;
         }
-      } else if (type == binary_log::FORMAT_DESCRIPTION_EVENT) {
+      } else if (type == mysql::binlog::event::FORMAT_DESCRIPTION_EVENT) {
         /*
           This could be an fake Format_description_log_event that server
           (5.0+) automatically sends to a slave on connect, before sending
@@ -2843,7 +2841,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
       if (opt_require_row_format) {
         bool info_error{false};
-        binary_log::Log_event_basic_info log_event_info;
+        mysql::binlog::event::Log_event_basic_info log_event_info;
         std::tie(info_error, log_event_info) = extract_log_event_basic_info(
             (const char *)event_buf, event_len, &glob_description_event);
 
@@ -2890,7 +2888,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     */
     old_off += rpl.size - 1;
   }
-  mysql_binlog_close(mysql, &rpl);
+  mysql_binlog_close(mysql_handle, &rpl);
   return OK_CONTINUE;
 }
 
@@ -3059,8 +3057,9 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     return ERROR_STOP;
   }
 
-  Transaction_boundary_parser transaction_parser(
-      Transaction_boundary_parser::TRX_BOUNDARY_PARSER_APPLIER);
+  mysql::binlog::event::Transaction_boundary_parser transaction_parser(
+      mysql::binlog::event::Transaction_boundary_parser::
+          TRX_BOUNDARY_PARSER_APPLIER);
   transaction_parser.reset();
 
   if (fdle != nullptr) {
@@ -3103,7 +3102,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
 
     if (opt_require_row_format) {
       bool info_error{false};
-      binary_log::Log_event_basic_info log_event_info;
+      mysql::binlog::event::Log_event_basic_info log_event_info;
       std::tie(info_error, log_event_info) = extract_log_event_basic_info(ev);
 
       if (!info_error) {
@@ -3407,9 +3406,10 @@ void Transaction_payload_log_event::print(FILE *,
   DBUG_TRACE;
 
   bool has_crc{(glob_description_event.footer()->checksum_alg ==
-                binary_log::BINLOG_CHECKSUM_ALG_CRC32)};
+                mysql::binlog::event::BINLOG_CHECKSUM_ALG_CRC32)};
   Format_description_event fde_no_crc = glob_description_event;
-  fde_no_crc.footer()->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+  fde_no_crc.footer()->checksum_alg =
+      mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
 
   IO_CACHE *const head = &info->head_cache;
   size_t current_buffer_size = 1024;
@@ -3431,7 +3431,7 @@ void Transaction_payload_log_event::print(FILE *,
 
   // print the payload
   using Buffer_istream_t =
-      binary_log::transaction::compression::Payload_event_buffer_istream;
+      mysql::binlog::event::compression::Payload_event_buffer_istream;
   Buffer_istream_t istream(*this);
   Buffer_istream_t::Buffer_ptr_t original_event_buffer;
   while (istream >> original_event_buffer) {
@@ -3498,9 +3498,9 @@ void Transaction_payload_log_event::print(FILE *,
       //   deferred events have to keep a copy of the buffer
       //   they are output only when the correct event comes
       //   later (Query_log_event)
-      case binary_log::INTVAR_EVENT: /* purecov: inspected */
-      case binary_log::RAND_EVENT:
-      case binary_log::USER_VAR_EVENT:
+      case mysql::binlog::event::INTVAR_EVENT: /* purecov: inspected */
+      case mysql::binlog::event::RAND_EVENT:
+      case mysql::binlog::event::USER_VAR_EVENT:
         is_deferred_event = true; /* purecov: inspected */
         break;                    /* purecov: inspected */
       default:

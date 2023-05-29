@@ -143,6 +143,7 @@
 #include "sql/log_event.h"     /* Log_event_type */
 #include "sql/rpl_constants.h" /* mysql_binlog_XXX() */
 
+using mysql::binlog::event::Log_event_type;
 using std::string;
 using std::swap;
 
@@ -7445,8 +7446,8 @@ int STDCALL mysql_binlog_fetch(MYSQL *mysql, MYSQL_RPL *rpl) {
     if (rpl->flags & MYSQL_RPL_SKIP_HEARTBEAT) {
       const Log_event_type event_type =
           (Log_event_type)net->read_pos[1 + EVENT_TYPE_OFFSET];
-      if ((event_type == binary_log::HEARTBEAT_LOG_EVENT) ||
-          (event_type == binary_log::HEARTBEAT_LOG_EVENT_V2))
+      if ((event_type == mysql::binlog::event::HEARTBEAT_LOG_EVENT) ||
+          (event_type == mysql::binlog::event::HEARTBEAT_LOG_EVENT_V2))
         continue;
     }
 

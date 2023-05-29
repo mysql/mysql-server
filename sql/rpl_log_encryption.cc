@@ -25,9 +25,9 @@
 #include <string.h>
 #include <algorithm>
 #include <sstream>
-#include "libbinlogevents/include/event_reader.h"
 #include "mutex_lock.h"
 #include "my_byteorder.h"
+#include "mysql/binlog/event/event_reader.h"
 #include "scope_guard.h"
 #include "sql/basic_istream.h"
 #include "sql/basic_ostream.h"
@@ -35,9 +35,9 @@
 
 #ifdef MYSQL_SERVER
 #include "keyring_operations_helper.h"
-#include "libbinlogevents/include/byteorder.h"
 #include "my_aes.h"
 #include "my_rnd.h"
+#include "mysql/binlog/event/byteorder.h"
 #include "mysql/components/services/log_builtins.h"
 #include "sql/binlog.h"
 #include "sql/rpl_replica.h"
@@ -1082,7 +1082,7 @@ bool Rpl_encryption_header_v1::deserialize(Basic_istream *istream) {
   m_iv.clear();
 
   const char *header_buffer = reinterpret_cast<char *>(header);
-  binary_log::Event_reader reader(header_buffer, HEADER_SIZE);
+  mysql::binlog::event::Event_reader reader(header_buffer, HEADER_SIZE);
   reader.go_to(OPTIONAL_FIELD_OFFSET);
   uint8_t field_type = 0;
 

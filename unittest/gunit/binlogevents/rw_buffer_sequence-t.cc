@@ -21,16 +21,17 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "libbinlogevents/include/buffer/rw_buffer_sequence.h"
+#include "mysql/binlog/event/compression/buffer/rw_buffer_sequence.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "libbinlogevents/include/string/concat.h"
+#include "mysql/binlog/event/string/concat.h"
 
-using mysqlns::string::concat;
+using mysql::binlog::event::string::concat;
 
-namespace mysqlns::buffer::rw_buffer_sequence::unittest {
+namespace mysql::binlog::event::compression::buffer {
+namespace rw_buffer_sequence::unittest {
 
 template <class Rw_buffer_sequence_tp>
 class Reposition_tester {
@@ -147,4 +148,5 @@ TEST(RwBufferSequenceTest, CombinatorialRepositionTestUcharList) {
   Reposition_tester<Rw_buffer_sequence<unsigned char, std::list>>().test();
 }
 
-}  // namespace mysqlns::buffer::rw_buffer_sequence::unittest
+}  // namespace rw_buffer_sequence::unittest
+}  // namespace mysql::binlog::event::compression::buffer

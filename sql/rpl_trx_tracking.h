@@ -28,7 +28,7 @@
 #include <atomic>
 #include <map>
 
-#include "libbinlogevents/include/binlog_event.h"
+#include "mysql/binlog/event/binlog_event.h"
 
 #include "my_inttypes.h"
 

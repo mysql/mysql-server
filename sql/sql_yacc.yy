@@ -60,7 +60,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "field_types.h"
 #include "ft_global.h"
 #include "lex_string.h"
-#include "libbinlogevents/include/binlog_event.h"
+#include "mysql/binlog/event/binlog_event.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_base.h"
@@ -3326,7 +3326,7 @@ assign_gtids_to_anonymous_transactions_def:
           {
             Lex->mi.assign_gtids_to_anonymous_transactions_type = LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID;
             Lex->mi.assign_gtids_to_anonymous_transactions_manual_uuid = $1.str;
-            if (!binary_log::Uuid::is_valid($1.str, binary_log::Uuid::TEXT_LENGTH))
+            if (!mysql::gtid::Uuid::is_valid($1.str, mysql::gtid::Uuid::TEXT_LENGTH))
             {
               my_error(ER_WRONG_VALUE, MYF(0), "UUID", $1.str);
               MYSQL_YYABORT;

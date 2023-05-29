@@ -221,7 +221,7 @@ int table_binary_log_transaction_compression_stats::read_row_values(
         case 1: /** COMPRESSION_TYPE */
         {
           const std::string s_type =
-              binary_log::transaction::compression::type_to_string(
+              mysql::binlog::event::compression::type_to_string(
                   row->get_type());
           set_field_varchar_utf8mb4(f, s_type.c_str(), s_type.size());
           break;

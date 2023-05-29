@@ -29,12 +29,13 @@
 #include <atomic>
 #include <utility>
 
-#include "libbinlogevents/include/binlog_event.h"  // enum_binlog_checksum_alg
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
+#include "mysql/binlog/event/binlog_event.h"  // enum_binlog_checksum_alg
+#include "mysql/binlog/event/trx_boundary_parser.h"
 #include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_cond_bits.h"
@@ -354,7 +355,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     (A)    - checksum algorithm descriptor value
     FD.(A) - the value of (A) in FD
   */
-  binary_log::enum_binlog_checksum_alg relay_log_checksum_alg;
+  mysql::binlog::event::enum_binlog_checksum_alg relay_log_checksum_alg;
 
   MYSQL_BIN_LOG(uint *sync_period, bool relay_log = false);
   ~MYSQL_BIN_LOG() override;
@@ -436,9 +437,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
     of all lost GTIDs in the binary log, and stores each set in
     respective argument.
 
-    @param gtid_set Will be filled with all GTIDs in this binary/relay
+    @param all_gtids Will be filled with all GTIDs in this binary/relay
     log.
-    @param lost_groups Will be filled with all GTIDs in the
+    @param lost_gtids Will be filled with all GTIDs in the
     Previous_gtids_log_event of the first binary log that has a
     Previous_gtids_log_event. This is requested to binary logs but not
     to relay logs.
@@ -456,11 +457,11 @@ class MYSQL_BIN_LOG : public TC_LOG {
     @param is_server_starting True if the server is starting.
     @return false on success, true on error.
   */
-  bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
-                      bool verify_checksum, bool need_lock,
-                      Transaction_boundary_parser *trx_parser,
-                      Gtid_monitoring_info *partial_trx,
-                      bool is_server_starting = false);
+  bool init_gtid_sets(
+      Gtid_set *all_gtids, Gtid_set *lost_gtids, bool verify_checksum,
+      bool need_lock,
+      mysql::binlog::event::Transaction_boundary_parser *trx_parser,
+      Gtid_monitoring_info *partial_trx, bool is_server_starting = false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param) {
     assert(is_relay_log);

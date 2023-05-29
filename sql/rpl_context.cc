@@ -24,11 +24,11 @@
 
 #include <stddef.h>
 
-#include "libbinlogevents/include/compression/factory.h"
-#include "libbinlogevents/include/control_events.h"  // Transaction_payload_event
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
+#include "mysql/binlog/event/compression/factory.h"
+#include "mysql/binlog/event/control_events.h"  // Transaction_payload_event
 #include "sql/binlog/group_commit/bgc_ticket_manager.h"  // Bgc_ticket_manager
 #include "sql/binlog_ostream.h"
 #include "sql/psi_memory_resource.h"  // memory_resource
@@ -210,7 +210,7 @@ Transaction_compression_ctx::Transaction_compression_ctx(PSI_memory_key key)
 
 Transaction_compression_ctx::Compressor_ptr_t
 Transaction_compression_ctx::get_compressor(THD *thd) {
-  auto ctype = (binary_log::transaction::compression::type)
+  auto ctype = (mysql::binlog::event::compression::type)
                    thd->variables.binlog_trx_compression_type;
 
   if (m_compressor == nullptr || (m_compressor->get_type_code() != ctype)) {

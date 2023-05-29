@@ -25,11 +25,11 @@
 #include <unordered_map>
 #include <utility>
 
-#include "libbinlogevents/include/control_events.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/binlog/event/control_events.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"  // IWYU pragma: keep
 #include "prealloced_array.h"
@@ -62,7 +62,7 @@ enum_return_status Sid_map::clear() {
 rpl_sidno Sid_map::add_sid(const rpl_sid &sid) {
   DBUG_TRACE;
 #ifndef NDEBUG
-  char buf[binary_log::Uuid::TEXT_LENGTH + 1];
+  char buf[mysql::gtid::Uuid::TEXT_LENGTH + 1];
   sid.to_string(buf);
   DBUG_PRINT("info", ("SID=%s", buf));
 #endif
@@ -130,7 +130,7 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid) {
             rpl_sidno *sorted_p = &_sorted[sorted_i];
             const rpl_sid &other_sid = sidno_to_sid(*sorted_p);
             if (memcmp(sid.bytes, other_sid.bytes,
-                       binary_log::Uuid::BYTE_LENGTH) >= 0)
+                       mysql::gtid::Uuid::BYTE_LENGTH) >= 0)
               break;
             memcpy(prev_sorted_p, sorted_p, sizeof(rpl_sidno));
             sorted_i--;

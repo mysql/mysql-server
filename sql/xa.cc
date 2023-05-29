@@ -119,7 +119,8 @@ void xid_t::set(my_xid xid) {
   bqual_length = 0;
 }
 
-xid_t &xid_t::operator=(binary_log::XA_prepare_event::MY_XID const &rhs) {
+xid_t &xid_t::operator=(
+    mysql::binlog::event::XA_prepare_event::MY_XID const &rhs) {
   this->set_format_id(rhs.formatID);
   this->set_gtrid_length(rhs.gtrid_length);
   this->set_bqual_length(rhs.bqual_length);

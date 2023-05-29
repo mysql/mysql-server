@@ -25,8 +25,8 @@
 
 #include <queue>
 
-#include "libbinlogevents/include/compression/payload_event_buffer_istream.h"
-#include "libbinlogevents/include/nodiscard.h"
+#include "mysql/binlog/event/compression/payload_event_buffer_istream.h"
+#include "mysql/binlog/event/nodiscard.h"
 #include "sql/binlog_reader.h"
 #include "sql/raii/targeted_stringstream.h"
 
@@ -66,13 +66,13 @@ namespace binlog {
 class Decompressing_event_object_istream {
  public:
   using Buffer_stream_t =
-      binary_log::transaction::compression::Payload_event_buffer_istream;
+      mysql::binlog::event::compression::Payload_event_buffer_istream;
   using Buffer_view_t = Buffer_stream_t::Buffer_view_t;
   using Buffer_ptr_t = Buffer_stream_t::Buffer_ptr_t;
   using Event_ptr_t = std::shared_ptr<Log_event>;
   using Tple_ptr_t = std::shared_ptr<const Transaction_payload_log_event>;
-  using Fde_ref_t = const Format_description_event &;
-  using Status_t = binary_log::transaction::compression::Decompress_status;
+  using Fde_ref_t = const mysql::binlog::event::Format_description_event &;
+  using Status_t = mysql::binlog::event::compression::Decompress_status;
   using Grow_calculator_t = Buffer_stream_t::Grow_calculator_t;
 
   /// Construct stream over a file, decompressing payload events.

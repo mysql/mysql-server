@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/rpl_binlog_sender.h"
-#include "libbinlogevents/include/codecs/factory.h"
+#include "mysql/binlog/event/codecs/factory.h"
 
 #include <stdio.h>
 #include <algorithm>
@@ -31,7 +31,6 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "libbinlogevents/include/binlog_event.h"  // binary_log::max_log_event_size
 #include "map_helpers.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -40,6 +39,7 @@
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql.h"
+#include "mysql/binlog/event/binlog_event.h"  // mysql::binlog::event::max_log_event_size
 #include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/my_loglevel.h"
@@ -70,13 +70,18 @@
 #ifndef NDEBUG
 static uint binlog_dump_count = 0;
 #endif
-using binary_log::checksum_crc32;
+using mysql::binlog::event::checksum_crc32;
 
 const uint32 Binlog_sender::PACKET_MIN_SIZE = 4096;
 const uint32 Binlog_sender::PACKET_MAX_SIZE = UINT_MAX32;
 const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD = 100;
 const float Binlog_sender::PACKET_GROW_FACTOR = 2.0;
 const float Binlog_sender::PACKET_SHRINK_FACTOR = 0.5;
+
+using mysql::binlog::event::Binary_log_event;
+using mysql::binlog::event::enum_binlog_checksum_alg;
+using mysql::binlog::event::Log_event_footer;
+using mysql::binlog::event::Log_event_type;
 
 /**
   @class Observe_transmission_guard
@@ -106,27 +111,30 @@ class Observe_transmission_guard {
     @param prev_event_type The type of the event processed just before the
                            current one
   */
-  Observe_transmission_guard(bool &flag, binary_log::Log_event_type event_type,
-                             const char *event_ptr,
-                             binary_log::enum_binlog_checksum_alg checksum_alg,
-                             binary_log::Log_event_type prev_event_type)
+  Observe_transmission_guard(
+      bool &flag, mysql::binlog::event::Log_event_type event_type,
+      const char *event_ptr,
+      mysql::binlog::event::enum_binlog_checksum_alg checksum_alg,
+      mysql::binlog::event::Log_event_type prev_event_type)
       : m_saved(flag), m_to_set(flag) {
     if (opt_replication_sender_observe_commit_only) {
       switch (event_type) {
-        case binary_log::TRANSACTION_PAYLOAD_EVENT:
-        case binary_log::XID_EVENT:
-        case binary_log::XA_PREPARE_LOG_EVENT: {
+        case mysql::binlog::event::TRANSACTION_PAYLOAD_EVENT:
+        case mysql::binlog::event::XID_EVENT:
+        case mysql::binlog::event::XA_PREPARE_LOG_EVENT: {
           m_to_set = true;
           break;
         }
-        case binary_log::QUERY_EVENT: {
+        case mysql::binlog::event::QUERY_EVENT: {
           bool first_event_after_gtid =
-              prev_event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT ||
-              prev_event_type == binary_log::GTID_LOG_EVENT;
+              prev_event_type ==
+                  mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT ||
+              prev_event_type == mysql::binlog::event::GTID_LOG_EVENT;
 
           Format_description_log_event fd_ev;
           fd_ev.common_footer->checksum_alg = checksum_alg;
-          Query_log_event ev(event_ptr, &fd_ev, binary_log::QUERY_EVENT);
+          Query_log_event ev(event_ptr, &fd_ev,
+                             mysql::binlog::event::QUERY_EVENT);
           if (first_event_after_gtid)
             m_to_set = (strcmp("BEGIN", ev.query) != 0);
           else
@@ -173,7 +181,7 @@ class Sender_context_guard {
                       of the next event processing round.
   */
   Sender_context_guard(Binlog_sender &target,
-                       binary_log::Log_event_type event_type)
+                       mysql::binlog::event::Log_event_type event_type)
       : m_target(target), m_event_type(event_type) {}
 
   /**
@@ -188,7 +196,7 @@ class Sender_context_guard {
   /** The object to be guarded */
   Binlog_sender &m_target;
   /** The currently being processed event type */
-  binary_log::Log_event_type m_event_type;
+  mysql::binlog::event::Log_event_type m_event_type;
 };
 
 /**
@@ -251,7 +259,7 @@ Binlog_sender::Binlog_sender(THD *thd, const char *start_file,
       m_flag(flag),
       m_observe_transmission(false),
       m_transmit_started(false),
-      m_prev_event_type(binary_log::UNKNOWN_EVENT) {}
+      m_prev_event_type(mysql::binlog::event::UNKNOWN_EVENT) {}
 
 void Binlog_sender::init() {
   DBUG_TRACE;
@@ -344,7 +352,7 @@ void Binlog_sender::init() {
   m_wait_new_events =
       !((thd->server_id == 0) || ((m_flag & BINLOG_DUMP_NON_BLOCK) != 0));
   /* Binary event can be vary large. So set it to max allowed packet. */
-  thd->variables.max_allowed_packet = binary_log::max_log_event_size;
+  thd->variables.max_allowed_packet = mysql::binlog::event::max_log_event_size;
 
 #ifndef NDEBUG
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
@@ -595,7 +603,7 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
     if (unlikely(check_event_type(event_type, log_file, log_pos))) return 1;
 
     DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid", {
-      if (event_type == binary_log::XID_EVENT) {
+      if (event_type == mysql::binlog::event::XID_EVENT) {
         thd->get_protocol()->flush();
         const char act[] =
             "now "
@@ -680,7 +688,7 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
 
 bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
                                      my_off_t log_pos) {
-  if (type == binary_log::ANONYMOUS_GTID_LOG_EVENT) {
+  if (type == mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT) {
     /*
       Normally, there will not be any anonymous events when
       auto_position is enabled, since both the master and the slave
@@ -716,7 +724,7 @@ bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
       set_fatal_error(buf);
       return true;
     }
-  } else if (type == binary_log::GTID_LOG_EVENT) {
+  } else if (type == mysql::binlog::event::GTID_LOG_EVENT) {
     /*
       Normally, there will not be any GTID events when master has
       GTID_MODE=OFF, since GTID events are not generated when
@@ -742,7 +750,7 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr,
 
   uint8 event_type = (Log_event_type)event_ptr[LOG_EVENT_OFFSET];
   switch (event_type) {
-    case binary_log::GTID_LOG_EVENT: {
+    case mysql::binlog::event::GTID_LOG_EVENT: {
       Format_description_log_event fd_ev;
       fd_ev.common_footer->checksum_alg = m_event_checksum_alg;
       Gtid_log_event gtid_ev(reinterpret_cast<const char *>(event_ptr), &fd_ev);
@@ -751,7 +759,7 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr,
       gtid.gno = gtid_ev.get_gno();
       return m_exclude_gtid->contains_gtid(gtid);
     }
-    case binary_log::ROTATE_EVENT:
+    case mysql::binlog::event::ROTATE_EVENT:
       return false;
   }
   return in_exclude_group;
@@ -992,7 +1000,7 @@ extern TYPELIB binlog_checksum_typelib;
 void Binlog_sender::init_checksum_alg() {
   DBUG_TRACE;
 
-  m_slave_checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
+  m_slave_checksum_alg = mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF;
 
   /* Protects m_thd->user_vars. */
   mysql_mutex_lock(&m_thd->LOCK_thd_data);
@@ -1004,7 +1012,8 @@ void Binlog_sender::init_checksum_alg() {
   if (uv && uv->ptr()) {
     m_slave_checksum_alg = static_cast<enum_binlog_checksum_alg>(
         find_type(uv->ptr(), &binlog_checksum_typelib, 1) - 1);
-    assert(m_slave_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);
+    assert(m_slave_checksum_alg <
+           mysql::binlog::event::BINLOG_CHECKSUM_ALG_ENUM_END);
   }
 
   mysql_mutex_unlock(&m_thd->LOCK_thd_data);
@@ -1039,7 +1048,7 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
     real and fake Rotate events (if necessary)
   */
   int4store(header, 0);
-  header[EVENT_TYPE_OFFSET] = binary_log::ROTATE_EVENT;
+  header[EVENT_TYPE_OFFSET] = mysql::binlog::event::ROTATE_EVENT;
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, static_cast<uint32>(event_len));
   int4store(header + LOG_POS_OFFSET, 0);
@@ -1101,7 +1110,8 @@ int Binlog_sender::send_format_description_event(File_reader &reader,
        Log_event::get_type_str((Log_event_type)event_ptr[EVENT_TYPE_OFFSET])));
 
   if (event_ptr == nullptr ||
-      event_ptr[EVENT_TYPE_OFFSET] != binary_log::FORMAT_DESCRIPTION_EVENT) {
+      event_ptr[EVENT_TYPE_OFFSET] !=
+          mysql::binlog::event::FORMAT_DESCRIPTION_EVENT) {
     set_fatal_error("Could not find format_description_event in binlog file");
     return 1;
   }
@@ -1121,11 +1131,13 @@ int Binlog_sender::send_format_description_event(File_reader &reader,
   m_event_checksum_alg =
       Log_event_footer::get_checksum_alg((const char *)event_ptr, event_len);
 
-  assert(m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END ||
-         m_event_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+  assert(m_event_checksum_alg <
+             mysql::binlog::event::BINLOG_CHECKSUM_ALG_ENUM_END ||
+         m_event_checksum_alg ==
+             mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF);
 
   /* Slave does not support checksum, but binary events include checksum */
-  if (m_slave_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF &&
+  if (m_slave_checksum_alg == mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF &&
       event_checksum_on()) {
     set_fatal_error(
         "Replica can not handle replication events with the "
@@ -1185,7 +1197,8 @@ int Binlog_sender::has_previous_gtid_log_event(File_reader &reader,
     return 1;
   }
 
-  *found = (event[EVENT_TYPE_OFFSET] == binary_log::PREVIOUS_GTIDS_LOG_EVENT);
+  *found = (event[EVENT_TYPE_OFFSET] ==
+            mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT);
   return 0;
 }
 
@@ -1270,7 +1283,7 @@ int Binlog_sender::send_heartbeat_event_v1(my_off_t log_pos) {
 
   /* Timestamp field */
   int4store(header, 0);
-  header[EVENT_TYPE_OFFSET] = binary_log::HEARTBEAT_LOG_EVENT;
+  header[EVENT_TYPE_OFFSET] = mysql::binlog::event::HEARTBEAT_LOG_EVENT;
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
   int4store(header + LOG_POS_OFFSET, static_cast<uint32>(log_pos));
@@ -1283,12 +1296,12 @@ int Binlog_sender::send_heartbeat_event_v2(my_off_t log_pos) {
   DBUG_TRACE;
   DBUG_EXECUTE_IF("heartbeat_event_with_position_greater_than_4_gb",
                   { assert(log_pos > 4294967296); };);
-  auto codec = binary_log::codecs::Factory::build_codec(
-      binary_log::HEARTBEAT_LOG_EVENT_V2);
+  auto codec = mysql::binlog::event::codecs::Factory::build_codec(
+      mysql::binlog::event::HEARTBEAT_LOG_EVENT_V2);
   const char *filename = m_linfo.log_file_name;
   const char *p = filename + dirname_length(filename);
   const std::string log_filename{p, strlen(p)};
-  binary_log::Heartbeat_event_v2 hb{};
+  mysql::binlog::event::Heartbeat_event_v2 hb{};
   const size_t binlog_checksum_size =
       (event_checksum_on() ? BINLOG_CHECKSUM_LEN : 0);
   const size_t max_event_len =
@@ -1312,7 +1325,7 @@ int Binlog_sender::send_heartbeat_event_v2(my_off_t log_pos) {
   // craft the header by hand
   /* Timestamp field */
   int4store(header, 0);
-  header[EVENT_TYPE_OFFSET] = binary_log::HEARTBEAT_LOG_EVENT_V2;
+  header[EVENT_TYPE_OFFSET] = mysql::binlog::event::HEARTBEAT_LOG_EVENT_V2;
   int4store(header + SERVER_ID_OFFSET, server_id);
   int4store(header + EVENT_LEN_OFFSET, event_len);
   int4store(header + LOG_POS_OFFSET, static_cast<uint32>(log_pos));

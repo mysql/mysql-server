@@ -24,12 +24,12 @@
 #include <atomic>
 
 #include "lex_string.h"
-#include "libbinlogevents/include/control_events.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_systime.h"
+#include "mysql/binlog/event/control_events.h"
 #include "mysql/components/services/bits/psi_stage_bits.h"
 #include "mysql/components/services/log_builtins.h"  //LogErr
 #include "mysql/psi/mysql_mutex.h"
@@ -662,7 +662,7 @@ int Gtid_state::init() {
   global_sid_lock->assert_some_wrlock();
 
   rpl_sid server_sid{};
-  if (server_sid.parse(server_uuid, binary_log::Uuid::TEXT_LENGTH) != 0)
+  if (server_sid.parse(server_uuid, mysql::gtid::Uuid::TEXT_LENGTH) != 0)
     return 1;
   rpl_sidno sidno = sid_map->add_sid(server_sid);
   if (sidno <= 0) return 1;

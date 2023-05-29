@@ -24,10 +24,10 @@
 #include <sstream>
 #include <string>
 
-#include "libbinlogevents/include/gtids/gtid.h"
-#include "libbinlogevents/include/gtids/gtidset.h"
+#include "mysql/gtid/gtid.h"
+#include "mysql/gtid/gtidset.h"
 
-namespace binary_log::gtids::unittests {
+namespace mysql::gtid::unittests {
 
 const std::string DEFAULT_UUID1 = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const std::string DEFAULT_UUID2 = "aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb";
@@ -36,21 +36,21 @@ const std::string INVALID_UUID = "-aaaa-aaaa-aaaa-bbbbbbbbbbbb";
 
 class GtidsTest : public ::testing::Test {
  protected:
-  binary_log::gtids::Uuid valid_uuid1;
-  binary_log::gtids::Uuid valid_uuid2;
-  binary_log::gtids::Uuid valid_uuid3;
-  binary_log::gtids::Uuid invalid_uuid;
+  mysql::gtid::Uuid valid_uuid1;
+  mysql::gtid::Uuid valid_uuid2;
+  mysql::gtid::Uuid valid_uuid3;
+  mysql::gtid::Uuid invalid_uuid;
 
-  binary_log::gtids::Gtid gtid1_1{valid_uuid1, 0};
-  binary_log::gtids::Gtid gtid1_2{valid_uuid1, 0};
-  binary_log::gtids::Gtid gtid1_100{valid_uuid1, 0};
-  binary_log::gtids::Gtid gtid2_1{valid_uuid2, 0};
-  binary_log::gtids::Gtid gtid2_2{valid_uuid2, 0};
-  binary_log::gtids::Gtid gtid2_1000{valid_uuid2, 0};
-  binary_log::gtids::Gtid gtid3_1{valid_uuid3, 0};
-  binary_log::gtids::Gtid gtid3_2{valid_uuid3, 0};
-  binary_log::gtids::Gtid gtid1_1_copy{valid_uuid1, 0};
-  binary_log::gtids::Gtid gtid__1{invalid_uuid, 0};
+  mysql::gtid::Gtid gtid1_1{valid_uuid1, 0};
+  mysql::gtid::Gtid gtid1_2{valid_uuid1, 0};
+  mysql::gtid::Gtid gtid1_100{valid_uuid1, 0};
+  mysql::gtid::Gtid gtid2_1{valid_uuid2, 0};
+  mysql::gtid::Gtid gtid2_2{valid_uuid2, 0};
+  mysql::gtid::Gtid gtid2_1000{valid_uuid2, 0};
+  mysql::gtid::Gtid gtid3_1{valid_uuid3, 0};
+  mysql::gtid::Gtid gtid3_2{valid_uuid3, 0};
+  mysql::gtid::Gtid gtid1_1_copy{valid_uuid1, 0};
+  mysql::gtid::Gtid gtid__1{invalid_uuid, 0};
 
   GtidsTest() = default;
 
@@ -79,7 +79,7 @@ class GtidsTest : public ::testing::Test {
 };
 
 TEST_F(GtidsTest, GtidCopyAssignment) {
-  binary_log::gtids::Gtid gtid2_1_assigned = gtid2_1;
+  mysql::gtid::Gtid gtid2_1_assigned = gtid2_1;
   ASSERT_EQ(gtid2_1_assigned, gtid2_1);
 }
 
@@ -92,47 +92,47 @@ TEST_F(GtidsTest, GtidComparison) {
 
 TEST_F(GtidsTest, GtidToString) {
   std::stringstream expected;
-  expected << DEFAULT_UUID1 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
+  expected << DEFAULT_UUID1 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
            << gtid1_1.get_gno();
 
   ASSERT_EQ(expected.str(), gtid1_1.to_string());
 
   expected.str("");
-  expected << DEFAULT_UUID2 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
+  expected << DEFAULT_UUID2 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
            << gtid2_1.get_gno();
   ASSERT_EQ(expected.str(), gtid2_1.to_string());
 
   expected.str("");
-  expected << INVALID_UUID << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
+  expected << INVALID_UUID << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
            << gtid__1.get_gno();
   ASSERT_NE(expected.str(), gtid__1.to_string());
 }
 
 TEST_F(GtidsTest, IntervalsBasics) {
-  binary_log::gtids::gno_t range_start = 1;
-  binary_log::gtids::gno_t range_end = 2;
-  binary_log::gtids::gno_t next_in_range = 3;
-  binary_log::gtids::gno_t not_in_range = 100;
+  mysql::gtid::gno_t range_start = 1;
+  mysql::gtid::gno_t range_end = 2;
+  mysql::gtid::gno_t next_in_range = 3;
+  mysql::gtid::gno_t not_in_range = 100;
 
-  binary_log::gtids::Gno_interval interval{range_start, range_end + 1};
+  mysql::gtid::Gno_interval interval{range_start, range_end + 1};
 
-  binary_log::gtids::Gtid next_gtid{valid_uuid1, next_in_range};
-  binary_log::gtids::Gtid not_in_range_gtid1{valid_uuid1, not_in_range};
-  binary_log::gtids::Gtid not_in_range_gtid2{valid_uuid2, next_in_range};
-  binary_log::gtids::Gtid next_gtid_copy{valid_uuid1, next_in_range};
+  mysql::gtid::Gtid next_gtid{valid_uuid1, next_in_range};
+  mysql::gtid::Gtid not_in_range_gtid1{valid_uuid1, not_in_range};
+  mysql::gtid::Gtid not_in_range_gtid2{valid_uuid2, next_in_range};
+  mysql::gtid::Gtid next_gtid_copy{valid_uuid1, next_in_range};
 
   ASSERT_TRUE(interval.intersects_or_contiguous(
-      binary_log::gtids::Gno_interval{next_in_range, next_in_range + 1}));
+      mysql::gtid::Gno_interval{next_in_range, next_in_range + 1}));
   ASSERT_FALSE(interval.intersects(
-      binary_log::gtids::Gno_interval{not_in_range, not_in_range + 1}));
+      mysql::gtid::Gno_interval{not_in_range, not_in_range + 1}));
   ASSERT_TRUE(next_gtid == next_gtid_copy);
 }
 
 TEST_F(GtidsTest, IntervalsMerge) {
-  binary_log::gtids::Gno_interval interval1{1, 2};
-  binary_log::gtids::Gno_interval interval2{3, 4};
-  binary_log::gtids::Gno_interval interval3{100, 101};
-  binary_log::gtids::Gno_interval interval4{3, 90};
+  mysql::gtid::Gno_interval interval1{1, 2};
+  mysql::gtid::Gno_interval interval2{3, 4};
+  mysql::gtid::Gno_interval interval3{100, 101};
+  mysql::gtid::Gno_interval interval4{3, 90};
 
   ASSERT_TRUE(interval1.intersects_or_contiguous(interval2));
   ASSERT_FALSE(interval1.add(interval2));
@@ -141,120 +141,110 @@ TEST_F(GtidsTest, IntervalsMerge) {
 
   std::stringstream expected;
   expected << interval1.get_start()
-           << binary_log::gtids::Gno_interval::SEPARATOR_GNO_START_END
+           << mysql::gtid::Gno_interval::SEPARATOR_GNO_START_END
            << interval4.get_end();
   ASSERT_EQ(expected.str(), interval1.to_string());
 
   expected.str("");
-  expected << 100 << binary_log::gtids::Gno_interval::SEPARATOR_GNO_START_END
-           << 101;
+  expected << 100 << mysql::gtid::Gno_interval::SEPARATOR_GNO_START_END << 101;
   ASSERT_EQ(expected.str(), interval3.to_string());
 }
 
 TEST_F(GtidsTest, GtidSetBasics) {
-  binary_log::gtids::Gtid_set set1;
+  mysql::gtid::Gtid_set set1;
 
   std::stringstream expected;
-  expected << binary_log::gtids::Gtid_set::EMPTY_GTID_SET;
+  expected << mysql::gtid::Gtid_set::EMPTY_GTID_SET;
   ASSERT_EQ(expected.str(), set1.to_string());
   expected.str("");
 
   set1.add(gtid1_1);
-  expected << DEFAULT_UUID1 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
+  expected << DEFAULT_UUID1 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
            << gtid1_1.get_gno();
   ASSERT_EQ(set1.to_string(), expected.str());
   expected.str("");
 
   set1.add(gtid1_2);
-  binary_log::gtids::Gno_interval i1{1, 2};
-  expected << DEFAULT_UUID1 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
+  mysql::gtid::Gno_interval i1{1, 2};
+  expected << DEFAULT_UUID1 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
            << i1.to_string();
   ASSERT_EQ(set1.to_string(), expected.str());
   expected.str("");
 
   set1.add(gtid1_100);
-  expected << DEFAULT_UUID1 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
-           << i1.to_string()
-           << binary_log::gtids::Gtid_set::SEPARATOR_SEQNO_INTERVALS
+  expected << DEFAULT_UUID1 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
+           << i1.to_string() << mysql::gtid::Gtid_set::SEPARATOR_SEQNO_INTERVALS
            << gtid1_100.get_gno();
   ASSERT_EQ(set1.to_string(), expected.str());
   expected.str("");
 
   set1.add(gtid2_1);
-  expected << DEFAULT_UUID1 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
-           << i1.to_string()
-           << binary_log::gtids::Gtid_set::SEPARATOR_SEQNO_INTERVALS
+  expected << DEFAULT_UUID1 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
+           << i1.to_string() << mysql::gtid::Gtid_set::SEPARATOR_SEQNO_INTERVALS
            << gtid1_100.get_gno();
-  expected << binary_log::gtids::Gtid_set::SEPARATOR_UUID_SETS << DEFAULT_UUID2
-           << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
-           << gtid2_1.get_gno();
+  expected << mysql::gtid::Gtid_set::SEPARATOR_UUID_SETS << DEFAULT_UUID2
+           << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO << gtid2_1.get_gno();
   // ASSERT_EQ(set1.to_string(), expected.str());
   expected.str("");
 
   set1.add(gtid2_2);
-  expected << DEFAULT_UUID1 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
-           << i1.to_string()
-           << binary_log::gtids::Gtid_set::SEPARATOR_SEQNO_INTERVALS
+  expected << DEFAULT_UUID1 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
+           << i1.to_string() << mysql::gtid::Gtid_set::SEPARATOR_SEQNO_INTERVALS
            << gtid1_100.get_gno();
-  expected << binary_log::gtids::Gtid_set::SEPARATOR_UUID_SETS;
-  expected << DEFAULT_UUID2 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
+  expected << mysql::gtid::Gtid_set::SEPARATOR_UUID_SETS;
+  expected << DEFAULT_UUID2 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
            << i1.to_string();
   // ASSERT_EQ(set1.to_string(), expected.str());
   expected.str("");
 
   set1.add(gtid2_1000);
-  expected << DEFAULT_UUID1 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
-           << i1.to_string()
-           << binary_log::gtids::Gtid_set::SEPARATOR_SEQNO_INTERVALS
+  expected << DEFAULT_UUID1 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
+           << i1.to_string() << mysql::gtid::Gtid_set::SEPARATOR_SEQNO_INTERVALS
            << gtid1_100.get_gno();
-  expected << binary_log::gtids::Gtid_set::SEPARATOR_UUID_SETS;
-  expected << DEFAULT_UUID2 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
-           << i1.to_string()
-           << binary_log::gtids::Gtid_set::SEPARATOR_SEQNO_INTERVALS
+  expected << mysql::gtid::Gtid_set::SEPARATOR_UUID_SETS;
+  expected << DEFAULT_UUID2 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
+           << i1.to_string() << mysql::gtid::Gtid_set::SEPARATOR_SEQNO_INTERVALS
            << gtid2_1000.get_gno();
   ASSERT_EQ(set1.to_string(), expected.str());
   expected.str("");
 
-  binary_log::gtids::Gtid gtid2_99{valid_uuid2, 99};
-  binary_log::gtids::Gtid gtid2_100{valid_uuid2, 100};
-  binary_log::gtids::Gtid gtid2_101{valid_uuid2, 101};
+  mysql::gtid::Gtid gtid2_99{valid_uuid2, 99};
+  mysql::gtid::Gtid gtid2_100{valid_uuid2, 100};
+  mysql::gtid::Gtid gtid2_101{valid_uuid2, 101};
 
-  binary_log::gtids::Gtid_set set2;
+  mysql::gtid::Gtid_set set2;
 
   set2.add(gtid2_99);
   set2.add(gtid2_100);
   set2.add(gtid2_101);
 
-  binary_log::gtids::Gno_interval i2{gtid2_99.get_gno(), gtid2_101.get_gno()};
-  expected << DEFAULT_UUID2 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
+  mysql::gtid::Gno_interval i2{gtid2_99.get_gno(), gtid2_101.get_gno()};
+  expected << DEFAULT_UUID2 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
            << i2.to_string();
   ASSERT_EQ(set2.to_string(), expected.str());
   expected.str("");
 
   set1.add(set2);
-  expected << DEFAULT_UUID1 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
-           << i1.to_string()
-           << binary_log::gtids::Gtid_set::SEPARATOR_SEQNO_INTERVALS
+  expected << DEFAULT_UUID1 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
+           << i1.to_string() << mysql::gtid::Gtid_set::SEPARATOR_SEQNO_INTERVALS
            << gtid1_100.get_gno();
-  expected << binary_log::gtids::Gtid_set::SEPARATOR_UUID_SETS;
-  expected << DEFAULT_UUID2 << binary_log::gtids::Gtid::SEPARATOR_UUID_SEQNO
-           << i1.to_string()
-           << binary_log::gtids::Gtid_set::SEPARATOR_SEQNO_INTERVALS
-           << i2.to_string()
-           << binary_log::gtids::Gtid_set::SEPARATOR_SEQNO_INTERVALS
+  expected << mysql::gtid::Gtid_set::SEPARATOR_UUID_SETS;
+  expected << DEFAULT_UUID2 << mysql::gtid::Gtid::SEPARATOR_UUID_SEQNO
+           << i1.to_string() << mysql::gtid::Gtid_set::SEPARATOR_SEQNO_INTERVALS
+           << i2.to_string() << mysql::gtid::Gtid_set::SEPARATOR_SEQNO_INTERVALS
            << gtid2_1000.get_gno();
   ASSERT_EQ(set1.to_string(), expected.str());
   expected.str("");
 }
 
 TEST_F(GtidsTest, GtidSetCopyAssignment) {
-  binary_log::gtids::Gtid_set set1;
+  mysql::gtid::Gtid_set set1;
 
   set1.add(gtid1_1);
   set1.add(gtid1_2);
   set1.add(gtid2_1);
 
-  binary_log::gtids::Gtid_set set2 = set1;
+  mysql::gtid::Gtid_set set2 = set1;
 
   // contain the same number of gtids
   ASSERT_EQ(set1.count(), 3);
@@ -270,7 +260,7 @@ TEST_F(GtidsTest, GtidSetCopyAssignment) {
 }
 
 TEST_F(GtidsTest, GtidSetCountAndEmptyAndReset) {
-  binary_log::gtids::Gtid_set set1;
+  mysql::gtid::Gtid_set set1;
 
   ASSERT_EQ(set1.count(), 0);
   ASSERT_TRUE(set1.is_empty());
@@ -289,37 +279,37 @@ TEST_F(GtidsTest, GtidSetCountAndEmptyAndReset) {
 }
 
 TEST_F(GtidsTest, GtidSetComparison) {
-  binary_log::gtids::Gtid_set set1;
+  mysql::gtid::Gtid_set set1;
   set1.add(gtid1_1);
   set1.add(gtid2_1);
 
   // empty set
-  binary_log::gtids::Gtid_set empty_set;
+  mysql::gtid::Gtid_set empty_set;
   ASSERT_FALSE(set1 == empty_set);
 
   // same number of uuids as set1, same number of intervals
-  binary_log::gtids::Gtid_set equal_set;
+  mysql::gtid::Gtid_set equal_set;
   equal_set.add(gtid1_1);
   equal_set.add(gtid2_1);
   ASSERT_TRUE(set1 == equal_set);
 
   // same number of uuids as set1, different interval in uuid2
-  binary_log::gtids::Gtid_set set_with_same_uuids_more_intervals;
+  mysql::gtid::Gtid_set set_with_same_uuids_more_intervals;
   set_with_same_uuids_more_intervals.add(gtid1_1);
   set_with_same_uuids_more_intervals.add(gtid2_1);
   set_with_same_uuids_more_intervals.add(gtid2_2);
   ASSERT_FALSE(set1 == set_with_same_uuids_more_intervals);
 
   // same number of uuids as set1, but one is different
-  binary_log::gtids::Gtid_set set_with_different_uuids;
+  mysql::gtid::Gtid_set set_with_different_uuids;
   set_with_different_uuids.add(gtid1_1);
   set_with_different_uuids.add(gtid3_1);
   ASSERT_FALSE(set1 == set_with_different_uuids);
 }
 
 TEST_F(GtidsTest, GtidSetToString) {
-  binary_log::gtids::Gtid_set set1;
-  binary_log::gtids::Gtid_set set2;
+  mysql::gtid::Gtid_set set1;
+  mysql::gtid::Gtid_set set2;
 
   set1.add(gtid1_1);
   set1.add(gtid1_2);
@@ -342,4 +332,4 @@ TEST_F(GtidsTest, GtidSetToString) {
 
   ASSERT_EQ(set1_string, set2_string);
 }
-}  // namespace binary_log::gtids::unittests
+}  // namespace mysql::gtid::unittests

@@ -26,9 +26,9 @@
 #include <utility>
 #include <vector>
 
-#include "libbinlogevents/include/binlog_event.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
+#include "mysql/binlog/event/binlog_event.h"
 #include "sql/binlog.h"
 #include "sql/current_thd.h"
 #include "sql/mysqld.h"

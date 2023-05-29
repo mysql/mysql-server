@@ -193,12 +193,12 @@ Master_info::Master_info(
       received_heartbeats(0),
       last_heartbeat(0),
       master_id(0),
-      checksum_alg_before_fd(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
+      checksum_alg_before_fd(mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF),
       retry_count(master_retry_count),
       mi_description_event(nullptr),
       auto_position(false),
-      transaction_parser(
-          Transaction_boundary_parser::TRX_BOUNDARY_PARSER_RECEIVER),
+      transaction_parser(mysql::binlog::event::Transaction_boundary_parser::
+                             TRX_BOUNDARY_PARSER_RECEIVER),
       reset(false),
       m_gtid_only_mode(false),
       m_is_receiver_position_info_invalid(false) {

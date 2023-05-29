@@ -33,7 +33,6 @@
 #include <vector>
 
 #include "lex_string.h"
-#include "libbinlogevents/include/binlog_event.h"
 #include "map_helpers.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -41,6 +40,7 @@
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/binlog/event/binlog_event.h"
 #include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_mutex_bits.h"
@@ -2189,7 +2189,7 @@ bool is_mts_db_partitioned(Relay_log_info *rli);
   @return true  when the event is already committed transactional DDL
 */
 inline bool is_committed_ddl(Log_event *ev) {
-  return ev->get_type_code() == binary_log::QUERY_EVENT &&
+  return ev->get_type_code() == mysql::binlog::event::QUERY_EVENT &&
          /* has been already committed */
          static_cast<Query_log_event *>(ev)->has_ddl_committed;
 }
@@ -2234,7 +2234,7 @@ inline bool is_atomic_ddl_commit_on_slave(THD *thd) {
              ? (rli->is_transactional() &&
                 /* has not yet committed */
                 (rli->current_event->get_type_code() ==
-                     binary_log::QUERY_EVENT &&
+                     mysql::binlog::event::QUERY_EVENT &&
                  !static_cast<Query_log_event *>(rli->current_event)
                       ->has_ddl_committed) &&
                 /* unless slave binlogger identified non-atomic */

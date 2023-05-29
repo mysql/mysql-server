@@ -696,8 +696,8 @@ MySQL clients support the protocol:
 #include "jemalloc_win.h"
 #endif
 #include "keycache.h"  // KEY_CACHE
-#include "libbinlogevents/include/binlog_event.h"
-#include "libbinlogevents/include/control_events.h"
+#include "mysql/binlog/event/binlog_event.h"
+#include "mysql/binlog/event/control_events.h"
 #include "m_string.h"
 #include "migrate_keyring.h"  // Migrate_keyring
 #include "my_alloc.h"
@@ -984,6 +984,7 @@ MySQL clients support the protocol:
 #include "sql/server_component/persistent_dynamic_loader_imp.h"
 #include "sql/srv_session.h"
 
+using mysql::binlog::event::enum_binlog_checksum_alg;
 using std::max;
 using std::min;
 using std::vector;
@@ -5669,7 +5670,7 @@ static int init_server_auto_options() {
 
   DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid) {
-    if (!binary_log::Uuid::is_valid(uuid, binary_log::Uuid::TEXT_LENGTH)) {
+    if (!mysql::gtid::Uuid::is_valid(uuid, mysql::gtid::Uuid::TEXT_LENGTH)) {
       LogErr(ERROR_LEVEL, ER_UUID_INVALID);
       goto err;
     }

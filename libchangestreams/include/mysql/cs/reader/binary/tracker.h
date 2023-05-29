@@ -28,9 +28,9 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include "libbinlogevents/include/trx_boundary_parser.h"
 #include "libchangestreams/include/mysql/cs/reader/base_tracker.h"
 #include "libchangestreams/include/mysql/cs/reader/state.h"
+#include "mysql/binlog/event/trx_boundary_parser.h"
 
 namespace cs::reader::binary {
 
@@ -45,10 +45,11 @@ namespace cs::reader::binary {
  */
 class Tracker : public cs::reader::Base_tracker {
  protected:
-  std::unique_ptr<binary_log::Format_description_event> m_fde{};
+  std::unique_ptr<mysql::binlog::event::Format_description_event> m_fde{};
   std::string m_current_gtid_event_buffer;
-  Transaction_boundary_parser m_trx_boundary_parser{
-      Transaction_boundary_parser::TRX_BOUNDARY_PARSER_RECEIVER};
+  mysql::binlog::event::Transaction_boundary_parser m_trx_boundary_parser{
+      mysql::binlog::event::Transaction_boundary_parser::
+          TRX_BOUNDARY_PARSER_RECEIVER};
 
  private:
   Tracker &operator=(const Tracker &) = delete;

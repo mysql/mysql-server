@@ -931,8 +931,7 @@ WARN_LOGFILE           =
 INPUT                  = ./client \
                          ./components \
                          ./include \
-                         ./libbinlogevents \
-                         ./libbinlogstandalone \
+                         ./libs/mysql \
                          ./libservices \
                          ./mysql-test/mysql-test-run.dox \
                          ./mysys \

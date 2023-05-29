@@ -61,17 +61,8 @@
 
 #include "dur_prop.h"
 #include "include/mysqld_errmsg.h"  // ER_OUT_OF_RESOURCES_MSG
-#include "libbinlogevents/include/buffer/grow_calculator.h"
-#include "libbinlogevents/include/compression/compressor.h"
-#include "libbinlogevents/include/compression/payload_event_buffer_istream.h"
-#include "libbinlogevents/include/compression/zstd_comp.h"
-#include "libbinlogevents/include/control_events.h"
-#include "libbinlogevents/include/debug_vars.h"
-#include "libbinlogevents/include/rows_event.h"
-#include "libbinlogevents/include/statement_events.h"
-#include "libbinlogevents/include/table_id.h"
-#include "mf_wcomp.h"    // wild_one, wild_many
-#include "mutex_lock.h"  // Mutex_lock
+#include "mf_wcomp.h"               // wild_one, wild_many
+#include "mutex_lock.h"             // Mutex_lock
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
@@ -81,6 +72,15 @@
 #include "my_sqlcommand.h"
 #include "my_stacktrace.h"  // my_safe_print_system_time
 #include "my_thread_local.h"
+#include "mysql/binlog/event/compression/buffer/grow_calculator.h"
+#include "mysql/binlog/event/compression/compressor.h"
+#include "mysql/binlog/event/compression/payload_event_buffer_istream.h"
+#include "mysql/binlog/event/compression/zstd_comp.h"
+#include "mysql/binlog/event/control_events.h"
+#include "mysql/binlog/event/debug_vars.h"
+#include "mysql/binlog/event/rows_event.h"
+#include "mysql/binlog/event/statement_events.h"
+#include "mysql/binlog/event/table_id.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
@@ -149,7 +149,7 @@
 
 class Item;
 
-using binary_log::checksum_crc32;
+using mysql::binlog::event::enum_binlog_checksum_alg;
 using std::list;
 using std::max;
 using std::min;
@@ -726,13 +726,13 @@ class binlog_cache_data {
   size_t get_event_counter() const { return m_event_counter; }
   size_t get_compressed_size() const { return m_compressed_size; }
   size_t get_decompressed_size() const { return m_decompressed_size; }
-  binary_log::transaction::compression::type get_compression_type() const {
+  mysql::binlog::event::compression::type get_compression_type() const {
     return m_compression_type;
   }
 
   void set_compressed_size(size_t s) { m_compressed_size = s; }
   void set_decompressed_size(size_t s) { m_decompressed_size = s; }
-  void set_compression_type(binary_log::transaction::compression::type t) {
+  void set_compression_type(mysql::binlog::event::compression::type t) {
     m_compression_type = t;
   }
 
@@ -840,7 +840,7 @@ class binlog_cache_data {
     m_event_counter = 0;
     m_compressed_size = 0;
     m_decompressed_size = 0;
-    m_compression_type = binary_log::transaction::compression::NONE;
+    m_compression_type = mysql::binlog::event::compression::NONE;
     assert(is_binlog_empty());
   }
 
@@ -931,8 +931,8 @@ class binlog_cache_data {
 
   size_t m_compressed_size = 0;
   size_t m_decompressed_size = 0;
-  binary_log::transaction::compression::type m_compression_type =
-      binary_log::transaction::compression::type::NONE;
+  mysql::binlog::event::compression::type m_compression_type =
+      mysql::binlog::event::compression::type::NONE;
   /*
     It truncates the cache to a certain position. This includes deleting the
     pending event. It corresponds to rollback statement or rollback to
@@ -1401,7 +1401,7 @@ class Binlog_event_writer : public Basic_ostream {
   Binlog_event_writer(MYSQL_BIN_LOG::Binlog_ofile *binlog_file)
       : m_binlog_file(binlog_file),
         have_checksum(binlog_checksum_options !=
-                      binary_log::BINLOG_CHECKSUM_ALG_OFF),
+                      mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF),
         initial_checksum(my_checksum(0L, nullptr, 0)),
         checksum(initial_checksum),
         end_log_pos(binlog_file->position()) {
@@ -1547,8 +1547,8 @@ int binlog_cache_data::write_event(Log_event *ev) {
       });
       return 1;
     }
-    if (ev->get_type_code() == binary_log::XID_EVENT ||
-        ev->get_type_code() == binary_log::XA_PREPARE_LOG_EVENT)
+    if (ev->get_type_code() == mysql::binlog::event::XID_EVENT ||
+        ev->get_type_code() == mysql::binlog::event::XA_PREPARE_LOG_EVENT)
       flags.with_xid = true;
     if (ev->is_using_immediate_logging()) flags.immediate = true;
     /* DDL gets marked as xid-requiring at its caching. */
@@ -2020,7 +2020,7 @@ class Binlog_cache_compressor {
         m_managed_buffer_sequence(m_context.managed_buffer_sequence()),
         m_uncompressed_size(m_cache_storage.length()),
         m_compressed_size(m_uncompressed_size),
-        m_compression_type(binary_log::transaction::compression::type::NONE) {}
+        m_compression_type(mysql::binlog::event::compression::type::NONE) {}
 
   Binlog_cache_compressor(const Binlog_cache_compressor &) = delete;
   Binlog_cache_compressor(Binlog_cache_compressor &&) = delete;
@@ -2108,8 +2108,9 @@ class Binlog_cache_compressor {
       DBUG_PRINT("info", ("fallback to uncompressed: compressor==nullptr"));
       return true;
     }
-    auto zstd_ptr = std::dynamic_pointer_cast<
-        binary_log::transaction::compression::Zstd_comp>(m_compressor);
+    auto zstd_ptr =
+        std::dynamic_pointer_cast<mysql::binlog::event::compression::Zstd_comp>(
+            m_compressor);
     if (zstd_ptr) {
       zstd_ptr->set_compression_level(
           m_thd.variables.binlog_trx_compression_level_zstd);
@@ -2125,9 +2126,9 @@ class Binlog_cache_compressor {
   ///
   /// @return true on error, false on success.
   [[NODISCARD]] bool setup_buffer_sequence() {
-    mysqlns::buffer::Grow_calculator grow_calculator;
+    mysql::binlog::event::compression::buffer::Grow_calculator grow_calculator;
     grow_calculator.set_max_size(
-        binary_log::Transaction_payload_event::max_payload_length);
+        mysql::binlog::event::Transaction_payload_event::max_payload_length);
     DBUG_EXECUTE_IF("binlog_transaction_compression_max_size_800",
                     { grow_calculator.set_max_size(800); });
     grow_calculator.set_grow_factor(2);
@@ -2154,7 +2155,7 @@ class Binlog_cache_compressor {
       return true;
     }
     if (m_compressor->finish(m_managed_buffer_sequence) !=
-        binary_log::transaction::compression::Compress_status::success) {
+        mysql::binlog::event::compression::Compress_status::success) {
       m_compressor->reset();
       DBUG_PRINT("info", ("fallback to uncompressed: compression failed during "
                           "Compressor::finish"));
@@ -2227,7 +2228,7 @@ class Binlog_cache_compressor {
   /// size before compression.
   size_t m_compressed_size;
   /// Compression algorithm, if compression succeded; otherwise NONE.
-  binary_log::transaction::compression::type m_compression_type;
+  mysql::binlog::event::compression::type m_compression_type;
 };
 
 bool binlog_cache_data::compress(THD *thd) {
@@ -3528,8 +3529,8 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period, bool relay_log)
       sync_period_ptr(sync_period),
       sync_counter(0),
       is_relay_log(relay_log),
-      checksum_alg_reset(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
-      relay_log_checksum_alg(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
+      checksum_alg_reset(mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF),
+      relay_log_checksum_alg(mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF),
       previous_gtid_set_relaylog(nullptr),
       is_rotating_caused_by_incident(false) {
   /*
@@ -3958,7 +3959,7 @@ end:
 */
 static bool read_gtids_and_update_trx_parser_from_relaylog(
     const char *filename, Gtid_set *retrieved_gtids, bool verify_checksum,
-    Transaction_boundary_parser *trx_parser,
+    mysql::binlog::event::Transaction_boundary_parser *trx_parser,
     Gtid_monitoring_info *partial_trx) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("Opening file %s", filename));
@@ -3999,7 +4000,7 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
     data_len = uint4korr(ev->temp_buf + EVENT_LEN_OFFSET);
 
     bool info_error{false};
-    binary_log::Log_event_basic_info log_event_info;
+    mysql::binlog::event::Log_event_basic_info log_event_info;
     std::tie(info_error, log_event_info) = extract_log_event_basic_info(
         ev->temp_buf, data_len,
         &relaylog_file_reader.format_description_event());
@@ -4081,11 +4082,11 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
     }
 
     switch (ev->get_type_code()) {
-      case binary_log::FORMAT_DESCRIPTION_EVENT:
-      case binary_log::ROTATE_EVENT:
+      case mysql::binlog::event::FORMAT_DESCRIPTION_EVENT:
+      case mysql::binlog::event::ROTATE_EVENT:
         // do nothing; just accept this event and go to next
         break;
-      case binary_log::PREVIOUS_GTIDS_LOG_EVENT: {
+      case mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT: {
         seen_prev_gtids = true;
         // add events to sets
         Previous_gtids_log_event *prev_gtids_ev =
@@ -4102,7 +4103,7 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
 #endif
         break;
       }
-      case binary_log::GTID_LOG_EVENT: {
+      case mysql::binlog::event::GTID_LOG_EVENT: {
         /* If we didn't find any PREVIOUS_GTIDS in this file */
         if (!seen_prev_gtids) {
           my_error(ER_BINLOG_LOGICAL_CORRUPTION, MYF(0), filename,
@@ -4144,7 +4145,7 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
         }
         break;
       }
-      case binary_log::ANONYMOUS_GTID_LOG_EVENT:
+      case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT:
       default:
         /*
           If we reached the end of a transaction after storing it's GTID
@@ -4274,11 +4275,11 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
 #endif
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
     switch (ev->get_type_code()) {
-      case binary_log::FORMAT_DESCRIPTION_EVENT:
-      case binary_log::ROTATE_EVENT:
+      case mysql::binlog::event::FORMAT_DESCRIPTION_EVENT:
+      case mysql::binlog::event::ROTATE_EVENT:
         // do nothing; just accept this event and go to next
         break;
-      case binary_log::PREVIOUS_GTIDS_LOG_EVENT: {
+      case mysql::binlog::event::PREVIOUS_GTIDS_LOG_EVENT: {
         ret = GOT_PREVIOUS_GTIDS;
         // add events to sets
         Previous_gtids_log_event *prev_gtids_ev =
@@ -4312,7 +4313,7 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
         });
         break;
       }
-      case binary_log::GTID_LOG_EVENT: {
+      case mysql::binlog::event::GTID_LOG_EVENT: {
         if (ret != GOT_GTIDS) {
           if (ret != GOT_PREVIOUS_GTIDS) {
             /*
@@ -4371,7 +4372,7 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
         }
         break;
       }
-      case binary_log::ANONYMOUS_GTID_LOG_EVENT: {
+      case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT: {
         /*
           When this is a relaylog, we just check if it contains
           at least one Anonymous_gtid_log_event after initialization
@@ -4555,11 +4556,11 @@ end:
   return error != 0 ? true : false;
 }
 
-bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
-                                   bool verify_checksum, bool need_lock,
-                                   Transaction_boundary_parser *trx_parser,
-                                   Gtid_monitoring_info *partial_trx,
-                                   bool is_server_starting) {
+bool MYSQL_BIN_LOG::init_gtid_sets(
+    Gtid_set *all_gtids, Gtid_set *lost_gtids, bool verify_checksum,
+    bool need_lock,
+    mysql::binlog::event::Transaction_boundary_parser *trx_parser,
+    Gtid_monitoring_info *partial_trx, bool is_server_starting) {
   DBUG_TRACE;
   DBUG_PRINT(
       "info",
@@ -4946,11 +4947,12 @@ bool MYSQL_BIN_LOG::open_binlog(
 
   if (is_relay_log) {
     /* relay-log */
-    if (relay_log_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF) {
+    if (relay_log_checksum_alg ==
+        mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF) {
       /* inherit master's A descriptor if one has been received */
       if (opt_replica_sql_verify_checksum == 0)
         /* otherwise use slave's local preference of RL events verification */
-        relay_log_checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+        relay_log_checksum_alg = mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
       else
         relay_log_checksum_alg =
             static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
@@ -6650,7 +6652,7 @@ int MYSQL_BIN_LOG::new_file_impl(
   close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX, false /*need_lock_log=false*/,
         false /*need_lock_index=false*/);
 
-  if (checksum_alg_reset != binary_log::BINLOG_CHECKSUM_ALG_UNDEF) {
+  if (checksum_alg_reset != mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF) {
     assert(!is_relay_log);
     assert(binlog_checksum_options != checksum_alg_reset);
     binlog_checksum_options = checksum_alg_reset;
@@ -7098,7 +7100,8 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
       if (!thd->is_current_stmt_binlog_format_row()) {
         if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt) {
           Intvar_log_event e(
-              thd, (uchar)binary_log::Intvar_event::LAST_INSERT_ID_EVENT,
+              thd,
+              (uchar)mysql::binlog::event::Intvar_event::LAST_INSERT_ID_EVENT,
               thd->first_successful_insert_id_in_prev_stmt_for_binlog,
               event_info->event_cache_type, event_info->event_logging_type);
           if (cache_data->write_event(&e)) goto err;
@@ -7109,7 +7112,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info) {
               ("number of auto_inc intervals: %u",
                thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements()));
           Intvar_log_event e(
-              thd, (uchar)binary_log::Intvar_event::INSERT_ID_EVENT,
+              thd, (uchar)mysql::binlog::event::Intvar_event::INSERT_ID_EVENT,
               thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(),
               event_info->event_cache_type, event_info->event_logging_type);
           if (cache_data->write_event(&e)) goto err;
@@ -7617,8 +7620,8 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log,
   if (!is_open()) return false;
 
   LEX_CSTRING write_error_msg = {err_msg, strlen(err_msg)};
-  binary_log::Incident_event::enum_incident incident =
-      binary_log::Incident_event::INCIDENT_LOST_EVENTS;
+  mysql::binlog::event::Incident_event::enum_incident incident =
+      mysql::binlog::event::Incident_event::INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);
 
   return write_incident(&ev, thd, need_lock_log, err_msg, do_flush_and_sync);
@@ -7636,7 +7639,7 @@ inline bool MYSQL_BIN_LOG::write_event_to_binlog(Log_event *ev) {
           ? relay_log_checksum_alg
           : static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
   assert(ev->common_footer->checksum_alg !=
-         binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+         mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF);
 
   /*
     Stores current position into log_pos, it is used to calculate correctly
@@ -7808,7 +7811,8 @@ void MYSQL_BIN_LOG::close(
               ? relay_log_checksum_alg
               : static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
       assert(!is_relay_log ||
-             relay_log_checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+             relay_log_checksum_alg !=
+                 mysql::binlog::event::BINLOG_CHECKSUM_ALG_UNDEF);
       if (!write_event_to_binlog(&s) && !m_binlog_file->flush())
         update_binlog_end_pos();
     }
@@ -7907,11 +7911,11 @@ bool MYSQL_BIN_LOG::read_binlog_in_use_flag(
     my_off_t binlog_size = binlog_file_reader.ifile()->length();
     LogErr(ERROR_LEVEL, ER_READ_LOG_EVENT_FAILED,
            binlog_file_reader.get_error_str(), binlog_size,
-           binary_log::UNKNOWN_EVENT);
+           mysql::binlog::event::UNKNOWN_EVENT);
     return false;
   }
 
-  if (ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT) {
+  if (ev->get_type_code() != mysql::binlog::event::FORMAT_DESCRIPTION_EVENT) {
     my_off_t valid_pos = 0;
     const char *binlog_file_name =
         binlog_file_reader.ifile()->file_name().c_str();
@@ -11230,9 +11234,11 @@ int THD::binlog_update_row(TABLE *table, bool is_trans,
   DBUG_DUMP("after_row", after_row, after_size);
 
   partition_info *part_info = table->part_info;
-  uint32 source_part_id = binary_log::Rows_event::Extra_row_info::UNDEFINED;
+  uint32 source_part_id =
+      mysql::binlog::event::Rows_event::Extra_row_info::UNDEFINED;
   if (part_info) {
-    uint32 new_part_id = binary_log::Rows_event::Extra_row_info::UNDEFINED;
+    uint32 new_part_id =
+        mysql::binlog::event::Rows_event::Extra_row_info::UNDEFINED;
     longlong func_value = 0;
     get_parts_for_update(before_record, after_record, table->record[0],
                          part_info, &source_part_id, &new_part_id, &func_value);

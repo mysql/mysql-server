@@ -31,7 +31,7 @@ MYSQL_ADD_PLUGIN(replication_observers_example
   MODULE_ONLY
   MODULE_OUTPUT_NAME "replication_observers_example_plugin"
   TEST_ONLY
-  LINK_LIBRARIES extra::rapidjson
+  LINK_LIBRARIES extra::rapidjson mysql_gtid
   )
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)

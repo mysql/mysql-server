@@ -6033,7 +6033,8 @@ void Ndb_binlog_thread::inject_incident(
   // Record incident in injector
   LEX_CSTRING const msg = {errmsg, strlen(errmsg)};
   if (inj->record_incident(
-          thd, binary_log::Incident_event::INCIDENT_LOST_EVENTS, msg) != 0) {
+          thd, mysql::binlog::event::Incident_event::INCIDENT_LOST_EVENTS,
+          msg) != 0) {
     log_error("Failed to record incident");
   }
 }
@@ -7055,7 +7056,7 @@ bool Ndb_binlog_thread::check_reconnect_incident(
   }
   log_verbose(20, "Writing incident for %s", msg.str);
   (void)inj->record_incident(
-      thd, binary_log::Incident_event::INCIDENT_LOST_EVENTS, msg);
+      thd, mysql::binlog::event::Incident_event::INCIDENT_LOST_EVENTS, msg);
 
   return true;  // Incident written
 }

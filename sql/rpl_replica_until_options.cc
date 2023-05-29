@@ -25,9 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
 #include "my_sys.h"
+#include "mysql/binlog/event/binlog_event.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/my_loglevel.h"
 #include "mysql/service_mysql_alloc.h"
@@ -196,7 +196,7 @@ bool Until_before_gtids::check_at_start_slave() {
 
 bool Until_before_gtids::check_before_dispatching_event(const Log_event *ev) {
   DBUG_TRACE;
-  if (ev->get_type_code() == binary_log::GTID_LOG_EVENT) {
+  if (ev->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT) {
     Gtid_log_event *gev =
         const_cast<Gtid_log_event *>(down_cast<const Gtid_log_event *>(ev));
     global_sid_lock->rdlock();
@@ -254,7 +254,7 @@ int Until_view_id::init(const char *view_id) {
 bool Until_view_id::check_at_start_slave() { return false; }
 
 bool Until_view_id::check_before_dispatching_event(const Log_event *ev) {
-  if (ev->get_type_code() == binary_log::VIEW_CHANGE_EVENT) {
+  if (ev->get_type_code() == mysql::binlog::event::VIEW_CHANGE_EVENT) {
     View_change_log_event *view_event = const_cast<View_change_log_event *>(
         static_cast<const View_change_log_event *>(ev));
 

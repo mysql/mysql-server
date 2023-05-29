@@ -151,7 +151,7 @@ static void set_mi_settings(Master_info *mi,
     files.
   */
   if (channel_map.is_group_replication_channel_name(mi->get_channel(), true)) {
-    fde->footer()->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+    fde->footer()->checksum_alg = mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
     /*
       When the receiver thread connects to the master, it gets its current
       binlog checksum algorithm, but as GR applier channel has no receiver
@@ -159,7 +159,7 @@ static void set_mi_settings(Master_info *mi,
       here to BINLOG_CHECKSUM_ALG_OFF as events queued after certification have
       no checksum information.
     */
-    mi->checksum_alg_before_fd = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+    mi->checksum_alg_before_fd = mysql::binlog::event::BINLOG_CHECKSUM_ALG_OFF;
   }
   mi->set_mi_description_event(fde);
 

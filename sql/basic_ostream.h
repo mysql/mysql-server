@@ -22,11 +22,11 @@
 
 #ifndef BASIC_OSTREAM_INCLUDED
 #define BASIC_OSTREAM_INCLUDED
-#include "libbinlogevents/include/compression/compressor.h"
-#include "libbinlogevents/include/nodiscard.h"
 #include "my_byteorder.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/binlog/event/compression/compressor.h"
+#include "mysql/binlog/event/nodiscard.h"
 #include "sql_string.h"
 
 /**
@@ -171,9 +171,9 @@ class StringBuffer_ostream : public Basic_ostream,
 
 class Compressed_ostream : public Basic_ostream {
  private:
-  using Compressor_t = binary_log::transaction::compression::Compressor;
+  using Compressor_t = mysql::binlog::event::compression::Compressor;
   using Compressor_ptr_t = std::shared_ptr<Compressor_t>;
-  using Status_t = binary_log::transaction::compression::Compress_status;
+  using Status_t = mysql::binlog::event::compression::Compress_status;
   using Managed_buffer_sequence_t = Compressor_t::Managed_buffer_sequence_t;
   Compressor_ptr_t m_compressor;
   Managed_buffer_sequence_t &m_managed_buffer_sequence;

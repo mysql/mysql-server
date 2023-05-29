@@ -51,12 +51,12 @@ class TestMysqlProtoReader : public ::testing::Test {
   std::shared_ptr<cs::reader::State> state2{nullptr};
   cs::reader::binary::Mysql_protocol *reader1{nullptr};
   cs::reader::binary::Mysql_protocol *reader2{nullptr};
-  binary_log::gtids::Uuid uuid0;
-  binary_log::gtids::Uuid uuid1;
-  binary_log::gtids::Gtid gtid0_1{uuid0, 1};
-  binary_log::gtids::Gtid gtid0_2{uuid0, 2};
-  binary_log::gtids::Gtid gtid1_1{uuid1, 1};
-  binary_log::gtids::Gtid gtid1_2{uuid1, 2};
+  mysql::gtid::Uuid uuid0;
+  mysql::gtid::Uuid uuid1;
+  mysql::gtid::Gtid gtid0_1{uuid0, 1};
+  mysql::gtid::Gtid gtid0_2{uuid0, 2};
+  mysql::gtid::Gtid gtid1_1{uuid1, 1};
+  mysql::gtid::Gtid gtid1_2{uuid1, 2};
 
   void SetUp() override {
     if (argc != 5) {
@@ -114,12 +114,14 @@ TEST_F(TestMysqlProtoReader, ReadEmptyState) {
   ASSERT_FALSE(reader1->open(std::make_shared<cs::reader::State>()));
 
   while (!reader1->read(buffer)) {
-    auto evt_type = (binary_log::Log_event_type)buffer[EVENT_TYPE_OFFSET];
-    if (evt_type == binary_log::GTID_LOG_EVENT) {
-      binary_log::Format_description_event fde{BINLOG_VERSION, "8.0.26"};
+    auto evt_type =
+        (mysql::binlog::event::Log_event_type)buffer[EVENT_TYPE_OFFSET];
+    if (evt_type == mysql::binlog::event::GTID_LOG_EVENT) {
+      mysql::binlog::event::Format_description_event fde{BINLOG_VERSION,
+                                                         "8.0.26"};
       auto char_buffer = reinterpret_cast<const char *>(buffer.data());
-      binary_log::Gtid_event gev(char_buffer, &fde);
-      binary_log::gtids::Gtid gtid(gev.get_uuid(), gev.get_gno());
+      mysql::binlog::event::Gtid_event gev(char_buffer, &fde);
+      mysql::gtid::Gtid gtid(gev.get_uuid(), gev.get_gno());
       received_gtids.insert(gtid.to_string());
     }
   }
@@ -138,8 +140,8 @@ TEST_F(TestMysqlProtoReader, ReadUpdatedState) {
   std::set<std::string> received_gtids{};
 
   state1 = std::make_shared<cs::reader::State>();
-  binary_log::gtids::Gtid gtid0_1{uuid0, 1};
-  binary_log::gtids::Gtid gtid0_2{uuid0, 2};
+  mysql::gtid::Gtid gtid0_1{uuid0, 1};
+  mysql::gtid::Gtid gtid0_2{uuid0, 2};
 
   // lets add both gtids to the state
   state1->add_gtid(gtid0_1);
@@ -148,12 +150,14 @@ TEST_F(TestMysqlProtoReader, ReadUpdatedState) {
   ASSERT_FALSE(reader1->open(state1));
 
   while (!reader1->read(buffer)) {
-    auto evt_type = (binary_log::Log_event_type)buffer[EVENT_TYPE_OFFSET];
-    if (evt_type == binary_log::GTID_LOG_EVENT) {
-      binary_log::Format_description_event fde{BINLOG_VERSION, "8.0.26"};
+    auto evt_type =
+        (mysql::binlog::event::Log_event_type)buffer[EVENT_TYPE_OFFSET];
+    if (evt_type == mysql::binlog::event::GTID_LOG_EVENT) {
+      mysql::binlog::event::Format_description_event fde{BINLOG_VERSION,
+                                                         "8.0.26"};
       auto char_buffer = reinterpret_cast<const char *>(buffer.data());
-      binary_log::Gtid_event gev(char_buffer, &fde);
-      binary_log::gtids::Gtid gtid(gev.get_uuid(), gev.get_gno());
+      mysql::binlog::event::Gtid_event gev(char_buffer, &fde);
+      mysql::gtid::Gtid gtid(gev.get_uuid(), gev.get_gno());
       received_gtids.insert(gtid.to_string());
     }
   }
@@ -179,12 +183,14 @@ TEST_F(TestMysqlProtoReader, RereadUpdatedState) {
   ASSERT_FALSE(reader1->open(state1));
 
   while (!reader1->read(buffer)) {
-    auto evt_type = (binary_log::Log_event_type)buffer[EVENT_TYPE_OFFSET];
-    if (evt_type == binary_log::GTID_LOG_EVENT) {
-      binary_log::Format_description_event fde{BINLOG_VERSION, "8.0.26"};
+    auto evt_type =
+        (mysql::binlog::event::Log_event_type)buffer[EVENT_TYPE_OFFSET];
+    if (evt_type == mysql::binlog::event::GTID_LOG_EVENT) {
+      mysql::binlog::event::Format_description_event fde{BINLOG_VERSION,
+                                                         "8.0.26"};
       auto char_buffer = reinterpret_cast<const char *>(buffer.data());
-      binary_log::Gtid_event gev(char_buffer, &fde);
-      binary_log::gtids::Gtid gtid(gev.get_uuid(), gev.get_gno());
+      mysql::binlog::event::Gtid_event gev(char_buffer, &fde);
+      mysql::gtid::Gtid gtid(gev.get_uuid(), gev.get_gno());
       received_gtids.insert(gtid.to_string());
     }
   }
@@ -208,12 +214,14 @@ TEST_F(TestMysqlProtoReader, RereadUpdatedState) {
   ASSERT_FALSE(reader2->open(state2));
 
   while (!reader2->read(buffer)) {
-    auto evt_type = (binary_log::Log_event_type)buffer[EVENT_TYPE_OFFSET];
-    if (evt_type == binary_log::GTID_LOG_EVENT) {
-      binary_log::Format_description_event fde{BINLOG_VERSION, "8.0.26"};
+    auto evt_type =
+        (mysql::binlog::event::Log_event_type)buffer[EVENT_TYPE_OFFSET];
+    if (evt_type == mysql::binlog::event::GTID_LOG_EVENT) {
+      mysql::binlog::event::Format_description_event fde{BINLOG_VERSION,
+                                                         "8.0.26"};
       auto char_buffer = reinterpret_cast<const char *>(buffer.data());
-      binary_log::Gtid_event gev(char_buffer, &fde);
-      binary_log::gtids::Gtid gtid(gev.get_uuid(), gev.get_gno());
+      mysql::binlog::event::Gtid_event gev(char_buffer, &fde);
+      mysql::gtid::Gtid gtid(gev.get_uuid(), gev.get_gno());
       received_gtids.insert(gtid.to_string());
     }
   }
@@ -240,12 +248,14 @@ TEST_F(TestMysqlProtoReader, RereadSerializedState) {
   ASSERT_FALSE(reader1->open(state1));
 
   while (!reader1->read(buffer)) {
-    auto evt_type = (binary_log::Log_event_type)buffer[EVENT_TYPE_OFFSET];
-    if (evt_type == binary_log::GTID_LOG_EVENT) {
-      binary_log::Format_description_event fde{BINLOG_VERSION, "8.0.26"};
+    auto evt_type =
+        (mysql::binlog::event::Log_event_type)buffer[EVENT_TYPE_OFFSET];
+    if (evt_type == mysql::binlog::event::GTID_LOG_EVENT) {
+      mysql::binlog::event::Format_description_event fde{BINLOG_VERSION,
+                                                         "8.0.26"};
       auto char_buffer = reinterpret_cast<const char *>(buffer.data());
-      binary_log::Gtid_event gev(char_buffer, &fde);
-      binary_log::gtids::Gtid gtid(gev.get_uuid(), gev.get_gno());
+      mysql::binlog::event::Gtid_event gev(char_buffer, &fde);
+      mysql::gtid::Gtid gtid(gev.get_uuid(), gev.get_gno());
       received_gtids.insert(gtid.to_string());
     }
   }
@@ -276,13 +286,15 @@ TEST_F(TestMysqlProtoReader, RereadSerializedState) {
   ASSERT_FALSE(reader2->open(state2));
 
   while (!reader2->read(buffer)) {
-    auto evt_type = (binary_log::Log_event_type)buffer[EVENT_TYPE_OFFSET];
-    if (evt_type == binary_log::GTID_LOG_EVENT) {
+    auto evt_type =
+        (mysql::binlog::event::Log_event_type)buffer[EVENT_TYPE_OFFSET];
+    if (evt_type == mysql::binlog::event::GTID_LOG_EVENT) {
       /* purecov: begin inspected */
-      binary_log::Format_description_event fde{BINLOG_VERSION, "8.0.26"};
+      mysql::binlog::event::Format_description_event fde{BINLOG_VERSION,
+                                                         "8.0.26"};
       auto char_buffer = reinterpret_cast<const char *>(buffer.data());
-      binary_log::Gtid_event gev(char_buffer, &fde);
-      binary_log::gtids::Gtid gtid(gev.get_uuid(), gev.get_gno());
+      mysql::binlog::event::Gtid_event gev(char_buffer, &fde);
+      mysql::gtid::Gtid gtid(gev.get_uuid(), gev.get_gno());
       received_gtids.insert(gtid.to_string());
       /* purecov: end */
     }
@@ -307,12 +319,14 @@ TEST_F(TestMysqlProtoReader, ReadUpdateImplicitState) {
   ASSERT_FALSE(reader1->open(state1));
 
   while (!reader1->read(buffer)) {
-    auto evt_type = (binary_log::Log_event_type)buffer[EVENT_TYPE_OFFSET];
-    if (evt_type == binary_log::GTID_LOG_EVENT) {
-      binary_log::Format_description_event fde{BINLOG_VERSION, "8.0.26"};
+    auto evt_type =
+        (mysql::binlog::event::Log_event_type)buffer[EVENT_TYPE_OFFSET];
+    if (evt_type == mysql::binlog::event::GTID_LOG_EVENT) {
+      mysql::binlog::event::Format_description_event fde{BINLOG_VERSION,
+                                                         "8.0.26"};
       auto char_buffer = reinterpret_cast<const char *>(buffer.data());
-      binary_log::Gtid_event gev(char_buffer, &fde);
-      binary_log::gtids::Gtid gtid(gev.get_uuid(), gev.get_gno());
+      mysql::binlog::event::Gtid_event gev(char_buffer, &fde);
+      mysql::gtid::Gtid gtid(gev.get_uuid(), gev.get_gno());
       received_gtids.insert(gtid.to_string());
     }
   }

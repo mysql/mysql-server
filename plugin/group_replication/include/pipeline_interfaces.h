@@ -268,9 +268,10 @@ class Pipeline_event {
 
     @return the pipeline event type
   */
-  Log_event_type get_event_type() {
+  mysql::binlog::event::Log_event_type get_event_type() {
     if (packet != nullptr)
-      return (Log_event_type)packet->payload[EVENT_TYPE_OFFSET];
+      return (mysql::binlog::event::Log_event_type)
+          packet->payload[EVENT_TYPE_OFFSET];
     else
       return log_event->get_type_code();
   }

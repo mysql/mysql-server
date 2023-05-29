@@ -26,10 +26,10 @@
 #include <stddef.h>
 
 #include "lex_string.h"
-#include "libbinlogevents/include/control_events.h"  // enum_incidents
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/table.h"  // TABLE
+#include "mysql/binlog/event/control_events.h"  // enum_incidents
+#include "sql/table.h"                          // TABLE
 
 class MYSQL_BIN_LOG;
 class THD;
@@ -377,8 +377,9 @@ class injector {
    */
   void new_trans(THD *, transaction *);
 
-  int record_incident(THD *, binary_log::Incident_event::enum_incident incident,
-                      LEX_CSTRING const message);
+  int record_incident(
+      THD *, mysql::binlog::event::Incident_event::enum_incident incident,
+      const LEX_CSTRING &message);
 
  private:
   explicit injector();

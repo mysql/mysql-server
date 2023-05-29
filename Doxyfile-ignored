@@ -63,9 +63,9 @@
 sql/rpl_rli_pdb.h:[0-9]+: warning:
 sql/rpl_trx_tracking.h:[0-9]+: warning:
 sql/rpl_utility.h:[0-9]+: warning:
-libbinlogevents/include/binlog_event.h:[0-9]+: warning:
-libbinlogevents/include/codecs/binary.h:[0-9]+: warning:
-libbinlogevents/include/trx_boundary_parser.h:[0-9]+: warning:
+mysql/binlog/event/binlog_event.h:[0-9]+: warning:
+mysql/binlog/event/codecs/binary.h:[0-9]+: warning:
+mysql/binlog/event/trx_boundary_parser.h:[0-9]+: warning:
 plugin/group_replication/src/applier.cc:[0-9]+: warning:
 sql/log_event.h:[0-9]+: warning:
 sql/rpl_replica.cc:[0-9]+: warning:
@@ -106,6 +106,8 @@ sql/rpl_info_dummy.cc:.*no uniquely matching class member found for
 sql/rpl_info_table.cc:.*no uniquely matching class member found for
 sql/rwlock_scoped_lock.cc:.*no uniquely matching class member found for
 sql/sql_prepare.cc:.*no uniquely matching class member found for
+sql/log_event.cc:.*no uniquely matching class member found for
+sql/log_event.cc:.*no matching class member found for
 #===========================================================================
 
 #===========================================================================

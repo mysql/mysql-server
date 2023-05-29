@@ -135,7 +135,7 @@ bool Rpl_async_conn_failover_add_managed::add_managed_init(UDF_INIT *init_id,
   }
 
   if ((args->lengths[1] == 16 && !strcmp(args->args[1], "GroupReplication")) &&
-      (!binary_log::Uuid::is_valid(args->args[2], args->lengths[2]))) {
+      (!mysql::gtid::Uuid::is_valid(args->args[2], args->lengths[2]))) {
     my_stpcpy(message,
               "Wrong value: Please specify valid UUID for managed name.");
     return true;

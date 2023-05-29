@@ -36,7 +36,6 @@
 #include <utility>
 
 #include "ft_global.h"
-#include "libbinlogevents/include/table_id.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "mf_wcomp.h"  // wild_one, wild_many
@@ -55,6 +54,7 @@
 #include "my_systime.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
+#include "mysql/binlog/event/table_id.h"
 #include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/bits/psi_cond_bits.h"
@@ -3632,7 +3632,7 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
     time).
 
 */
-static Table_id last_table_id;
+static mysql::binlog::event::Table_id last_table_id;
 
 void assign_new_table_id(TABLE_SHARE *share) {
   DBUG_TRACE;

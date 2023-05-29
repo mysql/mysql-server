@@ -298,7 +298,7 @@ bool Item_func_gtid_subtract::resolve_type(THD *thd) {
   */
   set_data_type_string(
       args[0]->max_length +
-      max<ulonglong>(args[1]->max_length - binary_log::Uuid::TEXT_LENGTH, 0) *
+      max<ulonglong>(args[1]->max_length - mysql::gtid::Uuid::TEXT_LENGTH, 0) *
           5 / 2);
   return false;
 }

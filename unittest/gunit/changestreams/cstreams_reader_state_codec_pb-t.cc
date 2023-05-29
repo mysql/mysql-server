@@ -34,14 +34,14 @@ const std::string DEFAULT_UUID2 = "aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb";
 
 class ReaderStateCodecTest : public ::testing::Test {
  protected:
-  binary_log::gtids::Uuid valid_uuid1;
-  binary_log::gtids::Uuid valid_uuid2;
+  mysql::gtid::Uuid valid_uuid1;
+  mysql::gtid::Uuid valid_uuid2;
   cs::reader::State state;
 
-  binary_log::gtids::Gtid gtid1_1{valid_uuid1, 0};
-  binary_log::gtids::Gtid gtid1_2{valid_uuid1, 0};
-  binary_log::gtids::Gtid gtid2_1{valid_uuid1, 0};
-  binary_log::gtids::Gtid gtid1_1_copy{valid_uuid1, 0};
+  mysql::gtid::Gtid gtid1_1{valid_uuid1, 0};
+  mysql::gtid::Gtid gtid1_2{valid_uuid1, 0};
+  mysql::gtid::Gtid gtid2_1{valid_uuid1, 0};
+  mysql::gtid::Gtid gtid1_1_copy{valid_uuid1, 0};
 
   ReaderStateCodecTest() = default;
 

@@ -29,13 +29,13 @@
 #include <atomic>
 #include <tuple>
 
-#include "libbinlogevents/include/binlog_event.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
+#include "mysql/binlog/event/binlog_event.h"
 #include "mysql/components/services/bits/mysql_cond_bits.h"
 #include "mysql/components/services/bits/mysql_mutex_bits.h"
 #include "mysql/components/services/bits/psi_bits.h"

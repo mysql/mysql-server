@@ -23,9 +23,9 @@
 #include <array>
 #include <cstring>
 
-#include "libbinlogevents/include/gtids/gtid.h"
 #include "libchangestreams/include/mysql/cs/reader/binary/mysqlproto.h"
 #include "my_byteorder.h"
+#include "mysql/gtid/gtid.h"
 
 namespace cs::reader::binary {
 
@@ -70,7 +70,7 @@ bool Mysql_protocol::setup() {
 }
 
 bool Mysql_protocol::encode_gtid_set_to_mysql_protocol(
-    const binary_log::gtids::Gtid_set &gtid_set, std::string &buffer) const {
+    const mysql::gtid::Gtid_set &gtid_set, std::string &buffer) const {
   char tmp[8];
   const auto &contents = gtid_set.get_gtid_set();
 
@@ -85,7 +85,7 @@ bool Mysql_protocol::encode_gtid_set_to_mysql_protocol(
   // for every uuid, serialize it and its intervals
   for (auto const &[uuid, intervals] : contents) {
     buffer.append(reinterpret_cast<const char *>(uuid.bytes),
-                  binary_log::gtids::Uuid::BYTE_LENGTH);
+                  mysql::gtid::Uuid::BYTE_LENGTH);
 
     // serialize the number of intervals and append the intervals data
     int8store(tmp, intervals.size());

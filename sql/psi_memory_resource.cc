@@ -25,10 +25,11 @@
 #include "my_sys.h"                              // my_malloc
 #include "storage/perfschema/pfs_instr_class.h"  // find_memory_class
 
-mysqlns::resource::Memory_resource psi_memory_resource(PSI_memory_key key) {
-  return mysqlns::resource::Memory_resource(
-      [=](mysqlns::resource::Memory_resource::Size_t n)
-          -> mysqlns::resource::Memory_resource::Ptr_t {
+mysql::binlog::event::resource::Memory_resource psi_memory_resource(
+    PSI_memory_key key) {
+  return mysql::binlog::event::resource::Memory_resource(
+      [=](mysql::binlog::event::resource::Memory_resource::Size_t n)
+          -> mysql::binlog::event::resource::Memory_resource::Ptr_t {
         return my_malloc(key, n, MYF(MY_WME | ME_FATALERROR));
       },
       my_free);

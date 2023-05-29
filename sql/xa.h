@@ -30,16 +30,16 @@
 #include <mutex>
 
 #include "lex_string.h"
-#include "libbinlogevents/include/control_events.h"  // XA_prepare_event
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "sql/malloc_allocator.h"  // Malloc_allocator
-#include "sql/psi_memory_key.h"    // key_memory_xa_recovered_transactions
-#include "sql/sql_cmd.h"           // Sql_cmd
-#include "sql/sql_list.h"          // List
-#include "sql/sql_plugin_ref.h"    // plugin_ref
-#include "sql/xa_aux.h"            // serialize_xid
+#include "mysql/binlog/event/control_events.h"  // XA_prepare_event
+#include "sql/malloc_allocator.h"               // Malloc_allocator
+#include "sql/psi_memory_key.h"  // key_memory_xa_recovered_transactions
+#include "sql/sql_cmd.h"         // Sql_cmd
+#include "sql/sql_list.h"        // List
+#include "sql/sql_plugin_ref.h"  // plugin_ref
+#include "sql/xa_aux.h"          // serialize_xid
 
 class Protocol;
 class THD;
@@ -221,7 +221,7 @@ typedef struct xid_t {
 
     @return This object reference.
    */
-  xid_t &operator=(binary_log::XA_prepare_event::MY_XID const &rhs);
+  xid_t &operator=(mysql::binlog::event::XA_prepare_event::MY_XID const &rhs);
   /**
     Compares for equality two instances of `xid_t`.
 

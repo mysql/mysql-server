@@ -25,8 +25,8 @@
 #ifndef NDB_BINLOG_EXTRA_ROW_INFO_H
 #define NDB_BINLOG_EXTRA_ROW_INFO_H
 
-#include "libbinlogevents/include/rows_event.h"
 #include "my_byteorder.h"
+#include "mysql/binlog/event/rows_event.h"
 #include "sql/rpl_constants.h"
 #include "storage/ndb/include/ndb_types.h"
 

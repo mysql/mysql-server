@@ -62,15 +62,15 @@ binlog::Binlog_recovery &binlog::Binlog_recovery::recover() {
 
   while (istream >> ev) {
     switch (ev->get_type_code()) {
-      case binary_log::QUERY_EVENT: {
+      case mysql::binlog::event::QUERY_EVENT: {
         this->process_query_event(dynamic_cast<Query_log_event &>(*ev));
         break;
       }
-      case binary_log::XID_EVENT: {
+      case mysql::binlog::event::XID_EVENT: {
         this->process_xid_event(dynamic_cast<Xid_log_event &>(*ev));
         break;
       }
-      case binary_log::XA_PREPARE_LOG_EVENT: {
+      case mysql::binlog::event::XA_PREPARE_LOG_EVENT: {
         this->process_xa_prepare_event(
             dynamic_cast<XA_prepare_log_event &>(*ev));
         break;

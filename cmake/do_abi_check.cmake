@@ -92,7 +92,7 @@ FOREACH(file ${ABI_HEADERS})
     COMMAND ${WSL_EXECUTABLE} ${COMPILER}
       -E -nostdinc -dI -DMYSQL_ABI_CHECK -I${ABI_SOURCE_DIR}/include
       -I${ABI_BINARY_DIR}/include -I${ABI_SOURCE_DIR}/include/mysql
-      -I${ABI_SOURCE_DIR}/sql -I${ABI_SOURCE_DIR}/libbinlogevents/export
+      -I${ABI_SOURCE_DIR}/sql -I${ABI_SOURCE_DIR}/mysql/binlog/event/export
       ${abi_file}
       ERROR_QUIET OUTPUT_FILE ${tmpfile})
   EXECUTE_PROCESS(

@@ -1604,11 +1604,8 @@ static bool may_have_timestamp(Log_event *ev) {
   bool res = false;
 
   switch (ev->get_type_code()) {
-    case binary_log::QUERY_EVENT:
-      res = true;
-      break;
-
-    case binary_log::GTID_LOG_EVENT:
+    case mysql::binlog::event::QUERY_EVENT:
+    case mysql::binlog::event::GTID_LOG_EVENT:
       res = true;
       break;
 
@@ -1623,7 +1620,7 @@ static int64 get_last_committed(Log_event *ev) {
   int64 res = SEQ_UNINIT;
 
   switch (ev->get_type_code()) {
-    case binary_log::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_LOG_EVENT:
       res = static_cast<Gtid_log_event *>(ev)->last_committed;
       break;
 
@@ -1638,7 +1635,7 @@ static int64 get_sequence_number(Log_event *ev) {
   int64 res = SEQ_UNINIT;
 
   switch (ev->get_type_code()) {
-    case binary_log::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_LOG_EVENT:
       res = static_cast<Gtid_log_event *>(ev)->sequence_number;
       break;
 
@@ -1787,9 +1784,10 @@ void Slave_worker::report_commit_order_deadlock() {
 
 void Slave_worker::prepare_for_retry(Log_event &event) {
   if (event.get_type_code() ==
-      binary_log::ROWS_QUERY_LOG_EVENT) {  // If a `Rows_query_log_event`, let
-                                           // the event be disposed in the main
-                                           // worker loop.
+      mysql::binlog::event::
+          ROWS_QUERY_LOG_EVENT) {  // If a `Rows_query_log_event`, let
+                                   // the event be disposed in the main
+                                   // worker loop.
     event.worker = this;
     this->rows_query_ev = nullptr;
   }
@@ -2506,13 +2504,14 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
       with the final disjunct.
     */
     assert(seen_begin || is_gtid_event(ev) ||
-           ev->get_type_code() == binary_log::QUERY_EVENT ||
+           ev->get_type_code() == mysql::binlog::event::QUERY_EVENT ||
            is_mts_db_partitioned(rli) || worker->id == 0 || seen_gtid);
 
-    if (ev->ends_group() || (!seen_begin && !is_gtid_event(ev) &&
-                             (ev->get_type_code() == binary_log::QUERY_EVENT ||
-                              /* break through by LC only in GTID off */
-                              (!seen_gtid && !is_mts_db_partitioned(rli)))))
+    if (ev->ends_group() ||
+        (!seen_begin && !is_gtid_event(ev) &&
+         (ev->get_type_code() == mysql::binlog::event::QUERY_EVENT ||
+          /* break through by LC only in GTID off */
+          (!seen_gtid && !is_mts_db_partitioned(rli)))))
       break;
 
     remove_item_from_jobs(job_item, worker, rli);
@@ -2539,7 +2538,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
       assert(opt_debug_sync_timeout > 0);
       assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     };);
-    if (ev->get_type_code() == binary_log::QUERY_EVENT &&
+    if (ev->get_type_code() == mysql::binlog::event::QUERY_EVENT &&
         ((Query_log_event *)ev)->rollback_injected_by_coord) {
       /*
         If this was a rollback event injected by the coordinator because of a
