@@ -22,35 +22,38 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_OBJECT_MANAGER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_OBJECT_MANAGER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_ITEMS_FORMATTER_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_ITEMS_FORMATTER_H_
 
+#include <string>
 #include <vector>
 
-#include "mrs/database/entry/content_file.h"
-#include "mrs/database/entry/db_object.h"
-#include "mrs/interface/object_schema.h"
-#include "mrs/state.h"
+#include "helper/mysql_column.h"
+#include "mysqlrouter/mysql_session.h"
 
 namespace mrs {
-namespace interface {
+namespace database {
 
-class ObjectManager {
+class JsonTemplate {
  public:
-  using DbObject = database::entry::DbObject;
-  using ContentFile = database::entry::ContentFile;
-  using RouteSchema = mrs::interface::ObjectSchema;
+  using ResultRow = mysqlrouter::MySQLSession::ResultRow;
+  virtual ~JsonTemplate() = default;
 
  public:
-  virtual ~ObjectManager() = default;
+  virtual void begin(const std::string &url, const std::string &items_name) = 0;
+  virtual void begin(uint32_t offset, uint32_t limit, bool is_default_limit,
+                     const std::string &url) = 0;
+  virtual bool push_json_document(const char *document) = 0;
+  virtual bool push_json_document(const ResultRow &values,
+                                  const std::vector<helper::Column> &columns,
+                                  const char *ignore_column = nullptr) = 0;
+  virtual void end() = 0;
 
-  virtual void turn(const State state) = 0;
-  virtual void update(const std::vector<DbObject> &paths) = 0;
-  virtual void update(const std::vector<ContentFile> &contents) = 0;
-  virtual void schema_not_used(RouteSchema *route) = 0;
+  virtual void flush() = 0;
+  virtual std::string get_result() = 0;
 };
 
-}  // namespace interface
+}  // namespace database
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_OBJECT_MANAGER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_ITEMS_FORMATTER_H_

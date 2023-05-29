@@ -26,12 +26,10 @@
 #define ROUTER_SRC_REST_MRS_SRC_MRS_INTERFACE_AUTHENTICATION_HANDLER_H_
 
 #include "collector/mysql_cache_manager.h"
-#include "helper/http/url.h"
 #include "mrs/database/entry/auth_app.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/http/session_manager.h"
 #include "mrs/interface/universal_id.h"
-#include "mysqlrouter/http_request.h"
 
 namespace mrs {
 

@@ -34,6 +34,7 @@
 #include "dim.h"
 #include "harness_assert.h"
 #include "keyring_handler.h"
+#include "mrs/database/query_version.h"
 #include "my_macros.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
@@ -605,6 +606,10 @@ void BootstrapConfigurator::store_mrs_data_in_keyring() {
 void BootstrapConfigurator::check_mrs_metadata(
     mysqlrouter::MySQLSession *session) const {
   try {
+    mrs::database::QueryVersion q;
+
+    q.query_version(session);
+
     auto row = session->query_one(
         "SELECT major, minor, patch FROM "
         "mysql_rest_service_metadata.schema_version");

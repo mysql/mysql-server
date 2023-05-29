@@ -32,7 +32,7 @@
 
 #include "helper/mysql_time.h"
 #include "helper/token/jwt.h"
-#include "mrs/authentication/helper/authorize_handler_callbacks.h"
+#include "mrs/authentication/authorize_handler_callbacks.h"
 #include "mrs/database/entry/auth_app.h"
 #include "mrs/interface/auth_handler_factory.h"
 #include "mrs/interface/authorize_manager.h"

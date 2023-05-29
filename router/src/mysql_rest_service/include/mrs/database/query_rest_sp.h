@@ -25,13 +25,14 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_REST_SP_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_REST_SP_H_
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "helper/mysql_column.h"
 #include "mrs/database/helper/query.h"
-#include "mrs/json/response_json_template.h"
+#include "mrs/database/json_template.h"
 #include "mysqlrouter/utils_sqlstring.h"
 
 namespace mrs {
@@ -39,6 +40,9 @@ namespace database {
 
 class QueryRestSP : private QueryLog {
   using Row = Query::Row;
+
+ public:
+  QueryRestSP();
 
  public:
   virtual void query_entries(MySQLSession *session, const std::string &schema,
@@ -55,7 +59,7 @@ class QueryRestSP : private QueryLog {
   bool has_out_params_;
   uint64_t items_in_resultset_;
   uint64_t number_of_resultsets_;
-  json::ResponseJsonTemplate response_template;
+  std::unique_ptr<JsonTemplate> response_template_;
   std::vector<helper::Column> columns_;
   const char *ignore_column_{nullptr};
   std::vector<std::optional<std::string>> flush_copy_;

@@ -26,7 +26,7 @@
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_STATE_H_
 
 #include "mrs/database/helper/query.h"
-#include "mrs/state.h"
+#include "mrs/interface/state.h"
 
 namespace mrs {
 namespace database {

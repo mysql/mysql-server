@@ -33,6 +33,7 @@
 #include "mrs/users/user_manager.h"
 
 #include "mysql/harness/string_utils.h"
+#include "mysqlrouter/http_request.h"
 
 namespace mrs {
 namespace authentication {

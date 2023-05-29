@@ -30,8 +30,8 @@
 #include <vector>
 
 #include "mrs/interface/rest_handler.h"
+#include "mrs/interface/state.h"
 #include "mrs/interface/universal_id.h"
-#include "mrs/state.h"
 
 namespace mrs {
 namespace interface {

@@ -27,7 +27,7 @@
 
 #include <memory>
 
-#include "interface/object_factory.h"
+#include "mrs/interface/object_factory.h"
 #include "mrs/interface/query_factory.h"
 
 namespace mrs {

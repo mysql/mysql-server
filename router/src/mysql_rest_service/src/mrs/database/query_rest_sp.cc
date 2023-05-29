@@ -23,9 +23,14 @@
  */
 
 #include "mrs/database/query_rest_sp.h"
+#include "mrs/json/response_json_template.h"
 
 namespace mrs {
 namespace database {
+
+QueryRestSP::QueryRestSP() {
+  response_template_.reset(new json::ResponseJsonTemplate());
+}
 
 void QueryRestSP::query_entries(
     MySQLSession *session, const std::string &schema, const std::string &object,
@@ -45,9 +50,9 @@ void QueryRestSP::query_entries(
   prepare_and_execute(session, query_, pt);
 
   flush(true);
-  response_template.end();
+  response_template_->end();
 
-  response = response_template.get_result();
+  response = response_template_->get_result();
 }
 
 bool QueryRestSP::flush(const bool is_last) {
@@ -56,13 +61,13 @@ bool QueryRestSP::flush(const bool is_last) {
 
   items_started_ = true;
   if (is_last && has_out_params_) {
-    response_template.begin(url_, "itemsOut");
+    response_template_->begin(url_, "itemsOut");
     push_cached();
     return false;
   }
 
   using namespace std::string_literals;
-  response_template.begin(
+  response_template_->begin(
       url_, "items"s + (number_of_resultsets_ > 1
                             ? std::to_string(number_of_resultsets_)
                             : ""s));
@@ -104,7 +109,7 @@ void QueryRestSP::on_row(const ResultRow &r) {
 }
 
 void QueryRestSP::push_to_document(const ResultRow &r) {
-  response_template.push_json_document(r, columns_, ignore_column_);
+  response_template_->push_json_document(r, columns_, ignore_column_);
 }
 
 void QueryRestSP::on_metadata(unsigned int number, MYSQL_FIELD *fields) {

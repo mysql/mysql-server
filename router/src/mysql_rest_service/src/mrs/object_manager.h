@@ -37,7 +37,7 @@
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/object_manager.h"
 #include "mrs/interface/object_schema.h"
-#include "mrs/state.h"
+#include "mrs/interface/state.h"
 
 namespace mrs {
 

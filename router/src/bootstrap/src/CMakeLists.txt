@@ -29,6 +29,8 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_bootstrap
   harness-library
   router_lib
   router_frontend_lib
+  mysql_rest_service_if
+  mysql_rest_service_db
   ${CMAKE_DL_LIBS}
   )
 TARGET_INCLUDE_DIRECTORIES(mysqlrouter_bootstrap
