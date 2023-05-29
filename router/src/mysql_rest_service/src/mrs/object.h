@@ -38,7 +38,7 @@
 #include "mrs/interface/object_schema.h"
 #include "mrs/interface/query_factory.h"
 #include "mrs/interface/rest_handler.h"
-#include "mrs/state.h"
+#include "mrs/interface/state.h"
 
 namespace mrs {
 

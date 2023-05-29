@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,32 +22,39 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQL_HARNESS_TEMP_DIRECTORY_INCLUDED
-#define MYSQL_HARNESS_TEMP_DIRECTORY_INCLUDED
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_VERSION_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_VERSION_H_
 
-#include <string>
+#include <array>
 
-#include "mysql/harness/filesystem.h"
+#include "mrs/database/entry/auth_user.h"
+#include "mrs/database/helper/query.h"
 
-class TempDirectory {
- public:
-  explicit TempDirectory(const std::string &prefix = "router")
-      : name_{mysql_harness::get_tmp_dir(prefix)} {}
+namespace mrs {
+namespace database {
 
-  ~TempDirectory() {
-    // mysql_harness::delete_dir_recursive(name_);
+struct MrsSchemaVersion {
+  int major;
+  int minor;
+  int patch;
+
+  bool is_compatible() {
+    const int k_required_major_version{2};
+    return major != k_required_major_version;
   }
-
-  void reset(const std::string &name) {
-    // mysql_harness::delete_dir_recursive(name_);
-    name_ = name;
-  }
-  std::string name() const { return name_; }
-
-  std::string file(const std::string &fname) { return name_ + "/" + fname; }
-
- private:
-  std::string name_;
 };
 
-#endif
+class QueryVersion : private Query {
+ public:
+  MrsSchemaVersion query_version(MySQLSession *session);
+
+ private:
+  void on_metadata(unsigned number, MYSQL_FIELD *fields) override;
+  void on_row(const ResultRow &r) override;
+  MrsSchemaVersion v_;
+};
+
+}  // namespace database
+}  // namespace mrs
+
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_VERSION_H_

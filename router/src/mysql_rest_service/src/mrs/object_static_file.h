@@ -35,7 +35,7 @@
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/interface/handler_factory.h"
 #include "mrs/interface/rest_handler.h"
-#include "mrs/state.h"
+#include "mrs/interface/state.h"
 
 namespace mrs {
 

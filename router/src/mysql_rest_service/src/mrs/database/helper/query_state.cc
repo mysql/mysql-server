@@ -22,8 +22,6 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "mrs/state.h"
-
 #include "mrs/database/helper/query_state.h"
 
 namespace mrs {

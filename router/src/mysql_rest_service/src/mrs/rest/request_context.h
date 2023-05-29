@@ -28,6 +28,7 @@
 #include "mysqlrouter/http_request.h"
 
 #include "collector/mysql_cache_manager.h"
+#include "helper/http/url.h"
 #include "mrs/database/entry/auth_user.h"
 #include "mrs/http/cookie.h"
 #include "mrs/interface/authorize_handler.h"

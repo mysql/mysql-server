@@ -28,7 +28,6 @@
 #include <memory>
 #include <vector>
 
-#include "helper/http/url.h"
 #include "helper/mysql_time.h"
 #include "mrs/database/entry/auth_app.h"
 #include "mrs/database/entry/auth_user.h"

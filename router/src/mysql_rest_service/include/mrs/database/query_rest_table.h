@@ -36,8 +36,7 @@
 #include "mrs/database/entry/row_user_ownership.h"
 #include "mrs/database/helper/object_query.h"
 #include "mrs/database/helper/query.h"
-
-#include "mrs/json/response_json_template.h"
+#include "mrs/database/json_template.h"
 
 namespace mrs {
 namespace database {
@@ -52,6 +51,8 @@ class QueryRestTable : private QueryLog {
   using RowUserOwnership = entry::RowUserOwnership;
 
   using VectorOfRowGroupOwnershp = std::vector<RowGroupOwnership>;
+
+  QueryRestTable();
 
  public:
   virtual void query_entries(MySQLSession *session,
@@ -70,7 +71,7 @@ class QueryRestTable : private QueryLog {
   uint64_t items;
 
  private:
-  json::ResponseJsonTemplate serializer_;
+  std::unique_ptr<database::JsonTemplate> serializer_;
   mysqlrouter::sqlstring where_;
 
   void on_row(const ResultRow &r) override;

@@ -25,7 +25,6 @@
 #include "mrs/database/query_entry_content_file.h"
 
 #include <stdexcept>
-#include "mysqlrouter/http_request.h"
 
 namespace mrs {
 namespace database {

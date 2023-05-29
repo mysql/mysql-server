@@ -31,14 +31,19 @@
 #include "helper/json/text_to.h"
 #include "mrs/database/filter_object_generator.h"
 #include "mrs/database/helper/object_query.h"
-#include "mysql/harness/utility/string.h"
+#include "mrs/json/response_json_template.h"
 
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/utility/string.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace database {
+
+QueryRestTable::QueryRestTable() {
+  serializer_.reset(new json::ResponseJsonTemplate());
+}
 
 void QueryRestTable::query_entries(
     MySQLSession *session, std::shared_ptr<database::entry::Object> object,
@@ -52,15 +57,15 @@ void QueryRestTable::query_entries(
   build_query(object, field_filter, offset, limit + 1, url_route, primary,
               row_user, user_id, row_groups, user_groups, q);
 
-  serializer_.begin(offset, limit, is_default_limit, url_route);
+  serializer_->begin(offset, limit, is_default_limit, url_route);
   execute(session);
-  serializer_.end();
+  serializer_->end();
 
-  response = serializer_.get_result();
+  response = serializer_->get_result();
 }
 
 void QueryRestTable::on_row(const ResultRow &r) {
-  serializer_.push_json_document(r[0]);
+  serializer_->push_json_document(r[0]);
   ++items;
 }
 

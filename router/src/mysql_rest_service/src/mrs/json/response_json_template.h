@@ -30,28 +30,29 @@
 
 #include "helper/json/serializer_to_text.h"
 #include "helper/mysql_column.h"
+#include "mrs/database/json_template.h"
 #include "mysqlrouter/mysql_session.h"
 
 namespace mrs {
 namespace json {
 
-class ResponseJsonTemplate {
+class ResponseJsonTemplate : public database::JsonTemplate {
  public:
   using JsonSerializer = helper::json::SerializerToText;
   using ResultRow = mysqlrouter::MySQLSession::ResultRow;
 
  public:
-  void begin(const std::string &url, const std::string &items_name);
+  void begin(const std::string &url, const std::string &items_name) override;
   void begin(uint32_t offset, uint32_t limit, bool is_default_limit,
-             const std::string &url);
-  bool push_json_document(const char *document);
+             const std::string &url) override;
+  bool push_json_document(const char *document) override;
   bool push_json_document(const ResultRow &values,
                           const std::vector<helper::Column> &columns,
-                          const char *ignore_column = nullptr);
-  void end();
+                          const char *ignore_column = nullptr) override;
+  void end() override;
 
-  void flush();
-  std::string get_result();
+  void flush() override;
+  std::string get_result() override;
 
  private:
   bool count_check_if_push_is_allowed();

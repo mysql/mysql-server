@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,32 +22,35 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQL_HARNESS_TEMP_DIRECTORY_INCLUDED
-#define MYSQL_HARNESS_TEMP_DIRECTORY_INCLUDED
+#include <array>
+#include <stdexcept>
 
-#include <string>
+#include "mrs/database/query_version.h"
 
-#include "mysql/harness/filesystem.h"
+namespace mrs {
+namespace database {
 
-class TempDirectory {
- public:
-  explicit TempDirectory(const std::string &prefix = "router")
-      : name_{mysql_harness::get_tmp_dir(prefix)} {}
+static void throw_invalid_function_result() {
+  throw std::runtime_error(
+      "Function/view `mysql_rest_service_metadata`.`schema_version`, returned "
+      "invalid data.");
+}
 
-  ~TempDirectory() {
-    // mysql_harness::delete_dir_recursive(name_);
-  }
+MrsSchemaVersion QueryVersion::query_version(MySQLSession *session) {
+  query(session, "SELECT mysql_rest_service_metadata.schema_version;");
+  return v_;
+}
 
-  void reset(const std::string &name) {
-    // mysql_harness::delete_dir_recursive(name_);
-    name_ = name;
-  }
-  std::string name() const { return name_; }
+void QueryVersion::on_metadata(unsigned number, MYSQL_FIELD *) {
+  if (3 != number) throw_invalid_function_result();
+}
 
-  std::string file(const std::string &fname) { return name_ + "/" + fname; }
+void QueryVersion::on_row(const ResultRow &r) {
+  if (r.size() != 3) throw_invalid_function_result();
+  v_.major = std::stoi(r[0]);
+  v_.minor = std::stoi(r[1]);
+  v_.patch = std::stoi(r[2]);
+}
 
- private:
-  std::string name_;
-};
-
-#endif
+}  // namespace database
+}  // namespace mrs

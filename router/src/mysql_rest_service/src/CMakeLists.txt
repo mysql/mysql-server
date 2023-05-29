@@ -30,6 +30,46 @@ TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_if
     ${CMAKE_CURRENT_BINARY_DIR}/../include/
     )
 
+ADD_LIBRARY(mysql_rest_service_db
+  STATIC
+  mrs/database/filter_object_generator.cc
+  mrs/database/schema_monitor.cc
+  mrs/database/query_changes_auth_app.cc
+  mrs/database/query_entries_auth_privileges.cc
+  mrs/database/query_changes_content_file.cc
+  mrs/database/query_changes_db_object.cc
+  mrs/database/query_entries_audit_log.cc
+  mrs/database/query_entries_auth_app.cc
+  mrs/database/query_entries_auth_role.cc
+  mrs/database/query_entries_content_file.cc
+  mrs/database/query_entries_db_object.cc
+  mrs/database/query_entries_object.cc
+  mrs/database/query_entry_auth_user.cc
+  mrs/database/query_entry_content_file.cc
+  mrs/database/query_entry_fields.cc
+  mrs/database/query_factory.cc
+  mrs/database/query_entry_group_row_security.cc
+  mrs/database/query_uuid.cc
+  mrs/database/query_rest_table.cc
+  mrs/database/query_rest_table_single_row.cc
+  mrs/database/query_rest_sp.cc
+  mrs/database/query_rest_sp_media.cc
+  mrs/database/query_version.cc
+  mrs/database/helper/query.cc
+  mrs/database/helper/query_state.cc
+  mrs/database/helper/query_table_columns.cc
+  mrs/database/helper/query_audit_log_maxid.cc
+  mrs/database/helper/object_query.cc
+  mrs/database/helper/object_insert.cc)
+
+TARGET_INCLUDE_DIRECTORIES(mysql_rest_service_db
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+TARGET_LINK_LIBRARIES(mysql_rest_service_db
+  mysql_rest_service_if
+  harness-library
+  routing)
+
 ADD_HARNESS_PLUGIN(mysql_rest_service
   SOURCES
   collector/counted_mysql_session.cc
@@ -55,34 +95,6 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/authentication/www_authentication_handler.cc
   mrs/authentication/sasl_handler.cc
   mrs/authentication/scram_handler.cc
-  mrs/database/filter_object_generator.cc
-  mrs/database/schema_monitor.cc
-  mrs/database/query_changes_auth_app.cc
-  mrs/database/query_entries_auth_privileges.cc
-  mrs/database/query_changes_content_file.cc
-  mrs/database/query_changes_db_object.cc
-  mrs/database/query_entries_audit_log.cc
-  mrs/database/query_entries_auth_app.cc
-  mrs/database/query_entries_auth_role.cc
-  mrs/database/query_entries_content_file.cc
-  mrs/database/query_entries_db_object.cc
-  mrs/database/query_entries_object.cc
-  mrs/database/query_entry_auth_user.cc
-  mrs/database/query_entry_content_file.cc
-  mrs/database/query_entry_fields.cc
-  mrs/database/query_factory.cc
-  mrs/database/query_entry_group_row_security.cc
-  mrs/database/query_uuid.cc
-  mrs/database/query_rest_table.cc
-  mrs/database/query_rest_table_single_row.cc
-  mrs/database/query_rest_sp.cc
-  mrs/database/query_rest_sp_media.cc
-  mrs/database/helper/query.cc
-  mrs/database/helper/query_state.cc
-  mrs/database/helper/query_table_columns.cc
-  mrs/database/helper/query_audit_log_maxid.cc
-  mrs/database/helper/object_query.cc
-  mrs/database/helper/object_insert.cc
   mrs/json/response_json_template.cc
   mrs/http/cookie.cc
   mrs/http/utilities.cc
@@ -109,7 +121,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/rest/handler_schema_metadata.cc
   mrs/rest/handler_sp.cc
   rest_mrs_plugin.cc
-  REQUIRES io_component;harness-library;router_lib;routing;http_server;rest_api;http_client;ext::libevent;mysql_rest_service_if;
+  REQUIRES io_component;router_lib;routing;http_server;rest_api;http_client;ext::libevent;mysql_rest_service_if;mysql_rest_service_db;
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 
