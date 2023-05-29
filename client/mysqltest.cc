@@ -8755,6 +8755,10 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
           mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
 
+  if (global_attrs->set_params_stmt(stmt)) {
+    die("Failed to set query attributes for statement");
+  }
+
   // Execute the query
   if (mysql_stmt_execute(stmt)) {
     handle_error(command, mysql_stmt_errno(stmt), mysql_stmt_error(stmt),
@@ -11389,6 +11393,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
 
 /* Append zero-terminated string to ds, with optional replace */
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val) {
+  assert(val != nullptr);
   replace_dynstr_append_mem(ds, val, std::strlen(val));
 }
 

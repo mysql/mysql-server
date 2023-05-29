@@ -76,6 +76,7 @@ DROP PROCEDURE execute_dml;
 UNINSTALL PLUGIN clone;
 Component logs:
 test_server_telemetry_traces_component_init init:
+ - UDFs registered.
  - System variables registered.
  - Status variables registered.
  - Telemetry per-session data slot registered.
@@ -100,4 +101,5 @@ test_server_telemetry_traces_component_deinit:
  - Telemetry per-session data slot unregistered.
  - Status variables unregistered.
  - System variables unregistered.
+ - UDFs unregistered.
 End of deinit

@@ -1865,10 +1865,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   }
 
   /*
-    For COM_QUERY,
+    For COM_QUERY, COM_STMT_EXECUTE
     wait until query attributes are extracted.
   */
-  if (command != COM_QUERY) {
+  if (command != COM_QUERY && command != COM_STMT_EXECUTE) {
     MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES(thd->m_statement_psi, false);
   }
 
@@ -2001,6 +2001,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         PS_PARAM *parameters = com_data->com_stmt_execute.parameters;
         copy_bind_parameter_values(thd, parameters,
                                    com_data->com_stmt_execute.parameter_count);
+
+        const bool with_query_attributes =
+            (thd->bind_parameter_values_count > 0);
+        MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES(thd->m_statement_psi,
+                                                with_query_attributes);
 
         mysqld_stmt_execute(thd, stmt, com_data->com_stmt_execute.has_new_types,
                             com_data->com_stmt_execute.open_cursor, parameters);

@@ -55,6 +55,7 @@ REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_security_context_options,
 REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_notification_v3, notification_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(status_variable_registration,
                                 statvar_register_srv);
+REQUIRES_SERVICE_PLACEHOLDER_AS(udf_registration, udf_registration_srv);
 
 // Pointers to component's system variable values.
 static char *trace_key_value;
@@ -477,6 +478,14 @@ static telemetry_locker_t *tm_stmt_notify_qa(telemetry_locker_t *locker,
     return nullptr;
   }
 
+  // dump all received query attributes as JSON
+  std::set<std::string> dummy_filter;
+  std::string all_qa;
+  if (!query_attrs_to_json(thd, dummy_filter, all_qa, g_log)) {
+    g_log.write("> tm_stmt_notify_qa: all query attributes [%s]\n",
+                all_qa.c_str());
+  }
+
   // "trace: on" query attribute existence is a prerequisite for tracing.
   std::string value;
   if (query_attr_read(thd, trace_key_value, value, g_log)) {
@@ -665,9 +674,52 @@ static void abort_current_session() {
 }
 
 /**
+  Implements test_component_trace_log UDF. This function passes input
+  string parameter to component log (helps make test logs more readable).
+
+  @param init       Unused.
+  @param args       input array with log entry string.
+  @param null_value Unused.
+  @param error      Unused.
+
+  @retval This function returns 0 on success, -1 on error.
+*/
+static long long test_component_trace_log(UDF_INIT *init [[maybe_unused]],
+                                          UDF_ARGS *args,
+                                          unsigned char *null_value
+                                          [[maybe_unused]],
+                                          unsigned char *error
+                                          [[maybe_unused]]) {
+  if (args && args->arg_count == 1 && args->arg_type[0] == STRING_RESULT) {
+    const char *message = args->args[0];
+    g_log.write("%s\n", message);
+    return 0;
+  }
+  return -1;
+}
+
+static bool unregister_udf() {
+  int was_present = 0;
+  udf_registration_srv->udf_unregister("test_component_trace_log",
+                                       &was_present);
+  assert(was_present == 1);
+  return false;
+}
+
+static bool register_udf() {
+  if (udf_registration_srv->udf_register("test_component_trace_log", INT_RESULT,
+                                         (Udf_func_any)test_component_trace_log,
+                                         nullptr, nullptr)) {
+    return true;
+  }
+  return false;
+}
+
+/**
  *  Initialize the test_server_telemetry_traces component at server start or
  *  component installation:
  *
+ *    - Register UDFs
  *    - Register system variables
  *    - Register status variables
  *    - Register telemetry per-session data slot
@@ -678,12 +730,20 @@ static void abort_current_session() {
  *  @retval non-zero   failure
  */
 mysql_service_status_t test_server_telemetry_traces_component_init() {
-  mysql_service_status_t result = 0;
+  mysql_service_status_t result = false;
 
   g_log.write("test_server_telemetry_traces_component_init init:\n");
 
+  if (register_udf()) {
+    g_log.write("Error returned from register_udf()\n");
+    result = true;
+    goto error;
+  }
+  g_log.write(" - UDFs registered.\n");
+
   if (register_system_variables()) {
     g_log.write("Error returned from register_system_variables()\n");
+    unregister_udf();
     result = true;
     goto error;
   }
@@ -691,6 +751,7 @@ mysql_service_status_t test_server_telemetry_traces_component_init() {
 
   if (register_status_variables()) {
     g_log.write("Error returned from register_status_variables()\n");
+    unregister_udf();
     unregister_system_variables();
     result = true;
     goto error;
@@ -699,6 +760,7 @@ mysql_service_status_t test_server_telemetry_traces_component_init() {
 
   if (register_server_telemetry_slot(g_log)) {
     g_log.write("Error returned from register_server_telemetry_slot()\n");
+    unregister_udf();
     unregister_system_variables();
     unregister_status_variables();
     result = true;
@@ -708,6 +770,7 @@ mysql_service_status_t test_server_telemetry_traces_component_init() {
 
   if (register_notification_callback()) {
     g_log.write("Error returned from register_notification_callback()\n");
+    unregister_udf();
     unregister_system_variables();
     unregister_status_variables();
     unregister_server_telemetry_slot(g_log);
@@ -718,6 +781,7 @@ mysql_service_status_t test_server_telemetry_traces_component_init() {
 
   if (register_telemetry_callback()) {
     g_log.write("Error returned from register_telemetry_callback()\n");
+    unregister_udf();
     unregister_system_variables();
     unregister_status_variables();
     unregister_server_telemetry_slot(g_log);
@@ -742,6 +806,7 @@ error:
  *   - Unregister telemetry per-session data slot
  *   - Unregister status variables
  *   - Unregister system variables
+ *   - unregister UDFs
  *
  *  @retval 0  success
  *  @retval non-zero   failure
@@ -780,6 +845,9 @@ mysql_service_status_t test_server_telemetry_traces_component_deinit() {
   unregister_system_variables();
   g_log.write(" - System variables unregistered.\n");
 
+  unregister_udf();
+  g_log.write(" - UDFs unregistered.\n");
+
   g_log.write("End of deinit\n");
   return 0;
 }
@@ -807,6 +875,7 @@ REQUIRES_SERVICE_AS(mysql_server_telemetry_traces_v1, telemetry_v1_srv),
     REQUIRES_SERVICE_AS(mysql_security_context_options, scx_options_srv),
     REQUIRES_SERVICE_AS(pfs_notification_v3, notification_srv),
     REQUIRES_SERVICE_AS(status_variable_registration, statvar_register_srv),
+    REQUIRES_SERVICE_AS(udf_registration, udf_registration_srv),
     END_COMPONENT_REQUIRES();
 
 /* A list of metadata to describe the Component. */

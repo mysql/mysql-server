@@ -1,0 +1,39 @@
+################################################################################
+# Test telemetry tracing correctly gets passed query attributes
+# when executing statements via COM_STMT_EXECUTE command.
+#
+# Test requires PS protocol to force running SQL via COM_STMT_EXECUTE.
+################################################################################
+
+--source include/have_server_telemetry_traces.inc
+--source include/have_no_telemetry_component.inc
+--source include/not_parallel.inc
+--source include/have_ps_protocol.inc
+
+--echo # SETUP
+INSTALL COMPONENT 'file://component_query_attributes';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+
+--echo
+--echo # Operation
+
+--echo # Test #1: prepared statement with query attributes
+--disable_result_log
+SELECT test_component_trace_log('***** TEST - Prepared statement with query attrs only:');
+--enable_result_log
+--query_attributes trace on traceparent 1329494393
+SELECT SQRT(4) AS square_root;
+
+--echo # Test #2: prepared statement with bind parameters
+--exec $MYSQL_CLIENT_TEST test_server_telemetry_traces_prepared > /dev/null 2>&1
+
+--echo
+--echo # CLEANUP
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+UNINSTALL COMPONENT 'file://component_query_attributes';
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo
+--echo # Component logs:
+cat_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+remove_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;

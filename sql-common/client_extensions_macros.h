@@ -29,6 +29,7 @@
 #define MYSQL_CLIENT_EXTENSIONS_MACROS_H_INCLUDED
 
 extern PSI_memory_key key_memory_mysql_options;
+extern PSI_memory_key key_memory_MYSQL;
 
 #define ALLOCATE_EXTENSIONS(OPTS)                                          \
   (OPTS)->extension = (struct st_mysql_options_extention *)my_malloc(      \

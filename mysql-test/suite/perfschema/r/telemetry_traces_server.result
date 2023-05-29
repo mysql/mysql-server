@@ -358,6 +358,7 @@ UPDATE performance_schema.setup_instruments SET ENABLED = 'YES', TIMED = 'YES' W
 UPDATE performance_schema.setup_consumers SET ENABLED = 'YES' WHERE NAME LIKE '%statements%';
 Component logs:
 test_server_telemetry_traces_component_init init:
+ - UDFs registered.
  - System variables registered.
  - Status variables registered.
  - Telemetry per-session data slot registered.
@@ -380,11 +381,14 @@ End of init
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT 1')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"a": "b"}]
  query_attr_read: failed to find query attribute 'trace'
  > tm_stmt_notify_qa: skip tracing, no attribute 'trace' (depth=1, with_qa=1, user=root, query='SELECT 2')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "off"}]
  > tm_stmt_notify_qa: skip tracing, attribute 'trace'='off' (depth=1, with_qa=1, user=root, query='SELECT 3')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT 4', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT 4', digest='SELECT ?', app[], call[])
  tm_session_connect: client session started (user=internal)
@@ -403,6 +407,7 @@ End of init
  tm_session_connect: client session started (user=api)
  tm_session_create: telemetry session started, increase refcount by user=api to 2
 > tm_stmt_start: proceed further (depth=1, user=api, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=api, query='SELECT 6', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=api, query='', query1='SELECT 6', digest='SELECT ?', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=api, host=localhost, db=test, query='')
@@ -434,9 +439,11 @@ End of init
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET GLOBAL test_server_telemetry_traces.trace_key='activate'')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
  query_attr_read: failed to find query attribute 'activate'
  > tm_stmt_notify_qa: skip tracing, no attribute 'activate' (depth=1, with_qa=1, user=root, query='SELECT 8')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT 9', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT 9', digest='SELECT ?', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
@@ -446,9 +453,11 @@ End of init
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET GLOBAL test_server_telemetry_traces.callsite_context_keys=';source_file;source_line;;'')
 > sysvar 'callsite_context_keys' updated to ';source_file;source_line;;'
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on", "client_id": "10", "root_id": "1", "parent_id": "2", "id": "99", "external_id": "123", "source_file": "main.cc", "source_line": "998", "source_dir": "dummy"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT 10', app[{"client_id": "10", "root_id": "1", "parent_id": "2", "id": "99"}], call[{"source_file": "main.cc", "source_line": "998"}])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT 10', digest='SELECT ?', app[{"client_id": "10", "root_id": "1", "parent_id": "2", "id": "99"}], call[{"source_file": "main.cc", "source_line": "998"}])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT 11, (SELECT COUNT(*) FROM DUAL)', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT 11, (SELECT COUNT(*) FROM DUAL)', digest='SELECT ? , ( SELECT COUNT ( * ) FROM DUAL )', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
@@ -464,6 +473,7 @@ CALL proc1();
 CALL proc1();
 END')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='CALL proc2()', app[], call[])
 > tm_stmt_start: proceed further (depth=2, user=root, host=localhost, db=test, query='CALL proc2()')
 > tm_stmt_start: proceed further (depth=3, user=root, host=localhost, db=test, query='CALL proc1()')
@@ -500,6 +510,7 @@ SET greeting = CONCAT('Hi ', name);
 RETURN greeting;
 END')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT SayHi('Marc')', app[], call[])
 > tm_stmt_start: proceed further (depth=2, user=root, host=localhost, db=test, query='SELECT SayHi('Marc')')
 > tm_stmt_end: trace statement (depth=2, user=root, query='SELECT SayHi('Marc')', query1='', digest='(null)', app[], call[])
@@ -521,6 +532,7 @@ END')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='START TRANSACTION')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='INSERT INTO t1 VALUES (1),(2)', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='INSERT INTO t1 VALUES (1),(2)', digest='INSERT INTO `t1` VALUES (?) /* , ... */', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
@@ -607,6 +619,7 @@ END')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT wrong FROM t1')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SEEELECT s1 FROM t1', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SEEELECT s1 FROM t1', digest='(null)', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
@@ -632,6 +645,7 @@ END')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT test_mysql_command_services_udf("SELECT 1+1")')
 > tm_stmt_start: discard statement (user=mysql.session, host=localhost, db=, query=''), statement will not be forced
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT test_mysql_command_services_udf("SELECT 2+2")', app[], call[])
 > tm_stmt_start: discard statement (user=mysql.session, host=localhost, db=, query=''), statement will not be forced
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT test_mysql_command_services_udf("SELECT 2+2")', digest='SELECT `test_mysql_command_services_udf` (?)', app[], call[])
@@ -640,21 +654,25 @@ END')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE TABLE t2 (s1 INT) ENGINE=MEMORY')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='INSERT INTO t2 VALUES (1),(2)', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='INSERT INTO t2 VALUES (1),(2)', digest='INSERT INTO `t2` VALUES (?) /* , ... */', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP TABLE t2')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='CREATE PROCEDURE obfuscate_this_2(a DECIMAL(4,2))
 SET PASSWORD FOR internal@localhost='CmdrShepard'', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='CREATE PROCEDURE obfuscate_this_2(a DECIMAL(4,2))
 SET PASSWORD FOR internal@localhost='CmdrShepard'', digest='CREATE PROCEDURE `obfuscate_this_2` ( `a` DECIMAL (...) ) SET PASSWORD FOR `internal` @? = ?', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='CALL obfuscate_this_2(1)', app[], call[])
 > tm_stmt_start: proceed further (depth=2, user=root, host=localhost, db=test, query='CALL obfuscate_this_2(1)')
 > tm_stmt_end: trace statement (depth=2, user=root, query='SET PASSWORD FOR `internal`@`localhost`=<secret>', query1='SET PASSWORD FOR `internal`@`localhost`=<secret>', digest='(null)', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='SET PASSWORD FOR `internal`@`localhost`=<secret>', query1='CALL obfuscate_this_2(1)', digest='CALL `obfuscate_this_2` (?)', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"activate": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SET PASSWORD FOR `internal`@`localhost`=<secret>', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='SET PASSWORD FOR `internal`@`localhost`=<secret>', query1='SET PASSWORD FOR `internal`@`localhost`=<secret>', digest='SET PASSWORD FOR `internal` @? = ?', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
@@ -702,8 +720,10 @@ test_server_telemetry_traces_component_deinit:
  - Telemetry per-session data slot unregistered.
  - Status variables unregistered.
  - System variables unregistered.
+ - UDFs unregistered.
 End of deinit
 test_server_telemetry_traces_component_init init:
+ - UDFs registered.
  - System variables registered.
  - Status variables registered.
  - Telemetry per-session data slot registered.
@@ -712,6 +732,7 @@ test_server_telemetry_traces_component_init init:
 End of init
  tm_session_create: telemetry session started, increase refcount by user=root to 1
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT 13', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT 13', digest='SELECT ?', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
@@ -721,6 +742,7 @@ End of init
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE TABLE tload (c1 TEXT)')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='LOAD DATA LOCAL INFILE 'tmp1.txt' INTO TABLE tload', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='LOAD DATA LOCAL INFILE 'tmp1.txt' INTO TABLE tload', digest='LOAD DATA LOCAL INFILE ? INTO TABLE `tload`', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
@@ -732,20 +754,25 @@ End of init
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET @@global.validate_password.policy=LOW')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='CREATE USER 'user'@'localhost' IDENTIFIED BY <secret>', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='CREATE USER 'user'@'localhost' IDENTIFIED BY <secret>', query1='CREATE USER 'user'@'localhost' IDENTIFIED BY <secret>', digest='CREATE SYSTEM_USER ? @? IDENTIFIED BY ?', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='UNINSTALL COMPONENT "file://component_validate_password"')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='select 14', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='select 14', query1='select 14', digest='SELECT ?', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='select 14')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='select 15', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='select 15', query1='select 15', digest='SELECT ?', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='select 15')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='select 16', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='select 16', digest='SELECT ?', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='CREATE TABLE t3 (s1 INT COMMENT 'field') COMMENT='table' ENGINE=MEMORY', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='CREATE TABLE t3 (s1 INT COMMENT 'field') COMMENT='table' ENGINE=MEMORY', digest='CREATE TABLE `t3` ( `s1` INTEGER COMMENT ? ) COMMENT = ? ENGINE = MEMORY', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
@@ -792,12 +819,15 @@ End of init
  tm_session_destroy: telemetry session ended, decrease refcount to 1
  tm_session_destroy: failed to get current THD
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT (SELECT 1) UNION SELECT (SELECT 2)', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT (SELECT 1) UNION SELECT (SELECT 2)', digest='SELECT ( SELECT ? ) UNION SELECT ( SELECT ? )', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT (SELECT (SELECT 0 UNION SELECT 0))', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT (SELECT (SELECT 0 UNION SELECT 0))', digest='SELECT ( SELECT ( SELECT ? UNION SELECT ? ) )', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT (SELECT MIN(s1) FROM t3) UNION (SELECT MAX(s1) FROM t3)', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT (SELECT MIN(s1) FROM t3) UNION (SELECT MAX(s1) FROM t3)', digest='SELECT ( SELECT MIN ( `s1` ) FROM `t3` ) UNION ( SELECT MAX ( `s1` ) FROM `t3` )', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
@@ -837,4 +867,5 @@ test_server_telemetry_traces_component_deinit:
  - Telemetry per-session data slot unregistered.
  - Status variables unregistered.
  - System variables unregistered.
+ - UDFs unregistered.
 End of deinit

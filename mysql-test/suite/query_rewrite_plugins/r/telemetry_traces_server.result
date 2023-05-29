@@ -24,6 +24,7 @@ Warning	1620	Plugin is busy and will be uninstalled on shutdown
 # Query rewrite plugin was queued for uninstalling.
 Component logs:
 test_server_telemetry_traces_component_init init:
+ - UDFs registered.
  - System variables registered.
  - Status variables registered.
  - Telemetry per-session data slot registered.
@@ -32,9 +33,11 @@ test_server_telemetry_traces_component_init init:
 End of init
  tm_session_create: telemetry session started, increase refcount by user=root to 1
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT "rewritten"', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT "rewritten"', digest='SELECT ?', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SHOW WARNINGS', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SHOW WARNINGS', digest='SHOW WARNINGS', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
@@ -48,4 +51,5 @@ test_server_telemetry_traces_component_deinit:
  - Telemetry per-session data slot unregistered.
  - Status variables unregistered.
  - System variables unregistered.
+ - UDFs unregistered.
 End of deinit

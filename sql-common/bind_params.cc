@@ -283,6 +283,55 @@ static bool store_param(NET *net, MYSQL_BIND *param, my_off_t null_pos_ofs) {
   return false;
 }
 
+/*
+  Iterates bind parameters array in following order:
+   - first iterate unnamed parameters
+   - next iterate named parameters
+*/
+class bind_params_iterator {
+ public:
+  bind_params_iterator(MYSQL_BIND *params, const char **names,
+                       unsigned int count)
+      : m_params(params),
+        m_names(names),
+        m_count(count),
+        m_pos(0),
+        m_scan_named(false) {}
+
+  // return false when no more items, array index returned by reference on
+  // success
+  bool next(unsigned int &idx) {
+    // 1st scan pass iterates unnamed params only
+    // 2nd scan pass iterates named params only
+    while (true) {
+      for (unsigned int i = m_pos; i < m_count; i++) {
+        const bool is_named = (m_names != nullptr && m_names[i] != nullptr);
+        if (m_scan_named == is_named) {
+          idx = i;
+          m_pos = i + 1;
+          return true;
+        }
+      }
+      // finish if 2nd pass done
+      if (m_scan_named) break;
+      // else start 2nd pass
+      m_scan_named = true;
+      m_pos = 0;
+    }
+
+    return false;  // no more items
+  }
+
+ protected:
+  // input
+  MYSQL_BIND *m_params;
+  const char **m_names;
+  unsigned int m_count;
+  // state
+  unsigned int m_pos;
+  bool m_scan_named;
+};
+
 /**
   Serialize the query parameters.
 
@@ -314,8 +363,7 @@ bool mysql_int_serialize_param_data(
     uchar send_types_to_server, bool send_named_params,
     bool send_parameter_set_count, bool send_parameter_count_when_zero) {
   uint null_count;
-  MYSQL_BIND *param, *param_end;
-  const char **names_ptr = names;
+  MYSQL_BIND *param;
   my_off_t null_pos_ofs;
   DBUG_TRACE;
 
@@ -352,7 +400,6 @@ bool mysql_int_serialize_param_data(
     }
     memset(net->write_pos, 0, null_count);
     net->write_pos += null_count;
-    param_end = params + param_count;
 
     /* In case if buffers (type) altered, indicate to server */
     *(net->write_pos)++ = send_types_to_server;
@@ -362,16 +409,20 @@ bool mysql_int_serialize_param_data(
         return true;
       }
       /*
-        Store types of parameters in first in first package
+        Store types of parameters in first package
         that is sent to the server.
       */
-      for (param = params; param < param_end; param++) {
+      bind_params_iterator it(params, names, param_count);
+      unsigned int idx;
+
+      while (it.next(idx)) {
+        param = &params[idx];
         store_param_type(&net->write_pos, param);
         if (send_named_params) {
           const char *name = nullptr;
           size_t len = 0;
           if (names) {
-            name = *names_ptr++;
+            name = names[idx];
             len = name ? strlen(name) : 0;
           }
           my_realloc_str(net, len + net_length_size(len));
@@ -382,7 +433,11 @@ bool mysql_int_serialize_param_data(
       }
     }
 
-    for (param = params; param < param_end; param++) {
+    bind_params_iterator it(params, names, param_count);
+    unsigned int idx;
+
+    while (it.next(idx)) {
+      param = &params[idx];
       /* check if mysql_stmt_send_long_data() was used */
       if (param->long_data_used)
         param->long_data_used = false; /* Clear for next execute call */

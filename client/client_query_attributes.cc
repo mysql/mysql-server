@@ -73,6 +73,13 @@ int client_query_attributes::set_params(MYSQL *mysql) {
   return rc;
 }
 
+int client_query_attributes::set_params_stmt(MYSQL_STMT *stmt) {
+  if (count == 0) return 0;
+
+  const int rc = mysql_stmt_bind_named_param(stmt, values, count, names);
+  return rc;
+}
+
 void client_query_attributes::clear(MYSQL *mysql) {
   if (mysql != nullptr) mysql_bind_param(mysql, 0, nullptr, nullptr);
   while (count) {

@@ -35,6 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/pfs_notification.h>
 #include <mysql/components/services/psi_statement.h>
 #include <mysql/components/services/security_context.h>
+#include <mysql/components/services/udf_registration.h>
 
 /* A place to specify component-wide declarations, including declarations of
  *   placeholders for Service dependencies. */
@@ -69,5 +70,6 @@ extern REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_security_context_options,
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_notification_v3, notification_srv);
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(status_variable_registration,
                                        statvar_register_srv);
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(udf_registration, udf_registration_srv);
 
 #endif /* TEST_SERVER_TELEMETRY_REQUIRED_SERVICES_INCLUDED */

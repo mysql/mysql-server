@@ -18,6 +18,7 @@ UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
 UNINSTALL COMPONENT 'file://component_query_attributes';
 Component logs:
 test_server_telemetry_traces_component_init init:
+ - UDFs registered.
  - System variables registered.
  - Status variables registered.
  - Telemetry per-session data slot registered.
@@ -32,9 +33,11 @@ End of init
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
  > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='ALTER TABLE t1 SECONDARY_LOAD')
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT * FROM t1', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='SELECT * FROM t1', query1='SELECT * FROM t1', digest='SELECT * FROM `t1`', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='SELECT * FROM t1')
+> tm_stmt_notify_qa: all query attributes [{"trace": "on"}]
 > tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT * FROM t1', app[], call[])
 > tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT * FROM t1', digest='SELECT * FROM `t1`', app[], call[])
 > tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
@@ -54,4 +57,5 @@ test_server_telemetry_traces_component_deinit:
  - Telemetry per-session data slot unregistered.
  - Status variables unregistered.
  - System variables unregistered.
+ - UDFs unregistered.
 End of deinit

@@ -15952,7 +15952,7 @@ static void test_bug28934() {
 
   stmt->param_count = 2;
   error = mysql_stmt_execute(stmt);
-  DIE_UNLESS(error != 0);
+  DIE_UNLESS(error == 0);  // extra params assumed query attributes
   myerror(nullptr);
   mysql_stmt_close(stmt);
 
@@ -23424,6 +23424,229 @@ static void test_server_telemetry_traces() {
   test_zero_rpc(COM_SET_OPTION, true);
 }
 
+/*
+  Used by perfschema.telemetry_traces_prepared_stmt test.
+  Runs prepared statement with some bind arguments,
+  with or without query attributes.
+*/
+static void test_server_telemetry_traces_prepared() {
+  DBUG_TRACE;
+  myheader("test_server_telemetry_traces_prepared");
+
+  // wait for session to be processed by telemetry
+  // this assures the logs are being deterministic
+  // (ordering not changed between multiple sessions)
+  my_sleep(500000);  // 500msec
+
+  MYSQL_RES *result;
+  MYSQL_STMT *stmt;
+  int rc;
+  MYSQL_BIND ps_params[1];
+  MYSQL_BIND all_params[3];
+
+  int int_data = 4;
+
+  //
+  // Test1:
+  // run prepared statement with bound parameters (without query attributes)
+  //
+
+  // helps to delimit entries within the log file
+  rc = mysql_query(mysql,
+                   "SELECT test_component_trace_log('***** TEST - Prepared "
+                   "statement with bind params only:')");
+  if (rc == 1) {
+    // skip test if component_test_server_telemetry_metrics not loaded
+    // test makes sense to be run only through
+    // perfschema.telemetry_traces_prepared_stmt
+    return;
+  }
+  myquery(rc);
+  result = mysql_use_result(mysql);
+  mytest(result);
+  mysql_free_result(result);
+
+  stmt = mysql_simple_prepare(mysql, "SELECT POW(?,2) AS square");
+  check_stmt(stmt);
+
+  memset(ps_params, 0, sizeof(ps_params));
+
+  ps_params[0].buffer_type = MYSQL_TYPE_LONG;
+  ps_params[0].buffer = (char *)&int_data;
+  ps_params[0].length = nullptr;
+  ps_params[0].is_null = nullptr;
+
+  rc = mysql_stmt_bind_param(stmt, ps_params);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  // verify result, indicates unnamed param was passed correctly
+  rc = mysql_stmt_store_result(stmt);
+  DIE_UNLESS(rc == 0);
+
+  MYSQL_BIND rbind[1];
+  memset(rbind, 0, sizeof(rbind));
+  int squared_val;
+  rbind[0].buffer_type = MYSQL_TYPE_LONG;
+  rbind[0].buffer = (char *)&squared_val;
+  rc = mysql_stmt_bind_result(stmt, rbind);
+  DIE_UNLESS(rc == 0);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+  DIE_UNLESS(squared_val == 16);  // 4 squared
+
+  mysql_stmt_close(stmt);
+  printf("Test 1 successfully completed\n");
+
+  //
+  // Test 2:
+  // run prepared statement with bound parameters AND query attributes
+  // (put unnamed parameter last, just for test)
+  //
+
+  rc = mysql_query(mysql,
+                   "SELECT test_component_trace_log('***** TEST - Prepared "
+                   "statement with both bind params and query attrs:')");
+  myquery(rc);
+  result = mysql_use_result(mysql);
+  mytest(result);
+  mysql_free_result(result);
+
+  stmt = mysql_simple_prepare(mysql, "SELECT POW(?,3) AS cubed");
+  check_stmt(stmt);
+
+  // bind parameters already setup, same as before
+  rc = mysql_stmt_bind_param(stmt, ps_params);
+  check_execute(stmt, rc);
+
+  // set query attributes
+  char str_traceon[] = "on";
+  ulong len_traceon = strlen(str_traceon);
+  int int_parentid = 1329494394;
+
+  memset(all_params, 0, sizeof(all_params));
+
+  all_params[0].buffer_type = MYSQL_TYPE_STRING;
+  all_params[0].buffer = (char *)str_traceon;
+  all_params[0].length = &len_traceon;
+  all_params[0].is_null = nullptr;
+
+  all_params[1].buffer_type = MYSQL_TYPE_LONG;
+  all_params[1].buffer = (char *)&int_parentid;
+  all_params[1].length = nullptr;
+  all_params[1].is_null = nullptr;
+
+  all_params[2].buffer_type = MYSQL_TYPE_LONG;
+  all_params[2].buffer = (char *)&int_data;
+  all_params[2].length = nullptr;
+  all_params[2].is_null = nullptr;
+
+  const char *names[3] = {"trace", "traceparent", nullptr};
+  rc = mysql_stmt_bind_named_param(stmt, all_params, std::size(all_params),
+                                   names);
+  DIE_UNLESS(rc == 0);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  // verify result, indicates unnamed param was passed correctly
+  rc = mysql_stmt_store_result(stmt);
+  DIE_UNLESS(rc == 0);
+
+  memset(rbind, 0, sizeof(rbind));
+  int cubed_val;
+  rbind[0].buffer_type = MYSQL_TYPE_LONG;
+  rbind[0].buffer = (char *)&cubed_val;
+  rc = mysql_stmt_bind_result(stmt, rbind);
+  DIE_UNLESS(rc == 0);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == 0);
+  DIE_UNLESS(cubed_val == 64);  // 4 cubed
+
+  printf("Test 2 successfully completed\n");
+
+  //
+  // Test 3:
+  // test executing (already) prepared statement the 2nd time
+  //
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  printf("Test 3 successfully completed\n");
+
+  //
+  // Test 4:
+  // rebind bind parameters again (overwrites query attributes)
+  //
+  rc = mysql_stmt_bind_param(stmt, ps_params);
+  check_execute(stmt, rc);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  printf("Test 4 successfully completed\n");
+
+  // Test 5:
+  // rebind all attributes again (should not be duplicated)
+  //
+  rc = mysql_stmt_bind_named_param(stmt, all_params, std::size(all_params),
+                                   names);
+  DIE_UNLESS(rc == 0);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  printf("Test 5 successfully completed\n");
+
+  // Test 6:
+  // rebind one less query attribute compared to last time (should report no
+  // issues)
+  //
+  rc = mysql_stmt_bind_named_param(stmt, all_params, std::size(all_params) - 1,
+                                   names);
+  DIE_UNLESS(rc == 0);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  printf("Test 6 successfully completed\n");
+
+  // Test 7:
+  // prepared statements with bound parameters and results is executed twice
+  //
+
+  rc = mysql_stmt_bind_named_param(stmt, all_params, std::size(all_params),
+                                   names);
+  DIE_UNLESS(rc == 0);
+
+  memset(rbind, 0, sizeof(rbind));
+  rbind[0].buffer_type = MYSQL_TYPE_LONG;
+  rbind[0].buffer = (char *)&cubed_val;
+
+  rc = mysql_stmt_bind_result(stmt, rbind);
+  DIE_UNLESS(rc == 0);
+
+  for (int i = 0; i < 2; i++) {
+    rc = mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+
+    rc = mysql_stmt_store_result(stmt);
+    DIE_UNLESS(rc == 0);
+
+    cubed_val = 0;
+    rc = mysql_stmt_fetch(stmt);
+    DIE_UNLESS(rc == 0);
+    DIE_UNLESS(cubed_val == 64);  // 4 cubed
+  }
+
+  mysql_stmt_close(stmt);
+  printf("Test 7 successfully completed\n");
+}
+
 static void test_wl13128() {
   DBUG_TRACE;
   myheader("test_wl13128");
@@ -24028,6 +24251,8 @@ static struct my_tests_st my_tests[] = {
     {"test_wl15651", test_wl15651},
     {"test_wl14839", test_wl14839},
     {"test_wl15633", test_wl15633},
+    {"test_server_telemetry_traces_prepared",
+     test_server_telemetry_traces_prepared},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }
