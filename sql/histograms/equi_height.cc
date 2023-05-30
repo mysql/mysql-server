@@ -39,7 +39,8 @@
 #include "mysql_time.h"
 #include "sql-common/json_dom.h"  // Json_*
 #include "sql/histograms/equi_height_bucket.h"
-#include "sql/histograms/value_map.h"  // Value_map
+#include "sql/histograms/histogram_utility.h"  // DeepCopy
+#include "sql/histograms/value_map.h"          // Value_map
 #include "sql/mem_root_allocator.h"
 #include "sql_string.h"
 #include "template_utils.h"
@@ -81,40 +82,14 @@ Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const Equi_height<T> &other,
     *error = true;
     return;
   }
-  for (const auto &bucket : other.m_buckets) m_buckets.push_back(bucket);
-}
-
-template <>
-Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
-                                 const Equi_height<String> &other, bool *error)
-    : Histogram(mem_root, other, error), m_buckets(mem_root) {
-  /*
-    Copy bucket contents. We need to make duplicates of String data, since they
-    are allocated on a MEM_ROOT that most likely will be freed way too early.
-  */
-  if (m_buckets.reserve(other.m_buckets.size())) {
-    *error = true;
-    return;
-  }
-  for (const auto &pair : other.m_buckets) {
-    char *lower_string_data = pair.get_lower_inclusive().dup(mem_root);
-    char *upper_string_data = pair.get_upper_inclusive().dup(mem_root);
-    if (lower_string_data == nullptr || upper_string_data == nullptr) {
-      assert(false); /* purecov: deadcode */
-      *error = true;
-      return;
-    }
-
-    String lower_string_dup(lower_string_data,
-                            pair.get_lower_inclusive().length(),
-                            pair.get_lower_inclusive().charset());
-    String upper_string_dup(upper_string_data,
-                            pair.get_upper_inclusive().length(),
-                            pair.get_upper_inclusive().charset());
-    equi_height::Bucket<String> bucket_dup(lower_string_dup, upper_string_dup,
-                                           pair.get_cumulative_frequency(),
-                                           pair.get_num_distinct());
-    m_buckets.push_back(bucket_dup);
+  for (const equi_height::Bucket<T> &other_bucket : other.m_buckets) {
+    equi_height::Bucket<T> bucket(
+        DeepCopy(other_bucket.get_lower_inclusive(), mem_root, error),
+        DeepCopy(other_bucket.get_upper_inclusive(), mem_root, error),
+        other_bucket.get_cumulative_frequency(),
+        other_bucket.get_num_distinct());
+    if (*error) return;
+    m_buckets.push_back(bucket);
   }
 }
 
@@ -452,9 +427,14 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
         EstimateDistinctValues(value_map.get_sampling_rate(),
                                bucket_distinct_values, bucket_unary_values);
 
-    equi_height::Bucket<T> bucket(*bucket_lower_value, freq_it->first,
-                                  cumulative_frequency,
-                                  bucket_distinct_values_estimate);
+    // Create deep copies of the bucket endpoints to ensure that the values are
+    // allocated on the histogram's mem_root.
+    bool value_copy_error = false;
+    equi_height::Bucket<T> bucket(
+        DeepCopy(*bucket_lower_value, get_mem_root(), &value_copy_error),
+        DeepCopy(freq_it->first, get_mem_root(), &value_copy_error),
+        cumulative_frequency, bucket_distinct_values_estimate);
+    if (value_copy_error) return true;
 
     /*
       In case the histogram construction algorithm unintendedly inserts more
