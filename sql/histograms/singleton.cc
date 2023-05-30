@@ -36,8 +36,9 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_time.h"
-#include "sql-common/json_dom.h"       // Json_*
-#include "sql/histograms/value_map.h"  // Value_map
+#include "sql-common/json_dom.h"               // Json_*
+#include "sql/histograms/histogram_utility.h"  // DeepCopy
+#include "sql/histograms/value_map.h"          // Value_map
 #include "template_utils.h"
 
 struct MEM_ROOT;
@@ -76,35 +77,11 @@ Singleton<T>::Singleton(MEM_ROOT *mem_root, const Singleton<T> &other,
     *error = true;
     return;  // OOM
   }
-  for (const auto &bucket : other.m_buckets) {
+  for (const SingletonBucket<T> &other_bucket : other.m_buckets) {
+    SingletonBucket<T> bucket(DeepCopy(other_bucket.value, mem_root, error),
+                              other_bucket.cumulative_frequency);
+    if (*error) return;
     m_buckets.push_back(bucket);
-  }
-}
-
-template <>
-Singleton<String>::Singleton(MEM_ROOT *mem_root, const Singleton<String> &other,
-                             bool *error)
-    : Histogram(mem_root, other, error), m_buckets(mem_root) {
-  /*
-    Copy bucket contents. We need to make duplicates of String data, since they
-    are allocated on a MEM_ROOT that most likely will be freed way too early.
-  */
-  if (m_buckets.reserve(other.m_buckets.size())) {
-    *error = true;
-    return;  // OOM
-  }
-  for (const auto &bucket : other.m_buckets) {
-    char *string_data = bucket.value.dup(mem_root);
-    if (string_data == nullptr) {
-      *error = true;
-      assert(false); /* purecov: deadcode */
-      return;        // OOM
-    }
-
-    String string_dup(string_data, bucket.value.length(),
-                      bucket.value.charset());
-    m_buckets.push_back(
-        SingletonBucket<String>(string_dup, bucket.cumulative_frequency));
   }
 }
 
@@ -152,7 +129,12 @@ bool Singleton<T>::build_histogram(const Value_map<T> &value_map,
     cumulative_sum += node.second;
     const double cumulative_frequency =
         cumulative_sum / static_cast<double>(total_count);
-    m_buckets.push_back(SingletonBucket<T>(node.first, cumulative_frequency));
+    bool value_copy_error = false;
+    SingletonBucket<T> bucket(
+        DeepCopy(node.first, get_mem_root(), &value_copy_error),
+        cumulative_frequency);
+    if (value_copy_error) return true;
+    m_buckets.push_back(bucket);
   }
 
   return false;
