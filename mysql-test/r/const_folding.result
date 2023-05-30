@@ -39043,7 +39043,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_year`.`y` AS `y` from `test`.`tbl_year` where (`test`.`tbl_year`.`y` is not null)
 DROP TABLE tbl_year;
-#  D E C I M A L  constant with non-zero fraction 
+#  D E C I M A L  constant with non-zero fraction
 CREATE TABLE tbl_year (y YEAR );
 INSERT INTO tbl_year VALUES (0), (1901), (2018), (2155);
 ANALYZE TABLE tbl_year;
@@ -52749,4 +52749,41 @@ INSERT INTO t0(c0) VALUES (0);
 SELECT * FROM t0 WHERE 0.9 > t0.c0;
 c0
 0
+DROP TABLE t0;
+CREATE TABLE t0 (c0 BIGINT);
+SELECT 1 FROM t0 WHERE t0.c0 =  05687.3E-84;
+1
+EXPLAIN SELECT 1 FROM t0 WHERE t0.c0 =  05687.3E-84;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t0` where false
+SELECT 1 FROM t0 WHERE t0.c0 >  05687.3E-84;
+1
+EXPLAIN SELECT 1 FROM t0 WHERE t0.c0 >  05687.3E-84;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t0` where (`test`.`t0`.`c0` > 0)
+SELECT 1 FROM t0 WHERE t0.c0 >= 05687.3E-84;
+1
+EXPLAIN SELECT 1 FROM t0 WHERE t0.c0 >= 05687.3E-84;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t0` where (`test`.`t0`.`c0` > 0)
+SELECT 1 FROM t0 WHERE t0.c0 <  05687.3E-84;
+1
+EXPLAIN SELECT 1 FROM t0 WHERE t0.c0 <  05687.3E-84;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t0` where (`test`.`t0`.`c0` < 1)
+SELECT 1 FROM t0 WHERE t0.c0 <= 05687.3E-84;
+1
+EXPLAIN SELECT 1 FROM t0 WHERE t0.c0 <= 05687.3E-84;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t0` where (`test`.`t0`.`c0` < 1)
 DROP TABLE t0;
