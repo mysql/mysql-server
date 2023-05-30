@@ -341,6 +341,8 @@ NDBT_Step::setUp(Ndb_cluster_connection& con){
     int result = m_ndb->waitUntilReady(300); // 5 minutes
     if (result != 0){
       g_err << "Ndb was not ready" << endl;
+      delete m_ndb;
+      m_ndb = NULL;
       return NDBT_FAILED;
     }
     break;
