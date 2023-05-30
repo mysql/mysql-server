@@ -645,3 +645,32 @@ ANALYZE TABLE t2,t3;
 
 DROP TABLE t1, t2, t3, num10;
 
+--echo #
+--echo # Bug#34762651 Too high row estimates for DISTINCT
+--echo #
+
+
+CREATE TABLE t1(
+       a INT PRIMARY KEY,
+       b INT,
+       KEY(b),
+       c INT
+);
+
+INSERT INTO t1
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<100)
+SELECT n,  n%5, n%7 FROM qn;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c;
+ANALYZE TABLE t1;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT DISTINCT b FROM t1;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT DISTINCT c FROM t1;
+
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT DISTINCT b,c FROM t1;
+
+DROP TABLE t1;

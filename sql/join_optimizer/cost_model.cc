@@ -112,7 +112,21 @@ void EstimateSortCost(AccessPath *path) {
                  num_output_rows * std::max(log2(num_output_rows), 1.0));
   }
 
-  path->set_num_output_rows(num_output_rows);
+  if (path->sort().remove_duplicates) {
+    Prealloced_array<const Item *, 4> sort_items(PSI_NOT_INSTRUMENTED);
+    for (const ORDER *order = path->sort().order; order != nullptr;
+         order = order->next) {
+      sort_items.push_back(*order->item);
+    }
+
+    const double aggregate_rows = EstimateAggregateRows(
+        num_input_rows, {sort_items.cbegin(), sort_items.size()}, nullptr);
+
+    path->set_num_output_rows(std::min(num_output_rows, aggregate_rows));
+  } else {
+    path->set_num_output_rows(num_output_rows);
+  }
+
   path->cost = path->init_cost = child->cost + sort_cost;
   path->init_once_cost = 0.0;
   path->num_output_rows_before_filter = path->num_output_rows();

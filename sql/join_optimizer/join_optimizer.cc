@@ -6272,7 +6272,11 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         AccessPath *dedup_path = NewRemoveDuplicatesAccessPath(
             thd, root_path, group_items, grouping.GetElements().size());
         CopyBasicProperties(*root_path, dedup_path);
-        // TODO(sgunders): Model the actual reduction in rows somehow.
+
+        dedup_path->set_num_output_rows(EstimateAggregateRows(
+            root_path->num_output_rows(),
+            {group_items, grouping.GetElements().size()}, trace));
+
         dedup_path->cost += kAggregateOneRowCost * root_path->num_output_rows();
         receiver.ProposeAccessPath(dedup_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
