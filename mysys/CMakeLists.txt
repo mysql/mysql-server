@@ -239,9 +239,9 @@ IF(HAVE_BUILD_ID_SUPPORT)
   # Verify that we can read our own build-id:
   ADD_CUSTOM_COMMAND(TARGET build_id_test POST_BUILD
 #   COMMAND ./build_id_test
-#   COMMAND ${READELF_EXECUTABLE} -n ./build_id_test | grep "Build ID:"
+#   COMMAND LANG=C ${READELF_EXECUTABLE} -n ./build_id_test | grep "Build ID:"
     COMMAND ./build_id_test      | egrep -o "[0-9a-f]{40}" > build_id_test_1
-    COMMAND ${READELF_EXECUTABLE} -n ./build_id_test | grep "Build ID:" |
+    COMMAND LANG=C ${READELF_EXECUTABLE} -n ./build_id_test | grep "Build ID:" |
                                    egrep -o "[0-9a-f]{40}" > build_id_test_2
     COMMAND diff build_id_test_1 build_id_test_2
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
