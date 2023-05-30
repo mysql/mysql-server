@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -307,6 +307,8 @@ NDBT_Step::setUp(Ndb_cluster_connection& con){
     int result = m_ndb->waitUntilReady(300); // 5 minutes
     if (result != 0){
       g_err << "Ndb was not ready" << endl;
+      delete m_ndb;
+      m_ndb = NULL;
       return NDBT_FAILED;
     }
     break;
