@@ -28,6 +28,7 @@
 #include "classic_frame.h"
 #include "classic_lazy_connect.h"
 #include "harness_assert.h"
+#include "hexify.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqlrouter/classic_protocol_clone.h"
@@ -186,6 +187,7 @@ CloneForwarder::clone_command() {
   auto *socket_splicer = connection()->socket_splicer();
   auto src_channel = socket_splicer->client_channel();
   auto src_protocol = connection()->client_protocol();
+  auto dst_protocol = connection()->server_protocol();
 
   auto read_res =
       ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
@@ -204,6 +206,12 @@ CloneForwarder::clone_command() {
   };
 
   clone_cmd_ = msg_type;
+
+  // if the command starts with seq-id, reset the destinations seq-id (which
+  // gets incremented before it is used).
+  if (src_protocol->current_frame()->seq_id_ == 0) {
+    dst_protocol->seq_id(0xff);
+  }
 
   switch (Msg{msg_type}) {
     case Msg::Init:
@@ -301,8 +309,9 @@ CloneForwarder::clone_exit() {
 stdx::expected<Processor::Result, std::error_code>
 CloneForwarder::clone_response() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto src_channel = socket_splicer->server_channel();
-  auto src_protocol = connection()->server_protocol();
+  auto *src_channel = socket_splicer->server_channel();
+  auto *src_protocol = connection()->server_protocol();
+  auto *dst_protocol = connection()->client_protocol();
 
   auto read_res =
       ClassicFrame::ensure_has_msg_prefix(src_channel, src_protocol);
@@ -315,6 +324,12 @@ CloneForwarder::clone_response() {
         ClassicFrame::cmd_byte<classic_protocol::clone::server::Complete>(),
     Error = ClassicFrame::cmd_byte<classic_protocol::clone::server::Error>(),
   };
+
+  // if the response starts with seq-id == 0,
+  // reset the destinations seq-id (which gets incremented before it is used).
+  if (src_protocol->current_frame()->seq_id_ == 0) {
+    dst_protocol->seq_id(0xff);
+  }
 
   switch (Msg{msg_type}) {
     case Msg::Error:
@@ -343,7 +358,10 @@ CloneForwarder::clone_data() {
 stdx::expected<Processor::Result, std::error_code>
 CloneForwarder::clone_complete() {
   if (auto &tr = tracer()) {
-    tr.trace(Tracer::Event().stage("clone::complete"));
+    tr.trace(Tracer::Event().stage(
+        "clone::complete: " +
+        std::to_string(
+            connection()->server_protocol()->current_frame()->seq_id_)));
   }
 
   if (clone_cmd_ ==

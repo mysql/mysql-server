@@ -158,6 +158,11 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
     case Stage::FetchSysVarsDone:
       return fetch_sys_vars_done();
     case Stage::Done:
+      // reset the seq-id of the server side as this is a new command.
+      if (connection()->server_protocol() != nullptr) {
+        connection()->server_protocol()->seq_id(0xff);
+      }
+
       trace_span_end(trace_event_connect_);
 
       return Result::Done;

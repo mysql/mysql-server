@@ -1994,6 +1994,8 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, classic_protocol_clone) {
     ASSERT_NO_ERROR(recipient.send_query(oss.str()));
   }
 
+  bool clone_killed = false;
+  SCOPED_TRACE("// wait 2 seconds for the clone to finish");
   {
     auto monitor_res = recipient_server.admin_cli();
     ASSERT_NO_ERROR(monitor_res);
@@ -2008,25 +2010,39 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, classic_protocol_clone) {
       ASSERT_LT(cur, end);
 
       auto cmd_res = query_one_result(monitor, R"(SELECT
-  c.pid, c.state
- FROM performance_schema.clone_status AS c
+  pid, state, error_no, error_message
+ FROM performance_schema.clone_status
 )");
       ASSERT_NO_ERROR(cmd_res);
 
       auto result = *cmd_res;
       ASSERT_THAT(result, Not(IsEmpty()));
-      ASSERT_EQ(result[0].size(), 2);
+      ASSERT_GT(result[0].size(), 2);
 
-      if (result[0][1] == "In Progress") {
-        ASSERT_NO_ERROR(monitor.query("KILL QUERY " + result[0][0]));
+      ASSERT_THAT(result[0][1],
+                  AnyOf("Not Started", "In Progress", "Complete", "Failed"));
+
+      if (result[0][1] == "Complete") {
+        // clone was fast, good.
         break;
       }
+
+      // wait until the clone is in progress ... then stop it.
+      if (result[0][1] == "In Progress") {
+        ASSERT_NO_ERROR(monitor.query("KILL QUERY " + result[0][0]));
+        clone_killed = true;
+        break;
+      }
+
+      // if it hasn't been started yet, wait a bit.
+      ASSERT_EQ(result[0][1], "Not Started")
+          << mysql_harness::join(result[0], ", ");
 
       std::this_thread::sleep_for(100ms);
     }
   }
 
-  {
+  if (clone_killed) {
     auto cmd_res = recipient.read_query_result();
     ASSERT_ERROR(cmd_res);
     // 1317: query execution was interrupted.

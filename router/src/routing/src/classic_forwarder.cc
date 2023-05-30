@@ -96,13 +96,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
 
     src_protocol->seq_id(seq_id);
 
-    // if one side starts a new command, reset the sequence-id for the other
-    // side too.
-    if (seq_id == 0) {
-      dst_protocol->seq_id(0);
-    } else {
-      ++dst_protocol->seq_id();
-    }
+    ++dst_protocol->seq_id();
 
     auto forward_res = forward_header(src_channel, src_protocol, dst_channel,
                                       dst_protocol, header_size, payload_size);

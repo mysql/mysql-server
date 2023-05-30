@@ -533,6 +533,11 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   // The query processor handles SHOW WARNINGS which fetches the events.
   if (Msg{msg_type} != Msg::Query) connection()->events().clear();
 
+  // reset the seq-id of the server side as this is a new command.
+  if (connection()->server_protocol() != nullptr) {
+    connection()->server_protocol()->seq_id(0xff);
+  }
+
   switch (Msg{msg_type}) {
     case Msg::Quit:
       stage(Stage::Done);  // after Quit is done, leave.

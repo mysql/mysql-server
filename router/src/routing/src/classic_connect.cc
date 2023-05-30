@@ -334,6 +334,11 @@ ConnectProcessor::from_pool() {
         (void)socket_splicer->server_conn().connection()->set_io_context(
             socket_splicer->client_conn().connection()->io_ctx());
 
+        // reset the seq-id of the server side as this is a new command.
+        if (connection()->server_protocol() != nullptr) {
+          connection()->server_protocol()->seq_id(0xff);
+        }
+
         if (auto *ev = trace_event_socket_from_pool_) {
           trace_set_connection_attributes(ev);
           trace_span_end(ev);
