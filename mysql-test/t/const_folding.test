@@ -704,7 +704,7 @@ let $minreal_minus_delta_round_up=0.0;
 --source include/const_folding_real_real.inc
 
 #
-# F L O A T 
+# F L O A T
 #
 let $signedness=;
 let $real_type=FLOAT;
@@ -851,7 +851,7 @@ let $max=2155.0;
 let $max_plus_delta=2156.0;
 --source include/const_folding_year.inc
 
---echo #  D E C I M A L  constant with non-zero fraction 
+--echo #  D E C I M A L  constant with non-zero fraction
 let $zero=0.1;
 let $zero_minus_delta=-1.1;
 let $zero_plus_delta=1.1;
@@ -1153,4 +1153,25 @@ DROP TABLE t0;
 CREATE TABLE t0(c0 INT);
 INSERT INTO t0(c0) VALUES (0);
 SELECT * FROM t0 WHERE 0.9 > t0.c0;
+DROP TABLE t0;
+
+#
+# Bug#35200367 WHERE condition assertion error
+#
+CREATE TABLE t0 (c0 BIGINT);
+let $query = SELECT 1 FROM t0 WHERE t0.c0 =  05687.3E-84;
+eval $query;
+eval EXPLAIN $query;
+let $query = SELECT 1 FROM t0 WHERE t0.c0 >  05687.3E-84;
+eval $query;
+eval EXPLAIN $query;
+let $query = SELECT 1 FROM t0 WHERE t0.c0 >= 05687.3E-84;
+eval $query;
+eval EXPLAIN $query;
+let $query = SELECT 1 FROM t0 WHERE t0.c0 <  05687.3E-84;
+eval $query;
+eval EXPLAIN $query;
+let $query = SELECT 1 FROM t0 WHERE t0.c0 <= 05687.3E-84;
+eval $query;
+eval EXPLAIN $query;
 DROP TABLE t0;

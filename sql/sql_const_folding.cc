@@ -264,24 +264,23 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
 
       if (err & E_DEC_TRUNCATED) {
         /*
-          Check for underflow, e.g. 1.7976931348623157E-308 would end up
-          as decimal 0.0, which means that the floating point values was
+          Check for underflow, e.g. 1.7976931348623157E-308 would end up as
+          decimal 0.0, which means that the floating point values was
           marginally greater than 0.0, so we "simulate" this by adding 0.1.
-          Correspondingly for negative underflow, we subtract 0.1. This is
-          OK, because we round later.
+          Correspondingly for negative underflow, we subtract 0.1. This is OK,
+          because we round later.  The value can also be truncated even if it
+          isn't quite as small as zero, but in such a case its absolute value
+          would always be smaller than 0.1, but not representable as a decimal,
+          so we use 0.1 for those as well.
         */
-        my_decimal n;
-        err = int2my_decimal(E_DEC_FATAL_ERROR, 0, false, &n);
-        assert(err == 0);
-        assert(my_decimal_cmp(&n, &dec) == 0);
         if (v > 0) {
           // underflow on the positive side
-          String s("0.1", thd->charset());
+          const String s("0.1", thd->charset());
           err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
                                s.charset(), &dec);
           assert(err == 0);
         } else {
-          String s("-0.1", thd->charset());
+          const String s("-0.1", thd->charset());
           err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
                                s.charset(), &dec);
           assert(err == 0);
