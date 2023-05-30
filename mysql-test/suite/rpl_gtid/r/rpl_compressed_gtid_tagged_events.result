@@ -1,0 +1,47 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Turn on transaction compression
+
+[connection master]
+SET SESSION binlog_transaction_compression=ON;
+
+# 2. On the source: Execute extended transaction with several inserts,
+#    using server UUID (AUTOMATIC) and specified tag as GTID
+
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+SET GTID_NEXT='AUTOMATIC:aa';
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (9, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (8, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (7, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (6, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (5, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (4, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (3, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (2, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000000));
+COMMIT;
+SET GTID_NEXT='AUTOMATIC';
+
+# 3. On the replica: Assert that source and replica tables have the same
+#    content
+
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that source and replica tables have the same content]
+
+# 4. On the replica: Check that compressed transaction executed with
+#    a correct GTID
+
+include/assert.inc [Ensure that executed transactions with specified tag and automatic uuid are present in gtid_executed global variable]
+
+# Clean-up
+
+[connection master]
+DROP TABLE t1;
+SET SESSION binlog_transaction_compression=OFF;
+include/rpl_end.inc

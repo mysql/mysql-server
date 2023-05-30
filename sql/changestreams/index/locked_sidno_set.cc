@@ -20,9 +20,33 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+#include "sql/changestreams/index/locked_sidno_set.h"
+
 namespace cs::index {
 
-/// Type of SIDNO (source ID number, first component of GTID)
-using rpl_sidno = int;
+Locked_sidno_set::Locked_sidno_set(Gtid_state &gtid_state)
+    : m_gtid_state(gtid_state) {}
+
+void Locked_sidno_set::add_lock_for_sidno(rpl_sidno sidno) {
+  assert(!m_locked);
+  m_sidno_set.insert(sidno);
+}
+
+void Locked_sidno_set::lock() {
+  if (m_locked == false) {
+    m_locked = true;
+    for (const auto &sidno : m_sidno_set) {
+      m_gtid_state.get().lock_sidno(sidno);
+    }
+  }
+}
+
+Locked_sidno_set::~Locked_sidno_set() {
+  if (m_locked == true) {
+    for (const auto &sidno : m_sidno_set) {
+      m_gtid_state.get().unlock_sidno(sidno);
+    }
+  }
+}
 
 }  // namespace cs::index

@@ -41,7 +41,8 @@
 #include "mysql/psi/mysql_rwlock.h"  // mysql_rwlock_t
 #include "mysql/strings/m_ctype.h"   // my_isspace
 #include "mysql/utils/return_status.h"
-#include "prealloced_array.h"  // Prealloced_array
+#include "prealloced_array.h"                          // Prealloced_array
+#include "sql/changestreams/index/locked_sidno_set.h"  // Locked_sidno_set
 #include "sql/changestreams/index/sidno.h"
 #include "sql/rpl_reporting.h"  // MAX_SLAVE_ERRMSG
 #include "template_utils.h"
@@ -109,6 +110,12 @@ using rpl_sidno = cs::index::rpl_sidno;
 /// mysql::gtid::gno_t
 using rpl_gno = mysql::gtid::gno_t;
 typedef int64 rpl_binlog_pos;
+
+namespace cs::index {
+
+class Locked_sidno_set;
+
+}  // namespace cs::index
 
 /**
   Generic return type for many functions that can succeed or fail.
@@ -3184,6 +3191,7 @@ class Gtid_state {
   rpl_gno next_free_gno;
 
  public:
+  using Locked_sidno_set = cs::index::Locked_sidno_set;
   /**
     Return the last executed GNO for a given SIDNO, e.g.
     for the following set: UUID:1-10, UUID:12, UUID:15-20
@@ -3198,27 +3206,32 @@ class Gtid_state {
   /**
     Generates the GTID (or ANONYMOUS, if GTID_MODE = OFF or
     OFF_PERMISSIVE) for the THD, and acquires ownership.
+    Before this function, the caller needs to assign sidnos for automatic
+    transactions and lock sidno_set (see specify_transaction_sidno).
 
     @param thd The thread.
     @param specified_sidno Externally generated sidno.
     @param specified_gno   Externally generated gno.
-    @param[in,out] locked_sidno This parameter should be used when there is
-                                a need of generating many GTIDs without having
-                                to acquire/release a sidno_lock many times.
-                                The caller must hold global_sid_lock and unlock
-                                the locked_sidno after invocation when
-                                locked_sidno > 0 if locked_sidno!=NULL.
-                                The caller must not hold global_sid_lock when
-                                locked_sidno==NULL.
-                                See comments on function code to more details.
+    @see Locked_sidno_set
 
     @return RETURN_STATUS_OK or RETURN_STATUS_ERROR. Error can happen
     in case of out of memory or if the range of GNOs was exhausted.
   */
   enum_return_status generate_automatic_gtid(THD *thd,
                                              rpl_sidno specified_sidno = 0,
-                                             rpl_gno specified_gno = 0,
-                                             rpl_sidno *locked_sidno = nullptr);
+                                             rpl_gno specified_gno = 0);
+
+  /// @brief Determines sidno for thd transaction. In case transaction
+  /// is automatic, sidno is generated and added to sidno_set for future
+  /// locking (after all transactions from binlog commit group have been added)
+  /// @details The usage scheme is as follows: transaction for the binlog
+  /// commit group are assigned a sidno. Sidnos are added to sidno_set in this
+  /// function.
+  /// Afterwards, sidno_set must be locked by the caller. This operation must
+  /// be performed before the call to generate_automatic_gtid
+  /// @returns sidno specified for thd transaction
+  rpl_sidno specify_transaction_sidno(THD *thd,
+                                      Gtid_state::Locked_sidno_set &sidno_set);
 
   /// Locks a mutex for the given SIDNO.
   void lock_sidno(rpl_sidno sidno) { sid_locks.lock(sidno); }

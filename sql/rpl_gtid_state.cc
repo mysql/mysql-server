@@ -52,6 +52,8 @@ class Table_ref;
 
 PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 
+using Tsid = mysql::gtid::Tsid;
+
 int Gtid_state::clear(THD *thd) {
   DBUG_TRACE;
   int ret = 0;
@@ -470,9 +472,28 @@ rpl_gno Gtid_state::get_last_executed_gno(rpl_sidno sidno) const {
   return gno;
 }
 
+rpl_sidno Gtid_state::specify_transaction_sidno(
+    THD *thd, Gtid_state::Locked_sidno_set &sidno_set) {
+  DBUG_TRACE;
+  const auto &gtid_next = thd->variables.gtid_next;
+  rpl_sidno sidno =
+      thd->get_transaction()->get_rpl_transaction_ctx()->get_sidno();
+  if (gtid_next.is_automatic() &&
+      global_gtid_mode.get() >= Gtid_mode::ON_PERMISSIVE) {
+    if (gtid_next.is_automatic_tagged() && sidno == 0) {
+      sidno = global_sid_map->add_tsid(
+          Tsid(get_server_sid(), gtid_next.generate_tag()));
+    }
+    if (sidno == 0) {
+      sidno = get_server_sidno();
+    }
+    sidno_set.add_lock_for_sidno(sidno);
+  }
+  return sidno;
+}
+
 enum_return_status Gtid_state::generate_automatic_gtid(
-    THD *thd, rpl_sidno specified_sidno, rpl_gno specified_gno,
-    rpl_sidno *locked_sidno) {
+    THD *thd, rpl_sidno specified_sidno, rpl_gno specified_gno) {
   DBUG_TRACE;
   enum_return_status ret = RETURN_STATUS_OK;
 
@@ -483,52 +504,18 @@ enum_return_status Gtid_state::generate_automatic_gtid(
   assert(specified_gno >= 0);
   assert(thd->owned_gtid.is_empty());
 
-  bool locked_sidno_was_passed_null = (locked_sidno == nullptr);
-
-  if (locked_sidno_was_passed_null)
-    sid_lock->rdlock();
-  else
-    /* The caller must lock the sid_lock when locked_sidno is passed */
-    sid_lock->assert_some_lock();
-
   // If GTID_MODE = ON_PERMISSIVE or ON, generate a new GTID
   if (global_gtid_mode.get() >= Gtid_mode::ON_PERMISSIVE) {
     Gtid automatic_gtid = {specified_sidno, specified_gno};
-
-    if (automatic_gtid.sidno == 0) automatic_gtid.sidno = get_server_sidno();
-
-    /*
-      We need to lock the sidno if locked_sidno wasn't passed as paramenter
-      or the already locked sidno doesn't match the one to generate the new
-      automatic GTID.
-    */
-    bool need_to_lock_sidno =
-        (locked_sidno_was_passed_null || *locked_sidno != automatic_gtid.sidno);
-    if (need_to_lock_sidno) {
-      /*
-        When locked_sidno contains a value greater than zero we must release
-        the current locked sidno. This should not happen with current code, as
-        the server only generates automatic GTIDs with server's UUID as sid.
-      */
-      if (!locked_sidno_was_passed_null && *locked_sidno != 0)
-        unlock_sidno(*locked_sidno);
-      lock_sidno(automatic_gtid.sidno);
-      /* Update the locked_sidno, so the caller would know what to unlock */
-      if (!locked_sidno_was_passed_null) *locked_sidno = automatic_gtid.sidno;
-    }
-
+    assert(specified_sidno > 0);  // assert that sidno has been already assigned
     if (automatic_gtid.gno == 0) {
       automatic_gtid.gno = get_automatic_gno(automatic_gtid.sidno);
       if (automatic_gtid.sidno == get_server_sidno() &&
           automatic_gtid.gno != -1)
         next_free_gno = automatic_gtid.gno + 1;
     }
-
     if (automatic_gtid.gno == -1 || acquire_ownership(thd, automatic_gtid))
       ret = RETURN_STATUS_REPORTED_ERROR;
-
-    /* The caller will unlock the sidno_lock if locked_sidno was passed */
-    if (locked_sidno_was_passed_null) unlock_sidno(automatic_gtid.sidno);
 
   } else {
     // If GTID_MODE = OFF or OFF_PERMISSIVE, just mark this thread as
@@ -539,9 +526,6 @@ enum_return_status Gtid_state::generate_automatic_gtid(
     thd->owned_gtid.dbug_print(
         nullptr, "set owned_gtid (anonymous) in generate_automatic_gtid");
   }
-
-  /* The caller will unlock the sid_lock if locked_sidno was passed */
-  if (locked_sidno_was_passed_null) sid_lock->unlock();
 
   gtid_set_performance_schema_values(thd);
 

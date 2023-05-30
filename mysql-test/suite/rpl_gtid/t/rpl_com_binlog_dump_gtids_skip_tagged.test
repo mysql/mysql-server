@@ -1,0 +1,108 @@
+# ==== PURPOSE ====
+#
+# This tests checks whether replica correctly skips tagged GTIDs in
+# COM_BINLOG_DUMP_GTIDS in case MYSQL_RPL_SKIP_TAGGED_GTIDS flag is set
+#
+# ==== REQUIREMENTS ====
+#
+# In case MYSQL_RPL_SKIP_TAGGED_GTIDS is set (for servers < 8.3),
+# replica should send only untagged GTIDs to the source in COM_BINLOG_DUMP_GTID.
+#
+# ==== IMPLEMENTATION ====
+#
+# Below test checks whether option to skip tagged GTIDS in
+# COM_BINLOG_DUMP_GTIDS works correctly
+#
+# T1.
+#     Test steps:
+#
+#     1. On the replica server: Commit transaction with a specified,
+#        tagged GTID - GTID_1
+#     2. On the replica: Set a debug point that will force skipping
+#        tagged GTIDs in COM_BINLOG_DUMP_GTID
+#     3. Reconnect replica to the source with SOURCE_AUTO_POSITION enabled
+#     4. On the source: Commit one transaction with GTID_1
+#     5. On the replica: Observe that transaction with GTID_1 was
+#        received by the replica
+#
+#     Test pass conditions:
+#
+#     - step 5
+#
+# ==== REFERENCES ====
+#
+# WL#15294 Extending GTID with tags to identify group of transactions
+#          Steps 2 and 3
+#
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo
+--echo # T1.1. On the replica server: Commit transaction with a specified,
+--echo #       tagged GTID (GTID_1)
+--echo
+
+--source include/rpl_connection_slave.inc
+
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:1';
+CREATE TABLE t1 (a INT);
+SET GTID_NEXT='AUTOMATIC';
+
+--echo
+--echo # T1.2. On the replica: Set a debug point that will force skipping
+--echo #       tagged GTIDs in COM_BINLOG_DUMP_GTID
+--echo
+
+--let $debug_point = com_binlog_dump_gtids_force_skipping_tagged_gtids
+--source include/add_debug_point.inc
+
+--echo
+--echo # T1.3. Reconnect replica to the source (new COM_BINLOG_DUMP_GTIDS)
+--echo
+
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+--echo
+--echo # T1.4. On the source: Commit one transaction with GTID_1
+--echo
+
+--source include/rpl_connection_master.inc
+
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:1';
+CREATE TABLE t2 (a INT);
+SET GTID_NEXT='AUTOMATIC';
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo # T1.5. On the replica: Observe that transaction with GTID_1 was
+--echo #       received by the replica
+--echo
+
+--let $relay_log_file= query_get_value("SHOW REPLICA STATUS", Relay_Log_File, 1)
+
+--let $input_file= $server_2_datadir/$relay_log_file
+--let $output_file=$MYSQLTEST_VARDIR/tmp/rpl_com_binlog_dump_gtids_skip_tagged.output
+
+--exec $MYSQL_BINLOG --force-if-open $input_file > $output_file
+
+--let $assert_text= Observe that transaction with uuid_1 and a tag_1 was received by the replica
+--let $assert_file = $output_file
+--let $assert_select = SET @@SESSION.GTID_NEXT= '11111111-1111-1111-1111-111111111111:tag_1:1'
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
+--echo # Clean-up after T1
+--echo
+
+--let $debug_point = com_binlog_dump_gtids_force_skipping_tagged_gtids
+--source include/remove_debug_point.inc
+--remove_file $output_file
+
+DROP TABLE t1;
+--source include/rpl_end.inc
+DROP TABLE t2;

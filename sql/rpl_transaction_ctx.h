@@ -75,6 +75,14 @@ class Rpl_transaction_ctx {
   */
   rpl_gno get_gno() const;
 
+  /// @brief Sets transaction sidno.
+  /// @param sidno sidno value
+  void set_sidno(rpl_sidno sidno);
+
+  /// @brief Transaction GTID components accessor
+  /// @returns SIDNO, GTID GNO
+  std::pair<rpl_sidno, rpl_gno> get_gtid_components() const;
+
   /**
    Reset transaction context to default values.
   */

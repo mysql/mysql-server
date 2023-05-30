@@ -1568,22 +1568,34 @@ bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen) {
   DBUG_TRACE;
   bool error = false;
   bool is_global_sid_locked = false;
-  rpl_sidno locked_sidno = 0;
 
+  Scope_guard global_sid_lock_scope_guard([&is_global_sid_locked]() {
+    if (is_global_sid_locked) {
+      global_sid_lock->unlock();
+    }
+  });
+
+  Gtid_state::Locked_sidno_set locked_sidno_set(*gtid_state);
+  for (THD *head = first_seen; head; head = head->next_to_commit) {
+    if (head->variables.gtid_next.is_automatic() && !is_global_sid_locked) {
+      global_sid_lock->rdlock();
+      is_global_sid_locked = true;
+    }
+    auto sidno = gtid_state->specify_transaction_sidno(head, locked_sidno_set);
+    head->get_transaction()->get_rpl_transaction_ctx()->set_sidno(sidno);
+  }
+  locked_sidno_set.lock();
   for (THD *head = first_seen; head; head = head->next_to_commit) {
     assert(head->variables.gtid_next.type != UNDEFINED_GTID);
 
     /* Generate GTID */
     if (Gtid_specification::is_automatic(head->variables.gtid_next.type)) {
-      if (!is_global_sid_locked) {
-        global_sid_lock->rdlock();
-        is_global_sid_locked = true;
-      }
-      if (gtid_state->generate_automatic_gtid(
-              head,
-              head->get_transaction()->get_rpl_transaction_ctx()->get_sidno(),
-              head->get_transaction()->get_rpl_transaction_ctx()->get_gno(),
-              &locked_sidno) != RETURN_STATUS_OK) {
+      auto [ctx_sidno, ctx_gno] = head->get_transaction()
+                                      ->get_rpl_transaction_ctx()
+                                      ->get_gtid_components();
+
+      if (gtid_state->generate_automatic_gtid(head, ctx_sidno, ctx_gno) !=
+          RETURN_STATUS_OK) {
         head->commit_error = THD::CE_FLUSH_GNO_EXHAUSTED_ERROR;
         error = true;
       }
@@ -1600,11 +1612,6 @@ bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen) {
       }
     }
   }
-
-  if (locked_sidno > 0) gtid_state->unlock_sidno(locked_sidno);
-
-  if (is_global_sid_locked) global_sid_lock->unlock();
-
   return error;
 }
 

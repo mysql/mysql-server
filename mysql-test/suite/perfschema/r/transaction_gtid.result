@@ -164,7 +164,88 @@ SET SESSION GTID_NEXT = 'AUTOMATIC';
 - history=none current=AUTOMATIC
 [END] INSERT INTO t1 VALUES (4);
 - history=SERVER_UUID:1 current=SERVER_UUID:1
+---- Case 5: Specify GTID with tag prior to transaction ----
+* BEGIN ... ROLLBACK
+- history=none current=none
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:tag:1';
+BEGIN;
+INSERT INTO t1 VALUES (5);
+ROLLBACK;
+- history=A:tag:1 current=A:tag:1
+* BEGIN ... COMMIT
+- history=none current=none
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:tag:1';
+- history=none current=none
+[START] BEGIN;
+- history=none current=AUTOMATIC
+[END] BEGIN;
+- history=none current=A:tag:1
+INSERT INTO t1 VALUES (5);
+- history=none current=A:tag:1
+COMMIT;
+- history=A:tag:1 current=A:tag:1
+* AUTOCOMMIT = OFF
+SET @@SESSION.AUTOCOMMIT = 0;
+- history=none current=none
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:tag:1';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (5);
+- history=none current=A:tag:1
+[END] INSERT INTO t1 VALUES (5);
+- history=none current=A:tag:1
+COMMIT;
+- history=A:tag:1 current=A:tag:1
+* AUTOCOMMIT = ON
+SET @@SESSION.AUTOCOMMIT = 1;
+- history=none current=none
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:tag:1';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (5);
+- history=none current=A:tag:1
+[END] INSERT INTO t1 VALUES (5);
+- history=A:tag:1 current=A:tag:1
+---- Case 6: Generate GTID at commit, tagged ----
+* BEGIN ... ROLLBACK
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC:tag';
+BEGIN;
+INSERT INTO t1 VALUES (6);
+ROLLBACK;
+- history=AUTOMATIC:tag current=AUTOMATIC:tag
+* BEGIN ... COMMIT
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC:tag';
+- history=none current=none
+[START] BEGIN;
+- history=none current=AUTOMATIC
+[END] BEGIN;
+- history=none current=AUTOMATIC:tag
+INSERT INTO t1 VALUES (6);
+- history=none current=AUTOMATIC:tag
+COMMIT;
+- history=SERVER_UUID:tag:1 current=SERVER_UUID:tag:1
+* AUTOCOMMIT = OFF
+SET @@SESSION.AUTOCOMMIT = 0;
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC:tag';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (6);
+- history=none current=AUTOMATIC:tag
+[END] INSERT INTO t1 VALUES (6);
+- history=none current=AUTOMATIC:tag
+COMMIT;
+- history=SERVER_UUID:tag:1 current=SERVER_UUID:tag:1
+* AUTOCOMMIT = ON
+SET @@SESSION.AUTOCOMMIT = 1;
+- history=none current=none
+SET SESSION GTID_NEXT = 'AUTOMATIC:tag';
+- history=none current=none
+[START] INSERT INTO t1 VALUES (6);
+- history=none current=AUTOMATIC:tag
+[END] INSERT INTO t1 VALUES (6);
+- history=SERVER_UUID:tag:1 current=SERVER_UUID:tag:1
 ==== Clean up ====
+SET SESSION GTID_NEXT = 'AUTOMATIC';
 DROP TABLE t1;
 include/rpl_set_gtid_mode.inc [OFF on servers 1]
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;

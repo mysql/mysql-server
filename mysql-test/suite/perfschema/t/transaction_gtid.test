@@ -78,7 +78,7 @@ CREATE TABLE t1 (a INT);
 --echo ==== Test ====
 
 --let $n= 1
-while ($n <= 4) {
+while ($n <= 6) {
   if ($n == 1) {
     --echo ---- Case 1: Specify ANONYMOUS prior to transaction ----
     --let $gtid= ANONYMOUS
@@ -96,6 +96,14 @@ while ($n <= 4) {
   if ($n == 4) {
     --echo ---- Case 4: Generate GTID at commit ----
     --let $gtid= AUTOMATIC
+  }
+  if ($n == 5) {
+    --echo ---- Case 5: Specify GTID with tag prior to transaction ----
+    --let $gtid= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:tag:1
+  }
+  if ($n == 6) {
+    --echo ---- Case 6: Generate GTID at commit, tagged ----
+    --let $gtid= AUTOMATIC:tag
   }
 
   # Execute a transaction, show the GTID column of the tables
@@ -183,6 +191,9 @@ while ($n <= 4) {
 }
 
 --echo ==== Clean up ====
+
+# Will allow changing mode to off
+SET SESSION GTID_NEXT = 'AUTOMATIC';
 
 DROP TABLE t1;
 # DROP TABLE t_1, t_2, t_3, t_4;

@@ -1,0 +1,99 @@
+# ==== PURPOSE ====
+#
+# This test is to validate correct execution of the
+# SET GTID_NEXT=AUTOMATIC:<tag> command on the source and correct replication
+# of executed transactions in case binlog_transaction_compression=ON
+#
+# ==== REQUIREMENTS ====
+#
+# Compressed transaction with a tagged GTID is correctly replicated.
+#
+# ==== IMPLEMENTATION ====
+#
+# T1.
+#
+#     Test steps:
+#
+#     1. Turn on transaction compression
+#     2. On the source: Execute extended transaction with several inserts,
+#        using server UUID (AUTOMATIC) and specified tag as GTID
+#     3. On the replica: Assert that source and replica tables have the same
+#        content
+#     4. On the replica: Check that compressed transaction executed with
+#        a correct GTID
+#
+#     Test pass conditions:
+#
+#     - step 3
+#     - step 4
+#     - no errors in execution
+#
+# ==== REFERENCES ====
+#
+# WL#15294 Extending GTID with tags to identify group of transactions
+#          Steps 2 and 3
+#
+
+# This test does not depend on binlog format
+--source include/have_binlog_format_row.inc
+
+--source include/master-slave.inc
+
+--echo
+--echo # 1. Turn on transaction compression
+--echo
+
+--source include/rpl_connection_master.inc
+SET SESSION binlog_transaction_compression=ON;
+--let $server_uuid = `SELECT @@server_uuid`
+
+--echo
+--echo # 2. On the source: Execute extended transaction with several inserts,
+--echo #    using server UUID (AUTOMATIC) and specified tag as GTID
+--echo
+
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+
+SET GTID_NEXT='AUTOMATIC:aa';
+BEGIN;
+--let $nrows = 10
+while ($nrows > 0)
+{
+  --eval INSERT INTO t1 VALUES ($nrows, REPEAT('a', 1000000))
+  --dec $nrows
+}
+COMMIT;
+
+--let $checksum_source = query_get_value(CHECKSUM TABLE t1 EXTENDED, Checksum, 1)
+
+SET GTID_NEXT='AUTOMATIC';
+
+--echo
+--echo # 3. On the replica: Assert that source and replica tables have the same
+--echo #    content
+--echo
+
+--source include/sync_slave_sql_with_master.inc
+--let $checksum_replica = query_get_value(CHECKSUM TABLE t1 EXTENDED, Checksum, 1)
+
+--let $assert_cond= $checksum_source = $checksum_replica
+--let $assert_text= Assert that source and replica tables have the same content
+--source include/assert.inc
+
+--echo
+--echo # 4. On the replica: Check that compressed transaction executed with
+--echo #    a correct GTID
+--echo
+
+--let $assert_cond= [SELECT GTID_SUBSET("$server_uuid:aa:1", @@GLOBAL.GTID_EXECUTED)] = 1
+--let $assert_text= Ensure that executed transactions with specified tag and automatic uuid are present in gtid_executed global variable
+--source include/assert.inc
+
+--echo
+--echo # Clean-up
+--echo
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+SET SESSION binlog_transaction_compression=OFF;
+--source include/rpl_end.inc

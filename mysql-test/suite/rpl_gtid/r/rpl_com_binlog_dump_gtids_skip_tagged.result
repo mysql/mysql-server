@@ -1,0 +1,43 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# T1.1. On the replica server: Commit transaction with a specified,
+#       tagged GTID (GTID_1)
+
+[connection slave]
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:1';
+CREATE TABLE t1 (a INT);
+SET GTID_NEXT='AUTOMATIC';
+
+# T1.2. On the replica: Set a debug point that will force skipping
+#       tagged GTIDs in COM_BINLOG_DUMP_GTID
+
+# Adding debug point 'com_binlog_dump_gtids_force_skipping_tagged_gtids' to @@GLOBAL.debug
+
+# T1.3. Reconnect replica to the source (new COM_BINLOG_DUMP_GTIDS)
+
+include/stop_slave.inc
+include/start_slave.inc
+
+# T1.4. On the source: Commit one transaction with GTID_1
+
+[connection master]
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:1';
+CREATE TABLE t2 (a INT);
+SET GTID_NEXT='AUTOMATIC';
+include/sync_slave_sql_with_master.inc
+
+# T1.5. On the replica: Observe that transaction with GTID_1 was
+#       received by the replica
+
+include/assert_grep.inc [Observe that transaction with uuid_1 and a tag_1 was received by the replica]
+
+# Clean-up after T1
+
+# Removing debug point 'com_binlog_dump_gtids_force_skipping_tagged_gtids' from @@GLOBAL.debug
+DROP TABLE t1;
+include/rpl_end.inc
+DROP TABLE t2;

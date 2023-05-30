@@ -78,6 +78,16 @@ rpl_gno Rpl_transaction_ctx::get_gno() const {
   return m_transaction_ctx.m_gno;
 }
 
+std::pair<rpl_sidno, rpl_gno> Rpl_transaction_ctx::get_gtid_components() const {
+  DBUG_TRACE;
+  return std::make_pair(get_sidno(), get_gno());
+}
+
+void Rpl_transaction_ctx::set_sidno(rpl_sidno sidno) {
+  DBUG_TRACE;
+  m_transaction_ctx.m_sidno = sidno;
+}
+
 /**
    Implementation of service_transaction_veredict, see
    @file include/mysql/service_rpl_transaction_ctx.h
