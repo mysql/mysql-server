@@ -249,6 +249,12 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
     sendSignal(TRPMAN_REF, GSN_NDB_TAMPER, signal, signal->getLength(),JBB);
   }
+  if (signal->theData[0] >= 9500 &&
+      signal->theData[0] <  9900)
+  {
+    /* Subrange for TRPMAN */
+    sendSignal(TRPMAN_REF, GSN_NDB_TAMPER, signal, signal->getLength(),JBB);
+  }
 }//execNDB_TAMPER()
 
 static Uint32 blocks[] =
