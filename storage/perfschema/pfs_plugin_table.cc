@@ -1059,6 +1059,22 @@ void get_field_blob_v1(PSI_field *f, char *val, uint *len) {
 }
 
 /**************************************
+ * Type TEXT                          *
+ **************************************/
+void set_field_text_v1(PSI_field *f, const char *val, uint len) {
+  auto *f_ptr = reinterpret_cast<Field *>(f);
+  if (val != nullptr) {
+    set_field_text(f_ptr, val, len, &my_charset_utf8mb4_bin);
+  } else {
+    f_ptr->set_null();
+  }
+}
+
+void get_field_text_v1(PSI_field *f, char *val, uint *len) {
+  get_field_blob_v1(f, val, len);
+}
+
+/**************************************
  * Type ENUM                          *
  **************************************/
 void set_field_enum_v1(PSI_field *f, PSI_enum value) {
@@ -1358,6 +1374,10 @@ END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_year_v1)
     set_field_year_v1, get_field_year_v1
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_text_v1)
+    set_field_text_v1, get_field_text_v1
 END_SERVICE_IMPLEMENTATION();
 
 /* clang-format on */

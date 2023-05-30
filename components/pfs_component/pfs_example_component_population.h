@@ -38,9 +38,11 @@ extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_bigint_v1,
                                        pc_bigint_srv);
 extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_double_v1,
                                        pc_double_srv);
+extern REQUIRES_SERVICE_PLACEHOLDER_AS(pfs_plugin_column_text_v1, pc_text_srv);
 
 /* Number of characters * max multibyte length */
 #define COUNTRY_NAME_LEN 20 * 4
 #define CONTINENT_NAME_LEN 20 * 4
+#define COUNTRY_CODE_LEN 4
 
 #endif /* PFS_EXAMPLE_COMPONENT_H */
