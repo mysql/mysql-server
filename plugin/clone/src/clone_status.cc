@@ -42,6 +42,7 @@ SERVICE_TYPE_NO_CONST(pfs_plugin_column_string_v2) *mysql_pfscol_string =
     nullptr;
 SERVICE_TYPE_NO_CONST(pfs_plugin_column_timestamp_v2) *mysql_pfscol_timestamp =
     nullptr;
+SERVICE_TYPE_NO_CONST(pfs_plugin_column_text_v1) *mysql_pfscol_text = nullptr;
 
 #define FILE_PREFIX "#"
 
@@ -137,6 +138,7 @@ bool Table_pfs::acquire_services() {
   ACQUIRE_SERVICE(mysql_pfscol_bigint, "pfs_plugin_column_bigint_v1")
   ACQUIRE_SERVICE(mysql_pfscol_string, "pfs_plugin_column_string_v2")
   ACQUIRE_SERVICE(mysql_pfscol_timestamp, "pfs_plugin_column_timestamp_v2")
+  ACQUIRE_SERVICE(mysql_pfscol_text, "pfs_plugin_column_text_v1")
 
   auto err = create_proxy_tables();
   if (err != 0) {
@@ -215,6 +217,7 @@ void Table_pfs::release_services() {
   RELEASE_SERVICE(mysql_pfscol_bigint);
   RELEASE_SERVICE(mysql_pfscol_string);
   RELEASE_SERVICE(mysql_pfscol_timestamp);
+  RELEASE_SERVICE(mysql_pfscol_text);
 }
 
 static int cbk_rnd_init(PSI_table_handle *handle, bool) {
@@ -335,7 +338,7 @@ Status_pfs::Status_pfs() : Table_pfs(S_NUM_ROWS) {
       "`ERROR_MESSAGE` varchar(512),"
       "`BINLOG_FILE` varchar(512),"
       "`BINLOG_POSITION` bigint,"
-      "`GTID_EXECUTED` varchar(4096)";
+      "`GTID_EXECUTED` longtext";
   table->get_row_count = cbk_status_row_count;
 
   auto &proxy_table = table->m_proxy_engine_table;
@@ -407,8 +410,9 @@ int Status_pfs::read_column_value(PSI_field *field, uint32_t index) {
       mysql_pfscol_bigint->set_unsigned(field, bigint_value);
       break;
     case 11: /* GTID_EXECUTED */ {
-      mysql_pfscol_string->set_varchar_utf8mb4(
-          field, is_null ? nullptr : m_data.m_gtid_string.c_str());
+      int length = is_null ? 0 : m_data.m_gtid_string.length();
+      mysql_pfscol_text->set(
+          field, is_null ? nullptr : m_data.m_gtid_string.c_str(), length);
     } break;
     default:         /* purecov: inspected */
       assert(false); /* purecov: inspected */

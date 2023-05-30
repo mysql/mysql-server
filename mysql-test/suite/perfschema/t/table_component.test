@@ -53,7 +53,7 @@ insert into performance_schema.pfs_example_continent
   values ("bar3");
 
 insert into performance_schema.pfs_example_country
-  values ("foo3", "bar3", 2016, 100, 3.33);
+  values ("foo3", "bar3", 2016, 100, 3.33, "FO3");
 
 select * from performance_schema.pfs_example_continent;
 select * from performance_schema.pfs_example_country;
@@ -129,7 +129,7 @@ select INDEX_NAME, COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DE
 
 --echo ---------- insert query ----------
 insert into performance_schema.pfs_example_country
-  values ("foo4", "bar4", 2016, 100, 4.44);
+  values ("foo4", "bar4", 2016, 100, 4.44, "FO4");
 
 --echo ---------- table I/O stat by table name ----------
 select COUNT_STAR, COUNT_FETCH, COUNT_INSERT, COUNT_UPDATE, COUNT_DELETE
@@ -199,9 +199,9 @@ delete from performance_schema.setup_objects
 # Making sure a partial key index fetch works with 0, 1, N records.
 
 INSERT into performance_schema.pfs_example_country values
-  ("Home", "Europe", 2022, 1, 1),
-  ("Home", "America", 2022, 2, 2),
-  ("Canada", "America", 2022, 3, 3);
+  ("Home", "Europe", 2022, 1, 1, "HO1"),
+  ("Home", "America", 2022, 2, 2, "HO2"),
+  ("Canada", "America", 2022, 3, 3, "CAN");
 
 # 0 record
 

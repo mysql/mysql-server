@@ -99,3 +99,7 @@ SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_timestamp_v2){
 SERVICE_TYPE(pfs_plugin_column_year_v1)
 SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_year_v1){nullptr,
                                                                       nullptr};
+
+SERVICE_TYPE(pfs_plugin_column_text_v1)
+SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_text_v1){nullptr,
+                                                                      nullptr};
