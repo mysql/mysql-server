@@ -1100,6 +1100,7 @@ class Gtid_event : public Binary_log_event,
   using Field_missing_functor = mysql::serialization::Field_missing_functor;
   using Field_encode_predicate = mysql::serialization::Field_encode_predicate;
   using Uuid = mysql::gtid::Uuid;
+  using Tag_plain = mysql::gtid::Tag_plain;
 
   /*
     Function defining how to deserialize GTID_TAGGED_LOG_EVENT
@@ -1262,6 +1263,10 @@ class Gtid_event : public Binary_log_event,
       mysql::serialization::Serializer_default<Write_archive_type>;
   using Decoder_type =
       mysql::serialization::Serializer_default<Read_archive_type>;
+
+  Tag_plain generate_tag_specification() const {
+    return Tag_plain(tsid_parent_struct.get_tag());
+  }
 
   /// @brief Get maximum size of event
   /// @return Maximum size of the event in bytes
@@ -1474,11 +1479,10 @@ class Transaction_context_event : public Binary_log_event {
   Transaction_context_event(const char *buf,
                             const Format_description_event *fde);
 
-  Transaction_context_event(unsigned int thread_id_arg,
-                            bool is_gtid_specified_arg)
+  Transaction_context_event(unsigned int thread_id_arg, bool is_gtid_specified)
       : Binary_log_event(TRANSACTION_CONTEXT_EVENT),
         thread_id(thread_id_arg),
-        gtid_specified(is_gtid_specified_arg) {}
+        gtid_specified(is_gtid_specified) {}
 
   ~Transaction_context_event() override;
 

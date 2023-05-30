@@ -4017,10 +4017,10 @@ class Gtid_log_event : public mysql::binlog::event::Gtid_event,
 
   size_t get_event_length() { return LOG_EVENT_HEADER_LEN + get_data_size(); }
 
- private:
   /// Used internally by both print() and pack_info().
   size_t to_string(char *buf) const;
 
+ private:
 #ifdef MYSQL_SERVER
   /**
     Writes the post-header to the given output stream.
@@ -4346,9 +4346,11 @@ class Transaction_context_log_event
 
  public:
 #ifdef MYSQL_SERVER
+
   Transaction_context_log_event(const char *server_uuid_arg, bool using_trans,
                                 my_thread_id thread_id_arg,
-                                bool is_gtid_specified_arg);
+                                bool is_gtid_specified);
+
 #endif
 
   Transaction_context_log_event(
@@ -4422,12 +4424,14 @@ class Transaction_context_log_event
   /**
     Return the id of the committing thread.
    */
-  my_thread_id get_thread_id() { return static_cast<my_thread_id>(thread_id); }
+  my_thread_id get_thread_id() const {
+    return static_cast<my_thread_id>(thread_id);
+  }
 
   /**
-   Return true if transaction has GTID_NEXT specified, false otherwise.
+   Return true if transaction has GTID fully specified, false otherwise.
    */
-  bool is_gtid_specified() { return gtid_specified == true; }
+  bool is_gtid_specified() const { return gtid_specified; }
 };
 
 /**

@@ -566,6 +566,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.thread_id = thd->thread_id();
   param.gtid_info.type = thd->variables.gtid_next.type;
   param.gtid_info.sidno = thd->variables.gtid_next.gtid.sidno;
+  param.gtid_info.automatic_tag = thd->variables.gtid_next.automatic_tag;
   param.gtid_info.gno = thd->variables.gtid_next.gtid.gno;
   param.trx_cache_log = trx_cache_log;
   param.stmt_cache_log = stmt_cache_log;

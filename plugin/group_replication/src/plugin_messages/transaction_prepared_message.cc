@@ -61,6 +61,9 @@ void Transaction_prepared_message::encode_payload(
       [[maybe_unused]] auto bytes_encoded = m_tsid.get_tag().encode_tag(
           buffer->data() + buffer->size() - tag_length,
           gr::Gtid_format::tagged);
+      DBUG_EXECUTE_IF("gr_corrupted_transaction_prepare_message", {
+        buffer->data()[buffer->size() - tag_length + 1] = '1';
+      };);
       assert(bytes_encoded == tag_length);
     }
   }

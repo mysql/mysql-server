@@ -4421,10 +4421,10 @@ ER_GRP_RPL_ERROR_STOPPING_CHANNELS
 ER_GRP_RPL_ERROR_SENDING_SINGLE_PRIMARY_MSSG
   eng "Error sending single primary message informing that primary did apply relay logs."
 
-ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_VER_ERROR
+OBSOLETE_ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_VER_ERROR
   eng "Error updating transaction snapshot version after transaction being positively certified."
 
-ER_GRP_RPL_SIDNO_FETCH_ERROR
+OBSOLETE_ER_GRP_RPL_SIDNO_FETCH_ERROR
   eng "Error fetching transaction sidno after transaction being positively certified."
 
 ER_GRP_RPL_BROADCAST_COMMIT_TRANS_MSSG_FAILED
@@ -4466,10 +4466,10 @@ ER_GRP_RPL_UPDATE_LAST_CONFLICT_FREE_TRANS_ERROR
 ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_REF_VER_ERROR
   eng "Error updating transaction snapshot version reference for internal storage."
 
-ER_GRP_RPL_FETCH_TRANS_SIDNO_ERROR
+OBSOLETE_ER_GRP_RPL_FETCH_TRANS_SIDNO_ERROR
   eng "Error fetching transaction sidno while adding to the group_gtid_executed set."
 
-ER_GRP_RPL_ERROR_VERIFYING_SIDNO
+OBSOLETE_ER_GRP_RPL_ERROR_VERIFYING_SIDNO
   eng "Error while ensuring the sidno be present in the group_gtid_executed."
 
 ER_GRP_RPL_CANT_GENERATE_GTID

@@ -29,6 +29,9 @@ SET(GROUP_REPLICATION_SOURCES
   src/auto_increment.cc
   src/autorejoin.cc
   src/certifier.cc
+  src/certification/certified_gtid.cc
+  src/certification/gtid_generator.cc
+  src/certification/gtid_generator_for_sidno.cc
   src/compatibility_module.cc
   src/consistency_manager.cc
   src/delayed_plugin_initialization.cc
@@ -176,6 +179,8 @@ IF ((NOT (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)) AND
       src/gcs_mysql_network_provider.cc
       src/replication_threads_api.cc
       src/plugin_psi.cc
+      src/certification/gtid_generator.cc
+      src/certification/gtid_generator_for_sidno.cc
     )
     SET_TARGET_PROPERTIES(gr_unit_test_resource
       PROPERTIES COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX"

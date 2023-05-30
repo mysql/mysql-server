@@ -23,7 +23,8 @@
 #ifndef REPLICATION_H
 #define REPLICATION_H
 
-#include "my_thread_local.h"         // my_thread_id
+#include "my_thread_local.h"  // my_thread_id
+#include "mysql/gtid/tag_plain.h"
 #include "mysql/psi/mysql_thread.h"  // mysql_mutex_t
 #include "rpl_context.h"
 #include "sql/handler.h"  // enum_tx_isolation
@@ -115,10 +116,16 @@ typedef struct Trans_context_info {
   This represents the GTID context of the transaction.
  */
 typedef struct Trans_gtid_info {
-  mysql::gtid::Tsid_plain tsid;  // last used transaction tsid
-  ulong type;                    // enum values in enum_gtid_type
-  int sidno;                     // transaction sidno
-  long long int gno;             // transaction gno
+  /// transaction specified TSID, filled in the after-commit hook
+  mysql::gtid::Tsid_plain tsid;
+  /// enum values in enum_gtid_type
+  ulong type;
+  /// transaction sidno
+  int sidno;
+  /// transaction gno
+  long long int gno;
+  /// defined tag for automatic GTIDs, propagated in the before-commit hook
+  mysql::gtid::Tag_plain automatic_tag;
 } Trans_gtid_info;
 
 class Binlog_cache_storage;

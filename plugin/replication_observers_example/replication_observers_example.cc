@@ -39,7 +39,7 @@
 #include "plugin/replication_observers_example/src/binlog/service/iterator/tests/pfs.h"
 #include "plugin/replication_observers_example/src/binlog/service/iterator/tests/status_vars.h"
 
-#include <include/mysql/components/services/ongoing_transaction_query_service.h>
+#include <mysql/components/services/ongoing_transaction_query_service.h>
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/current_thd.h"

@@ -1,0 +1,544 @@
+include/group_replication.inc [rpl_server_count=5]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#
+# SUITE 1: group_replication_gtid_assignment_block_size = 1
+#
+
+
+# T1. Group replication topology : 5 group members, multi-primary
+
+[connection server1]
+SET GLOBAL group_replication_gtid_assignment_block_size=1;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET GLOBAL group_replication_gtid_assignment_block_size=1;
+include/start_group_replication.inc
+[connection server3]
+SET GLOBAL group_replication_gtid_assignment_block_size=1;
+include/start_group_replication.inc
+[connection server4]
+SET GLOBAL group_replication_gtid_assignment_block_size=1;
+include/start_group_replication.inc
+[connection server5]
+SET GLOBAL group_replication_gtid_assignment_block_size=1;
+include/start_group_replication.inc
+
+# T1.1. Prepare databases and tables on server 1
+
+[connection server1]
+SET GTID_NEXT='AUTOMATIC:tag_1';
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test2;
+CREATE TABLE test2.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test3;
+CREATE TABLE test3.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test4;
+CREATE TABLE test4.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test5;
+CREATE TABLE test5.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+SET GTID_NEXT='AUTOMATIC';
+
+# T1.2. Execute insert queries concurrently on 5 different servers,
+#       using group name and two different tags for executed transactions
+#       (GTID_NEXT='AUTOMATIC:<tag>')
+
+[connection server1]
+[connection server2]
+[connection server3]
+[connection server4]
+[connection server5]
+
+# T1.3. Synchronize data in GR - wait for mysqlslap to finish
+#       executing queries
+
+[connection server1]
+include/rpl_sync.inc
+
+# T1.4. Verify that executed tagged GTIDs exist in the gtid_executed
+
+[connection server1]
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+include/assert.inc [gtid_executed should be the same on member 1 and member 2]
+[connection server2]
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+include/assert.inc [gtid_executed should be the same on member 1 and member 3]
+[connection server3]
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+include/assert.inc [gtid_executed should be the same on member 1 and member 4]
+[connection server4]
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+include/assert.inc [gtid_executed should be the same on member 1 and member 5]
+[connection server5]
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+
+# T1.5. Clean up
+
+[connection server1]
+DROP DATABASE test1;
+DROP DATABASE test2;
+DROP DATABASE test3;
+DROP DATABASE test4;
+DROP DATABASE test5;
+
+# T2 Topology reused from T1
+
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+
+# T2.1. Execute transaction with assigned GTID using group name
+#       as an UUID and defined tag (tag_1)
+
+SET GTID_NEXT='GROUP_REPLICATION_GROUP_NAME:tag_1:4611686018427387904';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.2. Execute transaction with AUTOMATIC GTID
+
+SET GTID_NEXT='AUTOMATIC';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.3. Execute transaction with AUTOMATIC GTID and defined tag (tag_1)
+
+SET GTID_NEXT='AUTOMATIC:tag_1';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.4. Execute transaction with specifed GTID and defined tag (tag_1)
+
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:1';
+INSERT INTO t1 VALUES (NULL);
+SET GTID_NEXT='AUTOMATIC';
+
+# T2.5. Check GTID_EXECUTED, T2 pass condition 1.
+
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+
+# Clean up after T2
+
+DROP TABLE t1;
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server3]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server4]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server5]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server1]
+
+#
+# SUITE 2: group_replication_gtid_assignment_block_size = 10
+#
+
+
+# T1. Group replication topology : 5 group members, multi-primary
+
+[connection server1]
+SET GLOBAL group_replication_gtid_assignment_block_size=10;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET GLOBAL group_replication_gtid_assignment_block_size=10;
+include/start_group_replication.inc
+[connection server3]
+SET GLOBAL group_replication_gtid_assignment_block_size=10;
+include/start_group_replication.inc
+[connection server4]
+SET GLOBAL group_replication_gtid_assignment_block_size=10;
+include/start_group_replication.inc
+[connection server5]
+SET GLOBAL group_replication_gtid_assignment_block_size=10;
+include/start_group_replication.inc
+
+# T1.1. Prepare databases and tables on server 1
+
+[connection server1]
+SET GTID_NEXT='AUTOMATIC:tag_1';
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test2;
+CREATE TABLE test2.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test3;
+CREATE TABLE test3.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test4;
+CREATE TABLE test4.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test5;
+CREATE TABLE test5.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+SET GTID_NEXT='AUTOMATIC';
+
+# T1.2. Execute insert queries concurrently on 5 different servers,
+#       using group name and two different tags for executed transactions
+#       (GTID_NEXT='AUTOMATIC:<tag>')
+
+[connection server1]
+[connection server2]
+[connection server3]
+[connection server4]
+[connection server5]
+
+# T1.3. Synchronize data in GR - wait for mysqlslap to finish
+#       executing queries
+
+[connection server1]
+include/rpl_sync.inc
+
+# T1.4. Verify that executed tagged GTIDs exist in the gtid_executed
+
+[connection server1]
+include/assert.inc [gtid_executed should be the same on member 1 and member 2]
+[connection server2]
+include/assert.inc [gtid_executed should be the same on member 1 and member 3]
+[connection server3]
+include/assert.inc [gtid_executed should be the same on member 1 and member 4]
+[connection server4]
+include/assert.inc [gtid_executed should be the same on member 1 and member 5]
+[connection server5]
+
+# T1.5. Clean up
+
+[connection server1]
+DROP DATABASE test1;
+DROP DATABASE test2;
+DROP DATABASE test3;
+DROP DATABASE test4;
+DROP DATABASE test5;
+
+# T2 Topology reused from T1
+
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+
+# T2.1. Execute transaction with assigned GTID using group name
+#       as an UUID and defined tag (tag_1)
+
+SET GTID_NEXT='GROUP_REPLICATION_GROUP_NAME:tag_1:4611686018427387904';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.2. Execute transaction with AUTOMATIC GTID
+
+SET GTID_NEXT='AUTOMATIC';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.3. Execute transaction with AUTOMATIC GTID and defined tag (tag_1)
+
+SET GTID_NEXT='AUTOMATIC:tag_1';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.4. Execute transaction with specifed GTID and defined tag (tag_1)
+
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:1';
+INSERT INTO t1 VALUES (NULL);
+SET GTID_NEXT='AUTOMATIC';
+
+# T2.5. Check GTID_EXECUTED, T2 pass condition 1.
+
+include/assert.inc [Ensure that gtid_executed contains expected number of transactions. T1, pass condition 2., T1, pass condition 3.]
+
+# Clean up after T2
+
+DROP TABLE t1;
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server3]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server4]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server5]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server1]
+
+#
+# SUITE 3: group_replication_gtid_assignment_block_size = 100
+#
+
+
+# T1. Group replication topology : 5 group members, multi-primary
+
+[connection server1]
+SET GLOBAL group_replication_gtid_assignment_block_size=100;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET GLOBAL group_replication_gtid_assignment_block_size=100;
+include/start_group_replication.inc
+[connection server3]
+SET GLOBAL group_replication_gtid_assignment_block_size=100;
+include/start_group_replication.inc
+[connection server4]
+SET GLOBAL group_replication_gtid_assignment_block_size=100;
+include/start_group_replication.inc
+[connection server5]
+SET GLOBAL group_replication_gtid_assignment_block_size=100;
+include/start_group_replication.inc
+
+# T1.1. Prepare databases and tables on server 1
+
+[connection server1]
+SET GTID_NEXT='AUTOMATIC:tag_1';
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test2;
+CREATE TABLE test2.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test3;
+CREATE TABLE test3.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test4;
+CREATE TABLE test4.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test5;
+CREATE TABLE test5.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+SET GTID_NEXT='AUTOMATIC';
+
+# T1.2. Execute insert queries concurrently on 5 different servers,
+#       using group name and two different tags for executed transactions
+#       (GTID_NEXT='AUTOMATIC:<tag>')
+
+[connection server1]
+[connection server2]
+[connection server3]
+[connection server4]
+[connection server5]
+
+# T1.3. Synchronize data in GR - wait for mysqlslap to finish
+#       executing queries
+
+[connection server1]
+include/rpl_sync.inc
+
+# T1.4. Verify that executed tagged GTIDs exist in the gtid_executed
+
+[connection server1]
+include/assert.inc [gtid_executed should be the same on member 1 and member 2]
+[connection server2]
+include/assert.inc [gtid_executed should be the same on member 1 and member 3]
+[connection server3]
+include/assert.inc [gtid_executed should be the same on member 1 and member 4]
+[connection server4]
+include/assert.inc [gtid_executed should be the same on member 1 and member 5]
+[connection server5]
+
+# T1.5. Clean up
+
+[connection server1]
+DROP DATABASE test1;
+DROP DATABASE test2;
+DROP DATABASE test3;
+DROP DATABASE test4;
+DROP DATABASE test5;
+
+# T2 Topology reused from T1
+
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+
+# T2.1. Execute transaction with assigned GTID using group name
+#       as an UUID and defined tag (tag_1)
+
+SET GTID_NEXT='GROUP_REPLICATION_GROUP_NAME:tag_1:4611686018427387904';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.2. Execute transaction with AUTOMATIC GTID
+
+SET GTID_NEXT='AUTOMATIC';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.3. Execute transaction with AUTOMATIC GTID and defined tag (tag_1)
+
+SET GTID_NEXT='AUTOMATIC:tag_1';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.4. Execute transaction with specifed GTID and defined tag (tag_1)
+
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:1';
+INSERT INTO t1 VALUES (NULL);
+SET GTID_NEXT='AUTOMATIC';
+
+# T2.5. Check GTID_EXECUTED, T2 pass condition 1.
+
+include/assert.inc [Ensure that gtid_executed contains expected number of transactions. T1, pass condition 2., T1, pass condition 3.]
+
+# Clean up after T2
+
+DROP TABLE t1;
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server3]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server4]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server5]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server1]
+
+#
+# SUITE 4: group_replication_gtid_assignment_block_size = 1000000
+#
+
+
+# T1. Group replication topology : 5 group members, multi-primary
+
+[connection server1]
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+include/start_group_replication.inc
+[connection server3]
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+include/start_group_replication.inc
+[connection server4]
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+include/start_group_replication.inc
+[connection server5]
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+include/start_group_replication.inc
+
+# T1.1. Prepare databases and tables on server 1
+
+[connection server1]
+SET GTID_NEXT='AUTOMATIC:tag_1';
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test2;
+CREATE TABLE test2.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test3;
+CREATE TABLE test3.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test4;
+CREATE TABLE test4.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+CREATE DATABASE test5;
+CREATE TABLE test5.t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+SET GTID_NEXT='AUTOMATIC';
+
+# T1.2. Execute insert queries concurrently on 5 different servers,
+#       using group name and two different tags for executed transactions
+#       (GTID_NEXT='AUTOMATIC:<tag>')
+
+[connection server1]
+[connection server2]
+[connection server3]
+[connection server4]
+[connection server5]
+
+# T1.3. Synchronize data in GR - wait for mysqlslap to finish
+#       executing queries
+
+[connection server1]
+include/rpl_sync.inc
+
+# T1.4. Verify that executed tagged GTIDs exist in the gtid_executed
+
+[connection server1]
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+include/assert.inc [gtid_executed should be the same on member 1 and member 2]
+[connection server2]
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+include/assert.inc [gtid_executed should be the same on member 1 and member 3]
+[connection server3]
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+include/assert.inc [gtid_executed should be the same on member 1 and member 4]
+[connection server4]
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+include/assert.inc [gtid_executed should be the same on member 1 and member 5]
+[connection server5]
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+
+# T1.5. Clean up
+
+[connection server1]
+DROP DATABASE test1;
+DROP DATABASE test2;
+DROP DATABASE test3;
+DROP DATABASE test4;
+DROP DATABASE test5;
+
+# T2 Topology reused from T1
+
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+
+# T2.1. Execute transaction with assigned GTID using group name
+#       as an UUID and defined tag (tag_1)
+
+SET GTID_NEXT='GROUP_REPLICATION_GROUP_NAME:tag_1:4611686018427387904';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.2. Execute transaction with AUTOMATIC GTID
+
+SET GTID_NEXT='AUTOMATIC';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.3. Execute transaction with AUTOMATIC GTID and defined tag (tag_1)
+
+SET GTID_NEXT='AUTOMATIC:tag_1';
+INSERT INTO t1 VALUES (NULL);
+
+# T2.4. Execute transaction with specifed GTID and defined tag (tag_1)
+
+SET GTID_NEXT='11111111-1111-1111-1111-111111111111:tag_1:1';
+INSERT INTO t1 VALUES (NULL);
+SET GTID_NEXT='AUTOMATIC';
+
+# T2.5. Check GTID_EXECUTED, T2 pass condition 1.
+
+include/assert.inc [Ensure that group_replication_group_name transactions have executed correctly. T1, pass condition 2., T1, pass condition 3.]
+
+# Clean up after T2
+
+DROP TABLE t1;
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server3]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server4]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server5]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_gtid_assignment_block_size=1000000;
+RESET BINARY LOGS AND GTIDS;
+[connection server1]
+include/group_replication_end.inc

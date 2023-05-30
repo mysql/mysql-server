@@ -234,7 +234,7 @@ int Transaction_consistency_info::handle_member_leave(
   DBUG_PRINT(
       "info",
       ("thread_id: %u; local_transaction: %d; gtid: %d:%" PRId64
-       "; sid_specified: "
+       "; tsid_specified: "
        "%d; consistency_level: %d; "
        "transaction_prepared_locally: %d; transaction_prepared_remotely: %d; "
        "error: %d",
@@ -289,11 +289,6 @@ Transaction_consistency_manager::~Transaction_consistency_manager() {
 void Transaction_consistency_manager::clear() {
   DBUG_TRACE;
   m_map_lock->wrlock();
-  for (typename Transaction_consistency_manager_map::iterator it =
-           m_map.begin();
-       it != m_map.end(); ++it) {
-    delete it->second; /* purecov: inspected */
-  }
   m_map.clear();
   m_map_lock->unlock();
 
@@ -311,7 +306,7 @@ void Transaction_consistency_manager::clear() {
 }
 
 int Transaction_consistency_manager::after_certification(
-    Transaction_consistency_info *transaction_info) {
+    std::unique_ptr<Transaction_consistency_info> transaction_info) {
   DBUG_TRACE;
   assert(transaction_info->get_consistency_level() >=
          GROUP_REPLICATION_CONSISTENCY_AFTER);
@@ -340,14 +335,15 @@ int Transaction_consistency_manager::after_certification(
     metrics_handler->add_transaction_consistency_after_termination(
         transaction_info->get_begin_timestamp(), end_timestamp);
 
-    delete transaction_info;
     m_map_lock->unlock();
     return 0;
   }
 
-  std::pair<typename Transaction_consistency_manager_map::iterator, bool> ret =
-      m_map.insert(Transaction_consistency_manager_pair(key, transaction_info));
   if (transaction_info->is_local_transaction()) m_last_local_transaction = key;
+
+  std::pair<typename Transaction_consistency_manager_map::iterator, bool> ret =
+      m_map.insert(Transaction_consistency_manager_pair(
+          key, std::move(transaction_info)));
   if (ret.second == false) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL,
@@ -356,6 +352,7 @@ int Transaction_consistency_manager::after_certification(
     error = 1;
     /* purecov: end */
   }
+  transaction_info.release();  // transaction_info pointer copy is in the map
 
   DBUG_EXECUTE_IF("group_replication_consistency_manager_after_certification", {
     const char act[] =
@@ -392,7 +389,7 @@ int Transaction_consistency_manager::after_applier_prepare(
     return 0;
   }
 
-  Transaction_consistency_info *transaction_info = it->second;
+  auto &transaction_info = it->second;
   const bool transaction_prepared_remotely =
       transaction_info->is_the_transaction_prepared_remotely();
 
@@ -449,7 +446,6 @@ int Transaction_consistency_manager::after_applier_prepare(
     m_map_lock->wrlock();
     typename Transaction_consistency_manager_map::iterator it = m_map.find(key);
     if (it != m_map.end()) {
-      delete it->second;
       m_map.erase(it);
     }
     m_map_lock->unlock();
@@ -521,7 +517,7 @@ int Transaction_consistency_manager::handle_remote_prepare(
     /* purecov: end */
   }
 
-  Transaction_consistency_info *transaction_info = it->second;
+  auto &transaction_info = it->second;
 
   DBUG_PRINT("info",
              ("gtid: %d:%" PRId64 "; consistency_level: %d; ",
@@ -573,7 +569,6 @@ int Transaction_consistency_manager::handle_remote_prepare(
     m_map_lock->wrlock();
     typename Transaction_consistency_manager_map::iterator it = m_map.find(key);
     if (it != m_map.end()) {
-      delete it->second;
       m_map.erase(it);
     }
     m_map_lock->unlock();
@@ -594,10 +589,9 @@ int Transaction_consistency_manager::handle_member_leave(
 
   typename Transaction_consistency_manager_map::iterator it = m_map.begin();
   while (it != m_map.end()) {
-    Transaction_consistency_info *transaction_info = it->second;
+    auto &transaction_info = it->second;
     int result = transaction_info->handle_member_leave(leaving_members);
     if (CONSISTENCY_INFO_OUTCOME_COMMIT == result) {
-      delete it->second;
       m_map.erase(it++);
     } else {
       ++it;
@@ -852,7 +846,7 @@ bool Transaction_consistency_manager::has_local_prepared_transactions() {
   for (typename Transaction_consistency_manager_map::iterator it =
            m_map.begin();
        it != m_map.end(); it++) {
-    Transaction_consistency_info *transaction_info = it->second;
+    auto &transaction_info = it->second;
 
     if (transaction_info->is_local_transaction() &&
         transaction_info->is_transaction_prepared_locally()) {

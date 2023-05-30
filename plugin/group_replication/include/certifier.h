@@ -32,6 +32,9 @@
 #include <vector>
 
 #include "my_inttypes.h"
+#include "plugin/group_replication/include/certification/certified_gtid.h"
+#include "plugin/group_replication/include/certification/gtid_generator.h"
+#include "plugin/group_replication/include/certification_result.h"
 #include "plugin/group_replication/include/certifier_stats_interface.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/gr_compression.h"
@@ -44,6 +47,8 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"
 
 #include "plugin/group_replication/generated/protobuf_lite/replication_group_recovery_metadata.pb.h"
+
+#include "mysql/utils/return_status.h"
 
 /**
   While sending Recovery Metadata the Certification Information is divided into
@@ -276,8 +281,7 @@ class Certifier : public Certifier_interface {
 
     @param snapshot_version   The incoming transaction snapshot version.
     @param write_set          The incoming transaction write set.
-    @param generate_group_id  Flag that indicates if transaction group id
-                              must be generated.
+    @param is_gtid_specified  True in case GTID is specified for this trx
     @param member_uuid        The UUID of the member from which this
                               transaction originates.
     @param gle                The incoming transaction global identifier
@@ -291,10 +295,10 @@ class Certifier : public Certifier_interface {
     @retval  0                negatively certified;
     @retval -1                error.
    */
-  rpl_gno certify(Gtid_set *snapshot_version,
-                  std::list<const char *> *write_set, bool generate_group_id,
-                  const char *member_uuid, Gtid_log_event *gle,
-                  bool local_transaction);
+  gr::Certified_gtid certify(Gtid_set *snapshot_version,
+                             std::list<const char *> *write_set,
+                             bool is_gtid_specified, const char *member_uuid,
+                             Gtid_log_event *gle, bool local_transaction);
 
   /**
     Returns the transactions in stable set in text format, that is, the set of
@@ -402,37 +406,22 @@ class Certifier : public Certifier_interface {
 
   /**
     Generate group GTID for a view change log event.
-
-    @retval  >0         view change GTID
-    @retval  otherwise  Error on GTID generation
+    @return Generated gtid and Gtid generation result
+    @see Return_status
   */
-  Gtid generate_view_change_group_gtid();
-
-  /**
-    Public method to add the given gno value to the group_gtid_executed set
-    which is used to support skip gtid functionality.
-
-    @param[in] gno  The gno of the transaction which will be added to the
-                    group_gtid executed GTID set. The sidno used for this
-    transaction will be the group_sidno. The gno here belongs specifically to
-    the group UUID.
-
-    @retval  1  error during addition.
-    @retval  0  success.
-  */
-  int add_group_gtid_to_group_gtid_executed(rpl_gno gno);
+  std::pair<Gtid, mysql::utils::Return_status>
+  generate_view_change_group_gtid();
 
   /**
     Public method to add the given GTID value in the group_gtid_executed set
     which is used to support skip gtid functionality.
 
-    @param[in] gle  The gtid value that needs to the added in the
-                    group_gtid_executed GTID set.
+    @param[in] gtid GTID to be added
 
     @retval  1  error during addition.
     @retval  0  success.
   */
-  int add_specified_gtid_to_group_gtid_executed(Gtid_log_event *gle);
+  int add_gtid_to_group_gtid_executed(const Gtid &gtid);
 
   /**
     Computes intersection between all sets received, so that we
@@ -522,20 +511,6 @@ class Certifier : public Certifier_interface {
   int initialize_server_gtid_set(bool get_server_gtid_retrieved = false);
 
   /**
-    This function computes the available GTID intervals from group
-    UUID and stores them on group_available_gtid_intervals.
-  */
-  void compute_group_available_gtid_intervals();
-
-  /**
-    This function reserves a block of GTIDs from the
-    group_available_gtid_intervals list.
-
-    @retval Gtid_set::Interval which is the interval os GTIDs attributed
-  */
-  Gtid_set::Interval reserve_gtid_block(longlong block_size);
-
-  /**
     This function updates parallel applier indexes.
     It must be called for each remote transaction.
 
@@ -570,57 +545,85 @@ class Certifier : public Certifier_interface {
   */
   void add_to_group_gtid_executed_internal(rpl_sidno sidno, rpl_gno gno);
 
-  /**
-    This method is used to get the next valid GNO for the given sidno,
-    for the transaction that is being executed. It checks the already
-    used up GNOs and based on that chooses the next possible value.
-    This method will consult group_available_gtid_intervals to
-    assign GTIDs in blocks according to gtid_assignment_block_size
-    when `sidno` is the group sidno.
+  /// @brief Returns group_executed_gtid_set or group_extracted_gtid_set while
+  /// certifying already applied transactions from the donor
+  /// @returns Pointer to the 'correct' group_gtid_set
+  const Gtid_set *get_group_gtid_set() const;
 
-    @param member_uuid        The UUID of the member from which this
-                              transaction originates. It will be NULL
-                              on View_change_log_event.
-    @param sidno              The sidno that will be used on GTID
+  /// @brief Returns group_executed_gtid_set or group_extracted_gtid_set while
+  /// certifying already applied transactions from the donor
+  /// @returns Pointer to the 'correct' group_gtid_set
+  Gtid_set *get_group_gtid_set();
 
-    @retval >0                The GNO to be used.
-    @retval -1                Error: GNOs exhausted for group UUID.
-  */
-  rpl_gno get_next_available_gtid(const char *member_uuid, rpl_sidno sidno);
+  /// @brief This function determines three sidnos for a specific TSID
+  /// based on information obtained from the Gtid_log_event.
+  /// @param gle Gtid_log_event from which tsid will be extracted
+  /// @param is_gtid_specified True in case GTID is specified
+  /// @param snapshot_gtid_set Snapshot GTIDs
+  /// @param group_gtid_set Current GTID set
+  /// @return A tuple of:
+  ///   - group_sidno Sidno relative to the group sid map
+  ///   - gtid_snapshot_sidno Sidno relative to the snapshot sid map
+  ///   - gtid_global_sidno Sidno relative to the global sid map
+  ///   - return status
+  /// @details
+  /// We need to ensure that group sidno does exist on snapshot
+  /// version due to the following scenario:
+  ///   1) Member joins the group.
+  ///   2) Goes through recovery procedure, view change is queued to
+  ///       apply, member is marked ONLINE. This requires
+  ///         --group_replication_recovery_complete_at=TRANSACTIONS_CERTIFIED
+  ///       to happen.
+  ///   3) Despite the view change log event is still being applied,
+  ///       since the member is already ONLINE it can execute
+  ///       transactions. The first transaction from this member will
+  ///       not include any group GTID, since no group transaction is
+  ///       yet applied.
+  ///   4) As a result of this sequence snapshot_version will not
+  ///       contain any group GTID and the below instruction
+  ///         snapshot_version->_add_gtid(group_sidno, result);
+  ///       would fail because of that
+  std::tuple<rpl_sidno, rpl_sidno, rpl_sidno, mysql::utils::Return_status>
+  extract_sidno(Gtid_log_event &gle, bool is_gtid_specified,
+                Gtid_set &snapshot_gtid_set, Gtid_set &group_gtid_set);
 
-  /**
-    This method is used to get the next valid GNO for the
-    transaction that is being executed. It checks the already used
-    up GNOs and based on that chooses the next possible value.
-    This method will consult group_available_gtid_intervals to
-    assign GTIDs in blocks according to gtid_assignment_block_size.
+  /// @brief Internal helper method for ending certification, determination
+  /// of final GTID values after certification according to certification result
+  /// @param[in] gtid_server_sidno SIDNO for transaction GTID as represented in
+  /// the server (global sid map)
+  /// @param[in] gtid_group_sidno SIDNO for transaction GTID as represented in
+  /// the group
+  /// @param[in] generated_gno GNO generated for the transaction
+  /// @param[in] is_gtid_specified True if GTID was specified
+  /// @param[in] local_transaction True in case this transaction originates
+  /// from the this server
+  /// @param[in] certification_result Determined certification result
+  gr::Certified_gtid end_certification_result(
+      const rpl_sidno &gtid_server_sidno, const rpl_sidno &gtid_group_sidno,
+      const rpl_gno &generated_gno, bool is_gtid_specified,
+      bool local_transaction,
+      const gr::Certification_result &certification_result);
 
-    @param member_uuid        The UUID of the member from which this
-                              transaction originates. It will be NULL
-                              on View_change_log_event.
+  /// @brief Adds the transaction's write set to certification info.
+  /// @param[out] transaction_last_committed The transaction's logical
+  /// timestamps used for MTS
+  /// @param[in,out] snapshot_version   The incoming transaction snapshot
+  /// version.
+  /// @param[in, out] write_set          The incoming transaction write set.
+  /// @param[in] local_transaction True in case this transaction originates
+  /// from the this server
+  gr::Certification_result add_writeset_to_certification_info(
+      int64 &transaction_last_committed, Gtid_set *snapshot_version,
+      std::list<const char *> *write_set, bool local_transaction);
 
-    @retval >0                The GNO to be used.
-    @retval -1                Error: GNOs exhausted for group UUID.
-  */
-  rpl_gno get_group_next_available_gtid(const char *member_uuid);
-
-  /**
-    Generate the candidate GNO for the current transaction.
-    The candidate will be on the interval [start, end] or a error
-    be returned.
-    This method will consult group_gtid_executed to avoid generate
-    the same value twice.
-
-    @param sidno              The sidno that will be used to retrieve GNO
-    @param start              The first possible value for the GNO
-    @param end                The last possible value for the GNO
-
-    @retval >0                The GNO to be used.
-    @retval -1                Error: GNOs exhausted for group UUID.
-    @retval -2                Error: generated GNO is bigger than end.
-  */
-  rpl_gno get_next_available_gtid_candidate(rpl_sidno sidno, rpl_gno start,
-                                            rpl_gno end) const;
+  /// @brief Updates parallel applier indexes in GLE
+  /// @param gle Gle currently processed
+  /// @param has_write_set True in case transaction write set is not empty
+  /// @param transaction_last_committed The transaction's logical timestamps
+  /// used for MTS
+  void update_transaction_dependency_timestamps(
+      Gtid_log_event &gle, bool has_write_set,
+      int64 transaction_last_committed);
 
   bool inline is_initialized() { return initialized; }
 
@@ -776,21 +779,9 @@ class Certifier : public Certifier_interface {
   */
   Gtid_set *group_gtid_extracted;
 
-  /**
-    The group GTID assignment block size.
-  */
-  uint64 gtid_assignment_block_size;
-
-  /**
-    List of free GTID intervals in group
-  */
-  std::list<Gtid_set::Interval> group_available_gtid_intervals;
-
-  /**
-    Extends the above to allow GTIDs to be assigned in blocks per member.
-  */
-  std::map<std::string, Gtid_set::Interval> member_gtids;
-  ulonglong gtids_assigned_in_blocks_counter;
+  /// Object responsible for generation of the GTIDs for transactions with
+  /// gtid_next equal to AUTOMATIC (tagged/untagged)
+  gr::Gtid_generator gtid_generator;
 
   /**
     Conflict detection is performed when:

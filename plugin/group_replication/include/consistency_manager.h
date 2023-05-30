@@ -32,6 +32,7 @@
 #include <atomic>
 #include <list>
 #include <map>
+#include <memory>
 #include <utility>
 
 #include "plugin/group_replication/include/hold_transactions.h"
@@ -39,6 +40,10 @@
 #include "plugin/group_replication/include/pipeline_interfaces.h"
 #include "plugin/group_replication/include/plugin_observers/group_transaction_observation_manager.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
+
+class Transaction_consistency_info;
+using Transaction_consistency_info_uptr =
+    std::unique_ptr<Transaction_consistency_info>;
 
 /**
   @class Transaction_consistency_info
@@ -259,15 +264,15 @@ class Transaction_consistency_info {
 
 typedef std::pair<rpl_sidno, rpl_gno> Transaction_consistency_manager_key;
 typedef std::pair<Transaction_consistency_manager_key,
-                  Transaction_consistency_info *>
+                  Transaction_consistency_info_uptr>
     Transaction_consistency_manager_pair;
 typedef std::pair<Pipeline_event *, Transaction_consistency_manager_key>
     Transaction_consistency_manager_pevent_pair;
 typedef std::map<
-    Transaction_consistency_manager_key, Transaction_consistency_info *,
+    Transaction_consistency_manager_key, Transaction_consistency_info_uptr,
     std::less<Transaction_consistency_manager_key>,
     Malloc_allocator<std::pair<const Transaction_consistency_manager_key,
-                               Transaction_consistency_info *>>>
+                               Transaction_consistency_info_uptr>>>
     Transaction_consistency_manager_map;
 
 /**
@@ -303,7 +308,8 @@ class Transaction_consistency_manager : public Group_transaction_listener {
       @retval 0      OK
       @retval !=0    error
   */
-  int after_certification(Transaction_consistency_info *transaction_info);
+  int after_certification(
+      std::unique_ptr<Transaction_consistency_info> transaction_info);
 
   /**
     Call action after a transaction being prepared on this member
