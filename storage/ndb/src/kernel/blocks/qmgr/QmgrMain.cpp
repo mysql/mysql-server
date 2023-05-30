@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3889,6 +3889,14 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
      * should be able to discover what nodes that it is able to actually use.
      */
   }
+  if (apiNodePtr.p->phase == ZAPI_ACTIVATION_ONGOING)
+  {
+    jam();
+    /* Waiting for TRPMAN to finish enabling communication
+     * Must not send conf before then.
+     */
+    return;
+  }
 
   sendApiRegConf(signal, apiNodePtr.i);
 }//Qmgr::execAPI_REGREQ()
@@ -3985,6 +3993,17 @@ Qmgr::sendApiRegConf(Signal *signal, Uint32 node)
   ptrCheckGuard(apiNodePtr, MAX_NODES, nodeRec);
   const BlockReference ref = apiNodePtr.p->blockRef;
   ndbassert(ref != 0);
+
+  /* No Conf to be sent unless :
+   * - API node is ACTIVE
+   * - MGM node is ACTIVE | INACTIVE
+   * - Data node is shutting down
+   */
+  ndbassert(apiNodePtr.p->phase == ZAPI_ACTIVE ||
+            (apiNodePtr.p->phase == ZAPI_INACTIVE &&
+             getNodeInfo(apiNodePtr.i).getType() == NodeInfo::MGM) ||
+            (apiNodePtr.p->phase == ZAPI_INACTIVE &&
+             getNodeState().startLevel >= NodeState::SL_STOPPING_1));
 
   ApiRegConf * const apiRegConf = (ApiRegConf *)&signal->theData[0];
   apiRegConf->qmgrRef = reference();

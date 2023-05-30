@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -247,6 +247,12 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
   {
     // Migrated to TRPMAN
     CLEAR_ERROR_INSERT_VALUE;
+    sendSignal(TRPMAN_REF, GSN_NDB_TAMPER, signal, signal->getLength(),JBB);
+  }
+  if (signal->theData[0] >= 9500 &&
+      signal->theData[0] <  9900)
+  {
+    /* Subrange for TRPMAN */
     sendSignal(TRPMAN_REF, GSN_NDB_TAMPER, signal, signal->getLength(),JBB);
   }
 }//execNDB_TAMPER()

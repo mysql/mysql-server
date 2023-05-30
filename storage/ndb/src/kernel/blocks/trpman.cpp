@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -259,6 +259,20 @@ Trpman::execENABLE_COMREQ(Signal* signal)
   jamEntry();
   const EnableComReq *enableComReq = (const EnableComReq *)signal->getDataPtr();
 
+  if (ERROR_INSERTED(9500) &&
+      signal->getSendersBlockRef() != reference())
+  {
+    jam();
+    g_eventLogger->info("TRPMAN %u delaying ENABLE_COMREQ for 5s",
+                        instance());
+    sendSignalWithDelay(reference(),
+                        GSN_ENABLE_COMREQ,
+                        signal,
+                        5000,
+                        signal->getLength());
+    return;
+  }
+
   /* Need to copy out signal data to not clobber it with sendSignal(). */
   BlockReference senderRef = enableComReq->m_senderRef;
   Uint32 senderData = enableComReq->m_senderData;
@@ -499,6 +513,15 @@ Trpman::execNDB_TAMPER(Signal* signal)
 {
   jamEntry();
 #ifdef ERROR_INSERT
+  if (signal->getLength() == 1)
+  {
+    SET_ERROR_INSERT_VALUE(signal->theData[0]);
+  }
+  else
+  {
+    SET_ERROR_INSERT_VALUE2(signal->theData[0], signal->theData[1]);
+  }
+
   if (signal->theData[0] == 9003)
   {
     if (MAX_RECEIVED_SIGNALS < 1024)

@@ -7917,6 +7917,81 @@ int runCheckSlowCommit(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+testSlowConnectEnable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Test behaviour of API client with slow connection
+   * enabling at the data node
+   */
+  NdbRestarter restarter;
+
+  ndbout_c("Delay ENABLE_COM on data nodes");
+  restarter.insertErrorInAllNodes(9500);
+
+  Ndb_cluster_connection* otherConnection = NULL;
+  Ndb* otherNdb = NULL;
+  int result = NDBT_FAILED;
+
+  do
+  {
+    ndbout_c("Setup new connection");
+    char connectString[256];
+    ctx->m_cluster_connection.get_connectstring(connectString,
+                                                sizeof(connectString));
+    otherConnection= new Ndb_cluster_connection(connectString);
+    if (otherConnection == NULL)
+    {
+      ndbout << "Could not create extra API connection" << endl;
+      break;
+    }
+
+    int rc = otherConnection->connect();
+    if (rc != 0)
+    {
+      ndbout << "Connection failed with " << rc << endl;
+      break;
+    }
+
+    if (otherConnection->wait_until_ready(30,30) != 0)
+    {
+      ndbout << "Connection wait until ready failed." << endl;
+      break;
+    }
+
+    ndbout_c("Connection ready");
+
+    otherNdb = new Ndb(otherConnection, "TEST_DB");
+    otherNdb->init();
+
+    if (otherNdb->waitUntilReady(30) != 0)
+    {
+      ndbout << "Ndb wait until ready failed." << endl;
+      break;
+    }
+
+    ndbout_c("Ndb ready");
+
+    const char* tabName = ctx->getTab()->getName();
+    if (otherNdb->getDictionary()->getTable(tabName) == NULL)
+    {
+      ndbout << "Get table failed with error "
+             << otherNdb->getNdbError() << endl;
+      break;
+    }
+
+    ndbout_c("Table retrieved");
+
+    result = NDBT_OK;
+  } while (0);
+
+  restarter.insertErrorInAllNodes(0);
+
+  delete otherNdb;
+  delete otherConnection;
+  return result;
+}
+
 
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
@@ -8336,7 +8411,11 @@ TESTCASE("CheckSlowCommit",
   STEP(runCheckSlowCommit);
   FINALIZER(runDropTable);
 }
-
+TESTCASE("TestSlowConnectEnable",
+         "Test behaviour with slow connection enale")
+{
+  STEP(testSlowConnectEnable);
+}
 
 NDBT_TESTSUITE_END(testNdbApi);
 
