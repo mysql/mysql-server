@@ -424,7 +424,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
         */
         if (and_tree == nullptr) return nullptr;
       }
-      or_tree = tree_or(param, remove_jump_scans, and_tree, or_tree);
+      or_tree = tree_or(param, remove_jump_scans, or_tree, and_tree);
     }
     return or_tree;
   }
