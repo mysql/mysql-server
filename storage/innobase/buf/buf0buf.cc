@@ -1426,6 +1426,7 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
 
 /** Frees the buffer pool global data structures. */
 static void buf_pool_free() {
+  btr_search_sys_free();
   ut::delete_(buf_stat_per_index);
 
   ut::delete_(buf_chunk_map_reg);
