@@ -1259,6 +1259,7 @@ class buf_page_t {
     m_version = 0;
     if (id.space() != UINT32_UNDEFINED) {
       m_space = fil_space_get(id.space());
+      /* There could be non-existent tablespace while importing it */
       if (m_space) {
         m_space->inc_ref();
         /* We don't have a way to check the MDL locks, which are guarding the
