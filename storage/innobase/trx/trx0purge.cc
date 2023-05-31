@@ -2423,40 +2423,23 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
   /* Fetch the UNDO recs that need to be purged. */
   n_pages_handled = trx_purge_attach_undo_recs(n_purge_threads, batch_size);
 
-  /* Do we do an asynchronous purge or not ? */
-  if (n_purge_threads > 1) {
-    /* Submit the tasks to the work queue. */
-    for (ulint i = 0; i < n_purge_threads - 1; ++i) {
-      thr = que_fork_scheduler_round_robin(purge_sys->query, thr);
-
-      ut_a(thr != nullptr);
-
-      srv_que_task_enqueue_low(thr);
-    }
-
+  /* Submit the tasks to the work queue. */
+  for (ulint i = 0; i < n_purge_threads - 1; ++i) {
     thr = que_fork_scheduler_round_robin(purge_sys->query, thr);
+
     ut_a(thr != nullptr);
 
-    purge_sys->n_submitted += n_purge_threads - 1;
-
-    goto run_synchronously;
-
-    /* Do it synchronously. */
-  } else {
-    thr = que_fork_scheduler_round_robin(purge_sys->query, nullptr);
-    ut_ad(thr);
-
-  run_synchronously:
-    ++purge_sys->n_submitted;
-
-    que_run_threads(thr);
-
-    purge_sys->n_completed.fetch_add(1);
-
-    if (n_purge_threads > 1) {
-      trx_purge_wait_for_workers_to_complete();
-    }
+    srv_que_task_enqueue_low(thr);
   }
+
+  thr = que_fork_scheduler_round_robin(purge_sys->query, thr);
+  ut_a(thr != nullptr);
+
+  purge_sys->n_submitted += n_purge_threads - 1;
+
+  que_run_threads(thr);
+
+  trx_purge_wait_for_workers_to_complete();
 
   ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
