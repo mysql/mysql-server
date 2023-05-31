@@ -5761,44 +5761,41 @@ bool Query_block::replace_item_in_expression(Item **expr, bool was_hidden,
 }
 
 /**
-  Minion of transform_scalar_subqueries_to_join_with_derived. Moves implicit
+  Minion of \c transform_scalar_subqueries_to_join_with_derived. Moves implicit
   grouping down into a derived table to prepare for
-  transform_scalar_subqueries_to_join_with_derived.
+  \c transform_scalar_subqueries_to_join_with_derived.
 
   Example:
 
   @verbatim
 
-    SELECT (SELECT COUNT(*)
-            FROM t1) AS tot,
-           IFNULL(MAX(t2.b), 0) + 6 AS mx
-    FROM t2
-    WHERE expr-2;
+    SELECT ( SELECT COUNT(*)
+             FROM t1 ) AS tot,
+           IFNULL(MAX(t2.b), 0) + 6 AS mx  # MAX(t2.b), FROM t2 and
+    FROM t2                                # WHERE go to derived_1_3
+    WHERE ANY_VALUE(t2.b) = 10;
 
-  is transformed to ->
+  is transformed to
 
-    SELECT derived_1_1.`COUNT(*)` AS tot,
-           (IFNULL(derived_1_0.`MAX(t2.b)`,0) + 6) AS mx
-    FROM (SELECT MAX(t2.b) AS `MAX(t2.b)`
-          FROM t2
-          WHERE expr-2) derived_1_0
-         LEFT JOIN
-         (SELECT COUNT(0) AS `COUNT(*)`
-          FROM t1) derived_1_1
-         ON TRUE;
+    SELECT ( SELECT COUNT(*)
+             FROM t1 ) AS tot,
+           IFNULL(derived_1_3.`MAX(t2.b)`, 0) + 6 AS mx
+    FROM ( SELECT MAX(t2.b) AS `MAX(t2.b)`
+           FROM t2
+           WHERE (ANY_VALUE(t2.b) = 10)) derived_1_3
 
   @endverbatim
 
   Create a new query expression object and query block object to represent the
-  contents of a derived table ("new_derived" in the code below, "derived1" in
-  the example above), with a select list which only contains the aggregate
-  functions lifted out of the transformed query block ("MAX(b) AS mx" above) and
-  any fields referenced ("i" above).
+  contents of a derived table ("new_derived" in the code below, "derived_1_3"
+  in the example above), with a select list which only contains the aggregate
+  functions lifted out of the transformed query block ("MAX(t2.b) AS
+  `MAX(t2.b)`" above) and any fields referenced.
 
   The transformed query block retains the original select list except aggregates
-  and fields are replaced by fields ("derived1.mx", "derived1.i" above) from the
+  and fields are replaced by fields ("derived_1_3.`MAX(t2.b)`") from the
   new subquery, but it loses its FROM list, replaced by the new derived table
-  ("derived1" above) and its WHERE and HAVING clauses which all go to
+  ("derived_1_3" above) and its WHERE and HAVING clauses which all go to
   the derived table's query block.
 
   Any DISTINCT, WINDOW clauses and LIMITs stay in place at the transformed

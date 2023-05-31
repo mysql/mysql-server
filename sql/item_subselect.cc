@@ -3063,8 +3063,8 @@ Item_singlerow_subselect::get_contained_subquery(
       {query_expr()->root_access_path(), strategy, row_width});
 }
 
-Item *Item_subselect::replace_item(Item_transformer t, uchar *arg) {
-  auto replace_and_update = [arg, t](Item *expr, Item **ref) {
+bool Query_expression::replace_items(Item_transformer t, uchar *arg) {
+  auto replace_and_update = [t, arg](Item *expr, Item **ref) {
     Item *new_expr = expr->transform(t, arg);
     if (new_expr == nullptr) return true;
     if (new_expr != expr) current_thd->change_item_tree(ref, new_expr);
@@ -3072,30 +3072,35 @@ Item *Item_subselect::replace_item(Item_transformer t, uchar *arg) {
     return false;
   };
 
-  auto *info = pointer_cast<Item::Item_replacement *>(arg);
-  auto *old_current = info->m_curr_block;
-  for (Query_block *qb = query_expr()->first_query_block(); qb != nullptr;
+  auto *const info = pointer_cast<Item::Item_replacement *>(arg);
+  auto *const old_current = info->m_curr_block;
+  for (Query_block *qb = first_query_block(); qb != nullptr;
        qb = qb->next_query_block()) {
+    for (Query_expression *u = qb->first_inner_query_expression(); u != nullptr;
+         u = u->next_query_expression()) {
+      if (u->replace_items(t, arg)) return true;
+    }
+
     info->m_curr_block = qb;
 
     for (auto it = qb->fields.begin(); it != qb->fields.end(); ++it) {
       Item *expr = *it;
-      if (replace_and_update(expr, &expr)) return nullptr;
+      if (replace_and_update(expr, &expr)) return true;
       *it = expr;
     }
     if (qb->where_cond() != nullptr &&
         replace_and_update(qb->where_cond(), qb->where_cond_ref()))
-      return nullptr;
+      return true;
 
     for (ORDER *ord = qb->group_list.first; ord != nullptr; ord = ord->next) {
-      if (replace_and_update(*ord->item, ord->item)) return nullptr;
+      if (replace_and_update(*ord->item, ord->item)) return true;
     }
     if (qb->having_cond() != nullptr &&
         replace_and_update(qb->having_cond(), qb->having_cond_ref()))
-      return nullptr;
+      return true;
 
     for (ORDER *ord = qb->order_list.first; ord != nullptr; ord = ord->next) {
-      if (replace_and_update(*ord->item, ord->item)) return nullptr;
+      if (replace_and_update(*ord->item, ord->item)) return true;
     }
     List_iterator<Window> wit(qb->m_windows);
     Window *w;
@@ -3103,15 +3108,21 @@ Item *Item_subselect::replace_item(Item_transformer t, uchar *arg) {
       for (auto itr : {w->first_order_by(), w->first_partition_by()}) {
         if (itr != nullptr) {
           for (ORDER *ord = itr; ord != nullptr; ord = ord->next) {
-            if (replace_and_update(*ord->item, ord->item)) return nullptr;
+            if (replace_and_update(*ord->item, ord->item)) return true;
           }
         }
       }
     }
+    for (Table_ref *tr = slave->m_table_list.first; tr != nullptr;
+         tr = tr->next_local) {
+      if (tr->join_cond() != nullptr)
+        if (replace_and_update(tr->join_cond(), tr->join_cond_ref()))
+          return true;
+    }
   }
-
   info->m_curr_block = old_current;
-  return this;
+
+  return false;
 }
 
 /**
@@ -3119,7 +3130,9 @@ Item *Item_subselect::replace_item(Item_transformer t, uchar *arg) {
   See Item[_field]::replace_item_field for more details.
 */
 Item *Item_subselect::replace_item_field(uchar *arg) {
-  return replace_item(&Item::replace_item_field, arg);
+  if (query_expr()->replace_items(&Item::replace_item_field, arg))
+    return nullptr;
+  return this;
 }
 
 /**
@@ -3127,7 +3140,9 @@ Item *Item_subselect::replace_item_field(uchar *arg) {
   See Item[_field]::replace_item_view_ref for more details.
 */
 Item *Item_subselect::replace_item_view_ref(uchar *arg) {
-  return replace_item(&Item::replace_item_view_ref, arg);
+  if (query_expr()->replace_items(&Item::replace_item_view_ref, arg))
+    return nullptr;
+  return this;
 }
 
 /**

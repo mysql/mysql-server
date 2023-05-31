@@ -201,7 +201,6 @@ class Item_subselect : public Item_result_field {
   bool collect_subqueries(uchar *) override;
   Item *replace_item_field(uchar *arg) override;
   Item *replace_item_view_ref(uchar *arg) override;
-  Item *replace_item(Item_transformer t, uchar *arg);
 
  protected:
   Item_subselect() : Item_result_field() { set_subquery(); }

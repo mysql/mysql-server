@@ -1115,6 +1115,12 @@ class Query_expression {
 
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
 
+  /**
+    Replace all targeted items using transformer provided and info in
+    arg.
+  */
+  bool replace_items(Item_transformer t, uchar *arg);
+
   /*
     An exception: this is the only function that needs to adjust
     explain_marker.
