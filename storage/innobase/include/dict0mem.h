@@ -2132,7 +2132,7 @@ struct dict_table_t {
   uint32_t total_col_count{0};
 
   /** Set if table is upgraded instant table */
-  unsigned m_upgraded_instant : 1;
+  bool m_upgraded_instant{false};
 
   /** table dynamic metadata status, protected by dict_persist->mutex */
   std::atomic<table_dirty_status> dirty_status;
@@ -2531,13 +2531,11 @@ detect this and will eventually quit sooner. */
   bool has_instant_drop_cols() const { return (get_n_instant_drop_cols() > 0); }
 
   /** Set table to be upgraded table with INSTANT ADD columns in V1. */
-  void set_upgraded_instant() { m_upgraded_instant = 1; }
+  void set_upgraded_instant() { m_upgraded_instant = true; }
 
   /** Checks if table is upgraded table with INSTANT ADD columns in V1.
   @return       true if it is, false otherwise */
-  bool is_upgraded_instant() const {
-    return (m_upgraded_instant == 1) ? true : false;
-  }
+  bool is_upgraded_instant() const { return m_upgraded_instant; }
 
   /** Check whether the table is corrupted.
   @return true if the table is corrupted, otherwise false */
