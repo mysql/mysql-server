@@ -57,6 +57,8 @@ IMPORT_LOG_FUNCTIONS()
 
 const mysql_harness::AppInfo *g_app_info;
 static const std::string kSectionName = "routing";
+std::mutex g_dest_tls_contexts_mtx;
+std::vector<std::unique_ptr<DestinationTlsContext>> g_dest_tls_contexts;
 
 static void validate_socket_info(const std::string &err_prefix,
                                  const mysql_harness::ConfigSection *section,
@@ -323,9 +325,10 @@ static void start(mysql_harness::PluginFuncEnv *env) {
       }
     }
 
-    DestinationTlsContext dest_tls_ctx{config.server_ssl_session_cache_mode,
-                                       config.server_ssl_session_cache_size,
-                                       config.server_ssl_session_cache_timeout};
+    auto dest_tls_context = std::make_unique<DestinationTlsContext>(
+        config.server_ssl_session_cache_mode,
+        config.server_ssl_session_cache_size,
+        config.server_ssl_session_cache_timeout);
     if (config.dest_ssl_mode != SslMode::kDisabled) {
       // validate the config-values one time
       TlsServerContext tls_server_ctx;
@@ -339,7 +342,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
           throw std::system_error(res.error(), "setting server_ssl_cipher=" +
                                                    dest_ssl_cipher + " failed");
         }
-        dest_tls_ctx.ciphers(dest_ssl_cipher);
+        dest_tls_context->ciphers(dest_ssl_cipher);
       }
       if (!config.dest_ssl_curves.empty()) {
         const auto res = tls_server_ctx.curves_list(config.dest_ssl_curves);
@@ -354,7 +357,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                                                      " failed");
           }
         }
-        dest_tls_ctx.curves(config.dest_ssl_curves);
+        dest_tls_context->curves(config.dest_ssl_curves);
       }
       if (!config.dest_ssl_ca_file.empty() || !config.dest_ssl_ca_dir.empty()) {
         if (!config.dest_ssl_ca_dir.empty()) {
@@ -370,8 +373,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                                " and server_ssl_capath=" +
                                config.dest_ssl_ca_dir + " failed");
         }
-        dest_tls_ctx.ca_file(config.dest_ssl_ca_file);
-        dest_tls_ctx.ca_path(config.dest_ssl_ca_dir);
+        dest_tls_context->ca_file(config.dest_ssl_ca_file);
+        dest_tls_context->ca_path(config.dest_ssl_ca_dir);
       }
 
       if (!config.dest_ssl_crl_file.empty() ||
@@ -391,11 +394,11 @@ static void start(mysql_harness::PluginFuncEnv *env) {
                   " failed");
         }
 
-        dest_tls_ctx.crl_file(config.dest_ssl_crl_file);
-        dest_tls_ctx.crl_path(config.dest_ssl_crl_dir);
+        dest_tls_context->crl_file(config.dest_ssl_crl_file);
+        dest_tls_context->crl_path(config.dest_ssl_crl_dir);
       }
 
-      dest_tls_ctx.verify(config.dest_ssl_verify);
+      dest_tls_context->verify(config.dest_ssl_verify);
     }
 
     if (config.connection_sharing == 1) {
@@ -438,7 +441,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         config, io_ctx, name,
         config.source_ssl_mode != SslMode::kDisabled ? &source_tls_ctx
                                                      : nullptr,
-        config.dest_ssl_mode != SslMode::kDisabled ? &dest_tls_ctx : nullptr);
+        config.dest_ssl_mode != SslMode::kDisabled ? dest_tls_context.get()
+                                                   : nullptr);
 
     try {
       // don't allow rootless URIs as we did already in the
@@ -452,6 +456,11 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     Scope_guard guard{[section_key = section->key]() {
       MySQLRoutingComponent::get_instance().erase(section_key);
     }};
+
+    {
+      std::lock_guard<std::mutex> lock{g_dest_tls_contexts_mtx};
+      g_dest_tls_contexts.emplace_back(std::move(dest_tls_context));
+    }
 
     r->run(env);
   } catch (const std::invalid_argument &exc) {
@@ -475,6 +484,9 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
   MySQLRoutingComponent::get_instance().deinit();
   // release all that may still be taken
   io_context_work_guards.clear();
+
+  std::lock_guard<std::mutex> lock{g_dest_tls_contexts_mtx};
+  g_dest_tls_contexts.clear();
 }
 
 static const std::array<const char *, 6> required = {{
