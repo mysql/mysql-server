@@ -3699,22 +3699,27 @@ static void recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
   const size_t delta_hashmap_max_mem =
       UNIV_PAGE_SIZE * (buf_pool_get_n_pages() - pages_to_be_kept_free);
 
-  recv_n_frames_for_pages_per_pool_instance =
-      pages_to_be_kept_free / srv_buf_pool_instances;
-  /* We need at least 2 pages for IO, to allow a loop in `buf_read_recv_pages()`
-  to be able to break. Currently, the Buffer Pool chunk, and thus the Buffer
-  Pool instance, will have at least 16 pages (of size of 64KB), so half of that,
-  8, will easily satisfy that, but we nevertheless don't assume current
-  implementation and assert the real requirements. */
-  ut_a(recv_n_frames_for_pages_per_pool_instance >= 2);
-  /* We need at least a page for the redo deltas hashmap. */
-  ut_a(delta_hashmap_max_mem > 0);
-  /* Currently the hashmap memory limit is not strictly enforced, and we need
-  some not well defined safety margin. Currently the Buffer Pool minimum size is
-  no less than 80 pages (of size of 64KB). With at least half of that allocated
-  to pages_to_be_kept_free, it should contain enough margin, which we
-  approximate to 10 pages. */
-  ut_a(10 < pages_to_be_kept_free);
+  if (log_test == nullptr) {
+    recv_n_frames_for_pages_per_pool_instance =
+        pages_to_be_kept_free / srv_buf_pool_instances;
+    /* We need at least 2 pages for IO, to allow a loop in
+    `buf_read_recv_pages()` to be able to break. Currently, the Buffer Pool
+    chunk, and thus the Buffer Pool instance, will have at least 16 pages (of
+    size of 64KB), so half of that, 8, will easily satisfy that, but we
+    nevertheless don't assume current implementation and assert the real
+    requirements. */
+    ut_a(2 <= recv_n_frames_for_pages_per_pool_instance);
+    /* We need at least a page for the redo deltas hashmap. */
+    ut_a(0 < delta_hashmap_max_mem);
+    /* Currently the hashmap memory limit is not strictly enforced, and we need
+    some not well defined safety margin. Currently the Buffer Pool minimum size
+    is no less than 80 pages (of size of 64KB). With at least half of that
+    allocated to pages_to_be_kept_free, it should contain enough margin, which
+    we approximate to 10 pages. */
+    ut_a(10 < pages_to_be_kept_free);
+  } else {
+    recv_n_frames_for_pages_per_pool_instance = 0;
+  }
 
   mutex_exit(&recv_sys->mutex);
 
