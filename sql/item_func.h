@@ -2135,7 +2135,6 @@ class Item_udf_func : public Item_func {
 
  protected:
   udf_handler udf;
-  bool is_expensive_processor(uchar *) override { return true; }
 
  public:
   Item_udf_func(const POS &pos, udf_func *udf_arg, PT_item_list *opt_list)
@@ -2153,7 +2152,6 @@ class Item_udf_func : public Item_func {
   bool fix_fields(THD *thd, Item **ref) override;
   void cleanup() override;
   Item_result result_type() const override { return udf.result_type(); }
-  bool is_expensive() override { return true; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
 
@@ -2163,6 +2161,10 @@ class Item_udf_func : public Item_func {
             checker_args);
     func_arg->banned_function_name = func_name();
     return true;
+  }
+
+  void compute_cost(CostOfItem *root_cost) const override {
+    root_cost->MarkExpensive();
   }
 
  protected:
@@ -3809,8 +3811,6 @@ class Item_func_sp final : public Item_func {
   bool init_result_field(THD *thd);
 
  protected:
-  bool is_expensive_processor(uchar *) override { return true; }
-
  public:
   Item_func_sp(const POS &pos, const LEX_STRING &db_name,
                const LEX_STRING &fn_name, bool use_explicit_name,
@@ -3854,8 +3854,6 @@ class Item_func_sp final : public Item_func {
   bool fix_fields(THD *thd, Item **ref) override;
   bool resolve_type(THD *thd) override;
 
-  bool is_expensive() override { return true; }
-
   inline Field *get_sp_result_field() { return sp_result_field; }
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
@@ -3863,6 +3861,10 @@ class Item_func_sp final : public Item_func {
             checker_args);
     func_arg->banned_function_name = func_name();
     return true;
+  }
+
+  void compute_cost(CostOfItem *root_cost) const override {
+    root_cost->MarkExpensive();
   }
 };
 

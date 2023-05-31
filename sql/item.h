@@ -778,6 +778,85 @@ class Item_tree_walker {
   const Item *stopped_at_item{nullptr};
 };
 
+/// Increment *num if it is less than its maximal value.
+template <typename T>
+void SafeIncrement(T *num) {
+  if (*num < std::numeric_limits<T>::max()) {
+    *num += 1;
+  }
+}
+
+/**
+   This class represents the cost of evaluating an Item. @see SortPredicates
+   to see how this is used.
+*/
+class CostOfItem final {
+ public:
+  /// Set '*this' to represent the cost of 'item'.
+  void Compute(const Item &item) {
+    if (!m_computed) {
+      ComputeInternal(item);
+    }
+  }
+
+  void MarkExpensive() {
+    assert(!m_computed);
+    m_is_expensive = true;
+  }
+
+  /// Add the cost of accessing a Field_str.
+  void AddStrFieldCost() {
+    assert(!m_computed);
+    SafeIncrement(&m_str_fields);
+  }
+
+  /// Add the cost of accessing any other Field.
+  void AddFieldCost() {
+    assert(!m_computed);
+    SafeIncrement(&m_other_fields);
+  }
+
+  bool IsExpensive() const {
+    assert(m_computed);
+    return m_is_expensive;
+  }
+
+  /**
+     Get the cost of field access when evaluating the Item associated with this
+     object. The cost unit is arbitrary, but the relative cost of different
+     items reflect the fact that operating on Field_str is more expensive than
+     other Field subclasses.
+  */
+  double FieldCost() const {
+    assert(m_computed);
+    return m_other_fields * kOtherFieldCost + m_str_fields * kStrFieldCost;
+  }
+
+ private:
+  /// The cost of accessing a Field_str, relative to other Field types.
+  /// (The value was determined using benchmarks.)
+  static constexpr double kStrFieldCost = 1.8;
+
+  /// The cost of accessing a Field other than Field_str. 1.0 by definition.
+  static constexpr double kOtherFieldCost = 1.0;
+
+  /// True if 'ComputeInternal()' has been called.
+  bool m_computed{false};
+
+  /// True if the associated Item calls user defined functions or stored
+  /// procedures.
+  bool m_is_expensive{false};
+
+  /// The number of Field_str objects accessed by the associated Item.
+  uint8 m_str_fields{0};
+
+  /// The number of other Field objects accessed by the associated Item.
+  uint8 m_other_fields{0};
+
+  /// Compute the cost of 'root' and its descendants.
+  void ComputeInternal(const Item &root);
+};
+
 /**
    This class represents a subquery contained in some subclass of
    Item_subselect, @see FindContainedSubqueries().
@@ -854,7 +933,6 @@ class Item : public Parse_tree_node {
   typedef Parse_tree_node super;
 
   friend class udf_handler;
-  virtual bool is_expensive_processor(uchar *) { return false; }
 
  protected:
   /**
@@ -3208,22 +3286,9 @@ class Item : public Parse_tree_node {
   String *check_well_formed_result(String *str, bool send_error, bool truncate);
   bool eq_by_collation(Item *item, bool binary_cmp, const CHARSET_INFO *cs);
 
-  /*
-    Test whether an expression is expensive to compute. Used during
-    optimization to avoid computing expensive expressions during this
-    phase. Also used to force temp tables when sorting on expensive
-    functions.
-    TODO:
-    Normally we should have a method:
-      cost Item::execution_cost(),
-    where 'cost' is either 'double' or some structure of various cost
-    parameters.
-  */
-  virtual bool is_expensive() {
-    if (is_expensive_cache < 0)
-      is_expensive_cache =
-          walk(&Item::is_expensive_processor, enum_walk::POSTFIX, nullptr);
-    return is_expensive_cache;
+  CostOfItem cost() const {
+    m_cost.Compute(*this);
+    return m_cost;
   }
 
   /**
@@ -3407,6 +3472,12 @@ class Item : public Parse_tree_node {
   }
   virtual bool strip_db_table_name_processor(uchar *) { return false; }
 
+  /**
+     Compute the cost of evaluating this Item.
+     @param root_cost The cost object to which the cost should be added.
+  */
+  virtual void compute_cost(CostOfItem *root_cost [[maybe_unused]]) const {}
+
  private:
   virtual bool subq_opt_away_processor(uchar *) { return false; }
 
@@ -3510,8 +3581,14 @@ class Item : public Parse_tree_node {
   uint m_ref_count{0};
   bool m_abandoned{false};    ///< true if item has been fully de-referenced
   const bool is_parser_item;  ///< true if allocated directly by parser
-  int8 is_expensive_cache;    ///< Cache of result of is_expensive()
   uint8 m_data_type;          ///< Data type assigned to Item
+
+  /**
+     The cost of evaluating this item. This is only needed for predicates,
+     therefore we use lazy evaluation.
+  */
+  mutable CostOfItem m_cost;
+
  public:
   bool fixed;  ///< True if item has been resolved
   /**
@@ -3648,6 +3725,15 @@ template <class T>
 inline bool WalkItem(Item *item, enum_walk walk, T &&functor) {
   return item->walk(&Item::walk_helper_thunk<T>, walk,
                     reinterpret_cast<uchar *>(&functor));
+}
+
+/**
+   Overload for const 'item' and functor taking 'const Item*' argument.
+*/
+template <class T>
+inline bool WalkItem(const Item *item, enum_walk walk, T &&functor) {
+  auto to_const = [&](const Item *descendant) { return functor(descendant); };
+  return WalkItem(const_cast<Item *>(item), walk, to_const);
 }
 
 /**
@@ -4532,6 +4618,10 @@ class Item_field : public Item_ident {
   virtual bool is_asterisk() const { return false; }
   /// See \c m_protected_by_any_value
   bool protected_by_any_value() const { return m_protected_by_any_value; }
+
+  void compute_cost(CostOfItem *root_cost) const override {
+    field->add_to_cost(root_cost);
+  }
 };
 
 /**

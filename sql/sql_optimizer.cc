@@ -928,7 +928,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
     for (ORDER *tmp_order = order.order; tmp_order;
          tmp_order = tmp_order->next) {
       Item *item = *tmp_order->item;
-      if (item->is_expensive()) {
+      if (item->cost().IsExpensive()) {
         /* Force tmp table without sort */
         simple_order = simple_group = false;
         break;
@@ -5738,7 +5738,7 @@ bool JOIN::extract_func_dependent_tables() {
         if (table->file->stats.records <= 1L &&                             // 1
             (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&  // 1
             !tl->outer_join_nest() &&                                       // 2
-            !(tab->join_cond() && tab->join_cond()->is_expensive()))        // 3
+            !(tab->join_cond() && tab->join_cond()->cost().IsExpensive()))  // 3
         {  // system table
           mark_const_table(tab, nullptr);
           const int status =
@@ -5785,10 +5785,11 @@ bool JOIN::extract_func_dependent_tables() {
                 (see Query_expression::can_materialize_directly_into_result()).
           */
           if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
-              !tl->is_fulltext_searched() &&                              // 1
-              !tl->outer_join_nest() &&                                   // 2
-              !(tl->embedding && tl->embedding->is_sj_or_aj_nest()) &&    // 3
-              !(tab->join_cond() && tab->join_cond()->is_expensive()) &&  // 4
+              !tl->is_fulltext_searched() &&                            // 1
+              !tl->outer_join_nest() &&                                 // 2
+              !(tl->embedding && tl->embedding->is_sj_or_aj_nest()) &&  // 3
+              !(tab->join_cond() &&
+                tab->join_cond()->cost().IsExpensive()) &&                // 4
               !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE) &&  // 5
               table->is_created()) {                                      // 6
             if (table->key_info[key].flags & HA_NOSAME) {
@@ -9447,9 +9448,9 @@ Item *make_cond_for_table(THD *thd, Item *cond, table_map tables,
         this is the first table we are extracting conditions for.
        (Assuming that used_table == tables for the first table.)
   */
-  if (used_table &&                                     // 1
-      !(cond->used_tables() & used_table) &&            // 2
-      !(cond->is_expensive() && used_table == tables))  // 3
+  if (used_table &&                                           // 1
+      !(cond->used_tables() & used_table) &&                  // 2
+      !(cond->cost().IsExpensive() && used_table == tables))  // 3
     return nullptr;
 
   if (cond->type() == Item::COND_ITEM) {
@@ -9496,8 +9497,9 @@ Item *make_cond_for_table(THD *thd, Item *cond, table_map tables,
         considered 'expensive', and we want to delay evaluation of such
         conditions to the execution phase.
   */
-  if ((cond->used_tables() & ~tables) ||                                // 1
-      (!used_table && exclude_expensive_cond && cond->is_expensive()))  // 2
+  if ((cond->used_tables() & ~tables) ||  // 1
+      (!used_table && exclude_expensive_cond &&
+       cond->cost().IsExpensive()))  // 2
     return nullptr;
 
   return cond;
@@ -9577,7 +9579,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
       */
       if (join->plan_is_const() &&
           !(cond->used_tables() & ~join->const_table_map) &&
-          !cond->is_expensive()) {
+          !cond->cost().IsExpensive()) {
         DBUG_PRINT("info", ("Found always true WHERE condition"));
         join->where_cond = nullptr;
       }
@@ -10349,7 +10351,7 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
   OPTION_NO_SUBQUERY_DURING_OPTIMIZATION is active.
 */
 static bool can_evaluate_condition(THD *thd, Item *condition) {
-  return condition->const_for_execution() && !condition->is_expensive() &&
+  return condition->const_for_execution() && !condition->cost().IsExpensive() &&
          evaluate_during_optimization(condition,
                                       thd->lex->current_query_block());
 }

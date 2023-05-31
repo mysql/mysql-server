@@ -123,6 +123,17 @@ Type_properties::Type_properties(Item &item)
 
 static enum_field_types real_data_type(Item *item);
 
+void CostOfItem::ComputeInternal(const Item &root) {
+  assert(!m_computed);
+
+  WalkItem(&root, enum_walk::POSTFIX, [this](const Item *item) {
+    item->compute_cost(this);
+    return false;
+  });
+
+  m_computed = true;
+}
+
 /*****************************************************************************
 ** Item functions
 *****************************************************************************/
@@ -147,7 +158,6 @@ Item::Item()
       marker(MARKER_NONE),
       cmp_context(INVALID_RESULT),
       is_parser_item(false),
-      is_expensive_cache(-1),
       m_data_type(MYSQL_TYPE_INVALID),
       fixed(false),
       decimals(0),
@@ -175,7 +185,6 @@ Item::Item(THD *thd, const Item *item)
       marker(MARKER_NONE),
       cmp_context(item->cmp_context),
       is_parser_item(false),
-      is_expensive_cache(-1),
       m_data_type(item->data_type()),
       fixed(item->fixed),
       decimals(item->decimals),
@@ -204,7 +213,6 @@ Item::Item(const POS &pos)
       marker(MARKER_NONE),
       cmp_context(INVALID_RESULT),
       is_parser_item(true),
-      is_expensive_cache(-1),
       m_data_type(MYSQL_TYPE_INVALID),
       fixed(false),
       decimals(0),

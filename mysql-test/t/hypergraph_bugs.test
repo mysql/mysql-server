@@ -674,3 +674,37 @@ EXPLAIN ANALYZE SELECT DISTINCT c FROM t1;
 EXPLAIN ANALYZE SELECT DISTINCT b,c FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34763224 Hypergraph orders and-terms inefficiently in subquery
+--echo #
+
+CREATE TABLE num (n INT);
+INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1(
+  a INT PRIMARY KEY,
+  b VARCHAR(128),
+  c INT
+);
+
+INSERT INTO t1 SELECT k, CAST(100+k AS CHAR(10)), k
+FROM (SELECT x1.n+x2.n*10 AS k FROM num x1, num x2) d1;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON b, c;
+ANALYZE TABLE t1;
+
+# 'c<70' is cheaper even if it is less selective, so evaluate that first.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 x1 WHERE x1.c IN
+(SELECT c FROM t1 x2 WHERE  b<"150" AND c<70);
+
+--replace_regex $elide_costs
+EXPLAIN  FORMAT=TREE SELECT 1 FROM t1 WHERE b<"150" AND c<70;
+
+# Even if 'c<80' is cheaper, its selectivity is so low that it should be
+# evaluated last.
+--replace_regex $elide_costs
+EXPLAIN  FORMAT=TREE SELECT 1 FROM t1 WHERE b<"150" AND c<80;
+
+DROP TABLE num, t1;

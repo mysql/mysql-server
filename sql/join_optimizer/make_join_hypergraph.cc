@@ -81,9 +81,10 @@ bool EarlyNormalizeConditions(THD *thd, RelationalExpression *join,
                               Mem_root_array<Item *> *conditions,
                               bool *always_false);
 
-inline bool IsMultipleEquals(Item *cond) {
+inline bool IsMultipleEquals(const Item *cond) {
   return cond->type() == Item::FUNC_ITEM &&
-         down_cast<Item_func *>(cond)->functype() == Item_func::MULT_EQUAL_FUNC;
+         down_cast<const Item_func *>(cond)->functype() ==
+             Item_func::MULT_EQUAL_FUNC;
 }
 
 Item_func_eq *MakeEqItem(Item *a, Item *b,
@@ -105,12 +106,13 @@ Item_func_eq *MakeEqItem(Item *a, Item *b,
   equalities will be split into one or more single equalities later, referencing
   no more than two tables each.
  */
-int CountTablesInEquiJoinCondition(Item *cond) {
-  assert(cond->type() == Item::FUNC_ITEM &&
-         down_cast<Item_func *>(cond)->contains_only_equi_join_condition());
+int CountTablesInEquiJoinCondition(const Item *cond) {
+  assert(
+      cond->type() == Item::FUNC_ITEM &&
+      down_cast<const Item_func *>(cond)->contains_only_equi_join_condition());
   if (IsMultipleEquals(cond)) {
     // It's not a join condition if it has a constant argument.
-    assert(down_cast<Item_equal *>(cond)->const_arg() == nullptr);
+    assert(down_cast<const Item_equal *>(cond)->const_arg() == nullptr);
     return 2;
   } else {
     return PopulationCount(cond->used_tables());
@@ -145,20 +147,24 @@ void ReorderConditions(Mem_root_array<Item *> *condition_parts) {
   // subqueries (which can be expensive), then stored procedures
   // (which are unknown, so potentially _very_ expensive).
   const auto equi_cond_end = std::stable_partition(
-      condition_parts->begin(), condition_parts->end(), [](Item *item) {
+      condition_parts->begin(), condition_parts->end(), [](const Item *item) {
         return item->type() == Item::FUNC_ITEM &&
-               down_cast<Item_func *>(item)
+               down_cast<const Item_func *>(item)
                    ->contains_only_equi_join_condition();
       });
+
   std::stable_sort(condition_parts->begin(), equi_cond_end,
-                   [](Item *a, Item *b) {
+                   [](const Item *a, const Item *b) {
                      return CountTablesInEquiJoinCondition(a) <
                             CountTablesInEquiJoinCondition(b);
                    });
+
   std::stable_partition(condition_parts->begin(), condition_parts->end(),
-                        [](Item *item) { return !item->has_subquery(); });
-  std::stable_partition(condition_parts->begin(), condition_parts->end(),
-                        [](Item *item) { return !item->is_expensive(); });
+                        [](const Item *item) { return !item->has_subquery(); });
+
+  std::stable_partition(
+      condition_parts->begin(), condition_parts->end(),
+      [](const Item *item) { return item->cost().IsExpensive(); });
 }
 
 /**
@@ -2115,7 +2121,7 @@ bool CanonicalizeJoinConditions(THD *thd, RelationalExpression *expr) {
   // (in ClearImpossibleJoinConditions(), where we also propagate this
   // property up the tree).
   for (Item *cond : expr->join_conditions) {
-    if (cond->has_subquery() || cond->is_expensive()) {
+    if (cond->has_subquery() || cond->cost().IsExpensive()) {
       continue;
     }
     if (cond->const_for_execution() && cond->val_int() == 0) {
@@ -2773,10 +2779,29 @@ size_t EstimateRowWidthForJoin(const JoinHypergraph &graph,
 void SortPredicates(Predicate *begin, Predicate *end) {
   if (std::distance(begin, end) <= 1) return;  // Nothing to sort.
 
-  // Move the most selective predicates first.
-  std::stable_sort(begin, end, [](const Predicate &p1, const Predicate &p2) {
-    return p1.selectivity < p2.selectivity;
+  // Return 'true' if evaluating p1 before p2 is cheaper than the oposite.
+  const auto cheaper = [](const Predicate &p1, const Predicate &p2) {
+    return p1.condition->cost().FieldCost() * (1.0 - p2.selectivity) <
+           p2.condition->cost().FieldCost() * (1.0 - p1.selectivity);
+  };
+
+  // Order the predicates so that we minimize the expected cost of evaluating
+  // the conjuction.
+  std::stable_sort(begin, end, [&](const Predicate &p1, const Predicate &p2) {
+    return cheaper(p1, p2);
   });
+
+  // Check that 'cheaper()' is transitive.
+  assert([&]() {
+    for (const Predicate *first = begin; first < end; first++) {
+      for (const Predicate *second = first + 1; second < end; second++) {
+        if (cheaper(*second, *first)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }());
 
   // If the predicates contain subqueries, move them towards the end, regardless
   // of their selectivity, since they could be expensive to evaluate. We could
@@ -2787,8 +2812,8 @@ void SortPredicates(Predicate *begin, Predicate *end) {
 
   // UDFs and stored procedures have unknown and potentially very high cost.
   // Move them last.
-  std::stable_partition(begin, end, [](const Predicate &pred) {
-    return !pred.condition->is_expensive();
+  std::stable_partition(begin, end, [](const Predicate &p) {
+    return p.condition->cost().IsExpensive();
   });
 }
 

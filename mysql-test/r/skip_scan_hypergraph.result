@@ -595,7 +595,7 @@ Handler_read_rnd_next	0
 set optimizer_switch = 'skip_scan=off';
 EXPLAIN FORMAT=TREE SELECT a, b, c, d FROM t WHERE a = b AND d >= 98;
 EXPLAIN
--> Filter: ((t.a = t.b) and (t.d >= 98))  (rows=167)
+-> Filter: ((t.d >= 98) and (t.a = t.b))  (rows=167)
     -> Covering index scan on t using b  (rows=2500)
 
 FLUSH STATUS;

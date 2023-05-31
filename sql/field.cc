@@ -1244,6 +1244,8 @@ enum_field_types Field::field_type_merge(enum_field_types a,
   return field_types_merge_rules[field_type2index(a)][field_type2index(b)];
 }
 
+void Field::add_to_cost(CostOfItem *cost) const { cost->AddFieldCost(); }
+
 static Item_result field_types_result_type[FIELDTYPE_NUM] = {
     // MYSQL_TYPE_DECIMAL      MYSQL_TYPE_TINY
     DECIMAL_RESULT, INT_RESULT,
@@ -6218,6 +6220,8 @@ uint Field_str::is_equal(const Create_field *new_field) const {
 
   return IS_EQUAL_PACK_LENGTH;
 }
+
+void Field_str::add_to_cost(CostOfItem *cost) const { cost->AddStrFieldCost(); }
 
 type_conversion_status Field_string::store(longlong nr, bool unsigned_val) {
   char buff[64];

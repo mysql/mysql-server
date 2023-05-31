@@ -877,7 +877,7 @@ SEL_TREE *get_mm_tree(THD *thd, RANGE_OPT_PARAM *param, table_map prev_tables,
     dbug_print_tree("tree_returned", tree, param);
     return tree;
   }
-  if (cond->const_item() && !cond->is_expensive()) {
+  if (cond->const_item() && !cond->cost().IsExpensive()) {
     const SEL_TREE::Type type =
         cond->val_int() ? SEL_TREE::ALWAYS : SEL_TREE::IMPOSSIBLE;
     SEL_TREE *tree = new (param->temp_mem_root)

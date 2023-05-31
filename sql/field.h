@@ -63,6 +63,7 @@
 #include "template_utils.h"
 
 class Create_field;
+class CostOfItem;
 class Field;
 class Field_bit;
 class Field_bit_as_char;
@@ -740,6 +741,9 @@ class Field {
   // set_field_length().
   uint32 field_length;
   virtual void set_field_length(uint32 length) { field_length = length; }
+
+  /// Update '*cost' with the fact that this Field is accessed.
+  virtual void add_to_cost(CostOfItem *cost) const;
 
  private:
   uint32 flags{0};
@@ -1992,6 +1996,8 @@ class Field_str : public Field {
   uint32 max_display_length() const override { return field_length; }
   bool str_needs_quotes() const final { return true; }
   uint is_equal(const Create_field *new_field) const override;
+
+  void add_to_cost(CostOfItem *cost) const override;
 
   // An always-updated cache of the result of char_length(), because
   // dividing by charset()->mbmaxlen can be surprisingly costly compared

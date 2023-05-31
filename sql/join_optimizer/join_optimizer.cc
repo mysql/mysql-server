@@ -6951,7 +6951,8 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
     // or stored procedures constant, as we don't want to execute them during
     // optimization.
     const bool can_evaluate = right->const_for_execution() &&
-                              !right->has_subquery() && !right->is_expensive();
+                              !right->has_subquery() &&
+                              !right->cost().IsExpensive();
 
     node->sargable_predicates.push_back(
         {predicate_index, field, right, can_evaluate});
