@@ -2027,7 +2027,9 @@ void log_files_resize_requested(log_t &log) {
 }
 
 void log_files_thread_concurrency_updated(log_t &log) {
-  log_files_wait_until_next_governor_iteration(log);
+  if (log_files_governor_is_active()) {
+    log_files_wait_until_next_governor_iteration(log);
+  }
 }
 
 /** @} */

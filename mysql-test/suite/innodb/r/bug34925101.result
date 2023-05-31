@@ -1,0 +1,6 @@
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
+set global innodb_thread_concurrency=999;
+Warnings:
+Warning	1210	Current innodb_thread_concurrency is too big for safety of redo log files. Consider decreasing it or increasing innodb_redo_log_capacity.
+# restart

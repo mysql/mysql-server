@@ -1,0 +1,6 @@
+--source include/add_mtr_suppression_for_innodb_readonly.inc
+--source include/shutdown_innodb_clean.inc
+--source include/start_innodb_readonly.inc
+set global innodb_thread_concurrency=999;
+--source include/shutdown_mysqld.inc
+--source include/start_mysqld.inc
