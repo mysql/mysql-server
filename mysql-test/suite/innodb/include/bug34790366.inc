@@ -76,9 +76,13 @@ drop table t8;
 
 --echo # import failed, delete tablespace file:
 --remove_file $MYSQLD_DATADIR/test/t5.ibd
+--remove_file $MYSQLD_DATADIR/test/t5.cfg
 --remove_file $MYSQLD_DATADIR/test/t6.ibd
+--remove_file $MYSQLD_DATADIR/test/t6.cfg
 --remove_file $MYSQLD_DATADIR/test/t7.ibd
+--remove_file $MYSQLD_DATADIR/test/t7.cfg
 --remove_file $MYSQLD_DATADIR/test/t8.ibd
+--remove_file $MYSQLD_DATADIR/test/t8.cfg
 
 --echo # files cleanup
 --remove_file $MYSQLD_DATADIR/test/src.cfg
