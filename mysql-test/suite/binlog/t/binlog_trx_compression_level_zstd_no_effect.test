@@ -1,0 +1,115 @@
+###############################################################################
+# === Purpose ===
+#
+# The pupose of this test is to verify that the session variable
+# binlog_transaction_compression_level_zstd is working as expected. It checks
+# that the size of payload is compressed on increasing the value of
+# binlog_transaction_compression_level_zstd.
+#
+# === Requirements ===
+#
+# 1. The compressed size for higher value of binlog_transaction_compression_level_zstd
+#    should be less than the compressed size for smaller value of binlog_transaction_
+#    compression_level_zstd
+#
+# === Implementation ===
+#
+#  1) Prepare a sample table
+#  2) Enable binlog_transaction_compression
+#  3) Set the value of binlog_transaction_compression_level_zstd to 1
+#  4) Save the binlog position before and after inserting the values in table
+#  5) Compute the compressed size for binlog_transaction_compression_level = 1
+#  6) Set the value of binlog_transaction_compression_level_zstd to 19
+#  7) Save the binlog position before and after inserting the values in table
+#  8) Compute the compressed size for binlog_transaction_compression_level = 19
+#  9) Check that the compressed size for level 19 should be smaller than level 1
+#  10) Cleanup.
+#
+# === Reference ===
+#
+# Bug#34833913 : binlog_transaction_compression_level_zstd has no effect
+#
+###############################################################################
+
+
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # 1) Prepare a sample table
+--echo #
+
+CREATE TABLE t (a LONGTEXT);
+
+--echo #
+--echo # 2) Enable binlog_transaction_compression
+--echo #
+
+SET @@session.binlog_transaction_compression = ON;
+--let $saved_binlog_transaction_compression_level_zstd_session = `SELECT @@SESSION.binlog_transaction_compression_level_zstd`
+
+--echo #
+--echo # 3) Set the value of binlog_transaction_compression_level_zstd to 1
+--echo #
+
+SET @@session.binlog_transaction_compression_level_zstd = 1;
+
+--echo #
+--echo # 4) Save the binlog position before and after inserting the values in table
+--echo #
+
+--source include/save_binlog_position.inc
+--let $binlog_start_1 = $binlog_position
+
+INSERT INTO t VALUES (LOAD_FILE('../../std_data/mysqldump_57.sql'));
+
+--source include/save_binlog_position.inc
+--let $binlog_end_1 = $binlog_position
+
+--echo #
+--echo # 5) Compute the compressed size for binlog_transaction_compression_level_zstd = 1
+--echo #
+
+
+--expr $compressed_size_1 = $binlog_end_1 - $binlog_start_1
+
+--echo #
+--echo # 6) Set the value of binlog_transaction_compression_level_zstd to 19
+--echo #
+
+SET @@session.binlog_transaction_compression_level_zstd = 19;
+
+--echo #
+--echo # 7) Save the binlog position before and after inserting the values in table
+--echo #
+
+--source include/save_binlog_position.inc
+--let $binlog_start_2 = $binlog_position
+
+INSERT INTO t VALUES (LOAD_FILE('../../std_data/mysqldump_57.sql'));
+
+--source include/save_binlog_position.inc
+--let $binlog_end_2 = $binlog_position
+
+--echo #
+--echo # 8) Compute the compressed size for binlog_transaction_compression_level
+--echo #_zstd = 19
+--echo #
+
+--expr $compressed_size_2 = $binlog_end_2 - $binlog_start_2
+
+--echo #
+--echo # 9) Check that the compressed size for level 19 should be smaller than level 1
+--echo #
+
+--let $assert_text = The compresed size for level 19 should be smaller then level 1
+--let $assert_cond = $compressed_size_1 > $compressed_size_2
+--source include/assert.inc
+
+--echo #
+--echo # 10) Cleanup.
+--echo #
+DROP TABLE t;
+--replace_result $saved_binlog_transaction_compression_level_zstd_session SAVED
+--eval SET SESSION binlog_transaction_compression_level_zstd = $saved_binlog_transaction_compression_level_zstd_session
+

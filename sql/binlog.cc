@@ -64,6 +64,7 @@
 #include "libbinlogevents/include/buffer/grow_calculator.h"
 #include "libbinlogevents/include/compression/compressor.h"
 #include "libbinlogevents/include/compression/payload_event_buffer_istream.h"
+#include "libbinlogevents/include/compression/zstd_comp.h"
 #include "libbinlogevents/include/control_events.h"
 #include "libbinlogevents/include/debug_vars.h"
 #include "libbinlogevents/include/rows_event.h"
@@ -2099,13 +2100,19 @@ class Binlog_cache_compressor {
   }
 
   /// Get and configure the compressor; update m_compressor.
-  ///
+  /// Set the compression_level for m_compressor
   /// @return true on error, false on success.
   [[NODISCARD]] bool setup_compressor() {
     m_compressor = m_context.get_compressor(&m_thd);
     if (m_compressor == nullptr) {
       DBUG_PRINT("info", ("fallback to uncompressed: compressor==nullptr"));
       return true;
+    }
+    auto zstd_ptr = std::dynamic_pointer_cast<
+        binary_log::transaction::compression::Zstd_comp>(m_compressor);
+    if (zstd_ptr) {
+      zstd_ptr->set_compression_level(
+          m_thd.variables.binlog_trx_compression_level_zstd);
     }
     // Allow compressor to optimize space usage based on uncompressed
     // size.
@@ -2199,7 +2206,6 @@ class Binlog_cache_compressor {
     }
     return false;
   }
-
   /// Session context.
   THD &m_thd;
   /// Transaction cache.

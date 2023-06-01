@@ -166,7 +166,7 @@ Compress_status Zstd_comp::do_finish(Managed_buffer_sequence_t &out) {
     move_position(out, obuf.pos);
   } while (zstd_status > 0);
   BAPI_LOG("info", BAPI_VAR(m_ibuf.pos) << " " << BAPI_VAR(m_ibuf.size));
-
+  m_started = false;
   return Compress_status::success;
 }
 
