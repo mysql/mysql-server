@@ -20,7 +20,7 @@ Pygments==2.7.4
 pyparsing==2.4.6
 pytz==2019.3
 PyYAML==5.4
-requests==2.23.0
+requests==2.31.0
 six==1.14.0
 snowballstemmer==2.0.0
 sortedcontainers==2.1.0
