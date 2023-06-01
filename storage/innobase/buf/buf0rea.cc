@@ -638,7 +638,7 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
   }
 
   /* Release the acquired spaces */
-  for (const auto space_entry : acquired_spaces) {
+  for (const auto &space_entry : acquired_spaces) {
     if (space_entry.second) {
       fil_space_release(space_entry.second);
     }
