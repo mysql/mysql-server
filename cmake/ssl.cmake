@@ -92,6 +92,62 @@ MACRO(RESET_SSL_VARIABLES)
   UNSET(HAVE_SHA512_DIGEST_LENGTH CACHE)
 ENDMACRO()
 
+# Fetch OpenSSL version number.
+# OpenSSL < 3:
+# #define OPENSSL_VERSION_NUMBER 0x1000103fL
+# Encoded as MNNFFPPS: major minor fix patch status
+#
+# OpenSSL 3:
+# #define OPENSSL_VERSION_NUMBER
+#   ( (OPENSSL_VERSION_MAJOR<<28)
+#     |(OPENSSL_VERSION_MINOR<<20)
+#     |(OPENSSL_VERSION_PATCH<<4)
+#     |_OPENSSL_VERSION_PRE_RELEASE )
+MACRO(FIND_OPENSSL_VERSION)
+  FOREACH(version_part
+      OPENSSL_VERSION_MAJOR
+      OPENSSL_VERSION_MINOR
+      OPENSSL_VERSION_PATCH
+      )
+    FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h" ${version_part}
+      REGEX "^#[\t ]*define[\t ]+${version_part}[\t ]+([0-9]+).*")
+    STRING(REGEX REPLACE
+      "^.*${version_part}[\t ]+([0-9]+).*" "\\1"
+      ${version_part} "${${version_part}}")
+  ENDFOREACH()
+  IF(OPENSSL_VERSION_MAJOR VERSION_EQUAL 3)
+    # OpenSSL 3
+    SET(OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_MAJOR}")
+    SET(OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_MINOR}")
+    SET(OPENSSL_FIX_VERSION "${OPENSSL_VERSION_PATCH}")
+  ELSE()
+    # Verify version number. Version information looks like:
+    #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
+    # Encoded as MNNFFPPS: major minor fix patch status
+    FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
+      OPENSSL_VERSION_NUMBER
+      REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
+      )
+    STRING(REGEX REPLACE
+      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
+      OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
+      )
+    STRING(REGEX REPLACE
+      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
+      OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_NUMBER}"
+      )
+    STRING(REGEX REPLACE
+      "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
+      OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
+      )
+  ENDIF()
+  SET(OPENSSL_VERSION
+    "${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}.${OPENSSL_FIX_VERSION}"
+    )
+  SET(OPENSSL_VERSION ${OPENSSL_VERSION} CACHE INTERNAL "")
+  MESSAGE(STATUS "OPENSSL_VERSION (${WITH_SSL}) is ${OPENSSL_VERSION}")
+ENDMACRO(FIND_OPENSSL_VERSION)
+
 # MYSQL_CHECK_SSL
 #
 # Provides the following configure options:
@@ -194,30 +250,8 @@ MACRO (MYSQL_CHECK_SSL)
     ENDIF()
 
     IF(OPENSSL_INCLUDE_DIR)
-      # Verify version number. Version information looks like:
-      #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
-      # Encoded as MNNFFPPS: major minor fix patch status
-      FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
-        OPENSSL_VERSION_NUMBER
-        REGEX "^#[ ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9].*"
-        )
-      STRING(REGEX REPLACE
-        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9]).*$" "\\1"
-        OPENSSL_MAJOR_VERSION "${OPENSSL_VERSION_NUMBER}"
-        )
-      STRING(REGEX REPLACE
-        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9]([0-9][0-9]).*$" "\\1"
-        OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_NUMBER}"
-        )
-      STRING(REGEX REPLACE
-        "^.*OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9]([0-9][0-9]).*$" "\\1"
-        OPENSSL_FIX_VERSION "${OPENSSL_VERSION_NUMBER}"
-        )
+      FIND_OPENSSL_VERSION()
     ENDIF()
-    SET(OPENSSL_VERSION
-      "${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}.${OPENSSL_FIX_VERSION}"
-      )
-    SET(OPENSSL_VERSION ${OPENSSL_VERSION} CACHE INTERNAL "")
 
     IF("${OPENSSL_VERSION}" VERSION_GREATER "1.1.0")
        ADD_DEFINITIONS(-DHAVE_TLSv13)
@@ -229,7 +263,8 @@ MACRO (MYSQL_CHECK_SSL)
     IF(OPENSSL_INCLUDE_DIR AND
        OPENSSL_LIBRARY   AND
        CRYPTO_LIBRARY      AND
-       OPENSSL_MAJOR_VERSION STREQUAL "1"
+       (OPENSSL_MAJOR_VERSION STREQUAL "1" OR
+        OPENSSL_MAJOR_VERSION STREQUAL "3")
       )
       SET(OPENSSL_FOUND TRUE)
     ELSE()
@@ -310,5 +345,18 @@ MACRO (MYSQL_CHECK_SSL)
     RESET_SSL_VARIABLES()
     FATAL_SSL_NOT_FOUND_ERROR(
       "Wrong option or path for WITH_SSL=${WITH_SSL}.")
+  ENDIF()
+ENDMACRO()
+
+# Downgrade OpenSSL 3 deprecation warnings.
+MACRO(DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS)
+  IF(OPENSSL_MAJOR_VERSION VERSION_EQUAL 3)
+    IF(MY_COMPILER_IS_GNU_OR_CLANG)
+      ADD_COMPILE_FLAGS(${ARGV}
+        COMPILE_FLAGS "-Wno-error=deprecated-declarations")
+    ELSEIF(WIN32)
+      ADD_COMPILE_FLAGS(${ARGV}
+        COMPILE_FLAGS "/wd4996")
+    ENDIF()
   ENDIF()
 ENDMACRO()
