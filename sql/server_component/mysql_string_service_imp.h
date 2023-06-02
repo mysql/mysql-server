@@ -36,15 +36,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 class String;
 
 /**
-  mysql_string_itrerator structure to provide service to components
-*/
-struct st_string_iterator {
-  String *iterator_str;
-  const char *iterator_ptr;
-  int ctype;
-};
-
-/**
   The string functions as a service to the mysql_server component.
   So, that by default this service is available to all the components
   register to the server.
@@ -277,6 +268,18 @@ class mysql_string_imp {
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(is_digit, (my_h_string_iterator iter, bool *out));
+
+  /**
+    Retrieves character value at current iterator position
+
+    @param iter       String iterator object handle
+    @param [out] out  Pointer to long value to store character to
+
+    @return Status of performed operation
+      @retval false success
+      @retval true failure
+  */
+  static DEFINE_BOOL_METHOD(get, (my_h_string_iterator iter, ulong *out));
 
   static DEFINE_BOOL_METHOD(reset, (my_h_string s));
 
