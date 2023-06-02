@@ -13248,8 +13248,9 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
     if (thd->rpl_thd_ctx.binlog_group_commit_ctx()
             .get_session_ticket()
             .is_set()) {
-      assert(thd->rpl_thd_ctx.binlog_group_commit_ctx().get_session_ticket() ==
-             bgc_group_ticket);
+      assert(
+          !(bgc_group_ticket >
+            thd->rpl_thd_ctx.binlog_group_commit_ctx().get_session_ticket()));
     }
 #endif
     /*
