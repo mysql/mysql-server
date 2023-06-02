@@ -127,7 +127,7 @@ ServiceStatus check_service_operations(int argc, char **argv,
                            [&conf_opts](const std::string &value) {
                              conf_opts.config_file = value;
                            });
-    add_service_options(arg_handler, conf_opts);
+    add_service_options(arg_handler, &conf_opts);
 
     try {
       arg_handler.process(std::vector<std::string>({argv + 1, argv + argc}));
