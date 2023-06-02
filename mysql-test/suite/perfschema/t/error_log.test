@@ -50,7 +50,7 @@ SELECT @@global.log_error;
 # of questionable worth.
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-014069" ORDER BY logged DESC LIMIT 1;
+ WHERE error_code="MY-015015" ORDER BY logged DESC LIMIT 1;
 
 --echo
 --echo # Since we're logging to stderr, we should see this message exactly once
@@ -58,7 +58,7 @@ SELECT logged INTO @startup
 --echo # previous runs:
 SELECT COUNT(logged)
   FROM performance_schema.error_log
- WHERE error_code="MY-014069" ORDER BY logged;
+ WHERE error_code="MY-015015" ORDER BY logged;
 
 --echo
 --echo # number of buffered events should agree between status and COUNT(*)
@@ -173,7 +173,7 @@ SELECT prio,error_code,subsystem
 # MY-013711: Manifest file RO check (variable part: path)
 # MY-013908: Invalid systemd socket. Bit indeterministic.
 # MY-000068: EE_UNKNOWN_OPTION, unknown option '--loose-lock_order', depends on configuration
-# MY-014069: ER_SRV_START
+# MY-015015: ER_SRV_START
 # MY-010099: ER_SEC_FILE_PRIV_DIRECTORY_INSECURE
 # MY-010101: ER_SEC_FILE_PRIV_DIRECTORY_PERMISSIONS
 SELECT prio,error_code,subsystem,data
@@ -184,7 +184,7 @@ SELECT prio,error_code,subsystem,data
                          "MY-010931", "MY-010116", "MY-011810", "MY-000000",
                          "MY-000067", "MY-010159", "MY-013595", "MY-013602",
                          "MY-010108", "MY-012363", "MY-013711", "MY-013908",
-                         "MY-013930", "MY-000068", "MY-014069", "MY-010101",
+                         "MY-013930", "MY-000068", "MY-015015", "MY-010101",
                          "MY-010099")
  ORDER BY logged;
 
@@ -213,7 +213,7 @@ SET @@session.time_zone=@@global.log_timestamps;
 
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-014069" ORDER BY logged DESC LIMIT 1;
+ WHERE error_code="MY-015015" ORDER BY logged DESC LIMIT 1;
 
 SELECT LEFT(logged,19), error_code, subsystem, data
   FROM performance_schema.error_log
@@ -246,14 +246,14 @@ SET @@session.time_zone=@@global.log_timestamps;
 --echo # Determine start-up time. Must succeed for other results to have meaning
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-014069" ORDER BY logged DESC LIMIT 1;
+ WHERE error_code="MY-015015" ORDER BY logged DESC LIMIT 1;
 
 --echo
 --echo # FR-1.3.3 JSON log mode
 --echo # SELECT with = cond with (possibly) several results
 SELECT logged=@startup
   FROM performance_schema.error_log
- WHERE error_code="MY-014069" ORDER BY logged DESC LIMIT 1;
+ WHERE error_code="MY-015015" ORDER BY logged DESC LIMIT 1;
 
 --echo
 --echo # Extract a key/value pair from a JSON record:
@@ -312,7 +312,7 @@ DELETE FROM mysql.component
 # find "first" entry in latest run
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-014069"
+ WHERE error_code="MY-015015"
  ORDER BY logged DESC LIMIT 1;
 
 --echo
@@ -330,7 +330,7 @@ SELECT COUNT(*)=0
 # find "first" entry in latest run
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-014069"
+ WHERE error_code="MY-015015"
  ORDER BY logged DESC LIMIT 1;
 
 --echo
@@ -357,7 +357,7 @@ SELECT COUNT(*)=0
 # find "first" entry in latest run
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-014069"
+ WHERE error_code="MY-015015"
  ORDER BY logged DESC LIMIT 1;
 
 --echo
@@ -377,7 +377,7 @@ SELECT COUNT(*)=0
 # find "first" entry in latest run
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-014069"
+ WHERE error_code="MY-015015"
  ORDER BY logged DESC LIMIT 1;
 
 --echo
@@ -395,7 +395,7 @@ SELECT COUNT(*)>0
 --source include/restart_mysqld.inc
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-014069"
+ WHERE error_code="MY-015015"
  ORDER BY logged DESC LIMIT 1;
 
 --echo
@@ -409,7 +409,7 @@ SELECT COUNT(*)>0
 --echo
 --echo # Pass --log-error-suppression-list at start-up, then show that the
 --echo # listed errors have been excluded from the table!
---let restart_parameters="restart: --log-error-suppression-list=MY-013595,MY-010069,MY-011810,MY-010116,MY-014069 --log-error-verbosity=3"
+--let restart_parameters="restart: --log-error-suppression-list=MY-013595,MY-010069,MY-011810,MY-010116,MY-015015 --log-error-verbosity=3"
 --source include/restart_mysqld.inc
 --echo # Show that log_error_suppression_list was accepted from the command-line.
 SELECT @@global.log_error_suppression_list;
@@ -419,7 +419,7 @@ SELECT @@global.log_error_suppression_list;
 SELECT @@global.log_error;
 SELECT error_code
   FROM performance_schema.error_log
- WHERE error_code IN("MY-013595","MY-010069","MY-011810","MY-010116", "MY-014069")
+ WHERE error_code IN("MY-013595","MY-010069","MY-011810","MY-010116", "MY-015015")
    AND prio<>"System";
 
 
@@ -443,11 +443,11 @@ SELECT @@global.dragnet.log_error_filter_rules;
 --echo # get start-up timestamp from ER_SRV_START
 SELECT COUNT(logged)
   FROM performance_schema.error_log
- WHERE error_code="MY-014069"
+ WHERE error_code="MY-015015"
  ORDER BY logged DESC LIMIT 1;
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-014069"
+ WHERE error_code="MY-015015"
  ORDER BY logged DESC LIMIT 1;
 
 --echo # show that we filtered out ER_SERVER_STARTUP_MSG
@@ -465,7 +465,7 @@ SET @@global.log_error_services=DEFAULT;
 --echo # PERSIST + JSON
 
 SET PERSIST log_error_verbosity=1;
-SET PERSIST log_error_suppression_list="MY-013595,MY-010069,MY-011810,MY-010116,MY-014069";
+SET PERSIST log_error_suppression_list="MY-013595,MY-010069,MY-011810,MY-010116,MY-015015";
 SET PERSIST log_error_services="log_filter_internal; log_sink_json";
 
 --let LOG_FILE_PJ=$MYSQLTEST_VARDIR/tmp/wl13681_pj.err
@@ -475,7 +475,7 @@ SET PERSIST log_error_services="log_filter_internal; log_sink_json";
 
 SELECT logged INTO @startup
   FROM performance_schema.error_log
- WHERE error_code="MY-014069"
+ WHERE error_code="MY-015015"
  ORDER BY logged DESC LIMIT 1;
 
 --echo # verbosity=1 (persisted), should apply (and result in 0 notes/warnings)
@@ -485,7 +485,7 @@ SELECT COUNT(*)=0 FROM performance_schema.error_log
 --echo # no errors excluded by log_error_suppression_list should appear:
 SELECT COUNT(*)=0
   FROM performance_schema.error_log
- WHERE error_code IN("MY-013595","MY-010069","MY-011810","MY-014069")
+ WHERE error_code IN("MY-013595","MY-010069","MY-011810","MY-015015")
    AND logged>=@startup AND prio<>"System";
 
 --echo # find a row that should exist, and extract JSON data from it

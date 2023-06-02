@@ -9962,6 +9962,44 @@ ER_WARN_NO_SPACE_VERSION_COMMENT
 ER_VALIDATE_PASSWORD_INSUFFICIENT_CHANGED_CHARACTERS
   eng "The new password must have at least '%u' characters that are different from the old password. It has only '%u' character(s) different. For this comparison, uppercase letters and lowercase letters are considered to be equal."
 
+#
+#  End of 8.0 error messages (server-to-client).
+#
+#  Please put messages for 8.1+ in the section beginning with
+#  start-error-number 6000
+#
+
+
+################################################################################
+# Error numbers 4500 to 4999 are reserved for Router. Please do not use
+# them for other error messages.
+################################################################################
+
+reserved-error-section 4500 4999
+
+
+################################################################################
+# Error numbers 5000 to 5999 are reserved for X Plugin. Please do not use
+# them for other error messages.
+################################################################################
+
+reserved-error-section 5000 5999
+
+
+################################################################################
+# Error numbers starting at 6000: server-to-client messages 8.1+
+################################################################################
+
+# Do NOT add messages intended for the error log here;
+# they have their own section below.
+#
+# Do NOT add messages to clients for mysqld 8.0.x here;
+# they have their own section above.
+#
+# See the FAQ at the end of the file for more information.
+
+start-error-number 6000
+
 ER_LANGUAGE_COMPONENT
   eng "%s"
 
@@ -10008,25 +10046,10 @@ ER_INNODB_IMPORT_ENUM_NULL_TERMINATOR_MISSING
   eng "Enum/Set element name missing null terminator for column '%s'"
 
 #
-#  End of 8.0 error messages (server-to-client).
+#  End of 8.1 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
 #
 
-################################################################################
-# Error numbers 5000 to 5999 are reserved for X Plugin. Please do not use
-# them for other error messages.
-################################################################################
-
-
-reserved-error-section 5000 5999
-
-################################################################################
-# Error numbers 6000 to 6999 are reserved for Router. Please do not use
-# them for other error messages.
-################################################################################
-
-
-reserved-error-section 6000 6999
 
 ################################################################################
 # DO NOT add messages for the error-log to this file;
