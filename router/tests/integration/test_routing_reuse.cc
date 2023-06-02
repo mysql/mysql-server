@@ -280,6 +280,7 @@ class SharedServer {
             .spawner(mysqld.str())
             .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
             .spawn({
+                "--no-defaults",
                 "--initialize-insecure",
                 "--datadir=" + mysqld_dir_name(),
                 "--log-error=" + mysqld_dir_name() +
@@ -322,7 +323,7 @@ class SharedServer {
                                            static_cast<int>(0xc000013a)})
 #endif
             .spawn({
-                "--no-defaults-file",
+                "--no-defaults",
                 "--lc-messages-dir=" + lc_messages_dir.str(),
                 "--datadir=" + mysqld_dir_name(),
                 "--log-error=" + mysqld_dir_name() +
