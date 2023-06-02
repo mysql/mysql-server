@@ -1,0 +1,205 @@
+################################################################################
+# === Purpose ===
+#
+# This test checks that the waiting block for commit tickets is responsive in case
+# of missed signals and stop instructions.
+#
+# ==== Requirements ====
+#
+# When multiple views are logged in a member, the system should never be stuck waiting for
+# a signal in order to apply one of these views.
+#
+# === Implementation ====
+#
+# 0. There are 3 members that will form a group (server 1,2 and 4).
+#    There is an asynchronous replication connection from server 3 to server 1
+# 1. Start GR on server 1. Create an asynchronous connection to server 3
+#    Add some data to server 3 that will be replicated to server 1
+# 2. Insert one last transaction on server 3 that will block on commit on server 1
+#    Use a point that blocks the transaction after certification but before commit
+#    Wait for the transaction to block
+# 3. Join member 2 to the group
+#    Wait for the VCLE to reach application where it will be stuck waiting for its ticket
+# 4. Unblock the transaction from the async channel, but stop it again before it pops the ticket
+# 5. Join member 4. The new VCLE will pop the ticket with no broadcast
+#    Wait for this new VCLE to be queued
+# 6. Unblock the stuck ticket
+#    All members should now be online
+# 7. Cleaning up
+#
+# === References ===
+#
+# Bug#35392640: Group Replication primary with replica blocked by view change
+#
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--source include/group_replication.inc
+
+--echo #
+--echo # 1. Start GR on server 1. Create an asynchronous connection to server 3
+--echo #    Add some data to server 3 that will be replicated to server 1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $sysvars_to_save = [ "GLOBAL.group_replication_view_change_uuid" ]
+--source include/save_sysvars.inc
+
+SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+--source include/start_and_bootstrap_group_replication.inc
+
+# Async connection to channel 3
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_3 FOR CHANNEL 'ch1'
+
+--let $rpl_channel_name='ch1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--echo # Add some data on 3 and sync
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--let $sync_slave_connection=server1
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # 2. Insert one last transaction on server 3 that will block on commit on server 1
+--echo #    Use a point that blocks the transaction after certification but before commit
+--echo #    Wait for the transaction to block
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Block the last transaction from completing
+# Block it when it is already registered/certified but not committed.
+--let $debug_point = ordered_commit_blocked
+--source include/add_debug_point.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (2);
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Wait for the debug sync to be reached.
+SET DEBUG_SYNC= "now WAIT_FOR signal.ordered_commit_waiting";
+--source include/remove_debug_point.inc
+
+--echo #
+--echo # 3. Join member 2 to the group
+--echo #    Wait for the VCLE to reach application where it will be stuck waiting for its ticket
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $sysvars_to_save = [ "GLOBAL.group_replication_view_change_uuid" ]
+--source include/save_sysvars.inc
+SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+# Start GR gets stuck on RECOVERY state
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--source include/start_group_replication_command.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Wait for the VCLE to reach application
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier" AND applying_transaction= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2"
+--source include/wait_condition.inc
+
+--let $assert_text= 'There is a worker whose stage reports it is waiting on a ticket'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.threads WHERE name="thread/sql/replica_worker" AND processlist_state="Waiting for Binlog Group Commit ticket", count, 1] = 1
+--source include/assert.inc
+
+--echo #
+--echo # 4. Unblock the transaction from the async channel, but stop it again before it pops the ticket
+
+--let $debug_point = rpl_end_of_ticket_blocked
+--source include/add_debug_point.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.ordered_commit_continue";
+
+# Wait it to block after already acknowledging the transaction was processed, but before popping the ticket
+SET DEBUG_SYNC= "now WAIT_FOR signal.end_of_ticket_waiting";
+
+--source include/remove_debug_point.inc
+
+--echo #
+--echo # 5. Join member 4. The new VCLE will pop the ticket with no broadcast
+--echo #    Wait for this new VCLE to be queued
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+--let $sysvars_to_save = [ "GLOBAL.group_replication_view_change_uuid" ]
+--source include/save_sysvars.inc
+SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+
+# The new View Change will cause a pop with no signal
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--source include/start_group_replication_command.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Wait for the VCLE for the member 4 join to be queued
+# Not stuck waiting for the ticket, the VCLE is still stuck waiting for the flush stage lock
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE = 1 from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
+--source include/wait_condition.inc
+
+--echo #
+--echo # 6. Unblock the stuck ticket
+--echo #    All members should now be online
+
+SET DEBUG_SYNC= "now SIGNAL signal.end_of_ticket_continue";
+
+--let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--echo #
+--echo # 7. Cleaning up
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--let $sync_slave_connection=server1
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= 'RESET';
+
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "ch1";
+
+--source include/stop_group_replication.inc
+--source include/restore_sysvars.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--source include/restore_sysvars.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--source include/restore_sysvars.inc
+
+--source include/group_replication_end.inc
