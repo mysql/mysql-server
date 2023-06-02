@@ -120,8 +120,13 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
         *((mysql_cstring_with_length *)inout_pvalue) = val;
       } else if (!strcmp(name, "sql_command")) {
         const char *sql_command = get_sql_command_string(t->lex->sql_command);
-        *((mysql_cstring_with_length *)inout_pvalue) = {sql_command,
-                                                        strlen(sql_command)};
+        if (t->lex->sql_command == SQLCOM_END &&
+            t->get_command() != COM_QUERY) {
+          *((mysql_cstring_with_length *)inout_pvalue) = {"", strlen("")};
+        } else {
+          *((mysql_cstring_with_length *)inout_pvalue) = {sql_command,
+                                                          strlen(sql_command)};
+        }
       } else if (!strcmp(name, "command")) {
         const char *command = get_server_command_string(t->get_command());
         *((mysql_cstring_with_length *)inout_pvalue) = {command,
