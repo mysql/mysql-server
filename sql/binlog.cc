@@ -8923,6 +8923,12 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
                        thd->thread_id()));
 
   DEBUG_SYNC(thd, "bgc_before_flush_stage");
+  DBUG_EXECUTE_IF("ordered_commit_blocked", {
+    const char act[] =
+        "now signal signal.ordered_commit_waiting wait_for "
+        "signal.ordered_commit_continue";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
 
   /*
     Stage #0: ensure slave threads commit order as they appear in the slave's
