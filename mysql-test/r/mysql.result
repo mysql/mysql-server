@@ -575,7 +575,7 @@ ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:99999' (XXX)
 
 # Test support for dollar quoting
 
-ERROR 4167 (HY000) at line 1: No Language component available
+ERROR 6001 (HY000) at line 1: No Language component available
 -exec $MYSQL test -e "SELECT \$mle\$test\$mle\$;" 2>&1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-exec $MYSQL test -e "SELECT \$mle\$test\$mle\$;" 2>&1' at line 1
 -exec $MYSQL test -e "SELECT \$mle\$test\$mle;" 2>&1;

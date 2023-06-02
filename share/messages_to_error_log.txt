@@ -12237,6 +12237,19 @@ ER_WARN_SCHEDULED_TASK_RUN_FAILED
 ER_AUDIT_LOG_INVALID_FLUSH_INTERVAL_VALUE
    eng "Invalid flush interval specified: %lu. Valid values are 0 (off) or greater than or equal to %d. Adjusting to %d"
 
+#
+# End of 8.0 error messages intended to be written to the server error log.
+#
+
+
+#
+# Start of 8.1 error messages intended to be written to the server error log.
+# Append 8.0 error log messages to the end of the _previous_ section.
+# Messages intended to be sent to _clients_ go in messages_to_clients.txt!
+#
+
+start-error-number 15000
+
 ER_LANGUAGE_COMPONENT_INFO
   eng "%s"
 
@@ -12329,8 +12342,9 @@ ER_NUM_THREADS_STILL_ALIVE
 # information.
 
 #
-# End of 8.0 error messages intended to be written to the server error log.
+# End of 8.1 error messages intended to be written to the server error log.
 #
+
 
 ################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
