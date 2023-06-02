@@ -36,6 +36,8 @@
 #include "mrs/interface/authorize_handler.h"
 #include "mrs/users/user_manager.h"
 
+class HttpHeaders;
+
 namespace collector {
 
 class MysqlCacheManager;
