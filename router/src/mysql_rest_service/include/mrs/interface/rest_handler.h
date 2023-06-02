@@ -31,7 +31,6 @@
 #include <utility>
 #include <vector>
 
-#include "mrs/http/error.h"
 #include "mrs/interface/http_result.h"
 #include "mrs/interface/universal_id.h"
 
@@ -42,6 +41,11 @@ class MySQLSession;
 }  // namespace mysqlrouter
 
 namespace mrs {
+
+namespace http {
+class Error;
+}  // namespace http
+
 namespace rest {
 struct RequestContext;
 }  // namespace rest

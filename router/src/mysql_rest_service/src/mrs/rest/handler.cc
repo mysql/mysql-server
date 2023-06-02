@@ -34,7 +34,7 @@
 //#include "mysqlrouter/rest_api_utils.h"
 
 #include "mrs/authentication/www_authentication_handler.h"
-#include "mrs/http/error.h
+#include "mrs/http/error.h"
 #include "mrs/interface/object.h"
 #include "mrs/interface/rest_error.h"
 #include "mrs/rest/request_context.h"

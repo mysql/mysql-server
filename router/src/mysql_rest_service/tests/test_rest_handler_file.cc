@@ -28,6 +28,7 @@
 
 #include "helper/make_shared_ptr.h"
 #include "helper/set_http_component.h"
+#include "mrs/http/error.h"
 #include "mrs/rest/handler_file.h"
 #include "mrs/rest/request_context.h"
 

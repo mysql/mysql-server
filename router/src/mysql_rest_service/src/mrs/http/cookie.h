@@ -29,7 +29,7 @@
 #include <map>
 #include <string>
 
-#include "mysqlrouter/http_request.h"
+class HttpRequest;
 
 namespace mrs {
 namespace http {

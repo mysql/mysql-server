@@ -28,6 +28,7 @@
 
 #include "helper/http/url.h"
 #include "mrs/http/cookie.h"
+#include "mrs/http/error.h"
 #include "mrs/http/utilities.h"
 #include "mrs/interface/object.h"
 #include "mrs/rest/request_context.h"

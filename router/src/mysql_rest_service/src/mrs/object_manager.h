@@ -30,11 +30,11 @@
 #include <vector>
 
 #include "collector/mysql_cache_manager.h"
-#include "interface/object.h"
-#include "interface/object_factory.h"
 #include "mrs/database/entry/content_file.h"
 #include "mrs/database/entry/db_object.h"
 #include "mrs/interface/authorize_manager.h"
+#include "mrs/interface/object.h"
+#include "mrs/interface/object_factory.h"
 #include "mrs/interface/object_manager.h"
 #include "mrs/interface/object_schema.h"
 #include "mrs/interface/state.h"

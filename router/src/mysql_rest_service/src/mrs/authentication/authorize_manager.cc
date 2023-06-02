@@ -36,6 +36,7 @@
 #include "mrs/authentication/auth_handler_factory.h"
 #include "mrs/authentication/track_authorize_handler.h"
 #include "mrs/authentication/www_authentication_handler.h"
+#include "mrs/http/error.h"
 #include "mrs/rest/handler_authorize.h"
 #include "mrs/rest/handler_authorize_apps.h"
 #include "mrs/rest/handler_authorize_ok.h"

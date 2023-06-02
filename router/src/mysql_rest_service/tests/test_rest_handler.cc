@@ -28,7 +28,6 @@
 
 #include "helper/set_http_component.h"
 #include "mrs/interface/object.h"
-#include "mrs/rest/handler_object.h"
 
 #include "mock/mock_auth_manager.h"
 #include "mock/mock_http_request.h"

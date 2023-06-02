@@ -29,28 +29,23 @@
 #include <string>
 
 #include "helper/media_type.h"
-#include "mysqlrouter/http_request.h"
 
 namespace mrs {
 namespace interface {
 
 struct HttpResult {
   using Type = helper::MediaType;
+  using HttpStatus = int;
 
-  HttpResult() {}
-  HttpResult(std::string &&r) : response{r} {}
-  HttpResult(std::string &&r, Type t, std::string e = {})
-      : response{r}, type{t}, etag{std::move(e)} {}
-  HttpResult(HttpStatusCode::key_type s, std::string &&r, Type t,
-             std::string e = {})
-      : response{r}, status{s}, type{t}, etag{std::move(e)} {}
-  HttpResult(const std::string &r, Type t, std::string e = {})
-      : response{r}, type{t}, etag{std::move(e)} {}
-  HttpResult(std::string &&r, std::string t, std::string e = {})
-      : response{r}, type_text{t}, etag{std::move(e)} {}
+  HttpResult();
+  HttpResult(std::string &&r);
+  HttpResult(std::string &&r, Type t, std::string e = {});
+  HttpResult(HttpStatus s, std::string &&r, Type t, std::string e = {});
+  HttpResult(const std::string &r, Type t, std::string e = {});
+  HttpResult(std::string &&r, std::string t, std::string e = {});
 
   std::string response;
-  HttpStatusCode::key_type status{HttpStatusCode::Ok};
+  HttpStatus status;
   Type type{Type::typeDefault};
   std::optional<std::string> type_text;
   std::string etag;

@@ -49,4 +49,28 @@ HttpResult get_problem_description(HttpStatusCode::key_type status) {
 }
 
 }  // namespace authentication
+
+namespace interface {
+
+HttpResult::HttpResult() : status{HttpStatusCode::Ok} {}
+
+HttpResult::HttpResult(std::string &&r)
+    : response{r}, status{HttpStatusCode::Ok} {}
+
+HttpResult::HttpResult(std::string &&r, Type t, std::string e)
+    : response{r}, status{HttpStatusCode::Ok}, type{t}, etag{std::move(e)} {}
+
+HttpResult::HttpResult(HttpStatus s, std::string &&r, Type t, std::string e)
+    : response{r}, status{s}, type{t}, etag{std::move(e)} {}
+
+HttpResult::HttpResult(const std::string &r, Type t, std::string e)
+    : response{r}, status{HttpStatusCode::Ok}, type{t}, etag{std::move(e)} {}
+
+HttpResult::HttpResult(std::string &&r, std::string t, std::string e)
+    : response{r},
+      status{HttpStatusCode::Ok},
+      type_text{t},
+      etag{std::move(e)} {}
+
+}  // namespace interface
 }  // namespace mrs
