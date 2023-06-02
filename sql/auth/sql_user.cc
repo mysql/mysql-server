@@ -37,6 +37,7 @@
 #include "mutex_lock.h"  // Mutex_lock
 #include "my_alloc.h"
 #include "my_base.h"
+#include "my_cleanse.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -44,9 +45,11 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_time.h"
+#include "mysql/components/my_service.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/validate_password.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
@@ -56,6 +59,7 @@
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "password.h" /* my_make_scrambled_password */
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/dynamic_privilege_table.h"
@@ -831,23 +835,29 @@ end:
 
   The plaintext current password is erased from LEX_USER, iff its length > 0 .
 
-  @param thd      The execution context
-  @param Str      LEX user
-  @param acl_user The associated user which carries the ACL
-  @param auth     Auth plugin to use for verification
-  @param is_privileged_user     Whether caller has CREATE_USER_ACL
-                                or UPDATE_ACL over mysql.*
+  @param thd                  The execution context
+  @param Str                  LEX user
+  @param acl_user             The associated user which carries the ACL
+  @param auth                 Auth plugin to use for verification
+  @param new_password         New password buffer
+  @param new_password_length  Length of new password
+  @param is_privileged_user   Whether caller has CREATE_USER_ACL
+                              or UPDATE_ACL over mysql.*
   @param user_exists  Whether user already exists
 
   @retval true operation failed
   @retval false success
 */
-static bool validate_password_require_current(THD *thd, LEX_USER *Str,
-                                              ACL_USER *acl_user,
-                                              st_mysql_auth *auth,
-                                              bool is_privileged_user,
-                                              bool user_exists) {
+static bool validate_password_require_current(
+    THD *thd, LEX_USER *Str, ACL_USER *acl_user, st_mysql_auth *auth,
+    const char *new_password, unsigned int new_password_length,
+    bool is_privileged_user, bool user_exists) {
   if (user_exists) {
+    auto password_cleanup = create_scope_guard([&] {
+      my_cleanse(const_cast<char *>(Str->current_auth.str),
+                 Str->current_auth.length);
+      my_cleanse(const_cast<char *>(new_password), new_password_length);
+    });
     if (Str->uses_replace_clause) {
       int is_error = 0;
       Security_context *sctx = thd->security_context();
@@ -868,33 +878,45 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
         if (Str->current_auth.length > 0) {
           my_error(ER_INCORRECT_CURRENT_PASSWORD, MYF(0));
           return (true);
-        } else {
-          return (false);
         }
+        return (false);
       }
       /*
         Compare the specified plain text current password with the
         current auth string.
       */
-      else if ((auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE) &&
-               auth->compare_password_with_hash &&
-               auth->compare_password_with_hash(
-                   acl_user->credentials[PRIMARY_CRED].m_auth_string.str,
-                   (unsigned long)acl_user->credentials[PRIMARY_CRED]
-                       .m_auth_string.length,
-                   Str->current_auth.str,
-                   (unsigned long)Str->current_auth.length, &is_error) &&
-               !is_error) {
+      if ((auth->authentication_flags & AUTH_FLAG_USES_INTERNAL_STORAGE) &&
+          auth->compare_password_with_hash &&
+          auth->compare_password_with_hash(
+              acl_user->credentials[PRIMARY_CRED].m_auth_string.str,
+              (unsigned long)acl_user->credentials[PRIMARY_CRED]
+                  .m_auth_string.length,
+              Str->current_auth.str, (unsigned long)Str->current_auth.length,
+              &is_error) &&
+          !is_error) {
         my_error(ER_INCORRECT_CURRENT_PASSWORD, MYF(0));
         return (true);
       }
 
-      /*
-        Current password is valid plain text password with len > 0.
-        Erase that in memory. We don't need it any further
-       */
-      memset(const_cast<char *>(Str->current_auth.str), 0,
-             Str->current_auth.length);
+      {
+        /* Validate password policy requirements if any */
+        my_service<SERVICE_TYPE(validate_password_changed_characters)> service(
+            "validate_password_changed_characters", srv_registry);
+        if (service.is_valid()) {
+          unsigned int minimum_required = 0, changed = 0;
+          String current_str(Str->current_auth.str, Str->current_auth.length,
+                             &my_charset_utf8mb3_bin);
+          String new_str(new_password, new_password_length,
+                         &my_charset_utf8mb3_bin);
+          if (service->validate(reinterpret_cast<my_h_string>(&current_str),
+                                reinterpret_cast<my_h_string>(&new_str),
+                                &minimum_required, &changed)) {
+            my_error(ER_VALIDATE_PASSWORD_INSUFFICIENT_CHANGED_CHARACTERS,
+                     MYF(0), minimum_required, changed);
+            return (true);
+          }
+        }
+      }
     } else if (!is_privileged_user) {
       /*
         If the field value is set or field value is NULL and global sys
@@ -908,7 +930,7 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
       }
     }
   }
-  return (false);
+  return false;
 }
 
 char translate_byte_to_password_char(unsigned char c) {
@@ -1259,6 +1281,8 @@ bool set_and_validate_user_attributes(
   enum_sql_command command = thd->lex->sql_command;
   bool current_password_empty = false;
   bool new_password_empty = false;
+  char new_password[MAX_FIELD_WIDTH]{0};
+  unsigned int new_password_length = 0;
 
   what_to_set.m_what = NONE_ATTR;
   what_to_set.m_user_attributes = acl_table::USER_ATTRIBUTE_NONE;
@@ -1479,7 +1503,7 @@ bool set_and_validate_user_attributes(
         Str->alter_status.password_reuse_interval =
             acl_user->password_reuse_interval;
     }
-  } else {
+  } else { /* User does not exist */
     /*
       when authentication_policy = 'mysql_native_password,,' and
       --default-authentication-plugin = 'caching_sha2_password'
@@ -1668,9 +1692,17 @@ bool set_and_validate_user_attributes(
        Erase in memory copy of plain text password, unless we need it
        later to send to client as a result set.
     */
-    if (Str->first_factor_auth_info.auth.length > 0)
-      memset(const_cast<char *>(Str->first_factor_auth_info.auth.str), 0,
-             Str->first_factor_auth_info.auth.length);
+    if (Str->first_factor_auth_info.auth.length > 0) {
+      if (user_exists && Str->uses_replace_clause) {
+        assert(Str->first_factor_auth_info.auth.length < MAX_FIELD_WIDTH);
+        new_password_length = Str->first_factor_auth_info.auth.length;
+        strncpy(new_password, Str->first_factor_auth_info.auth.str,
+                std::min(static_cast<size_t>(MAX_FIELD_WIDTH),
+                         Str->first_factor_auth_info.auth.length));
+      }
+      my_cleanse(const_cast<char *>(Str->first_factor_auth_info.auth.str),
+                 Str->first_factor_auth_info.auth.length);
+    }
     /* Use the authentication_string field as password */
     Str->first_factor_auth_info.auth = {password, buflen};
     new_password_empty = buflen ? false : true;
@@ -1678,8 +1710,9 @@ bool set_and_validate_user_attributes(
 
   /* Check iff the REPLACE clause is specified correctly for the user */
   if ((what_to_set.m_what & PLUGIN_ATTR) &&
-      validate_password_require_current(thd, Str, acl_user, auth,
-                                        is_privileged_user, user_exists)) {
+      validate_password_require_current(thd, Str, acl_user, auth, new_password,
+                                        new_password_length, is_privileged_user,
+                                        user_exists)) {
     plugin_unlock(nullptr, plugin);
     what_to_set.m_what = NONE_ATTR;
     return (true);

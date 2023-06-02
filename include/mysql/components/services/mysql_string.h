@@ -25,6 +25,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/service.h>
 
+#include <mysql/components/services/bits/mysql_string_bits.h>
+
 #include "my_inttypes.h"
 
 /* clang-format off */
@@ -303,18 +305,20 @@ DECLARE_BOOL_METHOD(iterator_create,
                     (my_h_string string, my_h_string_iterator *out_iterator));
 
 /**
-  Retrieves character code at current iterator position and advances the
-    iterator.
+  Retrieves character type code at current iterator position and advances the
+  iterator. Character type code is a bit mask describing various properties.
+  Refer to types in mysql_string_bits.h
 
   @param iter String iterator object handle to advance.
-  @param [out] out_char Pointer to 64bit value to store character to. May be
-    NULL to omit retrieval of character and just advance the iterator.
+  @param [out] out_ctype Pointer to 64bit value to store character type.
+                         May be NULL to omit retrieval and just advance
+                         the iterator.
   @return Status of performed operation
   @retval false success
   @retval true failure
 */
 DECLARE_BOOL_METHOD(iterator_get_next,
-                    (my_h_string_iterator iter, int *out_char));
+                    (my_h_string_iterator iter, int *out_ctype));
 
 /**
   Releases the string iterator object specified.
@@ -370,6 +374,29 @@ DECLARE_BOOL_METHOD(is_lower, (my_h_string_iterator iter, bool *out));
 */
 DECLARE_BOOL_METHOD(is_digit, (my_h_string_iterator iter, bool *out));
 END_SERVICE_DEFINITION(mysql_string_ctype)
+
+/**
+  @ingroup group_string_component_services_inventory
+
+  Service for retrieving one character from a string.
+  It relies on string iterator and access ulong representation
+  of the character.
+*/
+BEGIN_SERVICE_DEFINITION(mysql_string_value)
+
+/**
+  Retrieves character value at current iterator position
+
+  @param iter       String iterator object handle
+  @param [out] out  Pointer to long value to store character to
+
+  @return Status of performed operation
+    @retval false success
+    @retval true failure
+*/
+DECLARE_BOOL_METHOD(get, (my_h_string_iterator iter, ulong *out));
+
+END_SERVICE_DEFINITION(mysql_string_value)
 
 /* mysql_string_manipulation_v1 service. */
 
