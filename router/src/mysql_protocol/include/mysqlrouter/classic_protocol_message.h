@@ -1263,6 +1263,11 @@ class Ping {};
 
 constexpr bool operator==(const Ping &, const Ping &) { return true; }
 
+// no content
+class Debug {};
+
+constexpr bool operator==(const Debug &, const Debug &) { return true; }
+
 template <bool Borrowed>
 class AuthMethodData {
  public:
@@ -1424,6 +1429,7 @@ using ListFields = borrowable::message::client::ListFields<false>;
 using Query = borrowable::message::client::Query<false>;
 using RegisterReplica = borrowable::message::client::RegisterReplica<false>;
 using Ping = borrowable::message::client::Ping;
+using Debug = borrowable::message::client::Debug;
 using Kill = borrowable::message::client::Kill;
 using ChangeUser = borrowable::message::client::ChangeUser<false>;
 using Reload = borrowable::message::client::Reload;
@@ -1471,6 +1477,7 @@ using InitSchema = borrowable::message::client::InitSchema<true>;
 using ListFields = borrowable::message::client::ListFields<true>;
 using RegisterReplica = borrowable::message::client::RegisterReplica<true>;
 using Ping = borrowable::message::client::Ping;
+using Debug = borrowable::message::client::Debug;
 using Kill = borrowable::message::client::Kill;
 using ChangeUser = borrowable::message::client::ChangeUser<true>;
 using Reload = borrowable::message::client::Reload;

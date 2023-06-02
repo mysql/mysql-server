@@ -1237,6 +1237,47 @@ TEST_P(ConnectionTest, classic_protocol_statistics) {
   EXPECT_NO_ERROR(cli.stat());
 }
 
+// COM_DEBUG -> mysql_dump_debug_info.
+TEST_P(ConnectionTest, classic_protocol_debug_succeeds) {
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  auto account = SharedServer::admin_account();
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+
+  EXPECT_NO_ERROR(cli.dump_debug_info());
+
+  EXPECT_NO_ERROR(cli.dump_debug_info());
+}
+
+// COM_DEBUG -> mysql_dump_debug_info.
+TEST_P(ConnectionTest, classic_protocol_debug_fails) {
+  SCOPED_TRACE("// connecting to server");
+  MysqlClient cli;
+
+  auto account = SharedServer::native_empty_password_account();
+  cli.username(account.username);
+  cli.password(account.password);
+
+  ASSERT_NO_ERROR(
+      cli.connect(shared_router()->host(), shared_router()->port(GetParam())));
+  {
+    auto res = cli.dump_debug_info();
+    ASSERT_ERROR(res);
+    EXPECT_EQ(res.error().value(), 1227);  // access denied, you need SUPER
+  }
+
+  {
+    auto res = cli.dump_debug_info();
+    ASSERT_ERROR(res);
+    EXPECT_EQ(res.error().value(), 1227);  // access denied, you need SUPER
+  }
+}
+
 TEST_P(ConnectionTest, classic_protocol_refresh) {
   SCOPED_TRACE("// connecting to server");
   MysqlClient cli;

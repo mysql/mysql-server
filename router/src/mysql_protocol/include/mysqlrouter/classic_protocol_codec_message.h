@@ -1544,6 +1544,24 @@ class Codec<borrowable::message::client::Statistics>
 };
 
 /**
+ * codec for client's Debug command.
+ */
+template <>
+class Codec<borrowable::message::client::Debug>
+    : public CodecSimpleCommand<Codec<borrowable::message::client::Debug>,
+                                borrowable::message::client::Debug> {
+ public:
+  using value_type = borrowable::message::client::Debug;
+  using __base = CodecSimpleCommand<Codec<value_type>, value_type>;
+
+  constexpr Codec(value_type, capabilities::value_type caps) : __base(caps) {}
+
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Debug);
+  }
+};
+
+/**
  * codec for client's InitSchema command.
  */
 template <bool Borrowed>

@@ -32,6 +32,7 @@
 #include "classic_change_user_forwarder.h"
 #include "classic_clone_forwarder.h"
 #include "classic_connection_base.h"
+#include "classic_debug_forwarder.h"
 #include "classic_frame.h"
 #include "classic_init_schema_forwarder.h"
 #include "classic_kill_forwarder.h"
@@ -499,6 +500,7 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
     // ProcessInfo =
     // ClassicFrame::cmd_byte<classic_protocol::message::client::ProcessInfo>(),
     Kill = ClassicFrame::cmd_byte<client::Kill>(),
+    Debug = ClassicFrame::cmd_byte<client::Debug>(),
     Ping = ClassicFrame::cmd_byte<client::Ping>(),
     ChangeUser = ClassicFrame::cmd_byte<client::ChangeUser>(),
     BinlogDump = ClassicFrame::cmd_byte<client::BinlogDump>(),
@@ -549,6 +551,8 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
       return push_processor<ResetConnectionForwarder>(connection());
     case Msg::Kill:
       return push_processor<KillForwarder>(connection());
+    case Msg::Debug:
+      return push_processor<DebugForwarder>(connection());
     case Msg::Reload:
       return push_processor<ReloadForwarder>(connection());
     case Msg::Statistics:

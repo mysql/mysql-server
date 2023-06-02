@@ -1864,6 +1864,75 @@ TEST_P(ShareConnectionTest, classic_protocol_ping_with_pool) {
   }
 }
 
+TEST_P(ShareConnectionTest, classic_protocol_debug_with_pool) {
+  // 4 connections are needed as router does round-robin over 3 endpoints
+  std::array<MysqlClient, 4> clis;
+
+  const bool can_share = GetParam().can_share();
+
+  auto account = SharedServer::admin_account();
+
+  for (auto [ndx, cli] : stdx::ranges::views::enumerate(clis)) {
+    cli.username(account.username);
+    cli.password(account.password);
+
+    if (ndx == 3 && can_share) {
+      // before the 4th connection, wait until all 3 connections are in the
+      // pool.
+      ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 1s));
+    }
+
+    auto connect_res =
+        cli.connect(shared_router()->host(), shared_router()->port(GetParam()));
+    ASSERT_NO_ERROR(connect_res);
+  }
+
+  // wait a bit until the connection clis[3] is moved to the pool.
+  if (can_share) {
+    ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(3, 1s));
+  }
+
+  // shared between 0 and 3
+  {
+    auto events_res = changed_event_counters(clis[0]);  // the (+ select)
+    ASSERT_NO_ERROR(events_res);
+
+    if (can_share) {
+      EXPECT_THAT(*events_res,
+                  ElementsAre(Pair("statement/com/Change user", 2),
+                              Pair("statement/sql/select", 2),
+                              Pair("statement/sql/set_option", 3)));
+    } else {
+      // no sharing possible, router is not injection SET statements.
+      EXPECT_THAT(*events_res, ::testing::IsEmpty());
+    }
+  }
+
+  {
+    // should pool
+    ASSERT_NO_ERROR(clis[0].dump_debug_info());
+  }
+
+  // shared between 0 and 3
+  {
+    auto events_res = changed_event_counters(clis[0]);  // the (+ select)
+    ASSERT_NO_ERROR(events_res);
+
+    if (can_share) {
+      EXPECT_THAT(*events_res,
+                  ElementsAre(Pair("statement/com/Change user", 2),
+                              Pair("statement/com/Debug", 1),
+                              Pair("statement/com/Reset Connection", 2),
+                              Pair("statement/sql/select", 3),
+                              Pair("statement/sql/set_option", 5)));
+    } else {
+      // no sharing possible, router is not injection SET statements.
+      EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Debug", 1),
+                                           Pair("statement/sql/select", 1)));
+    }
+  }
+}
+
 TEST_P(ShareConnectionTest, classic_protocol_server_status_after_command) {
   MysqlClient cli;
 

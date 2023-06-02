@@ -999,7 +999,6 @@ TEST_P(ShareConnectionTestWithRestartedServer,
             case 8:   // deprecated
             case 10:  // process-info
             case 11:  // connect
-            case 13:  // debug
             case 15:  // time
             case 16:  // delayed insert
             case cmd_byte<
@@ -1159,7 +1158,6 @@ TEST_P(ShareConnectionTestWithRestartedServer,
         case 8:   // deprecated
         case 10:  // process-info
         case 11:  // connect
-        case 13:  // debug
         case 15:  // time
         case 16:  // delayed insert
         case cmd_byte<classic_protocol::message::client::ChangeUser>():  // 17
@@ -1202,8 +1200,8 @@ TEST_P(ShareConnectionTestWithRestartedServer,
         case cmd_byte<classic_protocol::message::client::BinlogDump>():  // 18
         case cmd_byte<
             classic_protocol::message::client::BinlogDumpGtid>():  // 30
-
-          expected_error_code = 1227;  // query was empty
+        case 13:                                                   // debug
+          expected_error_code = 1227;  // access denied; SUPER is needed.
           break;
         case cmd_byte<
             classic_protocol::message::client::RegisterReplica>():  // 21

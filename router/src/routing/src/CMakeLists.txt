@@ -79,6 +79,7 @@ ADD_LIBRARY(routing SHARED
   classic_binlog_dump_forwarder.cc
   classic_change_user_forwarder.cc
   classic_clone_forwarder.cc
+  classic_debug_forwarder.cc
   classic_greeting_forwarder.cc
   classic_init_schema_forwarder.cc
   classic_kill_forwarder.cc

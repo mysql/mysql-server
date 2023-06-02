@@ -538,6 +538,16 @@ class MysqlClient {
     return {r};
   }
 
+  stdx::expected<void, MysqlError> dump_debug_info() {
+    const auto res = mysql_dump_debug_info(m_.get());
+
+    if (res != 0) {
+      return stdx::make_unexpected(make_mysql_error_code(m_.get()));
+    }
+
+    return {};
+  }
+
   stdx::expected<unsigned int, MysqlError> warning_count() {
     return mysql_warning_count(m_.get());
   }
