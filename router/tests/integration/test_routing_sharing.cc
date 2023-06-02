@@ -53,7 +53,8 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "mysql/harness/stdx/filesystem.h"
-#include "mysql/harness/stdx/ranges.h"  // enumerate
+#include "mysql/harness/stdx/ranges.h"   // enumerate
+#include "mysql/harness/string_utils.h"  // split_string
 #include "mysql/harness/tls_context.h"
 #include "mysql/harness/utility/string.h"  // join
 #include "mysqlrouter/classic_protocol_codec_frame.h"
@@ -102,6 +103,28 @@ std::ostream &operator<<(std::ostream &os, MysqlError e) {
   os << e.sql_state() << " (" << e.value() << ") " << e.message();
   return os;
 }
+
+namespace {
+std::string find_executable_path(const std::string &name) {
+  std::string path(getenv("PATH"));
+
+#ifdef _WIN32
+  const char path_sep = ';';
+#else
+  const char path_sep = ':';
+#endif
+
+  for (const auto &subpath : mysql_harness::split_string(path, path_sep)) {
+    // the path can end with the separator so the last value can be ""
+    if (!subpath.empty()) {
+      auto fn = mysql_harness::Path(subpath).join(name);
+      if (fn.exists()) return fn.str();
+    }
+  }
+
+  return {};
+}
+}  // namespace
 
 /**
  * convert a multi-resultset into a simple container which can be EXPECTed
@@ -6952,6 +6975,76 @@ TEST_P(ShareConnectionTest, classic_protocol_charset_after_connect) {
     EXPECT_THAT(*cmd_res,
                 ElementsAre(ElementsAre("latin1", "latin1_swedish_ci")));
   }
+}
+
+TEST_P(ShareConnectionTest, php_query) {
+  auto account = SharedServer::native_empty_password_account();
+
+  auto php = find_executable_path("php");
+  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
+
+  auto &proc =
+      spawner(php)
+          .wait_for_sync_point(Spawner::SyncPoint::NONE)
+          .spawn({
+              "-f",
+              get_data_dir().join("routing_sharing_php_query.php").str(),
+              shared_router()->host(),                            //
+              std::to_string(shared_router()->port(GetParam())),  //
+              account.username,
+              account.password,
+              std::to_string(GetParam().client_ssl_mode != kDisabled),
+              std::to_string(GetParam().can_share()),
+          });
+
+  proc.wait_for_exit();
+}
+
+TEST_P(ShareConnectionTest, php_prepared_statement) {
+  auto account = SharedServer::native_empty_password_account();
+
+  auto php = find_executable_path("php");
+  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
+
+  auto &proc = spawner(php)
+                   .wait_for_sync_point(Spawner::SyncPoint::NONE)
+                   .spawn({
+                       "-f",
+                       get_data_dir()
+                           .join("routing_sharing_php_prepared_statement.php")
+                           .str(),
+                       shared_router()->host(),                            //
+                       std::to_string(shared_router()->port(GetParam())),  //
+                       account.username,
+                       account.password,
+                       std::to_string(GetParam().client_ssl_mode != kDisabled),
+                       std::to_string(GetParam().can_share()),
+                   });
+
+  proc.wait_for_exit();
+}
+
+TEST_P(ShareConnectionTest, php_all_commands) {
+  auto account = SharedServer::admin_account();
+
+  auto php = find_executable_path("php");
+  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
+
+  auto &proc =
+      spawner(php)
+          .wait_for_sync_point(Spawner::SyncPoint::NONE)
+          .spawn({
+              "-f",
+              get_data_dir().join("routing_sharing_php_all_commands.php").str(),
+              shared_router()->host(),                            //
+              std::to_string(shared_router()->port(GetParam())),  //
+              account.username,
+              account.password,
+              std::to_string(GetParam().client_ssl_mode != kDisabled),
+              std::to_string(GetParam().can_share()),
+          });
+
+  proc.wait_for_exit();
 }
 
 INSTANTIATE_TEST_SUITE_P(Spec, ShareConnectionTest,
