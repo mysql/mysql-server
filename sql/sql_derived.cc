@@ -537,6 +537,11 @@ bool copy_field_info(THD *thd, Item *orig_expr, Item *cloned_expr) {
                            Field_info(context, field->table_ref, depended_from,
                                       field->cached_table, field->field)))
                      return true;
+                   // Clear dependent_from and context so that they are ready
+                   // for another dive that passes over Item_ref objects down
+                   // to the leaf Item_field object.
+                   depended_from = nullptr;
+                   context = nullptr;
                  }
                  return false;
                }))

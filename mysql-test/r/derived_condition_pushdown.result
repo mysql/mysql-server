@@ -2225,3 +2225,16 @@ SELECT * FROM (SELECT f1 FROM t1 UNION SELECT f1 FROM t1) AS dt WHERE f1 = 'å';
 f1
 å
 DROP TABLE t1;
+#
+# Bug#35102220: Assertion failure in Item::walk_helper_thunk
+#               at ../sql/item.h
+#
+CREATE TABLE t1 (f1 INTEGER);
+SELECT f1
+FROM t1 JOIN
+LATERAL (SELECT (t1.f1 + t2.f1) AS f2
+FROM t1 AS t2
+GROUP BY f2) AS dt
+WHERE f2 = 9;
+f1
+DROP TABLE t1;
