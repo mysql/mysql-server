@@ -1024,8 +1024,16 @@ DEFINE_BOOL_METHOD(Event_general_bridge_implementation::notify,
         TO_LEXCSTRING(event_information->external_user_);
     plugin_data.general_rows =
         static_cast<unsigned long long>(event_information->rows_);
-    plugin_data.general_sql_command =
-        sql_statement_names[thd->lex->sql_command];
+
+    if (event_information->command_.str != nullptr &&
+        thd->lex->sql_command == SQLCOM_END &&
+        thd->get_command() != COM_QUERY) {
+      plugin_data.general_sql_command = {STRING_WITH_LEN("")};
+    } else {
+      plugin_data.general_sql_command =
+          sql_statement_names[thd->lex->sql_command];
+    }
+
     plugin_data.general_charset = const_cast<CHARSET_INFO *>(
         thd_get_audit_query(thd, &plugin_data.general_query));
     plugin_data.general_time =
