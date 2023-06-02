@@ -164,22 +164,16 @@ AuthCachingSha2Forwarder::client_data() {
 
     return forward_client_to_server();
   } else if (connection()->context().connection_sharing() &&
-             socket_splicer->client_conn().is_secure_transport()) {
-    // while it is possible to request the plain-text password over
-    // plaintext-connections via "public-key", the router doesn't know how the
-    // client would react to that request.
-    //
-    // By default clients don't use the public-key auth and would close the
-    // connection with "caching-sha2-password requires a SSL connection".
-    //
-    // Long story short: only request the public-key via secure connections.
-
-    discard_current_msg(src_channel, src_protocol);
-
+             (Auth::connection_has_public_key(connection()) ||
+              socket_splicer->client_conn().is_secure_transport())) {
     if (auto &tr = tracer()) {
       tr.trace(
           Tracer::Event().stage("caching_sha2::forward::scrambled_password"));
+      tr.trace(
+          Tracer::Event().stage("caching_sha2::forward::request_plaintext"));
     }
+
+    discard_current_msg(src_channel, src_protocol);
 
     // ask the client for a plaintext password.
     auto send_res = ClassicFrame::send_msg<

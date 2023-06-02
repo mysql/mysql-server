@@ -25,9 +25,11 @@
 #include "classic_auth_native_forwarder.h"
 
 #include "classic_auth.h"
+#include "classic_auth_caching_sha2.h"
 #include "classic_frame.h"
 #include "hexify.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysqld_error.h"  // mysql-server error-codes
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -42,6 +44,8 @@ AuthNativeForwarder::process() {
       return client_data();
     case Stage::CachingSha2Scrambled:
       return caching_sha2_scrambled();
+    case Stage::CachingSha2Encrypted:
+      return caching_sha2_encrypted();
     case Stage::CachingSha2Plaintext:
       return caching_sha2_plaintext();
     case Stage::Response:
@@ -71,9 +75,10 @@ stdx::expected<Processor::Result, std::error_code> AuthNativeForwarder::init() {
 
   if (connection()->context().connection_sharing() &&
       dst_protocol->auth_method_name() == "caching_sha2_password" &&
-      socket_splicer->client_conn().is_secure_transport()) {
+      (AuthCachingSha2Password::connection_has_public_key(connection()) ||
+       socket_splicer->client_conn().is_secure_transport())) {
     if (auto &tr = tracer()) {
-      tr.trace(Tracer::Event().stage("native::forward::request_plaintext"));
+      tr.trace(Tracer::Event().stage("native::forward::switch_for_plaintext"));
     }
 
     // speak caching-sha2-password with the client to get the plaintext-password
@@ -147,7 +152,8 @@ AuthNativeForwarder::caching_sha2_scrambled() {
   }
 
   // caching-sha2-password sends a "\x00" for empty-password.
-  if (msg_res->auth_method_data() == std::string_view("\x00", 1)) {
+  if (msg_res->auth_method_data() == std::string_view("\x00", 1) ||
+      msg_res->auth_method_data().empty()) {
     src_protocol->password("");
 
     discard_current_msg(src_channel, src_protocol);
@@ -166,6 +172,10 @@ AuthNativeForwarder::caching_sha2_scrambled() {
   discard_current_msg(src_channel, src_protocol);
 
   // request the plaintext password.
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("native::forward::request_plaintext"));
+  }
+
   stage(Stage::CachingSha2Plaintext);
 
   auto send_res = ClassicFrame::send_msg<
@@ -195,6 +205,50 @@ AuthNativeForwarder::caching_sha2_plaintext() {
   if (!msg_res) return recv_client_failed(msg_res.error());
 
   if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("native::forward::caching_full_auth"));
+  }
+
+  if (AuthCachingSha2Password::is_public_key_request(
+          msg_res->auth_method_data()) &&
+      !socket_splicer->client_conn().is_secure_transport()) {
+    // send the router's public-key to be able to decrypt the client's
+    // password.
+    discard_current_msg(src_channel, src_protocol);
+
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("caching_sha2::forward::public_key"));
+    }
+
+    auto pubkey_res = AuthCachingSha2Password::public_key_from_ssl_ctx_as_pem(
+        connection()->context().source_ssl_ctx()->get());
+    if (!pubkey_res) {
+      auto ec = pubkey_res.error();
+
+      if (ec != std::errc::function_not_supported) {
+        return send_client_failed(ec);
+      }
+
+      stage(Stage::Done);
+
+      // couldn't get the public key, fail the auth.
+      auto send_res = ClassicFrame::send_msg<
+          classic_protocol::borrowed::message::server::Error>(
+          src_channel, src_protocol,
+          {ER_ACCESS_DENIED_ERROR, "Access denied", "HY000"});
+      if (!send_res) return send_client_failed(send_res.error());
+    } else {
+      // send the router's public key to the client.
+      stage(Stage::CachingSha2Encrypted);
+
+      auto send_res = AuthCachingSha2Password::send_public_key(
+          src_channel, src_protocol, *pubkey_res);
+      if (!send_res) return send_client_failed(send_res.error());
+    }
+
+    return Result::SendToClient;
+  }
+
+  if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("native::forward::plaintext"));
   }
 
@@ -221,6 +275,60 @@ AuthNativeForwarder::caching_sha2_plaintext() {
   auto send_res =
       ClassicFrame::send_msg<classic_protocol::message::client::AuthMethodData>(
           dst_channel, dst_protocol, {*scramble_res});
+  if (!send_res) return send_server_failed(send_res.error());
+
+  return Result::SendToServer;
+}
+
+stdx::expected<Processor::Result, std::error_code>
+AuthNativeForwarder::caching_sha2_encrypted() {
+  auto *socket_splicer = connection()->socket_splicer();
+  auto *src_channel = socket_splicer->client_channel();
+  auto *src_protocol = connection()->client_protocol();
+  auto *dst_channel = socket_splicer->server_channel();
+  auto *dst_protocol = connection()->server_protocol();
+
+  // receive plaintext password.
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      src_channel, src_protocol);
+  if (!msg_res) return recv_client_failed(msg_res.error());
+
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("native::forward::encrypted"));
+  }
+
+  harness_assert(AuthBase::connection_has_public_key(connection()));
+
+  auto nonce = initial_server_auth_data_;
+
+  // if there is a trailing zero, strip it.
+  if (nonce.size() == AuthCachingSha2Password::kNonceLength + 1 &&
+      nonce[AuthCachingSha2Password::kNonceLength] == 0x00) {
+    nonce = nonce.substr(0, AuthCachingSha2Password::kNonceLength);
+  }
+
+  auto recv_res = AuthCachingSha2Password::rsa_decrypt_password(
+      connection()->context().source_ssl_ctx()->get(),
+      msg_res->auth_method_data(), nonce);
+  if (!recv_res) return recv_client_failed(recv_res.error());
+
+  src_protocol->password(*recv_res);
+
+  discard_current_msg(src_channel, src_protocol);
+
+  auto scramble_res =
+      Auth::scramble(AuthBase::strip_trailing_null(initial_server_auth_data_),
+                     *src_protocol->password());
+  if (!scramble_res) {
+    return send_server_failed(make_error_code(std::errc::bad_message));
+  }
+
+  stage(Stage::Response);
+
+  auto send_res = ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      dst_channel, dst_protocol, {*scramble_res});
   if (!send_res) return send_server_failed(send_res.error());
 
   return Result::SendToServer;

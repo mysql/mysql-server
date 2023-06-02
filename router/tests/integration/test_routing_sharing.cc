@@ -7020,11 +7020,19 @@ class ChangeUserTest
   static std::unique_ptr<MysqlClient> cli_;
   static bool last_with_ssl_;
   static ShareConnectionParam last_connect_param_;
+  static int expected_change_user_;
+  static int expected_reset_connection_;
+  static int expected_select_;
+  static int expected_set_option_;
 };
 
 std::unique_ptr<MysqlClient> ChangeUserTest::cli_{};
 bool ChangeUserTest::last_with_ssl_{};
 ShareConnectionParam ChangeUserTest::last_connect_param_{};
+int ChangeUserTest::expected_change_user_{0};
+int ChangeUserTest::expected_reset_connection_{0};
+int ChangeUserTest::expected_select_{0};
+int ChangeUserTest::expected_set_option_{0};
 
 TEST_P(ChangeUserTest, classic_protocol) {
   auto [with_ssl, connect_param, test_param, schema] = GetParam();
@@ -7034,6 +7042,14 @@ TEST_P(ChangeUserTest, classic_protocol) {
   auto expect_success = expect_success_func(with_ssl, connect_param);
 
   const bool can_share = connect_param.can_share();
+  // if the password is empty, it is known, always.
+  //
+  // otherwise it can be fetched at change-user if there is:
+  //
+  // - SSL or
+  // - a public-key (!DISABLED)
+  const bool can_fetch_password =
+      (account.password.empty() || connect_param.client_ssl_mode != kDisabled);
 
   if (!with_ssl && connect_param.client_ssl_mode == kRequired) {
     // invalid combination.
@@ -7069,6 +7085,16 @@ TEST_P(ChangeUserTest, classic_protocol) {
 
     ASSERT_NO_ERROR(cli_->connect(shared_router()->host(),
                                   shared_router()->port(connect_param)));
+
+    expected_reset_connection_ = 0;
+    expected_select_ = 0;
+    expected_set_option_ = 0;
+    expected_change_user_ = 0;
+
+    if (can_share) {
+      expected_select_ += 1;      // SELECT collation
+      expected_set_option_ += 1;  // SET session-track-system-vars
+    }
   }
 
   if (account.auth_method == "caching_sha2_password") {
@@ -7080,6 +7106,11 @@ TEST_P(ChangeUserTest, classic_protocol) {
   {
     auto cmd_res =
         cli_->change_user(account.username, account.password, schema);
+
+    expected_change_user_ += 1;
+    if (can_share) {
+      expected_set_option_ += 1;  // SET session-track-system-vars
+    }
 
     if (!account.password.empty() &&
         (account.auth_method == "caching_sha2_password" ||
@@ -7098,6 +7129,7 @@ TEST_P(ChangeUserTest, classic_protocol) {
     }
 
     ASSERT_NO_ERROR(cmd_res);
+
     {
       // no warnings.
       auto warning_res = cli_->warning_count();
@@ -7109,6 +7141,11 @@ TEST_P(ChangeUserTest, classic_protocol) {
       ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
     }
 
+    if (can_share && can_fetch_password) {
+      expected_reset_connection_ += 1;
+      expected_set_option_ += 1;
+    }
+
     {
       auto cmd_res = query_one_result(*cli_, "SELECT USER(), SCHEMA()");
       ASSERT_NO_ERROR(cmd_res);
@@ -7117,6 +7154,41 @@ TEST_P(ChangeUserTest, classic_protocol) {
                   ElementsAre(ElementsAre(account.username + "@localhost",
                                           schema.empty() ? "<NULL>" : schema)));
     }
+
+    expected_select_ += 1;
+  }
+
+  {
+    auto events_res = changed_event_counters(*cli_);
+    ASSERT_NO_ERROR(events_res);
+
+    if (can_share && can_fetch_password) {
+      expected_reset_connection_ += 1;
+      expected_set_option_ += 1;
+    }
+
+    if (expected_reset_connection_ > 0) {
+      EXPECT_THAT(
+          *events_res,
+          ElementsAre(Pair("statement/com/Change user", expected_change_user_),
+                      Pair("statement/com/Reset Connection",
+                           expected_reset_connection_),
+                      Pair("statement/sql/select", expected_select_),
+                      Pair("statement/sql/set_option", expected_set_option_)));
+    } else if (expected_set_option_ > 0) {
+      EXPECT_THAT(
+          *events_res,
+          ElementsAre(Pair("statement/com/Change user", expected_change_user_),
+                      Pair("statement/sql/select", expected_select_),
+                      Pair("statement/sql/set_option", expected_set_option_)));
+    } else {
+      EXPECT_THAT(
+          *events_res,
+          ElementsAre(Pair("statement/com/Change user", expected_change_user_),
+                      Pair("statement/sql/select", expected_select_)));
+    }
+
+    expected_select_ += 1;
   }
 
   // and change the user again.
@@ -7127,9 +7199,47 @@ TEST_P(ChangeUserTest, classic_protocol) {
         cli_->change_user(account.username, account.password, schema);
     ASSERT_NO_ERROR(cmd_res);
 
+    expected_change_user_ += 1;
+    if (can_share) {
+      expected_set_option_ += 1;  // SET session-track-system-vars
+    }
+
     if (can_share && expect_success) {
       ASSERT_NO_ERROR(shared_router()->wait_for_idle_server_connections(1, 1s));
     }
+  }
+
+  {
+    auto events_res = changed_event_counters(*cli_);
+    ASSERT_NO_ERROR(events_res);
+
+    if (can_share && can_fetch_password) {
+      expected_reset_connection_ += 1;
+      expected_set_option_ += 1;
+    }
+
+    if (expected_reset_connection_ > 0) {
+      EXPECT_THAT(
+          *events_res,
+          ElementsAre(Pair("statement/com/Change user", expected_change_user_),
+                      Pair("statement/com/Reset Connection",
+                           expected_reset_connection_),
+                      Pair("statement/sql/select", expected_select_),
+                      Pair("statement/sql/set_option", expected_set_option_)));
+    } else if (expected_set_option_ > 0) {
+      EXPECT_THAT(
+          *events_res,
+          ElementsAre(Pair("statement/com/Change user", expected_change_user_),
+                      Pair("statement/sql/select", expected_select_),
+                      Pair("statement/sql/set_option", expected_set_option_)));
+    } else {
+      EXPECT_THAT(
+          *events_res,
+          ElementsAre(Pair("statement/com/Change user", expected_change_user_),
+                      Pair("statement/sql/select", expected_select_)));
+    }
+
+    expected_select_ += 1;
   }
 }
 
