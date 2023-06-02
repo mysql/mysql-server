@@ -31,6 +31,7 @@
 #include <string>
 #include <vector>
 
+#include "helper/http/url.h"
 #include "helper/variant_pointer.h"
 #include "mrs/database/entry/auth_app.h"
 #include "mrs/interface/authorize_handler.h"

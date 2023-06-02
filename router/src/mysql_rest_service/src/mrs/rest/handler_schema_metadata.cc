@@ -27,6 +27,7 @@
 #include "mysql/harness/logging/logging.h"
 
 #include "helper/http/url.h"
+#include "mrs/http/error.h"
 #include "mrs/interface/object.h"
 #include "mrs/json/response_json_template.h"
 #include "mrs/rest/request_context.h"

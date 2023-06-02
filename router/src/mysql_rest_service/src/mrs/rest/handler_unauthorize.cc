@@ -28,6 +28,7 @@
 
 #include "helper/json/serializer_to_text.h"
 #include "mrs/http/cookie.h"
+#include "mrs/http/error.h"
 #include "mrs/interface/object.h"
 #include "mrs/rest/request_context.h"
 

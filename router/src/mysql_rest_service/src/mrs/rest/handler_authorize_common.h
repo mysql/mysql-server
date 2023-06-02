@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+#include "helper/http/url.h"
 #include "helper/media_type.h"
 #include "mrs/interface/authorize_manager.h"
 #include "mrs/rest/handler.h"

@@ -29,6 +29,7 @@
 #include "helper/container/map.h"
 
 #include "mysql/harness/string_utils.h"
+#include "mysqlrouter/http_request.h"
 
 namespace mrs {
 namespace http {

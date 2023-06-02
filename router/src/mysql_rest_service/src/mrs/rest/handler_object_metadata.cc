@@ -31,6 +31,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 
+#include "mrs/http/error.h"
 #include "mrs/rest/request_context.h"
 
 namespace mrs {

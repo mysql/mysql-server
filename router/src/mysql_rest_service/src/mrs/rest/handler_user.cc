@@ -32,6 +32,7 @@
 #include "helper/json/text_to.h"
 #include "mrs/database/query_entries_auth_role.h"
 #include "mrs/http/cookie.h"
+#include "mrs/http/error.h"
 #include "mrs/interface/object.h"
 #include "mrs/rest/request_context.h"
 

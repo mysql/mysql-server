@@ -34,6 +34,7 @@
 
 #include "mrs/database/query_entry_content_file.h"
 #include "mrs/database/query_factory.h"
+#include "mrs/http/error.h"
 #include "mrs/rest/request_context.h"
 
 IMPORT_LOG_FUNCTIONS()
