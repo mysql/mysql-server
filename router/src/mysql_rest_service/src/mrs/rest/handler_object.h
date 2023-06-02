@@ -30,6 +30,8 @@
 #include "mrs/interface/object.h"
 #include "mrs/rest/handler.h"
 
+#include "mysqlrouter/http_request.h"
+
 namespace mrs {
 namespace rest {
 
