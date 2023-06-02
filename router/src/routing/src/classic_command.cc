@@ -478,6 +478,9 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
 
   const uint8_t msg_type = src_protocol->current_msg_type().value();
 
+  connection()->client_protocol()->seq_id(
+      src_protocol->current_frame()->seq_id_);
+
   namespace client = classic_protocol::message::client;
 
   enum class Msg {
