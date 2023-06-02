@@ -47,6 +47,7 @@
 #include "mrs/database/query_rest_table_delete.h"
 #include "mrs/database/query_rest_table_insert.h"
 #include "mrs/database/query_rest_table_single_row.h"
+#include "mrs/http/error.h"
 #include "mrs/rest/request_context.h"
 #include "mrs/router_observation_entities.h"
 

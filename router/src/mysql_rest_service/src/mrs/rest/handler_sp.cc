@@ -39,6 +39,7 @@
 #include "helper/mysql_numeric_value.h"
 #include "mrs/database/query_rest_sp.h"
 #include "mrs/database/query_rest_sp_media.h"
+#include "mrs/http/error.h"
 #include "mrs/rest/request_context.h"
 #include "mrs/router_observation_entities.h"
 
