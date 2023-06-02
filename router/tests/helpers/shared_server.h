@@ -157,6 +157,14 @@ class SharedServer {
     return {"sha256_pass", std::string(pass), "sha256_password"};
   }
 
+  static Account sha256_short_password_account() {
+    constexpr const std::string_view pass("sha256password");
+
+    static_assert(pass.size() < 20);
+
+    return {"sha256_short", std::string(pass), "sha256_password"};
+  }
+
   static Account sha256_empty_password_account() {
     return {"sha256_empty", "", "sha256_password"};
   }
