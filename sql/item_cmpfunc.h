@@ -1629,6 +1629,7 @@ class in_vector {
     @return true if any null values was found, false otherwise.
   */
   bool fill(Item **items, uint item_count);
+  virtual void cleanup() {}
 
  private:
   virtual void set(uint pos, Item *item) = 0;
@@ -1655,6 +1656,7 @@ class in_string final : public in_vector {
   }
   bool find_item(Item *item) override;
   bool compare_elems(uint pos1, uint pos2) const override;
+  void cleanup() override;
 
  private:
   void set(uint pos, Item *item) override;

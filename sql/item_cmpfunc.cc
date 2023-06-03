@@ -4375,22 +4375,24 @@ in_string::in_string(MEM_ROOT *mem_root, uint elements, const CHARSET_INFO *cs)
   }
 }
 
+void in_string::cleanup() {
+  // Clear reference pointers and free any memory allocated for holding data.
+  for (uint i = 0; i < m_used_size; i++) {
+    String *str = base_pointers[i];
+    str->set(static_cast<const char *>(nullptr), 0, str->charset());
+  }
+}
+
 void in_string::set(uint pos, Item *item) {
   String *str = base_pointers[pos];
   String *res = eval_string_arg(collation, item, str);
-  if (res && res != str) {
-    if (res->uses_buffer_owned_by(str)) res->copy();
-    if (item->type() == Item::FUNC_ITEM)
-      str->copy(*res);
-    else
-      *str = *res;
-  }
-  if (!str->charset()) {
-    const CHARSET_INFO *cs;
-    if (!(cs = item->collation.collation))
-      cs = &my_charset_bin;  // Should never happen for STR items
-    str->set_charset(cs);
-  }
+  if (res == nullptr || res == str) return;
+
+  if (res->uses_buffer_owned_by(str)) res->copy();
+  if (item->type() == Item::FUNC_ITEM)
+    str->copy(*res);
+  else
+    *str = *res;
 }
 
 static int srtcmp_in(const CHARSET_INFO *cs, const String *x, const String *y) {
@@ -5371,7 +5373,10 @@ void Item_func_in::cleanup() {
   DBUG_TRACE;
   Item_int_func::cleanup();
   // Trigger re-population in next execution (if bisection is used)
-  if (m_need_populate) m_populated = false;
+  if (m_need_populate) {
+    if (m_const_array != nullptr) m_const_array->cleanup();
+    m_populated = false;
+  }
 
   if (!first_resolve_call) {
     /*
