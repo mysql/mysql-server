@@ -2141,9 +2141,9 @@ int runTestStartTls(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(ndb_mgm_get_latest_error(mgmd.handle()) == NDB_MGM_TLS_ERROR);
 
   r = ndb_mgm_set_ssl_ctx(mgmd.handle(), tls_km.ctx());
-  CHECK(r);       // first time setting ctx succeeds
+  CHECK(r == 0);   // first time setting ctx succeeds
   r = ndb_mgm_set_ssl_ctx(mgmd.handle(), nullptr);
-  CHECK(r == 0);  // second time setting ctx fails
+  CHECK(r == -1);  // second time setting ctx fails
 
   r = ndb_mgm_start_tls(mgmd.handle());
   printf("ndb_mgm_start_tls(): %d\n", r);

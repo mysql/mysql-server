@@ -2667,14 +2667,14 @@ ndb_mgm_get_configuration_from_node(NdbMgmHandle handle,
 }
 
 extern "C"
-bool
+int
 ndb_mgm_set_ssl_ctx(NdbMgmHandle handle, struct ssl_ctx_st *ctx)
 {
   if(handle && (handle->ssl_ctx == nullptr)) {
     handle->ssl_ctx = ctx;
-    return true;
+    return 0;
   }
-  return false;
+  return -1;
 }
 
 extern "C"

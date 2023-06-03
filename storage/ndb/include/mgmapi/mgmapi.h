@@ -170,6 +170,15 @@
 extern "C" {
 #endif
 
+/*
+ * ssl_ctx_ct is explicitly declared to allow API also be used when user
+ * application do not explicitly use OpenSSL and do not have header files like
+ * openssl/ossl_typ.h or openssl/types.h installed.
+ *
+ * SSL_CTX is an alias for struct ssl_ctx_st in OpenSSL.
+ */
+struct ssl_ctx_st;
+
   /**
    * The NdbMgmHandle.
    */
@@ -1585,10 +1594,10 @@ extern "C" {
    * @param handle          Management handle
    * @param ctx             SSL_ctx to be used for TLS and HTTPS connections
    *
-   * @return                True on success, false if ctx has already been set
+   * @return                0 on success, -1 if ctx has already been set
    *
    */
-  bool ndb_mgm_set_ssl_ctx(NdbMgmHandle handle, struct ssl_ctx_st *ctx);
+  int ndb_mgm_set_ssl_ctx(NdbMgmHandle handle, struct ssl_ctx_st *ctx);
 
    /**
    * Start TLS. Upgrade an open, unencrypted connection to a secure one.
@@ -1664,12 +1673,12 @@ extern "C" {
    * On return, list will be populated with a pointer to a table. The table
    * should be freed after use by calling ndb\_mgm\_cert\_table\_free().
    */
-  int ndb_mgm_list_certs(NdbMgmHandle, ndb_mgm_cert_table ** list);
+  int ndb_mgm_list_certs(NdbMgmHandle, struct ndb_mgm_cert_table ** list);
 
   /**
    * Free a linked list of certificate descriptions.
    */
-  void ndb_mgm_cert_table_free(ndb_mgm_cert_table ** list);
+  void ndb_mgm_cert_table_free(struct ndb_mgm_cert_table ** list);
 
   /**
    * Struct ndb\_mgm\_tls\_stats stores TLS-related statistics from the server.
@@ -1689,7 +1698,7 @@ extern "C" {
    *
    * @return  0 on success, -1 on error
    */
-   int ndb_mgm_get_tls_stats(NdbMgmHandle handle, ndb_mgm_tls_stats * result);
+   int ndb_mgm_get_tls_stats(NdbMgmHandle handle, struct ndb_mgm_tls_stats * result);
 
 #ifdef __cplusplus
 }
