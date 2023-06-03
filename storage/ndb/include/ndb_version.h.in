@@ -25,6 +25,7 @@
 #ifndef NDB_VERSION_H
 #define NDB_VERSION_H
 
+#include <stdbool.h>
 #include <ndb_types.h>
 #include <mysql_version.h>
 

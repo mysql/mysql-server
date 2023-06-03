@@ -323,8 +323,6 @@ extern "C" {
        INET6_ADDRSTRLEN
 #endif
     ];
-
-    void init();
   };
   
   /**
@@ -793,7 +791,7 @@ extern "C" {
    * @return Node state of cs at position i
    */
   struct ndb_mgm_node_state2 *
-  ndb_mgm_get_node_status(ndb_mgm_cluster_state2 *cs, int i);
+  ndb_mgm_get_node_status(struct ndb_mgm_cluster_state2 *cs, int i);
 
   /**
    * Get the number of nodes in a cluster state
@@ -802,7 +800,7 @@ extern "C" {
    * @return Number of nodes in the cluster state
    */
   int
-  ndb_mgm_get_status_node_count(ndb_mgm_cluster_state2 *cs);
+  ndb_mgm_get_status_node_count(struct ndb_mgm_cluster_state2 *cs);
 
   /**
    * Dump state

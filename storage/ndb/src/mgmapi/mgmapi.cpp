@@ -1468,22 +1468,6 @@ ndb_mgm_get_status_node_count(ndb_mgm_cluster_state2 *cs)
   return cs->no_of_nodes;
 }
 
-void
-ndb_mgm_node_state2::init()
-{
-  node_id = 0;
-  node_type = NDB_MGM_NODE_TYPE_UNKNOWN;
-  node_status = NDB_MGM_NODE_STATUS_UNKNOWN;
-  start_phase = 0;
-  dynamic_id = 0;
-  node_group = 0;
-  version = 0;
-  connect_count = 0;
-  mysql_version = 0;
-  is_single_user = 0;
-  memset(connect_address, 0, sizeof(connect_address));
-}
-
 extern "C"
 struct ndb_mgm_cluster_state2 *
 ndb_mgm_get_status3(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
