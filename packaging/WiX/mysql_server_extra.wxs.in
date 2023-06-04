@@ -52,10 +52,20 @@
             <!-- Write Console settings for applications with this name to the registry -->
               <RegistryKey Root="HKCU" 
                            Key="Console\MySQL @MAJOR_VERSION@.@MINOR_VERSION@ Command Line Client - Unicode"
-                           Action="createAndRemoveOnUninstall">
+                           ForceDeleteOnUninstall="yes">
                 <RegistryValue Type="string" Name="FaceName" Value="Lucida Console"/>
                 <RegistryValue Type="integer" Name="FontWeight" Value="400"/>
               </RegistryKey>
+            <?endif ?>
+            <?if "@BUNDLE_MYSQL_CONFIGURATOR@" != "" ?>
+            <!-- Include another shortcut to the mysql configurator -->
+            <Shortcut Id="MysqlConfiguratorShortcut"
+                      Name="MySQL @MAJOR_VERSION@.@MINOR_VERSION@ Configurator"
+                      Description="A tool to help with the configuration of a MySQL Server installation"
+                      Icon="Icon.MysqlConfigurator"
+                      Target="[D.bin]mysql_configurator.exe"
+                      WorkingDirectory="D.bin">
+            </Shortcut>
             <?endif ?>
             <!-- Make sure this gets deleted on uninstall -->
             <RemoveFolder Id="MysqlProductMenuFolder" Directory="MysqlProductMenuFolder" On="uninstall"/>
@@ -78,7 +88,7 @@
         Id='MySQLKey'
         Root='HKLM'
         Key='SOFTWARE\MySQL AB\[ProductName]'
-        Action='createAndRemoveOnUninstall'>
+        ForceDeleteOnUninstall='yes'>
         <RegistryValue
           Type='string'
           Name='Location'
