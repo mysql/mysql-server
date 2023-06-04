@@ -128,6 +128,18 @@
     <SetProperty Before="QtRemoveService" Sequence="execute" Id="QtRemoveService" Value="&quot;cmd.exe&quot; /S /V:ON /C &quot;echo off&amp;set &quot;d=[INSTALLDIR]&quot;&amp;FOR /f &quot;skip=1&quot; %s in (&apos;wmic service where ^&apos;pathname like &quot;%!d:\=\\!%&quot;^&apos; get name ^| findstr /r &quot;^.$&quot;&apos;) do ((for /L %k IN (1,1,20) do wmic service where &apos;name=&quot;%s&quot; and started=&quot;true&quot;&apos; call stopservice | FIND /v &quot;No Instance&quot;>NUL&amp;&amp;timeout /t 5 /nobreak>NUL)&amp;sc delete %s>NUL)&quot;"/>
 
     <!-- UI -->
+    <?if "@BUNDLE_MYSQL_CONFIGURATOR@" != "" ?>
+    <!-- Properties used by the UI -->
+    <Property Id="LAUNCHPRODUCT" Value="1"/>
+    <!-- Custom actions used by the UI -->
+    <CustomAction Id="LaunchConfigurator" BinaryKey="WixCA" DllEntry="WixShellExec" Execute="immediate" Return="check" Impersonate="yes"/>
+    <Property Id="WixShellExecTarget" Value="[#F.bin_mysql_configurator.exe]"/>
+    <CustomAction Id="RemoveConfigArtifacts" FileKey="F.bin_mysql_configurator.exe" ExeCommand="--remove" Execute="deferred" Return="ignore" Impersonate="no" />
+    <InstallExecuteSequence>
+      <Custom Action="RemoveConfigArtifacts" After="InstallInitialize">(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom>
+    </InstallExecuteSequence>
+    <?endif?>
+
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"></Property>
     <UIRef Id="@CPACK_WIX_UI@" />
     <UIRef Id="WixUI_ErrorProgressText" />
@@ -142,7 +154,12 @@
       SourceFile="@CMAKE_CURRENT_SOURCE_DIR@/MySQLServer.ico"/>
     <Icon 
       Id="Icon.MysqlCmdShell" 
-      SourceFile='@CMAKE_CURRENT_SOURCE_DIR@/mysqlcommandlineshell.ico' />	  	  
+      SourceFile='@CMAKE_CURRENT_SOURCE_DIR@/mysqlcommandlineshell.ico' />
+    <?if "@BUNDLE_MYSQL_CONFIGURATOR@" != "" ?>
+      <Icon 
+        Id="Icon.MysqlConfigurator" 
+        SourceFile='@CMAKE_CURRENT_SOURCE_DIR@/MySQLConfigurator.ico' />
+    <?endif?>
     <Property
       Id="ARPPRODUCTICON"
       Value="icon.ico" />
