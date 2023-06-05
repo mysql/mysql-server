@@ -1,0 +1,5 @@
+--echo #
+--echo #The purpose of this test is too see if the server does not crash
+--echo #
+
+--exec_in_background $MYSQL_SLAP --create-schema=test --user root --silent -uroot --concurrency=2 --create-schema=test --number-of-queries=100000 --iterations=1 --query="SELECT FILE_ID, START_LSN, END_LSN, SIZE_IN_BYTES, IS_FULL, CONSUMER_LEVEL FROM performance_schema.innodb_redo_log_files;"

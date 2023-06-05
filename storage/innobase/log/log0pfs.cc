@@ -79,96 +79,6 @@ class Log_files_pfs_table {
   };
 
  public:
-  static Log_files_pfs_table s_instance;
-
-  /** Name of the PFS mysql table (belongs to performance_schema) */
-  static constexpr const char *TABLE_NAME = "innodb_redo_log_files";
-
-  Log_files_pfs_table() {
-    m_pfs_table.m_table_name = TABLE_NAME;
-    m_pfs_table.m_table_name_length = strlen(TABLE_NAME);
-    m_pfs_table.m_table_definition =
-        "`FILE_ID` BIGINT NOT NULL"
-        " COMMENT 'Id of the file.',\n"
-
-        "`FILE_NAME` VARCHAR(2000) NOT NULL"
-        " COMMENT 'Path to the file.',\n"
-
-        "`START_LSN` BIGINT NOT NULL"
-        " COMMENT 'LSN of the first block in the file.',\n"
-
-        "`END_LSN` BIGINT NOT NULL"
-        " COMMENT 'LSN after the last block in the file.',\n"
-
-        "`SIZE_IN_BYTES` BIGINT NOT NULL"
-        " COMMENT 'Size of the file (in bytes).',\n"
-
-        "`IS_FULL` TINYINT NOT NULL"
-        " COMMENT '1 iff file has no free space inside.',\n"
-
-        "`CONSUMER_LEVEL` INT NOT NULL"
-        " COMMENT 'All redo log consumers registered on smaller levels"
-        " than this value, have already consumed this file.'\n";
-
-    m_pfs_table.m_ref_length = sizeof(m_position);
-    m_pfs_table.m_acl = READONLY;
-    m_pfs_table.delete_all_rows = nullptr;
-    m_pfs_table.get_row_count = [] {
-      log_t &log = *log_sys;
-      IB_mutex_guard latch{&(log.m_files_mutex), UT_LOCATION_HERE};
-      return 1ULL * log_files_number_of_existing_files(log.m_files);
-    };
-
-    auto &proxy_table = m_pfs_table.m_proxy_engine_table;
-
-    proxy_table.open_table = [](PSI_pos **pos) {
-      uint32_t **pos_ptr = reinterpret_cast<uint32_t **>(pos);
-      *pos_ptr = &s_instance.m_position;
-      return reinterpret_cast<PSI_table_handle *>(&s_instance);
-    };
-
-    proxy_table.close_table = [](PSI_table_handle *handle) {
-      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
-      table->close();
-    };
-
-    proxy_table.rnd_init = [](PSI_table_handle *handle, bool) {
-      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
-      return table->rnd_init();
-    };
-
-    proxy_table.rnd_next = [](PSI_table_handle *handle) {
-      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
-      return table->rnd_next();
-    };
-
-    proxy_table.rnd_pos = [](PSI_table_handle *handle) {
-      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
-      return table->rnd_pos();
-    };
-
-    proxy_table.read_column_value = [](PSI_table_handle *handle,
-                                       PSI_field *field, uint32_t index) {
-      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
-      return table->read_column_value(field, index);
-    };
-
-    proxy_table.reset_position = [](PSI_table_handle *handle) {
-      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
-      table->reset_pos();
-    };
-
-    proxy_table.index_init = nullptr;
-    proxy_table.index_read = nullptr;
-    proxy_table.index_next = nullptr;
-
-    proxy_table.write_column_value = nullptr;
-    proxy_table.write_row_values = nullptr;
-    proxy_table.update_column_value = nullptr;
-    proxy_table.update_row_values = nullptr;
-    proxy_table.delete_row_values = nullptr;
-  }
-
   int read_column_value(PSI_field *field, uint32_t index) {
     const auto row_index = m_position;
     const bool is_null = row_index == 0;
@@ -275,16 +185,109 @@ class Log_files_pfs_table {
 
   void close() { m_position = 0; }
 
-  PFS_engine_table_share_proxy *get_proxy_share() { return &m_pfs_table; }
+  uint32_t *position_address() { return &m_position; }
 
  private:
   uint32_t m_rows_n{};
   uint32_t m_position{};
-  PFS_engine_table_share_proxy m_pfs_table{};
   std::unique_ptr<Row[]> m_rows_array;
 };
 
-Log_files_pfs_table Log_files_pfs_table::s_instance{};
+/** PFS table handle which is used to create multiple instances for concurrent
+ * queries*/
+class Log_files_pfs_table_share_proxy : public PFS_engine_table_share_proxy {
+ public:
+  /** Name of the PFS mysql table (belongs to performance_schema) */
+  static constexpr const char *TABLE_NAME = "innodb_redo_log_files";
+
+  Log_files_pfs_table_share_proxy() {
+    m_table_name = TABLE_NAME;
+    m_table_name_length = strlen(TABLE_NAME);
+    m_table_definition =
+        "`FILE_ID` BIGINT NOT NULL"
+        " COMMENT 'Id of the file.',\n"
+
+        "`FILE_NAME` VARCHAR(2000) NOT NULL"
+        " COMMENT 'Path to the file.',\n"
+
+        "`START_LSN` BIGINT NOT NULL"
+        " COMMENT 'LSN of the first block in the file.',\n"
+
+        "`END_LSN` BIGINT NOT NULL"
+        " COMMENT 'LSN after the last block in the file.',\n"
+
+        "`SIZE_IN_BYTES` BIGINT NOT NULL"
+        " COMMENT 'Size of the file (in bytes).',\n"
+
+        "`IS_FULL` TINYINT NOT NULL"
+        " COMMENT '1 iff file has no free space inside.',\n"
+
+        "`CONSUMER_LEVEL` INT NOT NULL"
+        " COMMENT 'All redo log consumers registered on smaller levels"
+        " than this value, have already consumed this file.'\n";
+
+    m_ref_length = sizeof(uint32_t);
+    m_acl = READONLY;
+    delete_all_rows = nullptr;
+    get_row_count = [] {
+      log_t &log = *log_sys;
+      IB_mutex_guard latch{&(log.m_files_mutex), UT_LOCATION_HERE};
+      return 1ULL * log_files_number_of_existing_files(log.m_files);
+    };
+
+    auto &proxy_table = m_proxy_engine_table;
+    proxy_table.open_table = [](PSI_pos **pos) {
+      uint32_t **pos_ptr = reinterpret_cast<uint32_t **>(pos);
+      Log_files_pfs_table *log_pfs_table = new Log_files_pfs_table();
+      *pos_ptr = log_pfs_table->position_address();
+      return reinterpret_cast<PSI_table_handle *>(log_pfs_table);
+    };
+
+    proxy_table.close_table = [](PSI_table_handle *handle) {
+      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
+      table->close();
+      delete table;
+    };
+
+    proxy_table.rnd_init = [](PSI_table_handle *handle, bool) {
+      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
+      return table->rnd_init();
+    };
+
+    proxy_table.rnd_next = [](PSI_table_handle *handle) {
+      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
+      return table->rnd_next();
+    };
+
+    proxy_table.rnd_pos = [](PSI_table_handle *handle) {
+      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
+      return table->rnd_pos();
+    };
+
+    proxy_table.read_column_value = [](PSI_table_handle *handle,
+                                       PSI_field *field, uint32_t index) {
+      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
+      return table->read_column_value(field, index);
+    };
+
+    proxy_table.reset_position = [](PSI_table_handle *handle) {
+      auto table = reinterpret_cast<Log_files_pfs_table *>(handle);
+      table->reset_pos();
+    };
+
+    proxy_table.index_init = nullptr;
+    proxy_table.index_read = nullptr;
+    proxy_table.index_next = nullptr;
+
+    proxy_table.write_column_value = nullptr;
+    proxy_table.write_row_values = nullptr;
+    proxy_table.update_column_value = nullptr;
+    proxy_table.update_row_values = nullptr;
+    proxy_table.delete_row_values = nullptr;
+  }
+};
+
+static Log_files_pfs_table_share_proxy pfs_table_share_proxy;
 
 template <typename T>
 static bool acquire_service(SERVICE_TYPE(registry) * reg_srv, T *service,
@@ -320,9 +323,6 @@ bool log_pfs_create_tables() {
 
   ut_a(pfs_table != nullptr);
 
-  PFS_engine_table_share_proxy *pfs_proxy_tables[1];
-  pfs_proxy_tables[0] = Log_files_pfs_table::s_instance.get_proxy_share();
-
   Auto_THD auto_thd;
   auto thd = auto_thd.thd;
 
@@ -340,8 +340,9 @@ bool log_pfs_create_tables() {
     Disable_binlog_guard disable_binlog(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-    if (drop_native_table_for_pfs(PERFORMANCE_SCHEMA_DB_NAME.str,
-                                  Log_files_pfs_table::TABLE_NAME)) {
+    if (drop_native_table_for_pfs(
+            PERFORMANCE_SCHEMA_DB_NAME.str,
+            Log_files_pfs_table_share_proxy::TABLE_NAME)) {
       end_transaction(thd, true);
       pfs_sdi_enable();
       return false;
@@ -354,7 +355,14 @@ bool log_pfs_create_tables() {
     Disable_autocommit_guard autocommit_guard{thd};
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-    if (pfs_table->add_tables(pfs_proxy_tables, 1) != 0) {
+    // Log_files_pfs_table_share_proxy pfs_table_share_proxy;
+    // PFS_engine_table_share_proxy *pfs_proxy_tables[1];
+    // pfs_proxy_tables[0] = &pfs_table_share_proxy;
+
+    Log_files_pfs_table_share_proxy pfs_table_share_proxy;
+    PFS_engine_table_share_proxy *pfs_proxy_tables = &pfs_table_share_proxy;
+
+    if (pfs_table->add_tables(&pfs_proxy_tables, 1) != 0) {
       end_transaction(thd, true);
       pfs_sdi_enable();
       return false;
@@ -374,10 +382,12 @@ void log_pfs_delete_tables() {
   if (!pfs_tables_created) {
     return;
   }
+  Log_files_pfs_table_share_proxy pfs_table_share_proxy;
   PFS_engine_table_share_proxy *pfs_proxy_tables[1];
-  pfs_proxy_tables[0] = Log_files_pfs_table::s_instance.get_proxy_share();
+  pfs_proxy_tables[0] = &pfs_table_share_proxy;
   pfs_table->delete_tables(pfs_proxy_tables, 1);
   pfs_tables_created = false;
+  // delete pfs_table_share_proxy;
 }
 
 bool log_pfs_acquire_services(SERVICE_TYPE(registry) * reg_srv) {
