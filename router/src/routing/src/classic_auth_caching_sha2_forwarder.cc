@@ -152,7 +152,8 @@ AuthCachingSha2Forwarder::client_data() {
 
       return forward_client_to_server();
     }
-  } else if (msg_res->auth_method_data() == std::string_view("\x00", 1)) {
+  } else if (msg_res->auth_method_data() == std::string_view("\x00", 1) ||
+             msg_res->auth_method_data().empty()) {
     if (auto &tr = tracer()) {
       tr.trace(Tracer::Event().stage("caching_sha2::forward::empty_password"));
     }

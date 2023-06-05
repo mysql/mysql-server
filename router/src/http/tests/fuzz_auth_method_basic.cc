@@ -24,6 +24,7 @@
 
 #include "http_auth_method_basic.h"
 
+#include <cstdint>
 #include <string>
 #include <system_error>
 

@@ -188,7 +188,7 @@ void SharedServer::spawn_server_with_datadir(
   std::string log_file_name = "mysqld-" + std::to_string(starts_) + ".err";
 
   std::vector<std::string> args{
-      "--no-defaults-file",  //
+      "--no-defaults",  //
       "--lc-messages-dir=" + lc_messages_dir.str(),
       "--datadir=" + datadir,             //
       "--plugin_dir=" + plugindir.str(),  //
