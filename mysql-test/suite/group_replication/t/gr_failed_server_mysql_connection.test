@@ -14,6 +14,7 @@
 # 6. reap the start command and M2 must be able to join the group.
 # 7. Clean-up
 ################################################################################
+--source include/have_debug.inc
 --source include/big_test.inc
 --source include/have_group_replication_mysql_communication_stack.inc
 --source include/have_group_replication_plugin.inc
@@ -74,7 +75,7 @@ START GROUP_REPLICATION;
 --source include/rpl_connection.inc
 
 --let $assert_text= 'Failed to accept a MySQL connection for Group Replication. Group Replication plugin has an ongoing exclusive operation, like START, STOP or FORCE MEMBERS.'
---let $assert_cond= "[SELECT COUNT(*) as count FROM performance_schema.error_log WHERE error_code=\'MY-014081\' AND data LIKE \"%Failed to accept a MySQL connection for Group Replication%\", count, 1]" >= "1"
+--let $assert_cond= "[SELECT COUNT(*) as count FROM performance_schema.error_log WHERE error_code=\'MY-015027\' AND data LIKE \"%Failed to accept a MySQL connection for Group Replication%\", count, 1]" >= "1"
 --source include/assert.inc
 
 --echo #
