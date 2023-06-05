@@ -236,7 +236,7 @@ void trx_print_low(FILE *f,
                    /*!< in: transaction */
                    ulint max_query_len,
                    /*!< in: max query length to print,
-                   or 0 to use the default max length */
+                   must be positive */
                    ulint n_rec_locks,
                    /*!< in: lock_number_of_rows_locked(&trx->lock) */
                    ulint n_trx_locks,
@@ -248,16 +248,14 @@ void trx_print_low(FILE *f,
 The caller must hold lock_sys exclusive global latch and trx_sys->mutex.
 @param[in]  f               output stream
 @param[in]  trx             transaction
-@param[in]  max_query_len   max query length to print, or 0 to use the default
-                            max length */
+@param[in]  max_query_len   max query length to print, must be positive */
 void trx_print_latched(FILE *f, const trx_t *trx, ulint max_query_len);
 
 /** Prints info about a transaction.
 Acquires and releases lock_sys exclusive global latch and trx_sys->mutex.
 @param[in]  f               output stream
 @param[in]  trx             transaction
-@param[in]  max_query_len   max query length to print, or 0 to use the default
-                            max length */
+@param[in]  max_query_len   max query length to print, must be positive */
 void trx_print(FILE *f, const trx_t *trx, ulint max_query_len);
 
 /** Determine if a transaction is a dictionary operation.

@@ -2542,7 +2542,7 @@ void trx_print_low(FILE *f,
                    /*!< in: transaction */
                    ulint max_query_len,
                    /*!< in: max query length to print,
-                   or 0 to use the default max length */
+                   must be positive */
                    ulint n_rec_locks,
                    /*!< in: lock_number_of_rows_locked(&trx->lock) */
                    ulint n_trx_locks,

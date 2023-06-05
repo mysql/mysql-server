@@ -2294,15 +2294,19 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
 }
 
 /** Prints info of a THD object (== user session thread) to the given file. */
-void innobase_mysql_print_thd(
-    FILE *f,            /*!< in: output stream */
-    THD *thd,           /*!< in: MySQL THD object */
-    uint max_query_len) /*!< in: max query length to print, or 0 to
-                        use the default max length */
+void innobase_mysql_print_thd(FILE *f,            /*!< in: output stream */
+                              THD *thd,           /*!< in: MySQL THD object */
+                              uint max_query_len) /*!< in: max query length to
+                                                  print, must be positive */
 {
-  char buffer[1024];
+  // This is meant to be an upper bound for non-SQL part of the context,
+  // such as trx's id, state and stats.
+  ut_a(0 < max_query_len);
+  constexpr size_t ADDITIONAL_CTX_LEN = 1024;
+  ut::vector<char> buffer(ADDITIONAL_CTX_LEN + max_query_len);
 
-  fputs(thd_security_context(thd, buffer, sizeof buffer, max_query_len), f);
+  fputs(thd_security_context(thd, buffer.data(), buffer.size(), max_query_len),
+        f);
   putc('\n', f);
 }
 
