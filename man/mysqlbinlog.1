@@ -2,12 +2,12 @@
 .\"     Title: mysqlbinlog
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2023
+.\"      Date: 06/02/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLBINLOG" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Database System"
+.TH "MYSQLBINLOG" "1" "06/02/2023" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -814,7 +814,14 @@ Do not display any of the groups listed in the
 .\}
 \fB\-\-force\-if\-open\fR,
 \fB\-F\fR
-Read binary log files even if they are open or were not closed properly\&.
+Read binary log files even if they are open or were not closed properly (IN_USE
+flag is set); do not fail if the file ends with a truncated event\&.
+.sp
+The
+IN_USE
+flag is set only for the binary log that is currently written by the server; if the server has crashed, the flag remains set until the server is started up again and recovers the binary log\&. Without this option,
+\fBmysqlbinlog\fR
+refuses to process a file with this flag set\&. Since the server may be in the process of writing the file, truncation of the last event is considered normal\&.
 .RE
 .sp
 .RS 4
@@ -1662,6 +1669,7 @@ STRICT
 causes the client to produce a warning at startup and to operate in non\-FIPS mode\&.
 .sp .5v
 .RE
+As of MySQL 8\&.0\&.34, this option is deprecated\&. Expect it to be removed in a future version of MySQL\&.
 .RE
 .sp
 .RS 4
