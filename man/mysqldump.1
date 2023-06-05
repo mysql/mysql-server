@@ -2,12 +2,12 @@
 .\"     Title: mysqldump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/23/2023
+.\"      Date: 06/02/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.1
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "05/23/2023" "MySQL 8\&.1" "MySQL Database System"
+.TH "MYSQLDUMP" "1" "06/02/2023" "MySQL 8\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -258,11 +258,13 @@ for dumped triggers,
 LOCK TABLES
 if the
 \fB\-\-single\-transaction\fR
-option is not used, and
+option is not used,
 PROCESS
 if the
 \-\-no\-tablespaces
-option is not used\&. Certain options might require other privileges as noted in the option descriptions\&.
+option is not used, and the RELOAD or FLUSH_TABLES priviledge with
+\fB\-\-single\-transaction\fR
+if both gtid_mode=ON and \-\-set\-gtid=purged=ON|AUTO\&. Certain options might require other privileges as noted in the option descriptions\&.
 .PP
 To reload a dump file, you must have the privileges required to execute the statements that it contains, such as the appropriate
 CREATE
@@ -1845,15 +1847,6 @@ value has been updated on the server where the dump file is replayed, GTIDs are 
 SET @@GLOBAL\&.gtid_purged
 statement in the second dump file fails\&. In this case, either remove the statement manually before replaying the dump file, or output the dump file without the statement\&.
 .sp
-Using this option with the
-\fB\-\-single\-transaction\fR
-option can lead to inconsistencies in the output\&. If
-\fB\-\-set\-gtid\-purged=ON\fR
-is required, it can be used with
-\fB\-\-lock\-all\-tables\fR, but this can prevent parallel queries while
-\fBmysqldump\fR
-is being run\&.
-.sp
 If the
 SET @@GLOBAL\&.gtid_purged
 statement would not have the desired result on your target server, you can exclude the statement from the output, or include it but comment it out so that it is not actioned automatically\&. You can also include the statement but manually edit it in the dump file to achieve the desired result\&.
@@ -2482,7 +2475,7 @@ Skips table views in the dump file\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-init\-command=\fR\fB\fIstr\fR\fR
-Single SQL statement to execute after connecting or re\-connecting to the MySQL server\&. The definition resets existing defined statements by it or
+Single SQL statement to execute after connecting to the MySQL server\&. The definition resets existing statements defined by it or
 \fBinit\-command\-add\fR\&.
 .RE
 .sp
@@ -3100,13 +3093,6 @@ option and the
 option are mutually exclusive because
 LOCK TABLES
 causes any pending transactions to be committed implicitly\&.
-.sp
-Using
-\fB\-\-single\-transaction\fR
-together with the
-\fB\-\-set\-gtid\-purged\fR
-option is not recommended; doing so can lead to inconsistencies in the output of
-\fBmysqldump\fR\&.
 .sp
 To dump large tables, combine the
 \fB\-\-single\-transaction\fR
