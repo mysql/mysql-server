@@ -1468,7 +1468,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
       ASSERT_ERROR(query_res);
 
       // Multi-Statements are forbidden if connection-sharing is enabled.
-      EXPECT_EQ(query_res.error().value(), 6001);
+      EXPECT_EQ(query_res.error().value(), 4501);
     } else {
       ASSERT_NO_ERROR(query_res);
 
@@ -1506,7 +1506,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest,
       ASSERT_ERROR(query_res);
 
       // Multi-Statements are forbidden if connection-sharing is enabled.
-      EXPECT_EQ(query_res.error().value(), 6001);
+      EXPECT_EQ(query_res.error().value(), 4501);
     } else {
       ASSERT_NO_ERROR(query_res);
 

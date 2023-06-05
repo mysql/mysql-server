@@ -94,7 +94,7 @@ static constexpr const std::string_view kPreferred{"PREFERRED"};
 static constexpr const std::string_view kPassthrough{"PASSTHROUGH"};
 static constexpr const std::string_view kAsClient{"AS_CLIENT"};
 
-static constexpr const std::string_view kErRouterTrace("6100");
+static constexpr const std::string_view kErRouterTrace("4600");
 
 static const auto show_warnings_status_mask = SERVER_STATUS_IN_TRANS |
                                               SERVER_STATUS_IN_TRANS_READONLY |
@@ -3032,7 +3032,7 @@ TEST_P(TracingTest, classic_protocol_router_multi_statements) {
 
     if (can_trace) {
       ASSERT_ERROR(stmt_res);
-      EXPECT_EQ(stmt_res.error().value(), 6001);  // Not allowed
+      EXPECT_EQ(stmt_res.error().value(), 4501);  // Not allowed
     } else {
       ASSERT_NO_ERROR(stmt_res);
     }

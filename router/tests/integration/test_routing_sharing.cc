@@ -5686,7 +5686,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option) {
       ASSERT_ERROR(query_res);
 
       // multi-statements are forbidden when connection-sharing is enabled.
-      EXPECT_EQ(query_res.error().value(), 6001);
+      EXPECT_EQ(query_res.error().value(), 4501);
     } else {
       ASSERT_NO_ERROR(query_res);
 
@@ -5747,7 +5747,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
       ASSERT_ERROR(query_res);
 
       // multi-statements are forbidden when connection-sharing is enabled.
-      EXPECT_EQ(query_res.error().value(), 6001);
+      EXPECT_EQ(query_res.error().value(), 4501);
     } else {
       ASSERT_NO_ERROR(query_res);
 
@@ -5768,7 +5768,7 @@ TEST_P(ShareConnectionTest, classic_protocol_set_option_at_connect) {
       ASSERT_ERROR(query_res);
 
       // multi-statements are forbidden when connection-sharing is enabled.
-      EXPECT_EQ(query_res.error().value(), 6001);
+      EXPECT_EQ(query_res.error().value(), 4501);
     } else {
       ASSERT_NO_ERROR(query_res);
 
