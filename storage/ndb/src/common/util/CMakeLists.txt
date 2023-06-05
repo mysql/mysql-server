@@ -61,6 +61,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   SocketAuthenticator.cpp
   SocketClient.cpp
   SocketServer.cpp
+  TlsKeyManager.cpp
   Vector.cpp
   basename.cpp
   decimal_utils.cpp
@@ -81,7 +82,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
 SET_TARGET_PROPERTIES(ndbgeneral PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack
-        NodeCertificate ndb_zlib cstrbuf span)
+        NodeCertificate TlsKeyManager ndb_zlib cstrbuf span)
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral)
 ENDFOREACH(tests)
 
@@ -106,6 +107,7 @@ FOREACH(tests
     testProp
     testSecureSocket
     testConfigValues
+    testTlsKeyManager
     )
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbmgmapi ndbgeneral ndbportlib)
 ENDFOREACH(tests)
