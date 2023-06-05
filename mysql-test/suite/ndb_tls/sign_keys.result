@@ -1,0 +1,9 @@
+SELECT 1;
+1
+1
+ndb-api-cert
+ndb-api-private-key
+ndb-data-node-cert
+ndb-data-node-private-key
+ndb-mgm-server-cert
+ndb-mgm-server-private-key

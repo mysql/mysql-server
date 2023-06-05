@@ -23,6 +23,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#include <fstream>
+#include <iostream>
+#include <string>
+
 #include "util/require.h"
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
@@ -433,10 +437,21 @@ public:
 
 };
 
+static
+bool create_CA(NDBT_Workingdir & wd, const BaseString &exe)
+{
+  int ret;
+  NdbProcess::Args args;
 
-#include <fstream>
-#include <iostream>
-#include <string>
+  args.add("--passphrase=", "Trondheim");
+  args.add("--create-CA");
+  args.add("--CA-search-path=", wd.path());
+  NdbProcess * proc = NdbProcess::create("Create CA", exe, wd.path(), args);
+  bool r = proc->wait(ret, 1000);
+  delete proc;
+
+  return (r && (ret == 0));
+}
 
 bool Print_find_in_file(const char* path, Vector<BaseString> search_string)
 {
@@ -1810,6 +1825,41 @@ runTestMultiMGMDDisconnection(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runTestSshKeySigning(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
+  Properties config = ConfigFactory::create();
+  BaseString cfg_path = path(wd.path(), "config.ini", nullptr);
+  CHECK(ConfigFactory::write_config_ini(config, cfg_path.c_str()));
+
+  /* Find executable */
+  BaseString exe;
+  NDBT_find_sign_keys(exe);
+
+  /* Create CA */
+  if(! create_CA(wd, exe))
+    return false;
+
+  /* Create keys and certificates for all nodes, via ssh to localhost */
+  /* There will be a parent ndb_sign_keys process plus 3 ssh invocations */
+  NdbProcess::Args args;
+  int ret;
+  args.add("--config-file=", cfg_path.c_str());
+  args.add("--passphrase=", "Trondheim");
+  args.add("--ndb-tls-search-path=", wd.path());
+  args.add("--create-key");
+  args.add("--remote-CA-host=", "localhost");
+  NdbProcess * proc = NdbProcess::create("Create Keys", exe, wd.path(), args);
+  bool r = proc->wait(ret, 1500);
+  CHECK(r);
+  if(! r) proc->stop();
+  delete proc;
+
+  CHECK(ret == 0);
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testMgmd);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
@@ -1903,6 +1953,12 @@ TESTCASE("MultiMGMDDisconnection",
          "Test multi mgmd robustness against other mgmd disconnections")
 {
   INITIALIZER(runTestMultiMGMDDisconnection);
+}
+
+TESTCASE("SshKeySigning",
+         "Test remote key signing over ssh using ndb_sign_keys")
+{
+  INITIALIZER(runTestSshKeySigning);
 }
 
 NDBT_TESTSUITE_END(testMgmd)

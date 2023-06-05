@@ -113,6 +113,7 @@ FOREACH(tests
     testSecureSocket
     testConfigValues
     testTlsKeyManager
+    testNdbProcess
     )
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbmgmapi ndbgeneral ndbportlib)
 ENDFOREACH(tests)

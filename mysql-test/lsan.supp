@@ -46,3 +46,6 @@ leak:sasl_client_add_plugin
 
 # The GSS API plugin for SASL has leaks.
 leak:gss_acquire_cred_from
+
+# ndb_sign_keys leaks in some error-exit situations
+leak:ndb_sign_keys

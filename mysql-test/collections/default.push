@@ -18,7 +18,7 @@ perl mysql-test-run.pl --timer --testcase-timeout=30 --suite-timeout=300 --debug
 # Run all Ndb tests separately.
 # For builds without Ndb support no tests will be attempted.
 #
-perl mysql-test-run.pl --timer --testcase-timeout=30 --suite-timeout=300 --debug-server --force --comment=ndb --vardir=var-ndb --skip-combinations --no-skip --with-ndb-only
+perl mysql-test-run.pl --timer --testcase-timeout=30 --suite-timeout=300 --debug-server --force --comment=ndb --vardir=var-ndb --no-skip --with-ndb-only
 
 #
 # Group Replication

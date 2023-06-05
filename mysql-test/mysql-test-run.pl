@@ -3182,6 +3182,7 @@ sub environment_setup {
       ndb_select_all
       ndb_select_count
       ndb_show_tables
+      ndb_sign_keys
       ndb_waiter
       ndbxfrm
       ndb_secretsfile_reader
@@ -3754,7 +3755,7 @@ sub check_ndbcluster_support ($) {
   # Add MySQL Cluster test suites
   $DEFAULT_SUITES .= "," if $DEFAULT_SUITES;
   $DEFAULT_SUITES .= "ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndbcluster,ndb_ddl,".
-                     "gcol_ndb,json_ndb,ndb_opt";
+                     "gcol_ndb,json_ndb,ndb_opt,ndb_tls";
   # Increase the suite timeout when running with default ndb suites
   $opt_suite_timeout *= 2;
   return;

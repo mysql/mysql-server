@@ -1,0 +1,159 @@
+--source include/have_ndb.inc
+--source suite/ndb_tls/include/check_openssl.inc
+
+## TEMPORARILY SKIP THIS TEST ON WINDOWS
+##
+## Remote Key Signing (at line 106) will time out very slowly and create
+## crash dumps.  Use the testNdbProcess-t unit test to isolate this issue,
+## then re-enable this test on Windows.
+##
+--source include/not_windows.inc
+
+# The MySQL server is up
+SELECT 1;
+
+# On startup, none of the files exist
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-cert
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-private-key
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-private-key
+
+# Create a CA
+--exec $NDB_SIGN_KEYS --create-CA
+
+# Now the CA files exist
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-cert
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-private-key
+
+# Create all the keys and certs for this cluster
+--exec $NDB_SIGN_KEYS --create-key
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-cert
+--list_files $MYSQLTEST_VARDIR/mysql_cluster.1 ndb-*
+
+# Remove them; remove_file will fail if a file does not exist.
+# On Windows, private key files must be writable to be removed.
+--chmod 0600  $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-private-key
+--chmod 0600  $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-private-key
+--chmod 0600  $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-private-key
+
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-private-key
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-cert
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-private-key
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-cert
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-private-key
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-cert
+
+# Create a pending key and a 90-day certificate for the management node.
+--exec $NDB_SIGN_KEYS --create-key --pending -n 3 --schedule=70,5,80,5,90,0
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-pending-key
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-pending-cert
+
+# Promote the files from pending to active
+--exec $NDB_SIGN_KEYS --promote -n 3
+
+# Now the files have been renamed from pending to active
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-private-key
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-cert
+
+# The old pending files do not exist
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-pending-key
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-pending-cert
+
+# Create an active key and certificate for a data node, with bound node id
+--exec $NDB_SIGN_KEYS --create-key -n 2
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-private-key
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-cert
+
+# Create a pending client key and cert in no-config mode
+--exec $NDB_SIGN_KEYS --no-config --create-key --pending -t api --bind-host=0
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-pending-key
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-pending-cert
+
+# Then promote the pending files to active
+--exec $NDB_SIGN_KEYS --no-config -t api --promote
+
+# Remove them
+--chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-private-key
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-private-key
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-cert
+
+# Try to create a CSR for node 10.
+# There is not a node 10 configured, so this fails.
+--error 110
+--exec $NDB_SIGN_KEYS -n 10 --create-key --skip-sign
+
+# Try to create a CSR for node 10 in no-config mode.
+# This fails because -n and no-config mode are incompatible
+--error 101
+--exec $NDB_SIGN_KEYS -l -n 10 -t api --create-key --skip-sign
+
+# Try to create a CSR for an API node in no-config mode.
+# This fails because it wants to bind a hostname, but none is available.
+--error 34
+--exec $NDB_SIGN_KEYS -l -t api --create-key --skip-sign
+
+# Create the CSR for an API node in no-config mode.
+--exec $NDB_SIGN_KEYS -l -t api --create-key --skip-sign --bind-host=0
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-cert-request
+
+# Test remote key signing with a tool
+#    (using ndb_sign_keys itself as the tool)
+# Because the CSR already exists, the binding options are not necessary.
+--let $cmd = `SELECT substring_index("$NDB_SIGN_KEYS", " ", 1)`
+--exec $NDB_SIGN_KEYS -l -t api -X $cmd >> $MYSQLTEST_VARDIR/tmp/rsk.out
+--remove_file $MYSQLTEST_VARDIR/tmp/rsk.out
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-cert
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-cert-request
+
+# Refresh the certificate for node 2, but keep the existing key
+--exec $NDB_SIGN_KEYS -n 2 --schedule=70,5,80,5,90,0
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-retired-cert
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-retired-key
+
+# Check all the certs in the path, in no-config mode.
+--error 1
+--exec $NDB_SIGN_KEYS --no-config --check --replace-by=-91
+
+# Check all the certs in the path, using config
+--error 1
+--exec $NDB_SIGN_KEYS --check --replace-by=-91
+
+# Check the key cert node 3, using config (check passes)
+--exec $NDB_SIGN_KEYS --check --replace-by=-50 -n 3
+
+# Check the cert for node 3, using config (check fails)
+--error 1
+--exec $NDB_SIGN_KEYS --check --replace-by=-91 -n 3
+
+# Replace the key and the certificate both
+--exec $NDB_SIGN_KEYS --create-key -n 3
+
+# Rotate the CA
+--exec $NDB_SIGN_KEYS --rotate-CA
+
+# On Windows, private key files must be made writable to be removed.
+--chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-private-key
+--chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-private-key.retired
+--chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-private-key
+--chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-private-key
+--chmod 0600 $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-private-key
+
+# Delete everything so the test can be repeated
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-private-key
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-cert
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-private-key.retired
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/NDB-Cluster-cert.retired
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-private-key
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-cert
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-data-node-retired-cert
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-cert
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-private-key
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-mgm-server-retired-cert
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-private-key
+--remove_file $MYSQLTEST_VARDIR/mysql_cluster.1/ndb-api-cert
