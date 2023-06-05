@@ -4818,7 +4818,7 @@ void lock_trx_print_wait_and_mvcc_state(FILE *file, const trx_t *trx) {
   ut_ad(locksys::owns_exclusive_global_latch());
   fprintf(file, "---");
 
-  trx_print_latched(file, trx, 600);
+  trx_print_latched(file, trx, 3000);
 
   const ReadView *read_view = trx_get_read_view(trx);
 
