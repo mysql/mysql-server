@@ -121,7 +121,7 @@ FUNCTION(FIND_SYSTEM_FIDO)
     SET(CMAKE_REQUIRED_INCLUDES
       "${HOMEBREW_HOME}/include"
       "${HOMEBREW_HOME}/libfido2/include"
-      "${HOMEBREW_HOME}/openssl@1.1/include"
+      "${OPENSSL_INCLUDE_DIR}"
       )
   ENDIF()
 

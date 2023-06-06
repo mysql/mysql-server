@@ -2716,13 +2716,19 @@ sub executable_setup () {
   if (!$exe_openssl) {
     if (IS_MAC) {
       # We use homebrew, rather than macOS SSL.
-      # TODO(tdidriks) add an option to mysqltest to see whether we are using
-      # openssl@1.1 or openssl@3
+      # Use the openssl symlink, which will point to something like
+      # ../Cellar/openssl@1.1/1.1.1t or ../Cellar/openssl@3/3.0.8
       my $machine_hw_name = `uname -m`;
       if ($machine_hw_name =~ "arm64") {
-	$exe_openssl = "/opt/homebrew/opt/" . "openssl\@1.1" . "/bin/openssl";
+	$exe_openssl =
+	  my_find_bin("/opt/homebrew/opt/",
+		      ["openssl/bin", "openssl\@1.1/bin"], "openssl",
+		      NOT_REQUIRED);
       } else {
-	$exe_openssl = "/usr/local/opt/" . "openssl\@1.1" . "/bin/openssl";
+	$exe_openssl =
+	  my_find_bin("/usr/local/opt/",
+		      ["openssl/bin", "openssl\@1.1/bin"], "openssl",
+		      NOT_REQUIRED);
       }
     } else {
       # We could use File::Which('openssl'),

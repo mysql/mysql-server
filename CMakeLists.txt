@@ -1709,7 +1709,7 @@ SET(SYSTEM_LIBRARIES
   LIBEVENT  # Homebrew  libevent
   LZ4       # Homebrew  lz4
   PROTOBUF  # Homebrew  protobuf
-  SSL       # Homebrew  openssl@1.1
+  SSL       # Homebrew  openssl@1.1 or openssl@3
   ZSTD      # Homebrew  zstd
   FIDO      # Homebrew  libfido2
   )

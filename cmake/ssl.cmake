@@ -44,7 +44,8 @@
 # or
 #     https://brew.sh
 #     https://formulae.brew.sh/formula/openssl@1.1
-#     we give a hint ${HOMEBREW_HOME}/openssl@1.1 to find_package(OpenSSL)
+#     https://formulae.brew.sh/formula/openssl@3
+#     we give a hint ${HOMEBREW_HOME}/openssl to find_package(OpenSSL)
 #
 # On Windows, we treat this "system" library as if cmake had been
 # invoked with -DWITH_SSL=</path/to/custom/openssl>
@@ -79,7 +80,7 @@ MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
     "\nMake sure you have specified a supported SSL version. "
     "\nValid options are : ${WITH_SSL_DOC}\n"
     )
-  IF(UNIX)
+  IF(UNIX AND NOT APPLE)
     MESSAGE(FATAL_ERROR
       "Please install the appropriate openssl developer package.\n")
   ENDIF()
@@ -89,7 +90,8 @@ MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
   ENDIF()
   IF(APPLE)
     MESSAGE(FATAL_ERROR
-      "Please see https://formulae.brew.sh/formula/openssl@1.1\n")
+      "Please see https://formulae.brew.sh/formula/openssl@1.1"
+      " or https://formulae.brew.sh/formula/openssl@3\n")
   ENDIF()
 ENDMACRO()
 
@@ -278,12 +280,12 @@ MACRO (MYSQL_CHECK_SSL)
       # FindOpenSSL.cmake knows about
       # http://www.slproweb.com/products/Win32OpenSSL.html
       # and will look for "C:/Program Files/OpenSSL-Win64/" (and others)
-      # For APPLE we set the hint ${HOMEBREW_HOME}/openssl@1.1
+      # For APPLE we set the hint ${HOMEBREW_HOME}/openssl
       IF(LINK_STATIC_RUNTIME_LIBRARIES)
         SET(OPENSSL_MSVC_STATIC_RT ON)
       ENDIF()
       IF(APPLE AND NOT OPENSSL_ROOT_DIR)
-        SET(OPENSSL_ROOT_DIR "${HOMEBREW_HOME}/openssl@1.1")
+        SET(OPENSSL_ROOT_DIR "${HOMEBREW_HOME}/openssl")
       ENDIF()
       # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
       IF(WIN32 AND NOT OPENSSL_ROOT_DIR)
@@ -322,6 +324,13 @@ MACRO (MYSQL_CHECK_SSL)
       # Input hint is OPENSSL_ROOT_DIR.
       # Will set OPENSSL_FOUND, OPENSSL_INCLUDE_DIR and others.
       FIND_PACKAGE(OpenSSL)
+
+      # Re-try, in case the symlink is not found.
+      IF(NOT OPENSSL_FOUND AND APPLE AND
+          OPENSSL_ROOT_DIR STREQUAL "${HOMEBREW_HOME}/openssl")
+        SET(OPENSSL_ROOT_DIR "${HOMEBREW_HOME}/openssl@1.1")
+        FIND_PACKAGE(OpenSSL)
+      ENDIF()
 
       IF(OPENSSL_FOUND)
         GET_FILENAME_COMPONENT(OPENSSL_ROOT_DIR ${OPENSSL_INCLUDE_DIR} PATH)
