@@ -2508,13 +2508,19 @@ void row_sel_field_store_in_mysql_format_func(
 
   bool clust_templ_for_sec = (sec_field != ULINT_UNDEFINED);
 #endif /* UNIV_DEBUG */
-  ulint mysql_col_len =
-      templ->is_multi_val ? templ->mysql_mvidx_len : templ->mysql_col_len;
+
+  if (templ->is_multi_val) {
+    ib::fatal(UT_LOCATION_HERE, ER_CONVERT_MULTI_VALUE)
+        << "Table name: " << index->table->name
+        << " Index name: " << index->name;
+  }
+
+  auto const mysql_col_len = templ->mysql_col_len;
 
   ut_ad(rec_field_not_null_not_add_col_def(len));
   UNIV_MEM_ASSERT_RW(data, len);
-  UNIV_MEM_ASSERT_W(dest, templ->mysql_col_len);
-  UNIV_MEM_INVALID(dest, templ->mysql_col_len);
+  UNIV_MEM_ASSERT_W(dest, mysql_col_len);
+  UNIV_MEM_INVALID(dest, mysql_col_len);
 
   switch (templ->type) {
     const byte *field_end;
@@ -2597,14 +2603,14 @@ void row_sel_field_store_in_mysql_format_func(
       /* Store a pointer to the BLOB buffer to dest: the BLOB was
       already copied to the buffer in row_sel_store_mysql_rec */
 
-      row_mysql_store_blob_ref(dest, templ->mysql_col_len, data, len);
+      row_mysql_store_blob_ref(dest, mysql_col_len, data, len);
       break;
 
     case DATA_POINT:
     case DATA_VAR_POINT:
     case DATA_GEOMETRY:
       /* We store all geometry data as BLOB data at server layer. */
-      row_mysql_store_geometry(dest, templ->mysql_col_len, data, len);
+      row_mysql_store_geometry(dest, mysql_col_len, data, len);
       break;
 
     case DATA_MYSQL:
@@ -2645,7 +2651,7 @@ void row_sel_field_store_in_mysql_format_func(
       done in row0mysql.cc, function
       row_mysql_store_col_in_innobase_format(). */
       if ((templ->mbminlen == 1 && templ->mbmaxlen != 1) ||
-          (templ->is_virtual && templ->mysql_col_len > len)) {
+          (templ->is_virtual && mysql_col_len > len)) {
         /* NOTE: This comment is for the second condition:
         This probably comes from a prefix virtual index, where no complete
         value can be got because the full virtual column can only be
@@ -2918,6 +2924,22 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
 
   for (ulint i = 0; i < prebuilt->n_template; i++) {
     const auto templ = &prebuilt->mysql_template[i];
+
+    /* Skip multi-value columns; since they can not be explicitly
+    requested by the query, they may only be here in scenarios
+    where all index columns are included routinely, like these:
+    1. Index-only scan (done for covering index): all index field
+    are stored regardless of whether they are requested or not
+    (depending on optimization options): for multi-values they
+    need not be stored, as they may never be requested.
+    2. Cross-partition index scan, for the purpose of index merge:
+    not needed since multi-values do not introduce ordering and
+    so are not needed for index merge. */
+    if (templ->is_multi_val) {
+      /* Multi-value columns are always virtual */
+      ut_ad(templ->is_virtual);
+      continue;
+    }
 
     if (templ->is_virtual && rec_index->is_clustered()) {
       /* Skip virtual columns if it is not a covered
