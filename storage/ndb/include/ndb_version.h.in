@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1238,6 +1238,58 @@ ndbd_support_waitgcp_shutdownsync(Uint32 x)
   else if (major == 8)
   {
     return x >= NDBD_WAITGCP_SHUTDOWNSYNC_80;
+  }
+  return 1;
+}
+
+/*
+ * Data nodes reply to MGMD START BACKUP NOWAIT REQ from
+ * MGMD with BACKUP_REF/CONF.
+ */
+#define NDBD_START_BACKUP_NOWAIT_REPLY_75 NDB_MAKE_VERSION(7,5,31)
+#define NDBD_START_BACKUP_NOWAIT_REPLY_76 NDB_MAKE_VERSION(7,6,27)
+#define NDBD_START_BACKUP_NOWAIT_REPLY_80 NDB_MAKE_VERSION(8,0,35)
+#define NDBD_START_BACKUP_NOWAIT_REPLY_82 NDB_MAKE_VERSION(8,2,0)
+static
+inline
+int
+ndbd_start_backup_nowait_reply(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 5)
+    {
+      return 0;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_START_BACKUP_NOWAIT_REPLY_75;
+    }
+    else if (minor == 6)
+    {
+      return x >= NDBD_START_BACKUP_NOWAIT_REPLY_76;
+    }
+  }
+  else if (major == 8)
+  {
+    if (minor == 0)
+    {
+      return x >= NDBD_START_BACKUP_NOWAIT_REPLY_80;
+    }
+    else if (minor == 1)
+    {
+      return 0;
+    }
+    else
+    {
+      return x >= NDBD_START_BACKUP_NOWAIT_REPLY_82;
+    }
   }
   return 1;
 }

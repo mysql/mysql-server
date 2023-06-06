@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,7 @@ public:
   STATIC_CONST( SignalLength = 4 );
   STATIC_CONST( WAITCOMPLETED = 0x3 );
   STATIC_CONST( USE_UNDO_LOG = 0x4 );
+  STATIC_CONST( NOWAIT_REPLY = 0x20 );
 
 private:
   Uint32 senderData;
