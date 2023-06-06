@@ -819,6 +819,7 @@ my_decimal *Item_func::val_decimal(my_decimal *decimal_value) {
   assert(fixed);
   longlong nr = val_int();
   if (null_value) return nullptr; /* purecov: inspected */
+  if (current_thd->is_error()) return error_decimal(decimal_value);
   int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
   return decimal_value;
 }
@@ -2512,10 +2513,12 @@ longlong Item_func_div_base::int_op() {
     my_decimal tmp;
     my_decimal *val0p = args[0]->val_decimal(&tmp);
     if ((null_value = args[0]->null_value)) return 0;
+    if (current_thd->is_error()) return error_int();
     const my_decimal val0 = *val0p;
 
     my_decimal *val1p = args[1]->val_decimal(&tmp);
     if ((null_value = args[1]->null_value)) return 0;
+    if (current_thd->is_error()) return error_int();
     const my_decimal val1 = *val1p;
 
     int err;
