@@ -3399,7 +3399,7 @@ sub environment_setup {
     ",print_suppressions=0"
     if $opt_sanitize;
 
-  $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"
+  $ENV{'ASAN_OPTIONS'} = "suppressions=\"${glob_mysql_test_dir}/asan.supp\""
     . ",detect_stack_use_after_return=false"
     if $opt_sanitize;
 

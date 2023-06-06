@@ -95,8 +95,9 @@ cmake -G Ninja -DFORCE_UNSUPPORTED_COMPILER=1
 
 ninja
 
-This configuration also supports ASAN (-DWITH_ASAN=1), although currently only
-when linking with MSVC's linker (not with LLD).
+This configuration also supports ASAN (-DWITH_ASAN=1)
+Note that leak sanitizer is *not* supported.
+
 
 For running tests with --parallel, you may need to add --build-thread= (500 is
 a reasonable value to try).
