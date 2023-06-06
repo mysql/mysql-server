@@ -326,9 +326,9 @@ AuthNativeForwarder::caching_sha2_encrypted() {
 
   stage(Stage::Response);
 
-  auto send_res = ClassicFrame::send_msg<
-      classic_protocol::borrowed::message::client::AuthMethodData>(
-      dst_channel, dst_protocol, {*scramble_res});
+  auto send_res =
+      ClassicFrame::send_msg<classic_protocol::message::client::AuthMethodData>(
+          dst_channel, dst_protocol, {*scramble_res});
   if (!send_res) return send_server_failed(send_res.error());
 
   return Result::SendToServer;
