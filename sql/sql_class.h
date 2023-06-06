@@ -4387,6 +4387,7 @@ class THD : public MDL_context_owner,
     Optimizer cost model for server operations.
   */
   Cost_model_server m_cost_model;
+  Cost_model_server m_cost_model_hypergraph;
 
  public:
   /**
@@ -4394,12 +4395,12 @@ class THD : public MDL_context_owner,
 
     This function should be called each time a new query is started.
   */
-  void init_cost_model() { m_cost_model.init(); }
+  void init_cost_model();
 
   /**
     Retrieve the optimizer cost model for this connection.
   */
-  const Cost_model_server *cost_model() const { return &m_cost_model; }
+  const Cost_model_server *cost_model() const;
 
   Session_tracker session_tracker;
   Session_sysvar_resource_manager session_sysvar_res_mgr;

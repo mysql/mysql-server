@@ -34,6 +34,7 @@
 
 class THD;
 struct TABLE;
+enum class Optimizer { kOriginal, kHypergraph };
 
 /**
   Error codes returned from the functions that do updates of the
@@ -63,16 +64,37 @@ const unsigned int MAX_STORAGE_CLASSES = 1;
 class Server_cost_constants {
  public:
   /**
-    Creates a server cost constants object using the default values
-    defined in this class.
+    Creates a server cost constants object with default values. The default
+    values of the cost constants are specified here.
+
+    @param optimizer The type of optimizer to construct cost constants for.
+
+    @note The default cost constants are displayed in the default_value column
+    of the mysql.server_cost tables.  If any default value is changed, make sure
+    to update the column definitions in mysql_system_tables.sql and
+    mysql_system_tables_fix.sql.
+
   */
-  Server_cost_constants()
-      : m_row_evaluate_cost(ROW_EVALUATE_COST),
-        m_key_compare_cost(KEY_COMPARE_COST),
-        m_memory_temptable_create_cost(MEMORY_TEMPTABLE_CREATE_COST),
-        m_memory_temptable_row_cost(MEMORY_TEMPTABLE_ROW_COST),
-        m_disk_temptable_create_cost(DISK_TEMPTABLE_CREATE_COST),
-        m_disk_temptable_row_cost(DISK_TEMPTABLE_ROW_COST) {}
+  Server_cost_constants(Optimizer optimizer) {
+    switch (optimizer) {
+      case Optimizer::kOriginal:
+        m_row_evaluate_cost = 0.1;
+        m_key_compare_cost = 0.05;
+        m_memory_temptable_create_cost = 1.0;
+        m_memory_temptable_row_cost = 0.1;
+        m_disk_temptable_create_cost = 20.0;
+        m_disk_temptable_row_cost = 0.5;
+        break;
+      case Optimizer::kHypergraph:
+        m_row_evaluate_cost = 0.1;
+        m_key_compare_cost = 0.05;
+        m_memory_temptable_create_cost = 1.0;
+        m_memory_temptable_row_cost = 0.1;
+        m_disk_temptable_create_cost = 20.0;
+        m_disk_temptable_row_cost = 0.5;
+        break;
+    }
+  }
 
   /**
     Cost for evaluating the query condition on a row.
@@ -125,63 +147,47 @@ class Server_cost_constants {
   cost_constant_error set(const LEX_CSTRING &name, const double value);
 
  private:
-  /*
-    This section declares constants for the default values. The actual
-    default values are found in the .cc file.
-  */
-
-  /// Default cost for evaluation of the query condition for a row.
-  static const double ROW_EVALUATE_COST;
-
-  /// Default cost for comparing row ids.
-  static const double KEY_COMPARE_COST;
-
-  /*
-    Constants related to the use of temporary tables in query execution.
-    Lookup and write operations are currently assumed to be equally costly
-    (concerns MEMORY_TEMPTABLE_ROW_COST and DISK_TEMPTABLE_ROW_COST).
-  */
-
-  /// Cost for creating a memory temporary table.
-  static const double MEMORY_TEMPTABLE_CREATE_COST;
-
-  /// Cost for inserting or reading a row in a memory temporary table.
-  static const double MEMORY_TEMPTABLE_ROW_COST;
-
-  /// Cost for creating a disk temporary table
-  static const double DISK_TEMPTABLE_CREATE_COST;
-
-  /// Cost for inserting or reading a row in a disk temporary table.
-  static const double DISK_TEMPTABLE_ROW_COST;
-
-  /*
-    This section specifies cost constants for server operations
-  */
-
-  /// Cost for evaluating the query condition on a row
+  /// Cost for evaluating the query condition on a row.
   double m_row_evaluate_cost;
 
-  /// Cost for comparing two keys
+  /// Cost for comparing two keys.
   double m_key_compare_cost;
 
-  /// Cost for creating an internal temporary table in memory
+  /**
+    Cost for creating an internal temporary table in memory.
+
+    @note Creating a Memory temporary table is by benchmark found to be as
+    costly as writing 10 rows into the table.
+  */
   double m_memory_temptable_create_cost;
 
   /**
-    Cost for retrieving or storing a row in an internal temporary table
-    stored in memory.
+    Cost for retrieving or storing a row in an internal temporary table stored
+    in memory.
+
+    @note Writing a row to or reading a row from a Memory temporary table is
+    equivalent to evaluating a row in the join engine.
   */
   double m_memory_temptable_row_cost;
 
   /**
-    Cost for creating an internal temporary table in a disk resident
-    storage engine.
+    Cost for creating an internal temporary table in a disk resident storage
+    engine.
+
+   @note Creating a MyISAM table is 20 times slower than creating a Memory
+   table.
+
   */
   double m_disk_temptable_create_cost;
 
   /**
-    Cost for retrieving or storing a row in an internal disk resident
-    temporary table.
+    Cost for retrieving or storing a row in an internal disk resident temporary
+    table.
+
+    @note Generating MyISAM rows sequentially is 2 times slower than generating
+    Memory rows, when number of rows is greater than 1000. However, we do not
+    have benchmarks for very large tables, so setting this factor conservatively
+    to be 5 times slower (ie the cost is 1.0).
   */
   double m_disk_temptable_row_cost;
 };
@@ -192,14 +198,34 @@ class Server_cost_constants {
   Storage engines that want to add new cost constants should make
   a subclass of this class.
 */
-
 class SE_cost_constants {
  public:
-  SE_cost_constants()
-      : m_memory_block_read_cost(MEMORY_BLOCK_READ_COST),
-        m_io_block_read_cost(IO_BLOCK_READ_COST),
-        m_memory_block_read_cost_default(true),
-        m_io_block_read_cost_default(true) {}
+  /**
+    Creates a storage engine cost constants object with default values. The
+    default values for the cost constants are specified here.
+
+    @param optimizer The type of optimizer to construct cost constants for.
+
+    @note The default cost constants are displayed in the default_value column
+    of the mysql.engine_cost cost table. If any default value is changed, make
+    sure to update the column definitions in mysql_system_tables.sql and
+    mysql_system_tables_fix.sql.
+
+  */
+  SE_cost_constants(Optimizer optimizer)
+      : m_memory_block_read_cost_default(true),
+        m_io_block_read_cost_default(true) {
+    switch (optimizer) {
+      case Optimizer::kOriginal:
+        m_io_block_read_cost = 1.0;
+        m_memory_block_read_cost = 0.25;
+        break;
+      case Optimizer::kHypergraph:
+        m_io_block_read_cost = 1.0;
+        m_memory_block_read_cost = 0.25;
+        break;
+    }
+  }
 
   virtual ~SE_cost_constants() = default;
 
@@ -287,30 +313,11 @@ class SE_cost_constants {
                          double new_value, bool new_value_is_default);
 
  private:
-  /*
-    This section specifies default values for cost constants.
-  */
-
-  /// Default cost for reading a random block from an in-memory buffer
-  static const double MEMORY_BLOCK_READ_COST;
-
-  /// Default cost for reading a random disk block
-  static const double IO_BLOCK_READ_COST;
-
-  /*
-    This section specifies cost constants for the table
-  */
-
   /// Cost constant for reading a random block from an in-memory buffer
   double m_memory_block_read_cost;
 
   /// Cost constant for reading a random disk block.
   double m_io_block_read_cost;
-
-  /*
-    This section has boolean variables that is used for knowing whether
-    the above cost variables is using the default value or not.
-  */
 
   /// Whether the memory_block_read_cost is a default value or not
   bool m_memory_block_read_cost_default;
@@ -420,7 +427,7 @@ class Cost_model_constants {
     the source code.
   */
 
-  Cost_model_constants();
+  Cost_model_constants(Optimizer optimizer);
 
   /**
     Destructor.
@@ -549,6 +556,9 @@ class Cost_model_constants {
 
   /// Reference counter for this set of cost constants.
   unsigned int m_ref_counter;
+
+  /// Optimizer type.
+  Optimizer m_optimizer;
 };
 
 #endif /* OPT_COSTCONSTANTS_INCLUDEDED */

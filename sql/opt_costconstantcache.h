@@ -32,38 +32,31 @@
 #include "sql/opt_costconstants.h"  // Cost_model_constants
 
 /**
-  This class implements a cache for "cost constant sets". This cache
-  is responsible for creating the set of cost constant, giving new
-  sessions access to the latest versions of the cost constants, and
-  for re-reading the cost constant tables in the case where these have
-  been updated.
+  This class implements a cache for "cost constant sets". This cache is
+  responsible for creating the set of cost constant, giving new sessions access
+  to the latest versions of the cost constants, and for re-reading the cost
+  constant tables in the case where these have been updated.
 
-  The cost constant cache keeps a copy of the current set of cost
-  constants. Each time a new session initializes its Cost_model_server
-  object (by calling Cost_model_server::init() in lex_start()), the
-  Cost_model_server object will request the cost constant cache to
-  give it the current version of the cost constants. This is done by
-  calling Cost_constant_cache::get_cost_constants(). This function
-  will just return a pointer to the current set of cost constants.  As
-  time goes, new cost constant sets might be created and added to the
-  cost constant cache. In order to know when a cost constant set can
-  be deleted, reference counting is used. Each time a session asks for
-  the cost constants, the reference counter is incremented. When the
-  session releases the cost constant set by calling
-  @c release_cost_constants(), the reference counter will be
-  decremented. When the reference counter becomes zero, the cost
+  To initialize the cost constant cache with default cost constants, @c init()
+  must be called. To load cost constants from the mysql.server_cost and
+  mysql.engine_cost tables, @c reload() must be called.
+
+  The cost constant cache keeps a copy of the current set of cost constants.
+  Each time a new session initializes its Cost_model_server object (by calling
+  Cost_model_server::init() in lex_start()), the Cost_model_server object will
+  request the cost constant cache to give it the current version of the cost
+  constants. This is done by calling Cost_constant_cache::get_cost_constants().
+  This function will just return a pointer to the current set of cost constants.
+  As time goes, new cost constant sets might be created and added to the cost
+  constant cache. In order to know when a cost constant set can be deleted,
+  reference counting is used. Each time a session asks for the cost constants,
+  the reference counter is incremented. When the session releases the cost
+  constant set by calling @c release_cost_constants(), the reference counter
+  will be decremented. When the reference counter becomes zero, the cost
   constant set is deleted.
 */
-
 class Cost_constant_cache {
  public:
-  /**
-    Creates an empty cost constant cache. To initialize it with default
-    cost constants, @c init() must be called. To use cost constants from
-    the cost constant tables, @c reload() must be called.
-  */
-  Cost_constant_cache();
-
   /**
     Destructor for the cost constant cache. Before the cost constant cache
     is deleted, @c close() must have been called.
@@ -77,7 +70,6 @@ class Cost_constant_cache {
     the source code. To start using the cost constant values found in
     the configuration tables, the @c reload() function must be called.
   */
-
   void init();
 
   /**
@@ -85,13 +77,11 @@ class Cost_constant_cache {
 
     All resources owned by the cost constant cache are released.
   */
-
   void close();
 
   /**
     Reload all cost constants from the configuration tables.
   */
-
   void reload();
 
   /**
@@ -111,7 +101,6 @@ class Cost_constant_cache {
 
     @return pointer to the cost constants
   */
-
   const Cost_model_constants *get_cost_constants() {
     mysql_mutex_lock(&LOCK_cost_const);
 
@@ -121,6 +110,20 @@ class Cost_constant_cache {
     mysql_mutex_unlock(&LOCK_cost_const);
 
     return current_cost_constants;
+  }
+
+  /*
+    Same as above, but for hypergraph cost constants.
+  */
+  const Cost_model_constants *get_cost_constants_hypergraph() {
+    mysql_mutex_lock(&LOCK_cost_const);
+
+    // Increase the ref count on the cost constant object
+    current_cost_constants_hypergraph->inc_ref_count();
+
+    mysql_mutex_unlock(&LOCK_cost_const);
+
+    return current_cost_constants_hypergraph;
   }
 
   /**
@@ -134,7 +137,6 @@ class Cost_constant_cache {
 
     @param cost_constants pointer to the cost constant set
   */
-
   void release_cost_constants(const Cost_model_constants *cost_constants) {
     assert(cost_constants != nullptr);
 
@@ -149,10 +151,10 @@ class Cost_constant_cache {
 
     const unsigned int ref_count = cost->dec_ref_count();
 
-    mysql_mutex_unlock(&LOCK_cost_const);
-
     // If none is using these cost constants then delete them
     if (ref_count == 0) delete cost;
+
+    mysql_mutex_unlock(&LOCK_cost_const);
   }
 
  private:
@@ -162,21 +164,27 @@ class Cost_constant_cache {
     This will create cost constants based on default values defined in the
     source code.
   */
-
-  Cost_model_constants *create_defaults() const;
+  Cost_model_constants *create_defaults(Optimizer optimizer) const;
 
   /**
     Replace the current cost constants with a new set of cost constants.
 
-    @param new_cost_constants the new cost constants
+    @param new_cost_constants The new cost constants.
+    @param optimizer          The optimizer to update cost constants for.
   */
-
-  void update_current_cost_constants(Cost_model_constants *new_cost_constants);
+  void update_current_cost_constants(Cost_model_constants *new_cost_constants,
+                                     Optimizer optimizer);
 
   /**
     The current set of cost constants that will be used by new sessions.
   */
-  Cost_model_constants *current_cost_constants;
+  Cost_model_constants *current_cost_constants = nullptr;
+
+  /**
+    The current set of cost constants that will be used with the hypergraph
+    optimizer by new sessions.
+  */
+  Cost_model_constants *current_cost_constants_hypergraph = nullptr;
 
   /**
     Mutex protecting the pointer to the current cost constant set and
@@ -184,21 +192,19 @@ class Cost_constant_cache {
   */
   mysql_mutex_t LOCK_cost_const;
 
-  bool m_inited;
+  bool m_inited = false;
 };
 
 /**
   Initializes the optimizer cost module. This should be done during
   startup from mysqld.cc.
 */
-
 void init_optimizer_cost_module(bool enable_plugins);
 
 /**
   Deletes the optimizer cost module. This should be called when
   the server stops to release allocated resources.
 */
-
 void delete_optimizer_cost_module();
 
 /**

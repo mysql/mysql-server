@@ -41,10 +41,17 @@ Cost_model_server::~Cost_model_server() {
   }
 }
 
-void Cost_model_server::init() {
+void Cost_model_server::init(Optimizer optimizer) {
   if (cost_constant_cache && m_server_cost_constants == nullptr) {
     // Get the current set of cost constants
-    m_cost_constants = cost_constant_cache->get_cost_constants();
+    switch (optimizer) {
+      case Optimizer::kOriginal:
+        m_cost_constants = cost_constant_cache->get_cost_constants();
+        break;
+      case Optimizer::kHypergraph:
+        m_cost_constants = cost_constant_cache->get_cost_constants_hypergraph();
+        break;
+    }
     assert(m_cost_constants != nullptr);
 
     // Get the cost constants for server operations

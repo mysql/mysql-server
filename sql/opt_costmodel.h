@@ -36,6 +36,8 @@
 
   The cost of average seek
     DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*BLOCKS_IN_AVG_SEEK =1.0.
+
+  The methods using these constants scale them by IO_BLOCK_READ_COST.
 */
 constexpr const double DISK_SEEK_BASE_COST{0.9};
 constexpr const int BLOCKS_IN_AVG_SEEK{128};
@@ -78,9 +80,10 @@ class Cost_model_server {
     functions for a query. It should also be called when starting
     optimization of a new query in case any cost estimate constants
     have changed.
-  */
 
-  void init();
+    @param optimizer The type of optimizer to initialize the cost model for.
+  */
+  void init(Optimizer optimizer);
 
   /**
     Cost of processing a number of records and evaluating the query condition
@@ -94,7 +97,6 @@ class Cost_model_server {
   double row_evaluate_cost(double rows) const {
     assert(m_initialized);
     assert(rows >= 0.0);
-
     return rows * m_server_cost_constants->row_evaluate_cost();
   }
 

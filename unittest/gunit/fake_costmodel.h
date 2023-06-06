@@ -38,7 +38,7 @@ class Fake_Cost_model_server : public Cost_model_server {
  public:
   Fake_Cost_model_server() {
     // Create default values for server cost constants
-    m_server_cost_constants = new Server_cost_constants();
+    m_server_cost_constants = new Server_cost_constants(Optimizer::kOriginal);
 #if !defined(NDEBUG)
     m_initialized = true;
 #endif
@@ -58,7 +58,7 @@ class Fake_Cost_model_table : public Cost_model_table {
     m_cost_model_server = new Fake_Cost_model_server();
 
     // Allocate cost constants for operations on tables
-    m_se_cost_constants = new SE_cost_constants();
+    m_se_cost_constants = new SE_cost_constants(Optimizer::kOriginal);
 
 #if !defined(NDEBUG)
     m_initialized = true;

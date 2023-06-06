@@ -41,29 +41,13 @@ using my_testing::Server_initializer;
   Default values for cost constants. These needs to be updated when
   cost constants in opt_costconstans.h are changed.
 */
-
-// Default value for Server_cost_constants::ROW_EVALUATE_COST
 const double default_row_evaluate_cost = 0.1;
-
-// Default value for Server_cost_constants::KEY_COMPARE_COST
 const double default_key_compare_cost = 0.05;
-
-// Default value for Server_cost_constants::HEAP_TEMPTABLE_CREATE_COST
 const double default_memory_temptable_create_cost = 1.0;
-
-// Default value for Server_cost_constants::HEAP_TEMPTABLE_ROW_COST
 const double default_memory_temptable_row_cost = 0.1;
-
-// Default value for Server_cost_constants::DISK_TEMPTABLE_CREATE_COST
 const double default_disk_temptable_create_cost = 20.0;
-
-// Default value for Server_cost_constants::DISK_TEMPTABLE_ROW_COST
 const double default_disk_temptable_row_cost = 0.5;
-
-//  Default value SE_cost_constants::MEMORY_BLOCK_READ_COST
 const double default_memory_block_read_cost = 0.25;
-
-//  Default value SE_cost_constants::IO_BLOCK_READ_COST
 const double default_io_block_read_cost = 1.0;
 
 class CostConstantsTest : public ::testing::Test {
@@ -105,6 +89,8 @@ class CostConstantsTest : public ::testing::Test {
 */
 class Testable_SE_cost_constants : public SE_cost_constants {
  public:
+  Testable_SE_cost_constants() : SE_cost_constants(Optimizer::kOriginal) {}
+
   /*
     Wrapper function that allows testing of the protected update() function.
   */
@@ -167,6 +153,9 @@ class TapeEngine_cost_constants : public Testable_SE_cost_constants {
 */
 class Testable_Cost_model_constants : public Cost_model_constants {
  public:
+  Testable_Cost_model_constants()
+      : Cost_model_constants(Optimizer::kOriginal) {}
+
   /*
     Wrapper function that allows testing of the protected inc_ref_count()
     function.
@@ -207,7 +196,6 @@ class Testable_Cost_model_constants : public Cost_model_constants {
   Validates that a cost constant object for server cost constants has
   the expected default values.
 */
-
 static void validate_default_server_cost_constants(
     const Server_cost_constants *cost) {
   EXPECT_EQ(cost->row_evaluate_cost(), default_row_evaluate_cost);
@@ -225,7 +213,7 @@ static void validate_default_server_cost_constants(
   Test the Server_cost_constants interface.
 */
 TEST_F(CostConstantsTest, CostConstantsServer) {
-  Server_cost_constants server_constants;
+  Server_cost_constants server_constants(Optimizer::kOriginal);
 
   // Validate expected default values for cost constants
   validate_default_server_cost_constants(&server_constants);
@@ -326,7 +314,7 @@ TEST_F(CostConstantsTest, CostConstantsServer) {
   Test the SE_cost_constants interface.
 */
 TEST_F(CostConstantsTest, CostConstantsStorageEngine) {
-  SE_cost_constants se_constants;
+  SE_cost_constants se_constants(Optimizer::kOriginal);
 
   // Validate expected default values for cost constants
   EXPECT_EQ(se_constants.memory_block_read_cost(),
@@ -519,7 +507,7 @@ TEST_F(CostConstantsTest, CostConstants) {
   /*
     Test default server cost constants.
   */
-  Cost_model_constants cost_constants;
+  Cost_model_constants cost_constants(Optimizer::kOriginal);
 
   const Server_cost_constants *server_const =
       cost_constants.get_server_cost_constants();
@@ -630,7 +618,7 @@ TEST_F(CostConstantsTest, CostConstants) {
   Fake_TABLE table_se2(1, false);
   table_se2.file->ht->slot = 2;
 
-  Cost_model_constants cost_constants2;
+  Cost_model_constants cost_constants2(Optimizer::kOriginal);
 
   const SE_cost_constants *se_cost1 =
       cost_constants2.get_se_cost_constants(&table_se1);

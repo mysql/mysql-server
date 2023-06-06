@@ -3677,3 +3677,16 @@ void my_eof(THD *thd) {
     tst->add_trx_state(thd, TX_RESULT_SET);
   }
 }
+
+void THD::init_cost_model() {
+  m_cost_model.init(Optimizer::kOriginal);
+  m_cost_model_hypergraph.init(Optimizer::kHypergraph);
+}
+
+const Cost_model_server *THD::cost_model() const {
+  if (lex->using_hypergraph_optimizer) {
+    return &m_cost_model_hypergraph;
+  } else {
+    return &m_cost_model;
+  }
+}

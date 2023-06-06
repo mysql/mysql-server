@@ -38,51 +38,6 @@
 */
 const unsigned int DEFAULT_STORAGE_CLASS = 0;
 
-/*
-  Values for cost constants defined as static const variables in the
-  Server_cost_constants class.
-  These are the default cost constant values that will be use if
-  the server administrator has not added new values in the server_cost
-  table.
-
-  Note: The default cost constants are displayed in the default_value
-        column of the cost tables.  If any default value is changed,
-        make sure to update the column definitions in
-        mysql_system_tables.sql and mysql_system_tables_fix.sql
-*/
-
-// Default cost for evaluation of the query condition for a row.
-const double Server_cost_constants::ROW_EVALUATE_COST = 0.1;
-
-// Default cost for comparing row ids.
-const double Server_cost_constants::KEY_COMPARE_COST = 0.05;
-
-/*
-  Creating a Memory temporary table is by benchmark found to be as
-  costly as writing 10 rows into the table.
-*/
-const double Server_cost_constants::MEMORY_TEMPTABLE_CREATE_COST = 1.0;
-
-/*
-  Writing a row to or reading a row from a Memory temporary table is
-  equivalent to evaluating a row in the join engine.
-*/
-const double Server_cost_constants::MEMORY_TEMPTABLE_ROW_COST = 0.1;
-
-/*
-  Creating a MyISAM table is 20 times slower than creating a Memory table.
-*/
-const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST = 20.0;
-
-/*
-  Generating MyISAM rows sequentially is 2 times slower than
-  generating Memory rows, when number of rows is greater than
-  1000. However, we do not have benchmarks for very large tables, so
-  setting this factor conservatively to be 5 times slower (ie the cost
-  is 1.0).
-*/
-const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST = 0.5;
-
 cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
                                                double value) {
   assert(name.str != nullptr);
@@ -135,20 +90,6 @@ cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
 
   return UNKNOWN_COST_NAME;  // Cost constant does not exist
 }
-
-/*
-  Values for cost constants defined as static const variables in the
-  SE_cost_constants class.
-  These are the default cost constant values that will be used if
-  the server administrator has not added new values in the engine_cost
-  table.
-*/
-
-// The cost of reading a block from a main memory buffer pool
-const double SE_cost_constants::MEMORY_BLOCK_READ_COST = 0.25;
-
-// The cost of reading a block from an IO device (disk)
-const double SE_cost_constants::IO_BLOCK_READ_COST = 1.0;
 
 cost_constant_error SE_cost_constants::set(const LEX_CSTRING &name,
                                            const double value,
@@ -221,8 +162,11 @@ Cost_model_se_info::~Cost_model_se_info() {
   }
 }
 
-Cost_model_constants::Cost_model_constants()
-    : m_engines(PSI_NOT_INSTRUMENTED, num_hton2plugins()), m_ref_counter(0) {
+Cost_model_constants::Cost_model_constants(Optimizer optimizer)
+    : m_server_constants(optimizer),
+      m_engines(PSI_NOT_INSTRUMENTED, num_hton2plugins()),
+      m_ref_counter(0),
+      m_optimizer(optimizer) {
   /**
     Create default cost constants for each storage engine.
   */
@@ -250,7 +194,7 @@ Cost_model_constants::Cost_model_constants()
         If the storage engine did not provide cost constants, then the
         default cost constants will be used.
       */
-      if (se_cost == nullptr) se_cost = new SE_cost_constants();
+      if (se_cost == nullptr) se_cost = new SE_cost_constants(optimizer);
 
       m_engines[engine].set_cost_constants(se_cost, storage);
     }
@@ -264,7 +208,11 @@ const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
   assert(table->file != nullptr);
   assert(table->file->ht != nullptr);
 
-  static const SE_cost_constants default_cost;
+  static SE_cost_constants default_cost_original(Optimizer::kOriginal);
+  static SE_cost_constants default_cost_hypergraph(Optimizer::kHypergraph);
+  const SE_cost_constants *default_cost = m_optimizer == Optimizer::kOriginal
+                                              ? &default_cost_original
+                                              : &default_cost_hypergraph;
 
   /*
     We do not see data for new htons loaded by the current session,
@@ -274,7 +222,7 @@ const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
   const SE_cost_constants *se_cc =
       slot < m_engines.size()
           ? m_engines[slot].get_cost_constants(DEFAULT_STORAGE_CLASS)
-          : &default_cost;
+          : default_cost;
   assert(se_cc != nullptr);
 
   return se_cc;

@@ -37,15 +37,6 @@ struct TABLE;
 
 Cost_model_server::~Cost_model_server() = default;
 
-const double Server_cost_constants::KEY_COMPARE_COST = 0.1;
-const double Server_cost_constants::MEMORY_TEMPTABLE_CREATE_COST = 2.0;
-const double Server_cost_constants::MEMORY_TEMPTABLE_ROW_COST = 0.2;
-const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST = 40.0;
-const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST = 1.0;
-const double Server_cost_constants::ROW_EVALUATE_COST = 0.2;
-const double SE_cost_constants::MEMORY_BLOCK_READ_COST = 1.0;
-const double SE_cost_constants::IO_BLOCK_READ_COST = 1.0;
-
 /* purecov: begin inspected */
 const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
     const TABLE *) const {

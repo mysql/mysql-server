@@ -1,0 +1,80 @@
+#
+# First test: engine costs.
+#
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (0), (1), (2);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+#
+# Default engine costs.
+#
+SET optimizer_switch='hypergraph_optimizer=off';
+EXPLAIN FORMAT=TREE SELECT * FROM t;
+EXPLAIN
+-> Table scan on t  (cost=0.55 rows=3)
+
+SET optimizer_switch='hypergraph_optimizer=on';
+EXPLAIN FORMAT=TREE SELECT * FROM t;
+EXPLAIN
+-> Table scan on t  (cost=0.0833..0.25 rows=3)
+
+#
+# Double engine costs.
+#
+UPDATE mysql.engine_cost SET cost_value = 2*default_value;
+FLUSH OPTIMIZER_COSTS;
+SET optimizer_switch='hypergraph_optimizer=off';
+EXPLAIN FORMAT=TREE SELECT * FROM t;
+EXPLAIN
+-> Table scan on t  (cost=0.8 rows=3)
+
+SET optimizer_switch='hypergraph_optimizer=on';
+EXPLAIN FORMAT=TREE SELECT * FROM t;
+EXPLAIN
+-> Table scan on t  (cost=0.0833..0.25 rows=3)
+
+UPDATE mysql.engine_cost SET cost_value = DEFAULT;
+FLUSH OPTIMIZER_COSTS;
+#
+# Second test: server costs.
+#
+DROP TABLE t;
+CREATE TABLE t(x INT PRIMARY KEY);
+INSERT INTO t VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+#
+# Default server costs.
+#
+SET optimizer_switch='hypergraph_optimizer=off';
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x < 5;
+EXPLAIN
+-> Filter: (t.x < 5)  (cost=1.26 rows=5)
+    -> Covering index range scan on t using PRIMARY over (x < 5)  (cost=1.26 rows=5)
+
+SET optimizer_switch='hypergraph_optimizer=on';
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x < 5;
+EXPLAIN
+-> Covering index range scan on t using PRIMARY over (x < 5)  (cost=0.152..0.761 rows=5)
+
+#
+# Double server costs.
+#
+UPDATE mysql.server_cost SET cost_value = 2*default_value;
+FLUSH OPTIMIZER_COSTS;
+SET optimizer_switch='hypergraph_optimizer=off';
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x < 5;
+EXPLAIN
+-> Filter: (t.x < 5)  (cost=2.26 rows=5)
+    -> Covering index range scan on t using PRIMARY over (x < 5)  (cost=2.26 rows=5)
+
+SET optimizer_switch='hypergraph_optimizer=on';
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE x < 5;
+EXPLAIN
+-> Covering index range scan on t using PRIMARY over (x < 5)  (cost=0.152..0.761 rows=5)
+
+UPDATE mysql.server_cost SET cost_value = DEFAULT;
+FLUSH OPTIMIZER_COSTS;
+DROP TABLE t;
