@@ -1481,24 +1481,17 @@ MgmtSrvr::guess_master_node(SignalSender& ss)
     return guess;
 
   /**
-   * Check connected nodes based on dynamicId
+   * Check any connected node
    */
   node_id = 0;
   while(getNextNodeId(&node_id, NDB_MGM_NODE_TYPE_NDB))
   {
     trp_node node = ss.getNodeInfo(node_id);
-    if(node.m_state.dynamicId < min)
+    if (node.is_connected())
     {
-      if(node.is_connected())
-      {
-        min = node.m_state.dynamicId;
-        guess = node_id;
-      }
+      return node_id;
     }
   }
-  //found
-  if(min < UINT32_MAX)
-    return guess;
 
   return 0; // give up
 }
