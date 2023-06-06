@@ -412,78 +412,36 @@ std::vector<std::string> TlsServerContext::default_ciphers() {
   // as TLSv1.2 is the minimum version, only TLSv1.2+ ciphers are set by
   // default
 
-  // TLSv1.2 with PFS using SHA2, encrypted by AES in GCM or CBC mode
-  const std::vector<std::string> mandatory_p1{
+  return {
+      // Mandatory Ciphers (P1)
+      //
+      // TLSv1.2 with PFS, SHA2, AES with GCM
       "ECDHE-ECDSA-AES128-GCM-SHA256",  //
       "ECDHE-ECDSA-AES256-GCM-SHA384",  //
       "ECDHE-RSA-AES128-GCM-SHA256",    //
-      "ECDHE-ECDSA-AES128-SHA256",      //
-      "ECDHE-RSA-AES128-SHA256",
-  };
 
-  // TLSv1.2+ with PFS using SHA2, encrypted by AES in GCM or CBC mode
-  const std::vector<std::string> optional_p1{
+      // Approved Ciphers (A1)
+      //
+      // TLSv1.2+ with PFS, SHA2, AES with GCM or other AEAD algo's.
+
       // TLSv1.3
       "TLS_AES_128_GCM_SHA256",
       "TLS_AES_256_GCM_SHA384",
       "TLS_CHACHA20_POLY1305_SHA256",
       "TLS_AES_128_CCM_SHA256",
-      "TLS_AES_128_CCM_8_SHA256",
 
       // TLSv1.2
       "ECDHE-RSA-AES256-GCM-SHA384",
-      "ECDHE-RSA-AES256-SHA384",
-      "ECDHE-ECDSA-AES256-SHA384",
-      "DHE-RSA-AES128-GCM-SHA256",
-      "DHE-DSS-AES128-GCM-SHA256",
-      "DHE-RSA-AES128-SHA256",
-      "DHE-DSS-AES128-SHA256",
-      "DHE-DSS-AES256-GCM-SHA384",
-      "DHE-RSA-AES256-SHA256",
-      "DHE-DSS-AES256-SHA256",
-      "DHE-RSA-AES256-GCM-SHA384",
       "ECDHE-ECDSA-CHACHA20-POLY1305",
       "ECDHE-RSA-CHACHA20-POLY1305",
+      "ECDHE-ECDSA-AES256-CCM",
+      "ECDHE-ECDSA-AES128-CCM",
+      "DHE-RSA-AES128-GCM-SHA256",
+      "DHE-RSA-AES256-GCM-SHA384",
+      "DHE-RSA-AES128-CCM",
+      "DHE-RSA-AES256-CCM",
+      "DHE-RSA-CHACHA20-POLY1305",
   };
-
-  // TLSv1.2+ with DH, ECDH, RSA using SHA2
-  // encrypted by AES in GCM or CBC mode
-  const std::vector<std::string> optional_p2{
-      "DH-DSS-AES128-GCM-SHA256",
-      "ECDH-ECDSA-AES128-GCM-SHA256",
-      "DH-DSS-AES256-GCM-SHA384",
-      "ECDH-ECDSA-AES256-GCM-SHA384",
-      "AES128-GCM-SHA256",
-      "AES256-GCM-SHA384",
-      "AES128-SHA256",
-      "DH-DSS-AES128-SHA256",
-      "ECDH-ECDSA-AES128-SHA256",
-      "AES256-SHA256",
-      "DH-DSS-AES256-SHA256",
-      "ECDH-ECDSA-AES256-SHA384",
-      "DH-RSA-AES128-GCM-SHA256",
-      "ECDH-RSA-AES128-GCM-SHA256",
-      "DH-RSA-AES256-GCM-SHA384",
-      "ECDH-RSA-AES256-GCM-SHA384",
-      "DH-RSA-AES128-SHA256",
-      "ECDH-RSA-AES128-SHA256",
-      "DH-RSA-AES256-SHA256",
-      "ECDH-RSA-AES256-SHA384",
-  };
-
-  // required by RFC5246, but quite likely removed by the !SSLv3 filter
-  const std::vector<std::string> optional_p3{"AES128-SHA"};
-
-  std::vector<std::string> out;
-  out.reserve(mandatory_p1.size() + optional_p1.size() + optional_p2.size() +
-              optional_p3.size());
-  for (const std::vector<std::string> &a :
-       std::vector<std::vector<std::string>>{mandatory_p1, optional_p1,
-                                             optional_p2, optional_p3}) {
-    out.insert(out.end(), a.begin(), a.end());
-  }
-
-  return out;
 }
 
 int TlsServerContext::security_level() const {
