@@ -408,7 +408,7 @@ IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
   ADD_COMPILE_FLAGS(
     ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
-    COMPILE_FLAGS "-Wno-free-nonheap-object")
+    COMPILE_FLAGS "-Wno-free-nonheap-object -Wno-unused-label")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
