@@ -252,6 +252,7 @@ SELECT length(gtid_executed) from performance_schema.clone_status;
 --source include/restart_mysqld.inc
 
 DROP PROCEDURE p1;
+RESET MASTER;
 
 UNINSTALL PLUGIN clone;
 
