@@ -403,10 +403,16 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarlyXProtocol) {
   });
 
   const auto start = clock_type::now();
-  // give the connect thread chance to initiate the connection, even if it
-  // sometimes does not it should be fine, we just test a different scenario
-  // then
-  std::this_thread::sleep_for(200ms);
+
+  // give the connect thread enough time to:
+  //
+  // - resolve example.org (may take ~200ms)
+  // - start a connect() to its IP
+  //
+  // there is no better way to ensure that the connect() has been started
+  // and is still blocked other then waiting.
+
+  std::this_thread::sleep_for(500ms);
   // now force shutdown the router
   const auto kill_res = router.kill();
   EXPECT_EQ(0, kill_res);
