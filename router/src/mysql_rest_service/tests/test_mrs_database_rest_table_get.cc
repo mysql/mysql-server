@@ -37,14 +37,16 @@ using testing::Return;
 using testing::StrictMock;
 using testing::Test;
 
-// #undef EXPECT_EQ
-// #define EXPECT_EQ(a, b)                    \
-//   if (a != b) {                            \
-//     std::cout << "vvv\n";                  \
-//     std::cout << "R\"*(" << b << ")*\"\n"; \
-//     std::cout << "^^^\n";                  \
-//     EXPECT_STREQ(a, b.c_str());            \
-//   }
+#if 0
+#undef EXPECT_EQ
+#define EXPECT_EQ(a, b)                    \
+  if (a != b) {                            \
+    std::cout << "vvv\n";                  \
+    std::cout << "R\"*(" << b << ")*\"\n"; \
+    std::cout << "^^^\n";                  \
+    EXPECT_STREQ(a, b.c_str());            \
+  }
+#endif
 
 // TODO
 // - composite keys

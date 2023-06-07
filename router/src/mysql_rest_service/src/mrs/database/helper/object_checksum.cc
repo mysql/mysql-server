@@ -101,9 +101,8 @@ bool compute_object_checksum(Digest *digest,
 }
 
 std::string string_to_hex(std::string_view s) {
-  constexpr std::array<char, 16> hexmap = {'0', '1', '2', '3', '4', '5',
-                                           '6', '7', '8', '9', 'A', 'B',
-                                           'C', 'D', 'E', 'F'};
+  constexpr char hexmap[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                               '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
   std::string encoded;
 
