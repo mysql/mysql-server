@@ -267,4 +267,5 @@ length(gtid_executed)
 86081
 # restart:
 DROP PROCEDURE p1;
+RESET MASTER;
 UNINSTALL PLUGIN clone;
