@@ -99,6 +99,15 @@ static void validate_socket_info(const std::string &err_prefix,
                                 config.bind_address.str() + "'");
   }
 
+  // validate bind_address / bind_port ambiguity
+  if (have_bind_addr_port && have_bind_port &&
+      (config.bind_address.port() != config.bind_port)) {
+    throw std::invalid_argument(
+        err_prefix + "port in bind_address and bind_port are ambiguous '" +
+        std::to_string(config.bind_address.port()) + "','" +
+        std::to_string(config.bind_port) + "'");
+  }
+
   // validate socket
   if (have_named_sock && !config.named_socket.is_set()) {
     throw std::invalid_argument(err_prefix + "invalid socket '" +
