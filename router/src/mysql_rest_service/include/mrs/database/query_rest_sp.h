@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "helper/mysql_column.h"
+#include "mrs/database/entry/field.h"
 #include "mrs/database/helper/query.h"
 #include "mrs/database/json_template.h"
 #include "mysqlrouter/utils_sqlstring.h"
@@ -40,16 +41,16 @@ namespace database {
 
 class QueryRestSP : private QueryLog {
   using Row = Query::Row;
-
- public:
-  QueryRestSP();
+  using ResultSets = entry::ResultSets;
 
  public:
   virtual void query_entries(MySQLSession *session, const std::string &schema,
                              const std::string &object, const std::string &url,
                              const std::string &ignore_column,
                              const mysqlrouter::sqlstring &values = {},
-                             std::vector<enum_field_types> pt = {});
+                             std::vector<enum_field_types> pt = {},
+                             const ResultSets &rs = {},
+                             const bool always_nest_result_sets = false);
 
   std::string response;
   uint64_t items;
@@ -61,13 +62,14 @@ class QueryRestSP : private QueryLog {
   uint64_t number_of_resultsets_;
   std::unique_ptr<JsonTemplate> response_template_;
   std::vector<helper::Column> columns_;
+  std::string columns_items_type_;
   const char *ignore_column_{nullptr};
-  std::vector<std::optional<std::string>> flush_copy_;
   std::string url_;
+  const ResultSets *rs_;
+  bool use_single_resultset_;
+  uint32_t resultset_{0};
 
-  void push_to_document(const ResultRow &r);
-  bool flush(const bool is_last = false);
-  void push_cached();
+  void columns_set(unsigned number, MYSQL_FIELD *fields);
 
   void on_row(const ResultRow &r) override;
   void on_metadata(unsigned int number, MYSQL_FIELD *fields) override;

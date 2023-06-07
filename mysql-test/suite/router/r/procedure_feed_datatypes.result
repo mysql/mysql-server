@@ -53,13 +53,26 @@ GET /svc/basic/bit
 {
     "items": [
         {
-            "cbit": false
-        },
-        {
-            "cbit": false
-        },
-        {
-            "cbit": true
+            "type": "items0",
+            "items": [
+                {
+                    "cbit": false
+                },
+                {
+                    "cbit": false
+                },
+                {
+                    "cbit": true
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cbit",
+                        "type": "BIT(1)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -68,13 +81,26 @@ GET /svc/basic/bit1
 {
     "items": [
         {
-            "cbit": false
-        },
-        {
-            "cbit": false
-        },
-        {
-            "cbit": true
+            "type": "items0",
+            "items": [
+                {
+                    "cbit": false
+                },
+                {
+                    "cbit": false
+                },
+                {
+                    "cbit": true
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cbit",
+                        "type": "BIT(1)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -86,13 +112,26 @@ GET /svc/basic/bit10
 {
     "items": [
         {
-            "cbit10": ""
-        },
-        {
-            "cbit10": "AAA="
-        },
-        {
-            "cbit10": "A/8="
+            "type": "items0",
+            "items": [
+                {
+                    "cbit10": "AAA="
+                },
+                {
+                    "cbit10": "AAA="
+                },
+                {
+                    "cbit10": "A/8="
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cbit10",
+                        "type": "BIT(10)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -101,13 +140,26 @@ GET /svc/basic/bin
 {
     "items": [
         {
-            "cbin": "MA=="
-        },
-        {
-            "cbin": "MAAA"
-        },
-        {
-            "cbin": "BwAA"
+            "type": "items0",
+            "items": [
+                {
+                    "cbin": "MAAA"
+                },
+                {
+                    "cbin": "MAAA"
+                },
+                {
+                    "cbin": "BwAA"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cbin",
+                        "type": "CHAR(3)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -116,13 +168,26 @@ GET /svc/basic/blob
 {
     "items": [
         {
-            "cblob": ""
-        },
-        {
-            "cblob": "MQ=="
-        },
-        {
-            "cblob": "ABGrAAASIzM="
+            "type": "items0",
+            "items": [
+                {
+                    "cblob": ""
+                },
+                {
+                    "cblob": "MQ=="
+                },
+                {
+                    "cblob": "ABGrAAASIzM="
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cblob",
+                        "type": "BLOB"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -134,13 +199,26 @@ GET /svc/basic/set
 {
     "items": [
         {
-            "cset": ""
-        },
-        {
-            "cset": "value1"
-        },
-        {
-            "cset": "value1,value2,value3"
+            "type": "items0",
+            "items": [
+                {
+                    "cset": ""
+                },
+                {
+                    "cset": "value1"
+                },
+                {
+                    "cset": "value1,value2,value3"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cset",
+                        "type": "CHAR(20)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -149,13 +227,26 @@ GET /svc/basic/enum
 {
     "items": [
         {
-            "cenum": "value1"
-        },
-        {
-            "cenum": "value1"
-        },
-        {
-            "cenum": "value3"
+            "type": "items0",
+            "items": [
+                {
+                    "cenum": "value1"
+                },
+                {
+                    "cenum": "value1"
+                },
+                {
+                    "cenum": "value3"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cenum",
+                        "type": "CHAR(6)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -164,13 +255,26 @@ GET /svc/basic/varchar
 {
     "items": [
         {
-            "cvarchar": "first row"
-        },
-        {
-            "cvarchar": "second row"
-        },
-        {
-            "cvarchar": "thrid row"
+            "type": "items0",
+            "items": [
+                {
+                    "cvarchar": "first row"
+                },
+                {
+                    "cvarchar": "second row"
+                },
+                {
+                    "cvarchar": "thrid row"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cvarchar",
+                        "type": "VARCHAR(255)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -179,13 +283,26 @@ GET /svc/basic/text
 {
     "items": [
         {
-            "ctext": "numeric zeros"
-        },
-        {
-            "ctext": "numeric min"
-        },
-        {
-            "ctext": "numeric max"
+            "type": "items0",
+            "items": [
+                {
+                    "ctext": "numeric zeros"
+                },
+                {
+                    "ctext": "numeric min"
+                },
+                {
+                    "ctext": "numeric max"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "ctext",
+                        "type": "TEXT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -197,13 +314,26 @@ GET /svc/basic/date
 {
     "items": [
         {
-            "cdate": "2020-12-01"
-        },
-        {
-            "cdate": "2020-12-02"
-        },
-        {
-            "cdate": "2020-12-03"
+            "type": "items0",
+            "items": [
+                {
+                    "cdate": "2020-12-01"
+                },
+                {
+                    "cdate": "2020-12-02"
+                },
+                {
+                    "cdate": "2020-12-03"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cdate",
+                        "type": "DATE"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -212,13 +342,26 @@ GET /svc/basic/time
 {
     "items": [
         {
-            "ctime": "12:01:50"
-        },
-        {
-            "ctime": "12:02:50"
-        },
-        {
-            "ctime": "12:03:50"
+            "type": "items0",
+            "items": [
+                {
+                    "ctime": "12:01:50"
+                },
+                {
+                    "ctime": "12:02:50"
+                },
+                {
+                    "ctime": "12:03:50"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "ctime",
+                        "type": "TIME"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -227,13 +370,26 @@ GET /svc/basic/year
 {
     "items": [
         {
-            "cyear": "2020"
-        },
-        {
-            "cyear": "2021"
-        },
-        {
-            "cyear": "2022"
+            "type": "items0",
+            "items": [
+                {
+                    "cyear": "2020"
+                },
+                {
+                    "cyear": "2021"
+                },
+                {
+                    "cyear": "2022"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cyear",
+                        "type": "YEAR"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -242,13 +398,26 @@ GET /svc/basic/datetime
 {
     "items": [
         {
-            "cdatetime": "2020-12-01 12:01:50"
-        },
-        {
-            "cdatetime": "2020-12-02 12:02:50"
-        },
-        {
-            "cdatetime": "2020-12-03 12:03:50"
+            "type": "items0",
+            "items": [
+                {
+                    "cdatetime": "2020-12-01 12:01:50"
+                },
+                {
+                    "cdatetime": "2020-12-02 12:02:50"
+                },
+                {
+                    "cdatetime": "2020-12-03 12:03:50"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cdatetime",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -257,13 +426,26 @@ GET /svc/basic/timestamp
 {
     "items": [
         {
-            "ctimestamp": "2020-12-01 12:01:50"
-        },
-        {
-            "ctimestamp": "2020-12-02 12:02:50"
-        },
-        {
-            "ctimestamp": "2020-12-03 12:03:50"
+            "type": "items0",
+            "items": [
+                {
+                    "ctimestamp": "2020-12-01 12:01:50"
+                },
+                {
+                    "ctimestamp": "2020-12-02 12:02:50"
+                },
+                {
+                    "ctimestamp": "2020-12-03 12:03:50"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "ctimestamp",
+                        "type": "TIMESTAMP"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -275,13 +457,26 @@ GET /svc/basic/float
 {
     "items": [
         {
-            "cfloat": 0
-        },
-        {
-            "cfloat": -1000
-        },
-        {
-            "cfloat": 1000
+            "type": "items0",
+            "items": [
+                {
+                    "cfloat": 0
+                },
+                {
+                    "cfloat": -1000
+                },
+                {
+                    "cfloat": 1000
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cfloat",
+                        "type": "FLOAT(0,31)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -290,13 +485,26 @@ GET /svc/basic/double
 {
     "items": [
         {
-            "cdouble": 0
-        },
-        {
-            "cdouble": -999.9999
-        },
-        {
-            "cdouble": 999.9999
+            "type": "items0",
+            "items": [
+                {
+                    "cdouble": 0
+                },
+                {
+                    "cdouble": -999.9999
+                },
+                {
+                    "cdouble": 999.9999
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cdouble",
+                        "type": "DOUBLE(0,31)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -305,13 +513,26 @@ GET /svc/basic/decimal
 {
     "items": [
         {
-            "cdecimal": 0.0
-        },
-        {
-            "cdecimal": -999.99
-        },
-        {
-            "cdecimal": 999.99
+            "type": "items0",
+            "items": [
+                {
+                    "cdecimal": 0.0
+                },
+                {
+                    "cdecimal": -999.99
+                },
+                {
+                    "cdecimal": 999.99
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cdecimal",
+                        "type": "DECIMAL(0,2)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -323,13 +544,26 @@ GET /svc/basic/int
 {
     "items": [
         {
-            "id": 1
-        },
-        {
-            "id": 2
-        },
-        {
-            "id": 3
+            "type": "items0",
+            "items": [
+                {
+                    "id": 1
+                },
+                {
+                    "id": 2
+                },
+                {
+                    "id": 3
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -338,13 +572,26 @@ GET /svc/basic/bigint
 {
     "items": [
         {
-            "cbigint": 0
-        },
-        {
-            "cbigint": -9223372036854775808
-        },
-        {
-            "cbigint": 9223372036854775807
+            "type": "items0",
+            "items": [
+                {
+                    "cbigint": 0
+                },
+                {
+                    "cbigint": -9223372036854775808
+                },
+                {
+                    "cbigint": 9223372036854775807
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cbigint",
+                        "type": "BIGINT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -353,13 +600,26 @@ GET /svc/basic/smallint
 {
     "items": [
         {
-            "csmallint": 0
-        },
-        {
-            "csmallint": -32768
-        },
-        {
-            "csmallint": 32767
+            "type": "items0",
+            "items": [
+                {
+                    "csmallint": 0
+                },
+                {
+                    "csmallint": -32768
+                },
+                {
+                    "csmallint": 32767
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "csmallint",
+                        "type": "SMALLINT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -368,13 +628,26 @@ GET /svc/basic/tinyint
 {
     "items": [
         {
-            "ctinyint": 0
-        },
-        {
-            "ctinyint": -128
-        },
-        {
-            "ctinyint": 127
+            "type": "items0",
+            "items": [
+                {
+                    "ctinyint": 0
+                },
+                {
+                    "ctinyint": -128
+                },
+                {
+                    "ctinyint": 127
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "ctinyint",
+                        "type": "TINYINT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -383,13 +656,26 @@ GET /svc/basic/mediumint
 {
     "items": [
         {
-            "cmediumint": 0
-        },
-        {
-            "cmediumint": -8388608
-        },
-        {
-            "cmediumint": 8388607
+            "type": "items0",
+            "items": [
+                {
+                    "cmediumint": 0
+                },
+                {
+                    "cmediumint": -8388608
+                },
+                {
+                    "cmediumint": 8388607
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "cmediumint",
+                        "type": "MEDIUMINT"
+                    }
+                ]
+            }
         }
     ]
 }

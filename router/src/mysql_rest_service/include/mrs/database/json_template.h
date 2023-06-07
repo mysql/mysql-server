@@ -40,14 +40,19 @@ class JsonTemplate {
   virtual ~JsonTemplate() = default;
 
  public:
-  virtual void begin(const std::string &url, const std::string &items_name) = 0;
-  virtual void begin(uint32_t offset, uint32_t limit, bool is_default_limit,
-                     const std::string &url) = 0;
+  virtual void begin_resultset(const std::string &url,
+                               const std::string &items_name,
+                               const std::vector<helper::Column> &columns) = 0;
+  virtual void begin_resultset(uint32_t offset, uint32_t limit,
+                               bool is_default_limit, const std::string &url,
+                               const std::vector<helper::Column> &columns) = 0;
   virtual bool push_json_document(const char *document) = 0;
   virtual bool push_json_document(const ResultRow &values,
-                                  const std::vector<helper::Column> &columns,
                                   const char *ignore_column = nullptr) = 0;
-  virtual void end() = 0;
+  virtual void end_resultset() = 0;
+
+  virtual void begin() = 0;
+  virtual void finish() = 0;
 
   virtual void flush() = 0;
   virtual std::string get_result() = 0;

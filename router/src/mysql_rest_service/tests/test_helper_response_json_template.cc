@@ -36,8 +36,8 @@ using MapJsonObj = std::map<std::string, std::string>;
 
 TEST(ResponseJson, single_items_list) {
   ResponseJsonTemplate sut;
-  sut.begin("url", "items");
-  sut.end();
+  sut.begin_resultset("url", "items", {});
+  sut.end_resultset();
   ASSERT_EQ(
       "{\"items\":[],"
       "\"count\":0,\"links\":[{\"rel\":\"self\",\"href\":\"url/\"}]}",
@@ -46,10 +46,10 @@ TEST(ResponseJson, single_items_list) {
 
 TEST(ResponseJson, multiple_items_list) {
   ResponseJsonTemplate sut;
-  sut.begin("url", "items");
-  sut.begin("url", "items2");
-  sut.begin("url", "items3");
-  sut.end();
+  sut.begin_resultset("url", "items", {});
+  sut.begin_resultset("url", "items2", {});
+  sut.begin_resultset("url", "items3", {});
+  sut.end_resultset();
   ASSERT_EQ(
       "{\"items\":[],\"items2\":[],\"items3\":[],"
       "\"count\":0,\"links\":[{\"rel\":\"self\",\"href\":\"url/\"}]}",
@@ -58,10 +58,10 @@ TEST(ResponseJson, multiple_items_list) {
 
 TEST(ResponseJson, single_items_list_not_empty) {
   ResponseJsonTemplate sut;
-  sut.begin("url", "items");
+  sut.begin_resultset("url", "items", {});
   sut.push_json_document("{\"a1\":1}");
   sut.push_json_document("{\"a2\":2}");
-  sut.end();
+  sut.end_resultset();
   ASSERT_EQ(
       "{\"items\":[{\"a1\":1},{\"a2\":2}],"
       "\"count\":2,\"links\":[{\"rel\":\"self\",\"href\":\"url/\"}]}",
@@ -70,13 +70,13 @@ TEST(ResponseJson, single_items_list_not_empty) {
 
 TEST(ResponseJson, multiple_items_list_not_empty) {
   ResponseJsonTemplate sut;
-  sut.begin("url", "items");
+  sut.begin_resultset("url", "items", {});
   sut.push_json_document("{\"a1\":1}");
-  sut.begin("url", "items2");
+  sut.begin_resultset("url", "items2", {});
   sut.push_json_document("{\"a2\":2}");
-  sut.begin("url", "items3");
+  sut.begin_resultset("url", "items3", {});
   sut.push_json_document("{\"a3\":3}");
-  sut.end();
+  sut.end_resultset();
   ASSERT_EQ(
       "{\"items\":[{\"a1\":1}],\"items2\":[{\"a2\":2}],\"items3\":[{\"a3\":3}],"
       "\"count\":3,\"links\":[{\"rel\":\"self\",\"href\":\"url/\"}]}",

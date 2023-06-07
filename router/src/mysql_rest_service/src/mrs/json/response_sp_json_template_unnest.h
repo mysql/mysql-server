@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_UNNEST_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_UNNEST_H_
 
 #include <string>
 #include <vector>
@@ -36,7 +36,7 @@
 namespace mrs {
 namespace json {
 
-class ResponseJsonTemplate : public database::JsonTemplate {
+class ResponseSpJsonTemplateUnnest : public database::JsonTemplate {
  public:
   using JsonSerializer = helper::json::SerializerToText;
   using ResultRow = mysqlrouter::MySQLSession::ResultRow;
@@ -51,6 +51,7 @@ class ResponseJsonTemplate : public database::JsonTemplate {
   bool push_json_document(const ResultRow &values,
                           const char *ignore_column = nullptr) override;
   void end_resultset() override;
+
   void begin() override;
   void finish() override;
 
@@ -66,6 +67,7 @@ class ResponseJsonTemplate : public database::JsonTemplate {
   bool is_default_limit_;
   bool limit_not_set_{false};
   std::string url_;
+  bool full_stop_{false};
 
   // Needed for serialization of json document
   JsonSerializer serializer_;
@@ -76,10 +78,10 @@ class ResponseJsonTemplate : public database::JsonTemplate {
   bool has_more_{false};
   uint32_t pushed_documents_{0};
   bool began_{false};
-  const std::vector<helper::Column> *columns_{nullptr};
+  std::vector<helper::Column> columns_;
 };
 
 }  // namespace json
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_UNNEST_H_

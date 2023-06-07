@@ -41,8 +41,9 @@ std::string ResponseJsonTemplate::get_result() {
 
 void ResponseJsonTemplate::flush() { serializer_.flush(); }
 
-void ResponseJsonTemplate::begin(const std::string &url,
-                                 const std::string &items_name) {
+void ResponseJsonTemplate::begin_resultset(
+    const std::string &url, const std::string &items_name,
+    const std::vector<helper::Column> &) {
   if (began_) {
     json_root_items_ = JsonSerializer::Array();
   }
@@ -65,9 +66,9 @@ void ResponseJsonTemplate::begin(const std::string &url,
   has_more_ = false;
 }
 
-void ResponseJsonTemplate::begin(uint32_t offset, uint32_t limit,
-                                 bool is_default_limit,
-                                 const std::string &url) {
+void ResponseJsonTemplate::begin_resultset(
+    uint32_t offset, uint32_t limit, bool is_default_limit,
+    const std::string &url, const std::vector<helper::Column> &) {
   if (began_) {
     json_root_items_ = JsonSerializer::Array();
   }
@@ -89,7 +90,7 @@ void ResponseJsonTemplate::begin(uint32_t offset, uint32_t limit,
   has_more_ = false;
 }
 
-void ResponseJsonTemplate::end() {
+void ResponseJsonTemplate::end_resultset() {
   assert(began_ == true);
   json_root_items_ = JsonSerializer::Array();
   if (!limit_not_set_) {
@@ -133,14 +134,13 @@ void ResponseJsonTemplate::end() {
   began_ = false;
 }
 
-const char *not_null(const char *v) {
-  if (v) return v;
-  return "null";
-}
+void ResponseJsonTemplate::begin() {}
 
-bool ResponseJsonTemplate::push_json_document(
-    const ResultRow &values, const std::vector<helper::Column> &columns,
-    const char *ignore_column) {
+void ResponseJsonTemplate::finish() { end_resultset(); }
+
+bool ResponseJsonTemplate::push_json_document(const ResultRow &values,
+                                              const char *ignore_column) {
+  auto &columns = *columns_;
   assert(began_ == true);
   assert(values.size() == columns.size());
   if (!count_check_if_push_is_allowed()) return false;

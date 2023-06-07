@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_H_
-#define ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_H_
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_NEST_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_NEST_H_
 
 #include <string>
 #include <vector>
@@ -36,7 +36,7 @@
 namespace mrs {
 namespace json {
 
-class ResponseJsonTemplate : public database::JsonTemplate {
+class ResponseSpJsonTemplateNest : public database::JsonTemplate {
  public:
   using JsonSerializer = helper::json::SerializerToText;
   using ResultRow = mysqlrouter::MySQLSession::ResultRow;
@@ -51,35 +51,27 @@ class ResponseJsonTemplate : public database::JsonTemplate {
   bool push_json_document(const ResultRow &values,
                           const char *ignore_column = nullptr) override;
   void end_resultset() override;
-  void begin() override;
   void finish() override;
+  void begin() override;
 
   void flush() override;
   std::string get_result() override;
 
  private:
-  bool count_check_if_push_is_allowed();
-
-  // External data needed by the template
-  uint32_t offset_;
-  uint32_t limit_;
-  bool is_default_limit_;
-  bool limit_not_set_{false};
   std::string url_;
 
   // Needed for serialization of json document
   JsonSerializer serializer_;
   JsonSerializer::Object json_root_;
   JsonSerializer::Array json_root_items_;
+  JsonSerializer::Object json_root_items_object_;
+  JsonSerializer::Array json_root_items_object_items_;
 
-  // Internal state, for use case verification and template filling
-  bool has_more_{false};
   uint32_t pushed_documents_{0};
-  bool began_{false};
-  const std::vector<helper::Column> *columns_{nullptr};
+  std::vector<helper::Column> columns_;
 };
 
 }  // namespace json
 }  // namespace mrs
 
-#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_H_
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_RESPONSE_ITEMS_FORMATTER_NEST_H_

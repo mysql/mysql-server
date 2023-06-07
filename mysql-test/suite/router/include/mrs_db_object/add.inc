@@ -89,24 +89,20 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
  if ($mrs_add_db_object_type=="PROCEDURE")
  {
     --let $_schema_name=`SELECT name FROM mysql_rest_service_metadata.db_schema WHERE id=$mrs_schema_id_sql_variable`
+    eval SET @_proc_id=(SELECT mysql_rest_service_metadata.get_sequence_id());
+    eval INSERT INTO `mysql_rest_service_metadata`.`object`(id, db_object_id, name, kind)
+      VALUE(@_proc_id, $mrs_sql_id_variable, " $_schema_name.$mrs_add_db_object", "PARAMETERS");
 
-    eval INSERT INTO `mysql_rest_service_metadata`.`field` (`id`, `db_object_id`, `position`, `name`, `bind_field_name`, `datatype`, `mode`)
-    SELECT mysql_rest_service_metadata.get_sequence_id(), $mrs_sql_id_variable, ORDINAL_POSITION, PARAMETER_NAME, PARAMETER_NAME,
-    case 
-      when DATA_TYPE like "%int%" then "INT"
-      when DATA_TYPE like "%tinyint(1)%" then "BOOLEAN"
-      when DATA_TYPE like "%char%" then "STRING"
-      when DATA_TYPE like "%text%" then "STRING"
-      when DATA_TYPE like "%json%" then "JSON"
-      when DATA_TYPE like "%time%" then "TIMESTAMP"
-      when DATA_TYPE like "%date%" then "TIMESTAMP"
-      when DATA_TYPE like "%year%" then "TIMESTAMP"
-      when DATA_TYPE like "%float%" then "DOUBLE"
-      when DATA_TYPE like "%double%" then "DOUBLE"
-      when DATA_TYPE like "%bit%" then "INT"
-      when DATA_TYPE like "%decimal%" then "DOUBLE"
-    end, 
-    PARAMETER_MODE 
+    eval INSERT INTO `mysql_rest_service_metadata`.`object_field` (
+       `id`, `object_id`, `position`, `name`, `db_column`)
+    SELECT mysql_rest_service_metadata.get_sequence_id(), 
+           @_proc_id,
+           ORDINAL_POSITION, PARAMETER_NAME,
+           JSON_SET("{}",
+             "$.name",PARAMETER_NAME,
+             "$.datatype",DATA_TYPE,
+             "$.in", PARAMETER_MODE like "%IN%",
+             "$.out", PARAMETER_MODE like "%OUT%") as js
      FROM information_schema.PARAMETERS
      WHERE SPECIFIC_NAME="$mrs_add_db_object" and SPECIFIC_SCHEMA="$_schema_name";
  }

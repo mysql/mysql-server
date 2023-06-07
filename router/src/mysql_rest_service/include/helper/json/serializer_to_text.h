@@ -54,6 +54,7 @@ class SerializerToText {
     ~Object() { finalize(); }
 
     SerializerToText *operator->() { return serializer_; }
+    bool is_usable() const { return !finalized_; }
 
     Object &operator=(Object &&other) {
       finalize();
@@ -77,7 +78,7 @@ class SerializerToText {
     }
 
     SerializerToText *serializer_{nullptr};
-    bool finalized_{false};
+    bool finalized_{true};
   };
 
   class Array {
@@ -90,6 +91,7 @@ class SerializerToText {
 
     SerializerToText *operator->() { return serializer_; }
     SerializerToText &operator*() { return *serializer_; }
+    bool is_usable() const { return finalized_; }
 
     Array &operator=(Array &&other) {
       finalize();

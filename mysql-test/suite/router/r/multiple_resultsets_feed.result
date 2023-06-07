@@ -42,91 +42,109 @@ PUT /svc/proc/one (payload-size:2)
 {
     "items": [
         {
-            "name": "First row"
-        },
-        {
-            "name": "Second row"
-        },
-        {
-            "name": "Thrid row"
-        },
-        {
-            "name": "4th row"
-        },
-        {
-            "name": "5th row"
-        },
-        {
-            "name": "6th row"
-        },
-        {
-            "name": "7th row"
-        },
-        {
-            "name": "8th row"
-        },
-        {
-            "name": "9th row"
-        },
-        {
-            "name": "10th row"
-        },
-        {
-            "name": "11th row"
-        },
-        {
-            "name": "12th row"
-        },
-        {
-            "name": "13th row"
-        },
-        {
-            "name": "14th row"
-        },
-        {
-            "name": "15th row"
-        },
-        {
-            "name": "16th row"
-        },
-        {
-            "name": "17th row"
-        },
-        {
-            "name": "18th row"
-        },
-        {
-            "name": "19th row"
-        },
-        {
-            "name": "20th row"
-        },
-        {
-            "name": "21th row"
-        },
-        {
-            "name": "22th row"
-        },
-        {
-            "name": "23th row"
-        },
-        {
-            "name": "24th row"
-        },
-        {
-            "name": "25th row"
-        },
-        {
-            "name": "26th row"
-        },
-        {
-            "name": "27th row"
-        }
-    ],
-    "count": 27,
-    "links": [
-        {
-            "href": "/svc/proc/one/"
+            "items": [
+                {
+                    "name": "First row"
+                },
+                {
+                    "name": "Second row"
+                },
+                {
+                    "name": "Thrid row"
+                },
+                {
+                    "name": "4th row"
+                },
+                {
+                    "name": "5th row"
+                },
+                {
+                    "name": "6th row"
+                },
+                {
+                    "name": "7th row"
+                },
+                {
+                    "name": "8th row"
+                },
+                {
+                    "name": "9th row"
+                },
+                {
+                    "name": "10th row"
+                },
+                {
+                    "name": "11th row"
+                },
+                {
+                    "name": "12th row"
+                },
+                {
+                    "name": "13th row"
+                },
+                {
+                    "name": "14th row"
+                },
+                {
+                    "name": "15th row"
+                },
+                {
+                    "name": "16th row"
+                },
+                {
+                    "name": "17th row"
+                },
+                {
+                    "name": "18th row"
+                },
+                {
+                    "name": "19th row"
+                },
+                {
+                    "name": "20th row"
+                },
+                {
+                    "name": "21th row"
+                },
+                {
+                    "name": "22th row"
+                },
+                {
+                    "name": "23th row"
+                },
+                {
+                    "name": "24th row"
+                },
+                {
+                    "name": "25th row"
+                },
+                {
+                    "name": "26th row"
+                },
+                {
+                    "name": "27th row"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": " INTEGER"
+                    },
+                    {
+                        "name": "name",
+                        "type": "VARCHAR(255)"
+                    },
+                    {
+                        "name": "comments",
+                        "type": "VARCHAR(512)"
+                    },
+                    {
+                        "name": "date",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -138,33 +156,63 @@ GET /svc/proc/two
 {
     "items": [
         {
-            "id": 2,
-            "name": "Second row",
-            "comments": null,
-            "date": "1977-01-21 00:00:00"
+            "type": "items0",
+            "items": [
+                {
+                    "id": 2,
+                    "name": "Second row",
+                    "comments": null,
+                    "date": "1977-01-21 00:00:00"
+                },
+                {
+                    "id": 3,
+                    "name": "Thrid row",
+                    "comments": null,
+                    "date": "1977-02-21 00:00:00"
+                },
+                {
+                    "id": 4,
+                    "name": "4th row",
+                    "comments": "This row was inserted as forth row.",
+                    "date": "1977-01-21 00:00:00"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": " INTEGER"
+                    },
+                    {
+                        "name": "name",
+                        "type": "VARCHAR(255)"
+                    },
+                    {
+                        "name": "comments",
+                        "type": "VARCHAR(512)"
+                    },
+                    {
+                        "name": "date",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
         },
         {
-            "id": 3,
-            "name": "Thrid row",
-            "comments": null,
-            "date": "1977-02-21 00:00:00"
-        },
-        {
-            "id": 4,
-            "name": "4th row",
-            "comments": "This row was inserted as forth row.",
-            "date": "1977-01-21 00:00:00"
-        }
-    ],
-    "items2": [
-        {
-            "count(*)": 27
-        }
-    ],
-    "count": 4,
-    "links": [
-        {
-            "href": "/svc/proc/two/"
+            "type": "items1",
+            "items": [
+                {
+                    "count(*)": 27
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "count(*)",
+                        "type": "BIGINT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -176,26 +224,67 @@ GET /svc/proc/three
 {
     "items": [
         {
-            "min(id)": 1
-        }
-    ],
-    "items2": [
+            "type": "items0",
+            "items": [
+                {
+                    "min(id)": 1
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "min(id)",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
+        },
         {
-            "max(id)": 27
-        }
-    ],
-    "items3": [
+            "type": "items1",
+            "items": [
+                {
+                    "max(id)": 27
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "max(id)",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
+        },
         {
-            "id": 27,
-            "name": "27th row",
-            "comments": "...",
-            "date": "2023-11-12 00:00:00"
-        }
-    ],
-    "count": 3,
-    "links": [
-        {
-            "href": "/svc/proc/three/"
+            "type": "items2",
+            "items": [
+                {
+                    "id": 27,
+                    "name": "27th row",
+                    "comments": "...",
+                    "date": "2023-11-12 00:00:00"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": " INTEGER"
+                    },
+                    {
+                        "name": "name",
+                        "type": "VARCHAR(255)"
+                    },
+                    {
+                        "name": "comments",
+                        "type": "VARCHAR(512)"
+                    },
+                    {
+                        "name": "date",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -205,15 +294,22 @@ OK
 # II.1
 GET /svc/proc/out
 {
-    "itemsOut": [
+    "items": [
         {
-            "v": 1
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "href": "/svc/proc/out/"
+            "type": " proc_schema.no_resultset_out_paramOut",
+            "items": [
+                {
+                    "v": 1
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "v",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -225,21 +321,51 @@ GET /svc/proc/one_and_out
 {
     "items": [
         {
-            "id": 27,
-            "name": "27th row",
-            "comments": "...",
-            "date": "2023-11-12 00:00:00"
-        }
-    ],
-    "itemsOut": [
+            "type": "items0",
+            "items": [
+                {
+                    "id": 27,
+                    "name": "27th row",
+                    "comments": "...",
+                    "date": "2023-11-12 00:00:00"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "id",
+                        "type": " INTEGER"
+                    },
+                    {
+                        "name": "name",
+                        "type": "VARCHAR(255)"
+                    },
+                    {
+                        "name": "comments",
+                        "type": "VARCHAR(512)"
+                    },
+                    {
+                        "name": "date",
+                        "type": "DATETIME"
+                    }
+                ]
+            }
+        },
         {
-            "v": 1
-        }
-    ],
-    "count": 2,
-    "links": [
-        {
-            "href": "/svc/proc/one_and_out/"
+            "type": " proc_schema.one_resultset_out_paramOut",
+            "items": [
+                {
+                    "v": 1
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "v",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
         }
     ]
 }

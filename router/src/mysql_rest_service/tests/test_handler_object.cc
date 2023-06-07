@@ -27,7 +27,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "mrs/rest/handler_object.h"
+#include "mrs/rest/handler_db_object.h"
 #include "mrs/rest/request_context.h"
 
 #include "mock/mock_auth_manager.h"
@@ -166,7 +166,7 @@ TEST_F(HandleObjectTests, fetch_object_feed) {
                                    {"column2", "column3"}};
 
   RequestContext ctxt{&mock_request_};
-  HandlerObject object{&mock_route, &mock_auth_manager};
+  HandlerDbObject object{&mock_route, &mock_auth_manager};
 
   EXPECT_CALL(
       mock_session,
@@ -195,7 +195,7 @@ TEST_F(HandleObjectTests, fetch_object_single) {
                                    {"column2", "column3"}};
 
   RequestContext ctxt{&mock_request_};
-  HandlerObject object{&mock_route, &mock_auth_manager};
+  HandlerDbObject object{&mock_route, &mock_auth_manager};
 
   EXPECT_CALL(
       mock_session,
@@ -224,7 +224,7 @@ TEST_F(HandleObjectTests, delete_single_object_throws_without_filter) {
                                    {"column2", "column3"}};
 
   RequestContext ctxt{&mock_request_};
-  HandlerObject object{&mock_route, &mock_auth_manager};
+  HandlerDbObject object{&mock_route, &mock_auth_manager};
 
   //  EXPECT_CALL(mock_session,
   //              query(StartsWith("SELECT "
@@ -252,7 +252,7 @@ TEST_F(HandleObjectTests, delete_single_object) {
                                    {"column2", "column3"}};
 
   RequestContext ctxt{&mock_request_};
-  HandlerObject object{&mock_route, &mock_auth_manager};
+  HandlerDbObject object{&mock_route, &mock_auth_manager};
 
   //  EXPECT_CALL(mock_session,
   //              query(StartsWith("SELECT "

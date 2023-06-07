@@ -23,8 +23,8 @@
 */
 
 #include "mrs/rest/handler_factory.h"
+#include "mrs/rest/handler_db_object.h"
 #include "mrs/rest/handler_file.h"
-#include "mrs/rest/handler_object.h"
 #include "mrs/rest/handler_object_metadata.h"
 #include "mrs/rest/handler_schema_metadata.h"
 #include "mrs/rest/handler_sp.h"
@@ -46,7 +46,7 @@ HandlerPtr HandlerFactory::create_sp_handler(Route *r,
 
 HandlerPtr HandlerFactory::create_object_handler(Route *r,
                                                  AuthManager *auth_manager) {
-  return HandlerPtr{new HandlerObject(r, auth_manager)};
+  return HandlerPtr{new HandlerDbObject(r, auth_manager)};
 }
 
 HandlerPtr HandlerFactory::create_object_metadata_handler(

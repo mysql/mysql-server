@@ -31,6 +31,7 @@
 
 #include "helper/container/generic.h"
 #include "helper/http/url.h"
+#include "helper/json/jvalue.h"
 #include "helper/json/rapid_json_interator.h"
 #include "helper/json/text_to.h"
 #include "helper/json/to_sqlstring.h"
@@ -155,6 +156,19 @@ mysqlrouter::sqlstring to_sqlstring(const std::string &value, DataType type) {
   return {};
 }
 
+HandlerSP::HandlerSP(Route *r, mrs::interface::AuthorizeManager *auth_manager)
+    : Handler{r->get_rest_url(), r->get_rest_path(), r->get_options(),
+              auth_manager},
+      route_{r},
+      auth_manager_{auth_manager} {
+  auto p = get_options().parameters_;
+  auto it = p.find("");
+  if (it != p.end()) {
+    auto result = helper::json::to_bool(it->second);
+    if (result.has_value()) always_nest_result_sets_ = result.value();
+  }
+}
+
 HttpResult HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   using namespace std::string_literals;
   using namespace helper::json::sql;
@@ -169,7 +183,8 @@ HttpResult HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
 
   if (!doc.IsObject()) throw http::Error(HttpStatusCode::BadRequest);
 
-  auto &p = route_->get_parameters();
+  auto &rs = route_->get_parameters();
+  auto &p = rs.input_parameters.fields;
   for (auto el : helper::json::member_iterator(doc)) {
     auto key = el.first;
     const database::entry::Field *param;
@@ -208,7 +223,7 @@ HttpResult HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   db.query_entries(session.get(), route_->get_schema_name(),
                    route_->get_object_name(), route_->get_rest_url(),
                    route_->get_user_row_ownership().user_ownership_column,
-                   result.c_str(), variables);
+                   result.c_str(), variables, rs);
 
   Counter<kEntityCounterRestReturnedItems>::increment(db.items);
   Counter<kEntityCounterRestAffectedItems>::increment(session->affected_rows());
@@ -235,16 +250,17 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
   Url::parse_query(requests_uri.get_query().c_str(), &keys, &values);
 
   auto &p = route_->get_parameters();
+  auto &pf = p.input_parameters.fields;
   for (auto key : keys) {
     const database::entry::Field *param;
     if (!helper::container::get_ptr_if(
-            p, [key](auto &v) { return v.name == key; }, &param)) {
+            pf, [key](auto &v) { return v.name == key; }, &param)) {
       throw http::Error(HttpStatusCode::BadRequest,
                         "Not allowed parameter:"s + key);
     }
   }
 
-  //  for (auto &el : p) {
+  //  for (auto &el : pf) {
   //    if (el.mode != mrs::database::entry::Field::modeIn)
   //      throw http::Error(
   //          HttpStatusCode::BadRequest,
@@ -254,7 +270,7 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
   std::string result;
   std::vector<enum_field_types> variables;
   auto &ownership = route_->get_user_row_ownership();
-  for (auto &el : p) {
+  for (auto &el : pf) {
     if (!result.empty()) result += ",";
 
     if (ownership.user_ownership_enforced &&
@@ -285,7 +301,7 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
     db.query_entries(session.get(), route_->get_schema_name(),
                      route_->get_object_name(), route_->get_rest_url(),
                      route_->get_user_row_ownership().user_ownership_column,
-                     result.c_str(), variables);
+                     result.c_str(), variables, p, always_nest_result_sets_);
 
     Counter<kEntityCounterRestReturnedItems>::increment(db.items);
     Counter<kEntityCounterRestAffectedItems>::increment(

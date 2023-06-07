@@ -28,6 +28,8 @@
 #include <map>
 #include <string_view>
 
+#include "m_ctype.h"
+#include "my_sys.h"
 #include "mysql/harness/logging/logging.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -77,6 +79,110 @@ static const auto &get_txt_type_mapping() {
   };
 
   return map;
+}
+
+static std::string appedn_unsigned(const MYSQL_FIELD *field) {
+  return (field->flags & UNSIGNED_FLAG) ? " UNSIGNED" : "";
+}
+
+static std::string append_length(const MYSQL_FIELD *field) {
+  using namespace std::string_literals;
+  auto l = field->length;
+  auto cs = get_charset(field->charsetnr, 0);
+  if (cs) {
+    l = l / cs->mbmaxlen;
+  }
+
+  return "("s + std::to_string(l) + ")";
+}
+
+static std::string append_length_dec(const MYSQL_FIELD *field) {
+  using namespace std::string_literals;
+  return "("s + std::to_string(field->max_length) + "," +
+         std::to_string(field->decimals) + ")";
+}
+
+std::string txt_from_mysql_column_type(const MYSQL_FIELD *field) {
+  using namespace std::string_literals;
+  switch (field->type) {
+    case MYSQL_TYPE_DECIMAL:
+      return "DECIMAL"s + append_length_dec(field);
+    case MYSQL_TYPE_NEWDECIMAL:
+      return "DECIMAL"s + append_length_dec(field);
+    case MYSQL_TYPE_TINY:
+      return "TINYINT"s + appedn_unsigned(field);
+    case MYSQL_TYPE_SHORT:
+      return "SMALLINT"s + appedn_unsigned(field);
+    case MYSQL_TYPE_LONG:
+      return " INTEGER"s + appedn_unsigned(field);
+    case MYSQL_TYPE_FLOAT:
+      return "FLOAT"s + append_length_dec(field);
+    case MYSQL_TYPE_DOUBLE:
+      return "DOUBLE"s + append_length_dec(field);
+    case MYSQL_TYPE_LONGLONG:
+      return "BIGINT"s + appedn_unsigned(field);
+    case MYSQL_TYPE_INT24:
+      return "MEDIUMINT"s + appedn_unsigned(field);
+
+    case MYSQL_TYPE_TYPED_ARRAY:
+    case MYSQL_TYPE_INVALID:
+      return "INVALID";
+    case MYSQL_TYPE_NULL:
+      return "NULL";
+
+    case MYSQL_TYPE_TIMESTAMP:
+      return "TIMESTAMP";
+    case MYSQL_TYPE_DATE:
+      return "DATE";
+    case MYSQL_TYPE_TIME:
+      return "TIME";
+    case MYSQL_TYPE_DATETIME:
+      return "DATETIME";
+    case MYSQL_TYPE_YEAR:
+      return "YEAR";
+    case MYSQL_TYPE_NEWDATE:
+      return "DATE";
+    case MYSQL_TYPE_TIME2:
+      return "TIME";
+    case MYSQL_TYPE_TIMESTAMP2:
+      return "TIMESTAMP";
+    case MYSQL_TYPE_DATETIME2:
+      return "DATETIME";
+    case MYSQL_TYPE_BIT:
+      return "BIT" + append_length(field);
+    case MYSQL_TYPE_JSON:
+      return "JSON";
+
+    case MYSQL_TYPE_VARCHAR:
+      return "VARCHAR" + append_length(field);
+    case MYSQL_TYPE_SET:
+      return "SET";
+    case MYSQL_TYPE_ENUM:
+      return "ENUM";
+    case MYSQL_TYPE_VAR_STRING:
+      return "VARCHAR"s + append_length(field);
+    case MYSQL_TYPE_GEOMETRY:
+      return "GEOMETRY";
+    case MYSQL_TYPE_STRING:
+      return "CHAR"s + append_length(field);
+
+    case MYSQL_TYPE_TINY_BLOB:
+      if (field->charsetnr == 63) return "TINYBLOB";
+      return "TINYTEXT";
+    case MYSQL_TYPE_MEDIUM_BLOB:
+      if (field->charsetnr == 63) return "MEDIUMBLOB";
+      return "MEDIUMTEXT";
+    case MYSQL_TYPE_LONG_BLOB:
+      return "BLOB";
+    case MYSQL_TYPE_BLOB:
+      if (field->charsetnr == 63) return "BLOB";
+      return "TEXT";
+
+    default:
+      return "UNKNOWN";
+  }
+
+  return "UNKNOWN";
 }
 
 JsonType from_mysql_column_type(const MYSQL_FIELD *field) {

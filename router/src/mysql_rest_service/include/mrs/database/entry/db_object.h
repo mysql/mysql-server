@@ -70,7 +70,7 @@ class DbObject {
   std::vector<RowGroupOwnership> row_group_security;
   std::string options_json;
   std::string options_json_schema;
-  std::vector<entry::Field> fields;
+  ResultSets fields;
 };
 
 }  // namespace entry
