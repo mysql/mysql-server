@@ -139,6 +139,9 @@ void QueryEntryFields::on_row_params(const ResultRow &row) {
           {"STRING", DataType::typeString},
           {"TEXT", DataType::typeString},
           {"VARCHAR", DataType::typeString},
+          {"CHAR", DataType::typeString},
+          {"VARBINARY", DataType::typeString},
+          {"BINARY", DataType::typeString},
           {"INT", DataType::typeInt},
           {"TINYINT", DataType::typeInt},
           {"SMALLINT", DataType::typeInt},
@@ -154,8 +157,13 @@ void QueryEntryFields::on_row_params(const ResultRow &row) {
           {"DATETIME", DataType::typeTimestamp},
           {"YEAR", DataType::typeTimestamp},
           {"TIME", DataType::typeTimestamp},
-          {"JSON", DataType::typeString}};
+          {"JSON", DataType::typeString},
+          {"ENUM", DataType::typeString},
+          {"SET", DataType::typeString}};
+      if (!value) return;
       result_ = mysql_harness::make_upper(value);
+      auto p = std::min(result_.find('('), result_.find(' '));
+      if (p != std::string::npos) result_ = result_.substr(0, p);
       try {
         *out = converter.at(result_);
       } catch (const std::exception &e) {
