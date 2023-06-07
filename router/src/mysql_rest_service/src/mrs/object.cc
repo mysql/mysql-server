@@ -39,6 +39,7 @@ namespace mrs {
 using namespace helper;
 
 using Allowed = mrs::database::entry::DbObject::Format;
+using Fields = Object::Fields;
 
 Object::Object(const EntryDbObject &pe, RouteSchemaPtr schema,
                collector::MysqlCacheManager *cache, const bool is_ssl,
@@ -276,8 +277,6 @@ const Object::VectorOfRowGroupOwnership &Object::get_group_row_ownership()
   return pe_.row_group_security;
 }
 
-const mrs::interface::Object::Fields &Object::get_parameters() {
-  return pe_.fields;
-}
+const Fields &Object::get_parameters() { return pe_.fields; }
 
 }  // namespace mrs

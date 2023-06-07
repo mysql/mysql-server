@@ -38,6 +38,7 @@ struct ColumnType {
   uint64_t length{0};
 };
 
+std::string txt_from_mysql_column_type(const MYSQL_FIELD *field);
 JsonType from_mysql_column_string_type(const char *type);
 ColumnType from_mysql_txt_column_type(const char *type);
 uint64_t from_mysql_column_type_length(const char *type);

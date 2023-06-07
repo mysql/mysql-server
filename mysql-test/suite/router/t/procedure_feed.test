@@ -28,8 +28,8 @@
 --echo #    match registred input parameters.
 --echo #
 --echo #
---echo ## II. Verify generated resultsets when procedure retursn result of th
---echo ##     operation by resultset or output parameters.
+--echo ## II. Verify generated resultsets when procedure returns a resultset
+--echo ##     or output parameters.
 --echo #
 --echo # 1. Procedure with GET request returns empty "items" field when there is not resultset
 --echo # 2. Procedure with GET request returns numeric resultset in "items" field
@@ -73,6 +73,10 @@
 --echo # 8. Verify if intput DECIMAL value is the same at output of stored procedure
 --echo # 9. Verify if intput FLOAT value is the same at output of stored procedure
 --echo # 10. Verify if intput DOUBLE value is the same at output of stored procedure
+--echo #
+--echo ## V. Verify handling of resultsets with several columns
+--echo # 1. Verify presentation of resultset with different columns
+--echo # 2. Verify presentation of resultsets with different columns
 
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"

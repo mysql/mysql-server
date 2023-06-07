@@ -28,7 +28,6 @@ if (!$mrs_sql_id_variable_ob)
 }
 
 --let $_schema_name=`SELECT name FROM mysql_rest_service_metadata.db_schema WHERE id=$mrs_schema_id_sql_variable`
-
 if ($mrs_sql_id_variable_ob)
 {
   if (!`SELECT $mrs_sql_id_variable_ob`)

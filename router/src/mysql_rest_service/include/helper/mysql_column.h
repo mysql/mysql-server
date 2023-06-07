@@ -44,12 +44,14 @@ struct Column {
     auto info = from_mysql_txt_column_type(t);
     type = info.type_mysql;
     type_json = info.type_json;
+    type_txt = t;
     length = info.length;
   }
 
   explicit Column(const MYSQL_FIELD *field)
       : name{field->name, field->name_length},
         type(field->type),
+        type_txt(txt_from_mysql_column_type(field)),
         length(field->length),
         type_json{from_mysql_column_type(field)},
         is_primary{IS_PRI_KEY(field->flags) > 0},
@@ -58,6 +60,7 @@ struct Column {
  public:
   std::string name;
   enum_field_types type{MYSQL_TYPE_NULL};
+  std::string type_txt;
   uint64_t length{0};
   JsonType type_json{JsonType::kNull};
   bool is_primary{false};

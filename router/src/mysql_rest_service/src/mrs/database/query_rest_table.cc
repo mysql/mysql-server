@@ -57,12 +57,24 @@ void QueryRestTable::query_entries(
 
   items = 0;
   build_query(field_filter, offset, limit + 1, url_route, row_ownership, q);
+  config_ = {offset, limit, is_default_limit, url_route};
 
-  serializer_->begin(offset, limit, is_default_limit, url_route);
+  serializer_->begin();
   execute(session);
-  serializer_->end();
+  serializer_->finish();
 
   response = serializer_->get_result();
+}
+
+void QueryRestTable::on_metadata(unsigned number, MYSQL_FIELD *fields) {
+  Query::on_metadata(number, fields);
+  columns_.clear();
+  for (unsigned int i = 0; i < number; ++i) {
+    columns_.emplace_back(&fields[i]);
+  }
+  serializer_->begin_resultset(config_.offset, config_.limit,
+                               config_.is_default_limit, config_.url_route,
+                               columns_);
 }
 
 void QueryRestTable::on_row(const ResultRow &r) {

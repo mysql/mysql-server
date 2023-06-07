@@ -35,17 +35,25 @@ namespace database {
 
 class QueryEntryFields : private Query {
  public:
-  using Fields = std::vector<entry::Field>;
+  using ResultSets = entry::ResultSets;
+  using ResultObject = entry::ResultObject;
 
   virtual bool query_parameters(MySQLSession *session,
                                 entry::UniversalId db_object_id);
 
-  virtual Fields &get_result();
+  virtual ResultSets &get_result();
 
  private:
+  void on_row_params(const ResultRow &r);
+  void on_row_input_name(const ResultRow &r);
+  void on_row_output_name(const ResultRow &r);
   void on_row(const ResultRow &r) override;
 
-  Fields parameters_;
+  enum class Row { k_fields, k_input_name, k_output_name };
+
+  Row processing_;
+  ResultObject *output_result_{nullptr};
+  ResultSets result_;
 };
 
 }  // namespace database

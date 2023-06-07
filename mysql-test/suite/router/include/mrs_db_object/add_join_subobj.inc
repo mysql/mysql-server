@@ -45,7 +45,6 @@ if (!$mrs_add_db_object_op)
   --let $mrs_add_db_object_op=CREATE,READ,UPDATE,DELETE
 }
 
-
 --disable_query_log
 --disable_result_log
 eval SET $mrs_sql_id_variable_object=(
@@ -92,6 +91,7 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
     {
       --let $mrs_sql_id_variable_ob=@object_id
     }
+
     eval INSERT INTO mysql_rest_service_metadata.object_field(
            id, parent_reference_id, name, object_id, enabled, position, db_column)
            SELECT 
@@ -118,6 +118,7 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
 
 --let $mrs_sql_id_variable_db_object=
 --let $mrs_sql_id_variable_object=
+--let $mrs_sql_id_variable_ob=
 --let $mrs_sql_id_variable_object_ref=
 --let $mrs_add_db_object_join_schema=
 --let $mrs_add_db_object_join_table=

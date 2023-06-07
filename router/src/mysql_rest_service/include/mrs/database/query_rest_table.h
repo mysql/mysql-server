@@ -67,12 +67,22 @@ class QueryRestTable : private QueryLog {
   uint64_t items;
 
  private:
+  struct Config {
+    uint64_t offset;
+    uint64_t limit;
+    bool is_default_limit;
+    std::string url_route;
+  };
+
+  Config config_;
+  std::vector<helper::Column> columns_;
   std::unique_ptr<database::JsonTemplate> serializer_;
   std::shared_ptr<database::entry::Object> object_;
   bool compute_etag_ = false;
   mysqlrouter::sqlstring where_;
 
   void on_row(const ResultRow &r) override;
+  void on_metadata(unsigned number, MYSQL_FIELD *fields) override;
 
   const mysqlrouter::sqlstring &build_where(
       const ObjectRowOwnership &row_ownership);

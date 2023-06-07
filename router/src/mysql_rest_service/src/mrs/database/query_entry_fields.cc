@@ -28,26 +28,104 @@
 
 #include "helper/mysql_row.h"
 
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/string_utils.h"
+
+IMPORT_LOG_FUNCTIONS()
+
 namespace mrs {
 namespace database {
 
 bool QueryEntryFields::query_parameters(MySQLSession *session,
                                         entry::UniversalId db_object_id) {
-  parameters_.clear();
+  result_ = {};
+
+  processing_ = Row::k_input_name;
+  output_result_ = &result_.input_parameters;
+
   query_ = {
-      "SELECT id, name, mode, "
-      "bind_field_name, datatype, position FROM "
-      "mysql_rest_service_metadata.field WHERE "
-      "db_object_id=? ORDER BY position"};
+      "SELECT o.id, o.name FROM mysql_rest_service_metadata.object as o "
+      "        WHERE o.kind='PARAMETERS' and o.db_object_id=?"};
+
   query_ << db_object_id;
   execute(session);
+
+  processing_ = Row::k_fields;
+  query_ = {
+      "SELECT ofx.id, ofx.name,"
+      "       ofx.db_column->>'$.in', ofx.db_column->>'$.out',"
+      "       ofx.db_column->>'$.name', ofx.db_column->>'$.datatype'"
+      "   FROM mysql_rest_service_metadata.object_field as ofx"
+      "   JOIN mysql_rest_service_metadata.object as o on ofx.object_id=o.id"
+      "        WHERE o.kind='PARAMETERS' and o.db_object_id=? ORDER BY "
+      "ofx.position"};
+
+  query_ << db_object_id;
+
+  execute(session);
+
+  processing_ = Row::k_output_name;
+  query_ = {
+      "SELECT o.id, o.name FROM mysql_rest_service_metadata.object as o "
+      "        WHERE o.kind='RESULT' and o.db_object_id=?"};
+
+  query_ << db_object_id;
+  execute(session);
+
+  processing_ = Row::k_fields;
+  for (auto &item : result_.results) {
+    output_result_ = &item;
+    query_ = {
+        "SELECT ofx.id, ofx.name,"
+        "       ofx.db_column->>'$.in', ofx.db_column->>'$.out',"
+        "       ofx.db_column->>'$.name', ofx.db_column->>'$.datatype'"
+        "   FROM mysql_rest_service_metadata.object_field as ofx"
+        "   JOIN mysql_rest_service_metadata.object as o on ofx.object_id=o.id"
+        "        WHERE o.kind='RESULT' and o.id=? ORDER BY ofx.position"};
+
+    query_ << item.id;
+    execute(session);
+  }
 
   return true;
 }
 
-QueryEntryFields::Fields &QueryEntryFields::get_result() { return parameters_; }
+QueryEntryFields::ResultSets &QueryEntryFields::get_result() { return result_; }
 
 void QueryEntryFields::on_row(const ResultRow &row) {
+  switch (processing_) {
+    case Row::k_fields:
+      on_row_params(row);
+      return;
+    case Row::k_input_name:
+      on_row_input_name(row);
+      return;
+    case Row::k_output_name:
+      on_row_output_name(row);
+      return;
+
+    default:
+      return;
+  }
+}
+
+void QueryEntryFields::on_row_input_name(const ResultRow &row) {
+  auto &item = result_.input_parameters;
+  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
+
+  mysql_row.unserialize_with_converter(&item.id, entry::UniversalId::from_raw);
+  mysql_row.unserialize(&item.name);
+}
+
+void QueryEntryFields::on_row_output_name(const ResultRow &row) {
+  auto &item = result_.results.emplace_back();
+  helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
+
+  mysql_row.unserialize_with_converter(&item.id, entry::UniversalId::from_raw);
+  mysql_row.unserialize(&item.name);
+}
+
+void QueryEntryFields::on_row_params(const ResultRow &row) {
   using Field = mrs::database::entry::Field;
   using DataType = Field::DataType;
   using Mode = Field::Mode;
@@ -59,39 +137,57 @@ void QueryEntryFields::on_row(const ResultRow &row) {
     void operator()(DataType *out, const char *value) const {
       const static std::map<std::string, DataType> converter{
           {"STRING", DataType::typeString},
+          {"TEXT", DataType::typeString},
+          {"VARCHAR", DataType::typeString},
           {"INT", DataType::typeInt},
+          {"TINYINT", DataType::typeInt},
+          {"SMALLINT", DataType::typeInt},
+          {"MEDIUMINT", DataType::typeInt},
+          {"LARGEINT", DataType::typeInt},
           {"DOUBLE", DataType::typeDouble},
-          {"BOOLEAN", DataType::typeBoolean},
+          {"FLOAT", DataType::typeDouble},
+          {"DECIMAL", DataType::typeDouble},
+          {"BIT", DataType::typeInt},
           {"LONG", DataType::typeLong},
           {"TIMESTAMP", DataType::typeTimestamp},
+          {"DATE", DataType::typeTimestamp},
+          {"DATETIME", DataType::typeTimestamp},
+          {"YEAR", DataType::typeTimestamp},
+          {"TIME", DataType::typeTimestamp},
           {"JSON", DataType::typeString}};
-      *out = converter.at(value);
-    }
-  };
-  class ParamModeConverter {
-   public:
-    void operator()(Mode *out, const char *value) const {
-      const static std::map<std::string, Mode> converter{
-          {"IN", Mode::modeIn},
-          {"OUT", Mode::modeOut},
-          {"INOUT", Mode::modeInOut}};
-      if (nullptr == value) {
-        *out = Mode::modeIn;
-        return;
+      result_ = mysql_harness::make_upper(value);
+      try {
+        *out = converter.at(result_);
+      } catch (const std::exception &e) {
+        log_debug("'ParamTypeConverter 'do not handle value: %s",
+                  result_.c_str());
+        throw;
       }
-      *out = converter.at(value);
     }
+
+    std::string &result_;
   };
 
   helper::MySQLRow mysql_row(row, metadata_, no_od_metadata_);
 
-  auto &entry = parameters_.emplace_back();
+  auto &entry = output_result_->fields.emplace_back();
+  bool param_in{false}, param_out{false};
 
   mysql_row.unserialize_with_converter(&entry.id, entry::UniversalId::from_raw);
   mysql_row.unserialize(&entry.name);
-  mysql_row.unserialize_with_converter(&entry.mode, ParamModeConverter{});
+  mysql_row.unserialize(&param_in);
+  mysql_row.unserialize(&param_out);
   mysql_row.unserialize(&entry.bind_name);
-  mysql_row.unserialize_with_converter(&entry.data_type, ParamTypeConverter{});
+  mysql_row.unserialize_with_converter(&entry.data_type,
+                                       ParamTypeConverter{entry.raw_data_type});
+
+  if (param_in && param_out) {
+    entry.mode = Mode::modeInOut;
+  } else if (param_in) {
+    entry.mode = Mode::modeIn;
+  } else if (param_out) {
+    entry.mode = Mode::modeOut;
+  }
 }
 
 }  // namespace database

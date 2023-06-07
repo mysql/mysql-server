@@ -79,6 +79,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   helper/media_detector.cc
   helper/json/to_string.cc
   helper/json/to_sqlstring.cc
+  helper/json/jvalue.cc
   helper/token/jwt.cc
   helper/mysql_column_types.cc
   helper/mysql_numeric_value.cc
@@ -98,6 +99,8 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/authentication/sasl_handler.cc
   mrs/authentication/scram_handler.cc
   mrs/json/response_json_template.cc
+  mrs/json/response_sp_json_template_unnest.cc
+  mrs/json/response_sp_json_template_nest.cc
   mrs/http/cookie.cc
   mrs/http/utilities.cc
   mrs/http/session_manager.cc
@@ -116,7 +119,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/rest/handler_factory.cc
   mrs/rest/handler_file.cc
   mrs/rest/handler_user.cc
-  mrs/rest/handler_object.cc
+  mrs/rest/handler_db_object.cc
   mrs/rest/handler_object_metadata.cc
   mrs/rest/handler_is_authorized.cc
   mrs/rest/handler_unauthorize.cc

@@ -24,8 +24,8 @@
 #    match registred input parameters.
 #
 #
-## II. Verify generated resultsets when procedure retursn result of th
-##     operation by resultset or output parameters.
+## II. Verify generated resultsets when procedure returns a resultset
+##     or output parameters.
 #
 # 1. Procedure with GET request returns empty "items" field when there is not resultset
 # 2. Procedure with GET request returns numeric resultset in "items" field
@@ -69,6 +69,10 @@
 # 8. Verify if intput DECIMAL value is the same at output of stored procedure
 # 9. Verify if intput FLOAT value is the same at output of stored procedure
 # 10. Verify if intput DOUBLE value is the same at output of stored procedure
+#
+## V. Verify handling of resultsets with several columns
+# 1. Verify presentation of resultset with different columns
+# 2. Verify presentation of resultsets with different columns
 # Registred SERVICE at path: /svc
 # Registred DB_SCHEMA at path: /svc/proc
 # Registred DB_OBJECT at path: /svc/proc/sum
@@ -88,14 +92,7 @@
 # Registred DB_OBJECT at path: /svc/proc/nothing
 GET /svc/proc/nothing
 {
-    "items": [],
-    "count": 0,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/nothing/"
-        }
-    ]
+    "items": []
 }
 OK
 
@@ -157,14 +154,7 @@ OK
 # II.1
 GET /svc/proc/nothing
 {
-    "items": [],
-    "count": 0,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/nothing/"
-        }
-    ]
+    "items": []
 }
 OK
 
@@ -174,14 +164,20 @@ GET /svc/proc/sum?a=10&b=20
 {
     "items": [
         {
-            "result": 30
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/sum/"
+            "type": "items0",
+            "items": [
+                {
+                    "result": 30
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BIGINT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -191,16 +187,22 @@ OK
 # II.3
 GET /svc/proc/sum_out?a=10&b=20
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 30
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/sum_out/"
+            "type": " proc_schema.proc_sum_outOut",
+            "items": [
+                {
+                    "result": 30
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -212,14 +214,20 @@ GET /svc/proc/concat?a=10&b=20
 {
     "items": [
         {
-            "result": "1020"
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/concat/"
+            "type": "items0",
+            "items": [
+                {
+                    "result": "1020"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "MEDIUMTEXT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -229,16 +237,22 @@ OK
 # II.5
 GET /svc/proc/concat_out?a=10&b=20
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": "1020"
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/concat_out/"
+            "type": " proc_schema.proc_concat_outOut",
+            "items": [
+                {
+                    "result": "MTAyMA=="
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BLOB"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -248,14 +262,7 @@ OK
 # II.6
 PUT /svc/proc/nothing (payload-size:2)
 {
-    "items": [],
-    "count": 0,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/nothing/"
-        }
-    ]
+    "items": []
 }
 OK
 
@@ -265,14 +272,20 @@ PUT /svc/proc/sum (payload-size:15)
 {
     "items": [
         {
-            "result": 30
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/sum/"
+            "type": "items0",
+            "items": [
+                {
+                    "result": 30
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BIGINT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -282,16 +295,22 @@ OK
 # II.8
 PUT /svc/proc/sum_out (payload-size:16)
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 30
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/sum_out/"
+            "type": " proc_schema.proc_sum_outOut",
+            "items": [
+                {
+                    "result": 30
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": " INTEGER"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -303,14 +322,20 @@ PUT /svc/proc/concat (payload-size:15)
 {
     "items": [
         {
-            "result": "1020"
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/concat/"
+            "type": "items0",
+            "items": [
+                {
+                    "result": "1020"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "MEDIUMTEXT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -320,16 +345,22 @@ OK
 # II.10
 PUT /svc/proc/concat_out (payload-size:15)
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": "1020"
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/concat_out/"
+            "type": " proc_schema.proc_concat_outOut",
+            "items": [
+                {
+                    "result": "MTAyMA=="
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BLOB"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -341,14 +372,20 @@ PUT /svc/proc/concat (payload-size:19)
 {
     "items": [
         {
-            "result": "1020"
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/concat/"
+            "type": "items0",
+            "items": [
+                {
+                    "result": "1020"
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "MEDIUMTEXT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -358,16 +395,22 @@ OK
 # II.12
 PUT /svc/proc/concat_out (payload-size:19)
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": "1020"
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/concat_out/"
+            "type": " proc_schema.proc_concat_outOut",
+            "items": [
+                {
+                    "result": "MTAyMA=="
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BLOB"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -377,16 +420,22 @@ OK
 # III.1
 GET /svc/proc/move_char?a=10
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": "10 appended"
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_char/"
+            "type": " proc_schema.move_charOut",
+            "items": [
+                {
+                    "result": "MTAgYXBwZW5kZWQ="
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "VARCHAR(80)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -408,16 +457,22 @@ DISABLED
 # III.5
 GET /svc/proc/move_bit?a=1
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": true
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_bit/"
+            "type": " proc_schema.move_bitOut",
+            "items": [
+                {
+                    "result": true
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BIT(1)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -427,16 +482,22 @@ OK
 # III.6
 GET /svc/proc/move_tinyint1?a=1
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 2
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_tinyint1/"
+            "type": " proc_schema.move_tinyint1Out",
+            "items": [
+                {
+                    "result": 2
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "TINYINT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -446,16 +507,22 @@ OK
 # III.7
 GET /svc/proc/move_tinyint8?a=10
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 11
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_tinyint8/"
+            "type": " proc_schema.move_tinyint8Out",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "TINYINT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -465,16 +532,22 @@ OK
 # III.8
 GET /svc/proc/move_decimal?a=10
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 11
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_decimal/"
+            "type": " proc_schema.move_decimalOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "DECIMAL(0,0)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -484,16 +557,22 @@ OK
 # III.9
 GET /svc/proc/move_float?a=10
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 11
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_float/"
+            "type": " proc_schema.move_floatOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "FLOAT(0,31)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -503,16 +582,22 @@ OK
 # III.10
 GET /svc/proc/move_double?a=10
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 11
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_double/"
+            "type": " proc_schema.move_doubleOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "DOUBLE(0,31)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -522,16 +607,22 @@ OK
 # IV.1
 PUT /svc/proc/move_char (payload-size:8)
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": "10 appended"
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_char/"
+            "type": " proc_schema.move_charOut",
+            "items": [
+                {
+                    "result": "MTAgYXBwZW5kZWQ="
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "VARCHAR(80)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -553,16 +644,22 @@ DISABLED
 # IV.5
 PUT /svc/proc/move_bit (payload-size:7)
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": true
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_bit/"
+            "type": " proc_schema.move_bitOut",
+            "items": [
+                {
+                    "result": true
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "BIT(1)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -572,16 +669,22 @@ OK
 # IV.6
 PUT /svc/proc/move_tinyint1 (payload-size:7)
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 2
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_tinyint1/"
+            "type": " proc_schema.move_tinyint1Out",
+            "items": [
+                {
+                    "result": 2
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "TINYINT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -591,16 +694,22 @@ OK
 # IV.7
 PUT /svc/proc/move_tinyint8 (payload-size:8)
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 11
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_tinyint8/"
+            "type": " proc_schema.move_tinyint8Out",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "TINYINT"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -610,16 +719,22 @@ OK
 # IV.8
 PUT /svc/proc/move_decimal (payload-size:8)
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 11
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_decimal/"
+            "type": " proc_schema.move_decimalOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "DECIMAL(0,0)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -629,16 +744,22 @@ OK
 # IV.9
 PUT /svc/proc/move_float (payload-size:8)
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 11
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_float/"
+            "type": " proc_schema.move_floatOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "FLOAT(0,31)"
+                    }
+                ]
+            }
         }
     ]
 }
@@ -648,16 +769,22 @@ OK
 # IV.10
 PUT /svc/proc/move_double (payload-size:8)
 {
-    "itemsOut": [
+    "items": [
         {
-            "result": 11
-        }
-    ],
-    "count": 1,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/proc/move_double/"
+            "type": " proc_schema.move_doubleOut",
+            "items": [
+                {
+                    "result": 11
+                }
+            ],
+            "metadata": {
+                "columns": [
+                    {
+                        "name": "result",
+                        "type": "DOUBLE(0,31)"
+                    }
+                ]
+            }
         }
     ]
 }

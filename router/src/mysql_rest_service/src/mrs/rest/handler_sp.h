@@ -36,11 +36,7 @@ class HandlerSP : public rest::Handler {
   using Route = mrs::interface::Object;
 
  public:
-  HandlerSP(Route *r, mrs::interface::AuthorizeManager *auth_manager)
-      : Handler{r->get_rest_url(), r->get_rest_path(), r->get_options(),
-                auth_manager},
-        route_{r},
-        auth_manager_{auth_manager} {}
+  HandlerSP(Route *r, mrs::interface::AuthorizeManager *auth_manager);
 
   HttpResult handle_get(rest::RequestContext *ctxt) override;
   HttpResult handle_delete(rest::RequestContext *ctxt) override;
@@ -57,6 +53,7 @@ class HandlerSP : public rest::Handler {
   uint32_t get_access_rights() const override;
 
  private:
+  bool always_nest_result_sets_{false};
   Route *route_;
   mrs::interface::AuthorizeManager *auth_manager_;
 };

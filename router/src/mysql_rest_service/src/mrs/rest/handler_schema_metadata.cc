@@ -63,8 +63,8 @@ HttpResult HandlerSchemaMetadata::handle_get(rest::RequestContext *ctxt) {
   Url::parse_query(requests_uri.get_query().c_str(), &query_parameaters);
   Url::parse_offset_limit(query_parameaters, &offset, &limit);
 
-  response_template.begin(offset, limit, limit == k_default_limit,
-                          schema_->get_url());
+  response_template.begin_resultset(offset, limit, limit == k_default_limit,
+                          schema_->get_url(), {});
 
   auto &routes = schema_->get_routes();
   uint32_t noOfRoute = 0;
@@ -75,7 +75,7 @@ HttpResult HandlerSchemaMetadata::handle_get(rest::RequestContext *ctxt) {
     response_template.push_json_document((*it)->get_json_description().c_str());
   }
 
-  response_template.end();
+  response_template.end_resultset();
 
   return response_template.get_result();
 }

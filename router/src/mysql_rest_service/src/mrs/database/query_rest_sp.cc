@@ -23,19 +23,101 @@
  */
 
 #include "mrs/database/query_rest_sp.h"
-#include "mrs/json/response_json_template.h"
+
+#include "mrs/json/response_sp_json_template_nest.h"
+#include "mrs/json/response_sp_json_template_unnest.h"
+
+#include "mysql/harness/logging/logging.h"
+
+IMPORT_LOG_FUNCTIONS()
 
 namespace mrs {
 namespace database {
 
-QueryRestSP::QueryRestSP() {
-  response_template_.reset(new json::ResponseJsonTemplate());
+using namespace mrs::json;
+using namespace mrs::database::entry;
+
+static MYSQL_FIELD *columns_find(const std::string &look_for, unsigned number,
+                                 MYSQL_FIELD *fields) {
+  for (unsigned i = 0; i < number; ++i) {
+    if (look_for == fields[i].name) return &fields[i];
+  }
+
+  return nullptr;
+}
+
+static void impl_columns_set(std::vector<helper::Column> &c,
+                             const std::vector<Field> &rs, unsigned number,
+                             MYSQL_FIELD *fields) {
+  c.resize(rs.size());
+  int idx = 0;
+  for (auto &i : c) {
+    auto &f = rs[idx++];
+    auto column_def = columns_find(f.bind_name, number, fields);
+    i = helper::Column(column_def);
+    i.name = f.name;
+  }
+}
+
+static void impl_columns_set(std::vector<helper::Column> &c, unsigned number,
+                             MYSQL_FIELD *fields) {
+  c.resize(number);
+  int idx = 0;
+  for (auto &i : c) {
+    i = helper::Column(&fields[idx++]);
+  }
+}
+
+static const Field *columns_match(const std::vector<Field> &columns,
+                                  unsigned number, MYSQL_FIELD *fields) {
+  if (columns.size() != number) return nullptr;
+
+  for (const auto &c : columns) {
+    auto f = columns_find(c.bind_name, number, fields);
+    if (f) {
+      return &c;
+    }
+  }
+
+  return nullptr;
+}
+
+void QueryRestSP::columns_set(unsigned number, MYSQL_FIELD *fields) {
+  {
+    std::vector<Field> selected{};
+    for (auto &c : rs_->input_parameters.fields) {
+      if (c.mode == Field::modeIn) continue;
+      selected.push_back(c);
+    }
+    if (columns_match(selected, number, fields)) {
+      log_debug("Matched out-params");
+      columns_items_type_ = rs_->input_parameters.name + "Out";
+      impl_columns_set(columns_, selected, number, fields);
+      return;
+    }
+  }
+
+  for (auto &rs : rs_->results) {
+    if (columns_match(rs.fields, number, fields)) {
+      log_debug("Matched resultset with name %s", rs.name.c_str());
+      columns_items_type_ = rs.name;
+      impl_columns_set(columns_, rs.fields, number, fields);
+      return;
+    }
+  }
+
+  using namespace std::string_literals;
+  log_debug("No match");
+  columns_items_type_ = "items"s + std::to_string(resultset_);
+  impl_columns_set(columns_, number, fields);
 }
 
 void QueryRestSP::query_entries(
     MySQLSession *session, const std::string &schema, const std::string &object,
     const std::string &url, const std::string &ignore_column,
-    const mysqlrouter::sqlstring &values, std::vector<enum_field_types> pt) {
+    const mysqlrouter::sqlstring &values, std::vector<enum_field_types> pt,
+    const ResultSets &rs, const bool always_nest_result_sets) {
+  rs_ = &rs;
   items_started_ = false;
   items = 0;
   number_of_resultsets_ = 0;
@@ -44,83 +126,73 @@ void QueryRestSP::query_entries(
   query_ = {"CALL !.!(!)"};
   query_ << schema << object << values;
   url_ = url;
-
   has_out_params_ = !pt.empty();
+  resultset_ = 0;
+
+  bool no_out_params = true;
+  for (auto &f : rs.input_parameters.fields) {
+    if (f.mode == entry::Field::modeIn) continue;
+    no_out_params = false;
+    break;
+  }
+  use_single_resultset_ =
+      !always_nest_result_sets && rs.results.size() == 1 && no_out_params;
+
+  if (!use_single_resultset_) {
+    response_template_.reset(new ResponseSpJsonTemplateNest());
+  } else {
+    response_template_.reset(new ResponseSpJsonTemplateUnnest());
+  }
+
+  response_template_->begin();
 
   prepare_and_execute(session, query_, pt);
 
-  flush(true);
-  response_template_->end();
+  response_template_->finish();
 
   response = response_template_->get_result();
 }
 
-bool QueryRestSP::flush(const bool is_last) {
-  if (0 == items_in_resultset_ && !(is_last && !items_started_)) return true;
-  if (items_in_resultset_ > 1) return false;
-
-  items_started_ = true;
-  if (is_last && has_out_params_) {
-    response_template_->begin(url_, "itemsOut");
-    push_cached();
-    return false;
-  }
-
-  using namespace std::string_literals;
-  response_template_->begin(
-      url_, "items"s + (number_of_resultsets_ > 1
-                            ? std::to_string(number_of_resultsets_)
-                            : ""s));
-
-  push_cached();
-
-  return false;
-}
-
-void QueryRestSP::push_cached() {
-  if (items_in_resultset_) {
-    Row r;
-    r.reserve(flush_copy_.size());
-    for (auto &item : flush_copy_) {
-      r.push_back(item ? item.value().c_str() : nullptr);
-    }
-    push_to_document(r);
-  }
-}
-
 void QueryRestSP::on_row(const ResultRow &r) {
-  auto should_cache = flush();
-  ++items;
-  ++items_in_resultset_;
-
-  if (should_cache) {
-    flush_copy_.clear();
-    flush_copy_.reserve(r.size());
-
-    for (auto item : r) {
-      if (item)
-        flush_copy_.emplace_back(item);
-      else
-        flush_copy_.emplace_back();
-    }
-    return;
-  }
-  push_to_document(r);
-}
-
-void QueryRestSP::push_to_document(const ResultRow &r) {
-  response_template_->push_json_document(r, columns_, ignore_column_);
+  response_template_->push_json_document(r, ignore_column_);
 }
 
 void QueryRestSP::on_metadata(unsigned int number, MYSQL_FIELD *fields) {
-  if (number) {
-    flush();
-    ++number_of_resultsets_;
-    items_in_resultset_ = 0;
-    columns_.clear();
-    for (unsigned int i = 0; i < number; ++i) {
-      columns_.emplace_back(&fields[i]);
+  log_debug("rs_->input_parameters.fields.size()=%i",
+            (int)rs_->input_parameters.fields.size());
+
+  log_debug("rs_->input_parameters.name=%s",
+            rs_->input_parameters.name.c_str());
+
+  int i = 0;
+  for (auto &f : rs_->input_parameters.fields) {
+    log_debug("rs_->input_parameters.fields[%i].bind_name:%s", i,
+              f.bind_name.c_str());
+    log_debug("rs_->input_parameters.fields[%i].name:%s", i, f.name.c_str());
+    ++i;
+  }
+
+  log_debug("rs_->results.size()=%i", (int)rs_->results.size());
+
+  int j = 0;
+  for (auto &r : rs_->results) {
+    log_debug("r[%i].name=%s", j, r.name.c_str());
+    log_debug("r[%i].fields.size()=%i", j, (int)r.fields.size());
+
+    i = 0;
+    for (auto &f : r.fields) {
+      log_debug("rs_->results[%i].fields[%i].bind_name:%s", j, i,
+                f.bind_name.c_str());
+      log_debug("rs_->results[%i].fields[%i].name:%s", j, i, f.name.c_str());
+      ++i;
     }
+    ++j;
+  }
+  columns_set(number, fields);
+
+  if (number) {
+    resultset_++;
+    response_template_->begin_resultset(url_, columns_items_type_, columns_);
   }
 }
 

@@ -53,7 +53,7 @@ class Object {
   using RowUserOwnership = database::entry::RowUserOwnership;
   using VectorOfRowGroupOwnership =
       std::vector<database::entry::RowGroupOwnership>;
-  using Fields = std::vector<database::entry::Field>;
+  using Fields = database::entry::ResultSets;
 
   enum Access { kCreate = 1, kRead = 2, kUpdate = 4, kDelete = 8 };
   enum Format { kFeed = 1, kItem = 2, kMedia = 3 };

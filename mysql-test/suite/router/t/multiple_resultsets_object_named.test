@@ -44,75 +44,62 @@
 --let $mrs_add_db_object_type=PROCEDURE
 --source ../include/mrs_db_object/add.inc
 
+--let $mrs_modify_name=basicObject
+--let $mrs_modify_columns=id, name, comments, date
+--let $mrs_modify_fields=my_id, my_name, my_comments, my_date
+--source ../include/mrs_db_object/add_named_resultset.inc
+
 --let $mrs_add_db_object=two_resultsets
 --let $mrs_add_db_object_path=/two
 --let $mrs_add_db_object_type=PROCEDURE
 --source ../include/mrs_db_object/add.inc
+
+--let $mrs_modify_name=basicObjectFirst
+--let $mrs_modify_columns=count(*)
+--let $mrs_modify_fields=numberOfItems
+--source ../include/mrs_db_object/add_named_resultset.inc
+
+--let $mrs_modify_name=basicObjectSecond
+--let $mrs_modify_columns=id, name, comments, date
+--let $mrs_modify_fields=my_id, my_name, my_comments, my_date
+--source ../include/mrs_db_object/add_named_resultset.inc
 
 --let $mrs_add_db_object=three_resultsets
 --let $mrs_add_db_object_path=/three
 --let $mrs_add_db_object_type=PROCEDURE
 --source ../include/mrs_db_object/add.inc
 
---let $mrs_add_db_object=no_resultset_out_param
---let $mrs_add_db_object_path=/out
---let $mrs_add_db_object_type=PROCEDURE
---source ../include/mrs_db_object/add.inc
+--let $mrs_modify_name=basicObjectFirst
+--let $mrs_modify_columns=max(id)
+--let $mrs_modify_fields=last_id
+--source ../include/mrs_db_object/add_named_resultset.inc
 
---let $mrs_add_db_object=one_resultset_out_param
---let $mrs_add_db_object_path=/one_and_out
---let $mrs_add_db_object_type=PROCEDURE
---source ../include/mrs_db_object/add.inc
+--let $mrs_modify_name=basicObjectSecond
+--let $mrs_modify_columns=min(id)
+--let $mrs_modify_fields=first_id
+--source ../include/mrs_db_object/add_named_resultset.inc
+
+
 
 --echo
 --echo #
 --echo # I.1
 # Wait until the DB_OBJECTS are fetched by router.
-# Print more important fields, which values should be verified by
-# "result" file. The general verification of the response is done by
-# JSON schema.
 exec $MRS_CLIENT_ARGS
   --wait-until-found 60 -t PUT --payload "{}"
-  --json-pointer /items/*/items/*/name,/items/*/metadata
-  --json-schema $SCHEMA_DIR/items_not_empty_unlimited.sch
   --path /svc/proc/one;
 
 --echo
 --echo #
 --echo # I.2
-# Print more important fields, which values should be verified by
-# "result" file. The general verification of the response is done by
-# JSON schema.
 exec $MRS_CLIENT_ARGS
   --path /svc/proc/two;
   
   --echo
 --echo #
 --echo # I.3
-# Print more important fields, which values should be verified by
-# "result" file. The general verification of the response is done by
-# JSON schema.
 exec $MRS_CLIENT_ARGS
   --path /svc/proc/three;
-
-
---echo
---echo #
---echo # II.1
-# Print more important fields, which values should be verified by
-# "result" file. The general verification of the response is done by
-# JSON schema.
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/out;
-
---echo
---echo #
---echo # II.2
-# Print more important fields, which values should be verified by
-# "result" file. The general verification of the response is done by
-# JSON schema.
-exec $MRS_CLIENT_ARGS
-  --path /svc/proc/one_and_out;
 
 
 # Cleanup

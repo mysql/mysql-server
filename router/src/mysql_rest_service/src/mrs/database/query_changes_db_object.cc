@@ -79,7 +79,8 @@ void QueryChangesDbObject::query_entries(MySQLSession *session) {
     qg.query_group_row_security(session, e.id);
     e.row_group_security = std::move(qg.get_result());
     qp.query_parameters(session, e.id);
-    e.fields = std::move(qp.get_result());
+    auto &r = qp.get_result();
+    e.fields = std::move(r);
   }
 
   entries.swap(local_path_entries);

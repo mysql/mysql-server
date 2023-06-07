@@ -113,6 +113,7 @@ if (!$mrs_add_db_object_do_not_auto_register_columns)
 
 --let $mrs_sql_id_variable_db_object=
 --let $mrs_sql_id_variable_object=
+--let $mrs_sql_id_variable_ob=
 --let $mrs_sql_id_variable_object_ref=
 --let $mrs_add_db_object_join_schema=
 --let $mrs_add_db_object_join_table=
