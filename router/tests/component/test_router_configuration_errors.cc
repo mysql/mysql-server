@@ -342,6 +342,20 @@ static const BrokenConfigParams broken_config_params[]{
      "in [routing:tests]: '127.0.0.1:99999' is not a valid endpoint",
      ""},
 
+    {"routing_bind_address_ambiguous_port",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "routing:tests",
+             {
+                 {"bind_address", "127.0.0.1:3307"},
+                 {"bind_port", "3308"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"routing_strategy", "round-robin"},
+             }),
+     },
+     "port in bind_address and bind_port are ambiguous",
+     ""},
+
     {"routing_bind_address_invalid_address",
      // '....' should be invalid in all environments as each "label" is 0 chars
      // which isn't allowed.
