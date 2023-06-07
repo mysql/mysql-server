@@ -117,6 +117,7 @@ class BaseTable : public Table {
 };
 
 class ObjectField;
+class ReducedDataField;
 
 // tables that are joined to the root table or others
 class JoinedTable : public Table {
@@ -124,7 +125,7 @@ class JoinedTable : public Table {
   using ColumnMapping =
       std::vector<std::pair<std::shared_ptr<Column>, std::shared_ptr<Column>>>;
 
-  std::shared_ptr<ObjectField> reduce_to_field;
+  std::shared_ptr<ReducedDataField> reduce_to_field;
 
   ColumnMapping column_mapping;
   bool to_many = false;
@@ -137,7 +138,10 @@ class Object;
 
 class ObjectField {
  public:
+  ObjectField() = default;
   virtual ~ObjectField() = default;
+
+  ObjectField &operator=(const ObjectField &) = default;
 
   std::string name;
   int position = 0;
@@ -149,7 +153,17 @@ class ObjectField {
 
 class DataField : public ObjectField {
  public:
+  DataField() = default;
+  DataField(const DataField &f) = default;
+
+  DataField &operator=(const DataField &) = default;
+
   std::shared_ptr<Column> source;
+};
+
+class ReducedDataField : public DataField {
+ public:
+  std::shared_ptr<Table> table;
 };
 
 class Object {
