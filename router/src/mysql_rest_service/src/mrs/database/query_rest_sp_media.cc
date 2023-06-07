@@ -51,11 +51,9 @@ void QueryRestSPMedia::query_entries(MySQLSession *session,
   response.assign((*result.get())[0], result->get_data_size(0));
 }
 
-void QueryRestSPMedia::query_entries(MySQLSession *session,
-                                     const std::string &column,
-                                     const std::string &schema,
-                                     const std::string &object,
-                                     const PrimaryKeyColumnValues &pk) {
+void QueryRestSPMedia::query_entries(MySQLSession *session, const std::string &,
+                                     const std::string &, const std::string &,
+                                     const PrimaryKeyColumnValues &) {
   assert(0);
   items = 0;
   query_ = {"SELECT ! FROM !.! WHERE ?"};
