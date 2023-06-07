@@ -2298,3 +2298,8 @@ v
 SELECT CAST(CAST(1111111111111111 AS FLOAT) AS DECIMAL(20,2)) AS v;
 v
 1111111126482944.00
+#
+# Bug#35451479 MySQL Server 8.0.33 crashes when executing query
+#
+SELECT * from v0 WHERE v1 LIKE v1 ESCAPE CONVERT ( TRUE, DATETIME (100 ) );
+ERROR 42000: Too-big precision 100 specified for 'CAST'. Maximum is 6.

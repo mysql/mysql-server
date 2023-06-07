@@ -10574,10 +10574,14 @@ simple_expr:
           {
             push_deprecated_warn(YYTHD, "BINARY expr", "CAST");
             $$= create_func_cast(YYTHD, @$, $2, ITEM_CAST_CHAR, &my_charset_bin);
+            if ($$ == nullptr)
+              MYSQL_YYABORT;
           }
         | CAST_SYM '(' expr AS cast_type opt_array_cast ')'
           {
             $$= create_func_cast(YYTHD, @$, $3, $5, $6);
+            if ($$ == nullptr)
+              MYSQL_YYABORT;
           }
         | CAST_SYM '(' expr AT_SYM LOCAL_SYM AS cast_type opt_array_cast ')'
           {
@@ -10590,6 +10594,8 @@ simple_expr:
             auto datetime_factor =
                 NEW_PTN Item_func_at_time_zone(@3, $3, $8.str, $7);
             $$ = create_func_cast(YYTHD, @$, datetime_factor, cast_type, false);
+            if ($$ == nullptr)
+              MYSQL_YYABORT;
           }
         | CASE_SYM opt_expr when_list opt_else END
           {
@@ -10598,6 +10604,8 @@ simple_expr:
         | CONVERT_SYM '(' expr ',' cast_type ')'
           {
             $$= create_func_cast(YYTHD, @$, $3, $5, false);
+            if ($$ == nullptr)
+              MYSQL_YYABORT;
           }
         | CONVERT_SYM '(' expr USING charset_name ')'
           {
