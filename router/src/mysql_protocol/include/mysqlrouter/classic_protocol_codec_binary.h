@@ -27,6 +27,7 @@
 
 #include <cstddef>       // size_t
 #include <cstdint>       // uint8_t
+#include <cstring>       // memcpy
 #include <system_error>  // error_code
 #include <utility>       // move
 
