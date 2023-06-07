@@ -35,6 +35,7 @@
 #include "my_thread.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
+#include "mysql/harness/tls_types.h"
 #include "openssl_version.h"
 
 /*
@@ -354,23 +355,16 @@ TlsVersion TlsContext::min_version() const {
 }
 
 std::vector<std::string> TlsContext::cipher_list() const {
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
-  // dump the cipher-list we actually have
-  STACK_OF(SSL_CIPHER) *st = SSL_CTX_get_ciphers(ssl_ctx_.get());
-  size_t num_ciphers = sk_SSL_CIPHER_num(st);
+  // dump the cipher-list we actually have - using the SSL_* functions
+  mysql_harness::Ssl ssl{SSL_new(ssl_ctx_.get())};
 
-  std::vector<std::string> out(num_ciphers);
-  for (size_t ndx = 0; ndx < num_ciphers; ++ndx) {
-    auto *cipher = sk_SSL_CIPHER_value(st, ndx);
-    out.emplace_back(SSL_CIPHER_get_name(cipher));
+  std::vector<std::string> out;
+  int prio = 0;
+  while (auto cipher = SSL_get_cipher_list(ssl.get(), prio++)) {
+    out.emplace_back(cipher);
   }
 
   return out;
-#else
-  throw std::invalid_argument(
-      "::cipher_list() isn't implemented. Use .has_get_cipher_list() "
-      "to check before calling");
-#endif
 }
 
 void TlsContext::info_callback(TlsContext::InfoCallback cb) {
