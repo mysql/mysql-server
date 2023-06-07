@@ -48,6 +48,7 @@ using mrs::database::entry::IdGenerationType;
 using mrs::database::entry::JoinedTable;
 using mrs::database::entry::Object;
 using mrs::database::entry::ObjectField;
+using mrs::database::entry::ReducedDataField;
 using mrs::database::entry::ReferenceField;
 using mrs::database::entry::Table;
 
@@ -191,10 +192,9 @@ class ObjectBuilder {
     j->to_many = true;
     j->column_mapping = resolve_column_mapping(join, true);
 
-    auto field = std::dynamic_pointer_cast<DataField>(
-        join.m_object->get_field(field_name));
-    assert(field);
-
+    auto field = make_reduced_field(std::dynamic_pointer_cast<DataField>(
+        join.m_object->get_field(field_name)));
+    field->table = join.m_table;
     field->name = name;
     m_object->fields.push_back(field);
     m_object->base_tables.push_back(field->source->table.lock());
@@ -225,7 +225,9 @@ class ObjectBuilder {
     //   m_object->fields.push_back(f);
     // }
 
-    j->reduce_to_field = join.m_object->get_field(field_name);
+    j->reduce_to_field =
+        make_reduced_field(std::dynamic_pointer_cast<DataField>(
+            join.m_object->get_field(field_name)));
     assert(j->reduce_to_field);
 
     return *this;
@@ -408,6 +410,15 @@ class ObjectBuilder {
     m_table->columns.push_back(column);
 
     return column;
+  }
+
+  std::shared_ptr<ReducedDataField> make_reduced_field(
+      std::shared_ptr<DataField> field) {
+    auto rfield = std::make_shared<ReducedDataField>();
+
+    *std::static_pointer_cast<DataField>(rfield) = *field;
+
+    return rfield;
   }
 };
 

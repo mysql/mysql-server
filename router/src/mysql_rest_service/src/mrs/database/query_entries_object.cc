@@ -356,7 +356,21 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
       parent_object->fields.push_back(field);
     }
   } else {
-    auto dfield = std::make_shared<entry::DataField>();
+    std::shared_ptr<entry::DataField> dfield;
+
+    if (auto it = m_pending_reduce_to_field.find(field_id);
+        it != m_pending_reduce_to_field.end()) {
+      auto tmp = std::make_shared<entry::ReducedDataField>();
+      tmp->table = table;
+      dfield = tmp;
+
+      for (const auto &table : it->second) {
+        table->reduce_to_field = tmp;
+      }
+      m_pending_reduce_to_field.erase(it);
+    } else {
+      dfield = std::make_shared<entry::DataField>();
+    }
     field = dfield;
 
     row.unserialize(&dfield->name);
@@ -381,14 +395,6 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
 
     table->columns.push_back(column);
     parent_object->fields.push_back(field);
-  }
-
-  if (auto it = m_pending_reduce_to_field.find(field_id);
-      it != m_pending_reduce_to_field.end()) {
-    for (const auto &table : it->second) {
-      table->reduce_to_field = field;
-    }
-    m_pending_reduce_to_field.erase(it);
   }
 }
 
