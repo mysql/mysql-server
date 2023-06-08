@@ -590,6 +590,12 @@ bool JOIN::optimize(bool finalize_access_paths) {
         m_windows_sort = true;
         break;
       }
+    // This is necessary to undo effects of any previous execute's call to
+    // CreateFramebufferTable->ReplaceMaterializedItems's calls of
+    // update_used_tables: loses PROP_WINDOW_FUNCTION needed here in next
+    // execution round
+    if (m_windows.elements > 0)
+      for (auto f : *fields) f->update_used_tables();
   }
 
   sort_by_table = get_sort_by_table(order.order, group_list.order,

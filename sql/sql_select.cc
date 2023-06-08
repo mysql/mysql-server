@@ -4391,13 +4391,6 @@ bool JOIN::make_tmp_tables_info() {
 
   DBUG_TRACE;
 
-  // This is necessary to undo effects of any previous execute's call to
-  // CreateFramebufferTable->ReplaceMaterializedItems's calls of
-  // update_used_tables: loses PROP_WINDOW_FUNCTION needed here in next
-  // execution round
-  if (m_windows.elements > 0)
-    for (auto f : *fields) f->update_used_tables();
-
   /*
     In this function, we may change having_cond into a condition on a
     temporary sort/group table, so we have to assign having_for_explain now:
