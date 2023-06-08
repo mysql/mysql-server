@@ -187,3 +187,42 @@ SELECT * FROM v1;
 --echo # Literals should be entirely printed:
 SHOW CREATE VIEW v1;
 DROP VIEW v1;
+
+--echo #
+--echo # Bug#35467555 No matching rows when joining multiple tables
+--echo #              on binary/varbinary key
+--echo #
+
+CREATE TABLE parents (
+  id binary(16) NOT NULL,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE foos (
+  id bigint NOT NULL AUTO_INCREMENT,
+  parent_id varbinary(16) NOT NULL,
+  text varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  PRIMARY KEY (id),
+  KEY index_foos_on_parent_id (parent_id)
+);
+
+CREATE TABLE bars (
+  id binary(16) NOT NULL,
+  parent_id varbinary(16) NOT NULL,
+  PRIMARY KEY (id),
+  KEY index_bars_on_parent_id (parent_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+INSERT INTO parents VALUES (X'93222796caba43ca979f5c96eb6898b7');
+INSERT INTO foos (parent_id, text) SELECT parents.id, 'correct output' FROM
+parents;
+INSERT INTO bars (id, parent_id) SELECT X'79cea9ab6fe14a8ebdfed711a7727763',
+parents.id FROM parents;
+
+SELECT foos.text
+FROM foos
+JOIN parents ON parents.id = foos.parent_id
+JOIN bars ON bars.parent_id = parents.id
+WHERE bars.parent_id = X'93222796caba43ca979f5c96eb6898b7';
+
+DROP TABLE parents, foos, bars;

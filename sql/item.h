@@ -5621,7 +5621,6 @@ class Item_hex_string : public Item_basic_constant {
     set_data_type(MYSQL_TYPE_VARCHAR);
   }
 
-  Item_hex_string(const char *str, uint str_length);
   Item_hex_string(const POS &pos, const LEX_STRING &literal);
 
   enum Type type() const override { return VARBIN_ITEM; }
@@ -5630,9 +5629,8 @@ class Item_hex_string : public Item_basic_constant {
     return (double)(ulonglong)Item_hex_string::val_int();
   }
   longlong val_int() override;
-  Item *clone_item() const override {
-    return new Item_hex_string(str_value.ptr(), max_length);
-  }
+  Item *clone_item() const override;
+
   String *val_str(String *) override {
     assert(fixed);
     return &str_value;

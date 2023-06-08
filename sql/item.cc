@@ -7131,7 +7131,7 @@ bool Item_float::eq(const Item *arg, bool) const {
   return false;
 }
 
-inline uint char_val(char X) {
+static inline uint char_val(char X) {
   return (uint)(X >= '0' && X <= '9'
                     ? X - '0'
                     : X >= 'A' && X <= 'Z' ? X - 'A' + 10 : X - 'a' + 10);
@@ -7139,13 +7139,20 @@ inline uint char_val(char X) {
 
 Item_hex_string::Item_hex_string() { hex_string_init("", 0); }
 
-Item_hex_string::Item_hex_string(const char *str, uint str_length) {
-  hex_string_init(str, str_length);
-}
-
 Item_hex_string::Item_hex_string(const POS &pos, const LEX_STRING &literal)
     : super(pos) {
   hex_string_init(literal.str, literal.length);
+}
+
+Item *Item_hex_string::clone_item() const {
+  Item_hex_string *retval = new Item_hex_string();
+  if (retval == nullptr) return nullptr;
+  retval->str_value.set(
+      current_thd->strmake(str_value.ptr(), str_value.length()),
+      str_value.length(), &my_charset_bin);
+  retval->cmp_context = cmp_context;
+  retval->max_length = max_length;
+  return retval;
 }
 
 LEX_CSTRING Item_hex_string::make_hex_str(const char *str, size_t str_length) {
