@@ -1652,7 +1652,8 @@ TEST_F(DatabaseQueryGet, row_filter) {
   auto root =
       ObjectBuilder("mrstestdb", "actor")
           .column("actor_id")
-          .field("first_name")
+          .field("firstName", "first_name", "text")
+          .field("lastName", "last_name", "text", FieldFlag::NOFILTER)
           .nest_list(
               "films",
               ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
@@ -1671,12 +1672,66 @@ TEST_F(DatabaseQueryGet, row_filter) {
                                   .column("language_id")
                                   .field("name"),
                               "name")
-                          .column("original_language_id")
+                          .nest_list("categories",
+                                     ObjectBuilder("film_category",
+                                                   {{"film_id", "film_id"}})
+                                         .column("film_id")
+                                         .column("category_id")
+                                         .reduce_to_field(
+                                             ObjectBuilder("category",
+                                                           {{"category_id",
+                                                             "category_id"}})
+                                                 .column("category_id")
+                                                 .field("name"),
+                                             "name"))));
+
+  {
+    rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
+                        R"*({"firstName": "PENELOPE"})*");
+
+    auto json = make_json(rest->response);
+    EXPECT_EQ(1, json["items"].GetArray().Size());
+  }
+  {
+    reset();
+
+    EXPECT_REST_ERROR(
+        rest->query_entries(
+            m_.get(), root, {}, 0, 5, "url", true, {},
+            R"*({"firstName": "PENELOPE", "lastName": "SMITH"})*"),
+        "Cannot filter on field lastName");
+  }
+  {
+    reset();
+
+    EXPECT_REST_ERROR(
+        rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
+                            R"*({"invalid_field": "HOORAY"})*"),
+        "Cannot filter on field invalid_field");
+  }
+}
+
+TEST_F(DatabaseQueryGet, row_filter_order) {
+  auto root =
+      ObjectBuilder("mrstestdb", "actor")
+          .field("id", "actor_id", "int", FieldFlag::PRIMARY)
+          .field("firstName", "first_name", "text", FieldFlag::UNIQUE)
+          .field("lastName", "last_name", "text", FieldFlag::NOFILTER)
+          .nest_list(
+              "films",
+              ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
+                  .column("actor_id")
+                  .column("film_id")
+                  .unnest(
+                      ObjectBuilder("film", {{"film_id", "film_id"}})
+                          .column("film_id")
+                          .field("title")
+                          .field("description")
+                          .column("language_id")
                           .reduce_to_field(
-                              "original_language",
-                              ObjectBuilder(
-                                  "language",
-                                  {{"language_id", "original_language_id"}})
+                              "language",
+                              ObjectBuilder("language",
+                                            {{"language_id", "language_id"}})
                                   .column("language_id")
                                   .field("name"),
                               "name")
@@ -1695,25 +1750,46 @@ TEST_F(DatabaseQueryGet, row_filter) {
 
   {
     rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
-                        R"*({"first_name": "PENELOPE"})*");
+                        R"*({"$orderby": {"id": 1}})*");
 
-    rapidjson::Document res = make_json(rest->response);
-
-    EXPECT_EQ(1, res["count"].GetInt());
-    EXPECT_STREQ("PENELOPE", res["items"][0]["first_name"].GetString());
+    auto json = make_json(rest->response);
+    EXPECT_EQ(5, json["items"].GetArray().Size());
+    EXPECT_EQ(1, json["items"][0]["id"].GetInt());
+    EXPECT_EQ(2, json["items"][1]["id"].GetInt());
+    EXPECT_EQ(3, json["items"][2]["id"].GetInt());
+    EXPECT_EQ(4, json["items"][3]["id"].GetInt());
+    EXPECT_EQ(5, json["items"][4]["id"].GetInt());
   }
-
-#ifdef not_implemented
   {
-    rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
-                        R"*({"films.title": {"$like": "TEST%"}})*");
+    reset();
 
-    rapidjson::Document res = make_json(rest->response);
-    std::cout << pprint_json(rest->response) << "\n";
-    EXPECT_EQ(3, res["count"].GetInt());
-    EXPECT_STREQ("PENELOPE", res["items"][0]["first_name"].GetString());
+    rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
+                        R"*({"$orderby": {"firstName": -1}})*");
+
+    auto json = make_json(rest->response);
+    EXPECT_EQ(5, json["items"].GetArray().Size()) << rest->response;
+    EXPECT_EQ(11, json["items"][0]["id"].GetInt());
+    EXPECT_EQ(1, json["items"][1]["id"].GetInt());
+    EXPECT_EQ(2, json["items"][2]["id"].GetInt());
+    EXPECT_EQ(8, json["items"][3]["id"].GetInt());
+    EXPECT_EQ(5, json["items"][4]["id"].GetInt());
   }
-#endif
+  {
+    reset();
+
+    EXPECT_REST_ERROR(
+        rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
+                            R"*({"$orderby": {"lastName": 1}})*"),
+        "Cannot filter on field lastName");
+  }
+  {
+    reset();
+
+    EXPECT_REST_ERROR(
+        rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
+                            R"*({"$orderby": {"invalid_field": 1}})*"),
+        "Cannot filter on field invalid_field");
+  }
 }
 
 TEST_F(DatabaseQueryGet, etag) {}

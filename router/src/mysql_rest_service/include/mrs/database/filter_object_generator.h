@@ -49,7 +49,8 @@ class FilterObjectGenerator {
   FilterObjectGenerator(std::shared_ptr<database::entry::Object> object,
                         bool joins_allowed);
   void parse(const Document &doc);
-  std::string get_result() const;
+  mysqlrouter::sqlstring get_result() const;
+  bool has_where() const;
   bool has_order() const;
 
  private:
@@ -58,21 +59,19 @@ class FilterObjectGenerator {
   bool parse_simple_object(Value *value);
   bool parse_complex_object(const char *name, Value *value);
   void parse_orderby_asof_wmember(Object object);
-  void prase_order(Object object);
+  void parse_order(Object object);
   void parse_asof(Value *value);
   void parse_wmember(const char *name, Value *value);
   void parse_match(Value *value);
-  std::string resolve_field_name(const char *name) const;
+  mysqlrouter::sqlstring resolve_field_name(const char *name) const;
 
   void reset();
 
   std::shared_ptr<database::entry::Object> object_metadata_;
   bool joins_allowed_{false};
-  bool has_filter_{false};
-  bool has_order_{false};
-  std::string where_;
+  mysqlrouter::sqlstring where_;
   std::list<std::string> argument_;
-  std::string order_;
+  mysqlrouter::sqlstring order_;
 };
 
 }  // namespace database
