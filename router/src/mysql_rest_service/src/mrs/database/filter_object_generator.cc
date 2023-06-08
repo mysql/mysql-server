@@ -70,16 +70,17 @@ std::vector<std::string> get_array_of_string(Value *value) {
 class tosString {
  public:
   bool acceptable(Value *v) const { return v->IsString(); }
-  std::string to_string(Value *v) const {
-    // TODO(lkotula): Do a proper escaping for SQL (Shouldn't be in review)
-    return "'"s + v->GetString() + "'";
+  mysqlrouter::sqlstring to_sqlstring(Value *v) const {
+    return mysqlrouter::sqlstring("?") << v->GetString();
   }
 };
 
 class tosNumber {
  public:
   bool acceptable(Value *v) const { return v->IsNumber(); }
-  std::string to_string(Value *v) const { return helper::json::to_string(v); }
+  mysqlrouter::sqlstring to_sqlstring(Value *v) const {
+    return mysqlrouter::sqlstring(helper::json::to_string(v).c_str());
+  }
 };
 
 class tosDate {
@@ -95,36 +96,35 @@ class tosDate {
     return it->value.IsString();
   }
 
-  std::string to_string(Value *v) const {
+  mysqlrouter::sqlstring to_sqlstring(Value *v) const {
     auto o = v->GetObject();
-    // TODO(lkotula): Do a proper escaping for SQL (Shouldn't be in review)
-    return "'"s + o[k_date].GetString() + "'";
+    return mysqlrouter::sqlstring("?") << o[k_date].GetString();
   }
 };
 
 class Result {
  public:
-  Result(Value *v) : v_{v} {}
+  explicit Result(Value *v) : v_{v} {}
 
   template <typename Z>
   Result &operator<<(const Z &t) {
-    if (result.empty() && t.acceptable(v_)) {
-      result = t.to_string(v_);
+    if (result.is_empty() && t.acceptable(v_)) {
+      result = t.to_sqlstring(v_);
     }
 
     return *this;
   }
 
-  std::string result;
+  mysqlrouter::sqlstring result;
   Value *v_;
 };
 
 template <typename... T>
-std::string to_string(Value *value) {
+mysqlrouter::sqlstring to_sqlstring(Value *value) {
   Result r(value);
   (r << ... << T());
 
-  if (r.result.empty()) throw RestError("Not supported type.");
+  if (r.result.is_empty()) throw RestError("Not supported type.");
 
   return r.result;
 }
@@ -133,15 +133,16 @@ FilterObjectGenerator::FilterObjectGenerator(
     std::shared_ptr<database::entry::Object> object, bool joins_allowed)
     : object_metadata_(object), joins_allowed_(joins_allowed) {}
 
-std::string FilterObjectGenerator::get_result() const {
-  return where_ + order_;
+mysqlrouter::sqlstring FilterObjectGenerator::get_result() const {
+  mysqlrouter::sqlstring tmp;
+  tmp.append_preformatted(where_);
+  tmp.append_preformatted(order_);
+  return tmp;
 }
 
 void FilterObjectGenerator::reset() {
-  where_.clear();
-  order_.clear();
-  has_order_ = false;
-  has_filter_ = false;
+  where_.reset("");
+  order_.reset("");
 }
 
 void FilterObjectGenerator::parse(const Document &doc) {
@@ -156,14 +157,14 @@ void FilterObjectGenerator::parse_orderby_asof_wmember(Object object) {
   static std::string k_order{"$orderby"};
   static std::string k_asof{"$asof"};
   for (auto member : helper::json::member_iterator(object)) {
-    if (k_asof == member.first)
+    if (k_asof == member.first) {
       parse_asof(member.second);
-    else if (k_order == member.first) {
+    } else if (k_order == member.first) {
       if (!member.second->IsObject())
         throw RestError("`orderby` must be and json object.");
-      prase_order(member.second->GetObject());
+      parse_order(member.second->GetObject());
     } else {
-      if (!where_.empty()) where_ += " AND";
+      if (!where_.is_empty()) where_.append_preformatted(" AND");
       //      else
       //        where_ = " WHERE";
       parse_wmember(member.first, member.second);
@@ -175,19 +176,20 @@ bool FilterObjectGenerator::parse_complex_object(const char *name,
                                                  Value *value) {
   log_debug("Parser complex_object ");
   if ("$or"s == name) {
-    where_ += "(";
+    where_.append_preformatted("(");
     parse_complex_or(value);
-    where_ += ")";
+    where_.append_preformatted(")");
   } else if ("$and"s == name) {
-    where_ += "(";
+    where_.append_preformatted("(");
     parse_complex_and(value);
-    where_ += ")";
+    where_.append_preformatted(")");
   } else if ("$match"s == name) {
-    where_ += "(";
+    where_.append_preformatted("(");
     parse_match(value);
-    where_ += ")";
-  } else
+    where_.append_preformatted(")");
+  } else {
     return false;
+  }
 
   return true;
 }
@@ -202,30 +204,53 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
   auto db_name = resolve_field_name(argument_.back().c_str());
 
   log_debug("parse_simple_object %i", static_cast<int>(value->GetType()));
-  where_ += " ";
+  where_.append_preformatted(" ");
   if ("$eq"s == name) {
-    where_ += db_name + " = " + to_string<tosString, tosNumber, tosDate>(value);
+    where_.append_preformatted(db_name)
+        .append_preformatted(" = ")
+        .append_preformatted(
+            to_sqlstring<tosString, tosNumber, tosDate>(value));
   } else if ("$ne"s == name) {
-    where_ +=
-        db_name + " <> " + to_string<tosString, tosNumber, tosDate>(value);
+    where_.append_preformatted(db_name)
+        .append_preformatted(" <> ")
+        .append_preformatted(
+            to_sqlstring<tosString, tosNumber, tosDate>(value));
   } else if ("$lt"s == name) {
-    where_ += db_name + " < " + to_string<tosNumber, tosDate>(value);
+    where_.append_preformatted(db_name)
+        .append_preformatted(" < ")
+        .append_preformatted(to_sqlstring<tosNumber, tosDate>(value));
   } else if ("$lte"s == name) {
-    where_ += db_name + " <= " + to_string<tosNumber, tosDate>(value);
+    where_.append_preformatted(db_name)
+        .append_preformatted(" <= ")
+        .append_preformatted(to_sqlstring<tosNumber, tosDate>(value));
   } else if ("$gt"s == name) {
-    where_ += db_name + " > " + to_string<tosNumber, tosDate>(value);
+    where_.append_preformatted(db_name)
+        .append_preformatted(" > ")
+        .append_preformatted(to_sqlstring<tosNumber, tosDate>(value));
   } else if ("$gte"s == name) {
-    where_ += db_name + " >= " + to_string<tosNumber, tosDate>(value);
+    where_.append_preformatted(db_name)
+        .append_preformatted(" >= ")
+        .append_preformatted(to_sqlstring<tosNumber, tosDate>(value));
   } else if ("$instr"s == name) {
-    where_ += "instr(" + db_name + ", " + to_string<tosString>(value) + ")";
+    where_.append_preformatted("instr(")
+        .append_preformatted(db_name)
+        .append_preformatted(", ")
+        .append_preformatted(to_sqlstring<tosString>(value))
+        .append_preformatted(")");
   } else if ("$ninstr"s == name) {
-    where_ += "not instr(" + db_name + ", " + to_string<tosString>(value) + ")";
+    where_.append_preformatted("not instr(")
+        .append_preformatted(db_name)
+        .append_preformatted(", ")
+        .append_preformatted(to_sqlstring<tosString>(value))
+        .append_preformatted(")");
   } else if ("$like"s == name) {
-    where_ += db_name + " like " + to_string<tosString>(value);
+    where_.append_preformatted(db_name)
+        .append_preformatted(" like ")
+        .append_preformatted(to_sqlstring<tosString>(value));
   } else if ("$null"s == name) {
-    where_ += db_name + " IS NULL";
+    where_.append_preformatted(db_name).append_preformatted(" IS NULL");
   } else if ("$notnull"s == name) {
-    where_ += db_name + " IS NOT NULL";
+    where_.append_preformatted(db_name).append_preformatted(" IS NOT NULL");
   } else if ("$between"s == name) {
     if (!value->IsArray())
       throw RestError("Between operator, requires an array field.");
@@ -233,11 +258,16 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
       throw RestError("Between field, requires array with size of two.");
     // TODO(lkotula): Support of NULL values with different types of `tos-es`
     // (Shouldn't be in review)
-    where_ += db_name + " BETWEEN " +
-              to_string<tosString, tosNumber, tosDate>(&(*value)[0]) + " AND " +
-              to_string<tosString, tosNumber, tosDate>(&(*value)[1]);
-  } else
+    where_.append_preformatted(db_name)
+        .append_preformatted(" BETWEEN ")
+        .append_preformatted(
+            to_sqlstring<tosString, tosNumber, tosDate>(&(*value)[0]))
+        .append_preformatted(" AND ")
+        .append_preformatted(
+            to_sqlstring<tosString, tosNumber, tosDate>(&(*value)[1]));
+  } else {
     return false;
+  }
 
   return true;
 }
@@ -292,7 +322,7 @@ void FilterObjectGenerator::parse_match(Value *value) {
 
   mysqlrouter::sqlstring v{"MATCH (!) AGAINST(? ?) "};
   v << fields << against_expr->value.GetString() << selected_modifier;
-  where_ += v.str();
+  where_.append_preformatted(v);
 }
 
 void FilterObjectGenerator::parse_complex_and(Value *value) {
@@ -307,19 +337,20 @@ void FilterObjectGenerator::parse_complex_and(Value *value) {
   auto arr = value->GetArray();
   bool first = true;
   for (auto &el : helper::json::array_iterator(arr)) {
-    if (!first) where_ += " AND";
+    if (!first) where_.append_preformatted(" AND");
     first = false;
 
     if (!el.IsObject())
       throw RestError("Complex expression, array element must be an object.");
-    where_ += "(";
+    where_.append_preformatted("(");
     auto el_as_object = el.GetObject();
     for (auto member : helper::json::member_iterator(el_as_object)) {
       parse_wmember(member.first, member.second);
     }
-    where_ += ")";
+    where_.append_preformatted(")");
   }
 }
+
 void FilterObjectGenerator::parse_complex_or(Value *value) {
   log_debug("Parser complex_or");
   if (value->IsObject())
@@ -332,26 +363,27 @@ void FilterObjectGenerator::parse_complex_or(Value *value) {
   auto arr = value->GetArray();
   bool first = true;
   for (auto &el : helper::json::array_iterator(arr)) {
-    if (!first) where_ += " OR";
+    if (!first) where_.append_preformatted(" OR");
     first = false;
 
     if (!el.IsObject())
       throw RestError("Complex expression, array element must be an object.");
-    where_ += "(";
+    where_.append_preformatted("(");
     auto el_as_object = el.GetObject();
     for (auto member : helper::json::member_iterator(el_as_object)) {
       parse_wmember(member.first, member.second);
     }
-    where_ += ")";
+    where_.append_preformatted(")");
   }
 }
 
-bool FilterObjectGenerator::has_order() const { return has_order_; }
+bool FilterObjectGenerator::has_where() const { return !where_.is_empty(); }
+
+bool FilterObjectGenerator::has_order() const { return !order_.is_empty(); }
 
 void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   log_debug("Parser wmember");
   using namespace std::literals::string_literals;
-  has_filter_ = true;
   argument_.push_back(name);
   if (parse_complex_object(name, value)) return;
   if (parse_simple_object(value)) return;
@@ -360,8 +392,9 @@ void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   std::string dbname = resolve_field_name(name);
 
   // TODO(lkotula): array of ComplectValues (Shouldn't be in review)
-  where_ +=
-      " "s + dbname + "=" + to_string<tosString, tosNumber, tosDate>(value);
+  where_.append_preformatted(
+      mysqlrouter::sqlstring(" ?=?")
+      << dbname << to_sqlstring<tosString, tosNumber, tosDate>(value));
   argument_.pop_back();
 }
 
@@ -370,23 +403,23 @@ void FilterObjectGenerator::parse_asof(Value * /*value*/) {
   throw RestError("`asof` attribute not supported.");
 }
 
-void FilterObjectGenerator::prase_order(Object object) {
+void FilterObjectGenerator::parse_order(Object object) {
   log_debug("Parser Order");
   const char *kWrongValueForOrder =
       "Wrong value for order, expected: [1,-1, ASC, DESC].";
   const char *kWrongTypeForOrder =
       "Wrong value type for order, expected INTEGER or STRING type "
       "with following values [1,-1, ASC, DESC].";
-  bool first = order_.empty();
+  bool first = order_.is_empty();
 
   if (0 == object.MemberCount())
     throw RestError("Wrong falue for `orderby`, requires object with fields.");
 
   for (auto member : helper::json::member_iterator(object)) {
-    order_ += first ? " ORDER BY " : ", ";
+    order_.append_preformatted(first ? " ORDER BY " : ", ");
     first = false;
     bool asc = false;
-    order_ += member.first;
+    order_.append_preformatted(resolve_field_name(member.first));
 
     auto value = member.second;
 
@@ -415,30 +448,30 @@ void FilterObjectGenerator::prase_order(Object object) {
       throw RestError(kWrongTypeForOrder);
     }
 
-    order_ += asc ? " ASC" : " DESC";
+    order_.append_preformatted(asc ? " ASC" : " DESC");
   }
-  has_order_ = true;
 }
 
-std::string FilterObjectGenerator::resolve_field_name(const char *name) const {
+mysqlrouter::sqlstring FilterObjectGenerator::resolve_field_name(
+    const char *name) const {
   if (object_metadata_) {
-    for (const auto &field : object_metadata_->fields) {
-      if (auto dfield = std::dynamic_pointer_cast<entry::DataField>(field);
-          dfield) {
-        if (dfield->name.compare(name) == 0) {
-          if (joins_allowed_)
-            return mysqlrouter::sqlstring("!.!")
-                   << dfield->source->table.lock()->table_alias
-                   << dfield->source->name;
-          else
-            return mysqlrouter::sqlstring("!") << dfield->source->name;
-        }
-      }
+    auto field = object_metadata_->get_field(name);
+
+    if (auto dfield = std::dynamic_pointer_cast<entry::DataField>(field)) {
+      if (!dfield->allow_filtering)
+        throw RestError("Cannot filter on field "s + name);
+
+      if (joins_allowed_)
+        return mysqlrouter::sqlstring("!.!")
+               << dfield->source->table.lock()->table_alias
+               << dfield->source->name;
+      else
+        return mysqlrouter::sqlstring("!") << dfield->source->name;
     }
     // TODO(alfredo) filter on nested fields
     throw RestError("Cannot filter on field "s + name);
   } else {
-    return name;
+    return mysqlrouter::sqlstring("!") << name;
   }
 }
 

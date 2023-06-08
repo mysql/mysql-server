@@ -354,7 +354,7 @@ HttpResult HandlerDbObject::handle_delete(rest::RequestContext *ctxt) {
     fog.parse(helper::json::text_to_document(query));
 
     auto result = fog.get_result();
-    if (result.empty())
+    if (result.is_empty())
       throw std::runtime_error("Filter must contain valid JSON object.");
     if (fog.has_order())
       throw std::runtime_error(

@@ -1745,7 +1745,7 @@ uint64_t TableUpdater::handle_delete(MySQLSession *session,
 uint64_t TableUpdater::handle_delete(MySQLSession *session,
                                      const FilterObjectGenerator &filter) {
   auto result = filter.get_result();
-  if (result.empty())
+  if (result.is_empty())
     throw std::runtime_error("Filter must contain valid JSON object.");
   if (filter.has_order())
     throw std::runtime_error("Filter must not contain ordering informations.");
@@ -1759,8 +1759,8 @@ uint64_t TableUpdater::handle_delete(MySQLSession *session,
   // case the WHERE will match nothing
 
   auto root_delete = std::make_shared<ConditionalRowDelete>(
-      std::shared_ptr<Operation>(nullptr), get_base_table(),
-      mysqlrouter::sqlstring(result.c_str()), m_row_ownership_info);
+      std::shared_ptr<Operation>(nullptr), get_base_table(), result,
+      m_row_ownership_info);
 
   process_delete_object(m_object, m_row_ownership_info, root_delete, "/");
 

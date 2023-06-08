@@ -355,15 +355,18 @@ void extend_where(std::shared_ptr<database::entry::Object> object,
   if (query.empty()) return;
   FilterObjectGenerator fog(object, true);
   fog.parse(helper::json::text_to_document(query));
-  auto result = fog.get_result();
-  if (result.empty()) return;
+  const auto &result = fog.get_result();
+  if (result.is_empty()) return;
 
-  bool is_empty = where.str().empty();
+  if (fog.has_where()) {
+    bool is_empty = where.is_empty();
 
-  mysqlrouter::sqlstring r{"? ? ?"};
-  r << where << mysqlrouter::sqlstring(is_empty ? "WHERE" : "AND")
-    << mysqlrouter::sqlstring(result.c_str());
-  where = r;
+    mysqlrouter::sqlstring r{"? ? ?"};
+    r << where << mysqlrouter::sqlstring(is_empty ? "WHERE" : "AND") << result;
+    where = r;
+  } else {
+    where.append_preformatted(result);
+  }
 }
 
 void QueryRestTable::build_query(const ObjectFieldFilter &field_filter,
