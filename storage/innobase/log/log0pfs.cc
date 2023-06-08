@@ -355,11 +355,6 @@ bool log_pfs_create_tables() {
     Disable_autocommit_guard autocommit_guard{thd};
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-    // Log_files_pfs_table_share_proxy pfs_table_share_proxy;
-    // PFS_engine_table_share_proxy *pfs_proxy_tables[1];
-    // pfs_proxy_tables[0] = &pfs_table_share_proxy;
-
-    Log_files_pfs_table_share_proxy pfs_table_share_proxy;
     PFS_engine_table_share_proxy *pfs_proxy_tables = &pfs_table_share_proxy;
 
     if (pfs_table->add_tables(&pfs_proxy_tables, 1) != 0) {
@@ -382,12 +377,10 @@ void log_pfs_delete_tables() {
   if (!pfs_tables_created) {
     return;
   }
-  Log_files_pfs_table_share_proxy pfs_table_share_proxy;
   PFS_engine_table_share_proxy *pfs_proxy_tables[1];
   pfs_proxy_tables[0] = &pfs_table_share_proxy;
   pfs_table->delete_tables(pfs_proxy_tables, 1);
   pfs_tables_created = false;
-  // delete pfs_table_share_proxy;
 }
 
 bool log_pfs_acquire_services(SERVICE_TYPE(registry) * reg_srv) {
