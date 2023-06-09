@@ -954,6 +954,12 @@ static bool is_candidate_primary_key(THD *thd, const KEY *key,
       if (i == key_part->fieldnr) break;
       i++;
     }
+
+    // cfield can be nullptr if the while-loop above terminates without
+    // finding the column, which is highly unlikely to happen. In this
+    // situation, a crash would be more appropriate.
+    assert(cfield != nullptr);
+
     if (cfield->is_array) return false;
     /* Prepare Field* object from Create_field */
 

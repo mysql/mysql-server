@@ -176,10 +176,15 @@ MDL_request *lock_request(THD *, const schema_map_t &, const T *) {
 template <>
 MDL_request *lock_request(THD *thd, const schema_map_t &schema_map,
                           const Abstract_table *object) {
+  // Since the object in this case comes from the m_map, any element in the map
+  // that was nullptr would be inconsistent. In such a situation,
+  // a crash might be more appropriate.
+  assert(object != nullptr);
+
   // Fetch the schema to get hold of the schema name.
   const schema_map_t::const_iterator schema_name =
       schema_map.find(object->schema_id());
-  if (schema_name == schema_map.end() || object == nullptr) return nullptr;
+  if (schema_name == schema_map.end()) return nullptr;
 
   MDL_request *request = new (thd->mem_root) MDL_request;
   if (request == nullptr) return nullptr;

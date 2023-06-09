@@ -128,6 +128,10 @@ class MDL_checker {
 
   static bool is_locked(THD *thd, const dd::Abstract_table *table,
                         enum_mdl_type lock_type) {
+    // At this stage of the call stack, getting table==nullptr is highly
+    // unlikely, but if it did happen, a crash would be more appropriate.
+    assert(table != nullptr);
+
     // The schema must be auto released to avoid disturbing the context
     // at the origin of the function call.
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -138,8 +142,7 @@ class MDL_checker {
     if (thd->dd_client()->acquire(table->schema_id(), &schema)) return false;
 
     // Skip check for temporary tables.
-    if (!table || is_prefix(table->name().c_str(), tmp_file_prefix))
-      return true;
+    if (is_prefix(table->name().c_str(), tmp_file_prefix)) return true;
 
     // Likewise, if there is no schema, we cannot have a proper lock.
     // This may in theory happen during bootstrapping since the meta data for
