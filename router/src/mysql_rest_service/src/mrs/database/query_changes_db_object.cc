@@ -38,7 +38,6 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace database {
 
-const std::string kParameterTableName = "field";
 const std::string kObjTableName = "object";
 const std::string kObjRefTableName = "object_reference";
 const std::string kObjFieldTableName = "object_field";
@@ -57,8 +56,8 @@ void QueryChangesDbObject::query_entries(MySQLSession *session) {
   uint64_t max_audit_log_id = audit_log_id_;
   audit_entries.query_entries(
       session,
-      {"service", "db_schema", "db_object", "url_host", kParameterTableName,
-       kObjTableName, kObjRefTableName, kObjFieldTableName},
+      {"service", "db_schema", "db_object", "url_host", kObjTableName,
+       kObjRefTableName, kObjFieldTableName},
       audit_log_id_);
 
   for (const auto &audit_entry : audit_entries.entries) {
@@ -120,15 +119,7 @@ std::string QueryChangesDbObject::build_query(const std::string &table_name,
                                               const entry::UniversalId &id) {
   mysqlrouter::sqlstring query = query_;
 
-  if (kParameterTableName == table_name) {
-    mysqlrouter::sqlstring where =
-        " WHERE id in (select db_object_id from "
-        "mysql_rest_service_metadata.field as f where f.id=? GROUP BY "
-        "db_object_id) ";
-    where << id;
-    query << mysqlrouter::sqlstring{""};
-    return query.str() + where.str();
-  } else if (kObjTableName == table_name) {
+  if (kObjTableName == table_name) {
     mysqlrouter::sqlstring where =
         " WHERE id in (select db_object_id from "
         "mysql_rest_service_metadata.object as f where f.id=? GROUP BY "
