@@ -369,7 +369,16 @@ ClientGreetor::client_greeting() {
           classic_protocol::capabilities::pos::ssl)) {
     // client wants to stay with plaintext
 
-    if (msg.auth_method_data() == "\x00"sv) {
+    // libmysqlclient sends auth-data: \x00 for empty password
+    // php sends auth-data: <empty> for empty password.
+    //
+    // check that the auth-method-name matches the auth method sent in the
+    // server-greeting the client received.
+    if (src_protocol->server_greeting()->auth_method_name() ==
+            AuthCachingSha2Password::kName &&
+        src_protocol->auth_method_name() == AuthCachingSha2Password::kName &&
+        (msg.auth_method_data() == "\x00"sv ||
+         msg.auth_method_data().empty())) {
       // password is empty.
       src_protocol->password("");
     } else if (connection()->source_ssl_mode() != SslMode::kPassthrough) {

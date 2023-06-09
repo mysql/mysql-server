@@ -6977,7 +6977,65 @@ TEST_P(ShareConnectionTest, classic_protocol_charset_after_connect) {
   }
 }
 
-TEST_P(ShareConnectionTest, php_query) {
+TEST_P(ShareConnectionTest, php_caching_sha2_password_empty_pass) {
+  auto account = SharedServer::caching_sha2_empty_password_account();
+
+  auto php = find_executable_path("php");
+  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
+
+  auto &proc =
+      spawner(php)
+          .wait_for_sync_point(Spawner::SyncPoint::NONE)
+          .spawn({
+              "-f",
+              get_data_dir().join("routing_sharing_php_query.php").str(),
+              shared_router()->host(),                            //
+              std::to_string(shared_router()->port(GetParam())),  //
+              account.username,
+              account.password,
+              std::to_string(GetParam().client_ssl_mode == kRequired),
+              std::to_string(GetParam().can_share()),
+          });
+
+  proc.wait_for_exit();
+}
+
+TEST_P(ShareConnectionTest, php_caching_sha2_password_pass) {
+  auto account = SharedServer::caching_sha2_password_account();
+
+  if (GetParam().client_ssl_mode == kDisabled &&
+      (GetParam().server_ssl_mode == kRequired ||
+       GetParam().server_ssl_mode == kPreferred)) {
+    // skip it as it is expected to fail to auth.
+    return;
+  }
+
+  // clean the shared privileges to force a full auth.
+  for (const auto &srv : shared_servers()) {
+    srv->flush_privileges();
+  }
+
+  auto php = find_executable_path("php");
+  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
+
+  auto &proc =
+      spawner(php)
+          .wait_for_sync_point(Spawner::SyncPoint::NONE)
+          .spawn({
+              "-f",
+              get_data_dir().join("routing_sharing_php_query.php").str(),
+              shared_router()->host(),                            //
+              std::to_string(shared_router()->port(GetParam())),  //
+              account.username,
+              account.password,
+              std::to_string(GetParam().client_ssl_mode == kRequired),
+              std::to_string(GetParam().can_share()),
+          });
+
+  proc.wait_for_exit();
+}
+
+TEST_P(ShareConnectionTest, php_native_empty_pass) {
   auto account = SharedServer::native_empty_password_account();
 
   auto php = find_executable_path("php");
@@ -6993,7 +7051,87 @@ TEST_P(ShareConnectionTest, php_query) {
               std::to_string(shared_router()->port(GetParam())),  //
               account.username,
               account.password,
-              std::to_string(GetParam().client_ssl_mode != kDisabled),
+              std::to_string(GetParam().client_ssl_mode == kRequired),
+              std::to_string(GetParam().can_share()),
+          });
+
+  proc.wait_for_exit();
+}
+
+TEST_P(ShareConnectionTest, php_native_pass) {
+  auto account = SharedServer::native_password_account();
+
+  auto php = find_executable_path("php");
+  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
+
+  auto &proc =
+      spawner(php)
+          .wait_for_sync_point(Spawner::SyncPoint::NONE)
+          .spawn({
+              "-f",
+              get_data_dir().join("routing_sharing_php_query.php").str(),
+              shared_router()->host(),                            //
+              std::to_string(shared_router()->port(GetParam())),  //
+              account.username,
+              account.password,
+              std::to_string(GetParam().client_ssl_mode == kRequired),
+              std::to_string(GetParam().can_share()),
+          });
+
+  proc.wait_for_exit();
+}
+
+TEST_P(ShareConnectionTest, php_sha256_empty_pass) {
+  auto account = SharedServer::sha256_empty_password_account();
+
+  auto php = find_executable_path("php");
+  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
+
+  auto &proc =
+      spawner(php)
+          .wait_for_sync_point(Spawner::SyncPoint::NONE)
+          .spawn({
+              "-f",
+              get_data_dir().join("routing_sharing_php_query.php").str(),
+              shared_router()->host(),                            //
+              std::to_string(shared_router()->port(GetParam())),  //
+              account.username,
+              account.password,
+              std::to_string(GetParam().client_ssl_mode == kRequired),
+              std::to_string(GetParam().can_share()),
+          });
+
+  proc.wait_for_exit();
+}
+
+TEST_P(ShareConnectionTest, php_sha256_pass) {
+  // - https://github.com/php/php-src/issues/11438 requires
+  // "sha256_short_password_account()"
+  auto account = SharedServer::sha256_short_password_account();
+
+  // - https://github.com/php/php-src/issues/11440 makes PASSTHROUGH fail.
+  if ((GetParam().client_ssl_mode == kDisabled &&
+       (GetParam().server_ssl_mode == kRequired ||
+        GetParam().server_ssl_mode == kPreferred)) ||
+      GetParam().client_ssl_mode == kPassthrough) {
+    // skip it as it is expected to fail to auth.
+    return;
+  }
+
+  auto php = find_executable_path("php");
+  if (php.empty()) GTEST_SKIP() << "php not found in $PATH";
+
+  auto &proc =
+      spawner(php)
+          .wait_for_sync_point(Spawner::SyncPoint::NONE)
+          .spawn({
+              "-f",
+              get_data_dir().join("routing_sharing_php_query.php").str(),
+              shared_router()->host(),                            //
+              std::to_string(shared_router()->port(GetParam())),  //
+              account.username,
+              account.password,
+              std::to_string(GetParam().client_ssl_mode == kRequired),
               std::to_string(GetParam().can_share()),
           });
 

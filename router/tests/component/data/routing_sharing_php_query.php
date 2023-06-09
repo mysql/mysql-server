@@ -6,6 +6,11 @@ $password     = $argv[4];
 $with_ssl     = $argv[5] == "0" ? false : true;
 $with_sharing = $argv[6] == "0" ? false : true;
 
+if ($password != "" && !$with_ssl) {
+  $with_sharing = false;
+}
+
+
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $mysqli = mysqli_init();
 mysqli_real_connect($mysqli,

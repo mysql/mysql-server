@@ -335,6 +335,7 @@ END)"));
            caching_sha2_password_account(),
            caching_sha2_empty_password_account(),
            sha256_password_account(),
+           sha256_short_password_account(),
            sha256_empty_password_account(),
        }) {
     create_account(cli, account);
