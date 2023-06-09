@@ -2289,7 +2289,12 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
       COMMAND ${CMAKE_COMMAND} -E touch ${DUMMY_SOURCE_FILE}
       DEPENDS sql_main
       )
-    ADD_LIBRARY(server_unittest_library STATIC ${DUMMY_SOURCE_FILE})
+    SET(MYSQLD_EXTRA_SOURCES)
+    IF(WIN32)
+      LIST(APPEND MYSQLD_EXTRA_SOURCES ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
+    ENDIF()
+    ADD_LIBRARY(server_unittest_library STATIC
+      ${DUMMY_SOURCE_FILE} ${MYSQLD_EXTRA_SOURCES})
     TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
     TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
     TARGET_LINK_LIBRARIES(server_unittest_library minchassis)

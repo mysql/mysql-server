@@ -51,10 +51,6 @@ FOREACH(testname ${tests})
   PFS_ADD_TEST(${testname})
 ENDFOREACH()
 
-SET(MYSQLD_EXTRA_SOURCES)
-IF(WIN32)
-  LIST(APPEND MYSQLD_EXTRA_SOURCES ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
-ENDIF()
 # Add sql_builtin.cc, to force linkage of plugins below.
 IF(NOT WITH_SHARED_UNITTEST_LIBRARY)
   LIST(APPEND MYSQLD_EXTRA_SOURCES ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc)
@@ -63,7 +59,6 @@ ENDIF()
 # We need the server libs to test the blob parser.
 MYSQL_ADD_EXECUTABLE(pfs_connect_attr-t
   pfs_connect_attr-t.cc
-  ${MYSQLD_EXTRA_SOURCES}
   ADD_TEST pfs_connect_attr
 )
 

@@ -55,10 +55,6 @@ LIST(APPEND SRC_FILES
   ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring/psi_memory_key.cc
   )
 
-IF(WIN32)
-  LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
-ENDIF()
-
 ADD_STATIC_LIBRARY(keyring_test ${SRC_FILES} LINK_LIBRARIES ext::zlib)
 ADD_DEPENDENCIES(keyring_test GenError)
 

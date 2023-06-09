@@ -75,9 +75,6 @@ FOREACH(test ${TESTS})
   LIST(APPEND ALL_INNODB_TESTS ${test}-t.cc)
 ENDFOREACH()
 
-IF(WIN32)
-  LIST(APPEND ALL_INNODB_TESTS ../../../sql/nt_servc.cc)
-ENDIF()
 MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
   ENABLE_EXPORTS
   ADD_TEST merge_innodb_tests-t
@@ -94,9 +91,6 @@ ADD_DEPENDENCIES(merge_innodb_tests-t GenError)
 
 FOREACH(test ${TESTS})
   SET(SRC_FILES ${test}-t.cc)
-  IF(WIN32)
-    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
-  ENDIF()
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
     ENABLE_EXPORTS
     EXCLUDE_FROM_ALL

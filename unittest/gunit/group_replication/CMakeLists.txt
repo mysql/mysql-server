@@ -40,9 +40,6 @@ SET(TESTS
 
 FOREACH(test ${TESTS})
   SET(SRC_FILES ${test}-t.cc)
-  IF(WIN32)
-    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
-  ENDIF()
 
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
     ADD_TEST ${test}

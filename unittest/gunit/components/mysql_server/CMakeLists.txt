@@ -60,10 +60,6 @@ MYSQL_ADD_EXECUTABLE(minimal_chassis_test_driver-t
   DEPENDENCIES component_example_component1
 )
 
-IF(WIN32)
-  TARGET_LINK_LIBRARIES(minimal_chassis_test_driver-t my_nt_servc)
-ENDIF()
-
 IF(NOT WITH_SHARED_UNITTEST_LIBRARY)
   TARGET_LINK_LIBRARIES(minimal_chassis_test_driver-t
     mysql_server_component_services)
@@ -98,9 +94,6 @@ MYSQL_ADD_EXECUTABLE(reference_cache-t
   DEPENDENCIES component_reference_cache component_test_reference_cache
 )
 
-IF(WIN32)
-  TARGET_LINK_LIBRARIES(reference_cache-t my_nt_servc)
-ENDIF()
 IF(NOT WITH_SHARED_UNITTEST_LIBRARY)
   TARGET_LINK_LIBRARIES(reference_cache-t mysql_server_component_services)
 ENDIF()

@@ -33,9 +33,6 @@ FOREACH(test ${TESTS})
   LIST(APPEND ALL_TEMPTABLE_TESTS ${test}-t.cc)
 ENDFOREACH()
 
-IF(WIN32)
-  LIST(APPEND ALL_TEMPTABLE_TESTS ../../../sql/nt_servc.cc)
-ENDIF()
 MYSQL_ADD_EXECUTABLE(merge_temptable_tests-t ${ALL_TEMPTABLE_TESTS}
   ENABLE_EXPORTS
   ADD_TEST merge_temptable_tests-t)
@@ -57,9 +54,6 @@ ADD_DEPENDENCIES(merge_temptable_tests-t GenError)
 
 FOREACH(test ${TESTS})
   SET(SRC_FILES ${test}-t.cc)
-  IF(WIN32)
-    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
-  ENDIF()
 
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
     ENABLE_EXPORTS SKIP_INSTALL EXCLUDE_FROM_ALL)
