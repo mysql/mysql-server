@@ -34,6 +34,9 @@ ADD_DEFINITIONS(-DPFS_DIRECT_CALL)
 IF(MSVC AND NOT WIN32_CLANG)
   # Treat warnings as errors on MSVC for InnoDB
   ADD_COMPILE_OPTIONS("/WX")
+  # Remove /W3 from the flags to avoid the redefined option warning
+  STRING(REPLACE "/W3" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  STRING(REPLACE "/W3" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
   # Add warnings from level 4
   ADD_COMPILE_OPTIONS("/W4")
   # Disable C4324: structure was padded due to __declspec(align())
