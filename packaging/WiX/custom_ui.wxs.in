@@ -89,11 +89,21 @@
     <?if "@BUNDLE_MYSQL_CONFIGURATOR@" != "" ?>
     <Dialog Id="ExitDlg" Width="370" Height="270" Title="[ProductName] Setup" NoMinimize="yes">
       <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="40" Transparent="yes" NoPrefix="yes" Text="{&amp;WixUI_Font_Title2}Completed the MySQL Server Setup Wizard" />
-      <Control Id="Description" Type="Text" X="135" Y="60" Width="200" Height="30" Transparent="yes" NoPrefix="yes" Text="This new MySQL Server installation can now be configured using the MySQL Configurator." />
-      <Control Id="Description2" Type="Text" X="135" Y="100" Width="200" Height="50" Transparent="yes" NoPrefix="yes" Text="Click &quot;Finish&quot; to run the MySQL Configurator. Optionally uncheck the option below if you prefer to perform the configuration later or configure this MySQL Server instance manually." />
-      <Control Id="LaunchConfiguratorText" Type="Text" X="135" Y="192" Width="200" Height="50" Transparent="yes" NoPrefix="yes" Text="Note: MySQL Configurator is also available from the Start Menu to reconfigure this MySQL Server instance in the future." />
+      <Control Id="Description" Type="Text" X="135" Y="60" Width="200" Height="30" Transparent="yes" NoPrefix="yes" Text="This new MySQL Server installation can now be configured using the MySQL Configurator.">
+        <Condition Action="hide">Installed</Condition>
+      </Control>
+      <Control Id="DescriptionRemove" Type="Text" X="135" Y="60" Width="200" Height="30" Transparent="yes" NoPrefix="yes" Text="Click the Finish button to exit the Setup Wizard.">
+        <Condition Action="hide">NOT Installed</Condition>
+      </Control>
+      <Control Id="Description2" Type="Text" X="135" Y="100" Width="200" Height="50" Transparent="yes" NoPrefix="yes" Text="Click &quot;Finish&quot; to run the MySQL Configurator. Optionally uncheck the option below if you prefer to perform the configuration later or configure this MySQL Server instance manually." >
+        <Condition Action="hide">Installed</Condition>
+      </Control>
+      <Control Id="LaunchConfiguratorText" Type="Text" X="135" Y="192" Width="200" Height="50" Transparent="yes" NoPrefix="yes" Text="Note: MySQL Configurator is also available from the Start Menu to reconfigure this MySQL Server instance in the future." >
+        <Condition Action="hide">Installed</Condition>
+      </Control>
       <Control Id="Launch" Type="CheckBox" X="135" Y="243" Width="120" Height="17" Property="LAUNCHPRODUCT" CheckBoxValue="1">
         <Text>Run MySQL Configurator</Text>
+        <Condition Action="hide">Installed</Condition>
       </Control>
       <Control Id="Finish" Type="PushButton" X="301" Y="243" Width="56" Height="17" Default="yes" Cancel="yes" Text="&amp;Finish">
         <Publish Event="DoAction" Value="LaunchConfigurator" Order="998">LAUNCHPRODUCT = 1 AND NOT Installed</Publish>
@@ -103,7 +113,7 @@
       <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="!(loc.WelcomeDlgBitmap)" />
     </Dialog>
     <?else?>
-    <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
     <?endif?>
 
     <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="CustomWelcomeDlg">1</Publish>
@@ -131,15 +141,19 @@
     <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
 
     <Publish Dialog="UpgradeDlg" Control="Back" Event="NewDialog" Value="CustomWelcomeDlg">1</Publish>
-	
+
     <InstallUISequence>
       <Show Dialog="CustomWelcomeDlg" Before="ProgressDlg">NOT Installed</Show>
+      <?if "@BUNDLE_MYSQL_CONFIGURATOR@" != "" ?>
       <Show Dialog="ExitDlg" OnExit="success" />
+      <?endif?>
     </InstallUISequence>
 
+    <?if "@BUNDLE_MYSQL_CONFIGURATOR@" != "" ?>
     <AdminUISequence>
       <Show Dialog="ExitDlg" OnExit="success" />
     </AdminUISequence>
+    <?endif?>
   </UI>
 
   <UIRef Id="WixUI_Common" />

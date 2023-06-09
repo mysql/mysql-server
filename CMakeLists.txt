@@ -2470,7 +2470,8 @@ ENDIF()
 
 # Packaging
 IF(WIN32)
-  OPTION(BUNDLE_MYSQL_CONFIGURATOR "Path to MySQL Configurator executable to bundle in the MSI installer" "")
+  SET(BUNDLE_MYSQL_CONFIGURATOR "" CACHE PATH
+    "Path to MySQL Configurator executable to bundle in the MSI installer" FORCE)
   IF(BUNDLE_MYSQL_CONFIGURATOR)
     FILE(TO_CMAKE_PATH "${BUNDLE_MYSQL_CONFIGURATOR}" BUNDLE_MYSQL_CONFIGURATOR)
     IF(NOT EXISTS "${BUNDLE_MYSQL_CONFIGURATOR}")

@@ -136,7 +136,7 @@
     <Property Id="WixShellExecTarget" Value="[#F.bin_mysql_configurator.exe]"/>
     <CustomAction Id="RemoveConfigArtifacts" FileKey="F.bin_mysql_configurator.exe" ExeCommand="--remove" Execute="deferred" Return="ignore" Impersonate="no" />
     <InstallExecuteSequence>
-      <Custom Action="RemoveConfigArtifacts" After="InstallInitialize">(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")</Custom>
+      <Custom Action="RemoveConfigArtifacts" After="InstallInitialize">(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL") AND UILevel > 2</Custom>
     </InstallExecuteSequence>
     <?endif?>
 
