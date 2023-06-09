@@ -83,10 +83,20 @@ bool compute_object_checksum(Digest *digest,
             if (m.value.IsDouble()) {
               auto d = m.value.GetDouble();
               digest->update(reinterpret_cast<const char *>(&d), sizeof(d));
-            } else {
+            } else if (m.value.IsInt()) {
               auto i = m.value.GetInt();
               digest->update(reinterpret_cast<const char *>(&i), sizeof(i));
+            } else if (m.value.IsUint()) {
+              auto i = m.value.GetUint();
+              digest->update(reinterpret_cast<const char *>(&i), sizeof(i));
+            } else if (m.value.IsInt64()) {
+              auto i = m.value.GetInt64();
+              digest->update(reinterpret_cast<const char *>(&i), sizeof(i));
+            } else if (m.value.IsUint64()) {
+              auto i = m.value.GetUint64();
+              digest->update(reinterpret_cast<const char *>(&i), sizeof(i));
             }
+
             break;
 
           case rapidjson::kArrayType:

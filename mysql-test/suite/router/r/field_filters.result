@@ -44,7 +44,10 @@ GET /svc/basic/t1/1
     "cdatetime": "2020-12-01 12:01:50.000000",
     "csmallint": 0,
     "cmediumint": 0,
-    "ctimestamp": "2020-12-01 12:01:50.000000"
+    "ctimestamp": "2020-12-01 12:01:50.000000",
+    "_metadata": {
+        "etag": "BC4382193E6D306487C3D96350CE5FB19C1A5BC2B620935F1F7453C269C1B266"
+    }
 }
 OK
 GET /svc/basic/t1/1?f=id,cyear
@@ -56,7 +59,10 @@ GET /svc/basic/t1/1?f=id,cyear
             "rel": "self",
             "href": "/svc/basic/t1/1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "FAC3FFAB74A77AD966D66DBF27DA17DED92751A65F6B8C8EE38043FEFFDB6180"
+    }
 }
 OK
 GET /svc/basic/t1/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!cdatetime,!ctimestamp
@@ -78,7 +84,10 @@ GET /svc/basic/t1/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!
     "ctinyint": 127,
     "cvarchar": "thrid row",
     "csmallint": 32767,
-    "cmediumint": 8388607
+    "cmediumint": 8388607,
+    "_metadata": {
+        "etag": "1CE35455E1EECD597F99A8C382E8DACCDB10F51CFD9F18D4FCD7559C20E7D13B"
+    }
 }
 OK
 GET /svc/basic/t2/1
@@ -91,7 +100,10 @@ GET /svc/basic/t2/1
             "rel": "self",
             "href": "/svc/basic/t2/1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "CE75937630A7BFCB5B94496FACA8D2B98E51DE91DFAD238D63E24B7287FED331"
+    }
 }
 OK
 GET /svc/basic/t2/1?f=id,cyear
@@ -102,7 +114,10 @@ GET /svc/basic/t2/1?f=id,cyear
             "rel": "self",
             "href": "/svc/basic/t2/1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "763AF95BE227B2068D8C387FB7A37003FF458C00373FFFE4AED008BD798378C6"
+    }
 }
 OK
 GET /svc/basic/t2/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!cdatetime,!ctimestamp
@@ -113,7 +128,10 @@ GET /svc/basic/t2/3?f=!cbin,!cset,!cenum,!ctext,!ctime,!cdate,!cfloat,!cdouble,!
             "rel": "self",
             "href": "/svc/basic/t2/3"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "70485AB68EBA16518FB4F096C3BF72294B095BD75C99266928162A3F62D89B32"
+    }
 }
 OK
 DROP SCHEMA basic_schema;

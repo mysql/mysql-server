@@ -43,7 +43,6 @@ if ($mrs_sql_id_variable_ob)
 
 while($_columns)
 {
-
   #
   # split columns variable names using "," as delimiter
   #

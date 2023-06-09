@@ -14,9 +14,6 @@
 # Registred DB_SCHEMA at path: /svc/basic
 # Registred DB_OBJECT at path: /svc/basic/t1
 # Registred DB_OBJECT at path: /svc/basic/t2
-POST /svc/basic/t1 (payload-size:11)
-null
-OK
 GET /svc/basic/t1
 {
     "items": [
@@ -27,7 +24,10 @@ GET /svc/basic/t1
                     "rel": "self",
                     "href": "/svc/basic/t1/1"
                 }
-            ]
+            ],
+            "_metadata": {
+                "etag": "763AF95BE227B2068D8C387FB7A37003FF458C00373FFFE4AED008BD798378C6"
+            }
         },
         {
             "id": 20,
@@ -36,7 +36,10 @@ GET /svc/basic/t1
                     "rel": "self",
                     "href": "/svc/basic/t1/20"
                 }
-            ]
+            ],
+            "_metadata": {
+                "etag": "293B2AB2DEBF9033FE8886B6499BBAFAC1C088984281C2AAD7DEE2C19286C7CE"
+            }
         },
         {
             "id": 30,
@@ -45,7 +48,10 @@ GET /svc/basic/t1
                     "rel": "self",
                     "href": "/svc/basic/t1/30"
                 }
-            ]
+            ],
+            "_metadata": {
+                "etag": "858D885E92A12A1F0159D5AD8D1C1E8BD1F837204C9846F6E04FC2FC3ECFF7D4"
+            }
         },
         {
             "id": 31,
@@ -54,7 +60,10 @@ GET /svc/basic/t1
                     "rel": "self",
                     "href": "/svc/basic/t1/31"
                 }
-            ]
+            ],
+            "_metadata": {
+                "etag": "9A15EB4DD45BFD70B6FFCFDC04BCFC3E84F0E6414B16E8838C4F62AEA8A27C97"
+            }
         },
         {
             "id": 50,
@@ -63,7 +72,10 @@ GET /svc/basic/t1
                     "rel": "self",
                     "href": "/svc/basic/t1/50"
                 }
-            ]
+            ],
+            "_metadata": {
+                "etag": "EBA90B6EBCD66FE936BE687CBA43FF023972F533C61B41338F9A3F0607343AAE"
+            }
         },
         {
             "id": 100,
@@ -72,22 +84,16 @@ GET /svc/basic/t1
                     "rel": "self",
                     "href": "/svc/basic/t1/100"
                 }
-            ]
-        },
-        {
-            "id": 1010,
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "/svc/basic/t1/1010"
-                }
-            ]
+            ],
+            "_metadata": {
+                "etag": "CF9291A1F3DF2B6D9F108E7CED8BF6DF65163422D1DFC5E3E36F4DDC75E78C13"
+            }
         }
     ],
     "limit": 25,
     "offset": 0,
     "hasMore": false,
-    "count": 7,
+    "count": 6,
     "links": [
         {
             "rel": "self",
@@ -104,7 +110,10 @@ GET /svc/basic/t1/1
             "rel": "self",
             "href": "/svc/basic/t1/1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "763AF95BE227B2068D8C387FB7A37003FF458C00373FFFE4AED008BD798378C6"
+    }
 }
 OK
 GET /svc/basic/t1/20
@@ -115,7 +124,10 @@ GET /svc/basic/t1/20
             "rel": "self",
             "href": "/svc/basic/t1/20"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "293B2AB2DEBF9033FE8886B6499BBAFAC1C088984281C2AAD7DEE2C19286C7CE"
+    }
 }
 OK
 GET /svc/basic/t1/2
@@ -137,7 +149,10 @@ GET /svc/basic/t2
                     "href": "/svc/basic/t2/1"
                 }
             ],
-            "comments": "First comment"
+            "comments": "First comment",
+            "_metadata": {
+                "etag": "9A2E43465461EFB43E9B0677C9EB126B86A831270913B7B3764A66985D92D012"
+            }
         },
         {
             "id": 2,
@@ -149,7 +164,10 @@ GET /svc/basic/t2
                     "href": "/svc/basic/t2/2"
                 }
             ],
-            "comments": null
+            "comments": null,
+            "_metadata": {
+                "etag": "DDE69D99066630836F80F73ED4AB6C7CD8C551A921AA01B8E0E500809318E268"
+            }
         },
         {
             "id": 3,
@@ -161,7 +179,10 @@ GET /svc/basic/t2
                     "href": "/svc/basic/t2/3"
                 }
             ],
-            "comments": null
+            "comments": null,
+            "_metadata": {
+                "etag": "63D8FBCCD9EAC98B433512A89523AFEBB520FC8342DD1973DD8D052F668EB2BD"
+            }
         },
         {
             "id": 4,
@@ -173,7 +194,10 @@ GET /svc/basic/t2
                     "href": "/svc/basic/t2/4"
                 }
             ],
-            "comments": "This row was inserted as forth row."
+            "comments": "This row was inserted as forth row.",
+            "_metadata": {
+                "etag": "00D93C63C8E45290593F74C505903FE6E2D47DD012BE70A105DDE7BB25355388"
+            }
         },
         {
             "id": 5,
@@ -185,7 +209,10 @@ GET /svc/basic/t2
                     "href": "/svc/basic/t2/5"
                 }
             ],
-            "comments": ""
+            "comments": "",
+            "_metadata": {
+                "etag": "7800B385B123DCC06CCF06CF7E83618B1BF0F2EF6CCEF6E68D431E3231F54741"
+            }
         },
         {
             "id": 6,
@@ -197,7 +224,10 @@ GET /svc/basic/t2
                     "href": "/svc/basic/t2/6"
                 }
             ],
-            "comments": "..."
+            "comments": "...",
+            "_metadata": {
+                "etag": "EC039B3FB191796C0EBA19204CC77990F88A72B2530A3FAD18E8480C72A9F53E"
+            }
         }
     ],
     "limit": 25,
@@ -223,7 +253,10 @@ GET /svc/basic/t2/1
             "href": "/svc/basic/t2/1"
         }
     ],
-    "comments": "First comment"
+    "comments": "First comment",
+    "_metadata": {
+        "etag": "9A2E43465461EFB43E9B0677C9EB126B86A831270913B7B3764A66985D92D012"
+    }
 }
 OK
 GET /svc/basic/t2/2
@@ -237,7 +270,10 @@ GET /svc/basic/t2/2
             "href": "/svc/basic/t2/2"
         }
     ],
-    "comments": null
+    "comments": null,
+    "_metadata": {
+        "etag": "DDE69D99066630836F80F73ED4AB6C7CD8C551A921AA01B8E0E500809318E268"
+    }
 }
 OK
 GET /svc/basic/t2/200
