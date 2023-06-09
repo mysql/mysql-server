@@ -205,6 +205,11 @@ enum enum_alter_inplace_result {
   HA_ALTER_INPLACE_INSTANT
 };
 
+/**
+ * Used to identify which engine executed a SELECT query.
+ */
+enum class SelectExecutedIn : bool { kPrimaryEngine, kSecondaryEngine };
+
 /* Bits in table_flags() to show what database can do */
 
 #define HA_NO_TRANSACTIONS (1 << 0)     /* Doesn't support transactions */
@@ -2539,15 +2544,33 @@ const handlerton *SecondaryEngineHandlerton(const THD *thd);
 
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.
-typedef void (*se_before_commit_t)(void *arg);
+using se_before_commit_t = void (*)(void *arg);
 
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // after_commit hook. Remove after WL#11320 has been completed.
-typedef void (*se_after_commit_t)(void *arg);
+using se_after_commit_t = void (*)(void *arg);
 
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_rollback hook. Remove after WL#11320 has been completed.
-typedef void (*se_before_rollback_t)(void *arg);
+using se_before_rollback_t = void (*)(void *arg);
+
+/**
+ * Notify plugins when a SELECT query was executed. The plugins will be notified
+ * only if the query is not considered "fast-running", i.e., its estimated cost
+ * is less than the currently configured 'secondary_engine_cost_threshold'.
+ */
+using notify_after_select_t = void (*)(THD *thd, SelectExecutedIn executed_in);
+
+/**
+ * Notify plugins when a table is created.
+ */
+using notify_create_table_t = void (*)(struct HA_CREATE_INFO *create_info,
+                                       const char *db, const char *table_name);
+
+/**
+ * Notify plugins when a table is dropped.
+ */
+using notify_drop_table_t = void (*)(Table_ref *tab);
 
 /*
   Page Tracking : interfaces to handlerton functions which starts/stops page
@@ -2909,6 +2932,11 @@ struct handlerton {
   se_after_commit_t se_after_commit;
   se_before_rollback_t se_before_rollback;
 
+  notify_after_select_t notify_after_select;
+
+  notify_create_table_t notify_create_table;
+  notify_drop_table_t notify_drop_table;
+
   /** Page tracking interface */
   Page_track_t page_track;
 };
@@ -2982,8 +3010,10 @@ constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
     1 << 17};
 
 /** Engine supports Generated invisible primary key. */
+// clang-format off
 constexpr const decltype(
     handlerton::flags) HTON_SUPPORTS_GENERATED_INVISIBLE_PK{1 << 18};
+// clang-format on
 
 /** Whether the secondary engine supports DDLs. No meaning if the engine is not
  * secondary. */
@@ -4855,7 +4885,7 @@ class handler {
   int ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
                 dd::Table *table_def);
 
-  int ha_load_table(const TABLE &table);
+  int ha_load_table(const TABLE &table, bool *skip_metadata_update);
 
   int ha_unload_table(const char *db_name, const char *table_name,
                       bool error_if_not_loaded);
@@ -6677,12 +6707,15 @@ class handler {
   /**
    * Loads a table into its defined secondary storage engine.
    *
-   * @param table Table opened in primary storage engine. Its read_set tells
-   * which columns to load.
+   * @param[in] table - Table opened in primary storage engine. Its read_set
+   * tells which columns to load.
+   * @param[out] skip_metadata_update - should the DD metadata be updated for
+   * the load of this table
    *
    * @return 0 if success, error code otherwise.
    */
-  virtual int load_table(const TABLE &table [[maybe_unused]]) {
+  virtual int load_table(const TABLE &table [[maybe_unused]],
+                         bool *skip_metadata_update [[maybe_unused]]) {
     /* purecov: begin inspected */
     assert(false);
     return HA_ERR_WRONG_COMMAND;

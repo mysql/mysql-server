@@ -199,7 +199,8 @@ THR_LOCK_DATA **ha_mock::store_lock(THD *, THR_LOCK_DATA **to,
   return to;
 }
 
-int ha_mock::load_table(const TABLE &table_arg) {
+int ha_mock::load_table(const TABLE &table_arg,
+                        bool *skip_metadata_update [[maybe_unused]]) {
   assert(table_arg.file != nullptr);
   loaded_tables->add(table_arg.s->db.str, table_arg.s->table_name.str);
   if (loaded_tables->get(table_arg.s->db.str, table_arg.s->table_name.str) ==

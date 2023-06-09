@@ -1073,4 +1073,12 @@ bool has_external_table(Table_ref *query_tables);
 */
 void set_external_engine_fail_reason(const LEX *lex, const char *reason);
 
+/**
+  Notify plugins about an executed SELECT statement.
+
+  @param thd the current session
+  @param cmd command to be notified about
+*/
+void notify_plugins_after_select(THD *thd, const Sql_cmd *cmd);
+
 #endif /* SQL_SELECT_INCLUDED */

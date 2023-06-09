@@ -1210,6 +1210,19 @@ static bool rea_create_base_table(
     *binlog_to_trx_cache =
         (create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
 
+  std::tuple hook_params{create_info, db, table_name};
+  plugin_foreach(
+      thd, ([](THD *, plugin_ref plugin, void *arg) -> bool {
+        handlerton *hton = plugin_data<handlerton *>(plugin);
+        if (hton->notify_create_table != nullptr) {
+          const auto &[c_i, d, t] = *static_cast<
+              std::tuple<HA_CREATE_INFO *, const char *, const char *> *>(arg);
+          hton->notify_create_table(c_i, d, t);
+        }
+        return false;
+      }),
+      MYSQL_STORAGE_ENGINE_PLUGIN, &hook_params);
+
   return false;
 }
 
@@ -2661,10 +2674,13 @@ static bool validate_secondary_engine_option(THD *thd,
  *
  * @param thd              Thread handler.
  * @param table            Table in primary storage engine.
+ * @param[out] skip_metadata_update Should the DD metadata be updated for the
+ * load of this table
  *
  * @return True if error, false otherwise.
  */
-static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
+static bool secondary_engine_load_table(THD *thd, const TABLE &table,
+                                        bool *skip_metadata_update) {
   assert(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::TABLE, table.s->db.str, table.s->table_name.str, MDL_EXCLUSIVE));
   assert(table.s->has_secondary_engine());
@@ -2708,7 +2724,7 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
 
   // Load table from primary into secondary engine and add to change
   // propagation if that is enabled.
-  return handler->ha_load_table(table);
+  return handler->ha_load_table(table, skip_metadata_update) != 0;
 }
 
 /**
@@ -3073,6 +3089,20 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
   dd::Schema_MDL_locker mdl_locker(thd);
   if (mdl_locker.ensure_locked(table->db)) return true;
   bool result = dd::drop_table(thd, table->db, table->table_name, *table_def);
+
+  if (!result) {
+    // Notify plugins if drop was successful.
+    plugin_foreach(
+        thd,
+        [](THD *, plugin_ref plugin, void *arg) -> bool {
+          handlerton *ht = plugin_data<handlerton *>(plugin);
+          if (ht->notify_drop_table != nullptr) {
+            ht->notify_drop_table(static_cast<Table_ref *>(arg));
+          }
+          return false;
+        },
+        MYSQL_STORAGE_ENGINE_PLUGIN, table);
+  }
 
   if (!atomic) result = trans_intermediate_ddl_commit(thd, result);
 
@@ -11138,10 +11168,12 @@ bool mysql_create_like_table(THD *thd, Table_ref *table, Table_ref *src_table,
           if (write_bin_log(thd, true, query.ptr(), query.length(), is_trans))
             goto err;
         }
+        // clang-format off
       } else  // Case 1
           if (write_bin_log(thd, true, thd->query().str, thd->query().length,
                             is_trans))
         goto err;
+      // clang-format on
     }
     /*
       Case 3 and 4 does nothing under RBR
@@ -11565,6 +11597,9 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   // Load if SECONDARY_LOAD, unload if SECONDARY_UNLOAD
   const bool is_load = m_alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD;
 
+  /* If set, secondary_load value will not be updated, and also no bin log
+   * entries will be recorded. */
+  bool skip_metadata_update = false;
   // Initiate loading into or unloading from secondary engine.
   if (is_load) {
     DEBUG_SYNC(thd, "before_secondary_engine_load_table");
@@ -11573,7 +11608,8 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
                                    "Simulated failure of secondary_load()"),
                           true),
                          false) ||
-        secondary_engine_load_table(thd, *table_list->table))
+        secondary_engine_load_table(thd, *table_list->table,
+                                    &skip_metadata_update))
       return true;
   } else {
     if (DBUG_EVALUATE_IF("sim_secunload_fail",
@@ -11596,55 +11632,61 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
     return true;
   });
 
-  // Update the secondary_load flag based on the current operation.
-  if (DBUG_EVALUATE_IF("sim_fail_metadata_update",
-                       (my_error(ER_SECONDARY_ENGINE, MYF(0),
-                                 "Simulated failure during metadata update"),
-                        true),
-                       false) ||
-      table_def->options().set("secondary_load", is_load) ||
-      thd->dd_client()->update(table_def)) {
-    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
-           (is_load ? "secondary_load" : "secondary_unload"),
-           "metadata update failed");
-    return true;
+  if (skip_metadata_update) {
+    DBUG_PRINT(
+        "sec_load_unload",
+        ("secondary_load flag update is skipped for table %s", full_tab_name));
+  } else {
+    // Update the secondary_load flag based on the current operation.
+    if (DBUG_EVALUATE_IF("sim_fail_metadata_update",
+                         (my_error(ER_SECONDARY_ENGINE, MYF(0),
+                                   "Simulated failure during metadata update"),
+                          true),
+                         false) ||
+        table_def->options().set("secondary_load", is_load) ||
+        thd->dd_client()->update(table_def)) {
+      LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+             (is_load ? "secondary_load" : "secondary_unload"),
+             "metadata update failed");
+      return true;
+    }
+
+    DBUG_PRINT("sec_load_unload", ("secondary_load flag %s for table %s",
+                                   (is_load ? "set" : "reset"), full_tab_name));
+
+    DBUG_EXECUTE_IF("sim_fail_before_write_bin_log", {
+      DBUG_PRINT("sec_load_unload", ("Force exit before binlog write"));
+      my_error(ER_SECONDARY_ENGINE, MYF(0),
+               "Simulated failure of sec_{un}load before write_bin_log()");
+      return true;
+    });
+
+    /* Write binlog to maintain replication consistency. Read-Replica's may not
+     * have binlog enabled. write_bin_log API takes care of such cases. */
+    if (DBUG_EVALUATE_IF("sim_fail_binlog_write",
+                         (my_error(ER_SECONDARY_ENGINE, MYF(0),
+                                   "Simulated failure during binlog write"),
+                          true),
+                         false) ||
+        (write_bin_log(thd, true, thd->query().str, thd->query().length,
+                       true) != 0)) {
+      LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+             (is_load ? "secondary_load" : "secondary_unload"),
+             "binlog write failed");
+      return true;
+    }
+
+    DBUG_PRINT("sec_load_unload",
+               ("binlog entry added for alter table %s secondary_%s",
+                full_tab_name, (is_load ? "load" : "unload")));
+
+    DBUG_EXECUTE_IF("sim_fail_after_write_bin_log", {
+      DBUG_PRINT("sec_load_unload", ("Force exit after binlog write"));
+      my_error(ER_SECONDARY_ENGINE, MYF(0),
+               "Simulated failure of sec_{un}load after write_bin_log()");
+      return true;
+    });
   }
-
-  DBUG_PRINT("sec_load_unload", ("secondary_load flag %s for table %s",
-                                 (is_load ? "set" : "reset"), full_tab_name));
-
-  DBUG_EXECUTE_IF("sim_fail_before_write_bin_log", {
-    DBUG_PRINT("sec_load_unload", ("Force exit before binlog write"));
-    my_error(ER_SECONDARY_ENGINE, MYF(0),
-             "Simulated failure of sec_{un}load before write_bin_log()");
-    return true;
-  });
-
-  /* Write binlog to maintain replication consistency. Read-Replica's may not
-   * have binlog enabled. write_bin_log API takes care of such cases. */
-  if (DBUG_EVALUATE_IF("sim_fail_binlog_write",
-                       (my_error(ER_SECONDARY_ENGINE, MYF(0),
-                                 "Simulated failure during binlog write"),
-                        true),
-                       false) ||
-      (write_bin_log(thd, true, thd->query().str, thd->query().length, true) !=
-       0)) {
-    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
-           (is_load ? "secondary_load" : "secondary_unload"),
-           "binlog write failed");
-    return true;
-  }
-
-  DBUG_PRINT("sec_load_unload",
-             ("binlog entry added for alter table %s secondary_%s",
-              full_tab_name, (is_load ? "load" : "unload")));
-
-  DBUG_EXECUTE_IF("sim_fail_after_write_bin_log", {
-    DBUG_PRINT("sec_load_unload", ("Force exit after binlog write"));
-    my_error(ER_SECONDARY_ENGINE, MYF(0),
-             "Simulated failure of sec_{un}load after write_bin_log()");
-    return true;
-  });
 
   // Close primary table.
   close_all_tables_for_name(thd, table_list->table->s, false, nullptr);

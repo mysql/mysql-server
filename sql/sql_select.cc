@@ -54,6 +54,7 @@
 #include "my_pointer_arithmetic.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/plugin.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -112,6 +113,7 @@
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_parse.h"      // bind_fields
 #include "sql/sql_planner.h"    // calculate_condition_filter
+#include "sql/sql_plugin.h"
 #include "sql/sql_resolver.h"
 #include "sql/sql_test.h"       // misc. debug printing utilities
 #include "sql/sql_timer.h"      // thd_timer_set
@@ -992,6 +994,23 @@ bool optimize_secondary_engine(THD *thd) {
          secondary_engine->optimize_secondary_engine(thd, thd->lex);
 }
 
+void notify_plugins_after_select(THD *thd, const Sql_cmd *cmd) {
+  auto executed_in = (cmd != nullptr && cmd->using_secondary_storage_engine())
+                         ? SelectExecutedIn::kSecondaryEngine
+                         : SelectExecutedIn::kPrimaryEngine;
+
+  plugin_foreach(
+      thd,
+      [](THD *t, plugin_ref plugin, void *arg) -> bool {
+        handlerton *hton = plugin_data<handlerton *>(plugin);
+        if (hton->notify_after_select != nullptr) {
+          hton->notify_after_select(t, *(static_cast<SelectExecutedIn *>(arg)));
+        }
+        return false;
+      },
+      MYSQL_STORAGE_ENGINE_PLUGIN, &executed_in);
+}
+
 /**
   Execute a DML statement.
   This is the default implementation for a DML statement and uses a
@@ -1020,6 +1039,14 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
     if (explain_query(thd, thd, unit)) return true; /* purecov: inspected */
   } else {
     if (unit->execute(thd)) return true;
+
+    /* Only call the plugin hook if the query cost is higher than the secondary
+     * engine threshold. This prevents calling plugin_foreach for short queries,
+     * reducing the overhead. */
+    if (thd->m_current_query_cost >
+        thd->variables.secondary_engine_cost_threshold) {
+      notify_plugins_after_select(thd, lex->m_sql_cmd);
+    }
   }
 
   return false;
@@ -1799,8 +1826,10 @@ void JOIN::reset() {
 
   if (!executed) return;
 
+  // clang-format off
   query_expression()->offset_limit_cnt = (ha_rows)(
       query_block->offset_limit ? query_block->offset_limit->val_uint() : 0ULL);
+  // clang-format on
 
   group_sent = false;
   recursive_iteration_count = 0;

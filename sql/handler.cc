@@ -5098,12 +5098,16 @@ int handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
 /**
  * Loads a table into its defined secondary storage engine: public interface.
  *
- * @param table The table to load into the secondary engine. Its read_set tells
- * which columns to load.
+ * @param[in] table - The table to load into the secondary engine. Its read_set
+ * tells which columns to load.
+ * @param[out] skip_metadata_update - should the DD metadata be updated for the
+ * load of this table
  *
  * @sa handler::load_table()
  */
-int handler::ha_load_table(const TABLE &table) { return load_table(table); }
+int handler::ha_load_table(const TABLE &table, bool *skip_metadata_update) {
+  return load_table(table, skip_metadata_update);
+}
 
 /**
  * Unloads a table from its defined secondary storage engine: public interface.

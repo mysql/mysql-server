@@ -71,12 +71,12 @@ void my_free_container_pointers(Container_type &container) {
     foo *f; bar *b= static_cast<bar*>(static_cast<void*>(f));
  */
 template <typename T>
-inline T pointer_cast(void *p) {
+constexpr T pointer_cast(void *p) {
   return static_cast<T>(p);
 }
 
 template <typename T>
-inline const T pointer_cast(const void *p) {
+constexpr T pointer_cast(const void *p) {
   return static_cast<T>(p);
 }
 
