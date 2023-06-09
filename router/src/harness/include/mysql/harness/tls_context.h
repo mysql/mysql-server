@@ -106,17 +106,6 @@ class HARNESS_TLS_EXPORT TlsContext {
   }
 
   /**
-   * if TLS context allows getting cipher-lists.
-   *
-   * @returns if cipher_list() is supported.
-   * @retval false cipher_list() is not supported
-   */
-  static constexpr bool has_get_cipher_list() {
-    // 1.1.0 and later
-    return OPENSSL_VERSION_NUMBER >= 0x1010000f;
-  }
-
-  /**
    * construct a TlsContext based on the SSL_METHODs provided by openssl.
    */
   explicit TlsContext(const SSL_METHOD *method);
@@ -195,9 +184,6 @@ class HARNESS_TLS_EXPORT TlsContext {
 
   /**
    * get current cipher-list.
-   *
-   * @throws std::invalid_argument if API isn't supported
-   * @see has_get_cipher_list()
    */
   std::vector<std::string> cipher_list() const;
 
