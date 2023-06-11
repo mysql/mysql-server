@@ -854,7 +854,7 @@ void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
   const AccessPath *child = path->aggregate().child;
   if (path->num_output_rows() == kUnknownRowCount) {
     path->set_num_output_rows(EstimateAggregateRows(
-        child, query_block, path->aggregate().rollup, trace));
+        child, query_block, path->aggregate().olap == ROLLUP_TYPE, trace));
   }
 
   path->set_init_cost(child->init_cost());

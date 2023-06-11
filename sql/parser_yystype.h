@@ -42,6 +42,7 @@
 #include "sql/key_spec.h"       // keytype, fk_option
 #include "sql/lexer_yystype.h"  // Lexer_yystype
 #include "sql/mem_root_array.h"
+#include "sql/olap.h"
 #include "sql/opt_hints.h"  // opt_hints_enum
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_node_base.h"
@@ -174,8 +175,6 @@ enum enum_drop_mode {
   DROP_CASCADE,  // CASCADE option
   DROP_RESTRICT  // RESTRICT option
 };
-
-enum olap_type { UNSPECIFIED_OLAP_TYPE, ROLLUP_TYPE };
 
 struct Cast_type {
   Cast_target target;

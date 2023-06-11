@@ -295,7 +295,9 @@ static void dumpAccessPath(int level, AccessPath *p, std::ostringstream &buf) {
         break;
       case AccessPath::AGGREGATE:
         str.append("AccessPath::AGGREGATE ");
-        str.append(p->aggregate().rollup ? "ROLLUP" : "");
+        if (p->aggregate().olap != UNSPECIFIED_OLAP_TYPE) {
+          str.append(GroupByModifierString(p->aggregate().olap));
+        }
         p = p->aggregate().child;
         break;
       case AccessPath::FILTER:

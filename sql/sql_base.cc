@@ -6702,6 +6702,13 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
 
   // If use of primary engine is requested, set state accordingly
   if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_OFF) {
+    // Check if properties of query conflicts with engine mode:
+    if (lex->can_execute_only_in_secondary_engine()) {
+      my_error(ER_CANNOT_EXECUTE_IN_PRIMARY, MYF(0),
+               lex->get_not_supported_in_primary_reason());
+      return true;
+    }
+
     thd->set_secondary_engine_optimization(
         Secondary_engine_optimization::PRIMARY_ONLY);
     return false;
@@ -6712,21 +6719,46 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
         Secondary_engine_optimization::PRIMARY_ONLY);
     return false;
   }
-  // If use of a secondary storage engine is requested for this statement,
-  // skip past the initial optimization for the primary storage engine and
-  // go straight to the secondary engine.
+
+  /*
+    Only some SQL commands can be offloaded to secondary table offload.
+    Note that table-less queries are always executed in primary engine.
+  */
+  const bool offload_possible =
+      (lex->sql_command == SQLCOM_SELECT && lex->table_count > 0) ||
+      ((lex->sql_command == SQLCOM_INSERT_SELECT ||
+        lex->sql_command == SQLCOM_CREATE_TABLE) &&
+       lex->table_count > 1);
+  /*
+    If query can only execute in secondary engine, effectively set it as
+    a forced secondary execution.
+  */
+  if (lex->can_execute_only_in_secondary_engine()) {
+    thd->set_secondary_engine_forced(true);
+  }
+  /*
+    If use of a secondary storage engine is requested for this statement,
+    skip past the initial optimization for the primary storage engine and
+    go straight to the secondary engine.
+    Notice the little difference between commands that must execute in
+    secondary engine, vs those that are forced to secondary engine:
+    the latter ones execute in primary engine if they are table-less.
+  */
   if (thd->secondary_engine_optimization() ==
           Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
       thd->is_secondary_engine_forced()) {
-    if ((lex->sql_command == SQLCOM_SELECT && lex->table_count >= 1) ||
-        ((lex->sql_command == SQLCOM_INSERT_SELECT ||
-          lex->sql_command == SQLCOM_CREATE_TABLE) &&
-         lex->table_count >= 2)) {
+    if (offload_possible) {
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::SECONDARY);
       mysql_thread_set_secondary_engine(true);
       mysql_statement_set_secondary_engine(thd->m_statement_psi, true);
     } else {
+      // Table-less queries cannot be executed in secondary engine
+      if (lex->can_execute_only_in_secondary_engine()) {
+        my_error(ER_CANNOT_EXECUTE_IN_PRIMARY, MYF(0),
+                 lex->get_not_supported_in_primary_reason());
+        return true;
+      }
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::PRIMARY_ONLY);
     }
@@ -8217,6 +8249,14 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
     can never be found.
   */
   assert(find_ident == nullptr || find_ident->field_name != nullptr);
+
+  /*
+    Some items, such as Item_aggregate_ref, do not have a name and hence
+    can never be found.
+  */
+  if (find_ident != nullptr && find_ident->field_name == nullptr) {
+    return false;
+  }
 
   int i = 0;
   for (auto it = VisibleFields(*items).begin();

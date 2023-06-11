@@ -306,10 +306,13 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   // Windowing is not allowed with HAVING
   thd->lex->m_deny_window_func |= (nesting_map)1 << nest_level;
 
-  if (olap == ROLLUP_TYPE) {
+  if (is_non_primitive_grouped()) {
     for (Item *item : fields) {
-      mark_item_as_maybe_null_if_rollup_item(item);
+      mark_item_as_maybe_null_if_non_primitive_grouped(item);
       item->update_used_tables();
+    }
+    if (populate_grouping_sets(thd)) {
+      return true;
     }
   }
 
@@ -586,6 +589,24 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   // in the presence of ROLLUP.
   if (olap == ROLLUP_TYPE && resolve_rollup_wfs(thd))
     return true; /* purecov: inspected */
+
+  // If CUBE is present in the query, all expressions that include
+  // any GROUP BY expression need to be marked as dependent on
+  // grouping set.
+  if (olap == CUBE_TYPE) {
+    for (Item *item : fields) {
+      bool is_updated = false;
+      WalkItem(item, enum_walk::POSTFIX, [this, &is_updated](Item *inner_item) {
+        if (find_in_group_list(inner_item, /*rollup_level=*/nullptr) !=
+            nullptr) {
+          inner_item->set_group_by_modifier();
+          is_updated = true;
+        }
+        return false;
+      });
+      if (is_updated) item->update_used_tables();
+    }
+  }
 
   assert(!thd->is_error());
   return false;
@@ -2519,6 +2540,75 @@ bool Query_block::decorrelate_condition(Semijoin_decorrelation &sj_decor,
   return false;
 }
 
+bool Query_block::allocate_grouping_sets(THD *thd) {
+  auto max_group_by_elements = GetMaximumNumGrpByColsSupported(olap);
+
+  if (group_list.elements > static_cast<uint>(max_group_by_elements)) {
+    /* The number of Grouping sets cannot be greater than INT_MAX as IsBitSet
+     * take integer as the input bit*/
+    my_error(ER_TOO_MANY_GROUP_BY_MODIFIER_BRANCHES, MYF(0),
+             GroupByModifierString(olap), max_group_by_elements);
+    return true;
+  }
+  m_num_grouping_sets = (olap == ROLLUP_TYPE)
+                            ? group_list.elements + 1
+                            : pow(static_cast<double>(2),
+                                  static_cast<double>(group_list.elements));
+
+  assert(m_num_grouping_sets != 0);
+
+  /*  Allocate bitmap for grouping sets. */
+  for (ORDER *grp = group_list.first; grp != nullptr; grp = grp->next) {
+    grp->grouping_set_info =
+        pointer_cast<MY_BITMAP *>(thd->alloc(sizeof(MY_BITMAP)));
+    if (grp->grouping_set_info == nullptr) {
+      return true;
+    }
+    my_bitmap_map *bitbuf = pointer_cast<my_bitmap_map *>(
+        thd->alloc(bitmap_buffer_size(m_num_grouping_sets)));
+    bitmap_init(grp->grouping_set_info, bitbuf, m_num_grouping_sets);
+  }
+  return false;
+}
+
+/**
+  Populate the grouping set bitvector if the query block has non-primitive
+  grouping. If the non-primitive grouping is ROLLUP or CUBE, the grouping sets
+  have to be computed. The representation of the grouping set is done using a
+  bitfield in the ORDER object.
+  case ROLLUP : Say the query has GROUP BY ROLLUP (a,b) then the grouping sets
+  will be (a,b) (a) () where () represents single group aggregate without any
+  grouping. Here there are 3 grouping sets ranging from 0 to 2 and 0 is the
+  single group aggregate. The bitfield associated with GROUP BY element 'a'
+  will be 3 (i,e. 2+1) The bitfield associated with Group by element 'b' will
+  be 2 as it is part of only set number 2.
+  case CUBE: Say the query has GROUP BY CUBE (a,b) then the grouping sets
+  will be (a,b) (a) (b) (). The number of grouping sets will be (2^n)
+  where n is the number of elements in the GROUP BY list. The bitfield
+  associated with Group by element 'a' will be 6 (i.e. 4+2).
+  The bitfield associated with Group by element 'b' will be 1.
+*/
+bool Query_block::populate_grouping_sets(THD *thd) {
+  assert(group_list.elements != 0 && olap != UNSPECIFIED_OLAP_TYPE);
+
+  if (allocate_grouping_sets(thd)) {
+    return true;
+  }
+
+  bool rollup = (olap == ROLLUP_TYPE);
+  int gby_idx = 0;
+  for (ORDER *grp = group_list.first; grp != nullptr;
+       grp = grp->next, gby_idx++) {
+    for (int gs = 1; gs < m_num_grouping_sets; gs++) {
+      if ((rollup && gby_idx < gs) || (!rollup && IsBitSet(gby_idx, gs))) {
+        bitmap_set_bit(grp->grouping_set_info, gs);
+      }
+    }
+  }
+
+  return false;
+}
+
 bool walk_join_list(mem_root_deque<Table_ref *> &list,
                     std::function<bool(Table_ref *)> action) {
   for (Table_ref *tl : list) {
@@ -3876,7 +3966,7 @@ bool Query_block::remove_redundant_subquery_clauses(THD *thd) {
 
   /*
     Remove GROUP BY if there are no aggregate functions, no HAVING clause,
-    no ROLLUP and no windowing functions.
+    no non-primitive grouping and no windowing functions.
   */
 
   if ((possible_changes & REMOVE_GROUP) && group_list.elements &&
@@ -4603,8 +4693,9 @@ bool WalkAndReplace(
 
 */
 
-void Query_block::mark_item_as_maybe_null_if_rollup_item(Item *item) {
-  if (find_in_group_list(item, /*rollup_level=*/nullptr)) {
+void Query_block::mark_item_as_maybe_null_if_non_primitive_grouped(
+    Item *item) const {
+  if (find_in_group_list(item, /*rollup_level=*/nullptr) != nullptr) {
     /*
       If this item is present in GROUP BY clause, set m_nullable
       to true, as ROLLUP will generate NULLs for this column.
@@ -4807,7 +4898,7 @@ static bool fulltext_uses_rollup_column(const Query_block *query_block) {
   // by Item_rollup_group_items. So we can just check if any of the MATCH
   // functions has such an argument.
   for (Item_func_match &match : *query_block->ftfunc_list) {
-    if (match.has_rollup_expr()) {
+    if (match.has_grouping_set_dep()) {
       return true;
     }
   }
@@ -4877,7 +4968,7 @@ bool Query_block::resolve_rollup_wfs(THD *thd) {
                [&any_nullable_wf](Item *inner_item) {
                  if (inner_item->real_item()->type() == Item::SUM_FUNC_ITEM &&
                      inner_item->real_item()->m_is_window_function &&
-                     inner_item->has_rollup_expr()) {
+                     inner_item->has_grouping_set_dep()) {
                    inner_item->set_nullable(true);
                    any_nullable_wf = true;
                  }

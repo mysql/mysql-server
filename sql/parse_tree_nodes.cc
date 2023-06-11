@@ -292,6 +292,15 @@ bool PT_group::do_contextualize(Parse_context *pc) {
       }
       select->olap = ROLLUP_TYPE;
       break;
+    case CUBE_TYPE:
+      if (select->linkage == GLOBAL_OPTIONS_TYPE) {
+        my_error(ER_WRONG_USAGE, MYF(0), "CUBE", "global union parameters");
+        return true;
+      }
+      select->olap = CUBE_TYPE;
+      pc->thd->lex->set_execute_only_in_secondary_engine(
+          /*execute_only_in_secondary_engine_param=*/true, CUBE);
+      break;
     default:
       assert(!"unexpected OLAP type!");
   }

@@ -1649,7 +1649,7 @@ class Item_rollup_group_item final : public Item_func {
     // with all the other copying done here.)
     hidden = inner_item->hidden;
     set_nullable(true);
-    set_rollup_expr();
+    set_group_by_modifier();
   }
   double val_real() override;
   longlong val_int() override;
@@ -1670,7 +1670,7 @@ class Item_rollup_group_item final : public Item_func {
   }
   void update_used_tables() override {
     Item_func::update_used_tables();
-    set_rollup_expr();
+    set_group_by_modifier();
   }
   Item_result result_type() const override { return args[0]->result_type(); }
   bool resolve_type(THD *) override {

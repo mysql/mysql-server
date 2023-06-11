@@ -3093,8 +3093,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       // (We can also aggregate as we go after the materialization step;
       // see below. We won't be aggregating twice, though.)
       if (!qep_tab->tmp_table_param->precomputed_group_by) {
-        path = NewAggregateAccessPath(thd, path,
-                                      rollup_state != RollupState::NONE);
+        path = NewAggregateAccessPath(thd, path, query_block->olap);
         EstimateAggregateCost(path, query_block);
       }
     }
@@ -3338,8 +3337,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     }
 #endif
     if (!tmp_table_param.precomputed_group_by) {
-      path =
-          NewAggregateAccessPath(thd, path, rollup_state != RollupState::NONE);
+      path = NewAggregateAccessPath(thd, path, query_block->olap);
       EstimateAggregateCost(path, query_block);
     }
   }
@@ -4243,7 +4241,7 @@ bool copy_fields(Temp_table_param *param, const THD *thd, bool reverse_copy) {
  */
 static bool replace_embedded_rollup_references_with_tmp_fields(
     THD *thd, Item *item, mem_root_deque<Item *> *fields) {
-  if (!item->has_rollup_expr()) {
+  if (!item->has_grouping_set_dep()) {
     return false;
   }
   const auto replace_functor = [thd, item, fields](Item *sub_item, Item *,
@@ -4553,15 +4551,15 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
 
     } else if ((select->is_implicitly_grouped() &&
                 ((item->used_tables() & ~(RAND_TABLE_BIT | INNER_TABLE_BIT)) ==
-                 0)) ||                    // (1)
-               item->has_rollup_expr()) {  // (2)
+                 0)) ||                         // (1)
+               item->has_grouping_set_dep()) {  // (2)
       /*
         We go here when:
         (1) The Query_block is implicitly grouped and 'item' does not
             depend on any table. Then that field should be evaluated exactly
             once, whether there are zero or more rows in the temporary table
             (@see create_tmp_table()).
-        (2) 'item' has a rollup expression. Then we delay processing
+        (2) 'item' has a group by modifier. Then we delay processing
             until below; see comment further down.
       */
       new_item = item->copy_or_same(thd);
@@ -4582,7 +4580,7 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
   }
 
   for (Item *item : *fields) {
-    if (!is_rollup_group_wrapper(item) && item->has_rollup_expr()) {
+    if (!is_rollup_group_wrapper(item) && item->has_grouping_set_dep()) {
       // An item that isn't a rollup wrapper itself, but depends on one (or
       // multiple). We need to go into those items, find the rollup wrappers,
       // and replace them with rollup wrappers around the temporary fields,

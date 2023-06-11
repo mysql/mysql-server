@@ -685,7 +685,7 @@ void warn_on_deprecated_user_defined_collation(
 %token<lexer.keyword> CPU_SYM 353
 %token  CREATE 354                        /* SQL-2003-R */
 %token  CROSS 355                         /* SQL-2003-R */
-%token  CUBE_SYM 356                      /* SQL-2003-R */
+%token<lexer.keyword> CUBE_SYM 356        /* SQL-2003-R */
 %token  CURDATE 357                       /* MYSQL-FUNC */
 %token<lexer.keyword> CURRENT_SYM 358           /* SQL-2003-R */
 %token  CURRENT_USER 359                  /* SQL-2003-R */
@@ -12602,6 +12602,14 @@ opt_group_clause:
         | GROUP_SYM BY group_list olap_opt
           {
             $$= NEW_PTN PT_group(@$, $3, $4);
+          }
+        | GROUP_SYM BY ROLLUP_SYM '(' group_list ')'
+          {
+            $$= NEW_PTN PT_group(@$, $5, ROLLUP_TYPE);
+          }
+        | GROUP_SYM BY CUBE_SYM '(' group_list ')'
+          {
+            $$= NEW_PTN PT_group(@$, $5, CUBE_TYPE);
           }
         ;
 

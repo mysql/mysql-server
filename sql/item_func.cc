@@ -723,7 +723,8 @@ bool Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 void Item_func::update_used_tables() {
   used_tables_cache = get_initial_pseudo_tables();
   not_null_tables_cache = 0;
-  m_accum_properties = 0;
+  // Reset all flags except Grouping Set dependency
+  m_accum_properties &= PROP_HAS_GROUPING_SET_DEP;
 
   for (uint i = 0; i < arg_count; i++) {
     args[i]->update_used_tables();
@@ -7784,7 +7785,7 @@ double Item_func_match::val_real() {
   // MATCH only knows how to get the score for base columns. Other types of
   // expressions (such as function calls or rollup columns) should have been
   // rejected during resolving.
-  assert(!has_rollup_expr());
+  assert(!has_grouping_set_dep());
   assert(std::all_of(args, args + arg_count, [](const Item *item) {
     return item->real_item()->type() == FIELD_ITEM;
   }));

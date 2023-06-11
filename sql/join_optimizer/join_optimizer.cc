@@ -6068,14 +6068,14 @@ AccessPath *CreateZeroRowsForEmptyJoin(JOIN *join, const char *cause) {
 
   @param thd The current thread.
   @param join The join to which 'path' belongs.
-  @param rollup True for "GROUP BY ... WITH ROLLUP".
+  @param olap contains the GROUP BY modifier type
   @param row_estimate estimated number of output rows, so that we do not
          need to recalculate it, or kUnknownRowCount if unknown.
   @param trace Optimizer trace.
   @returns The AGGREGATE AccessPath.
  */
 AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
-                                          JOIN *join, bool rollup,
+                                          JOIN *join, olap_type olap,
                                           double row_estimate, string *trace) {
   AccessPath *child_path = path;
   const Query_block *query_block = join->query_block;
@@ -6093,7 +6093,7 @@ AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
   AccessPath aggregate_path;
   aggregate_path.type = AccessPath::AGGREGATE;
   aggregate_path.aggregate().child = child_path;
-  aggregate_path.aggregate().rollup = rollup;
+  aggregate_path.aggregate().olap = olap;
   aggregate_path.set_num_output_rows(row_estimate);
   EstimateAggregateCost(&aggregate_path, query_block, trace);
   return aggregate_path;
@@ -7507,7 +7507,6 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
     double aggregate_rows = kUnknownRowCount;
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      const bool rollup = (join->rollup_state != JOIN::RollupState::NONE);
       const bool group_needs_sort =
           query_block->is_explicitly_grouped() && !aggregation_is_unordered &&
           !orderings.DoesFollowOrder(root_path->ordering_state,
@@ -7515,7 +7514,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
 
       if (!group_needs_sort) {
         AccessPath aggregate_path = CreateStreamingAggregationPath(
-            thd, root_path, join, rollup, aggregate_rows, trace);
+            thd, root_path, join, query_block->olap, aggregate_rows, trace);
         aggregate_rows = aggregate_path.num_output_rows();
         receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
@@ -7562,7 +7561,7 @@ static AccessPath *FindBestQueryPlanInner(THD *thd, Query_block *query_block,
         }
 
         AccessPath aggregate_path = CreateStreamingAggregationPath(
-            thd, sort_path, join, rollup, aggregate_rows, trace);
+            thd, sort_path, join, query_block->olap, aggregate_rows, trace);
         aggregate_rows = aggregate_path.num_output_rows();
         receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, description);

@@ -776,7 +776,7 @@ void Item_sum::update_used_tables() {
   used_tables_cache = 0;
   // Re-accumulate all properties except three
   m_accum_properties &=
-      (PROP_AGGREGATION | PROP_WINDOW_FUNCTION | PROP_ROLLUP_EXPR);
+      (PROP_AGGREGATION | PROP_WINDOW_FUNCTION | PROP_HAS_GROUPING_SET_DEP);
 
   for (uint i = 0; i < arg_count; i++) {
     args[i]->update_used_tables();
@@ -6239,7 +6239,7 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
   */
   Query_block *select = thd->lex->current_query_block();
 
-  if (select->olap == UNSPECIFIED_OLAP_TYPE ||
+  if (!select->is_non_primitive_grouped() ||
       select->resolve_place == Query_block::RESOLVE_JOIN_NEST ||
       select->resolve_place == Query_block::RESOLVE_CONDITION) {
     my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
@@ -6327,7 +6327,7 @@ bool Item_func_grouping::aggregate_check_group(uchar *arg) {
 void Item_func_grouping::update_used_tables() {
   Item_int_func::update_used_tables();
   set_grouping_func();
-  set_rollup_expr();
+  set_group_by_modifier();
   /*
     GROUPING function can never be a constant item. It's
     result always depends on ROLLUP result.

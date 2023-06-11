@@ -127,20 +127,18 @@ GROUP BY product, country_id, year HAVING country_id is NULL;
 SELECT CONCAT(':',product,':'), SUM(profit), AVG(profit) FROM t1
 GROUP BY product WITH ROLLUP;
 
-# Error handling
-
-# Old, never implemented CUBE syntax
---error ER_PARSE_ERROR
+--error ER_SECONDARY_ENGINE
 SELECT product, country_id , year, SUM(profit) FROM t1
-GROUP BY product, country_id, year WITH CUBE;
---error ER_PARSE_ERROR
+GROUP BY CUBE (product, country_id, year);
+--error ER_SECONDARY_ENGINE
 EXPLAIN SELECT product, country_id , year, SUM(profit) FROM t1
-GROUP BY product, country_id, year WITH CUBE;
---error ER_PARSE_ERROR
+GROUP BY CUBE (product, country_id, year);
+--error ER_SECONDARY_ENGINE
 SELECT product, country_id , year, SUM(profit) FROM t1
-GROUP BY product, country_id, year WITH CUBE UNION ALL
+GROUP BY CUBE (product, country_id, year)
+UNION ALL
 SELECT product, country_id , year, SUM(profit) FROM t1
-GROUP BY product, country_id, year WITH ROLLUP;
+GROUP BY ROLLUP (product, country_id, year);
 
 drop table t1,t2;
 

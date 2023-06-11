@@ -3396,13 +3396,20 @@ class Item : public Parse_tree_node {
   void set_wf() { m_accum_properties |= PROP_WINDOW_FUNCTION; }
 
   /**
-    @return true if this item or any of its descendants within the same query
-    has a reference to a ROLLUP expression
-  */
-  bool has_rollup_expr() const { return m_accum_properties & PROP_ROLLUP_EXPR; }
+     @return true if this item or any of its descendants within the same query
+     has a reference to a GROUP BY modifier (such as ROLLUP)
+   */
+  bool has_grouping_set_dep() const {
+    return (m_accum_properties & PROP_HAS_GROUPING_SET_DEP);
+  }
 
-  /// Set the property: this item (tree) contains a reference to a ROLLUP expr
-  void set_rollup_expr() { m_accum_properties |= PROP_ROLLUP_EXPR; }
+  /**
+    Set the property: this item (tree) contains a reference to a GROUP BY
+    modifier (such as ROLLUP)
+  */
+  void set_group_by_modifier() {
+    m_accum_properties |= PROP_HAS_GROUPING_SET_DEP;
+  }
 
   /**
     @return true if this item or any of underlying items is a GROUPING function
@@ -3660,14 +3667,15 @@ class Item : public Parse_tree_node {
   static constexpr uint8 PROP_WINDOW_FUNCTION = 0x08;
   /**
     Set if the item or one or more of the underlying items contains a
-    ROLLUP expression. The rolled up expression itself is not so marked.
+    GROUP BY modifier (such as ROLLUP).
   */
-  static constexpr uint8 PROP_ROLLUP_EXPR = 0x10;
+  static constexpr uint8 PROP_HAS_GROUPING_SET_DEP = 0x10;
   /**
     Set if the item or one or more of the underlying items is a GROUPING
     function.
   */
   static constexpr uint8 PROP_GROUPING_FUNC = 0x20;
+
   uint8 m_accum_properties;
 
  public:
@@ -5962,16 +5970,16 @@ class Item_ref : public Item_ident {
     const table_map map = ref_item()->used_tables();
     if (map != 0) return map;
     // rollup constant: ensure it is non-constant by returning RAND_TABLE_BIT
-    if (has_rollup_expr()) return RAND_TABLE_BIT;
+    if (has_grouping_set_dep()) return RAND_TABLE_BIT;
     return 0;
   }
   void update_used_tables() override {
     if (depended_from == nullptr) ref_item()->update_used_tables();
     /*
-      Reset all flags except rollup, since we do not mark the rollup expression
-      itself.
+      Reset all flags except GROUP BY modifier, since we do not mark the rollup
+      expression itself.
     */
-    m_accum_properties &= PROP_ROLLUP_EXPR;
+    m_accum_properties &= PROP_HAS_GROUPING_SET_DEP;
     add_accum_properties(ref_item());
   }
 

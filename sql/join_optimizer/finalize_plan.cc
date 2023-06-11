@@ -97,7 +97,7 @@ static void ReplaceUpdateValuesWithTempTableFields(
   Collects the set of items in the item tree that satisfy the following:
 
   1) Neither the item itself nor any of its descendants have a reference to a
-     ROLLUP expression (item->has_rollup_expr() evaluates to false).
+     ROLLUP expression (item->has_grouping_set_dep() evaluates to false).
   2) The item is either the root item or its parent item does not satisfy 1).
 
   In other words, we do not collect _every_ item without rollup in the tree.
@@ -113,7 +113,7 @@ static void CollectItemsWithoutRollup(Item *root,
   CompileItem(
       root,
       [items](Item *item) {
-        if (item->has_rollup_expr()) {
+        if (item->has_grouping_set_dep()) {
           // Skip the item and continue searching down the item tree.
           return true;
         } else {
@@ -155,13 +155,14 @@ static TABLE *CreateTemporaryTableFromSelectList(
   // the temporary table and the replacement logic depends on base fields being
   // included.
   if (!after_aggregation &&
-      std::any_of(items_to_materialize->cbegin(), items_to_materialize->cend(),
-                  [](const Item *item) { return item->has_rollup_expr(); })) {
+      std::any_of(
+          items_to_materialize->cbegin(), items_to_materialize->cend(),
+          [](const Item *item) { return item->has_grouping_set_dep(); })) {
     items_to_materialize =
         new (thd->mem_root) mem_root_deque<Item *>(thd->mem_root);
     for (Item *item : *join->fields) {
       items_to_materialize->push_back(item);
-      if (item->has_rollup_expr()) {
+      if (item->has_grouping_set_dep()) {
         CollectItemsWithoutRollup(item, items_to_materialize);
       }
     }
@@ -221,10 +222,11 @@ static TABLE *CreateTemporaryTableFromSelectList(
     //
     // TODO(sgunders): Consider removing the rollup group items on the inner
     // levels, similar to what change_to_use_tmp_fields_except_sums() does.
-    auto new_end = std::remove_if(
-        temp_table_param->items_to_copy->begin(),
-        temp_table_param->items_to_copy->end(),
-        [](const Func_ptr &func) { return func.func()->has_rollup_expr(); });
+    auto *new_end = std::remove_if(temp_table_param->items_to_copy->begin(),
+                                   temp_table_param->items_to_copy->end(),
+                                   [](const Func_ptr &func) {
+                                     return func.func()->has_grouping_set_dep();
+                                   });
     temp_table_param->items_to_copy->erase(
         new_end, temp_table_param->items_to_copy->end());
   }

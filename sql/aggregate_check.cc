@@ -362,7 +362,7 @@ bool Group_check::is_fd_on_source(Item *item) {
     }
   }
 
-  if (select->olap != UNSPECIFIED_OLAP_TYPE) {
+  if (select->is_non_primitive_grouped()) {
     /*
       - the syntactical transformation of ROLLUP is to make a union of
       queries, and in each such query, some group column references are
@@ -616,7 +616,7 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
   Query_block *const mat_query_block =
       mat_query_expression->first_query_block();
   if (mat_query_expression->is_set_operation() ||
-      mat_query_block->olap != UNSPECIFIED_OLAP_TYPE)
+      mat_query_block->is_non_primitive_grouped())
     return;  // If UNION, EXCEPT, INTERSECT or ROLLUP, no FD
   // Grab Group_check for this subquery.
   Group_check *mat_gc = nullptr;

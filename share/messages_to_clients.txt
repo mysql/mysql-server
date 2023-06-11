@@ -10103,6 +10103,13 @@ ER_BULK_READER_COULDNT_RESOLVE_HOST
 
 ER_START_REPLICA_CHANNEL_INVALID_CONFIGURATION
   eng "Cannot start replication channel '%s' because %s."
+
+ER_CANNOT_EXECUTE_IN_PRIMARY
+   eng "'%s' is not supported"
+
+ER_TOO_MANY_GROUP_BY_MODIFIER_BRANCHES
+   eng "'%s' is supported with maximum %d elements in the GROUP BY list"
+
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

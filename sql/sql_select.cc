@@ -134,6 +134,7 @@ static store_key *get_store_key(THD *thd, Item *val, table_map used_tables,
                                 table_map const_tables,
                                 const KEY_PART_INFO *key_part, uchar *key_buff,
                                 uint maybe_null);
+static bool retry_with_secondary_engine(THD *thd);
 
 using Global_tables_iterator =
     IntrusiveListIterator<Table_ref, &Table_ref::next_global>;
@@ -442,6 +443,35 @@ static bool find_and_set_offload_fail_reason(const LEX *lex) {
   return false;
 }
 
+void secondary_engine_offload_fail_msg(const LEX *lex) {
+  if (lex->m_sql_cmd == nullptr) {
+    return;
+  }
+  THD *thd = lex->thd;
+  // Gather secondary-engine-specific error message.
+  const char *offloadfail_reason = get_secondary_engine_fail_reason(lex);
+  if (offloadfail_reason != nullptr && strlen(offloadfail_reason) > 0) {
+    if (thd->is_error()) {
+      thd->clear_error();
+    }
+    my_error(ER_SECONDARY_ENGINE, MYF(0), offloadfail_reason);
+  }
+
+  // If we haven't generated a specific error so far,
+  // we try to generate one here.
+  if (!thd->is_error() && find_and_set_offload_fail_reason(lex)) {
+    return;
+  }
+  // If no specifc error could be generated so far,
+  // we give out a generic one.
+  if (!thd->is_error()) {
+    const char *err_msg =
+        "use_secondary_engine is FORCED but query could not be executed in "
+        "secondary engine";
+    set_fail_reason_and_raise_error(lex, err_msg);
+  }
+}
+
 bool validate_use_secondary_engine(const LEX *lex) {
   if (lex->m_sql_cmd == nullptr) {
     return false;
@@ -463,29 +493,10 @@ bool validate_use_secondary_engine(const LEX *lex) {
           Secondary_engine_optimization::SECONDARY &&
       thd->is_secondary_engine_forced()) {
     // Gather secondary-engine-specific error message.
-    const char *offloadfail_reason = get_secondary_engine_fail_reason(lex);
-    if (offloadfail_reason != nullptr && strlen(offloadfail_reason) > 0) {
-      if (thd->is_error()) {
-        thd->clear_error();
-      }
-      my_error(ER_SECONDARY_ENGINE, MYF(0), offloadfail_reason);
-      return true;
-    }
-    // If we haven't generated a specific error so far,
-    // we try to generate one here.
-    if (!thd->is_error() && find_and_set_offload_fail_reason(lex)) {
-      return true;
-    }
-    // If no specifc error could be generated so far,
-    // we give out a generic one.
-    if (!thd->is_error()) {
-      const char *err_msg =
-          "use_secondary_engine is FORCED but query could not be executed in "
-          "secondary engine";
-      set_fail_reason_and_raise_error(lex, err_msg);
-      return true;
-    }
+    secondary_engine_offload_fail_msg(lex);
+    return true;
   }
+
   return false;
 }
 
@@ -917,6 +928,12 @@ static bool retry_with_secondary_engine(THD *thd) {
   // secondary engines.
   if (!thd->is_secondary_storage_engine_eligible()) {
     return false;
+  }
+
+  // If the query cannot be executed in the PRIMARY engine, always attempt to
+  // execute it in the secondary engine whenever possible.
+  if (thd->lex->can_execute_only_in_secondary_engine()) {
+    return true;
   }
 
   // Only attempt to use the secondary engine if the estimated cost of the query

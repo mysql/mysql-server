@@ -487,6 +487,9 @@ void LEX::reset() {
   grant_if_exists = false;
   ignore_unknown_user = false;
   reset_rewrite_required();
+
+  set_execute_only_in_secondary_engine(
+      /*execute_only_in_secondary_engine_param=*/false, SUPPORTED_IN_PRIMARY);
 }
 
 /**
@@ -3428,10 +3431,16 @@ void Query_block::print_group_by(const THD *thd, String *str,
   // group by & olap
   if (group_list.elements) {
     str->append(STRING_WITH_LEN(" group by "));
+    if (olap == CUBE_TYPE) {
+      str->append(STRING_WITH_LEN("cube ("));
+    }
     print_order(thd, str, group_list.first, query_type);
     switch (olap) {
       case ROLLUP_TYPE:
         str->append(STRING_WITH_LEN(" with rollup"));
+        break;
+      case CUBE_TYPE:
+        str->append(STRING_WITH_LEN(")"));
         break;
       default:;  // satisfy compiler
     }

@@ -955,7 +955,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
             TableCollection(tables, /*store_rowids=*/false,
                             /*tables_to_get_rowid_for=*/0,
                             GetNullableEqRefTables(param.child)),
-            param.rollup);
+            param.olap == ROLLUP_TYPE);
         break;
       }
       case AccessPath::TEMPTABLE_AGGREGATE: {

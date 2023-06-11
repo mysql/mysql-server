@@ -142,7 +142,8 @@ bool Item_row::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 
 void Item_row::update_used_tables() {
   used_tables_cache = 0;
-  m_accum_properties = 0;
+  // Reset all flags except Grouping Set dependency
+  m_accum_properties &= PROP_HAS_GROUPING_SET_DEP;
   not_null_tables_cache = 0;
   for (uint i = 0; i < arg_count; i++) {
     items[i]->update_used_tables();

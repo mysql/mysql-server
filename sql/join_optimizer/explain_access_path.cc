@@ -1409,9 +1409,12 @@ static std::unique_ptr<Json_object> SetObjectMembers(
         error |= AddMemberToObject<Json_boolean>(obj, "group_by", true);
         if (*join->sum_funcs == nullptr) {
           description = "Group (no aggregates)";
-        } else if (path->aggregate().rollup) {
+        } else if (path->aggregate().olap == ROLLUP_TYPE) {
           error |= AddMemberToObject<Json_boolean>(obj, "rollup", true);
           description = "Group aggregate with rollup: ";
+        } else if (path->aggregate().olap == CUBE_TYPE) {
+          error |= AddMemberToObject<Json_boolean>(obj, "cube", true);
+          description = "Group aggregate with cube: ";
         } else {
           description = "Group aggregate: ";
         }
@@ -1428,9 +1431,9 @@ static std::unique_ptr<Json_object> SetObjectMembers(
         } else {
           description += ", ";
         }
-        string func =
-            (path->aggregate().rollup ? ItemToString((*item)->unwrap_sum())
-                                      : ItemToString(*item));
+        string func = (path->aggregate().olap == ROLLUP_TYPE
+                           ? ItemToString((*item)->unwrap_sum())
+                           : ItemToString(*item));
         description += func;
         error |= AddElementToArray<Json_string>(funcs, func);
       }

@@ -714,7 +714,7 @@ bool JOIN::optimize(bool finalize_access_paths) {
     goto setup_subq_exit;
   }
 
-  if (rollup_state == RollupState::NONE) {
+  if (!query_block->is_non_primitive_grouped()) {
     /* Remove distinct if only const tables */
     select_distinct &= !plan_is_const();
   }
@@ -8025,9 +8025,11 @@ bool is_indexed_agg_distinct(JOIN *join,
   bool result = false;
   Field_map first_aggdistinct_fields;
 
-  if (join->primary_tables > 1 ||             /* reference more than 1 table */
-      join->select_distinct ||                /* or a DISTINCT */
-      join->query_block->olap == ROLLUP_TYPE) /* Check (B3) for ROLLUP */
+  if (join->primary_tables > 1 || /* reference more than 1 table */
+      join->select_distinct ||    /* or a DISTINCT */
+
+      join->query_block->is_non_primitive_grouped()) /* Check (B3) for
+                                                      non-primitive grouping */
     return false;
 
   if (join->make_sum_func_list(*join->fields, true)) return false;

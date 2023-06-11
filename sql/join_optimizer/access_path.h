@@ -38,6 +38,7 @@
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
+#include "sql/olap.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
 #include "sql/table.h"
@@ -1155,7 +1156,7 @@ struct AccessPath {
     } sort;
     struct {
       AccessPath *child;
-      bool rollup;
+      olap_type olap;
     } aggregate;
     struct {
       AccessPath *subquery_path;
@@ -1461,11 +1462,11 @@ AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
                               ORDER *order, bool count_examined_rows);
 
 inline AccessPath *NewAggregateAccessPath(THD *thd, AccessPath *child,
-                                          bool rollup) {
+                                          olap_type olap) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::AGGREGATE;
   path->aggregate().child = child;
-  path->aggregate().rollup = rollup;
+  path->aggregate().olap = olap;
   return path;
 }
 

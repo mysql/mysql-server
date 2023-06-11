@@ -1275,6 +1275,13 @@ class Query_block : public Query_term {
   }
 
   /**
+    @return true if this query block has GROUP BY modifier.
+  */
+  bool is_non_primitive_grouped() const {
+    return (olap != UNSPECIFIED_OLAP_TYPE);
+  }
+
+  /**
     @return true if this query block is explicitly or implicitly grouped.
     @note a query with DISTINCT is not considered to be aggregated.
     @note in standard SQL, a query with HAVING is defined as grouped, however
@@ -2100,7 +2107,10 @@ class Query_block : public Query_term {
   */
   int nest_level{0};
 
-  /// Indicates whether this query block contains the WITH ROLLUP clause
+  /**
+    Indicates whether this query block contains non-primitive grouping (such as
+    ROLLUP).
+  */
   olap_type olap{UNSPECIFIED_OLAP_TYPE};
 
   /// @see enum_condition_context
@@ -2234,7 +2244,7 @@ class Query_block : public Query_term {
       bool added_card_check, size_t added_window_card_checks);
   void replace_referenced_item(Item *const old_item, Item *const new_item);
   void remap_tables(THD *thd);
-  void mark_item_as_maybe_null_if_rollup_item(Item *item);
+  void mark_item_as_maybe_null_if_non_primitive_grouped(Item *item) const;
   Item *resolve_rollup_item(THD *thd, Item *item);
   bool resolve_rollup(THD *thd);
 
@@ -2353,9 +2363,30 @@ class Query_block : public Query_term {
   */
   ulonglong m_active_options{0};
 
+  /**
+    If the query block includes non-primitive grouping, then these modifiers are
+    represented as grouping sets. The variable 'm_num_grouping_sets' holds the
+    count of grouping sets.
+  */
+  int m_num_grouping_sets{0};
+
  public:
   Table_ref *resolve_nest{
       nullptr};  ///< Used when resolving outer join condition
+
+  /**
+    Initializes the grouping set if the query block includes GROUP BY
+    modifiers.
+  */
+  bool allocate_grouping_sets(THD *thd);
+
+  /**
+    Populates the grouping sets if the query block includes non-primitive
+    grouping.
+  */
+  bool populate_grouping_sets(THD *thd);
+  int get_number_of_grouping_sets() const { return m_num_grouping_sets; }
+
  private:
   /**
     Condition to be evaluated after all tables in a query block are joined.
@@ -3670,6 +3701,13 @@ class LEX_GRANT_AS {
   List<LEX_USER> *role_list;
 };
 
+/*
+  Some queries can be executed only using the secondary engine. The enum
+  "execute_only_in_secondary_reasons" retains the explanations for queries that
+  cannot be executed using the primary engine.
+*/
+enum execute_only_in_secondary_reasons { SUPPORTED_IN_PRIMARY, CUBE };
+
 /**
   The LEX object currently serves three different purposes:
 
@@ -3732,6 +3770,15 @@ struct LEX : public Query_tables_list {
  private:
   /* current Query_block in parsing */
   Query_block *m_current_query_block;
+
+  /*
+    Some queries can only be executed on a secondary engine, for example,
+    queries with non-primitive grouping like CUBE.
+  */
+  bool m_can_execute_only_in_secondary_engine = false;
+
+  execute_only_in_secondary_reasons m_execute_only_in_secondary_engine_reason{
+      SUPPORTED_IN_PRIMARY};
 
  public:
   inline Query_block *current_query_block() const {
@@ -3854,6 +3901,28 @@ struct LEX : public Query_tables_list {
   }
   std::map<Item_field *, Field *>::iterator end_values_map() {
     return insert_update_values_map->end();
+  }
+  bool can_execute_only_in_secondary_engine() const {
+    return m_can_execute_only_in_secondary_engine;
+  }
+  void set_execute_only_in_secondary_engine(
+      const bool execute_only_in_secondary_engine_param,
+      execute_only_in_secondary_reasons reason) {
+    m_can_execute_only_in_secondary_engine =
+        execute_only_in_secondary_engine_param;
+    m_execute_only_in_secondary_engine_reason = reason;
+    assert(m_can_execute_only_in_secondary_engine ||
+           reason == SUPPORTED_IN_PRIMARY);
+  }
+
+  const char *get_not_supported_in_primary_reason() {
+    assert(can_execute_only_in_secondary_engine());
+    switch (m_execute_only_in_secondary_engine_reason) {
+      case CUBE:
+        return "CUBE";
+      default:
+        return "UNDEFINED";
+    }
   }
 
  private:

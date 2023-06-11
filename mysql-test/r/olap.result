@@ -306,18 +306,17 @@ CONCAT(':',product,':')	SUM(profit)	AVG(profit)
 :TV:	600	120.00000
 NULL	7785	519.00000
 SELECT product, country_id , year, SUM(profit) FROM t1
-GROUP BY product, country_id, year WITH CUBE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CUBE' at line 2
+GROUP BY CUBE (product, country_id, year);
+ERROR HY000: Secondary engine operation failed. No secondary engine defined for at least one of the query tables.
 EXPLAIN SELECT product, country_id , year, SUM(profit) FROM t1
-GROUP BY product, country_id, year WITH CUBE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CUBE' at line 2
+GROUP BY CUBE (product, country_id, year);
+ERROR HY000: Secondary engine operation failed. No secondary engine defined for at least one of the query tables.
 SELECT product, country_id , year, SUM(profit) FROM t1
-GROUP BY product, country_id, year WITH CUBE UNION ALL
+GROUP BY CUBE (product, country_id, year)
+UNION ALL
 SELECT product, country_id , year, SUM(profit) FROM t1
-GROUP BY product, country_id, year WITH ROLLUP;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CUBE UNION ALL
-SELECT product, country_id , year, SUM(profit) FROM t1
-GROUP' at line 2
+GROUP BY ROLLUP (product, country_id, year);
+ERROR HY000: Secondary engine operation failed. No secondary engine defined for at least one of the query tables.
 drop table t1,t2;
 CREATE TABLE t1 (i int);
 INSERT INTO t1 VALUES(100);

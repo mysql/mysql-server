@@ -1325,7 +1325,7 @@ bool Condition_pushdown::push_past_group_by() {
     return false;
   }
   if (m_query_block->is_implicitly_grouped() ||
-      m_query_block->olap == ROLLUP_TYPE)
+      m_query_block->is_non_primitive_grouped())
     return false;
   m_checking_purpose = CHECK_FOR_WHERE;
   Opt_trace_object step_wrapper(trace, "pushing_past_group_by");
