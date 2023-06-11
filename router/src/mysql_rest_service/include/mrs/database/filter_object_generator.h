@@ -63,7 +63,8 @@ class FilterObjectGenerator {
   void parse_asof(Value *value);
   void parse_wmember(const char *name, Value *value);
   void parse_match(Value *value);
-  mysqlrouter::sqlstring resolve_field_name(const char *name) const;
+  mysqlrouter::sqlstring resolve_field_name(const char *name,
+                                            bool for_sorting) const;
 
   void reset();
 

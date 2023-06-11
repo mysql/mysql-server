@@ -63,7 +63,8 @@ constexpr const int UNIQUE = 1 << 5;
 constexpr const int AUTO_INC = 1 << 6;
 constexpr const int REV_UUID = 1 << 7;
 constexpr const int NOFILTER = 1 << 8;
-constexpr const int DISABLED = 1 << 9;
+constexpr const int SORTABLE = 1 << 9;
+constexpr const int DISABLED = 1 << 10;
 }  // namespace FieldFlag
 
 constexpr const Operation::ValueType kAllOperations =
@@ -139,6 +140,7 @@ class ObjectBuilder {
     field->name = name;
     field->enabled = (flags & FieldFlag::DISABLED) == 0;
     field->allow_filtering = (flags & FieldFlag::NOFILTER) == 0;
+    field->allow_sorting = (flags & FieldFlag::SORTABLE) != 0;
     field->no_check = (flags & FieldFlag::NOCHECK) != 0;
 
     field->source = add_column(db_name, db_type, flags);
