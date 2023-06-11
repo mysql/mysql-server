@@ -201,7 +201,7 @@ bool FilterObjectGenerator::parse_simple_object(Value *object) {
 
   auto name = object->MemberBegin()->name.GetString();
   Value *value = &object->MemberBegin()->value;
-  auto db_name = resolve_field_name(argument_.back().c_str());
+  auto db_name = resolve_field_name(argument_.back().c_str(), false);
 
   log_debug("parse_simple_object %i", static_cast<int>(value->GetType()));
   where_.append_preformatted(" ");
@@ -389,7 +389,7 @@ void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   if (parse_simple_object(value)) return;
   log_debug("fallback");
 
-  mysqlrouter::sqlstring dbname = resolve_field_name(name);
+  mysqlrouter::sqlstring dbname = resolve_field_name(name, false);
 
   // TODO(lkotula): array of ComplectValues (Shouldn't be in review)
   where_.append_preformatted(
@@ -419,7 +419,7 @@ void FilterObjectGenerator::parse_order(Object object) {
     order_.append_preformatted(first ? " ORDER BY " : ", ");
     first = false;
     bool asc = false;
-    order_.append_preformatted(resolve_field_name(member.first));
+    order_.append_preformatted(resolve_field_name(member.first, true));
 
     auto value = member.second;
 
@@ -453,13 +453,15 @@ void FilterObjectGenerator::parse_order(Object object) {
 }
 
 mysqlrouter::sqlstring FilterObjectGenerator::resolve_field_name(
-    const char *name) const {
+    const char *name, bool for_sorting) const {
   if (object_metadata_) {
     auto field = object_metadata_->get_field(name);
 
     if (auto dfield = std::dynamic_pointer_cast<entry::DataField>(field)) {
-      if (!dfield->allow_filtering)
+      if (!dfield->allow_filtering && !for_sorting)
         throw RestError("Cannot filter on field "s + name);
+      if (!dfield->allow_sorting && for_sorting)
+        throw RestError("Cannot sort on field "s + name);
 
       if (joins_allowed_)
         return mysqlrouter::sqlstring("!.!")
@@ -469,7 +471,10 @@ mysqlrouter::sqlstring FilterObjectGenerator::resolve_field_name(
         return mysqlrouter::sqlstring("!") << dfield->source->name;
     }
     // TODO(alfredo) filter on nested fields
-    throw RestError("Cannot filter on field "s + name);
+    if (!for_sorting)
+      throw RestError("Cannot filter on field "s + name);
+    else
+      throw RestError("Cannot sort on field "s + name);
   } else {
     return mysqlrouter::sqlstring("!") << name;
   }

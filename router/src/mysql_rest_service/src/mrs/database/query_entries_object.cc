@@ -111,6 +111,7 @@ void QueryEntryObject::query_entries(MySQLSession *session,
       " object_field.db_column->>'$.is_generated',"
       " object_field.enabled,"
       " object_field.allow_filtering,"
+      " object_field.allow_sorting,"
       " object_field.no_check,"
       " object_field.no_update"
       " FROM mysql_rest_service_metadata.object_field"
@@ -313,6 +314,7 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
     row.skip(7);
     row.unserialize(&ofield->enabled);
     row.unserialize(&ofield->allow_filtering);
+    row.unserialize(&ofield->allow_sorting);
     row.unserialize(&ofield->no_check);
     row.unserialize(&ofield->no_update);
 

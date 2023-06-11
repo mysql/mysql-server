@@ -147,7 +147,7 @@ class ObjectField {
   int position = 0;
   bool enabled = true;  // include in the returned JSON object
   bool allow_filtering = true;
-  bool allow_ordering = true;
+  bool allow_sorting = true;
   bool no_check = false;   // exclude from ETag checksum calculation
   bool no_update = false;  // disallow updates to this field
 };
