@@ -1718,17 +1718,17 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData, bool snapsho
       return false;
     }
     if (op->writeTuple() ||
-        op->equal(0u, (const char *)&server_id, sizeof(server_id)) ||
-        op->setValue(1u, (const char *)&epoch, sizeof(epoch)))
+        op->equal(0u, server_id) ||
+        op->setValue(1u, epoch))
     {
       restoreLogger.log_error("%s : failed to set epoch value in --restore-epoch: %u:%s",
           NDB_APPLY_TABLE, op->getNdbError().code, op->getNdbError().message);
       return false;
     }
     if ((apply_table_format == 2) &&
-        (op->setValue(2u, (const char *)&empty_string, 1) ||
-         op->setValue(3u, (const char *)&zero, sizeof(zero)) ||
-         op->setValue(4u, (const char *)&zero, sizeof(zero))))
+        (op->setValue(2u, empty_string) ||
+         op->setValue(3u, zero) ||
+         op->setValue(4u, zero)))
     {
       restoreLogger.log_error("%s : failed to set values in --restore-epoch: %u:%s",
           NDB_APPLY_TABLE, op->getNdbError().code, op->getNdbError().message);
@@ -1816,7 +1816,7 @@ BackupRestore::delete_epoch_tuple()
 
     Uint32 server_id= 0;
     if (op->deleteTuple() ||
-        op->equal(0u, (const char *)&server_id, sizeof(server_id)))
+        op->equal(0u, server_id))
     {
       restoreLogger.log_error("%s : failed to delete tuple with server_id=0 in --with-apply-status: %u: %s",
           NDB_APPLY_TABLE, op->getNdbError().code, op->getNdbError().message);
@@ -3872,15 +3872,15 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	if (col_pk_in_kernel)
 	{
 	  if (j == 1) continue;
-	  ret = op->equal(attr_desc->attrId, dataPtr, length);
+	  ret = op->equal(attr_desc->attrId, dataPtr);
 	}
 	else
 	{
 	  if (j == 0) continue;
 	  if (attr_data->null) 
-	    ret = op->setValue(attr_desc->attrId, NULL, 0);
+	    ret = op->setValue(attr_desc->attrId, nullptr);
 	  else
-	    ret = op->setValue(attr_desc->attrId, dataPtr, length);
+	    ret = op->setValue(attr_desc->attrId, dataPtr);
 	}
 	if (ret < 0) {
 	  ndbout_c("Column: %d type %d %d %d %d",i,
@@ -4712,7 +4712,7 @@ retry:
         if (!keys.get(attrId))
         {
           keys.set(attrId);
-          check= op->equal(keyAttrId, dataPtr, length);
+          check= op->equal(keyAttrId, dataPtr);
         }
         else if (tup.m_type == LogEntry::LE_UPDATE)
         {
@@ -4727,7 +4727,7 @@ retry:
         assert(pass == 1);
         if (tup.m_type != LogEntry::LE_DELETE)
         {
-          check= op->setValue(attrId, dataPtr, length);
+          check= op->setValue(attrId, dataPtr);
         }
       }
 
