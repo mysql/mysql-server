@@ -469,6 +469,217 @@ static void debug_check_for_write_sets(
              (hash_list[0] == 10002085147685770725ULL &&
               hash_list[1] == 7781576503154198764ULL &&
               hash_list[2] == 14341778092818779177ULL)););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_single_primary_key_part_insert",
+      assert(key_list_to_hash.size() == 2);
+      assert(hash_list.size() == 2); assert(
+          key_list_to_hash[0] ==
+              "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+              "4t1" HASH_STRING_SEPARATOR
+              "2\034\217\034\217\034\217\034\217" HASH_STRING_SEPARATOR "8" &&
+          key_list_to_hash[1] ==
+              "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+              "4t1" HASH_STRING_SEPARATOR
+              "2\034\217\034\217\034\217\034\217\036\377\036\377\036\377\036"
+              "\377" HASH_STRING_SEPARATOR "16");
+      assert(hash_list[0] == 16317411346116498013ULL &&
+             hash_list[1] == 18003062610192037758ULL););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_single_primary_key_part_update",
+      assert(key_list_to_hash.size() == 2);
+      assert(hash_list.size() == 2); assert(
+          (key_list_to_hash[0] ==
+               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034`\034`\034`\034`" HASH_STRING_SEPARATOR "8" &&
+           key_list_to_hash[1] ==
+               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR "2\034`\034`\034`\034`"
+               "\036\377\036\377\036\377\036\377" HASH_STRING_SEPARATOR "16") ||
+          (key_list_to_hash[0] ==
+               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034\217\034\217\034\217\034\217" HASH_STRING_SEPARATOR "8" &&
+           key_list_to_hash[1] ==
+               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034\217\034\217\034\217\034\217\036\377\036\377\036\377\036"
+               "\377" HASH_STRING_SEPARATOR "16"));
+      assert((hash_list[0] == 12854286396201953359ULL &&
+              hash_list[1] == 7801970996840350074ULL) ||
+             (hash_list[0] == 16317411346116498013ULL &&
+              hash_list[1] == 18003062610192037758ULL)););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_multiple_primary_key_part_insert",
+      assert(key_list_to_hash.size() == 2);
+      assert(hash_list.size() == 2);
+      assert(key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR
+                 "2\034G\034G\034G\034G" HASH_STRING_SEPARATOR
+                 "8\034z\034z\034z\034z" HASH_STRING_SEPARATOR "8" &&
+             key_list_to_hash[1] == "PRIMARY" HASH_STRING_SEPARATOR
+                                    "test" HASH_STRING_SEPARATOR
+                                    "4t1" HASH_STRING_SEPARATOR
+                                    "2\034G\034G\034G\034G\036\377\036\377\036"
+                                    "\377\036\377" HASH_STRING_SEPARATOR
+                                    "16\034z\034z\034z\034z\036\377\036\377\036"
+                                    "\377\036\377" HASH_STRING_SEPARATOR "16");
+      assert(hash_list[0] == 11952739978637581076ULL &&
+             hash_list[1] == 5625842696515157153ULL););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_multiple_primary_key_part_update",
+      assert(key_list_to_hash.size() == 2);
+      assert(hash_list.size() == 2); assert(
+          (key_list_to_hash[0] ==
+               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034G\034G\034G\034G" HASH_STRING_SEPARATOR
+               "8\034\217\034\217\034\217\034\217" HASH_STRING_SEPARATOR "8" &&
+           key_list_to_hash[1] ==
+               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034G\034G\034G\034G\036\377\036\377\036\377\036"
+               "\377" HASH_STRING_SEPARATOR
+               "16\034\217\034\217\034\217\034\217\036\377\036\377\036\377\036"
+               "\377" HASH_STRING_SEPARATOR "16") ||
+          (key_list_to_hash[0] ==
+               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034G\034G\034G\034G" HASH_STRING_SEPARATOR
+               "8\034z\034z\034z\034z" HASH_STRING_SEPARATOR "8" &&
+           key_list_to_hash[1] == "PRIMARY" HASH_STRING_SEPARATOR
+                                  "test" HASH_STRING_SEPARATOR
+                                  "4t1" HASH_STRING_SEPARATOR
+                                  "2\034G\034G\034G\034G\036\377\036\377\036"
+                                  "\377\036\377" HASH_STRING_SEPARATOR
+                                  "16\034z\034z\034z\034z\036\377\036\377\036"
+                                  "\377\036\377" HASH_STRING_SEPARATOR "16"));
+      assert((hash_list[0] == 321901661932738829ULL &&
+              hash_list[1] == 13548511452318291546ULL) ||
+             (hash_list[0] == 11952739978637581076ULL &&
+              hash_list[1] == 5625842696515157153ULL)););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_single_unique_key_part_insert",
+      assert(key_list_to_hash.size() == 3);
+      assert(hash_list.size() == 3);
+      assert(key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
+             key_list_to_hash[1] ==
+                 "a" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR
+                 "2\034`\034`\034`\034`" HASH_STRING_SEPARATOR "8" &&
+             key_list_to_hash[2] ==
+                 "a" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR "2\034`\034`\034`\034`"
+                 "\036\377\036\377\036\377\036\377" HASH_STRING_SEPARATOR "16");
+      assert(hash_list[0] == 16097759999475440183ULL &&
+             hash_list[1] == 7725531530140183570ULL &&
+             hash_list[2] == 14701666498086136515ULL););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_single_unique_key_part_update",
+      assert(key_list_to_hash.size() == 3);
+      assert(hash_list.size() == 3); assert(
+          (key_list_to_hash[0] ==
+               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
+           key_list_to_hash[1] ==
+               "a" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034\217\034\217\034\217\034\217" HASH_STRING_SEPARATOR "8" &&
+           key_list_to_hash[2] ==
+               "a" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034\217\034\217\034\217\034\217\036\377\036\377\036\377\036"
+               "\377" HASH_STRING_SEPARATOR "16") ||
+          (key_list_to_hash[0] ==
+               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
+           key_list_to_hash[1] ==
+               "a" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034`\034`\034`\034`" HASH_STRING_SEPARATOR "8" &&
+           key_list_to_hash[2] ==
+               "a" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR "2\034`\034`\034`\034`"
+               "\036\377\036\377\036\377\036\377" HASH_STRING_SEPARATOR "16"));
+      assert((hash_list[0] == 16097759999475440183ULL &&
+              hash_list[1] == 5363251102313010695ULL &&
+              hash_list[2] == 14835022138864790192ULL) ||
+             (hash_list[0] == 16097759999475440183ULL &&
+              hash_list[1] == 7725531530140183570ULL &&
+              hash_list[2] == 14701666498086136515ULL)););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_multiple_unique_key_part_insert",
+      assert(key_list_to_hash.size() == 3);
+      assert(hash_list.size() == 3);
+      assert(key_list_to_hash[0] ==
+                 "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
+             key_list_to_hash[1] ==
+                 "a" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+                 "4t1" HASH_STRING_SEPARATOR
+                 "2\034G\034G\034G\034G" HASH_STRING_SEPARATOR
+                 "8\034z\034z\034z\034z" HASH_STRING_SEPARATOR "8" &&
+             key_list_to_hash[2] == "a" HASH_STRING_SEPARATOR
+                                    "test" HASH_STRING_SEPARATOR
+                                    "4t1" HASH_STRING_SEPARATOR
+                                    "2\034G\034G\034G\034G\036\377\036\377\036"
+                                    "\377\036\377" HASH_STRING_SEPARATOR
+                                    "16\034z\034z\034z\034z\036\377\036\377\036"
+                                    "\377\036\377" HASH_STRING_SEPARATOR "16");
+      assert(hash_list[0] == 16097759999475440183ULL &&
+             hash_list[1] == 1438169577983365775ULL &&
+             hash_list[2] == 312264863968578629ULL););
+
+  DBUG_EXECUTE_IF(
+      "PKE_assert_multiple_unique_key_part_update",
+      assert(key_list_to_hash.size() == 3);
+      assert(hash_list.size() == 3); assert(
+          (key_list_to_hash[0] ==
+               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
+           key_list_to_hash[1] ==
+               "a" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034G\034G\034G\034G" HASH_STRING_SEPARATOR
+               "8\034\217\034\217\034\217\034\217" HASH_STRING_SEPARATOR "8" &&
+           key_list_to_hash[2] ==
+               "a" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034G\034G\034G\034G\036\377\036\377\036\377\036"
+               "\377" HASH_STRING_SEPARATOR
+               "16\034\217\034\217\034\217\034\217\036\377\036\377\036\377"
+               "\036\377" HASH_STRING_SEPARATOR "16") ||
+          (key_list_to_hash[0] ==
+               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
+           key_list_to_hash[1] ==
+               "a" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
+               "4t1" HASH_STRING_SEPARATOR
+               "2\034G\034G\034G\034G" HASH_STRING_SEPARATOR
+               "8\034z\034z\034z\034z" HASH_STRING_SEPARATOR "8" &&
+           key_list_to_hash[2] == "a" HASH_STRING_SEPARATOR
+                                  "test" HASH_STRING_SEPARATOR
+                                  "4t1" HASH_STRING_SEPARATOR
+                                  "2\034G\034G\034G\034G\036\377\036\377\036"
+                                  "\377\036\377" HASH_STRING_SEPARATOR
+                                  "16\034z\034z\034z\034z\036\377\036\377\036"
+                                  "\377\036\377" HASH_STRING_SEPARATOR "16"));
+      assert((hash_list[0] == 16097759999475440183ULL &&
+              hash_list[1] == 7001586410307804499ULL &&
+              hash_list[2] == 888558645316043973ULL) ||
+             (hash_list[0] == 16097759999475440183ULL &&
+              hash_list[1] == 1438169577983365775ULL &&
+              hash_list[2] == 312264863968578629ULL)););
 }
 #endif
 
@@ -542,7 +753,7 @@ static bool generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
     // No need to hash prefix pke as it won't cause conflicts.
   } else {
     const CHARSET_INFO *cs = field->charset();
-    int max_length = cs->coll->strnxfrmlen(cs, field->key_length());
+    size_t max_length = cs->coll->strnxfrmlen(cs, field->key_length());
     std::unique_ptr<uchar[]> pk_value(new uchar[max_length + 1]());
     assert(v.type() == json_binary::Value::ARRAY);
 
@@ -633,92 +844,139 @@ bool add_pke(TABLE *table, THD *thd, const uchar *record) {
     std::vector<std::string> write_sets;
     std::vector<uint64> hash_list;
 #endif
-
     for (uint key_number = 0; key_number < table->s->keys; key_number++) {
       // Skip non unique.
       if (!((table->key_info[key_number].flags & (HA_NOSAME)) == HA_NOSAME))
         continue;
 
-      pke.clear();
-      pke.append(table->key_info[key_number].name);
-      pke.append(pke_schema_table);
+      enum pke_mode_e { STANDARD_PKE = 1, NO_PARTIAL_KEYS_PKE = 2, END = 3 };
+      bool old_pke_needed = false;
+      uint pke_mode = pke_mode_e::STANDARD_PKE;
+      DBUG_EXECUTE_IF("do_not_add_pke_key_part",
+                      { pke_mode = pke_mode_e::NO_PARTIAL_KEYS_PKE; });
 
-      uint i = 0;
-      // Whether the key has mv keypart which have to be handled separately
-      Field *mv_field = nullptr;
-      for (/*empty*/; i < table->key_info[key_number].user_defined_key_parts;
-           i++) {
-        /* Get the primary key field index. */
-        int index = table->key_info[key_number].key_part[i].fieldnr;
-        Field *field = table->field[index - 1];
+      while (pke_mode != pke_mode_e::END) {
+        pke.clear();
+        pke.append(table->key_info[key_number].name);
+        pke.append(pke_schema_table);
 
-        /* Ignore if the value is NULL. */
-        if (field->is_null(ptrdiff)) break;
-        if (field->is_array()) {
-          // There can be only one multi-valued key part per key
-          assert(!mv_field);
-          mv_field = field;
-          // Skip it for now
-          continue;
+        uint i = 0;
+        // Whether the key has mv keypart which have to be handled separately
+        Field *mv_field = nullptr;
+        for (/*empty*/; i < table->key_info[key_number].user_defined_key_parts;
+             i++) {
+          /* Get the primary key field index. */
+          int index = table->key_info[key_number].key_part[i].fieldnr;
+          Field *field = table->field[index - 1];
+
+          /* Ignore if the value is NULL. */
+          if (field->is_null(ptrdiff)) break;
+          if (field->is_array()) {
+            // There can be only one multi-valued key part per key
+            assert(!mv_field);
+            mv_field = field;
+            // Skip it for now
+            continue;
+          }
+
+          /*
+            Update the field offset as we may be working on table->record[0]
+            or table->record[1], depending on the "record" parameter.
+          */
+          field->move_field_offset(ptrdiff);
+
+          const CHARSET_INFO *cs = field->charset();
+          size_t key_length = table->key_info[key_number].key_part[i].length;
+          size_t max_length = cs->coll->strnxfrmlen(cs, key_length);
+          if (pke_mode == pke_mode_e::STANDARD_PKE) {
+            std::unique_ptr<uchar[]> pk_value(new uchar[max_length + 1]());
+            /*
+              convert to normalized string and store so that it can be
+              sorted using binary comparison functions like memcmp.
+            */
+            size_t length = field->make_sort_key(pk_value.get(), max_length,
+                                                 key_length / cs->mbmaxlen);
+            pk_value[length] = 0;
+
+            pke.append(pointer_cast<char *>(pk_value.get()), length);
+            pke.append(HASH_STRING_SEPARATOR);
+            pke.append(std::to_string(length));
+          }
+
+          /*
+            When we upgrade a group, old members might be using the old PKEs and
+            so they identify a row A with key OLD_PKE. This is the value that is
+            in the certification table. When all members are upgrade and are now
+            in the latest version, all members now identify row A with key
+            NEW_PKE. How do you detect conflicts in row A if the transactions in
+            the certification database have the old PKE?
+
+            So the decision taken was to always send the old PKE and the new PKE
+            when keys have only a partial value of a column. In 9.0 we remove
+            this code for the old PKE.
+          */
+          size_t pack_length = cs->coll->strnxfrmlen(cs, field->pack_length());
+          if (pke_mode == pke_mode_e::NO_PARTIAL_KEYS_PKE) {
+            std::unique_ptr<uchar[]> pk_value(new uchar[pack_length + 1]());
+            /*
+              convert to normalized string and store so that it can be
+              sorted using binary comparison functions like memcmp.
+            */
+            size_t length = field->make_sort_key(pk_value.get(), pack_length);
+            pk_value[length] = 0;
+
+            pke.append(pointer_cast<char *>(pk_value.get()), length);
+            pke.append(HASH_STRING_SEPARATOR);
+            pke.append(std::to_string(length));
+          }
+
+          if (pke_mode == pke_mode_e::STANDARD_PKE &&
+              max_length != pack_length) {
+            old_pke_needed = true;
+          }
+
+          field->move_field_offset(-ptrdiff);
         }
-
         /*
-          Update the field offset as we may be working on table->record[0]
-          or table->record[1], depending on the "record" parameter.
-         */
-        field->move_field_offset(ptrdiff);
-        const CHARSET_INFO *cs = field->charset();
-        int max_length = cs->coll->strnxfrmlen(cs, field->pack_length());
-        std::unique_ptr<uchar[]> pk_value(new uchar[max_length + 1]());
-
-        /*
-          convert to normalized string and store so that it can be
-          sorted using binary comparison functions like memcmp.
+          If any part of the key is NULL, ignore adding it to hash keys.
+          NULL cannot conflict with any value.
+          Eg: create table t1(i int primary key not null, j int, k int,
+                                                  unique key (j, k));
+              insert into t1 values (1, 2, NULL);
+              insert into t1 values (2, 2, NULL); => this is allowed.
         */
-        size_t length = field->make_sort_key(pk_value.get(), max_length);
-        pk_value[length] = 0;
-
-        pke.append(pointer_cast<char *>(pk_value.get()), length);
-        pke.append(HASH_STRING_SEPARATOR);
-        pke.append(std::to_string(length));
-
-        field->move_field_offset(-ptrdiff);
-      }
-      /*
-        If any part of the key is NULL, ignore adding it to hash keys.
-        NULL cannot conflict with any value.
-        Eg: create table t1(i int primary key not null, j int, k int,
-                                                unique key (j, k));
-            insert into t1 values (1, 2, NULL);
-            insert into t1 values (2, 2, NULL); => this is allowed.
-      */
-      if (i == table->key_info[key_number].user_defined_key_parts) {
-        if (mv_field) {
-          mv_field->move_field_offset(ptrdiff);
-          if (generate_mv_hash_pke(pke, thd, mv_field
+        if (i == table->key_info[key_number].user_defined_key_parts) {
+          if (mv_field) {
+            mv_field->move_field_offset(ptrdiff);
+            if (generate_mv_hash_pke(pke, thd, mv_field
 #ifndef NDEBUG
-                                   ,
-                                   write_sets, hash_list
+                                     ,
+                                     write_sets, hash_list
 #endif
-                                   ))
-            return true;
-          mv_field->move_field_offset(-ptrdiff);
+                                     ))
+              return true;
+            mv_field->move_field_offset(-ptrdiff);
+          } else {
+            if (generate_hash_pke(pke, thd
+#ifndef NDEBUG
+                                  ,
+                                  write_sets, hash_list
+#endif
+                                  ))
+              return true;
+          }
+          writeset_hashes_added = true;
         } else {
-          if (generate_hash_pke(pke, thd
-#ifndef NDEBUG
-                                ,
-                                write_sets, hash_list
-#endif
-                                ))
-            return true;
+          /* This is impossible to happen in case of primary keys */
+          assert(key_number != 0);
         }
-        writeset_hashes_added = true;
-      } else {
-        /* This is impossible to happen in case of primary keys */
-        assert(key_number != 0);
+        if (pke_mode == pke_mode_e::STANDARD_PKE && old_pke_needed == true) {
+          pke_mode = pke_mode_e::NO_PARTIAL_KEYS_PKE;
+        } else {
+          pke_mode = pke_mode_e::END;
+        }
       }
     }
-
     /*
       Foreign keys handling.
 
@@ -813,7 +1071,8 @@ bool add_pke(TABLE *table, THD *thd, const uchar *record) {
               field->move_field_offset(ptrdiff);
 
               const CHARSET_INFO *cs = field->charset();
-              int max_length = cs->coll->strnxfrmlen(cs, field->pack_length());
+              size_t max_length =
+                  cs->coll->strnxfrmlen(cs, field->pack_length());
               std::unique_ptr<uchar[]> pk_value(new uchar[max_length + 1]());
 
               /*
