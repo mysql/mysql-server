@@ -29,7 +29,10 @@ GET /svc/sakila/city1/1
     "city_id": 1,
     "country": "Spain",
     "country_id": 87,
-    "last_update": "2006-02-15 04:44:00.000000"
+    "last_update": "2006-02-15 04:44:00.000000",
+    "_metadata": {
+        "etag": "9672C14FA4FAC3B3E61082C309FA3198DD49D0D8C40C04B1972E5BE8B398CD18"
+    }
 }
 OK
 GET /svc/sakila/city2/1
@@ -48,7 +51,10 @@ GET /svc/sakila/city2/1
         "last_update": "2006-02-15 04:44:00.000000"
     },
     "country_id": 87,
-    "last_update": "2006-02-15 04:45:25.000000"
+    "last_update": "2006-02-15 04:45:25.000000",
+    "_metadata": {
+        "etag": "4D376F9B574F3790A8077B87A25AC7A7661E5C26768E15431E553C464BD49F4C"
+    }
 }
 OK
 DROP SCHEMA sakila;
