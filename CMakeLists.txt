@@ -2299,6 +2299,7 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
     TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
     TARGET_LINK_LIBRARIES(server_unittest_library minchassis)
     TARGET_LINK_LIBRARIES(server_unittest_library ext::icu)
+    TARGET_LINK_LIBRARIES(server_unittest_library binlog)
   ENDIF()
 ENDIF()
 
