@@ -1982,8 +1982,8 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData, bool snapsho
       return false;
     }
     if (op->writeTuple() ||
-        op->equal(0u, (const char *)&server_id, sizeof(server_id)) ||
-        op->setValue(1u, (const char *)&epoch, sizeof(epoch)))
+        op->equal(0u, server_id) ||
+        op->setValue(1u, epoch))
     {
 
       restoreLogger.log_error("%s : failed to set epoch value in --restore-epoch: %u:%s",
@@ -1991,9 +1991,9 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData, bool snapsho
       return false;
     }
     if ((apply_table_format == 2) &&
-        (op->setValue(2u, (const char *)&empty_string, 1) ||
-         op->setValue(3u, (const char *)&zero, sizeof(zero)) ||
-         op->setValue(4u, (const char *)&zero, sizeof(zero))))
+        (op->setValue(2u, empty_string) ||
+         op->setValue(3u, zero) ||
+         op->setValue(4u, zero)))
     {
 
       restoreLogger.log_error("%s : failed to set values in --restore-epoch: %u:%s",
@@ -3974,15 +3974,15 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
 	if (col_pk_in_kernel)
 	{
 	  if (j == 1) continue;
-	  ret = op->equal(attr_desc->attrId, dataPtr, length);
+	  ret = op->equal(attr_desc->attrId, dataPtr);
 	}
 	else
 	{
 	  if (j == 0) continue;
 	  if (attr_data->null) 
-	    ret = op->setValue(attr_desc->attrId, NULL, 0);
+	    ret = op->setValue(attr_desc->attrId, (char*)NULL);
 	  else
-	    ret = op->setValue(attr_desc->attrId, dataPtr, length);
+	    ret = op->setValue(attr_desc->attrId, dataPtr);
 	}
 	if (ret < 0) {
 	  ndbout_c("Column: %d type %d %d %d %d",i,
@@ -4743,8 +4743,6 @@ retry:
         update_next_auto_val(orig_table_id, usedAutoVal + 1);
       }
 
-      const Uint32 length = (size / 8) * arraySize;
-
       if (attr->Desc->convertFunc &&
           dataPtr != NULL) // NULL will not be converted
       {
@@ -4776,7 +4774,7 @@ retry:
         if (!keys.get(attrId))
         {
           keys.set(attrId);
-          check= op->equal(keyAttrId, dataPtr, length);
+          check= op->equal(keyAttrId, dataPtr);
         }
         else if (tup.m_type == LogEntry::LE_UPDATE)
         {
@@ -4791,7 +4789,7 @@ retry:
         assert(pass == 1);
         if (tup.m_type != LogEntry::LE_DELETE)
         {
-          check= op->setValue(attrId, dataPtr, length);
+          check= op->setValue(attrId, dataPtr);
         }
       }
 
