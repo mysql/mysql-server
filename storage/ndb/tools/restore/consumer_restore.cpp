@@ -4493,7 +4493,6 @@ BackupRestore::logEntry_a(restore_callback_t *cb)
   }
 
 retry:
-  Uint32 mapping_idx_key_count = 0;
 #ifdef ERROR_INSERT
   if (m_error_insert == NDB_RESTORE_ERROR_INSERT_FAIL_REPLAY_LOG && m_logCount == 25)
   {
@@ -4590,24 +4589,25 @@ retry:
       op->setPartitionId(tup.m_frag_id);
   }
 
-  Bitmask<4096> keys;
+  Bitmask<MAXNROFATTRIBUTESINWORDS> keys;
   for (Uint32 pass= 0; pass < 2; pass++)  // Keys then Values
   {
+    Uint32 mapping_idx_key_count = 0;
     for (Uint32 i= 0; i < tup.size(); i++)
     {
       const AttributeS * attr = tup[i];
-      int size = attr->Desc->size;
-      int arraySize = attr->Desc->arraySize;
+      const int size = attr->Desc->size;
+      const int arraySize = attr->Desc->arraySize;
       const char * dataPtr = attr->Data.string_value;
       const bool col_pk_in_backup = attr->Desc->m_column->getPrimaryKey();
 
       if (attr->Desc->m_exclude)
         continue;
 
-      const bool col_pk_in_kernel =
-        table->getColumn(attr->Desc->attrId)->getPrimaryKey();
+      const Uint32 attrId = attr->Desc->attrId;
+      const bool col_pk_in_kernel = table->getColumn(attrId)->getPrimaryKey();
       bool col_is_key = col_pk_in_kernel;
-      Uint32 keyAttrId = attr->Desc->attrId;
+      Uint32 keyAttrId = attrId;
 
       if (unlikely(use_mapping_idx))
       {
@@ -4636,7 +4636,7 @@ retry:
 
       /* Check for unsupported PK update */
       if (unlikely(!col_pk_in_backup && col_pk_in_kernel))
-     {
+      {
         if (unlikely(tup.m_type == LogEntry::LE_UPDATE))
         {
           if ((m_tableChangesMask & TCM_IGNORE_EXTENDED_PK_UPDATES) != 0)
@@ -4665,8 +4665,9 @@ retry:
             return;
           }
         }
-     }
-      if (tup.m_table->have_auto_inc(attr->Desc->attrId))
+      }
+
+      if (tup.m_table->have_auto_inc(attrId))
       {
         Uint64 usedAutoVal = extract_auto_val(dataPtr,
                                               size * arraySize,
@@ -4708,10 +4709,17 @@ retry:
       {
         assert(pass == 0);
 
-        if(!keys.get(keyAttrId))
+        if (!keys.get(attrId))
         {
-          keys.set(keyAttrId);
+          keys.set(attrId);
           check= op->equal(keyAttrId, dataPtr, length);
+        }
+        else if (tup.m_type == LogEntry::LE_UPDATE)
+        {
+          // If an LE_UPDATE entry contains the same 'key' twice,
+          // the second log entry is an update of the value.
+          // (As we request only changed values in the triggers)
+          check= op->setValue(attrId, dataPtr);
         }
       }
       else
@@ -4719,7 +4727,7 @@ retry:
         assert(pass == 1);
         if (tup.m_type != LogEntry::LE_DELETE)
         {
-          check= op->setValue(attr->Desc->attrId, dataPtr, length);
+          check= op->setValue(attrId, dataPtr, length);
         }
       }
 

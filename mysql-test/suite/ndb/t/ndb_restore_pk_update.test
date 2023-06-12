@@ -1,0 +1,60 @@
+###################################
+# Test intended for testing different aspects of updating
+# PK columns during backup, and restore of these.
+#
+-- source have_ndb_error_insert.inc
+
+-- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+####################################
+#
+# Bug#35420131
+#   'NDB: Restore will not update 'equal' PK values changed during backup'
+#
+use test;
+create table test.t1 (
+  a varchar(20) not null,
+  b varchar(20) not null,
+  c varchar(20) not null,
+  d varchar(20),
+  primary key(a,b)
+) engine=ndb;
+
+insert into test.t1 values
+        ("1a","1b","1c","1d"),
+        ("2a","2b","2c","2d"),
+        ("3a","3b","3c","3d");
+
+--echo Stall backup completion *after* table is scanned.
+--echo ... We will still collect log entries on table updates.
+--exec $NDB_MGM -e "all error 10040"
+
+--echo Run backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+
+--echo Update 'a' to a 'compared as equal'-value
+update test.t1 set a="1A" where a="1a";
+
+--echo Create log entries with insert and delete as well
+insert into test.t1 values("6a","6b","6c","6d");
+delete from test.t1 where a="2a";
+
+--echo Now allow backup to complete...
+--exec $NDB_MGM -e "all error 0"
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+truncate t1;
+
+--echo Run restore
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+
+--echo Restored table should show 'a=1a' updated to "1A"
+--echo , as well as '2a' deleted and '6a' inserted .
+select * from test.t1 order by b;
+
+drop table test.t1;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

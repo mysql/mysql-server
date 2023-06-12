@@ -1,0 +1,37 @@
+use test;
+create table test.t1 (
+a varchar(20) not null,
+b varchar(20) not null,
+c varchar(20) not null,
+d varchar(20),
+primary key(a,b)
+) engine=ndb;
+insert into test.t1 values
+("1a","1b","1c","1d"),
+("2a","2b","2c","2d"),
+("3a","3b","3c","3d");
+Stall backup completion *after* table is scanned.
+... We will still collect log entries on table updates.
+
+Run backup
+Starting backup
+Backup started
+Update 'a' to a 'compared as equal'-value
+update test.t1 set a="1A" where a="1a";
+Create log entries with insert and delete as well
+insert into test.t1 values("6a","6b","6c","6d");
+delete from test.t1 where a="2a";
+Now allow backup to complete...
+
+Waiting for backup to complete
+Backup completed
+truncate t1;
+Run restore
+Restored table should show 'a=1a' updated to "1A"
+, as well as '2a' deleted and '6a' inserted .
+select * from test.t1 order by b;
+a	b	c	d
+1A	1b	1c	1d
+3a	3b	3c	3d
+6a	6b	6c	6d
+drop table test.t1;
