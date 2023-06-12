@@ -32,7 +32,7 @@
 
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/t
---let $mrs_add_db_object_table_filter=COLUMN_NAME like "name"
+--let $mrs_add_db_object_table_filter=NOT (COLUMN_NAME like "name")
 --source ../include/mrs_db_object/add.inc
 
 --let $mrs_host_and_port=127.0.0.1:$extra_http_port
@@ -46,7 +46,7 @@
 --echo # I.2
 --source ../include/mrs_changes/fetch_object.inc
 
---let $mrs_add_db_object_table_filter=NOT (COLUMN_NAME like "name") 
+--let $mrs_add_db_object_table_filter= (COLUMN_NAME like "name") 
 --let $mrs_add_db_object=table2
 --source ../include/mrs_db_object/add_table_columns.inc
 # By default waits until, number of changes is grater,
