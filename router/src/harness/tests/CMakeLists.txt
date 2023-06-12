@@ -101,6 +101,18 @@ FOREACH(TEST ${TESTS})
 ENDFOREACH()
 
 SET(TESTS
+  test_tls_server_context.cc
+)
+
+FOREACH(TEST ${TESTS})
+  ADD_HARNESS_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
+    INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
+    INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/include/
+    INCLUDE_DIRS ${MySQLRouter_BINARY_DIR}/src/harness/include/
+    LIB_DEPENDS harness_tls;test-helpers;${SSL_LIBRARIES})
+ENDFOREACH()
+
+SET(TESTS
   test_net_ts_buffer.cc
   test_net_ts_executor.cc
   test_net_ts_impl_callstack.cc
