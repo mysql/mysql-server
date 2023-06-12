@@ -1,0 +1,126 @@
+# === Purpose ===
+# Check that multicolumn unique key write sets refer to substrings of fields.
+#
+# === Requirements ===
+# R1. Multicolumn unique key write sets must refer to substrings of fields.
+#
+# === Implementation ===
+# 1. Create tables with varchar columns and unique keys with key_part(length)
+# 2. Perform DML so that key_part(length) conflict with each other
+# 3. Check last_committed and sequence_number
+#
+# === References ===
+#
+# Bug#35404584	Multi-column indexes with writest will cause HA_ERR_FOUND_DUPP_KEY
+#
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Initialization
+--echo #
+
+--let $sysvars_to_save = [ "GLOBAL.binlog_transaction_dependency_tracking" ]
+--source include/save_sysvars.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+
+--echo #
+--echo # Check test_table last_committed and sequence_number
+--echo #
+
+DROP TABLE IF EXISTS test_table;
+
+CREATE TABLE test_table (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  t_id text(64) NOT NULL,
+  s_id text(64) NOT NULL,
+  a_type text(64) NOT NULL,
+  a_no text(192) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_idx_t` (`s_id`(3),`a_type`(3),`a_no`(3),`t_id`(3))
+) ENGINE=InnoDB;
+
+--echo #
+--echo # Insert rows into test_table
+--echo #
+
+--source include/save_binlog_position.inc
+
+# insert row1: unique key: (aaa-bbb-2-1)
+INSERT INTO test_table VALUES (1, 1, 'aaabbb', 'bbbccc', 2);
+
+# delete row1: unique key: (aaa-bbb-2-1)
+DELETE FROM test_table WHERE id = 1;
+
+--echo #
+--echo # Value validation int test_table
+--echo #
+
+# insert row2: unique key: (aaa-bbb-2-1)
+# This writeset of this transaction will conflict with 'DELETE row1'
+# and cannot be executed in parallel on the replica. Its
+# 'last_committed' should be equal to 'DELETE row1'  sequence_number .
+INSERT INTO test_table VALUES (2, 1, 'aaaddd', 'bbbeee', 2);
+
+# Flush logs to force binlog to rotate
+--let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $logical_timestamps=2 3;3 4;4 5
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Check test2 last_committed and sequence_number
+--echo #
+
+DROP TABLE IF EXISTS test2;
+
+CREATE TABLE test2 (
+  id text(64) NOT NULL,
+  did int DEFAULT NULL,
+  PRIMARY KEY (`id`(3))
+) ENGINE=InnoDB;
+
+--echo #
+--echo # Insert rows into test2
+--echo #
+
+--source include/save_binlog_position.inc
+
+# last_committed=7 sequence_number=8
+INSERT INTO test2 VALUES ('aaabbb', 1);
+
+# last_committed=8 sequence_number=9
+DELETE FROM test2 WHERE did = 1;
+
+# last_committed=9 sequence_number=10
+INSERT INTO test2 VALUES ('aaabbc', 2);
+
+# last_committed=10 sequence_number=11
+DELETE FROM test2 WHERE did = 2;
+
+# last_committed=11 sequence_number=12
+INSERT INTO test2 VALUES ('aaabbf', 3);
+
+# last_committed=12 sequence_number=13
+DELETE FROM test2 WHERE did = 3;
+
+--echo #
+--echo # Value validation in test2
+--echo #
+
+# Flush logs to force binlog to rotate
+--let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $logical_timestamps=7 8;8 9;9 10;10 11;11 12;12 13
+--source include/assert_logical_timestamps.inc
+
+--echo #
+--echo # Clean up
+--echo #
+
+DROP TABLE test_table;
+DROP TABLE test2;
+
+--source include/restore_sysvars.inc
+--source include/rpl_end.inc
