@@ -1,0 +1,74 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Initialization
+#
+include/save_sysvars.inc [ "GLOBAL.binlog_transaction_dependency_tracking" ]
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
+#
+# Check test_table last_committed and sequence_number
+#
+DROP TABLE IF EXISTS test_table;
+Warnings:
+Note	1051	Unknown table 'test.test_table'
+CREATE TABLE test_table (
+id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+t_id varchar(64) NOT NULL,
+s_id varchar(64) NOT NULL,
+a_type varchar(64) NOT NULL,
+a_no varchar(1800) NOT NULL DEFAULT '',
+PRIMARY KEY (`id`),
+UNIQUE KEY `uniq_idx_t` (`s_id`(3),`a_type`(3),`a_no`(3),`t_id`(3))
+) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+#
+# Insert rows into test_table
+#
+include/save_binlog_position.inc
+INSERT INTO test_table VALUES (1, 1, 'aaabbb', 'bbbccc', 2);
+DELETE FROM test_table WHERE id = 1;
+#
+# Value validation int test_table
+#
+INSERT INTO test_table VALUES (2, 1, 'aaaddd', 'bbbeee', 2);
+include/include/assert_logical_timestamps.inc [2 3;3 4;4 5]
+#
+# Check test2 last_committed and sequence_number
+#
+DROP TABLE IF EXISTS test2;
+Warnings:
+Note	1051	Unknown table 'test.test2'
+CREATE TABLE test2 (
+id varchar(64) NOT NULL,
+did int DEFAULT NULL,
+PRIMARY KEY (`id`(3))
+) ENGINE=InnoDB;
+#
+# Insert rows into test2
+#
+include/save_binlog_position.inc
+INSERT INTO test2 VALUES ('aaabbb', 1);
+DELETE FROM test2 WHERE did = 1;
+INSERT INTO test2 VALUES ('aaabbc', 2);
+DELETE FROM test2 WHERE did = 2;
+INSERT INTO test2 VALUES ('aaabbf', 3);
+DELETE FROM test2 WHERE did = 3;
+#
+# Value validation in test2
+#
+include/include/assert_logical_timestamps.inc [7 8;8 9;9 10;10 11;11 12;12 13]
+#
+# Clean up
+#
+DROP TABLE test_table;
+DROP TABLE test2;
+include/restore_sysvars.inc
+Warnings:
+Warning	1287	'@@binlog_transaction_dependency_tracking' is deprecated and will be removed in a future release.
+include/rpl_end.inc
