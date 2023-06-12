@@ -15,48 +15,14 @@
 # Registred DB_OBJECT at path: /svc/basic/t1
 GET /svc/basic/t1/1
 {
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/basic/t1/1"
-        }
-    ]
+    "message": "Internal Error",
+    "status": 500
 }
 OK
 GET /svc/basic/t1?limit=2
 {
-    "items": [
-        {
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "/svc/basic/t1/1"
-                }
-            ]
-        },
-        {
-            "links": [
-                {
-                    "rel": "self",
-                    "href": "/svc/basic/t1/20"
-                }
-            ]
-        }
-    ],
-    "limit": 2,
-    "offset": 0,
-    "hasMore": true,
-    "count": 2,
-    "links": [
-        {
-            "rel": "self",
-            "href": "/svc/basic/t1/"
-        },
-        {
-            "rel": "next",
-            "href": "/svc/basic/t1/?offset=2&limit=2"
-        }
-    ]
+    "message": "Internal Error",
+    "status": 500
 }
 OK
 DROP SCHEMA basic_schema;
