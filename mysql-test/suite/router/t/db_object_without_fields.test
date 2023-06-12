@@ -23,8 +23,8 @@
 --let $mrs_host_and_port=127.0.0.1:$extra_http_port
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
 
---exec $MRS_CLIENT_ARGS --path /svc/basic/t1/1 --wait-until-found 60
---exec $MRS_CLIENT_ARGS --path /svc/basic/t1?limit=2
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1/1 --wait-until-found 60 --expected-status 500
+--exec $MRS_CLIENT_ARGS --path /svc/basic/t1?limit=2 --expected-status 500
 
 # Cleanup
 DROP SCHEMA basic_schema;
