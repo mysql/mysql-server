@@ -129,9 +129,10 @@
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
-#include "sql/sql_db.h"       // check_schema_readonly
-#include "sql/sql_error.h"    // Sql_condition
-#include "sql/sql_handler.h"  // mysql_ha_flush_tables
+#include "sql/sql_db.h"        // check_schema_readonly
+#include "sql/sql_error.h"     // Sql_condition
+#include "sql/sql_executor.h"  // is_rollup_group_wrapper()
+#include "sql/sql_handler.h"   // mysql_ha_flush_tables
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"    // is_update_query
@@ -8263,12 +8264,8 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
           unaliased_counter = i;
         }
       }
-    } else if (find_ident == nullptr || find_ident->table_name == nullptr) {
-      if (item->type() == Item::FUNC_ITEM &&
-          down_cast<const Item_func *>(item)->functype() ==
-              Item_func::ROLLUP_GROUP_ITEM_FUNC) {
-        item = down_cast<Item_rollup_group_item *>(item)->inner_item();
-      }
+    } else if (find_ident == nullptr || find_ident->table_name == nullptr ||
+               is_rollup_group_wrapper(item)) {
       if (find_ident != nullptr && item->item_name.eq_safe(find->item_name)) {
         *found = &*it;
         *counter = i;
@@ -8307,15 +8304,6 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
         *found = &*it;
         *counter = i;
         *resolution = RESOLVED_IGNORING_ALIAS;
-        break;
-      }
-    } else if (item->type() == Item::FUNC_ITEM &&
-               down_cast<const Item_func *>(item)->functype() ==
-                   Item_func::ROLLUP_GROUP_ITEM_FUNC) {
-      if (find_ident != nullptr && item->item_name.eq_safe(find->item_name)) {
-        *found = &*it;
-        *counter = i;
-        *resolution = RESOLVED_AGAINST_ALIAS;
         break;
       }
     }
