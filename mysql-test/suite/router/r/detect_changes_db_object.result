@@ -37,7 +37,10 @@ GET /svc/basic/t2/1
             "href": "/svc/basic/t2/1"
         }
     ],
-    "comments": "First comment"
+    "comments": "First comment",
+    "_metadata": {
+        "etag": "9A2E43465461EFB43E9B0677C9EB126B86A831270913B7B3764A66985D92D012"
+    }
 }
 OK
 
@@ -56,7 +59,10 @@ GET /svc/basic/t2_new/1
             "href": "/svc/basic/t2_new/1"
         }
     ],
-    "comments": "First comment"
+    "comments": "First comment",
+    "_metadata": {
+        "etag": "9A2E43465461EFB43E9B0677C9EB126B86A831270913B7B3764A66985D92D012"
+    }
 }
 OK
 GET /svc/basic/t1/1
@@ -67,7 +73,10 @@ GET /svc/basic/t1/1
             "rel": "self",
             "href": "/svc/basic/t1/1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "763AF95BE227B2068D8C387FB7A37003FF458C00373FFFE4AED008BD798378C6"
+    }
 }
 OK
 
@@ -85,7 +94,10 @@ GET /svc/basic_new/t1/1
             "rel": "self",
             "href": "/svc/basic_new/t1/1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "763AF95BE227B2068D8C387FB7A37003FF458C00373FFFE4AED008BD798378C6"
+    }
 }
 OK
 GET /svc/basic_new/t2_new/1
@@ -99,7 +111,10 @@ GET /svc/basic_new/t2_new/1
             "href": "/svc/basic_new/t2_new/1"
         }
     ],
-    "comments": "First comment"
+    "comments": "First comment",
+    "_metadata": {
+        "etag": "9A2E43465461EFB43E9B0677C9EB126B86A831270913B7B3764A66985D92D012"
+    }
 }
 OK
 
@@ -116,7 +131,10 @@ GET /svc/basic_new/t2_new/1
     "my_id": 1,
     "my_date": "1977-01-21 00:00:00.000000",
     "my_name": "First row",
-    "my_comments": "First comment"
+    "my_comments": "First comment",
+    "_metadata": {
+        "etag": "A2C0A4ACFAEF089B0ED2F3DF2220953ED2E7DA97D6036DC10D140C744601DD6B"
+    }
 }
 OK
 
@@ -139,9 +157,13 @@ GET /svc/basic_new/t4/2
     "my_id": 2,
     "last_name": "White",
     "table2_id": 2,
-    "first_name": "Haley"
+    "first_name": "Haley",
+    "_metadata": {
+        "etag": "33E07357CAE5732E10A6967C76E528C0F0485F04E9086B1BC0C310CEB2F055EC"
+    }
 }
 OK
+# Modified OBJECT_REFERENCE to be an unnested filed.
 GET /svc/basic_new/t4/2
 {
     "links": [
@@ -156,7 +178,10 @@ GET /svc/basic_new/t4/2
     "last_name": "White",
     "table2_id": 2,
     "first_name": "Haley",
-    "my_comments": null
+    "my_comments": null,
+    "_metadata": {
+        "etag": "7D85659B3D74390DE91545C649B188877155B706836CA5F309DA8C64F23A9C8B"
+    }
 }
 OK
 DROP SCHEMA basic_schema;

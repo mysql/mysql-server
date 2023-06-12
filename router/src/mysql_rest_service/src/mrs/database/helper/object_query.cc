@@ -70,7 +70,8 @@ mysqlrouter::sqlstring format_where_expr(
 mysqlrouter::sqlstring format_where_expr(
     std::shared_ptr<database::entry::Table> table,
     const PrimaryKeyColumnValues &f) {
-  return format_where_expr(table, "", f);
+  // If thr request generates JOINs, ten table_alias is required
+  return format_where_expr(table, table->table_alias, f);
 }
 
 mysqlrouter::sqlstring format_key_names(
@@ -266,7 +267,6 @@ void JsonQueryBuilder::add_field(std::shared_ptr<entry::ObjectField> field) {
     item << rfield->name;
     m_select_items.append_preformatted_sep(", ", item);
     m_select_items.append_preformatted(subquery);
-
   } else if (auto dfield = std::dynamic_pointer_cast<entry::DataField>(field)) {
     auto item = get_field_format(dfield->source->type, false);
     item << dfield->name << dfield->source->table.lock()->table_alias
