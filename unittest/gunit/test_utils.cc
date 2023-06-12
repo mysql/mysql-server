@@ -33,7 +33,6 @@
 #include "m_string.h"
 // assert
 #include "my_inttypes.h"
-#include "my_rnd.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
 #include "sql/binlog.h"

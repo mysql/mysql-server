@@ -57,7 +57,6 @@
 #include "my_double2ulonglong.h"
 #include "my_hostname.h"
 #include "my_psi_config.h"
-#include "my_rnd.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_systime.h"

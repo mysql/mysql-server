@@ -675,6 +675,8 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
     If this behaviour is ever changed, Docs should be notified.
   */
 
+  struct rand_struct rand_st;
+
   for (; argc > 0; argv++, argc--) {
     int option;
     bool log_warnings = true;
@@ -993,9 +995,14 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
       }
       case ADMIN_PASSWORD: {
         char buff[128];
+        time_t start_time;
         char *typed_password = nullptr, *verified = nullptr, *tmp = nullptr;
         bool log_off = true, err = false;
         size_t password_len;
+
+        /* Do initialization the same way as we do in mysqld */
+        start_time = time((time_t *)nullptr);
+        randominit(&rand_st, (ulong)start_time, (ulong)start_time / 2);
 
         if (argc < 1) {
           my_printf_error(0, "Too few arguments to change password",

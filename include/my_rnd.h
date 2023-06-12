@@ -33,7 +33,5 @@
 
 double my_rnd_ssl(bool *failed);
 int my_rand_buffer(unsigned char *buffer, size_t buffer_size);
-void randominit(struct rand_struct *, unsigned long seed1, unsigned long seed2);
-double my_rnd(struct rand_struct *);
 
 #endif /* MY_RANDOM_INCLUDED */

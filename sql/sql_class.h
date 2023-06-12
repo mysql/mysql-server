@@ -80,6 +80,7 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/thread_type.h"
+#include "mysql_com.h"
 #include "mysql_com_server.h"  // NET_SERVER
 #include "mysqld_error.h"
 #include "pfs_thread_provider.h"
