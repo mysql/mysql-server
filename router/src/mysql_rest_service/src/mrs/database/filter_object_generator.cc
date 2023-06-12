@@ -389,11 +389,11 @@ void FilterObjectGenerator::parse_wmember(const char *name, Value *value) {
   if (parse_simple_object(value)) return;
   log_debug("fallback");
 
-  std::string dbname = resolve_field_name(name);
+  mysqlrouter::sqlstring dbname = resolve_field_name(name);
 
   // TODO(lkotula): array of ComplectValues (Shouldn't be in review)
   where_.append_preformatted(
-      mysqlrouter::sqlstring(" ?=?")
+      mysqlrouter::sqlstring(" !=?")
       << dbname << to_sqlstring<tosString, tosNumber, tosDate>(value));
   argument_.pop_back();
 }
