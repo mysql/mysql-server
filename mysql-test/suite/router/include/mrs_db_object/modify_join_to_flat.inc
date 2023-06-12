@@ -11,7 +11,7 @@ if (!`SELECT $mrs_sql_id_variable_object_ref`)
 
 --disable_query_log
 --disable_result_log
-
+--echo # Modified OBJECT_REFERENCE to be an unnested filed.
 eval UPDATE mysql_rest_service_metadata.object_reference SET 
                unnest=True WHERE id=$mrs_sql_id_variable_object_ref;
              

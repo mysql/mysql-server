@@ -349,6 +349,9 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
       for (auto f : obj->fields) {
         parent_object->fields.push_back(f);
       }
+      for (auto &t : obj->base_tables) {
+        parent_object->base_tables.push_back(t);
+      }
       m_objects[*represents_reference_id] = parent_object;
     } else {
       ofield->nested_object = m_objects[*represents_reference_id];
@@ -392,6 +395,8 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
 
     dfield->source = column;
     column->table = table;
+    log_debug("Creating dfield name=%s, table=%p", dfield->name.c_str(),
+              table.get());
 
     table->columns.push_back(column);
     parent_object->fields.push_back(field);
