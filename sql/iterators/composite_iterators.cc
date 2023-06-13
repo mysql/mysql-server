@@ -1743,6 +1743,7 @@ bool TemptableAggregateIterator<Profiler>::Init() {
       for (ORDER *group = table()->group; group; group = group->next) {
         Item *item = *group->item;
         item->save_org_in_field(group->field_in_tmp_table);
+        if (thd()->is_error()) return true;
         /* Store in the used key if the field was 0 */
         if (item->is_nullable())
           group->buff[-1] = (char)group->field_in_tmp_table->is_null();
