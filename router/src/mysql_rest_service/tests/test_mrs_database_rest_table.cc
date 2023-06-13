@@ -29,6 +29,17 @@
 constexpr const char *k_test_ddl[] = {
     "CREATE SCHEMA mrstestdb", "USE mrstestdb",
 
+    R"*(CREATE TABLE `typetest` (
+  id INT PRIMARY KEY,
+  geom GEOMETRY NOT NULL,
+  bool BIT(1),
+  bin BLOB,
+  js JSON
+))*",
+
+    R"*(INSERT INTO `typetest` VALUES 
+    (1, 0x00000000010100000006240626DCD857403C45B357C4753540, 1, 0x68656C6C6F, '{"a": 1}'))*",
+
     R"*(CREATE TABLE `country` (
   `country_id` smallint unsigned NOT NULL AUTO_INCREMENT,
   `country` varchar(50) NOT NULL,

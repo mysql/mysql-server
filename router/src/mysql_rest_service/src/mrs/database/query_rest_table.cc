@@ -82,15 +82,9 @@ void QueryRestTable::on_row(const ResultRow &r) {
   // and just overwriting the etag value here
 
   if (compute_etag_) {
-    rapidjson::Document new_doc = compute_and_embed_etag(object_, r[0]);
-    if (new_doc.IsObject()) {
-      // TODO(alfredo) better way for this?
-      std::string tmp;
-      helper::json::append_rapid_json_to_text(&new_doc, tmp);
-      serializer_->push_json_document(tmp.c_str());
-    } else {
-      serializer_->push_json_document(r[0]);
-    }
+    std::string doc = r[0];
+    compute_and_embed_etag(object_, &doc);
+    serializer_->push_json_document(doc.c_str());
   } else {
     serializer_->push_json_document(r[0]);
   }

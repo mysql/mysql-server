@@ -99,6 +99,11 @@ mysqlrouter::sqlstring rest_param_to_sql_value(
       result << value;
       return result;
     }
+    case mrs::database::entry::ColumnType::GEOMETRY: {
+      mysqlrouter::sqlstring result{"ST_GeomFromGeoJSON(?)"};
+      result << value;
+      return result;
+    }
     case mrs::database::entry::ColumnType::STRING: {
       mysqlrouter::sqlstring result{"?"};
       result << value;

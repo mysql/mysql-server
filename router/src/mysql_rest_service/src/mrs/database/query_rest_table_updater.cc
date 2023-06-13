@@ -24,6 +24,7 @@
 #include "router/src/mysql_rest_service/src/mrs/database/query_rest_table_updater.h"
 
 #include <set>
+#include "helper/json/rapid_json_to_text.h"
 #include "helper/json/to_sqlstring.h"
 #include "mrs/database/helper/object_checksum.h"
 #include "mrs/database/helper/object_query.h"
@@ -342,7 +343,10 @@ class RowInsert : public RowChangeOperation {
       }
 
       if (field->source->type == entry::ColumnType::BINARY) {
-        add_value(field->source, mysqlrouter::sqlstring("FROM_BASE64(!)")
+        add_value(field->source, mysqlrouter::sqlstring("FROM_BASE64(?)")
+                                     << value);
+      } else if (field->source->type == entry::ColumnType::GEOMETRY) {
+        add_value(field->source, mysqlrouter::sqlstring("ST_GeomFromGeoJSON(?)")
                                      << value);
       } else {
         add_value(field->source, value);
@@ -1357,8 +1361,11 @@ void validate_scalar_value(const entry::Column &column,
         throw std::runtime_error(jptr + " has invalid value type");
       break;
     case entry::ColumnType::BINARY:
-      // TODO check BINARY data encoding
       if (!value.IsString())
+        throw std::runtime_error(jptr + " has invalid value type");
+      break;
+    case entry::ColumnType::GEOMETRY:
+      if (!value.IsObject())
         throw std::runtime_error(jptr + " has invalid value type");
       break;
   }
@@ -1372,8 +1379,13 @@ void process_object_field(std::shared_ptr<entry::DataField> field,
                         join_json_pointer(jptr, field->name));
 
   mysqlrouter::sqlstring tmp("?");
-  tmp << value;
-
+  if (value.IsBool()) {
+    tmp << value.GetBool();
+  } else if (value.IsObject()) {
+    tmp << helper::json::to_string(value);
+  } else {
+    tmp << value;
+  }
   op->on_value(field, tmp);
 }
 
@@ -1802,10 +1814,7 @@ std::string TableUpdater::compute_etag_and_lock_rows(
   auto query = qb.query_one(pk_values);
   auto row = session->query_one(query);
 
-  rapidjson::Document doc;
-  doc.Parse((*row)[0]);
-
-  return compute_checksum(m_object, doc);
+  return compute_checksum(m_object, std::string_view((*row)[0]));
 }
 
 void TableUpdater::check_etag_and_lock_rows(

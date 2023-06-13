@@ -24,7 +24,6 @@
 
 #include "mrs/database/query_rest_table_single_row.h"
 #include <stdexcept>
-#include "helper/json/rapid_json_to_text.h"
 #include "mrs/database/helper/object_checksum.h"
 #include "mrs/database/helper/object_query.h"
 
@@ -71,9 +70,9 @@ void QueryRestTableSingleRow::on_row(const ResultRow &r) {
         "Querying single row, from a table. Received multiple.");
 
   if (compute_etag_) {
-    rapidjson::Document new_doc = compute_and_embed_etag(object_, r[0]);
-    assert(new_doc.IsObject());
-    helper::json::append_rapid_json_to_text(&new_doc, response);
+    std::string doc = r[0];
+    compute_and_embed_etag(object_, &doc);
+    response.append(doc);
   } else {
     response.append(r[0]);
   }

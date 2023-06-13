@@ -48,7 +48,15 @@ enum class IdGenerationType {
   REVERSE_UUID     // pre-generate as UUID_TO_BIN(UUID(), 1)
 };
 
-enum class ColumnType { UNKNOWN, INTEGER, DOUBLE, BOOLEAN, STRING, BINARY };
+enum class ColumnType {
+  UNKNOWN,
+  INTEGER,
+  DOUBLE,
+  BOOLEAN,
+  STRING,
+  BINARY,
+  GEOMETRY
+};
 
 class Column {
  public:
@@ -177,7 +185,7 @@ class Object {
 
   bool uses_reduce_to = false;
 
-  inline std::shared_ptr<ObjectField> get_field(const std::string &name) const {
+  inline std::shared_ptr<ObjectField> get_field(std::string_view name) const {
     for (const auto &f : fields) {
       if (f->name == name) return f;
     }
@@ -185,7 +193,7 @@ class Object {
   }
 
   inline std::shared_ptr<DataField> get_column_field(
-      const std::string &column_name) const {
+      std::string_view column_name) const {
     for (const auto &f : fields) {
       if (auto df = std::dynamic_pointer_cast<DataField>(f); df) {
         if (df->source->name == column_name) return df;

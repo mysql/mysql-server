@@ -435,14 +435,14 @@ static std::map<std::string, entry::ColumnType> k_datatype_map{
     {"TIME", entry::ColumnType::STRING},
     {"YEAR", entry::ColumnType::INTEGER},
     {"TIMESTAMP", entry::ColumnType::STRING},
-    {"GEOMETRY", entry::ColumnType::BINARY},
-    {"POINT", entry::ColumnType::BINARY},
-    {"LINESTRING", entry::ColumnType::BINARY},
-    {"POLYGON", entry::ColumnType::BINARY},
-    {"GEOMETRYCOLLECTION", entry::ColumnType::BINARY},
-    {"MULTIPOINT", entry::ColumnType::BINARY},
-    {"MULTILINESTRING", entry::ColumnType::BINARY},
-    {"MULTIPOLYGON", entry::ColumnType::BINARY},
+    {"GEOMETRY", entry::ColumnType::GEOMETRY},
+    {"POINT", entry::ColumnType::GEOMETRY},
+    {"LINESTRING", entry::ColumnType::GEOMETRY},
+    {"POLYGON", entry::ColumnType::GEOMETRY},
+    {"GEOMETRYCOLLECTION", entry::ColumnType::GEOMETRY},
+    {"MULTIPOINT", entry::ColumnType::GEOMETRY},
+    {"MULTILINESTRING", entry::ColumnType::GEOMETRY},
+    {"MULTIPOLYGON", entry::ColumnType::GEOMETRY},
     {"BIT", entry::ColumnType::BINARY},
     {"BOOLEAN", entry::ColumnType::BOOLEAN},
     {"ENUM", entry::ColumnType::STRING},
@@ -458,7 +458,7 @@ entry::ColumnType column_datatype_to_type(const std::string &datatype) {
             mysql_harness::make_upper(datatype.substr(0, p)));
         it != k_datatype_map.end()) {
       if (it->second == entry::ColumnType::BINARY &&
-          mysql_harness::make_upper(datatype.substr(0, spc)) == "BIT(1)")
+          mysql_harness::make_upper(datatype) == "BIT(1)")
         return entry::ColumnType::BOOLEAN;
       return it->second;
     }

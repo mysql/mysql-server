@@ -92,7 +92,7 @@ TEST_F(DatabaseQueryGet, plain) {
                   .field("last_update");
 
   rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
-  std::cout << pprint_json(rest->response) << "\n";
+  // std::cout << pprint_json(rest->response) << "\n";
   EXPECT_EQ(
       R"*({
     "items": [
@@ -131,6 +131,54 @@ TEST_F(DatabaseQueryGet, plain) {
     ]
 })*",
       pprint_json(rest->response));
+}
+
+TEST_F(DatabaseQueryGet, special_types) {
+  auto root = ObjectBuilder("mrstestdb", "typetest")
+                  .field("id", FieldFlag::PRIMARY)
+                  .field("Geom", "geom", "GEOMETRY")
+                  .field("Bool", "bool", "BIT(1)")
+                  .field("Binary", "bin", "BLOB")
+                  .field("Json", "js", "JSON");
+
+  rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {});
+
+  EXPECT_EQ(R"*({
+    "items": [
+        {
+            "id": 1,
+            "Bool": true,
+            "Geom": {
+                "type": "Point",
+                "coordinates": [
+                    95.3884368,
+                    21.4600272
+                ]
+            },
+            "Json": {
+                "a": 1
+            },
+            "links": [
+                {
+                    "rel": "self",
+                    "href": "url/1"
+                }
+            ],
+            "Binary": "aGVsbG8="
+        }
+    ],
+    "limit": 3,
+    "offset": 0,
+    "hasMore": false,
+    "count": 1,
+    "links": [
+        {
+            "rel": "self",
+            "href": "url/"
+        }
+    ]
+})*",
+            pprint_json(rest->response));
 }
 
 // nested n:1 reference in base object
@@ -1714,8 +1762,10 @@ TEST_F(DatabaseQueryGet, row_filter) {
 TEST_F(DatabaseQueryGet, row_filter_order) {
   auto root =
       ObjectBuilder("mrstestdb", "actor")
-          .field("id", "actor_id", "int", FieldFlag::PRIMARY)
-          .field("firstName", "first_name", "text", FieldFlag::UNIQUE)
+          .field("id", "actor_id", "int",
+                 FieldFlag::PRIMARY | FieldFlag::SORTABLE)
+          .field("firstName", "first_name", "text",
+                 FieldFlag::UNIQUE | FieldFlag::SORTABLE)
           .field("lastName", "last_name", "text", FieldFlag::NOFILTER)
           .nest_list(
               "films",
@@ -1780,7 +1830,7 @@ TEST_F(DatabaseQueryGet, row_filter_order) {
     EXPECT_REST_ERROR(
         rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
                             R"*({"$orderby": {"lastName": 1}})*"),
-        "Cannot filter on field lastName");
+        "Cannot sort on field lastName");
   }
   {
     reset();
@@ -1788,8 +1838,93 @@ TEST_F(DatabaseQueryGet, row_filter_order) {
     EXPECT_REST_ERROR(
         rest->query_entries(m_.get(), root, {}, 0, 5, "url", true, {},
                             R"*({"$orderby": {"invalid_field": 1}})*"),
-        "Cannot filter on field invalid_field");
+        "Cannot sort on field invalid_field");
   }
 }
 
-TEST_F(DatabaseQueryGet, etag) {}
+TEST_F(DatabaseQueryGet, etag) {
+  {
+    auto root =
+        ObjectBuilder("mrstestdb", "actor")
+            .field("actor_id", FieldFlag::PRIMARY)
+            .field("first_name")
+            .field("last_name", FieldFlag::NOCHECK)
+            .nest_list("film_actor",
+                       ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
+                           .field("actor_id", FieldFlag::PRIMARY)
+                           .field("film_id", FieldFlag::PRIMARY)
+                           .nest("film",
+                                 ObjectBuilder("film", {{"film_id", "film_id"}})
+                                     .field("film_id", FieldFlag::PRIMARY)
+                                     .field("title")
+                                     .field("description")));
+
+    rest->query_entries(m_.get(), root, {}, 0, 3, "url", true, {}, {}, true);
+
+    auto json = make_json(rest->response);
+    EXPECT_EQ(3, json["items"].GetArray().Size()) << rest->response;
+
+    EXPECT_EQ(1, json["items"][0]["actor_id"].GetInt());
+    EXPECT_STREQ(
+        "93814B36DC1715E79D297CFB93ACD1AD9DDC86625398549986C02DC629878293",
+        json["items"][0]["_metadata"]["etag"].GetString());
+
+    EXPECT_EQ(2, json["items"][1]["actor_id"].GetInt());
+    EXPECT_STREQ(
+        "4F256BDCE628D86BB0700E0C54D8AF5F34194489F62BA417F48958F44827E9EB",
+        json["items"][1]["_metadata"]["etag"].GetString());
+
+    EXPECT_EQ(3, json["items"][2]["actor_id"].GetInt());
+    EXPECT_STREQ(
+        "18805A9BCCCA92B9ACAE81A0235D2E5D99E8B557230E4AD2E5AA7CCED3B3EF1E",
+        json["items"][2]["_metadata"]["etag"].GetString());
+  }
+  {
+    reset();
+
+    auto root =
+        ObjectBuilder("mrstestdb", "actor")
+            .field("actor_id", FieldFlag::PRIMARY)
+            .field("first_name")
+            .field("last_name")
+            .nest_list("film_actor",
+                       ObjectBuilder("film_actor", {{"actor_id", "actor_id"}})
+                           .field("actor_id", FieldFlag::PRIMARY)
+                           .field("film_id", FieldFlag::PRIMARY)
+                           .nest("film",
+                                 ObjectBuilder("film", {{"film_id", "film_id"}})
+                                     .field("film_id", FieldFlag::PRIMARY)
+                                     .field("title")
+                                     .field("description")));
+
+    rest->query_entries(m_.get(), root, {}, 0, 1, "url", true, {}, {}, true);
+
+    auto json = make_json(rest->response);
+    EXPECT_EQ(1, json["items"].GetArray().Size()) << rest->response;
+
+    EXPECT_EQ(1, json["items"][0]["actor_id"].GetInt());
+    EXPECT_STREQ(
+        "7FC03E306164583F7068BB0DA037D49B0B09A3CC08AAC62DABE5CD947A151B79",
+        json["items"][0]["_metadata"]["etag"].GetString());
+  }
+  {
+    reset();
+
+    auto root = ObjectBuilder("mrstestdb", "typetest")
+                    .field("id", FieldFlag::PRIMARY)
+                    .field("Geom", "geom", "GEOMETRY")
+                    .field("Bool", "bool", "BIT(1)")
+                    .field("Binary", "bin", "BLOB")
+                    .field("Json", "js", "JSON");
+
+    rest->query_entries(m_.get(), root, {}, 0, 1, "url", true, {}, {}, true);
+
+    auto json = make_json(rest->response);
+    EXPECT_EQ(1, json["items"].GetArray().Size()) << rest->response;
+
+    EXPECT_EQ(1, json["items"][0]["id"].GetInt());
+    EXPECT_STREQ(
+        "6AF3FA5D6DE151294E98741E84D79852EE617E1A291F06426B1775D458EE4B63",
+        json["items"][0]["_metadata"]["etag"].GetString());
+  }
+}

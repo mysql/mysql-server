@@ -193,14 +193,14 @@ TEST_F(DatabaseQueryPut, type_check) {
       {"TIME(6)", entry::ColumnType::STRING},
       {"YEAR", entry::ColumnType::INTEGER},
       {"TIMESTAMP", entry::ColumnType::STRING},
-      {"GEOMETRY", entry::ColumnType::BINARY},
-      {"POINT", entry::ColumnType::BINARY},
-      {"LINESTRING", entry::ColumnType::BINARY},
-      {"POLYGON", entry::ColumnType::BINARY},
-      {"GEOMETRYCOLLECTION", entry::ColumnType::BINARY},
-      {"MULTIPOINT", entry::ColumnType::BINARY},
-      {"MULTILINESTRING", entry::ColumnType::BINARY},
-      {"MULTIPOLYGON", entry::ColumnType::BINARY},
+      {"GEOMETRY", entry::ColumnType::GEOMETRY},
+      {"POINT", entry::ColumnType::GEOMETRY},
+      {"LINESTRING", entry::ColumnType::GEOMETRY},
+      {"POLYGON", entry::ColumnType::GEOMETRY},
+      {"GEOMETRYCOLLECTION", entry::ColumnType::GEOMETRY},
+      {"MULTIPOINT", entry::ColumnType::GEOMETRY},
+      {"MULTILINESTRING", entry::ColumnType::GEOMETRY},
+      {"MULTIPOLYGON", entry::ColumnType::GEOMETRY},
       {"BOOLEAN", entry::ColumnType::BOOLEAN},
       {"ENUM", entry::ColumnType::STRING},
       {"SET", entry::ColumnType::STRING}};
@@ -210,7 +210,8 @@ TEST_F(DatabaseQueryPut, type_check) {
       {entry::ColumnType::DOUBLE, {"\"\"", "\"x\"", "true"}},
       {entry::ColumnType::BOOLEAN, {"32.34", "\"x\"", "\"\""}},
       {entry::ColumnType::STRING, {"42", "32.34", "true"}},
-      {entry::ColumnType::BINARY, {"42", "32.34", "true"}}};
+      {entry::ColumnType::BINARY, {"42", "32.34", "true"}},
+      {entry::ColumnType::GEOMETRY, {"42", "32.34", "true", "\"foo\""}}};
 
   for (const auto &type : known_types) {
     auto root = ObjectBuilder("mrstestdb", "country")
@@ -228,6 +229,38 @@ TEST_F(DatabaseQueryPut, type_check) {
 }
 
 TEST_F(DatabaseQueryPut, etag_check) {}
+
+TEST_F(DatabaseQueryPut, special_types) {
+  auto root = ObjectBuilder("mrstestdb", "typetest")
+                  .field("id", FieldFlag::PRIMARY)
+                  .field("Geom", "geom", "GEOMETRY")
+                  .field("Bool", "bool", "BIT(1)")
+                  .field("Binary", "bin", "BLOB");
+  // TODO(alfredo) - JSON column not yet supported
+  //.field("Json", "js", "JSON");
+
+  test_put(root, make_json(R"*({
+  "id": 1,
+  "Bool": false,
+  "Geom": {
+      "type": "Point",
+      "coordinates": [
+          12.123,
+          34.123
+      ]
+  },
+  "Binary": "SGVsbG8gV29ybGQK"
+})*"),
+           {{"id", "1"}});
+
+  auto row = m_->query_one(
+      "SELECT id, hex(geom), hex(bool), hex(bin) FROM mrstestdb.typetest WHERE "
+      "id=1");
+  EXPECT_STREQ("1", (*row)[0]);
+  EXPECT_STREQ("E61000000101000000E5D022DBF93E284039B4C876BE0F4140", (*row)[1]);
+  EXPECT_STREQ("0", (*row)[2]);
+  EXPECT_STREQ("48656C6C6F20576F726C640A", (*row)[3]);
+}
 
 TEST_F(DatabaseQueryPut, plain_fields) {
   auto root = ObjectBuilder("mrstestdb", "actor")
