@@ -3995,7 +3995,7 @@ my_decimal *Item_func_min_max::decimal_op(my_decimal *dec) {
   null_value = false;
   if (compare_as_dates()) {
     longlong result = 0;
-    if (cmp_datetimes(&result)) return nullptr;
+    if (cmp_datetimes(&result)) return error_decimal(dec);
     return my_decimal_from_datetime_packed(dec, temporal_item->data_type(),
                                            result);
   }

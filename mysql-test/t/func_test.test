@@ -507,3 +507,27 @@ SELECT
 FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35492532 sig 11 in decimal_round
+--echo #
+
+SET SESSION sql_mode='';
+
+CREATE TABLE t1 (
+  c1 datetime NOT NULL
+) ;
+INSERT INTO t1 VALUES
+('2007-05-16 19:15:59'),
+('2004-10-19 22:37:33'),
+('2000-08-16 05:05:15'),
+('2001-11-04 19:07:55');
+
+--error ER_WRONG_VALUE_FOR_TYPE
+SELECT
+STD( c1 % '2006-08-23 21:41:12.036166' )
+FROM t1
+GROUP BY BIN_TO_UUID( c1 ),
+         CAST( LEAST( c1, CONVERT(c1, UNSIGNED) ) AS DECIMAL );
+DROP TABLE t1;
+SET SESSION sql_mode=default;
