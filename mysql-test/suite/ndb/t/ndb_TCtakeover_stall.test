@@ -1,6 +1,9 @@
 --source include/have_ndb.inc
 --source include/have_ndb_debug.inc
 
+# No PERFORMANCE_SCHEMA with embedded
+--source include/not_embedded.inc
+
 --echo A client holding a row lock can cause node restart
 --echo (CopyFrag) to stall until the row lock is released.
 --echo
