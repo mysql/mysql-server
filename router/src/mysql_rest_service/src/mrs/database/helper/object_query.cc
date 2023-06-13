@@ -81,6 +81,8 @@ mysqlrouter::sqlstring format_key_names(
     mysqlrouter::sqlstring col;
     if (c->type == entry::ColumnType::BINARY)
       col = mysqlrouter::sqlstring("TO_BASE64(!.!)");
+    else if (c->type == entry::ColumnType::GEOMETRY)
+      col = mysqlrouter::sqlstring("ST_AsGeoJSON(!.!)");
     else
       col = mysqlrouter::sqlstring("!.!");
     col << table->table_alias << c->name;
@@ -96,6 +98,9 @@ mysqlrouter::sqlstring format_key(std::shared_ptr<database::entry::Table> table,
   for (const auto &c : f) {
     if (table->get_column(c.first)->type == entry::ColumnType::BINARY)
       s.append_preformatted_sep(",", mysqlrouter::sqlstring("TO_BASE64(?)")
+                                         << c.second);
+    else if (table->get_column(c.first)->type == entry::ColumnType::GEOMETRY)
+      s.append_preformatted_sep(",", mysqlrouter::sqlstring("St_AsGeoJSON(?)")
                                          << c.second);
     else
       s.append_preformatted_sep(",", c.second);
@@ -251,8 +256,10 @@ static mysqlrouter::sqlstring get_field_format(entry::ColumnType type,
                                                bool value_only) {
   if (type == entry::ColumnType::BOOLEAN)
     return {value_only ? "!.! is true" : "?, !.! is true"};
-  if (type == entry::ColumnType::BINARY)
+  else if (type == entry::ColumnType::BINARY)
     return {value_only ? "TO_BASE64(!.!)" : "?, TO_BASE64(!.!)"};
+  else if (type == entry::ColumnType::GEOMETRY)
+    return {value_only ? "ST_AsGeoJSON(!.!)" : "?, ST_AsGeoJSON(!.!)"};
   return {value_only ? "!.!" : "?, !.!"};
 }
 

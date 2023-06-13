@@ -31,6 +31,7 @@
 
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
+#include <string>
 
 namespace helper {
 namespace json {
@@ -60,6 +61,12 @@ void append_rapid_json_to_text(JsonValue *json_value, std::string &text_value) {
   }
 
   text_value.append(json_buf.GetString(), json_buf.GetLength());
+}
+
+inline std::string to_string(const rapidjson::Value &value) {
+  std::string res;
+  append_rapid_json_to_text(&value, res);
+  return res;
 }
 
 }  // namespace json
