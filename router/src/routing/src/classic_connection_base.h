@@ -602,6 +602,11 @@ class MysqlRoutingClassicConnectionBase
     return trx_characteristics_;
   }
 
+  std::optional<classic_protocol::session_track::TransactionState> trx_state()
+      const {
+    return trx_state_;
+  }
+
  private:
   RouteDestination *route_destination_;
   Destinations destinations_;

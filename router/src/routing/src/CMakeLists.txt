@@ -117,6 +117,7 @@ ADD_LIBRARY(routing SHARED
   classic_session_tracker.cc
 
   show_warnings_parser.cc
+  sql_splitting_allowed.cc
   sql_value.cc
   start_transaction_parser.cc
 

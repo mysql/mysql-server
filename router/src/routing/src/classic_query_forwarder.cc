@@ -71,6 +71,7 @@
 #include "sql_lexer.h"
 #include "sql_lexer_thd.h"
 #include "sql_parser.h"
+#include "sql_splitting_allowed.h"
 #include "start_transaction_parser.h"
 #include "stmt_classifier.h"
 
@@ -269,6 +270,8 @@ stdx::flags<StmtClassifier> classify(const std::string &stmt,
     session.m_parser_state = &parser_state;
     SqlLexer lexer(&session);
 
+    bool is_lhs{true};
+
     auto lexer_it = lexer.begin();
     if (lexer_it != lexer.end()) {
       auto first = *lexer_it;
@@ -328,7 +331,17 @@ stdx::flags<StmtClassifier> classify(const std::string &stmt,
           // GET [CURRENT] DIAGNOSTICS ...
           classified |= StmtClassifier::ForbiddenFunctionWithConnSharing;
         } else if (first.id == DESCRIBE || first.id == WITH) {
-          if (tkn.id == UPDATE_SYM || tkn.id == DELETE_SYM) {
+          // EXPLAIN supports:
+          //
+          // - SELECT, TABLE, ANALYZE -> read-only
+          // - DELETE, INSERT, UPDATE, REPLACE -> read-write.
+          //
+          // WITH supports:
+          //
+          // - UPDATE
+          // - DELETE
+          if (tkn.id == UPDATE_SYM || tkn.id == DELETE_SYM ||
+              tkn.id == REPLACE_SYM || tkn.id == INSERT_SYM) {
             // always sent to the read-write servers.
             classified &=
                 ~stdx::flags<StmtClassifier>(StmtClassifier::ReadOnly);
@@ -399,6 +412,7 @@ stdx::flags<StmtClassifier> classify(const std::string &stmt,
 
         if (first.id == SET_SYM) {
           if (tkn.id == SET_VAR || tkn.id == EQ) {
+            is_lhs = false;
             if (last.id == LEX_HOSTNAME) {
               // LEX_HOSTNAME: @IDENT -> user-var
               // SET_VAR     : :=
@@ -435,11 +449,13 @@ stdx::flags<StmtClassifier> classify(const std::string &stmt,
                 }
               }
             }
+          } else if (tkn.id == ',') {
+            is_lhs = true;
+          } else if (config_access_mode_auto && is_lhs &&
+                     (tkn.id == PERSIST_SYM || tkn.id == PERSIST_ONLY_SYM ||
+                      tkn.id == GLOBAL_SYM)) {
+            classified |= StmtClassifier::ForbiddenSetWithConnSharing;
           }
-        } else if (config_access_mode_auto &&
-                   (tkn.id == PERSIST_SYM || tkn.id == PERSIST_ONLY_SYM ||
-                    tkn.id == GLOBAL_SYM)) {
-          classified |= StmtClassifier::ForbiddenSetWithConnSharing;
         } else {
           if (last.id == LEX_HOSTNAME && tkn.id == SET_VAR) {  // :=
             classified |= StmtClassifier::StateChangeOnSuccess;
@@ -1330,6 +1346,22 @@ start_transaction(std::string_view stmt) {
   }
 }
 
+stdx::expected<SplittingAllowedParser::Allowed, std::string> splitting_allowed(
+    std::string_view stmt) {
+  MEM_ROOT mem_root;
+  THD session;
+  session.mem_root = &mem_root;
+
+  {
+    Parser_state parser_state;
+    parser_state.init(&session, stmt.data(), stmt.size());
+    session.m_parser_state = &parser_state;
+    SqlLexer lexer{&session};
+
+    return SplittingAllowedParser(lexer.begin(), lexer.end()).parse();
+  }
+}
+
 /*
  * fetch the warnings from the server and inject the trace.
  */
@@ -1807,6 +1839,61 @@ stdx::expected<Processor::Result, std::error_code> QueryForwarder::command() {
 
       stage(Stage::Done);
       return Result::SendToClient;
+    }
+
+    if (connection()->context().access_mode() == routing::AccessMode::kAuto) {
+      const auto allowed_res = splitting_allowed(msg_res->statement());
+      if (!allowed_res) {
+        auto send_res = ClassicFrame::send_msg<
+            classic_protocol::borrowed::message::server::Error>(
+            src_channel, src_protocol,
+            {ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING, allowed_res.error(),
+             "HY000"});
+        if (!send_res) return send_client_failed(send_res.error());
+
+        discard_current_msg(src_channel, src_protocol);
+
+        stage(Stage::Done);
+        return Result::SendToClient;
+      }
+
+      switch (*allowed_res) {
+        case SplittingAllowedParser::Allowed::Always:
+          break;
+        case SplittingAllowedParser::Allowed::Never: {
+          auto send_res = ClassicFrame::send_msg<
+              classic_protocol::borrowed::message::server::Error>(
+              src_channel, src_protocol,
+              {ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING,
+               "Statement not allowed if access_mode is 'auto'", "HY000"});
+          if (!send_res) return send_client_failed(send_res.error());
+
+          discard_current_msg(src_channel, src_protocol);
+
+          stage(Stage::Done);
+          return Result::SendToClient;
+        }
+        case SplittingAllowedParser::Allowed::OnlyReadOnly:
+        case SplittingAllowedParser::Allowed::OnlyReadWrite:
+        case SplittingAllowedParser::Allowed::InTransaction:
+          if (!connection()->trx_state() ||
+              connection()->trx_state()->trx_type() == '_') {
+            auto send_res = ClassicFrame::send_msg<
+                classic_protocol::borrowed::message::server::Error>(
+                src_channel, src_protocol,
+                {ER_ROUTER_NOT_ALLOWED_WITH_CONNECTION_SHARING,
+                 "Statement not allowed outside a transaction if access_mode "
+                 "is 'auto'",
+                 "HY000"});
+            if (!send_res) return send_client_failed(send_res.error());
+
+            discard_current_msg(src_channel, src_protocol);
+
+            stage(Stage::Done);
+            return Result::SendToClient;
+          }
+          break;
+      }
     }
 
     // not a SHOW WARNINGS or so, reset the warnings.
