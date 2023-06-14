@@ -462,13 +462,20 @@ Dbtup::createTrigger(Tablerec* table,
 
     if (tptr.p->monitorAllAttributes)
     {
+      /**
+       * Note that SUMA does not set up new triggers, with updated 'mask',
+       * in case of a column being added to a monitored table.
+       * In such cases monitorAllAttributes -> 'include those added later'
+       */
       jam();
-      // Set all non-pk attributes
+      /**
+       * Set *all* attributes, including attrs possibly added later....
+       * Exclude any non-character primary key attributes as they will
+       * identical BEFORE & AFTER values in an UPDATE. OTOH, a char-pk
+       * can be updated to an equal-by-collation-compare value.
+       */
       tptr.p->attributeMask.set();
-      for(Uint32 i = 0; i < table->m_no_of_attributes; i++) {
-	if (primaryKey(table, i))
-	  tptr.p->attributeMask.clear(i);
-      }
+      tptr.p->attributeMask.bitANDC(table->nonCharPkAttributeMask);
     }
     else
     {
@@ -487,15 +494,6 @@ err:
   }
   return false;
 }//Dbtup::createTrigger()
-
-bool
-Dbtup::primaryKey(Tablerec* const regTabPtr, Uint32 attrId)
-{
-  Uint32 attrDescriptorStart = regTabPtr->tabDescriptor;
-  Uint32 attrDescriptor = getTabDescrWord(attrDescriptorStart +
-                                          (attrId * ZAD_SIZE));
-  return (bool)AttributeDescriptor::getPrimaryKey(attrDescriptor);
-}//Dbtup::primaryKey()
 
 /* ---------------------------------------------------------------- */
 /* -------------------------- dropTrigger ------------------------- */
@@ -999,7 +997,6 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
       // insert + delete = nothing
       jam();
       return;
-      goto end;
     }
     else if (save_type != ZREFRESH)
     {
@@ -1908,7 +1905,7 @@ out:
   }
 }
 
-Uint32 Dbtup::setAttrIds(Bitmask<MAXNROFATTRIBUTESINWORDS>& attributeMask, 
+Uint32 Dbtup::setAttrIds(const AttributeMask& attributeMask,
                          Uint32 no_of_attributes, 
                          Uint32* inBuffer)
 {
@@ -1990,6 +1987,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   if (regTabPtr->need_expand(disk)) 
     prepare_read(req_struct, regTabPtr, disk);
   
+  // Read Primary key into the keyBuffer
   int ret = readAttributes(req_struct,
 			   &tableDescriptor[regTabPtr->readKeyArray].tabDescr,
 			   regTabPtr->noOfKeyAttr,
@@ -1999,20 +1997,16 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   noPrimKey= ret;
   
   req_struct->m_tuple_ptr = save0;
-  
-  Uint32 numAttrsToRead;
+
+  AttributeMask attributeMask;
   if ((regOperPtr->op_type == ZUPDATE) &&
       (trigPtr->sendOnlyChangedAttributes)) {
     jam();
 //--------------------------------------------------------------------
-// Update that sends only changed information
+// Update that sends only changed information (Among those monitored)
 //--------------------------------------------------------------------
-    Bitmask<MAXNROFATTRIBUTESINWORDS> attributeMask;
     attributeMask = trigPtr->attributeMask;
     attributeMask.bitAND(req_struct->changeMask);
-    numAttrsToRead = setAttrIds(attributeMask, regTabPtr->m_no_of_attributes, 
-				&readBuffer[0]);
-    
   } else if ((regOperPtr->op_type == ZDELETE) &&
              (!trigPtr->sendBeforeValues)) {
     jam();
@@ -2027,15 +2021,12 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 // Omit unchanged blob inlines on update i.e.
 // attributeMask & ~ (blobAttributeMask & ~ changeMask)
 //--------------------------------------------------------------------
-    Bitmask<MAXNROFATTRIBUTESINWORDS> attributeMask;
     attributeMask = trigPtr->attributeMask;
     if (regOperPtr->op_type == ZUPDATE) {
-      Bitmask<MAXNROFATTRIBUTESINWORDS> tmpMask = regTabPtr->blobAttributeMask;
+      AttributeMask tmpMask = regTabPtr->blobAttributeMask;
       tmpMask.bitANDC(req_struct->changeMask);
       attributeMask.bitANDC(tmpMask);
     }
-    numAttrsToRead = setAttrIds(attributeMask, regTabPtr->m_no_of_attributes,
-                                &readBuffer[0]);
   }
   else
   {
@@ -2049,9 +2040,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     case Operationrec::RF_SINGLE_EXIST:
     case Operationrec::RF_MULTI_EXIST:
       // generate ZINSERT...all after values
-      numAttrsToRead = setAttrIds(trigPtr->attributeMask,
-                                  regTabPtr->m_no_of_attributes,
-                                  &readBuffer[0]);
+      attributeMask = trigPtr->attributeMask;
       break;
     default:
       ndbabort();
@@ -2059,9 +2048,18 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     }
   }
 
+  // PK attributes are already part of Key, exclude them from AFTER values.
+  // Keep the FullMask as an BEFORE-UPDATE may need it
+  const AttributeMask attributeFullMask(attributeMask);
+  if (trigPtr->monitorAllAttributes) {
+    attributeMask.bitANDC(regTabPtr->allPkAttributeMask);
+  }
+
+  Uint32 numAttrsToRead =
+      setAttrIds(attributeMask, regTabPtr->m_no_of_attributes, &readBuffer[0]);
   ndbrequire(numAttrsToRead <= MAX_ATTRIBUTES_IN_TABLE);
 //--------------------------------------------------------------------
-// Read Main tuple values
+// Read Main tuple 'AFTER' values
 //--------------------------------------------------------------------
   if (regOperPtr->op_type != ZDELETE)
   {
@@ -2079,7 +2077,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   }
 
 //--------------------------------------------------------------------
-// Read Copy tuple values for UPDATE's
+// Read Copy tuple 'BEFORE' values for UPDATE and DELETE's
 //--------------------------------------------------------------------
 // Initialise pagep and tuple offset for read of copy tuple
 //--------------------------------------------------------------------
@@ -2088,6 +2086,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
       (trigPtr->sendBeforeValues)) {
     jam();
     
+    // Locate the before tuple
     Tuple_header *save= req_struct->m_tuple_ptr;
     PagePtr tmp;
     if(regOperPtr->is_first_operation())
@@ -2103,7 +2102,37 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
 
     if (regTabPtr->need_expand(disk)) 
       prepare_read(req_struct, regTabPtr, disk);
-    
+
+    /**
+     * Check if an UPDATE:
+     * 1) Changed the key value,  and
+     * 2) We want the key value included in the before values
+     */
+    bool keys_equal = true;
+    if (regOperPtr->op_type == ZUPDATE &&
+        req_struct->changeMask.overlaps(regTabPtr->allPkAttributeMask) && // 1)
+        !attributeMask.equal(attributeFullMask)) {                        // 2)
+
+      // Read BEFORE-PK, use beforeBuffer as temp storage, not kept
+      Uint32 *beforeKey = beforeBuffer;
+      const Uint32 keyWords = readAttributes(req_struct,
+                                 &tableDescriptor[regTabPtr->readKeyArray].tabDescr,
+                                 regTabPtr->noOfKeyAttr,
+                                 beforeKey,
+                                 ZATTR_BUFFER_SIZE);
+
+      // If 'beforeKey != afterKey' we need it in the update trigger as well
+      if (keyWords != noPrimKey ||
+          memcmp(beforeKey, keyBuffer, keyWords*4) != 0) {
+        // Include the FullMask set of attributes in the BEFORE-value
+        jam();
+        keys_equal = false;
+        numAttrsToRead = setAttrIds(attributeFullMask,
+                                    regTabPtr->m_no_of_attributes,
+                                    &readBuffer[0]);
+      }
+    }
+
     int ret = readAttributes(req_struct,
 			     &readBuffer[0],
 			     numAttrsToRead,
@@ -2112,16 +2141,22 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     req_struct->m_tuple_ptr= save;
     ndbrequire(ret >= 0);
     noBeforeWords = ret;
-    if (refToMain(trigPtr->m_receiverRef) != SUMA &&
-        (noAfterWords == noBeforeWords) &&
-        (memcmp(afterBuffer, beforeBuffer, noAfterWords << 2) == 0)) {
-//--------------------------------------------------------------------
-// Although a trigger was fired it was not necessary since the old
-// value and the new value was exactly the same
-//--------------------------------------------------------------------
-      jam();
-      //XXX does this work with collations?
-      return false;
+
+    //--------------------------------------------------------------------
+    // Except for SUMA, which may need to 'AllowEmptyUpdate' events, we
+    // supress the trigger if BEFORE and AFTER values are exactly the same.
+    // Note that we need to do a binary compare: We can not suppress
+    // the trigger in cases where character field comparing as equal
+    // had a change in their binary representation (eg: 'xyz' -> 'XYZ').
+    // Such changes may need to be replicated, included in backup logs, etc.
+    //--------------------------------------------------------------------
+    if (regOperPtr->op_type == ZUPDATE &&
+        refToMain(trigPtr->m_receiverRef) != SUMA) {
+      if (keys_equal && noAfterWords == noBeforeWords &&
+          memcmp(afterBuffer, beforeBuffer, noAfterWords*4) == 0) {
+        jam();
+        return false;
+      }
     }
   }
   return true;

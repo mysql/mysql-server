@@ -1667,6 +1667,8 @@ Dbtup::computeTableMetaData(TablerecPtr tabPtr, Uint32 line)
   Uint32 dynamic_count= 0;
   regTabPtr->blobAttributeMask.clear();
   regTabPtr->notNullAttributeMask.clear();
+  regTabPtr->allPkAttributeMask.clear();
+  regTabPtr->nonCharPkAttributeMask.clear();
   for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
   {
     std::memset(regTabPtr->dynVarSizeMask[i], 0, dyn_null_words[i]<<2);
@@ -1691,10 +1693,20 @@ Dbtup::computeTableMetaData(TablerecPtr tabPtr, Uint32 line)
       jam();
       regTabPtr->blobAttributeMask.set(i);
     }
-    if(!AttributeDescriptor::getNullable(attrDescriptor))
+    if (!AttributeDescriptor::getNullable(attrDescriptor))
     {
       jam();
       regTabPtr->notNullAttributeMask.set(i);
+    }
+    if (AttributeDescriptor::getPrimaryKey(attrDescriptor))
+    {
+      jam();
+      regTabPtr->allPkAttributeMask.set(i);
+      if (!AttributeOffset::getCharsetFlag(attrDes2))
+      {
+        jam();
+        regTabPtr->nonCharPkAttributeMask.set(i);
+      }
     }
     if (!AttributeDescriptor::getDynamic(attrDescriptor))
     {

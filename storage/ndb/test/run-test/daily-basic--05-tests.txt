@@ -138,3 +138,7 @@ cmd: testNdbApi
 args: -n NdbPKUpdateWithSetValue T1
 max-time: 180
 
+cmd: test_event
+args: -n PrimaryKeyUpdates T1
+max-time: 180
+

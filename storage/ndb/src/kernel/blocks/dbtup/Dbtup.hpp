@@ -60,6 +60,7 @@
 
 #define JAM_FILE_ID 414
 
+typedef Bitmask<MAXNROFATTRIBUTESINWORDS> AttributeMask;
 
 #ifdef VM_TRACE
 inline const char* dbgmask(const Bitmask<MAXNROFATTRIBUTESINWORDS>& bm) {
@@ -1151,7 +1152,7 @@ struct TupTriggerData {
    * Attribute mask, defines what attributes are to be monitored
    * Can be seen as a compact representation of SQL column name list
    */
-  Bitmask<MAXNROFATTRIBUTESINWORDS> attributeMask;
+  AttributeMask attributeMask;
   
   /**
    * Next ptr (used in pool/list)
@@ -1210,8 +1211,14 @@ TupTriggerData_pool c_triggerPool;
       tuxCustomTriggers(triggerPool)
   {}
     
-    Bitmask<MAXNROFATTRIBUTESINWORDS> notNullAttributeMask;
-    Bitmask<MAXNROFATTRIBUTESINWORDS> blobAttributeMask;
+    AttributeMask notNullAttributeMask;
+    AttributeMask blobAttributeMask;
+    /*
+      Mask of primary key attributes, resp. 'all' and the subset
+      not being character data types. (No collation aware compare.)
+    */
+    AttributeMask allPkAttributeMask;
+    AttributeMask nonCharPkAttributeMask;
     
     /*
       Extra table descriptor for dynamic attributes, or RNIL if none.
@@ -2010,10 +2017,10 @@ struct KeyReqStruct {
   } m_var_data[2];
 
   /*
-   * A bit mask where a bit set means that the update or insert
-   * was updating this record.
+   * A bitmap where a set bit means that the operation has
+   * supplied a value for this column
    */
-  Bitmask<MAXNROFATTRIBUTESINWORDS> changeMask;
+  AttributeMask changeMask;
   Uint16 var_pos_array[2*MAX_ATTRIBUTES_IN_TABLE + 1];
   OperationrecPtr prevOpPtr;
 };
@@ -3311,18 +3318,16 @@ private:
                        Uint32* beforeBuffer,
                        Uint32& noBeforeWords,
                        bool disk);
-  
+
   void sendTrigAttrInfo(Signal*        signal, 
                         Uint32*        data, 
                         Uint32         dataLen,
                         bool           executeDirect,
                         BlockReference receiverReference);
 
-  Uint32 setAttrIds(Bitmask<MAXNROFATTRIBUTESINWORDS>& attributeMask, 
+  Uint32 setAttrIds(const AttributeMask& attributeMask,
                     Uint32 noOfAttributes, 
                     Uint32* inBuffer);
-
-  bool primaryKey(Tablerec* const, Uint32);
 
   // these set terrorCode and return non-zero on error
 
