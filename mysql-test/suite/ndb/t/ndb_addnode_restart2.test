@@ -1,5 +1,7 @@
-#Test is using error insert, check that binaries support it
+--source include/have_ndb.inc
+
 --source include/have_case_sensitive_file_system.inc
+#Test is using error insert, check that binaries support it
 --source have_ndb_error_insert.inc
 
 #create the necessary tables and setup

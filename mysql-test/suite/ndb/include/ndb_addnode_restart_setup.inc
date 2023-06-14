@@ -1,6 +1,3 @@
---source include/have_ndb.inc
-
-
 # Test configs should be cleared and
 # servers should be restarted in case of retries
 --source include/force_restart.inc

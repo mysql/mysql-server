@@ -1357,6 +1357,15 @@ sub collect_one_test_case {
     }
   }
 
+  if ($tinfo->{'ndbt_test'}) {
+    # This test requires special NDB test binaries
+    if ($ENV{'NDBT_BINARIES_AVAILABLE'} != 1) {
+       # NDB test binaries not available, skip
+       skip_test($tinfo, "NDB test binaries not available");
+       return $tinfo;
+    }
+  }
+
   if ($tinfo->{'federated_test'}) {
     # This is a test that needs federated, enable it
     push(@{ $tinfo->{'master_opt'} }, "--loose-federated");
@@ -1494,6 +1503,7 @@ my @tags = (
   [ "include/have_debug.inc",     "need_debug", 1 ],
   [ "include/have_ndb.inc",       "ndb_test",   1 ],
   [ "include/have_multi_ndb.inc", "ndb_test",   1 ],
+  [ "run_ndbapitest.inc", "ndbt_test",  1 ],
 
   # Any test sourcing the below inc file is considered to be an NDB
   # test not having its corresponding result file.

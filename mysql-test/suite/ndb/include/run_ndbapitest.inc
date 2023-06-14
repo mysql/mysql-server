@@ -1,3 +1,9 @@
+# All test using run_ndbapitest.inc should automatically be
+# skipped (by mtr_cases.pm) unless the NDB test programs are available
+if (!$NDBT_BINARIES_AVAILABLE) {
+  die Should be autoskipped when NDB test binaries not available;
+}
+
 --perl
 use strict;
 use lib "lib/";
