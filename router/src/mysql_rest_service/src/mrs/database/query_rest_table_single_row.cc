@@ -52,10 +52,11 @@ void QueryRestTableSingleRow::query_entries(
   object_ = object;
   compute_etag_ = compute_etag;
   metadata_gtid_ = metadata_gtid;
+  field_filter_ = &field_filter;
 
   response = "";
   items = 0;
-  build_query(object, field_filter, pk, url_route);
+  build_query(object, pk, url_route);
 
   execute(session);
 }
@@ -66,18 +67,18 @@ void QueryRestTableSingleRow::on_row(const ResultRow &r) {
     throw std::runtime_error(
         "Querying single row, from a table. Received multiple.");
 
-  response = r[0];
-  if (compute_etag_) {
-    metadata_.insert({"etag", compute_checksum(object_, response)});
-  }
-
   if (!metadata_gtid_.empty()) {
     metadata_.insert({"gtid", metadata_gtid_});
   }
 
-  if (!metadata_.empty()) {
-    auto metadata_json = helper::json::to_string(metadata_);
-    json_object_fast_append(response, "_metadata", metadata_json);
+  response = r[0];
+  if (compute_etag_) {
+    std::string doc = r[0];
+    // calc etag and strip filtered fields
+    process_document_etag_and_filter(object_, *field_filter_, metadata_, &doc);
+    response.append(doc);
+  } else {
+    response.append(r[0]);
   }
 
   ++items;
@@ -85,9 +86,8 @@ void QueryRestTableSingleRow::on_row(const ResultRow &r) {
 
 void QueryRestTableSingleRow::build_query(
     std::shared_ptr<database::entry::Object> object,
-    const ObjectFieldFilter &field_filter, const PrimaryKeyColumnValues &pk,
-    const std::string &url_route) {
-  JsonQueryBuilder qb(field_filter);
+    const PrimaryKeyColumnValues &pk, const std::string &url_route) {
+  JsonQueryBuilder qb(*field_filter_);
   qb.process_object(object);
 
   std::vector<mysqlrouter::sqlstring> fields;

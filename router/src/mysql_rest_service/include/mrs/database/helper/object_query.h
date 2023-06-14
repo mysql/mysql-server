@@ -63,22 +63,24 @@ class ObjectFieldFilter {
                                            std::vector<std::string> filter);
   static ObjectFieldFilter from_object(const entry::Object &object);
 
-  bool is_included(const std::string &prefix, const std::string &field) const;
+  bool is_included(std::string_view prefix, std::string_view field) const;
 
  private:
-  std::set<std::string> m_filter;
+  std::set<std::string, std::less<>> m_filter;
   bool m_exclusive = true;
 
-  bool is_parent_included(const std::string &prefix) const;
+  bool is_parent_included(std::string_view prefix) const;
 };
 
 class JsonQueryBuilder {
  public:
   explicit JsonQueryBuilder(const ObjectFieldFilter &filter,
-                            bool for_update = false, bool for_checksum = false)
+                            bool for_update = false, bool for_checksum = false,
+                            bool all_fields = false)
       : m_filter(filter),
         m_for_update(for_update),
-        m_for_checksum(for_checksum) {}
+        m_for_checksum(for_checksum),
+        m_all_fields(all_fields) {}
 
   void process_object(std::shared_ptr<entry::Object> object);
 
@@ -115,6 +117,7 @@ class JsonQueryBuilder {
   std::vector<std::shared_ptr<entry::Table>> m_joined_tables;
   bool m_for_update = false;
   bool m_for_checksum = false;
+  bool m_all_fields = false;
 
   void process_object(std::shared_ptr<entry::Object> object,
                       const std::string &path_prefix);

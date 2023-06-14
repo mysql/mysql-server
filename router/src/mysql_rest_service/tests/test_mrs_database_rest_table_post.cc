@@ -39,6 +39,9 @@ using testing::Return;
 using testing::StrictMock;
 using testing::Test;
 
+// TODO - allow true/false for int (and convert to 1/0)
+// TODO - allow omitting columns, which should insert as DEFAULT
+
 inline std::string str_replace(std::string_view s, std::string_view from,
                                std::string_view to) {
   std::string str;

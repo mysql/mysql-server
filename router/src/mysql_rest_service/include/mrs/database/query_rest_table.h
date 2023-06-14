@@ -78,6 +78,7 @@ class QueryRestTable : private QueryLog {
   std::vector<helper::Column> columns_;
   std::shared_ptr<database::JsonTemplate> serializer_;
   std::shared_ptr<database::entry::Object> object_;
+  const ObjectFieldFilter *field_filter_{nullptr};
   bool compute_etag_{false};
   mysqlrouter::sqlstring where_;
   bool metadata_received_{false};

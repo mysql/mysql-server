@@ -381,7 +381,8 @@ bool is_exclude_filter(const std::vector<std::string> &filter) {
   return is_exclude.value_or(true);
 }
 
-void insert_parents(const std::string &f, std::set<std::string> *filter) {
+void insert_parents(const std::string &f,
+                    std::set<std::string, std::less<>> *filter) {
   auto pos = f.rfind('.');
   if (pos != std::string::npos) {
     auto prefix = f.substr(0, pos);
@@ -416,15 +417,15 @@ ObjectFieldFilter ObjectFieldFilter::from_object(const entry::Object &) {
   return object_filter;
 }
 
-bool ObjectFieldFilter::is_parent_included(const std::string &field) const {
+bool ObjectFieldFilter::is_parent_included(std::string_view field) const {
   if (field.empty()) return false;
 
   // if parent is included, check if there are any field of the parent included
   if (auto it = m_filter.find(field); it != m_filter.end()) {
     ++it;  // set iterator is sorted, so the next item is either something
            // unrelated or a subfield that shares the prefix
-    if (it != m_filter.end() &&
-        it->compare(0, field.length() + 1, field + ".") == 0) {
+    if (it != m_filter.end() && it->compare(0, field.length(), field) == 0 &&
+        it->length() > field.length() && it->at(field.length()) == '.') {
       return false;
     }
     return true;
@@ -436,14 +437,19 @@ bool ObjectFieldFilter::is_parent_included(const std::string &field) const {
   }
 }
 
-bool ObjectFieldFilter::is_included(const std::string &prefix,
-                                    const std::string &field) const {
+bool ObjectFieldFilter::is_included(std::string_view prefix,
+                                    std::string_view field) const {
   if (m_exclusive) {
-    return m_filter.count(prefix.empty() ? field : prefix + "." + field) == 0;
+    if (prefix.empty())
+      return m_filter.count(field) == 0;
+    else
+      return m_filter.count(std::string(prefix).append(".").append(field)) == 0;
   } else {
-    if (m_filter.count(prefix.empty() ? field : prefix + "." + field) != 0) {
+    if (prefix.empty() && m_filter.count(field))
       return true;
-    }
+    else if (!prefix.empty() &&
+             m_filter.count(std::string(prefix).append(".").append(field)))
+      return true;
     if (is_parent_included(prefix)) {
       return true;
     }
