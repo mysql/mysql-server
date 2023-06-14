@@ -58,12 +58,12 @@ class QueryRestTableSingleRow : private QueryLog {
 
  private:
   std::shared_ptr<database::entry::Object> object_;
+  const ObjectFieldFilter *field_filter_;
   bool compute_etag_ = false;
   std::string metadata_gtid_{};
 
   void on_row(const ResultRow &r) override;
   void build_query(std::shared_ptr<database::entry::Object> object,
-                   const ObjectFieldFilter &field_filter,
                    const PrimaryKeyColumnValues &pk,
                    const std::string &url_route);
 };

@@ -55,9 +55,9 @@ class HandleObjectTests : public Test {
     EXPECT_CALL(mock_request_, get_uri()).WillRepeatedly(ReturnRef(uri_));
   }
 
-  class GeneralExceptations {
+  class GeneralExpectations {
    public:
-    GeneralExceptations(
+    GeneralExpectations(
         HandleObjectTests &parent,
         const mrs::interface::Object::RowUserOwnership &user_row_ownership,
         const mrs::interface::Object::VectorOfRowGroupOwnership
@@ -157,7 +157,7 @@ TEST_F(HandleObjectTests, fetch_object_feed) {
   const mrs::interface::Object::VectorOfRowGroupOwnership
       k_group_row_ownership{};
   const std::string k_cached_primary{"column1"};
-  GeneralExceptations expectations{*this,
+  GeneralExpectations expectations{*this,
                                    k_user_row_ownership,
                                    k_group_row_ownership,
                                    k_cached_primary,
@@ -186,7 +186,7 @@ TEST_F(HandleObjectTests, fetch_object_single) {
   const mrs::interface::Object::VectorOfRowGroupOwnership
       k_group_row_ownership{};
   const std::string k_cached_primary{"column1"};
-  GeneralExceptations expectations{*this,
+  GeneralExpectations expectations{*this,
                                    k_user_row_ownership,
                                    k_group_row_ownership,
                                    k_cached_primary,
@@ -215,7 +215,7 @@ TEST_F(HandleObjectTests, delete_single_object_throws_without_filter) {
   const mrs::interface::Object::VectorOfRowGroupOwnership
       k_group_row_ownership{};
   const std::string k_cached_primary{"column1"};
-  GeneralExceptations expectations{*this,
+  GeneralExpectations expectations{*this,
                                    k_user_row_ownership,
                                    k_group_row_ownership,
                                    k_cached_primary,
@@ -244,7 +244,7 @@ TEST_F(HandleObjectTests, delete_single_object) {
   const mrs::interface::Object::VectorOfRowGroupOwnership
       k_group_row_ownership{};
   const std::string k_cached_primary{"column1"};
-  GeneralExceptations expectations{*this,
+  GeneralExpectations expectations{*this,
                                    k_user_row_ownership,
                                    k_group_row_ownership,
                                    k_cached_primary,

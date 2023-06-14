@@ -99,15 +99,10 @@ void QueryRestTable::on_metadata(unsigned number, MYSQL_FIELD *fields) {
 }
 
 void QueryRestTable::on_row(const ResultRow &r) {
-  // TODO(alfredo) - check if it's worth reserving space in the queried document
-  // and just overwriting the etag value here
-
   if (compute_etag_) {
     std::string doc = r[0];
-    std::map<std::string, std::string> metadata{
-        {"etag", compute_checksum(object_, doc)}};
-    json_object_fast_append(doc, "_metadata",
-                            helper::json::to_string(metadata));
+    // calc etag and strip filtered fields
+    process_document_etag_and_filter(object_, *field_filter_, {}, &doc);
     serializer_->push_json_document(doc.c_str());
   } else {
     serializer_->push_json_document(r[0]);

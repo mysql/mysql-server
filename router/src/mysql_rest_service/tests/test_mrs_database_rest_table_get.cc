@@ -1866,18 +1866,34 @@ TEST_F(DatabaseQueryGet, etag) {
 
     EXPECT_EQ(1, json["items"][0]["actor_id"].GetInt());
     EXPECT_STREQ(
-        "93814B36DC1715E79D297CFB93ACD1AD9DDC86625398549986C02DC629878293",
+        "31F155BCEC8184E8879158E1315EA9CD9D957F0AA03685A7A8B34332605F5EE8",
         json["items"][0]["_metadata"]["etag"].GetString());
 
     EXPECT_EQ(2, json["items"][1]["actor_id"].GetInt());
     EXPECT_STREQ(
-        "4F256BDCE628D86BB0700E0C54D8AF5F34194489F62BA417F48958F44827E9EB",
+        "BC9F16918BFEB2D41FE43FE423EBC6F6288259873E786A03DA9207DE7346F619",
         json["items"][1]["_metadata"]["etag"].GetString());
 
     EXPECT_EQ(3, json["items"][2]["actor_id"].GetInt());
     EXPECT_STREQ(
-        "18805A9BCCCA92B9ACAE81A0235D2E5D99E8B557230E4AD2E5AA7CCED3B3EF1E",
+        "29D4C6C251FAE21B6D4E20B43C2FDBFF8276B81E60CDA2C0C407852FD61F86AD",
         json["items"][2]["_metadata"]["etag"].GetString());
+
+    reset();
+
+    auto filter = mrs::database::ObjectFieldFilter::from_url_filter(
+        *root.root(), {"actor_id", "first_name"});
+
+    rest->query_entries(m_.get(), root, filter, 0, 1, "url", true, {}, {},
+                        true);
+    puts(rest->response.c_str());
+    json = make_json(rest->response);
+    EXPECT_EQ(1, json["items"].GetArray().Size()) << rest->response;
+    EXPECT_EQ(1, json["items"][0]["actor_id"].GetInt());
+    // should be unchanged despite the different field filter
+    EXPECT_STREQ(
+        "F692F5B336012B56328C985C3DE5138BB8917F37AA6CC678AD7DACFC3F1BA61D",
+        json["items"][0]["_metadata"]["etag"].GetString());
   }
   {
     reset();
@@ -1904,9 +1920,10 @@ TEST_F(DatabaseQueryGet, etag) {
 
     EXPECT_EQ(1, json["items"][0]["actor_id"].GetInt());
     EXPECT_STREQ(
-        "7FC03E306164583F7068BB0DA037D49B0B09A3CC08AAC62DABE5CD947A151B79",
+        "C6EDA4EE7C15BAFB6921847822A9F8926DB6E4115B2893CEBD238B628B0D21B3",
         json["items"][0]["_metadata"]["etag"].GetString());
   }
+
   {
     reset();
 
@@ -1924,7 +1941,7 @@ TEST_F(DatabaseQueryGet, etag) {
 
     EXPECT_EQ(1, json["items"][0]["id"].GetInt());
     EXPECT_STREQ(
-        "6AF3FA5D6DE151294E98741E84D79852EE617E1A291F06426B1775D458EE4B63",
+        "FCA79725A9EEE5CD52808D83E74402102BA32004E5D07817010C412E66380A93",
         json["items"][0]["_metadata"]["etag"].GetString());
   }
 }

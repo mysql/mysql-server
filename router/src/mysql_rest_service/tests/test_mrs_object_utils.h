@@ -97,6 +97,7 @@ class ObjectBuilder {
   ObjectBuilder(const std::string &schema, const std::string &table,
                 Operation::ValueType allowed_crud = kAllOperations) {
     m_object = std::make_shared<Object>();
+    m_object->name = table;
     m_table = std::make_shared<BaseTable>();
     m_table->schema = schema;
     m_table->table = table;
@@ -112,6 +113,7 @@ class ObjectBuilder {
                 const std::vector<std::pair<std::string, std::string>> &mapping,
                 Operation::ValueType allowed_crud = kAllOperations) {
     m_object = std::make_shared<Object>();
+    m_object->name = table;
     auto join = std::make_shared<JoinedTable>();
     join->table = table;
     join->crud_operations = allowed_crud | Operation::Values::valueRead;
