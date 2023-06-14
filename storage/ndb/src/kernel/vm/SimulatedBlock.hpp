@@ -262,7 +262,7 @@ enum OverloadStatus
   execute for more than 1000 microseconds and rarely go beyond even 100
   microseconds.
 
-  So these bounded delay signals are a good tool to ensure that activitites
+  So these bounded delay signals are a good tool to ensure that activities
   such as backups, checkpoints, node recovery activities, altering of tables
   and similar things gets executed at a certain rate. Without any possibility
   of bounded delay signals it is very hard to implement an activity that gets

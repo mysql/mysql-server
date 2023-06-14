@@ -13107,7 +13107,7 @@ Backup::execFSREMOVECONF(Signal* signal)
   short and concise messages and won't bother the user transactions at any
   noticeable level. We will avoid fixing GET_TABINFO for that since it
   is only one signal per fragment LCP and also the code path is also used
-  many other activitites which are not suitable to run at JBA-level.
+  many other activities which are not suitable to run at JBA-level.
 
   So the major problem to handle is the actual scanning towards LQH. Here
   we need to use a mechanism that keeps the rate at appropriate levels.
