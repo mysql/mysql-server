@@ -1317,6 +1317,153 @@
   ...
 }
 
+{
+  OpenSSL 3.0
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  ...
+  fun:evp_generic_fetch
+  ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:EVP_KEYMGMT_do_all_provided
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:OSSL_DECODER_CTX_new_for_pkey
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:OSSL_DECODER_do_all_provided
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:OSSL_DECODER_CTX_new_for_pkey
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:RAND_bytes_ex
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:RAND_priv_bytes_ex
+   ...
+}
+
+{
+   OpenSSL 3.0 (strange ERR_set_debug is documented to not call strdup)
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:CRYPTO_strdup
+   fun:ERR_set_debug
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:ERR_add_error_vdata
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:cache_objects
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:inner_loader_fetch
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:CRYPTO_THREAD_run_once
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:ossl_provider_doall_activated
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:_ZL8init_sslv
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:ssl_load_ciphers
+   ...
+}
+
+{
+   OpenSSL 3.0
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:RAND_get0_private
+   ...
+}
+
 #
 # Rules to suppress leaks from plugin dependencies
 #
@@ -1887,9 +2034,19 @@
 {
   AWS_SDK_1_9_s2n_init
     Memcheck:Leak
-    match-leak-kinds: reachable,definite,indirect
+    match-leak-kinds: reachable,definite,indirect,possible
     ...
     fun:s2n_init
+    ...
+}
+{
+  AWS_SDK_1_9 AWS:Init call too deep in stack
+    Memcheck:Leak
+    match-leak-kinds: indirect
+    fun:realloc
+    fun:CRYPTO_realloc
+    ...
+    fun:asn1_template_ex_d2i
     ...
 }
 {
