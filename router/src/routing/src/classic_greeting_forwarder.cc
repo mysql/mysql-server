@@ -1196,6 +1196,13 @@ stdx::expected<Processor::Result, std::error_code> ServerGreetor::auth_error() {
 
   discard_current_msg(src_channel, src_protocol);
 
+  if (auto *ssl = connection()->socket_splicer()->server_channel()->ssl()) {
+    // shutdown the ssl-session to allow tls-resumption of the session.
+    //
+    // The socket will be closed in ::error().
+    SSL_shutdown(ssl);
+  }
+
   return Result::Again;
 }
 

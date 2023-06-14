@@ -1,7 +1,7 @@
 ({
   handshake: {
     auth: {
-      username: 'someuser',
+      username: 'username',
     }
   },
   stmts: function() {

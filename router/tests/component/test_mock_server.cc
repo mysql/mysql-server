@@ -275,7 +275,7 @@ TEST_F(MockServerCLITestBase, classic_many_connections) {
 
   for (auto &sess : classic_sessions) {
     try {
-      sess.connect("127.0.0.1", bind_port, "root", "fake-pass", "", "");
+      sess.connect("127.0.0.1", bind_port, "username", "password", "", "");
     } catch (const std::exception &e) {
       FAIL() << e.what();
     }
@@ -341,8 +341,8 @@ static std::string replace_placeholders(
 
 static void classic_protocol_connect_ok(
     const std::string &host, uint16_t port,
-    const std::string &username = "someuser",
-    const std::string &password = "somepass") {
+    const std::string &username = "username",
+    const std::string &password = "password") {
   mysqlrouter::MySQLSession sess;
 
   sess.connect(host, port,
@@ -373,8 +373,8 @@ static void classic_protocol_connect_fail(const std::string &host,
 }
 
 static void x_protocol_connect_ok(const std::string &host, uint16_t port,
-                                  const std::string &username = "someuser",
-                                  const std::string &password = "somepass") {
+                                  const std::string &username = "username",
+                                  const std::string &password = "password") {
   auto sess = xcl::create_session();
   ASSERT_THAT(
       sess->set_mysql_option(
@@ -624,8 +624,8 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
      [](const std::map<std::string, std::string> &config) {
        auto host = config.at("hostname");
        auto port = atol(config.at("port").c_str());
-       const char username[] = "someuser";
-       const char password[] = "somepass";
+       const char username[] = "username";
+       const char password[] = "password";
 
        mysqlrouter::MySQLSession sess;
 
@@ -663,7 +663,7 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
      [](const std::map<std::string, std::string> &config) {
        classic_protocol_connect_fail(config.at("hostname"),
                                      atol(config.at("port").c_str()),
-                                     "someuser", "somepass", 1045);
+                                     "username", "password", 1045);
      }},
     {"auth_wrong_password",
      {
@@ -678,7 +678,7 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
      [](const std::map<std::string, std::string> &config) {
        classic_protocol_connect_fail(config.at("hostname"),
                                      atol(config.at("port").c_str()),
-                                     "someuser", "wrongpass", 1045);
+                                     "username", "wrongpass", 1045);
      }},
     {"auth_wrong_username",
      {
@@ -715,8 +715,8 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
            replace_placeholders("@certdir@/crl-client-key.pem", config));
 
        sess.connect(config.at("hostname"), atol(config.at("port").c_str()),
-                    "someuser",  // user
-                    "somepass",  // pass
+                    "username",  // user
+                    "password",  // pass
                     "",          // socket
                     ""           // schema
        );
@@ -742,8 +742,8 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
 
        try {
          sess.connect(config.at("hostname"), atol(config.at("port").c_str()),
-                      "someuser",  // user
-                      "somepass",  // pass
+                      "username",  // user
+                      "password",  // pass
                       "",          // socket
                       ""           // schema
          );
@@ -773,8 +773,8 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
 
        try {
          sess.connect(config.at("hostname"), atol(config.at("port").c_str()),
-                      "someuser",  // user
-                      "somepass",  // pass
+                      "username",  // user
+                      "password",  // pass
                       "",          // socket
                       ""           // schema
          );
@@ -802,8 +802,8 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
 
        try {
          sess.connect(config.at("hostname"), atol(config.at("port").c_str()),
-                      "someuser",  // user
-                      "somepass",  // pass
+                      "username",  // user
+                      "password",  // pass
                       "",          // socket
                       ""           // schema
          );
@@ -834,8 +834,8 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
 
        try {
          sess.connect(config.at("hostname"), atol(config.at("port").c_str()),
-                      "someuser",  // user
-                      "somepass",  // pass
+                      "username",  // user
+                      "password",  // pass
                       "",          // socket
                       ""           // schema
          );
@@ -869,8 +869,8 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
 
        try {
          sess.connect(config.at("hostname"), atol(config.at("port").c_str()),
-                      "someuser",  // user
-                      "somepass",  // pass
+                      "username",  // user
+                      "password",  // pass
                       "",          // socket
                       ""           // schema
          );
@@ -906,8 +906,8 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
 
        try {
          sess.connect(config.at("hostname"), atol(config.at("port").c_str()),
-                      "someuser",  // user
-                      "somepass",  // pass
+                      "username",  // user
+                      "password",  // pass
                       "",          // socket
                       ""           // schema
          );
@@ -946,8 +946,8 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
 
        try {
          sess.connect(config.at("hostname"), atol(config.at("port").c_str()),
-                      "someuser",  // user
-                      "somepass",  // pass
+                      "username",  // user
+                      "password",  // pass
                       "",          // socket
                       ""           // schema
          );
@@ -993,8 +993,8 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
 
        try {
          sess.connect(config.at("hostname"), atol(config.at("port").c_str()),
-                      "someuser",  // user
-                      "somepass",  // pass
+                      "username",  // user
+                      "password",  // pass
                       "",          // socket
                       ""           // schema
          );
@@ -1024,8 +1024,8 @@ const MockServerConnectTestParam mock_server_connect_test_param[] = {
            ::testing::Truly([](const xcl::XError &xerr) { return !xerr; }));
        ASSERT_THAT(
            sess->connect(config.at("hostname").c_str(),
-                         atol(config.at("xport").c_str()), "someuser",
-                         "somepass", ""),
+                         atol(config.at("xport").c_str()), "username",
+                         "password", ""),
            ::testing::Truly([](auto const &err) { return err.error() == 0; }));
        xcl::XError xerr;
        auto query_result = sess->execute_sql(

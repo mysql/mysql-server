@@ -96,12 +96,11 @@ class RouterRoutingTest : public RouterComponentTest {
 
 using XProtocolSession = std::shared_ptr<xcl::XSession>;
 
-static xcl::XError make_x_connection(XProtocolSession &session,
-                                     const std::string &host,
-                                     const uint16_t port,
-                                     const std::string &username,
-                                     const std::string &password,
-                                     int64_t connect_timeout = 10000 /*10s*/) {
+static xcl::XError make_x_connection(
+    XProtocolSession &session, const std::string &host, const uint16_t port,
+    const std::string &username, const std::string &password,
+    int64_t connect_timeout = 10000 /*10s*/,
+    const std::string &ssl_mode = "PREFERRED") {
   session = xcl::create_session();
   xcl::XError err;
 
@@ -110,7 +109,7 @@ static xcl::XError make_x_connection(XProtocolSession &session,
   if (err) return err;
 
   err = session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_mode,
-                                  "PREFERRED");
+                                  ssl_mode);
   if (err) return err;
 
   err = session->set_mysql_option(
@@ -2028,6 +2027,44 @@ class RoutingSessionReuseTest : public RouterRoutingTest {
     return result;
   }
 
+  void get_cache_hits_classic(uint16_t dest_port, size_t &result) {
+    // connect with no SSL to not affect the SSL related counters and check the
+    // cache hits number
+
+    MySQLSession session_no_ssl;
+    session_no_ssl.set_ssl_options(mysql_ssl_mode::SSL_MODE_DISABLED, "", "",
+                                   "", "", "", "");
+    ASSERT_NO_FATAL_FAILURE(session_no_ssl.connect(
+        "127.0.0.1", dest_port, "username", "password", "", ""));
+    std::unique_ptr<mysqlrouter::MySQLSession::ResultRow> resultset{
+        session_no_ssl.query_one("SHOW STATUS LIKE 'Ssl_session_cache_hits'")};
+    ASSERT_NE(nullptr, resultset.get());
+    ASSERT_EQ(1u, resultset->size());
+    result = std::atoi((*resultset)[0]);
+  }
+
+  void get_cache_hits_x(uint16_t dest_port, size_t &result) {
+    // connect with no SSL to not affect the SSL related counters and check the
+    // cache hits number
+    XProtocolSession x_session_no_ssl;
+    const auto res =
+        make_x_connection(x_session_no_ssl, "127.0.0.1", dest_port, "username",
+                          "password", 2000, "DISABLED");
+    ASSERT_EQ(res.error(), 0);
+
+    xcl::XError xerr;
+    const auto resultset = x_session_no_ssl->execute_sql(
+        "SHOW STATUS LIKE 'Ssl_session_cache_hits'", &xerr);
+    ASSERT_TRUE(resultset) << xerr;
+
+    const auto row = resultset->get_next_row();
+    ASSERT_NE(row, nullptr);
+    int64_t cache_hits;
+    ASSERT_TRUE(row->get_int64(0, &cache_hits));
+
+    result = static_cast<size_t>(cache_hits);
+  }
+
   void check_session_reuse_classic(const uint16_t port,
                                    const bool expected_reuse_client,
                                    const bool expected_reuse_server,
@@ -2060,18 +2097,8 @@ class RoutingSessionReuseTest : public RouterRoutingTest {
       dest_port = static_cast<uint16_t>(std::stoul(std::string((*result)[0])));
     }
 
-    // connect with no SSL to not affect the SSL related counters and check the
-    // cache hits number
-    MySQLSession session_no_ssl;
-    session_no_ssl.set_ssl_options(mysql_ssl_mode::SSL_MODE_DISABLED, "", "",
-                                   "", "", "", "");
-    ASSERT_NO_FATAL_FAILURE(session_no_ssl.connect(
-        "127.0.0.1", dest_port, "username", "password", "", ""));
-    std::unique_ptr<mysqlrouter::MySQLSession::ResultRow> result{
-        session_no_ssl.query_one("SHOW STATUS LIKE 'Ssl_session_cache_hits'")};
-    ASSERT_NE(nullptr, result.get());
-    ASSERT_EQ(1u, result->size());
-    const size_t cache_hits = std::atoi((*result)[0]);
+    size_t cache_hits;
+    get_cache_hits_classic(dest_port, cache_hits);
 
     const size_t expected_hits =
         expected_reuse_server ? expected_server_reuse_counter : 0;
@@ -2087,8 +2114,9 @@ class RoutingSessionReuseTest : public RouterRoutingTest {
     {
       XProtocolSession x_session;
       const auto start = std::chrono::steady_clock::now();
-      const auto res = make_x_connection(x_session, "127.0.0.1", port,
-                                         "username", "password", 2000);
+      const auto res =
+          make_x_connection(x_session, "127.0.0.1", port, "username",
+                            "password", 2000, "REQUIRED");
       const auto stop = std::chrono::steady_clock::now();
 
       std::stringstream oss;
@@ -2112,26 +2140,12 @@ class RoutingSessionReuseTest : public RouterRoutingTest {
       dest_port = static_cast<uint16_t>(dest_port_int64);
     }
 
-    // connect with no SSL to not affect the SSL related counters and check the
-    // cache hits number
-    XProtocolSession x_session_no_ssl;
-    const auto res = make_x_connection(x_session_no_ssl, "127.0.0.1", dest_port,
-                                       "username", "password", 2000);
-    ASSERT_EQ(res.error(), 0);
+    size_t cache_hits;
+    get_cache_hits_x(dest_port, cache_hits);
 
-    xcl::XError xerr;
-    const auto result = x_session_no_ssl->execute_sql(
-        "SHOW STATUS LIKE 'Ssl_session_cache_hits'", &xerr);
-    ASSERT_TRUE(result) << xerr;
-
-    const auto row = result->get_next_row();
-    ASSERT_NE(row, nullptr);
-    int64_t cache_hits;
-    ASSERT_TRUE(row->get_int64(0, &cache_hits));
-
-    const size_t expected_cache_hits =
+    const size_t expected_hits =
         expected_reuse_server ? expected_server_reuse_counter : 0;
-    EXPECT_EQ(expected_cache_hits, (size_t)cache_hits);
+    EXPECT_EQ(expected_hits, cache_hits);
   }
 
   void launch_destinations(const size_t num) {
@@ -2661,6 +2675,63 @@ INSTANTIATE_TEST_SUITE_P(
             "was '$"}),
     [](const ::testing::TestParamInfo<SessionReuseInvalidOptionValueParam>
            &info) { return info.param.test_name; });
+
+TEST_F(RoutingSessionReuseTest, ReuseAfterInvalidAuth) {
+  const size_t kDestinations = 1;
+  std::string performance;
+
+  launch_destinations(kDestinations);
+
+  launch_router({/* client_ssl_session_cache_mode */ "1",
+                 /* client_ssl_session_cache_size */ std::nullopt,
+                 /* client_ssl_session_cache_timeout */ std::nullopt,
+                 /* server_ssl_session_cache_mode */ "1",
+                 /* server_ssl_session_cache_size */ std::nullopt,
+                 /* server_ssl_session_cache_timeout */ std::nullopt},
+                EXIT_SUCCESS);
+
+  SCOPED_TRACE(
+      "// check if server-side and client-side sessions are reused as "
+      "expected");
+
+  auto check_server_session_reuse_invalid_auth_classic =
+      [&](const size_t expected_reuse_counter) {
+        MySQLSession session;
+        session.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "",
+                                "", "", "");
+
+        EXPECT_THROW_LIKE(
+            session.connect("127.0.0.1", router_classic_port_, "username",
+                            "invalid-password", "", ""),
+            std::exception, "Access Denied for user");
+        size_t cache_hits;
+        get_cache_hits_classic(dest_classic_ports_[0], cache_hits);
+        EXPECT_EQ(expected_reuse_counter, cache_hits);
+      };
+
+  // make a few consecutive connections with invalid auth data, check that the
+  // server sessions are reused
+  check_server_session_reuse_invalid_auth_classic(/*expected_reuse_counter*/ 0);
+  check_server_session_reuse_invalid_auth_classic(/*expected_reuse_counter*/ 1);
+  check_server_session_reuse_invalid_auth_classic(/*expected_reuse_counter*/ 2);
+
+  auto check_server_session_reuse_invalid_auth_x =
+      [&](const size_t expected_reuse_counter) {
+        XProtocolSession x_session;
+        const auto res =
+            make_x_connection(x_session, "127.0.0.1", router_x_port_,
+                              "username", "password", 2000, "REQUIRED");
+        size_t cache_hits;
+        get_cache_hits_x(dest_x_ports_[0], cache_hits);
+        EXPECT_EQ(expected_reuse_counter, cache_hits);
+      };
+
+  // make a few consecutive connections with invalid auth data, check that the
+  // server sessions are reused
+  check_server_session_reuse_invalid_auth_x(/*expected_reuse_counter*/ 0);
+  check_server_session_reuse_invalid_auth_x(/*expected_reuse_counter*/ 1);
+  check_server_session_reuse_invalid_auth_x(/*expected_reuse_counter*/ 2);
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

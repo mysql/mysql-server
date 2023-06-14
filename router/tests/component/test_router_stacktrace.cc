@@ -106,11 +106,12 @@ TEST_F(RouterStacktraceTest, bootstrap_with_core_file) {
               ExitStatus{ExitStatus::exited_t{},
                          mysql_harness::SignalHandler::HARNESS_ABORT_EXIT})
           .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
-          .output_responder([](const std::string &) { return "somepass\n"; })
+          .output_responder([](const std::string &) { return "password\n"; })
           .spawn({
-              "--bootstrap", "127.0.0.1:" + std::to_string(mock_port),  //
-              "--directory", tmp_dir.name(),                            //
-              "--core-file",                                            //
+              "--bootstrap",
+              "username@127.0.0.1:" + std::to_string(mock_port),  //
+              "--directory", tmp_dir.name(),                      //
+              "--core-file",                                      //
           });
 
   SCOPED_TRACE("// wait for the exit");
