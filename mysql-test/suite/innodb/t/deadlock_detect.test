@@ -2,8 +2,9 @@
 # wl#9383 INNODB: ADD AN OPTION TO TURN OFF/ON DEADLOCK CHECKER
 #
 
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
 --source include/count_sessions.inc
-
 
 SET GLOBAL innodb_deadlock_detect=OFF;
 SET GLOBAL innodb_lock_wait_timeout=2;
@@ -59,6 +60,8 @@ SET GLOBAL innodb_deadlock_detect=default;
 --echo #
 
 #This test will check whether the detected deadlock shows full query or not
+
+--source include/count_sessions.inc
 
 SET GLOBAL innodb_deadlock_detect=ON;
 SET GLOBAL innodb_lock_wait_timeout=10;
@@ -141,6 +144,8 @@ INSERT INTO bug(id) VALUES(0), (1);
 
 disconnect con1;
 disconnect con2;
+
+--source include/wait_until_count_sessions.inc
 
 SET GLOBAL innodb_lock_wait_timeout = default;
 SET GLOBAL innodb_deadlock_detect = default;
