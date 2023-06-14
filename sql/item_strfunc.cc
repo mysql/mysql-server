@@ -3804,6 +3804,8 @@ bool Item_func_quote::resolve_type(THD *thd) {
   ulonglong max_result_length = max<ulonglong>(
       4, static_cast<ulonglong>(args[0]->max_char_length()) * 2U + 2U);
   collation.set(args[0]->collation);
+  if (collation.collation == &my_charset_bin)
+    collation.set(thd->variables.collation_connection);
   set_data_type_string(max_result_length);
   set_nullable(is_nullable() || max_length > thd->variables.max_allowed_packet);
   return false;
@@ -3844,7 +3846,7 @@ String *Item_func_quote::val_str(String *str) {
 
   char *to;
   const char *from, *end, *start;
-  String *arg = args[0]->val_str(str);
+  String *arg = eval_string_arg(collation.collation, args[0], str);
   if (current_thd->is_error()) return error_str();
   if (!arg)  // Null argument
   {

@@ -2617,3 +2617,14 @@ SELECT LPAD(a, ASCII(RANDOM_BYTES(1)) - 10, 'abc') FROM t;
 SET sql_mode = DEFAULT;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#35499232 The quote function may return binary data
+--echo #
+
+SELECT QUOTE(x'01');
+SELECT QUOTE(NULL);
+--error ER_CANNOT_CONVERT_STRING
+SELECT QUOTE(x'80');
+--error ER_INVALID_CHARACTER_STRING
+SELECT QUOTE(_utf8mb4 x'80');
