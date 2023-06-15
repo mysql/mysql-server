@@ -279,11 +279,6 @@ constexpr const char *k_test_ddl[] = {
 (10,15,'2006-02-15 05:07:09'))*",
 
     // UUID PKs
-    R"*(CREATE TABLE t1_owner (
-      id BINARY(16) PRIMARY KEY,
-      user VARCHAR(32)
-  ))*",
-
     R"*(CREATE TABLE t1_ref_11 (
       id BINARY(16) PRIMARY KEY,
       data VARCHAR(30)
@@ -294,7 +289,6 @@ constexpr const char *k_test_ddl[] = {
       owner_id BINARY(16),
       ref_11_id BINARY(16),
       data TEXT,
-      FOREIGN KEY (owner_id) REFERENCES t1_owner (id),
       FOREIGN KEY (ref_11_id) REFERENCES t1_ref_11 (id)
   ))*",
 
@@ -308,11 +302,6 @@ constexpr const char *k_test_ddl[] = {
     R"*(INSERT INTO t1_ref_11 VALUES ('UUID1', 'DATA1'))*",
 
     // AUTO_INC PKs
-    R"*(CREATE TABLE t2_owner (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      user VARCHAR(32)
-  ))*",
-
     R"*(CREATE TABLE t2_ref_11_11 (
       id INT PRIMARY KEY AUTO_INCREMENT,
       data VARCHAR(30)
@@ -331,7 +320,6 @@ constexpr const char *k_test_ddl[] = {
       ref_11_id INT,
       data1 TEXT,
       data2 INT,
-      FOREIGN KEY (owner_id) REFERENCES t2_owner (id),
       FOREIGN KEY (ref_11_id) REFERENCES t2_ref_11 (id)
   ))*",
 
@@ -364,9 +352,6 @@ constexpr const char *k_test_ddl[] = {
       FOREIGN KEY (ref_id) REFERENCES t2_ref_nm (id)
     ))*",
 
-    R"*(INSERT INTO t2_owner VALUES (111, 'user1'), (222, 'user2'), 
-      (333, 'user3'), (444, 'user4'), (555, 'user5'))*",
-
     R"*(INSERT INTO t2_ref_11_11 VALUES (10, 'abc-1'), (11, 'abc-2'))*",
 
     R"*(INSERT INTO t2_ref_11 VALUES (20, 'ref11-1', NULL), (21, 'ref11-2', 10))*",
@@ -382,11 +367,6 @@ constexpr const char *k_test_ddl[] = {
     R"*(INSERT INTO t2_ref_nm_join VALUES (1, 2), (5, 1), (5, 3))*",
 
     // AUTO_INC, UUID PKs
-    R"*(CREATE TABLE t3_owner (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      user VARCHAR(32)
-  ))*",
-
     R"*(CREATE TABLE t3_ref_11 (
       id BINARY(16) PRIMARY KEY,
       data VARCHAR(30)
@@ -398,7 +378,6 @@ constexpr const char *k_test_ddl[] = {
       ref_11_id BINARY(16),
       data1 TEXT,
       data2 INT,
-      FOREIGN KEY (owner_id) REFERENCES t3_owner (id),
       FOREIGN KEY (ref_11_id) REFERENCES t3_ref_11 (id)
   ))*",
 
@@ -410,11 +389,6 @@ constexpr const char *k_test_ddl[] = {
     ))*",
 
     // UUID, AUTO_INC PKs
-    R"*(CREATE TABLE t4_owner (
-      id BINARY(16) PRIMARY KEY,
-      user VARCHAR(32)
-  ))*",
-
     R"*(CREATE TABLE t4_ref_11 (
       id INT PRIMARY KEY AUTO_INCREMENT,
       data VARCHAR(30)
@@ -425,7 +399,6 @@ constexpr const char *k_test_ddl[] = {
       owner_id BINARY(16),
       ref_11_id INT,
       data TEXT,
-      FOREIGN KEY (owner_id) REFERENCES t4_owner (id),
       FOREIGN KEY (ref_11_id) REFERENCES t4_ref_11 (id)
   ))*",
 
@@ -437,11 +410,6 @@ constexpr const char *k_test_ddl[] = {
     ))*",
 
     // AUTO_INC composite PKs
-    R"*(CREATE TABLE tc2_owner (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      user VARCHAR(32)
-  ))*",
-
     R"*(CREATE TABLE tc2_ref_11 (
       id INT AUTO_INCREMENT,
       sub_id CHAR(3),
@@ -458,7 +426,6 @@ constexpr const char *k_test_ddl[] = {
       data1 TEXT,
       data2 INT,
       PRIMARY KEY (id, sub_id),
-      FOREIGN KEY (owner_id) REFERENCES tc2_owner (id),
       FOREIGN KEY (ref_11_id, ref_11_sub_id) REFERENCES tc2_ref_11 (id, sub_id)
   ))*",
 
@@ -517,11 +484,6 @@ constexpr const char *k_test_ddl[] = {
       (1, 'AA', 333, 777))*",
 
     // AUTO_INC composite/sharded PKs
-    R"*(CREATE TABLE ts2_owner (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      user VARCHAR(32)
-  ))*",
-
     R"*(CREATE TABLE ts2_ref_11 (
       id INT AUTO_INCREMENT,
       data VARCHAR(30),
@@ -537,7 +499,6 @@ constexpr const char *k_test_ddl[] = {
       data1 TEXT,
       data2 INT,
       PRIMARY KEY (id, shard_id),
-      FOREIGN KEY (owner_id) REFERENCES ts2_owner (id),
       FOREIGN KEY (ref_11_id, shard_id) REFERENCES ts2_ref_11 (id, shard_id)
   ))*",
 
