@@ -310,7 +310,8 @@ class Item_func : public Item_result_field {
     PERIODADD_FUNC,
     PERIODDIFF_FUNC,
     SEC_TO_TIME_FUNC,
-    GET_FORMAT_FUNC
+    GET_FORMAT_FUNC,
+    ANY_VALUE_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,

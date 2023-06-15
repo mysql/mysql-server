@@ -6732,7 +6732,13 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
   std::deque<Item_field *> added_to_group_by;
 
   // Run through the inner fields and add them to GROUP BY if not present
+  //
+  // True if selected field was added by us to the group by list (not originally
+  // present.
+  bool selected_field_added_to_group_by = false;
+  // True if the selected field was already present in group by list.
   bool selected_field_in_group_by = false;
+
   while ((field_or_ref = li++)) {
     Item_field *f = down_cast<Item_field *>(field_or_ref->real_item());
     if (!field_or_ref->is_outer_reference()) {
@@ -6743,6 +6749,9 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
         if (item->type() == Item::FIELD_ITEM &&
             down_cast<Item_field *>(item)->field == f->field) {
           found = true;
+          selected_field_in_group_by |= selected_field != nullptr
+                                            ? selected_field->field == f->field
+                                            : false;
           break;
         }
       }
@@ -6754,7 +6763,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
           // added to the select list above, is the one whose Field was already
           // there, so use that, lest create_tmp_table gets confused.
           in_select = selected_field;
-          selected_field_in_group_by = true;
+          selected_field_added_to_group_by = true;
         }
         ORDER *o =
             new (thd->mem_root) PT_order_expr(POS(), in_select, ORDER_ASC);
@@ -6771,9 +6780,15 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
 
   // Wrap the field in the select list in Item_func_any_value if it was not
   // added to group by above.
-  if (!selected_field_in_group_by &&
-      !fields[first_non_hidden]->has_aggregation()) {
-    Item *const old_field = fields[first_non_hidden];
+  Item *const fnh = fields[first_non_hidden];
+  if (!selected_field_added_to_group_by && !selected_field_in_group_by &&
+      !fnh->has_aggregation() &&
+      (fnh->type() == Item::FUNC_ITEM &&
+               down_cast<Item_func *>(fnh)->functype() ==
+                   Item_func::ANY_VALUE_FUNC
+           ? false
+           : true)) {
+    Item *const old_field = fnh;
     Item *func_any = new (thd->mem_root) Item_func_any_value(old_field);
     if (func_any == nullptr) return true;
     if (func_any->fix_fields(thd, &func_any)) return true;
