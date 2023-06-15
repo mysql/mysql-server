@@ -31,9 +31,11 @@ connect(mysqld6,127.0.0.1,root,,test,$MASTER_MYPORT5);
 
 connection mysqld1;
 
-# Create the table we're going to use
+# Create the tables we're going to use
 create table ab(a1 int, a2 int, a3 int, a4 int, a5 int, primary key(a2,a5)) engine = ndb;
 create table ba(ks int primary key, st int, lp int) engine = ndb;
+create table cpk(charone varchar(100), nonchar int, chartwo varchar(100), other int,
+                 primary key (charone, nonchar, chartwo)) engine=ndb;
 
 # Wait for each mysqld to startup binlogging
 --let $source_server=mysqld1
@@ -81,6 +83,28 @@ update ab set a1=222, a4=222 where a2=2;
 insert into ba values (1, 1, 1), (2,2,2), (3,3,3), (4,4,4);
 update ba set lp=40 where ks=4; # Update does not affect all columns
 delete from ba where ks=2;      # Also a delete for fun
+
+insert into cpk values("ABCD", 1, "WXYZ", 100);
+insert into cpk values("ABCD", 2, "WXYZ", 100);
+insert into cpk values("ABCD", 3, "WXYZ", 100);
+insert into cpk values("ABCD", 4, "WXYZ", 100);
+insert into cpk values("ABCD", 5, "WXYZ", 100);
+insert into cpk values("ABCD", 6, "WXYZ", 100);
+
+--echo Change one char key
+update cpk set charone="abcd" where charone="ABCD" and nonchar=1 and chartwo="WXYZ";
+--echo Change other char key
+update cpk set chartwo="wxyz" where charone="ABCD" and nonchar=2 and chartwo="WXYZ";
+--echo Change both char keys
+update cpk set charone="abcd", chartwo="wxyz" where charone="ABCD" and nonchar=3 and chartwo="WXYZ";
+--echo Null change
+update cpk set charone="ABCD", chartwo="WXYZ" where charone="ABCD" and nonchar=4 and chartwo="WXYZ";
+--echo Null change + data change
+update cpk set charone="ABCD", chartwo="WXYZ", other=200 where charone="ABCD" and nonchar=5 and chartwo="WXYZ";
+--echo Change both char keys + data
+update cpk set charone="abcd", chartwo="wxyz", other=200 where charone="ABCD" and nonchar=6 and chartwo="WXYZ";
+
+
 
 --disable_query_log
 # Add an event-stream marker
@@ -135,6 +159,8 @@ select * from ab order by a2,a4;
 delete from ab;
 select * from ba order by ks;
 delete from ba;
+select * from cpk order by nonchar;
+delete from cpk;
 
 connection mysqld2;
 
@@ -151,6 +177,8 @@ select * from ab order by a2,a4;
 delete from ab;
 select * from ba order by ks;
 delete from ba;
+select * from cpk order by nonchar;
+delete from cpk;
 
 connection mysqld3;
 
@@ -167,6 +195,8 @@ select * from ab order by a2,a4;
 delete from ab;
 select * from ba order by ks;
 delete from ba;
+select * from cpk order by nonchar;
+delete from cpk;
 
 connection mysqld4;
 
@@ -183,9 +213,17 @@ select * from ab order by a2,a4;
 delete from ab;
 select * from ba order by ks;
 delete from ba;
+select * from cpk order by nonchar;
+delete from cpk;
 
 connection mysqld5;
 
+--echo BEWARE: This connection use 'ndb_log_update_minimal=ON'.
+--echo    Updates to character columns in the PK in table 'cpk' are
+--echo    missing from the binlog, thus not replicated.
+--echo The incorrect result is recorded below, pending fix for Bug#35450016:
+--echo   'ndb_log_update_minimal=ON' is not able to replicate primary key updates'
+
 show variables like 'ndb_log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
 
@@ -199,9 +237,17 @@ select * from ab order by a2,a4;
 delete from ab;
 select * from ba order by ks;
 delete from ba;
+select * from cpk order by nonchar;
+delete from cpk;
 
 connection mysqld6;
 
+--echo BEWARE: This connection use 'ndb_log_update_minimal=ON'.
+--echo    Updates to character columns in the PK in table 'cpk' are
+--echo    missing from the binlog, thus not replicated.
+--echo The incorrect result is recorded below, pending fix for Bug#35450016:
+--echo   'ndb_log_update_minimal=ON' is not able to replicate primary key updates'
+
 show variables like 'ndb_log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
 
@@ -215,9 +261,12 @@ select * from ab order by a2,a4;
 delete from ab;
 select * from ba order by ks;
 delete from ba;
+select * from cpk order by nonchar;
+delete from cpk;
 
 drop table ab;
 drop table ba;
+drop table cpk;
 --disable_query_log
 flush logs;
 --enable_query_log

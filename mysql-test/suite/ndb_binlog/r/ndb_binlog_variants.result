@@ -1,11 +1,31 @@
 create table ab(a1 int, a2 int, a3 int, a4 int, a5 int, primary key(a2,a5)) engine = ndb;
 create table ba(ks int primary key, st int, lp int) engine = ndb;
+create table cpk(charone varchar(100), nonchar int, chartwo varchar(100), other int,
+primary key (charone, nonchar, chartwo)) engine=ndb;
 insert into ab values (1,1,1,1,1), (2,2,2,2,2), (3,3,3,3,3), (4,4,4,4,4);
 update ab set a3=111 where a2=1;
 update ab set a1=222, a4=222 where a2=2;
 insert into ba values (1, 1, 1), (2,2,2), (3,3,3), (4,4,4);
 update ba set lp=40 where ks=4;
 delete from ba where ks=2;
+insert into cpk values("ABCD", 1, "WXYZ", 100);
+insert into cpk values("ABCD", 2, "WXYZ", 100);
+insert into cpk values("ABCD", 3, "WXYZ", 100);
+insert into cpk values("ABCD", 4, "WXYZ", 100);
+insert into cpk values("ABCD", 5, "WXYZ", 100);
+insert into cpk values("ABCD", 6, "WXYZ", 100);
+Change one char key
+update cpk set charone="abcd" where charone="ABCD" and nonchar=1 and chartwo="WXYZ";
+Change other char key
+update cpk set chartwo="wxyz" where charone="ABCD" and nonchar=2 and chartwo="WXYZ";
+Change both char keys
+update cpk set charone="abcd", chartwo="wxyz" where charone="ABCD" and nonchar=3 and chartwo="WXYZ";
+Null change
+update cpk set charone="ABCD", chartwo="WXYZ" where charone="ABCD" and nonchar=4 and chartwo="WXYZ";
+Null change + data change
+update cpk set charone="ABCD", chartwo="WXYZ", other=200 where charone="ABCD" and nonchar=5 and chartwo="WXYZ";
+Change both char keys + data
+update cpk set charone="abcd", chartwo="wxyz", other=200 where charone="ABCD" and nonchar=6 and chartwo="WXYZ";
 flush logs;
 flush logs;
 flush logs;
@@ -32,6 +52,17 @@ INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
 INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
 INSERT INTO `test`.`ba` SET   @1=4   @3=40
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=1   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='abcd'   @2=1   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=2   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=2   @3='wxyz'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=3   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='abcd'   @2=3   @3='wxyz'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=4   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=5   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=5   @3='WXYZ'   @4=200
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=6   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='abcd'   @2=6   @3='wxyz'   @4=200
 select * from ab order by a2,a4;
 a1	a2	a3	a4	a5
 1	1	111	1	1
@@ -45,6 +76,15 @@ ks	st	lp
 3	3	3
 4	4	40
 delete from ba;
+select * from cpk order by nonchar;
+charone	nonchar	chartwo	other
+abcd	1	WXYZ	100
+ABCD	2	wxyz	100
+abcd	3	wxyz	100
+ABCD	4	WXYZ	100
+ABCD	5	WXYZ	200
+abcd	6	wxyz	200
+delete from cpk;
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
@@ -64,6 +104,17 @@ INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
 INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=40
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=1   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='abcd'   @2=1   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=2   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=2   @3='wxyz'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=3   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='abcd'   @2=3   @3='wxyz'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=4   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=5   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=5   @3='WXYZ'   @4=200
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=6   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='abcd'   @2=6   @3='wxyz'   @4=200
 select * from ab order by a2,a4;
 a1	a2	a3	a4	a5
 1	1	111	1	1
@@ -77,6 +128,15 @@ ks	st	lp
 3	3	3
 4	4	40
 delete from ba;
+select * from cpk order by nonchar;
+charone	nonchar	chartwo	other
+abcd	1	WXYZ	100
+ABCD	2	wxyz	100
+abcd	3	wxyz	100
+ABCD	4	WXYZ	100
+ABCD	5	WXYZ	200
+abcd	6	wxyz	200
+delete from cpk;
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
@@ -93,9 +153,20 @@ INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
 INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
 INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=1   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=2   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=3   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=4   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=5   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=6   @3='WXYZ'   @4=100
 UPDATE `test`.`ab` WHERE   @1=2   @2=2   @4=2   @5=2 SET   @1=222   @2=2   @4=222   @5=2
 UPDATE `test`.`ab` WHERE   @2=1   @3=1   @5=1 SET   @2=1   @3=111   @5=1
 UPDATE `test`.`ba` WHERE   @1=4   @3=4 SET   @1=4   @3=40
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=1   @3='WXYZ'   @4=100 SET   @1='abcd'   @2=1   @3='WXYZ'   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=2   @3='WXYZ'   @4=100 SET   @1='ABCD'   @2=2   @3='wxyz'   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=3   @3='WXYZ'   @4=100 SET   @1='abcd'   @2=3   @3='wxyz'   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=5   @3='WXYZ'   @4=100 SET   @1='ABCD'   @2=5   @3='WXYZ'   @4=200
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=6   @3='WXYZ'   @4=100 SET   @1='abcd'   @2=6   @3='wxyz'   @4=200
 select * from ab order by a2,a4;
 a1	a2	a3	a4	a5
 1	1	111	1	1
@@ -109,6 +180,15 @@ ks	st	lp
 3	3	3
 4	4	40
 delete from ba;
+select * from cpk order by nonchar;
+charone	nonchar	chartwo	other
+abcd	1	WXYZ	100
+ABCD	2	wxyz	100
+abcd	3	wxyz	100
+ABCD	4	WXYZ	100
+ABCD	5	WXYZ	200
+abcd	6	wxyz	200
+delete from cpk;
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
@@ -125,9 +205,20 @@ INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
 INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
 INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=1   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=2   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=3   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=4   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=5   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=6   @3='WXYZ'   @4=100
 UPDATE `test`.`ab` WHERE   @1=1   @2=1   @3=1   @4=1   @5=1 SET   @1=1   @2=1   @3=111   @4=1   @5=1
 UPDATE `test`.`ab` WHERE   @1=2   @2=2   @3=2   @4=2   @5=2 SET   @1=222   @2=2   @3=2   @4=222   @5=2
 UPDATE `test`.`ba` WHERE   @1=4   @2=4   @3=4 SET   @1=4   @2=4   @3=40
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=1   @3='WXYZ'   @4=100 SET   @1='abcd'   @2=1   @3='WXYZ'   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=2   @3='WXYZ'   @4=100 SET   @1='ABCD'   @2=2   @3='wxyz'   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=3   @3='WXYZ'   @4=100 SET   @1='abcd'   @2=3   @3='wxyz'   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=5   @3='WXYZ'   @4=100 SET   @1='ABCD'   @2=5   @3='WXYZ'   @4=200
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=6   @3='WXYZ'   @4=100 SET   @1='abcd'   @2=6   @3='wxyz'   @4=200
 select * from ab order by a2,a4;
 a1	a2	a3	a4	a5
 1	1	111	1	1
@@ -141,6 +232,20 @@ ks	st	lp
 3	3	3
 4	4	40
 delete from ba;
+select * from cpk order by nonchar;
+charone	nonchar	chartwo	other
+abcd	1	WXYZ	100
+ABCD	2	wxyz	100
+abcd	3	wxyz	100
+ABCD	4	WXYZ	100
+ABCD	5	WXYZ	200
+abcd	6	wxyz	200
+delete from cpk;
+BEWARE: This connection use 'ndb_log_update_minimal=ON'.
+Updates to character columns in the PK in table 'cpk' are
+missing from the binlog, thus not replicated.
+The incorrect result is recorded below, pending fix for Bug#35450016:
+'ndb_log_update_minimal=ON' is not able to replicate primary key updates'
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
@@ -157,9 +262,20 @@ INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
 INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
 INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=1   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=2   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=3   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=4   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=5   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=6   @3='WXYZ'   @4=100
 UPDATE `test`.`ab` WHERE   @2=1   @5=1 SET   @3=111
 UPDATE `test`.`ab` WHERE   @2=2   @5=2 SET   @1=222   @4=222
 UPDATE `test`.`ba` WHERE   @1=4 SET   @3=40
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=1   @3='WXYZ' SET   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=2   @3='WXYZ' SET   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=3   @3='WXYZ' SET   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=5   @3='WXYZ' SET   @4=200
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=6   @3='WXYZ' SET   @4=200
 select * from ab order by a2,a4;
 a1	a2	a3	a4	a5
 1	1	111	1	1
@@ -173,6 +289,20 @@ ks	st	lp
 3	3	3
 4	4	40
 delete from ba;
+select * from cpk order by nonchar;
+charone	nonchar	chartwo	other
+ABCD	1	WXYZ	100
+ABCD	2	WXYZ	100
+ABCD	3	WXYZ	100
+ABCD	4	WXYZ	100
+ABCD	5	WXYZ	200
+ABCD	6	WXYZ	200
+delete from cpk;
+BEWARE: This connection use 'ndb_log_update_minimal=ON'.
+Updates to character columns in the PK in table 'cpk' are
+missing from the binlog, thus not replicated.
+The incorrect result is recorded below, pending fix for Bug#35450016:
+'ndb_log_update_minimal=ON' is not able to replicate primary key updates'
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
@@ -189,9 +319,20 @@ INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
 INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
 INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
 INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=1   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=2   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=3   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=4   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=5   @3='WXYZ'   @4=100
+INSERT INTO `test`.`cpk` SET   @1='ABCD'   @2=6   @3='WXYZ'   @4=100
 UPDATE `test`.`ab` WHERE   @2=1   @5=1 SET   @1=1   @3=111   @4=1
 UPDATE `test`.`ab` WHERE   @2=2   @5=2 SET   @1=222   @3=2   @4=222
 UPDATE `test`.`ba` WHERE   @1=4 SET   @2=4   @3=40
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=1   @3='WXYZ' SET   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=2   @3='WXYZ' SET   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=3   @3='WXYZ' SET   @4=100
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=5   @3='WXYZ' SET   @4=200
+UPDATE `test`.`cpk` WHERE   @1='ABCD'   @2=6   @3='WXYZ' SET   @4=200
 select * from ab order by a2,a4;
 a1	a2	a3	a4	a5
 1	1	111	1	1
@@ -205,8 +346,18 @@ ks	st	lp
 3	3	3
 4	4	40
 delete from ba;
+select * from cpk order by nonchar;
+charone	nonchar	chartwo	other
+ABCD	1	WXYZ	100
+ABCD	2	WXYZ	100
+ABCD	3	WXYZ	100
+ABCD	4	WXYZ	100
+ABCD	5	WXYZ	200
+ABCD	6	WXYZ	200
+delete from cpk;
 drop table ab;
 drop table ba;
+drop table cpk;
 CREATE TABLE mysql.ndb_replication
 (db VARBINARY(63),
 table_name VARBINARY(63),
