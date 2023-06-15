@@ -1,0 +1,54 @@
+source include/have_ndb.inc;
+source suite/ndb/include/backup_restore_setup.inc;
+
+--echo # Restart Node 2 to force Node 1 to be master
+--exec $NDB_MGM -e "2 restart -n"
+--exec $NDB_WAITER --nowait-nodes=1 --not-started >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "2 start"
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+
+--echo # Cluster running after restart node 2
+--echo # (Node 1 is the master node)
+--source ndb_mgm_show_table.inc
+
+# Load current backup id into "the_backup_id" variable
+--source include/ndb_backup_id.inc
+--let $old_backup_id = $the_backup_id
+
+--echo # Start backup with NOWAIT option
+--exec $NDB_MGM -e "start backup nowait" >> $NDB_TOOLS_OUTPUT
+
+--sleep 5
+
+# Load current backup id into "the_backup_id" variable
+--source include/ndb_backup_id.inc
+
+--assert($the_backup_id > $old_backup_id)
+
+--echo # Repeat above steps with node 2 as master
+--echo # Restart Node 1 to force Node 2 to be master
+--exec $NDB_MGM -e "1 restart -n"
+--exec $NDB_WAITER --nowait-nodes=2 --not-started >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "1 start"
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+
+--echo # Cluster running after restart node 1
+--echo # (Node 2 is the master node)
+--source ndb_mgm_show_table.inc
+
+# Load current backup id into "the_backup_id" variable
+--source include/ndb_backup_id.inc
+--let $old_backup_id = $the_backup_id
+
+--echo # Start backup with NOWAIT option
+--exec $NDB_MGM -e "start backup nowait" >> $NDB_TOOLS_OUTPUT
+
+--sleep 5
+
+# Load current backup id into "the_backup_id" variable
+--source include/ndb_backup_id.inc
+
+--assert($the_backup_id > $old_backup_id)
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT
