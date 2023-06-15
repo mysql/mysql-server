@@ -6502,6 +6502,103 @@ struct Lifted_fields_map {
   std::vector<uint> m_field_positions;
 };
 
+// Add COUNT(*) OVER (PARTITION BY inner-expr, .., inner_expr)
+// to SELECT list of the derived table.
+// Minion of decorrelate_derived_scalar_subquery_pre
+bool Query_block::setup_count_over_partition(
+    THD *thd, Table_ref *derived, Lifted_fields_map *lifted_fields,
+    std::deque<Item_field *> &added_to_group_by, uint hidden_fields) {
+  // 1. Construct PARTITION BY
+  PT_order_list *partition = new (thd->mem_root) PT_order_list(POS());
+  for (auto f : added_to_group_by) {
+    ORDER *o = new (thd->mem_root) PT_order_expr(POS(), f, ORDER_ASC);
+    o->in_field_list = true;
+    (*o->item)->increment_ref_count();
+    bool found [[maybe_unused]] = false;
+    for (size_t idx = 0; idx < base_ref_items.size(); idx++) {
+      if (base_ref_items[idx] == f) {
+        o->item = &base_ref_items[idx];
+        found = true;
+        break;
+      }
+    }
+    assert(found);
+    o->used = f->used_tables();
+    // Add at back of list
+    partition->value.link_in_list(o, &o->next);
+  }
+
+  // 2. Construct default frame
+  auto start_bound =
+      new (thd->mem_root) PT_border(POS(), WBT_UNBOUNDED_PRECEDING);
+  if (start_bound == nullptr) return true;
+  auto end_bound =
+      new (thd->mem_root) PT_border(POS(), WBT_UNBOUNDED_FOLLOWING);
+  if (end_bound == nullptr) return true;
+  auto bounds = new (thd->mem_root) PT_borders(POS(), start_bound, end_bound);
+  if (bounds == nullptr) return true;
+  PT_frame *frame =
+      new (thd->mem_root) PT_frame(POS(), WFU_ROWS, bounds, nullptr);
+  if (frame == nullptr) return true;
+  frame->m_originally_absent = true;
+
+  // 3. Construct window and set it up (mini-version of what is normally done by
+  //    setup_windows1).
+  PT_window *w = new (thd->mem_root)
+      PT_window(POS(), partition, /*order_by*/ nullptr, frame);
+  if (w == nullptr) return true;
+  if (w->setup_ordering_cached_items(thd, this, partition, true)) return true;
+  if (w->check_window_functions1(thd, this)) return true;
+  // initialize the physical sorting order for the partition
+  (void)w->sorting_order(thd, /*implicitly_grouped*/ false);
+  m_windows.push_back(w);
+
+  // 4. Construct window function COUNT and bind it
+  //
+  Item_int *number_0 = new (thd->mem_root) Item_int(int32{0}, 1);
+  if (number_0 == nullptr) return true;
+
+  Item_sum *cnt = new (thd->mem_root) Item_sum_count(POS(), number_0, w);
+  if (cnt == nullptr) return true;
+  // Already resolved, but necessary to add the COUNT function to the usage list
+  // (Window::m_functions).
+  if (w->resolve_reference(thd, cnt, &w)) return true;
+  cnt->m_is_window_function = true;
+  cnt->set_wf();
+
+  int item_no = fields.size() + 1;
+  baptize_item(thd, cnt, &item_no);
+  m_added_non_hidden_fields++;
+  {
+    // prelude to binding COUNT(*)
+    const bool save_asf = thd->lex->allow_sum_func;
+    Query_block *save_query_block = thd->lex->current_query_block();
+    assert(save_query_block == outer_query_block());
+    thd->lex->set_current_query_block(this);
+    auto save_allow_sum_func = thd->lex->allow_sum_func;
+    thd->lex->allow_sum_func |= (nesting_map)1 << nest_level;
+    Item *count = cnt;
+    if (cnt->fix_fields(thd, &count)) return true;
+
+    // postlude to binding COUNT(*)
+    thd->lex->allow_sum_func = save_asf;
+    thd->lex->set_current_query_block(save_query_block);
+    thd->lex->allow_sum_func = save_allow_sum_func;
+  }
+
+  // 5. Add window function to the SELECT list so we can reference it from
+  //    outside the derived table (the cardinality check)
+
+  base_ref_items[fields.size()] = cnt;
+  lifted_fields->m_field_positions.push_back(fields.size() - hidden_fields);
+  fields.push_back(cnt);
+  cnt->increment_ref_count();
+  // Add a new column to the derived table's query expression
+  derived->derived_query_expression()->types.push_back(cnt);
+
+  return false;
+}
+
 /**
    We have a correlated scalar subquery, so we must do several things:
 
@@ -6541,10 +6638,14 @@ struct Lifted_fields_map {
   @param[out] lifted_fields    mapping of where inner fields end up in the
                                derived table's fields.
   @param[out] added_card_check set to true if we are adding a cardinality check
+  @param[out] added_window_card_check
+                               set to true if the subquery is initially grouped
+                               and we need COUNT(*) OVER (...) to be checked
 */
 bool Query_block::decorrelate_derived_scalar_subquery_pre(
     THD *thd, Table_ref *derived, Item *lifted_where,
-    Lifted_fields_map *lifted_fields, bool *added_card_check) {
+    Lifted_fields_map *lifted_fields, bool *added_card_check,
+    bool *added_window_card_check) {
   const uint hidden_fields = CountHiddenFields(fields);
   const uint first_non_hidden = hidden_fields;
   assert((fields.size() - hidden_fields) == 1);  // scalar subquery
@@ -6627,6 +6728,9 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
 
   li.rewind();
 
+  const bool subquery_is_grouped = group_list.size() > 0;
+  std::deque<Item_field *> added_to_group_by;
+
   // Run through the inner fields and add them to GROUP BY if not present
   bool selected_field_in_group_by = false;
   while ((field_or_ref = li++)) {
@@ -6660,6 +6764,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
         o->used = in_select->used_tables();
         // Add at back of list
         group_list.link_in_list(o, &o->next);
+        added_to_group_by.push_back(in_select);
       }
     }
   }
@@ -6713,6 +6818,17 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
     derived->derived_query_expression()->types.push_back(cnt);
     *added_card_check = true;
   }
+
+  if (subquery_is_grouped && added_to_group_by.size() > 0) {
+    // For this case (not implicit grouping and correlated), we need to make
+    // sure the derived table has no more than one row of each partition on the
+    // added inner expressions: to do this we add a window function COUNT and
+    // check that it is less than or equal to one.
+    if (setup_count_over_partition(thd, derived, lifted_fields,
+                                   added_to_group_by, hidden_fields))
+      return true;
+    *added_window_card_check = true;
+  }
   return false;
 }
 
@@ -6721,7 +6837,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
 */
 bool Query_block::decorrelate_derived_scalar_subquery_post(
     THD *thd, Table_ref *derived, Lifted_fields_map *lifted_fields,
-    bool added_card_check) {
+    bool added_card_check, bool added_window_card_check) {
   // We added referenced inner fields to select list, now replace occurrences
   // of such fields in the join condition with derived.<Item_field-n>. Since
   // we have now set up materialization the derived table, we now know the
@@ -6765,7 +6881,29 @@ bool Query_block::decorrelate_derived_scalar_subquery_post(
   if (added_card_check) {
     // Add derived.count(0) <= 1 condition to transformed query block's WHERE
     // condition.
-    const uint cnt_pos_in_fields = lifted_fields->m_field_positions[pos];
+    const uint cnt_pos_in_fields = lifted_fields->m_field_positions[pos++];
+    Field *cnt_f = derived->table->field[cnt_pos_in_fields];
+    auto cnt_i = new (thd->mem_root) Item_field(cnt_f);
+    if (cnt_i == nullptr) return true;
+
+    auto number_1 = new (thd->mem_root) Item_int(1);
+    if (number_1 == nullptr) return true;
+    Item *gt = new (thd->mem_root) Item_func_gt(cnt_i, number_1);
+    if (gt == nullptr) return true;
+    Item *check_card = new (thd->mem_root) Item_func_reject_if(gt);
+    if (check_card == nullptr) return true;
+
+    Item *new_cond = and_items(derived->join_cond(), check_card);
+    if (new_cond == nullptr) return true;
+    new_cond->apply_is_true();
+    if (new_cond->fix_fields(thd, &new_cond)) return true;
+    derived->set_join_cond(new_cond);
+    cond_count++;
+  }
+  if (added_window_card_check) {
+    // Add derived.`count(0) over ()` <= 1 condition to transformed query
+    // block's WHERE condition.
+    const uint cnt_pos_in_fields = lifted_fields->m_field_positions[pos++];
     Field *cnt_f = derived->table->field[cnt_pos_in_fields];
     auto cnt_i = new (thd->mem_root) Item_field(cnt_f);
     if (cnt_i == nullptr) return true;
@@ -6892,12 +7030,13 @@ bool Query_block::transform_subquery_to_derived(
 
   Lifted_fields_map lifted_where_fields;
   bool added_cardinality_check = false;
+  bool added_window_cardinality_check = false;
   if (lifted_where_cond != nullptr) {
     assert(!subs_query_expression->is_set_operation());
     if (subs_query_expression->first_query_block()
             ->decorrelate_derived_scalar_subquery_pre(
                 thd, tl, lifted_where_cond, &lifted_where_fields,
-                &added_cardinality_check))
+                &added_cardinality_check, &added_window_cardinality_check))
       return true;
   }
   // We skip resolve_derived(), as the subquery has already been resolved before
@@ -6907,8 +7046,9 @@ bool Query_block::transform_subquery_to_derived(
 
   if (lifted_where_cond != nullptr) {
     assert(tl->join_cond() == lifted_where_cond);
-    if (decorrelate_derived_scalar_subquery_post(thd, tl, &lifted_where_fields,
-                                                 added_cardinality_check))
+    if (decorrelate_derived_scalar_subquery_post(
+            thd, tl, &lifted_where_fields, added_cardinality_check,
+            added_window_cardinality_check))
       return true;
   }
 

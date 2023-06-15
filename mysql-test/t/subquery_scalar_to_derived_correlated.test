@@ -230,6 +230,29 @@ eval EXPLAIN $query;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#35473657 Scalar correlated subquery with group by clause
+--echo #              "mistakenly transformed" (transform was wrong)
+--echo #
+CREATE TABLE t1(a INT);
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+INSERT INTO t3 VALUES (1, 3), (2, 3), (1, 4);
+ANALYZE TABLE t1, t3;
+let $query =
+SELECT * FROM t1 WHERE (SELECT COUNT(a) FROM t3 WHERE t3.a = t1.a GROUP BY b) > 0;
+
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval EXPLAIN $query;
+
+let $query =
+SELECT * FROM t1 WHERE (SELECT a FROM t3 WHERE t3.a = t1.a GROUP BY a) > 0;
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1, t3;
 
 --echo #
 --echo # Test case arried over from subquery_scalar_to_derived.test which now
