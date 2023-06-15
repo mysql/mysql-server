@@ -6736,7 +6736,6 @@ bool Query_block::decorrelate_derived_scalar_subquery_post(
       Field *field_in_derived = derived->table->field[pos_in_fields];
       auto replaces_field = new (thd->mem_root) Item_field(field_in_derived);
       if (replaces_field == nullptr) return true;
-      assert(replaces_field->data_type() == f->data_type());
 
       Item::Item_field_replacement info(f->field, replaces_field, this);
       Item *new_item = derived->join_cond()->transform(
