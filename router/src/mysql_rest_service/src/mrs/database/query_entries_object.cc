@@ -429,7 +429,7 @@ static std::map<std::string, entry::ColumnType> k_datatype_map{
     {"BLOB", entry::ColumnType::BINARY},
     {"MEDIUMBLOB", entry::ColumnType::BINARY},
     {"LONGBLOB", entry::ColumnType::BINARY},
-    {"JSON", entry::ColumnType::STRING},
+    {"JSON", entry::ColumnType::JSON},
     {"DATETIME", entry::ColumnType::STRING},
     {"DATE", entry::ColumnType::STRING},
     {"TIME", entry::ColumnType::STRING},

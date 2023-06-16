@@ -187,7 +187,7 @@ TEST_F(DatabaseQueryPut, type_check) {
       {"BLOB", entry::ColumnType::BINARY},
       {"MEDIUMBLOB", entry::ColumnType::BINARY},
       {"LONGBLOB", entry::ColumnType::BINARY},
-      {"JSON", entry::ColumnType::STRING},
+      {"JSON", entry::ColumnType::JSON},
       {"DATETIME", entry::ColumnType::STRING},
       {"DATE", entry::ColumnType::STRING},
       {"TIME(6)", entry::ColumnType::STRING},
@@ -211,7 +211,8 @@ TEST_F(DatabaseQueryPut, type_check) {
       {entry::ColumnType::BOOLEAN, {"32.34", "\"x\"", "\"\""}},
       {entry::ColumnType::STRING, {"42", "32.34", "true"}},
       {entry::ColumnType::BINARY, {"42", "32.34", "true"}},
-      {entry::ColumnType::GEOMETRY, {"42", "32.34", "true", "\"foo\""}}};
+      {entry::ColumnType::GEOMETRY, {"42", "32.34", "true", "\"foo\""}},
+      {entry::ColumnType::JSON, {}}};
 
   for (const auto &type : known_types) {
     auto root = ObjectBuilder("mrstestdb", "country")
@@ -219,7 +220,7 @@ TEST_F(DatabaseQueryPut, type_check) {
                     .field("value", "value", type.first);
 
     for (const auto &test : bad_values[type.second]) {
-      SCOPED_TRACE(test);
+      SCOPED_TRACE(std::string(type.first) + " " + test);
       EXPECT_THROW_MSG(
           test_put(root, make_json(std::string("{\"value\": ") + test + "}"),
                    {{"country_id", "1"}}),
@@ -235,9 +236,8 @@ TEST_F(DatabaseQueryPut, special_types) {
                   .field("id", FieldFlag::PRIMARY)
                   .field("Geom", "geom", "GEOMETRY")
                   .field("Bool", "bool", "BIT(1)")
-                  .field("Binary", "bin", "BLOB");
-  // TODO(alfredo) - JSON column not yet supported
-  //.field("Json", "js", "JSON");
+                  .field("Binary", "bin", "BLOB")
+                  .field("Json", "js", "JSON");
 
   test_put(root, make_json(R"*({
   "id": 1,
@@ -249,17 +249,19 @@ TEST_F(DatabaseQueryPut, special_types) {
           34.123
       ]
   },
-  "Binary": "SGVsbG8gV29ybGQK"
+  "Binary": "SGVsbG8gV29ybGQK",
+  "Json": [1,2,3]
 })*"),
            {{"id", "1"}});
 
   auto row = m_->query_one(
-      "SELECT id, hex(geom), hex(bool), hex(bin) FROM mrstestdb.typetest WHERE "
-      "id=1");
+      "SELECT id, hex(geom), hex(bool), hex(bin), js FROM mrstestdb.typetest "
+      "WHERE id=1");
   EXPECT_STREQ("1", (*row)[0]);
   EXPECT_STREQ("E61000000101000000E5D022DBF93E284039B4C876BE0F4140", (*row)[1]);
   EXPECT_STREQ("0", (*row)[2]);
   EXPECT_STREQ("48656C6C6F20576F726C640A", (*row)[3]);
+  EXPECT_STREQ("[1, 2, 3]", (*row)[4]);
 }
 
 TEST_F(DatabaseQueryPut, plain_fields) {

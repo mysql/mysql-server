@@ -366,7 +366,7 @@ TEST_F(DatabaseQueryPost, type_check) {
       {"BLOB", entry::ColumnType::BINARY},
       {"MEDIUMBLOB", entry::ColumnType::BINARY},
       {"LONGBLOB", entry::ColumnType::BINARY},
-      {"JSON", entry::ColumnType::STRING},
+      {"JSON", entry::ColumnType::JSON},
       {"DATETIME", entry::ColumnType::STRING},
       {"DATE", entry::ColumnType::STRING},
       {"TIME(6)", entry::ColumnType::STRING},
@@ -389,7 +389,9 @@ TEST_F(DatabaseQueryPost, type_check) {
       {entry::ColumnType::DOUBLE, {"\"\"", "\"x\"", "true"}},
       {entry::ColumnType::BOOLEAN, {"32.34", "\"x\"", "\"\""}},
       {entry::ColumnType::STRING, {"42", "32.34", "true"}},
-      {entry::ColumnType::BINARY, {"42", "32.34", "true"}}};
+      {entry::ColumnType::BINARY, {"42", "32.34", "true"}},
+      {entry::ColumnType::GEOMETRY, {"42", "32.34", "true", "\"foo\""}},
+      {entry::ColumnType::JSON, {}}};
 
   for (const auto &type : known_types) {
     SCOPED_TRACE(type.first);
@@ -414,9 +416,8 @@ TEST_F(DatabaseQueryPost, special_types) {
                   .field("id", FieldFlag::PRIMARY)
                   .field("Geom", "geom", "GEOMETRY")
                   .field("Bool", "bool", "BIT(1)")
-                  .field("Binary", "bin", "BLOB");
-  // TODO(alfredo) - JSON column not yet supported
-  //.field("Json", "js", "JSON");
+                  .field("Binary", "bin", "BLOB")
+                  .field("Json", "js", "JSON");
 
   test_post(root, make_json(R"*({
   "id": 42,
@@ -428,18 +429,49 @@ TEST_F(DatabaseQueryPost, special_types) {
           34.123
       ]
   },
-  "Binary": "SGVsbG8gV29ybGQK"
+  "Binary": "SGVsbG8gV29ybGQK",
+  "Json": [1, {"a": true, "b": null}]
 })*"));
 
   EXPECT_ROWS_ADDED("typetest", 1);
 
   auto row = m_->query_one(
-      "SELECT id, hex(geom), hex(bool), hex(bin) FROM mrstestdb.typetest WHERE "
-      "id=42");
+      "SELECT id, hex(geom), hex(bool), hex(bin), js FROM mrstestdb.typetest "
+      "WHERE id=42");
   EXPECT_STREQ("42", (*row)[0]);
   EXPECT_STREQ("E61000000101000000E5D022DBF93E284039B4C876BE0F4140", (*row)[1]);
   EXPECT_STREQ("1", (*row)[2]);
   EXPECT_STREQ("48656C6C6F20576F726C640A", (*row)[3]);
+  EXPECT_STREQ("[1, {\"a\": true, \"b\": null}]", (*row)[4]);
+
+  // test other json values
+  test_post(root, make_json(R"*({
+  "id": 43,
+  "Json": 1
+})*"));
+  row = m_->query_one("SELECT js FROM mrstestdb.typetest WHERE id=43");
+  EXPECT_STREQ("1", (*row)[0]);
+
+  test_post(root, make_json(R"*({
+  "id": 44,
+  "Json": "hello"
+})*"));
+  row = m_->query_one("SELECT js FROM mrstestdb.typetest WHERE id=44");
+  EXPECT_STREQ("\"hello\"", (*row)[0]);
+
+  test_post(root, make_json(R"*({
+  "id": 45,
+  "Json": null
+})*"));
+  row = m_->query_one("SELECT js FROM mrstestdb.typetest WHERE id=45");
+  EXPECT_STREQ("null", (*row)[0]);
+
+  test_post(root, make_json(R"*({
+  "id": 46,
+  "Json": {}
+})*"));
+  row = m_->query_one("SELECT js FROM mrstestdb.typetest WHERE id=46");
+  EXPECT_STREQ("{}", (*row)[0]);
 }
 
 TEST_F(DatabaseQueryPost, store_bool_in_int) {
