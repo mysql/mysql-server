@@ -397,7 +397,7 @@ class Rapid_json_handler {
   size_t m_depth;     ///< The depth at which parsing currently happens.
   std::string m_key;  ///< The name of the current member of an object.
  public:
-  explicit Rapid_json_handler(JsonDocumentDepthHandler m_depth_handler)
+  explicit Rapid_json_handler(JsonErrorHandler m_depth_handler)
       : m_state(expect_anything),
         m_dom_as_built(nullptr),
         m_current_element(nullptr),
@@ -559,14 +559,14 @@ class Rapid_json_handler {
       m_state = expect_array_value;
     }
   }
-  JsonDocumentDepthHandler m_depth_handler{nullptr};
+  JsonErrorHandler m_depth_handler{nullptr};
 };
 
 }  // namespace
 
 Json_dom_ptr Json_dom::parse(const char *text, size_t length,
                              const JsonParseErrorHandler &error_handler,
-                             const JsonDocumentDepthHandler &depth_handler) {
+                             const JsonErrorHandler &depth_handler) {
   Rapid_json_handler handler(depth_handler);
   rapidjson::MemoryStream ss(text, length);
   rapidjson::Reader reader;
@@ -1168,7 +1168,6 @@ bool double_quote(const char *cptr, size_t length, String *buf) {
 Json_decimal::Json_decimal(const my_decimal &value)
     : Json_number(), m_dec(value) {}
 
-#ifdef MYSQL_SERVER
 int Json_decimal::binary_size() const {
   /*
     We need two bytes for the precision and the scale, plus whatever
@@ -1189,7 +1188,6 @@ bool Json_decimal::get_binary(char *dest) const {
   return my_decimal2binary(E_DEC_ERROR, &m_dec, pointer_cast<uchar *>(dest) + 2,
                            m_dec.precision(), m_dec.frac) != E_DEC_OK;
 }
-#endif  // ifdef MYSQL_SERVER
 
 bool Json_decimal::convert_from_binary(const char *bin, size_t len,
                                        my_decimal *dec) {
@@ -1236,12 +1234,10 @@ Json_dom_ptr Json_datetime::clone() const {
   return create_dom_ptr<Json_datetime>(m_t, m_field_type);
 }
 
-#ifdef MYSQL_SERVER
 void Json_datetime::to_packed(char *dest) const {
   longlong packed = TIME_to_longlong_packed(m_t);
   int8store(dest, packed);
 }
-#endif  // ifdef MYSQL_SERVER
 
 void Json_datetime::from_packed(const char *from, enum_field_types ft,
                                 MYSQL_TIME *to) {
@@ -1358,7 +1354,6 @@ Json_wrapper::~Json_wrapper() {
   }
 }
 
-#ifdef MYSQL_SERVER
 /**
   Common implementation of move-assignment and copy-assignment for
   Json_wrapper. If @a from is an rvalue, its contents are moved into
@@ -1386,7 +1381,6 @@ Json_wrapper &Json_wrapper::operator=(const Json_wrapper &from) {
 Json_wrapper &Json_wrapper::operator=(Json_wrapper &&from) noexcept {
   return assign_json_wrapper(std::move(from), this);
 }
-#endif  // ifdef MYSQL_SERVER
 
 Json_dom *Json_wrapper::to_dom() {
   if (!m_is_dom) {
@@ -1408,20 +1402,25 @@ Json_dom_ptr Json_wrapper::clone_dom() const {
   return Json_dom::parse(m_value);
 }
 
-#ifdef MYSQL_SERVER
-bool Json_wrapper::to_binary(const THD *thd, String *str) const {
+bool Json_wrapper::to_binary(
+    String *str, const JsonErrorHandler &json_depth_handler,
+    const JsonErrorHandler &json_key_handler,
+    const JsonErrorHandler &json_value_handler,
+    const JsonErrorHandler &invalid_json_handler) const {
   if (empty()) {
     /* purecov: begin inspected */
-    my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+    invalid_json_handler();
     return true;
     /* purecov: end */
   }
 
-  if (m_is_dom) return json_binary::serialize(thd, m_dom.m_value, str);
+  if (m_is_dom)
+    return json_binary::serialize(m_dom.m_value, str, json_depth_handler,
+                                  json_key_handler, json_value_handler);
 
-  return m_value.raw_binary(thd, str);
+  return m_value.raw_binary(str, json_depth_handler, json_key_handler,
+                            json_value_handler);
 }
-#endif  // ifdef MYSQL_SERVER
 
 /**
   Possibly append a single quote to a buffer.
@@ -1500,7 +1499,7 @@ static bool append_comma(String *buffer, bool pretty) {
 static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
                               bool json_quoted, bool pretty,
                               const char *func_name, size_t depth,
-                              const JsonDocumentDepthHandler &depth_handler) {
+                              const JsonErrorHandler &depth_handler) {
   enum_json_type type = wr.type();
   // Treat strings saved in opaque as plain json strings
   // @see val_json_func_field_subselect()
@@ -1698,9 +1697,9 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
   return false;
 }
 
-bool Json_wrapper::to_string(
-    String *buffer, bool json_quoted, const char *func_name,
-    const JsonDocumentDepthHandler &depth_handler) const {
+bool Json_wrapper::to_string(String *buffer, bool json_quoted,
+                             const char *func_name,
+                             const JsonErrorHandler &depth_handler) const {
   buffer->set_charset(&my_charset_utf8mb4_bin);
   return wrapper_to_string(*this, buffer, json_quoted, false, func_name, 0,
                            depth_handler);
@@ -1708,14 +1707,14 @@ bool Json_wrapper::to_string(
 
 bool Json_wrapper::to_pretty_string(
     String *buffer, const char *func_name,
-    const JsonDocumentDepthHandler &depth_handler) const {
+    const JsonErrorHandler &depth_handler) const {
   buffer->set_charset(&my_charset_utf8mb4_bin);
   return wrapper_to_string(*this, buffer, true, true, func_name, 0,
                            depth_handler);
 }
 
 void Json_wrapper::dbug_print(const char *message [[maybe_unused]],
-                              const JsonDocumentDepthHandler &depth_handler
+                              const JsonErrorHandler &depth_handler
                               [[maybe_unused]]) const {
 #ifndef NDEBUG
   StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
@@ -3543,8 +3542,7 @@ bool Json_wrapper::attempt_binary_update(const Field_json *field,
 
   // Find out how much space we need to store new_value.
   size_t needed;
-  const THD *thd = current_thd;
-  if (space_needed(thd, new_value, parent.large_format(), &needed)) return true;
+  if (space_needed(new_value, parent.large_format(), &needed)) return true;
 
   // Do we have that space available?
   size_t data_offset = 0;
@@ -3563,7 +3561,10 @@ bool Json_wrapper::attempt_binary_update(const Field_json *field,
   */
   const char *original;
   if (result->is_empty()) {
-    if (m_value.raw_binary(thd, result)) return true; /* purecov: inspected */
+    if (m_value.raw_binary(result, &JsonDepthErrorHandler,
+                           &JsonKeyTooBigErrorHandler,
+                           &JsonValueTooBigErrorHandler))
+      return true; /* purecov: inspected */
     original = field->get_binary();
   } else {
     assert(is_binary_backed_by(result));
@@ -3594,8 +3595,6 @@ bool Json_wrapper::binary_remove(const Field_json *field,
   assert(path.leg_count() > 0);
 
   *found_path = false;
-
-  THD *thd = current_thd;
 
   Json_wrapper_vector hits(key_memory_JSON);
   if (seek_no_dup_elimination(
@@ -3642,7 +3641,9 @@ bool Json_wrapper::binary_remove(const Field_json *field,
   */
   const char *original;
   if (result->is_empty()) {
-    if (m_value.raw_binary(thd, result)) {
+    if (m_value.raw_binary(result, &JsonDepthErrorHandler,
+                           &JsonKeyTooBigErrorHandler,
+                           &JsonValueTooBigErrorHandler)) {
       return true; /* purecov: inspected */
     }
     original = field->get_binary();

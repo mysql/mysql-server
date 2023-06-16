@@ -158,7 +158,7 @@ std::string Show_parse_tree::get_parse_tree() {
   Json_wrapper wrapper(m_root_obj.get(), /*alias=*/true);
   StringBuffer<STRING_BUFFER_USUAL_SIZE> jsonstring;
   if (wrapper.to_pretty_string(&jsonstring, "Show_parse_tree::get_parse_tree()",
-                               JsonDocumentDefaultDepthHandler)) {
+                               JsonDepthErrorHandler)) {
     return "";
   }
   return {jsonstring.ptr(), jsonstring.length()};

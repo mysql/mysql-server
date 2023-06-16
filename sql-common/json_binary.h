@@ -156,11 +156,11 @@
 
 #ifdef MYSQL_SERVER
 class Field_json;
-class Json_dom;
 class Json_wrapper;
 class THD;
 #endif
 
+class Json_dom;
 class String;
 
 #if defined(WIN32) && defined(EXPORT_JSON_FUNCTIONS)
@@ -176,15 +176,21 @@ namespace json_binary {
   the destination string, replacing any content already in the
   destination string.
 
-  @param[in]     thd   THD handle
   @param[in]     dom   the input DOM tree
   @param[in,out] dest  the destination string
+  @param json_depth_handler handler which will be called for JSON documents
+                            exceeding the maximum allowed depth
+  @param json_key_handler  handler which will be called for JSON documents
+                           having keys too large
+  @param json_value_handler handler which will be called for JSON documents
+                            having values too large
   @retval false on success
   @retval true if an error occurred
-*/
-#ifdef MYSQL_SERVER
-bool serialize(const THD *thd, const Json_dom *dom, String *dest);
-#endif
+      */
+bool serialize(const Json_dom *dom, String *dest,
+               const JsonErrorHandler &json_depth_handler,
+               const JsonErrorHandler &json_key_handler,
+               const JsonErrorHandler &json_value_handler);
 
 /**
   Class used for reading JSON values that are stored in the binary
@@ -311,8 +317,11 @@ class Value {
   EXPORT_JSON_FUNCTION
   bool is_backed_by(const String *str) const;
 
+  EXPORT_JSON_FUNCTION
+  bool raw_binary(String *buf, const JsonErrorHandler &json_depth_handler,
+                  const JsonErrorHandler &json_key_handler,
+                  const JsonErrorHandler &json_value_handler) const;
 #ifdef MYSQL_SERVER
-  bool raw_binary(const THD *thd, String *buf) const;
   bool get_free_space(const THD *thd, size_t *space) const;
   bool update_in_shadow(const Field_json *field, size_t pos,
                         Json_wrapper *new_value, size_t data_offset,
@@ -397,7 +406,7 @@ class Value {
   */
   EXPORT_JSON_FUNCTION
   bool to_std_string(std::string *buffer,
-                     const JsonDocumentDepthHandler &depth_handler) const;
+                     const JsonErrorHandler &depth_handler) const;
 
   /**
     Format the JSON value to an external JSON string in buffer in the format of
@@ -413,8 +422,8 @@ class Value {
     @retval true on error
   */
   EXPORT_JSON_FUNCTION
-  bool to_pretty_std_string(
-      std::string *buffer, const JsonDocumentDepthHandler &depth_handler) const;
+  bool to_pretty_std_string(std::string *buffer,
+                            const JsonErrorHandler &depth_handler) const;
 
   /**
     Compare two Values
@@ -498,7 +507,6 @@ Value parse_binary(const char *data, size_t len);
   How much space is needed for a JSON value when it is stored in the binary
   format.
 
-  @param[in]  thd     THD handle
   @param[in]  value   the JSON value to add to a document
   @param[in]  large   true if the large storage format is used
   @param[out] needed  gets set to the amount of bytes needed to store
@@ -507,8 +515,7 @@ Value parse_binary(const char *data, size_t len);
   @retval true if an error occurred while calculating the needed space
 */
 #ifdef MYSQL_SERVER
-bool space_needed(const THD *thd, const Json_wrapper *value, bool large,
-                  size_t *needed);
+bool space_needed(const Json_wrapper *value, bool large, size_t *needed);
 #endif
 
 /**

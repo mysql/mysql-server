@@ -68,13 +68,11 @@ static bool is_ecmascript_identifier(const std::string &name);
 static bool is_digit(unsigned codepoint);
 static bool is_whitespace(char);
 
-static bool parse_path(Stream *, Json_path *, const JsonDocumentDepthHandler &);
-static bool parse_path_leg(Stream *, Json_path *,
-                           const JsonDocumentDepthHandler &);
+static bool parse_path(Stream *, Json_path *, const JsonErrorHandler &);
+static bool parse_path_leg(Stream *, Json_path *, const JsonErrorHandler &);
 static bool parse_ellipsis_leg(Stream *, Json_path *);
 static bool parse_array_leg(Stream *, Json_path *);
-static bool parse_member_leg(Stream *, Json_path *,
-                             const JsonDocumentDepthHandler &);
+static bool parse_member_leg(Stream *, Json_path *, const JsonErrorHandler &);
 
 static bool append_array_index(String *buf, size_t index, bool from_end) {
   if (!from_end) return buf->append_ulonglong(index);
@@ -256,7 +254,7 @@ class Stream {
 /** Top level parsing factory method */
 bool parse_path(size_t path_length, const char *path_expression,
                 Json_path *path, size_t *bad_index,
-                const JsonDocumentDepthHandler &depth_handler) {
+                const JsonErrorHandler &depth_handler) {
   Stream stream(path_expression, path_length);
   if (parse_path(&stream, path, depth_handler)) {
     *bad_index = stream.position() - path_expression;
@@ -283,7 +281,7 @@ static inline bool is_whitespace(char ch) {
    @return true on error, false on success
 */
 static bool parse_path(Stream *stream, Json_path *path,
-                       const JsonDocumentDepthHandler &depth_handler) {
+                       const JsonErrorHandler &depth_handler) {
   path->clear();
 
   // the first non-whitespace character must be $
@@ -316,7 +314,7 @@ static bool parse_path(Stream *stream, Json_path *path,
    @return true on error, false on success
 */
 static bool parse_path_leg(Stream *stream, Json_path *path,
-                           const JsonDocumentDepthHandler &depth_handler) {
+                           const JsonErrorHandler &depth_handler) {
   switch (stream->peek()) {
     case BEGIN_ARRAY:
       return parse_array_leg(stream, path);
@@ -557,8 +555,7 @@ static const char *find_end_of_member_name(const char *start, const char *end) {
   the input string is not a valid name
 */
 static std::unique_ptr<Json_string> parse_name_with_rapidjson(
-    const char *str, size_t len,
-    const JsonDocumentDepthHandler &depth_handler) {
+    const char *str, size_t len, const JsonErrorHandler &depth_handler) {
   Json_dom_ptr dom = Json_dom::parse(
       str, len, [](const char *, size_t) {}, depth_handler);
 
@@ -579,7 +576,7 @@ static std::unique_ptr<Json_string> parse_name_with_rapidjson(
    @return true on error, false on success
 */
 static bool parse_member_leg(Stream *stream, Json_path *path,
-                             const JsonDocumentDepthHandler &depth_handler) {
+                             const JsonErrorHandler &depth_handler) {
   // advance past the .
   assert(stream->peek() == BEGIN_MEMBER);
   stream->skip(1);

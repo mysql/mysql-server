@@ -18424,7 +18424,7 @@ json_attribute:
               size_t eoff = 0;
               std::string emsg;
               if (!is_valid_json_syntax($1.str, $1.length, &eoff, &emsg,
-                  JsonDocumentDefaultDepthHandler)) {
+                  JsonDepthErrorHandler)) {
                 my_error(ER_INVALID_JSON_ATTRIBUTE, MYF(0),
                          emsg.c_str(), eoff, $1.str+eoff);
                 MYSQL_YYABORT;

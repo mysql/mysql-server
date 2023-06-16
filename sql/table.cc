@@ -7735,7 +7735,7 @@ void TABLE::add_logical_diff(const Field_json *field,
     value_str.set_ascii("<none>", 6);
   else {
     if (new_value->to_string(&value_str, false, "add_logical_diff",
-                             JsonDocumentDefaultDepthHandler))
+                             JsonDepthErrorHandler))
       value_str.length(0); /* purecov: inspected */
   }
   DBUG_PRINT("info", ("add_logical_diff(operation=%d, path=%.*s, value=%.*s)",

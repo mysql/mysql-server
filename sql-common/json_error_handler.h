@@ -28,7 +28,7 @@
 
 using JsonParseErrorHandler =
     std::function<void(const char *parse_err, size_t err_offset)>;
-using JsonDocumentDepthHandler = std::function<void()>;
+using JsonErrorHandler = std::function<void()>;
 
 #ifdef MYSQL_SERVER
 
@@ -44,7 +44,10 @@ class JsonParseDefaultErrorHandler {
   const int m_arg_idx;
 };
 
-void JsonDocumentDefaultDepthHandler();
+void JsonDepthErrorHandler();
+void JsonKeyTooBigErrorHandler();
+void JsonValueTooBigErrorHandler();
+void InvalidJsonErrorHandler();
 
 #endif  // MYSQL_SERVER
 #endif  // JSON_ERROR_HANDLER_INCLUDED

@@ -35,14 +35,19 @@
 #include "my_sys.h"
 #include "my_time.h"  // TIME_to_ulonglong_date
 #include "mysql/strings/m_ctype.h"
-#include "mysql_time.h"       // MYSQL_TIME
+#include "mysql_time.h"  // MYSQL_TIME
+#ifdef MYSQL_SERVER
 #include "mysqld_error.h"     // ER_*
 #include "sql/current_thd.h"  // current_thd
 #include "sql/derror.h"       // ER_THD
 #include "sql/field.h"        // my_charset_numeric
+#else
+#define my_charset_numeric my_charset_latin1
+#endif
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"  // Sql_condition
 
+#ifdef MYSQL_SERVER
 /**
    report result of decimal operation.
 
@@ -96,6 +101,8 @@ int my_decimal::check_result(uint mask, int result) const {
   }
   return result;
 }
+
+#endif
 
 /**
   @brief Converting decimal to string

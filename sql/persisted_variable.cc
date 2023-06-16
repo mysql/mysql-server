@@ -767,8 +767,7 @@ bool Persisted_variables_cache::write_persist_file_v2(String &dest,
   Json_wrapper json_wrapper(&main_json_object);
   json_wrapper.set_alias();
   String str;
-  json_wrapper.to_string(&str, true, String().ptr(),
-                         JsonDocumentDefaultDepthHandler);
+  json_wrapper.to_string(&str, true, String().ptr(), JsonDepthErrorHandler);
   dest.append(str);
 
   if (encryption_success == return_status::SUCCESS) {
@@ -1904,7 +1903,7 @@ int Persisted_variables_cache::read_persist_file() {
     /* parse the file contents to check if it is in json format or not */
     json = Json_dom::parse(
         parsed_value.c_str(), parsed_value.length(),
-        [](const char *, size_t) {}, JsonDocumentDefaultDepthHandler);
+        [](const char *, size_t) {}, JsonDepthErrorHandler);
     if (!json.get()) return true;
     return false;
   };
@@ -2535,8 +2534,7 @@ Persisted_variables_cache::encrypt_sensitive_variables() {
   Json_wrapper json_wrapper(&sensitive_variables_object);
   json_wrapper.set_alias();
   String str;
-  json_wrapper.to_string(&str, true, String().ptr(),
-                         JsonDocumentDefaultDepthHandler);
+  json_wrapper.to_string(&str, true, String().ptr(), JsonDepthErrorHandler);
 
   /* Encrypt sensitive variables */
   unsigned char iv[16];
@@ -2611,7 +2609,7 @@ Persisted_variables_cache::decrypt_sensitive_variables() {
   /* Parse the decrypted blob */
   std::unique_ptr<Json_dom> json(Json_dom::parse(
       reinterpret_cast<char *>(decrypted_data.get()), error,
-      [](const char *, size_t) {}, JsonDocumentDefaultDepthHandler));
+      [](const char *, size_t) {}, JsonDepthErrorHandler));
   if (!json.get()) return retval;
 
   if (json.get()->json_type() != enum_json_type::J_OBJECT) return retval;

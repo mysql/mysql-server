@@ -32,6 +32,9 @@ void JsonParseDefaultErrorHandler::operator()(const char *parse_err,
            parse_err, err_offset, "");
 }
 
-void JsonDocumentDefaultDepthHandler() {
-  my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
+void JsonDepthErrorHandler() { my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0)); }
+void JsonKeyTooBigErrorHandler() { my_error(ER_JSON_KEY_TOO_BIG, MYF(0)); }
+void JsonValueTooBigErrorHandler() { my_error(ER_JSON_VALUE_TOO_BIG, MYF(0)); }
+void InvalidJsonErrorHandler() {
+  my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
 }

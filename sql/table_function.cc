@@ -162,7 +162,7 @@ bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
           Json_dom_ptr dom;  //@< we'll receive a DOM here
           JsonParseDefaultErrorHandler parse_handler("JSON_TABLE", 0);
           if (parse_json(*default_string, &dom, true, parse_handler,
-                         JsonDocumentDefaultDepthHandler) ||
+                         JsonDepthErrorHandler) ||
               (col->sql_type != MYSQL_TYPE_JSON && !dom->is_scalar())) {
             my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
             return true;
@@ -176,7 +176,7 @@ bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
           Json_dom_ptr dom;  //@< we'll receive a DOM here
           JsonParseDefaultErrorHandler parse_handler("JSON_TABLE", 0);
           if (parse_json(*default_string, &dom, true, parse_handler,
-                         JsonDocumentDefaultDepthHandler) ||
+                         JsonDepthErrorHandler) ||
               (col->sql_type != MYSQL_TYPE_JSON && !dom->is_scalar())) {
             my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
             return true;

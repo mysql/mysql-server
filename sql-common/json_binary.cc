@@ -109,9 +109,14 @@ enum enum_serialization_result {
     is returned, and the small storage format is in use, the caller
     should retry the serialization with the large storage format. If
     this status code is returned, and the large format is in use,
-    my_error() will already have been called.
+    my_error() should be been called.
   */
   VALUE_TOO_BIG,
+  /**
+    We only have two bytes for the key size. If this status code is returned
+    my_error() should be called.
+  */
+  JSON_KEY_TOO_BIG,
   /**
     Some other error occurred. my_error() will have been called with
     more specific information about the failure.
@@ -119,23 +124,29 @@ enum enum_serialization_result {
   FAILURE
 };
 
-#ifdef MYSQL_SERVER
 static enum_serialization_result serialize_json_value(
-    const THD *thd, const Json_dom *dom, size_t type_pos, String *dest,
-    size_t depth, bool small_parent);
+    const Json_dom *dom, size_t type_pos, String *dest, size_t depth,
+    bool small_parent, const JsonErrorHandler &json_depth_handler);
 static void write_offset_or_size(char *dest, size_t offset_or_size, bool large);
-#endif  // ifdef MYSQL_SERVER
 static uint8 offset_size(bool large);
 
-#ifdef MYSQL_SERVER
-bool serialize(const THD *thd, const Json_dom *dom, String *dest) {
+bool serialize(const Json_dom *dom, String *dest,
+               const JsonErrorHandler &json_depth_handler,
+               const JsonErrorHandler &json_key_handler,
+               const JsonErrorHandler &json_value_handler) {
   // Reset the destination buffer.
   dest->length(0);
   dest->set_charset(&my_charset_bin);
 
   // Reserve space (one byte) for the type identifier.
   if (dest->append('\0')) return true; /* purecov: inspected */
-  return serialize_json_value(thd, dom, 0, dest, 0, false) != OK;
+  enum_serialization_result result =
+      serialize_json_value(dom, 0, dest, 0, false, json_depth_handler);
+
+  if (result == JSON_KEY_TOO_BIG) json_key_handler();
+  if (result == VALUE_TOO_BIG) json_value_handler();
+
+  return result != OK;
 }
 
 /**
@@ -231,7 +242,6 @@ static void write_offset_or_size(char *dest, size_t offset_or_size,
 static bool check_document_size(size_t size) {
   if (size > UINT_MAX32) {
     /* purecov: begin inspected */
-    my_error(ER_JSON_VALUE_TOO_BIG, MYF(0));
     return true;
     /* purecov: end */
   }
@@ -270,7 +280,6 @@ static bool append_variable_length(String *dest, size_t length) {
   // Successfully appended the length.
   return false;
 }
-#endif  // ifdef MYSQL_SERVER
 
 /**
   Read a variable length written by append_variable_length().
@@ -325,7 +334,6 @@ static bool read_variable_length(const char *data, size_t data_length,
   @return true if offset_or_size is too big for the format, false
     otherwise
 */
-#ifdef MYSQL_SERVER
 static bool is_too_big_for_json(size_t offset_or_size, bool large) {
   if (offset_or_size > UINT_MAX16) {
     if (!large) return true;
@@ -371,8 +379,7 @@ static enum_serialization_result append_key_entries(const Json_object *object,
 
     // We only have two bytes for the key size. Check if the key is too big.
     if (len > UINT_MAX16) {
-      my_error(ER_JSON_KEY_TOO_BIG, MYF(0));
-      return FAILURE;
+      return JSON_KEY_TOO_BIG;
     }
 
     if (is_too_big_for_json(offset, large))
@@ -386,7 +393,6 @@ static enum_serialization_result append_key_entries(const Json_object *object,
 
   return OK;
 }
-#endif  // ifdef MYSQL_SERVER
 
 /**
   Will a value of the specified type be inlined?
@@ -446,7 +452,6 @@ static uint8 value_entry_size(bool large) {
   @param[in] large true if the large storage format is used
   @return true if the value was inlined, false if it was not
 */
-#ifdef MYSQL_SERVER
 static bool attempt_inline_value(const Json_dom *value, String *dest,
                                  size_t pos, bool large) {
   int32 inlined_val;
@@ -490,24 +495,26 @@ static bool attempt_inline_value(const Json_dom *value, String *dest,
 /**
   Serialize a JSON array at the end of the destination string.
 
-  @param thd    THD handle
   @param array  the JSON array to serialize
   @param dest   the destination string
   @param large  if true, the large storage format will be used
   @param depth  the current nesting level
+  @param json_depth_handler handler which will be called for JSON documents
+                        exceeding the maximum allowed depth
   @return serialization status
 */
-static enum_serialization_result serialize_json_array(const THD *thd,
-                                                      const Json_array *array,
-                                                      String *dest, bool large,
-                                                      size_t depth) {
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, nullptr))
+static enum_serialization_result serialize_json_array(
+    const Json_array *array, String *dest, bool large, size_t depth,
+    const JsonErrorHandler &json_depth_handler) {
+#ifdef MYSQL_SERVER
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr))
     return FAILURE; /* purecov: inspected */
+#endif              // ifdef MYSQL_SERVER
 
   const size_t start_pos = dest->length();
   const size_t size = array->size();
 
-  if (check_json_depth(++depth, JsonDocumentDefaultDepthHandler)) {
+  if (check_json_depth(++depth, json_depth_handler)) {
     return FAILURE;
   }
 
@@ -535,7 +542,8 @@ static enum_serialization_result serialize_json_array(const THD *thd,
       size_t offset = dest->length() - start_pos;
       if (is_too_big_for_json(offset, large)) return VALUE_TOO_BIG;
       insert_offset_or_size(dest, entry_pos + 1, offset, large);
-      auto res = serialize_json_value(thd, elt, entry_pos, dest, depth, !large);
+      auto res = serialize_json_value(elt, entry_pos, dest, depth, !large,
+                                      json_depth_handler);
       if (res != OK) return res;
     }
     entry_pos += entry_size;
@@ -553,23 +561,26 @@ static enum_serialization_result serialize_json_array(const THD *thd,
 /**
   Serialize a JSON object at the end of the destination string.
 
-  @param thd    THD handle
   @param object the JSON object to serialize
   @param dest   the destination string
   @param large  if true, the large storage format will be used
   @param depth  the current nesting level
+  @param json_depth_handler handler which will be called for JSON documents
+                            exceeding the maximum allowed depth
   @return serialization status
 */
 static enum_serialization_result serialize_json_object(
-    const THD *thd, const Json_object *object, String *dest, bool large,
-    size_t depth) {
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, nullptr))
+    const Json_object *object, String *dest, bool large, size_t depth,
+    const JsonErrorHandler &json_depth_handler) {
+#ifdef MYSQL_SERVER
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr))
     return FAILURE; /* purecov: inspected */
+#endif              // ifdef MYSQL_SERVER
 
   const size_t start_pos = dest->length();
   const size_t size = object->cardinality();
 
-  if (check_json_depth(++depth, JsonDocumentDefaultDepthHandler)) {
+  if (check_json_depth(++depth, json_depth_handler)) {
     return FAILURE;
   }
 
@@ -619,7 +630,8 @@ static enum_serialization_result serialize_json_object(
       size_t offset = dest->length() - start_pos;
       if (is_too_big_for_json(offset, large)) return VALUE_TOO_BIG;
       insert_offset_or_size(dest, entry_pos + 1, offset, large);
-      res = serialize_json_value(thd, child, entry_pos, dest, depth, !large);
+      res = serialize_json_value(child, entry_pos, dest, depth, !large,
+                                 json_depth_handler);
       if (res != OK) return res;
     }
     entry_pos += value_entry_size;
@@ -696,29 +708,31 @@ static enum_serialization_result serialize_datetime(const Json_datetime *jdt,
   are nested within other documents, the type specifier is located in
   the value entry portion at the beginning of the parent document.
 
-  @param thd       THD handle
   @param dom       the JSON value to serialize
   @param type_pos  the position of the type specifier to update
   @param dest      the destination string
   @param depth     the current nesting level
-  @param small_parent
-                   tells if @a dom is contained in an array or object
-                   which is stored in the small storage format
+  @param small_parent tells if @a dom is contained in an array or object
+                      which is stored in the small storage format
+  @param json_depth_handler handler which will be called for JSON documents
+                            exceeding the maximum allowed depth
+
   @return          serialization status
 */
 static enum_serialization_result serialize_json_value(
-    const THD *thd, const Json_dom *dom, size_t type_pos, String *dest,
-    size_t depth, bool small_parent) {
+    const Json_dom *dom, size_t type_pos, String *dest, size_t depth,
+    bool small_parent, const JsonErrorHandler &json_depth_handler) {
   const size_t start_pos = dest->length();
   assert(type_pos < start_pos);
 
-  enum_serialization_result result;
+  enum_serialization_result result = FAILURE;
 
   switch (dom->json_type()) {
     case enum_json_type::J_ARRAY: {
       const Json_array *array = down_cast<const Json_array *>(dom);
       (*dest)[type_pos] = JSONB_TYPE_SMALL_ARRAY;
-      result = serialize_json_array(thd, array, dest, false, depth);
+      result =
+          serialize_json_array(array, dest, false, depth, json_depth_handler);
       /*
         If the array was too large to fit in the small storage format,
         reset the destination buffer and retry with the large storage
@@ -733,14 +747,16 @@ static enum_serialization_result serialize_json_value(
         if (small_parent) return VALUE_TOO_BIG;
         dest->length(start_pos);
         (*dest)[type_pos] = JSONB_TYPE_LARGE_ARRAY;
-        result = serialize_json_array(thd, array, dest, true, depth);
+        result =
+            serialize_json_array(array, dest, true, depth, json_depth_handler);
       }
       break;
     }
     case enum_json_type::J_OBJECT: {
       const Json_object *object = down_cast<const Json_object *>(dom);
       (*dest)[type_pos] = JSONB_TYPE_SMALL_OBJECT;
-      result = serialize_json_object(thd, object, dest, false, depth);
+      result =
+          serialize_json_object(object, dest, false, depth, json_depth_handler);
       /*
         If the object was too large to fit in the small storage format,
         reset the destination buffer and retry with the large storage
@@ -755,7 +771,8 @@ static enum_serialization_result serialize_json_value(
         if (small_parent) return VALUE_TOO_BIG;
         dest->length(start_pos);
         (*dest)[type_pos] = JSONB_TYPE_LARGE_OBJECT;
-        result = serialize_json_object(thd, object, dest, true, depth);
+        result = serialize_json_object(object, dest, true, depth,
+                                       json_depth_handler);
       }
       break;
     }
@@ -845,23 +862,18 @@ static enum_serialization_result serialize_json_value(
       result = serialize_datetime(down_cast<const Json_datetime *>(dom),
                                   type_pos, dest);
       break;
-    default:
+    case enum_json_type::J_ERROR:
       /* purecov: begin deadcode */
       assert(false);
+#ifdef MYSQL_SERVER
       my_error(ER_INTERNAL_ERROR, MYF(0), "JSON serialization failed");
+#endif
       return FAILURE;
       /* purecov: end */
   }
 
-  if (result == OK && dest->length() > thd->variables.max_allowed_packet) {
-    my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
-             "json_binary::serialize", thd->variables.max_allowed_packet);
-    return FAILURE;
-  }
-
   return result;
 }
-#endif  // ifdef MYSQL_SERVER
 
 bool Value::is_valid() const {
   switch (m_type) {
@@ -1250,12 +1262,18 @@ bool Value::is_backed_by(const String *str) const {
   Copy the binary representation of this value into a buffer,
   replacing the contents of the receiving buffer.
 
-  @param thd  THD handle
   @param buf  the receiving buffer
+  @param json_depth_handler handler which will be called for JSON documents
+                            exceeding the maximum allowed depth
+  @param json_key_handler  handler which will be called for JSON documents
+                           having keys too large
+  @param json_value_handler handler which will be called for JSON documents
+                            having values too large
   @return false on success, true otherwise
 */
-#ifdef MYSQL_SERVER
-bool Value::raw_binary(const THD *thd, String *buf) const {
+bool Value::raw_binary(String *buf, const JsonErrorHandler &json_depth_handler,
+                       const JsonErrorHandler &json_key_handler,
+                       const JsonErrorHandler &json_value_handler) const {
   // It's not safe to overwrite ourselves.
   assert(!is_backed_by(buf));
 
@@ -1278,24 +1296,29 @@ bool Value::raw_binary(const THD *thd, String *buf) const {
              buf->append(m_data, m_length);
     case INT: {
       Json_int i(get_int64());
-      return serialize(thd, &i, buf) != OK;
+      return serialize(&i, buf, json_depth_handler, json_key_handler,
+                       json_value_handler);
     }
     case UINT: {
       Json_uint i(get_uint64());
-      return serialize(thd, &i, buf) != OK;
+      return serialize(&i, buf, json_depth_handler, json_key_handler,
+                       json_value_handler);
     }
     case DOUBLE: {
       Json_double d(get_double());
-      return serialize(thd, &d, buf) != OK;
+      return serialize(&d, buf, json_depth_handler, json_key_handler,
+                       json_value_handler);
     }
     case LITERAL_NULL: {
       Json_null n;
-      return serialize(thd, &n, buf) != OK;
+      return serialize(&n, buf, json_depth_handler, json_key_handler,
+                       json_value_handler);
     }
     case LITERAL_TRUE:
     case LITERAL_FALSE: {
       Json_boolean b(m_type == LITERAL_TRUE);
-      return serialize(thd, &b, buf) != OK;
+      return serialize(&b, buf, json_depth_handler, json_key_handler,
+                       json_value_handler);
     }
     case OPAQUE:
       return buf->append(JSONB_TYPE_OPAQUE) || buf->append(field_type()) ||
@@ -1310,7 +1333,6 @@ bool Value::raw_binary(const THD *thd, String *buf) const {
   return true;
   /* purecov: end */
 }
-#endif  // ifdef MYSQL_SERVER
 
 /**
   Find the start offset and the end offset of the specified element.
@@ -1537,8 +1559,7 @@ inline size_t Value::value_entry_offset(size_t pos) const {
 }
 
 #ifdef MYSQL_SERVER
-bool space_needed(const THD *thd, const Json_wrapper *value, bool large,
-                  size_t *needed) {
+bool space_needed(const Json_wrapper *value, bool large, size_t *needed) {
   if (value->type() == enum_json_type::J_ERROR) {
     my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
     return true;
@@ -1546,7 +1567,9 @@ bool space_needed(const THD *thd, const Json_wrapper *value, bool large,
 
   // Serialize the value to a temporary buffer to find out how big it is.
   StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
-  if (value->to_binary(thd, &buf)) return true; /* purecov: inspected */
+  if (value->to_binary(&buf, JsonDepthErrorHandler, JsonKeyTooBigErrorHandler,
+                       JsonValueTooBigErrorHandler, InvalidJsonErrorHandler))
+    return true; /* purecov: inspected */
 
   assert(buf.length() > 1);
 
@@ -1757,7 +1780,9 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
     char *value_dest = destination + value_offset;
 
     StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
-    if (new_value->to_binary(current_thd, &buffer))
+    if (new_value->to_binary(
+            &buffer, JsonDepthErrorHandler, JsonKeyTooBigErrorHandler,
+            JsonValueTooBigErrorHandler, InvalidJsonErrorHandler))
       return true; /* purecov: inspected */
 
     assert(buffer.length() > 1);
@@ -2104,7 +2129,7 @@ int Value::eq(const Value &val) const {
 #endif  // ifdef MYSQL_SERVER
 
 bool Value::to_std_string(std::string *buffer,
-                          const JsonDocumentDepthHandler &depth_handler) const {
+                          const JsonErrorHandler &depth_handler) const {
   buffer->clear();
   const Json_wrapper wrapper(*this);
   StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
@@ -2115,8 +2140,8 @@ bool Value::to_std_string(std::string *buffer,
   return formatting_failed;
 }
 
-bool Value::to_pretty_std_string(
-    std::string *buffer, const JsonDocumentDepthHandler &depth_handler) const {
+bool Value::to_pretty_std_string(std::string *buffer,
+                                 const JsonErrorHandler &depth_handler) const {
   buffer->clear();
   const Json_wrapper wrapper(*this);
   StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;

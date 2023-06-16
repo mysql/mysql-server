@@ -482,7 +482,7 @@ class Json_path_clone final : public Json_seekable_path {
 */
 bool parse_path(size_t path_length, const char *path_expression,
                 Json_path *path, size_t *bad_index,
-                const JsonDocumentDepthHandler &depth_handler);
+                const JsonErrorHandler &depth_handler);
 
 /**
   A helper function that uses the above one as workhorse. Entry point for

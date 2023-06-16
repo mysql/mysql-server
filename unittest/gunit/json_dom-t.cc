@@ -435,16 +435,16 @@ TEST_F(JsonDomTest, EscapeSpecialChars) {
   EXPECT_EQ(str.value(), str2->value());
 }
 
-void vet_wrapper_length(const THD *thd, const char *text,
-                        size_t expected_length) {
+void vet_wrapper_length(const char *text, size_t expected_length) {
   Json_wrapper dom_wrapper(parse_json(text));
 
   EXPECT_EQ(expected_length, dom_wrapper.length())
       << "Wrapped DOM: " << text << "\n";
 
   String serialized_form;
-  EXPECT_FALSE(
-      json_binary::serialize(thd, dom_wrapper.to_dom(), &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(
+      dom_wrapper.to_dom(), &serialized_form, &JsonDepthErrorHandler,
+      &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler));
   json_binary::Value binary = json_binary::parse_binary(
       serialized_form.ptr(), serialized_form.length());
   Json_wrapper binary_wrapper(binary);
@@ -464,7 +464,6 @@ TEST_F(JsonDomTest, WrapperTest) {
   // Constructors, assignment, copy constructors, aliasing
   Json_dom *d = new (std::nothrow) Json_null();
   Json_wrapper w(d);
-  const THD *thd = this->thd();
   EXPECT_EQ(w.to_dom(), d);
   Json_wrapper w_2(w);
   EXPECT_NE(w.to_dom(), w_2.to_dom());  // deep copy
@@ -496,27 +495,27 @@ TEST_F(JsonDomTest, WrapperTest) {
   w_5 = std::move(w_7);  // should deallocate w_5's original
 
   // scalars
-  vet_wrapper_length(thd, "false", 1);
-  vet_wrapper_length(thd, "true", 1);
-  vet_wrapper_length(thd, "null", 1);
-  vet_wrapper_length(thd, "1.1", 1);
-  vet_wrapper_length(thd, "\"hello world\"", 1);
+  vet_wrapper_length("false", 1);
+  vet_wrapper_length("true", 1);
+  vet_wrapper_length("null", 1);
+  vet_wrapper_length("1.1", 1);
+  vet_wrapper_length("\"hello world\"", 1);
 
   // objects
-  vet_wrapper_length(thd, "{}", 0);
-  vet_wrapper_length(thd, "{ \"a\" : 100 }", 1);
-  vet_wrapper_length(thd, "{ \"a\" : 100, \"b\" : 200 }", 2);
+  vet_wrapper_length("{}", 0);
+  vet_wrapper_length("{ \"a\" : 100 }", 1);
+  vet_wrapper_length("{ \"a\" : 100, \"b\" : 200 }", 2);
 
   // arrays
-  vet_wrapper_length(thd, "[]", 0);
-  vet_wrapper_length(thd, "[ 100 ]", 1);
-  vet_wrapper_length(thd, "[ 100, 200 ]", 2);
+  vet_wrapper_length("[]", 0);
+  vet_wrapper_length("[ 100 ]", 1);
+  vet_wrapper_length("[ 100, 200 ]", 2);
 
   // nested objects
-  vet_wrapper_length(thd, "{ \"a\" : 100, \"b\" : { \"c\" : 300 } }", 2);
+  vet_wrapper_length("{ \"a\" : 100, \"b\" : { \"c\" : 300 } }", 2);
 
   // nested arrays
-  vet_wrapper_length(thd, "[ 100, [ 200, 300 ] ]", 2);
+  vet_wrapper_length("[ 100, [ 200, 300 ] ]", 2);
 }
 
 void vet_merge(const char *left_text, const char *right_text,
@@ -702,7 +701,9 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate) {
   auto dom = parse_json("[\"abc\", 123, \"def\", -70000]");
 
   String buffer;
-  EXPECT_FALSE(json_binary::serialize(thd(), dom.get(), &buffer));
+  EXPECT_FALSE(json_binary::serialize(
+      dom.get(), &buffer, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
+      &JsonValueTooBigErrorHandler));
 
   json_binary::Value binary =
       json_binary::parse_binary(buffer.ptr(), buffer.length());
@@ -961,7 +962,9 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate_AllTypes) {
     EXPECT_FALSE(m_field.val_json(&doc));
 
     StringBuffer<STRING_BUFFER_USUAL_SIZE> original;
-    EXPECT_FALSE(doc.to_binary(thd(), &original));
+    EXPECT_FALSE(doc.to_binary(
+        &original, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
+        &JsonValueTooBigErrorHandler, &InvalidJsonErrorHandler));
 
     Json_wrapper new_value(dom->clone());
 
@@ -1089,9 +1092,12 @@ void test_apply_json_diffs(Field_json *field, const Json_diff_vector &diffs,
   if (table->is_binary_diff_enabled(field)) {
     StringBuffer<STRING_BUFFER_USUAL_SIZE> original;
     EXPECT_FALSE(json_binary::serialize(
-        table->in_use, parse_json(orig_json).get(), &original));
+        parse_json(orig_json).get(), &original, &JsonDepthErrorHandler,
+        &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler));
     StringBuffer<STRING_BUFFER_USUAL_SIZE> updated;
-    EXPECT_FALSE(doc.to_binary(table->in_use, &updated));
+    EXPECT_FALSE(doc.to_binary(
+        &updated, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
+        &JsonValueTooBigErrorHandler, &InvalidJsonErrorHandler));
     verify_binary_diffs(field, table->get_binary_diffs(field), original,
                         updated);
   }
@@ -1320,7 +1326,9 @@ static void benchmark_dom_parse(size_t num_iterations, const char *json_text) {
   auto dom = parse_json(json_text);
 
   String buffer;
-  EXPECT_FALSE(json_binary::serialize(initializer.thd(), dom.get(), &buffer));
+  EXPECT_FALSE(json_binary::serialize(
+      dom.get(), &buffer, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
+      &JsonValueTooBigErrorHandler));
 
   json_binary::Value binary =
       json_binary::parse_binary(buffer.ptr(), buffer.length());
@@ -1382,7 +1390,9 @@ static void benchmark_binary_seek(size_t num_iterations, const Json_path &path,
   initializer.SetUp();
 
   String buffer;
-  EXPECT_FALSE(json_binary::serialize(initializer.thd(), &o, &buffer));
+  EXPECT_FALSE(json_binary::serialize(&o, &buffer, &JsonDepthErrorHandler,
+                                      &JsonKeyTooBigErrorHandler,
+                                      &JsonValueTooBigErrorHandler));
   json_binary::Value val =
       json_binary::parse_binary(buffer.ptr(), buffer.length());
 
@@ -1689,8 +1699,9 @@ static void BM_JsonWrapperObjectIteratorBinary(size_t num_iterations) {
   }
 
   String serialized_object;
-  EXPECT_FALSE(json_binary::serialize(initializer.thd(), &dom_object,
-                                      &serialized_object));
+  EXPECT_FALSE(json_binary::serialize(
+      &dom_object, &serialized_object, &JsonDepthErrorHandler,
+      &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler));
   Json_wrapper wrapper(json_binary::parse_binary(serialized_object.ptr(),
                                                  serialized_object.length()));
   EXPECT_EQ(enum_json_type::J_OBJECT, wrapper.type());

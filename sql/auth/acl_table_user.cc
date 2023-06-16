@@ -2383,7 +2383,7 @@ bool read_user_application_user_metadata_from_table(
   }
   auto attributes_dom = Json_dom::parse(
       attributes_field, strlen(attributes_field), [](const char *, size_t) {},
-      JsonDocumentDefaultDepthHandler);
+      JsonDepthErrorHandler);
   table->file->ha_index_end();
   if (attributes_dom == nullptr ||
       attributes_dom->json_type() != enum_json_type::J_OBJECT) {
@@ -2396,8 +2396,7 @@ bool read_user_application_user_metadata_from_table(
                        [acl_table::User_attribute_type::METADATA]);
   if (metadata_dom == nullptr) return false;  // success but out string is empty
   const Json_wrapper wr(metadata_dom, true);
-  wr.to_string(metadata_str, true, __FUNCTION__,
-               JsonDocumentDefaultDepthHandler);
+  wr.to_string(metadata_str, true, __FUNCTION__, JsonDepthErrorHandler);
   if (!mode_no_backslash_escapes) double_the_backslash(metadata_str);
   return false;
 }

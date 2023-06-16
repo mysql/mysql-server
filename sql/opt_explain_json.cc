@@ -2107,7 +2107,7 @@ std::string Explain_format_JSON::ExplainJsonToString(Json_object *json) {
   Json_wrapper wrapper(json, /*alias=*/true);
   StringBuffer<STRING_BUFFER_USUAL_SIZE> explain;
   if (wrapper.to_pretty_string(&explain, "ExplainJsonToString()",
-                               JsonDocumentDefaultDepthHandler)) {
+                               JsonDepthErrorHandler)) {
     return "";
   }
   return {explain.ptr(), explain.length()};

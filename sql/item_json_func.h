@@ -37,7 +37,8 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "prealloced_array.h"      // Prealloced_array
+#include "prealloced_array.h"  // Prealloced_array
+#include "sql-common/json_error_handler.h"
 #include "sql-common/json_path.h"  // Json_path
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
@@ -1245,7 +1246,7 @@ using Json_dom_ptr = std::unique_ptr<Json_dom>;
 
 bool parse_json(const String &res, Json_dom_ptr *dom, bool require_str_or_json,
                 const JsonParseErrorHandler &error_handler,
-                const JsonDocumentDepthHandler &depth_handler);
+                const JsonErrorHandler &depth_handler);
 
 typedef Prealloced_array<size_t, 16> Sorted_index_array;
 bool sort_and_remove_dups(const Json_wrapper &orig, Sorted_index_array *v);

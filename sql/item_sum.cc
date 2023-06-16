@@ -5774,8 +5774,7 @@ String *Item_sum_json::val_str(String *str) {
   }
   if (null_value || m_wrapper->empty()) return nullptr;
   str->length(0);
-  if (m_wrapper->to_string(str, true, func_name(),
-                           JsonDocumentDefaultDepthHandler))
+  if (m_wrapper->to_string(str, true, func_name(), JsonDepthErrorHandler))
     return error_str();
 
   return str;

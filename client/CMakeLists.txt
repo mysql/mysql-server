@@ -138,7 +138,7 @@ ADD_SHARED_LIBRARY(json_binlog
   COMPILE_DEFINITIONS DISABLE_PSI_MUTEX EXPORT_JSON_FUNCTIONS
   DEPENDENCIES GenError
   ${INSTALL_JSON_BINLOG_LIBRARY}
-  LINK_LIBRARIES mysys extra::rapidjson ext::zlib
+  LINK_LIBRARIES mysys extra::rapidjson ext::zlib decimal
   LINUX_VERSION_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/json_binlog.ver"
   VERSION "${json_binlog_VERSION}"
   NO_UNDEFINED
@@ -160,11 +160,16 @@ ADD_CONVENIENCE_LIBRARY(json_client_library
   DEPENDENCIES GenError
   )
 
+ADD_CONVENIENCE_LIBRARY(decimal
+  ${CMAKE_SOURCE_DIR}/sql/my_decimal.cc
+  )
+
 SET(JSON_BINLOG_LIBS_TO_MERGE
   json_client_library
   mysys
   mytime
   strings
+  decimal
   )
 
 MERGE_CONVENIENCE_LIBRARIES(json_binlog_static
@@ -178,13 +183,13 @@ MERGE_CONVENIENCE_LIBRARIES(json_binlog_static
 MYSQL_ADD_EXECUTABLE(json_client_library_main
   json_client_library_main.cc
   INCLUDE_DIRECTORIES ../sql
-  LINK_LIBRARIES json_client_library  strings mysys
+  LINK_LIBRARIES json_client_library  strings mysys decimal
   SKIP_INSTALL
   )
 
 # A test executable which does nothing, except verify that symbols are visible.
 # To test standalone build:
-#   cmake -DINSTALL_MYSQLTESTDIR=0
+#   cmake -DINSTALL_MYSQLTESTDIR=0 -DWITH_JSON_BINLOG_LIBRARY=1
 #   make install DESTDIR=/tmp/foo
 #   g++ -I/tmp/foo/usr/local/mysql/include json_binlog_main.cc
 #       -L/tmp/foo/usr/local/mysql/lib -Wl,-R,/tmp/foo/usr/local/mysql/lib

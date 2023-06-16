@@ -54,13 +54,12 @@ bool Syntax_check_handler::EndArray(rapidjson::SizeType) {
   --m_depth;
   return true;
 }
-Syntax_check_handler::Syntax_check_handler(
-    JsonDocumentDepthHandler m_depth_handler)
+Syntax_check_handler::Syntax_check_handler(JsonErrorHandler m_depth_handler)
     : m_depth_handler(std::move(m_depth_handler)) {}
 
 bool is_valid_json_syntax(const char *text, size_t length, size_t *error_offset,
                           std::string *error_message,
-                          const JsonDocumentDepthHandler &depth_handler) {
+                          const JsonErrorHandler &depth_handler) {
   Syntax_check_handler handler(depth_handler);
   rapidjson::Reader reader;
   rapidjson::MemoryStream ms(text, length);
@@ -83,7 +82,7 @@ bool is_valid_json_syntax(const char *text, size_t length, size_t *error_offset,
 /// The maximum number of nesting levels allowed in a JSON document.
 static constexpr int JSON_DOCUMENT_MAX_DEPTH = 100;
 
-bool check_json_depth(size_t depth, const JsonDocumentDepthHandler &handler) {
+bool check_json_depth(size_t depth, const JsonErrorHandler &handler) {
   if (depth > JSON_DOCUMENT_MAX_DEPTH) {
     handler();
     return true;

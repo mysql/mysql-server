@@ -131,7 +131,7 @@ bool ensure_utf8mb4(const String &val, String *buf, const char **resptr,
   */
 bool parse_json(const String &res, Json_dom_ptr *dom, bool require_str_or_json,
                 const JsonParseErrorHandler &error_handler,
-                const JsonDocumentDepthHandler &depth_handler) {
+                const JsonErrorHandler &depth_handler) {
   char buff[MAX_FIELD_WIDTH];
   String utf8_res(buff, sizeof(buff), &my_charset_utf8mb4_bin);
 
@@ -346,7 +346,7 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
                    func_name, parse_err, err_offset, "");
           parse_error = true;
         },
-        JsonDocumentDefaultDepthHandler);
+        JsonDepthErrorHandler);
     *valid = !failure;
     return parse_error;
   }
@@ -365,7 +365,7 @@ bool parse_path(const String &path_value, bool forbid_wildcards,
   // OK, we have a string encoded in utf-8. Does it parse?
   size_t bad_idx = 0;
   if (parse_path(path_length, path_chars, json_path, &bad_idx,
-                 JsonDocumentDefaultDepthHandler)) {
+                 JsonDepthErrorHandler)) {
     /*
       Issue an error message. The last argument is no longer used, but kept to
       avoid changing error message format.
@@ -1266,8 +1266,7 @@ static String *val_string_from_json(Item_func *item, String *buffer) {
   if (item->null_value) return nullptr;
 
   buffer->length(0);
-  if (wr.to_string(buffer, true, item->func_name(),
-                   JsonDocumentDefaultDepthHandler))
+  if (wr.to_string(buffer, true, item->func_name(), JsonDepthErrorHandler))
     return item->error_str();
 
   item->null_value = false;
@@ -1538,8 +1537,7 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
             return true; /* purecov: inspected */
         } else {
           JsonParseDefaultErrorHandler parse_handler(calling_function, 0);
-          dom = Json_dom::parse(s, ss, parse_handler,
-                                JsonDocumentDefaultDepthHandler);
+          dom = Json_dom::parse(s, ss, parse_handler, JsonDepthErrorHandler);
           if (dom == nullptr) return true;
         }
       }
@@ -3254,8 +3252,7 @@ String *Item_func_json_unquote::val_str(String *str) {
 
       m_value.length(0);
 
-      if (wr.to_string(&m_value, false, func_name(),
-                       JsonDocumentDefaultDepthHandler)) {
+      if (wr.to_string(&m_value, false, func_name(), JsonDepthErrorHandler)) {
         return error_str();
       }
 
@@ -3312,7 +3309,7 @@ String *Item_func_json_unquote::val_str(String *str) {
     Json_dom_ptr dom;
     JsonParseDefaultErrorHandler parse_handler(func_name(), 0);
     if (parse_json(*utf8str, &dom, true, parse_handler,
-                   JsonDocumentDefaultDepthHandler)) {
+                   JsonDepthErrorHandler)) {
       return error_str();
     }
 
@@ -3344,7 +3341,7 @@ String *Item_func_json_pretty::val_str(String *str) {
     if (null_value) return nullptr;
 
     str->length(0);
-    if (wr.to_pretty_string(str, func_name(), JsonDocumentDefaultDepthHandler))
+    if (wr.to_pretty_string(str, func_name(), JsonDepthErrorHandler))
       return error_str(); /* purecov: inspected */
 
     return str;
@@ -3391,8 +3388,17 @@ longlong Item_func_json_storage_size::val_int() {
   null_value = args[0]->null_value;
   if (null_value) return 0;
 
-  if (wrapper.to_binary(current_thd, &buffer))
+  if (wrapper.to_binary(&buffer, &JsonDepthErrorHandler,
+                        &JsonKeyTooBigErrorHandler,
+                        &JsonValueTooBigErrorHandler, &InvalidJsonErrorHandler))
     return error_int(); /* purecov: inspected */
+
+  if (buffer.length() > current_thd->variables.max_allowed_packet) {
+    my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
+             "json_binary::serialize",
+             current_thd->variables.max_allowed_packet);
+    return error_int();
+  }
   return buffer.length();
 }
 
@@ -4132,8 +4138,7 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
       if (can_store_json_value_unencoded(field, w)) {
         str.set(w->get_data(), w->get_data_length(), field->charset());
       } else {
-        err = w->to_string(&str, false, "JSON_TABLE",
-                           JsonDocumentDefaultDepthHandler);
+        err = w->to_string(&str, false, "JSON_TABLE", JsonDepthErrorHandler);
       }
 
       if (!err && (field->store(str.ptr(), str.length(), str.charset()) >=
@@ -4380,7 +4385,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       assert(string_value != nullptr);
       JsonParseDefaultErrorHandler parse_handler(func_name(), 0);
       if (parse_json(*string_value, &default_value->json_default, true,
-                     parse_handler, JsonDocumentDefaultDepthHandler)) {
+                     parse_handler, JsonDepthErrorHandler)) {
         my_error(ER_INVALID_DEFAULT, MYF(0), func_name());
         return nullptr;
       }
@@ -4592,7 +4597,7 @@ bool Item_func_json_value::extract_json_value(
                            json_func_name, parse_err, err_offset, "");
                   parse_error = true;
                 },
-                JsonDocumentDefaultDepthHandler) &&
+                JsonDepthErrorHandler) &&
             thd->is_error())
           return error_json();
       }
@@ -5186,7 +5191,7 @@ String *Item_func_json_value::extract_string_value(String *buffer) {
 
   // Return the unquoted result
   buffer->length(0);
-  if (wr.to_string(buffer, false, func_name(), JsonDocumentDefaultDepthHandler))
+  if (wr.to_string(buffer, false, func_name(), JsonDepthErrorHandler))
     return error_str();
 
   if (buffer->is_empty()) return make_empty_result();

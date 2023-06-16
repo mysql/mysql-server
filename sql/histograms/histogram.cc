@@ -1347,7 +1347,7 @@ bool update_histogram(THD *thd, Table_ref *table, const columns_set &columns,
       Histogram_error_handler error_handler(thd);
       JsonParseDefaultErrorHandler parse_handler("UPDATE HISTOGRAM", 0);
       if (parse_json(parse_input, &dom, true, parse_handler,
-                     JsonDocumentDefaultDepthHandler) ||
+                     JsonDepthErrorHandler) ||
           error_handler.has_error()) {
         results.emplace("", Message::JSON_FORMAT_ERROR);
         return true;

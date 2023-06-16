@@ -7648,12 +7648,21 @@ type_conversion_status Field_json::store(const char *from, size_t length,
         my_error(ER_INVALID_JSON_TEXT, MYF(0), parse_err, err_offset,
                  s_err.c_ptr_safe());
       },
-      JsonDocumentDefaultDepthHandler));
+      JsonDepthErrorHandler));
 
   if (dom.get() == nullptr) return TYPE_ERR_BAD_VALUE;
 
-  if (json_binary::serialize(current_thd, dom.get(), &value))
+  if (json_binary::serialize(dom.get(), &value, &JsonDepthErrorHandler,
+                             &JsonKeyTooBigErrorHandler,
+                             &JsonValueTooBigErrorHandler))
     return TYPE_ERR_BAD_VALUE;
+
+  if (value.length() > current_thd->variables.max_allowed_packet) {
+    my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
+             "json_binary::serialize",
+             current_thd->variables.max_allowed_packet);
+    return TYPE_ERR_BAD_VALUE;
+  }
 
   return store_binary(value.ptr(), value.length());
 }
@@ -7746,7 +7755,17 @@ type_conversion_status Field_json::store_json(const Json_wrapper *json) {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> tmpstr;
   String *buffer = json->is_binary_backed_by(&value) ? &tmpstr : &value;
 
-  if (json->to_binary(current_thd, buffer)) return TYPE_ERR_BAD_VALUE;
+  if (json->to_binary(buffer, &JsonDepthErrorHandler,
+                      &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler,
+                      &InvalidJsonErrorHandler))
+    return TYPE_ERR_BAD_VALUE;
+
+  if (buffer->length() > current_thd->variables.max_allowed_packet) {
+    my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
+             "json_binary::serialize",
+             current_thd->variables.max_allowed_packet);
+    return TYPE_ERR_BAD_VALUE;
+  }
 
   return store_binary(buffer->ptr(), buffer->length());
 }
@@ -7820,7 +7839,7 @@ String *Field_json::val_str(String *buf1, String *) const {
 
   Json_wrapper wr;
   if (val_json(&wr) ||
-      wr.to_string(buf1, true, field_name, JsonDocumentDefaultDepthHandler))
+      wr.to_string(buf1, true, field_name, JsonDepthErrorHandler))
     buf1->length(0);
 
   return buf1;

@@ -603,7 +603,16 @@ bool Rpl_acf_configuration_handler::send_managed_data(
 
     // Convert Json_wrapper to binary format
     String buffer;
-    if (std::get<3>(managed_detail).to_binary(current_thd, &buffer)) {
+    if (std::get<3>(managed_detail)
+            .to_binary(&buffer, &JsonDepthErrorHandler,
+                       &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler,
+                       &InvalidJsonErrorHandler)) {
+      return true;
+    }
+    if (buffer.length() > current_thd->variables.max_allowed_packet) {
+      my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
+               "json_binary::serialize",
+               current_thd->variables.max_allowed_packet);
       return true;
     }
 
@@ -752,7 +761,16 @@ bool Rpl_acf_configuration_handler::get_configuration(
 
     // Convert Json_wrapper to binary format
     String buffer;
-    if (std::get<3>(managed_tuple).to_binary(current_thd, &buffer)) {
+    if (std::get<3>(managed_tuple)
+            .to_binary(&buffer, &JsonDepthErrorHandler,
+                       &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler,
+                       &InvalidJsonErrorHandler)) {
+      return true;
+    }
+    if (buffer.length() > current_thd->variables.max_allowed_packet) {
+      my_error(ER_WARN_ALLOWED_PACKET_OVERFLOWED, MYF(0),
+               "json_binary::serialize",
+               current_thd->variables.max_allowed_packet);
       return true;
     }
 

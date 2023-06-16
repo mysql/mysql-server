@@ -7399,7 +7399,7 @@ Item_json::~Item_json() = default;
 
 void Item_json::print(const THD *, String *str, enum_query_type) const {
   str->append("json'");
-  m_value->to_string(str, true, "", JsonDocumentDefaultDepthHandler);
+  m_value->to_string(str, true, "", JsonDepthErrorHandler);
   str->append("'");
 }
 
@@ -7421,8 +7421,7 @@ longlong Item_json::val_int() { return m_value->coerce_int(item_name.ptr()); }
 
 String *Item_json::val_str(String *str) {
   str->length(0);
-  if (m_value->to_string(str, true, item_name.ptr(),
-                         JsonDocumentDefaultDepthHandler))
+  if (m_value->to_string(str, true, item_name.ptr(), JsonDepthErrorHandler))
     return error_str();
   return str;
 }
@@ -10022,8 +10021,7 @@ inline static const char *whence(const Item_field *cached_field) {
 String *Item_cache_json::val_str(String *tmp) {
   if (has_value()) {
     tmp->length(0);
-    m_value->to_string(tmp, true, whence(cached_field),
-                       JsonDocumentDefaultDepthHandler);
+    m_value->to_string(tmp, true, whence(cached_field), JsonDepthErrorHandler);
     return tmp;
   }
 

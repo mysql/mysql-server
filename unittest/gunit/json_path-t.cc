@@ -345,7 +345,9 @@ void JsonPathTest::vet_wrapper_seek(const char *json_text,
       [] { ASSERT_TRUE(false); });
 
   String serialized_form;
-  EXPECT_FALSE(json_binary::serialize(thd(), dom.get(), &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(
+      dom.get(), &serialized_form, &JsonDepthErrorHandler,
+      &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler));
   json_binary::Value binary = json_binary::parse_binary(
       serialized_form.ptr(), serialized_form.length());
 
@@ -405,16 +407,17 @@ void vet_only_needs_one(Json_wrapper &wrapper, const Json_path &path,
   @param[in] json_text              Text of the json document to search.
   @param[in] path_text              Text of the path expression to use.
   @param[in] expected_hits          Total number of expected matches.
-  @param[in] thd                    THD handle
 */
 void vet_only_needs_one(const char *json_text, const char *path_text,
-                        uint expected_hits, const THD *thd) {
+                        uint expected_hits) {
   Json_dom_ptr dom = Json_dom::parse(
       json_text, std::strlen(json_text), [](const char *, size_t) {},
       [] { ASSERT_TRUE(false); });
 
   String serialized_form;
-  EXPECT_FALSE(json_binary::serialize(thd, dom.get(), &serialized_form));
+  EXPECT_FALSE(json_binary::serialize(
+      dom.get(), &serialized_form, &JsonDepthErrorHandler,
+      &JsonKeyTooBigErrorHandler, &JsonValueTooBigErrorHandler));
   json_binary::Value binary = json_binary::parse_binary(
       serialized_form.ptr(), serialized_form.length());
 
@@ -1402,7 +1405,7 @@ static const Ono_tuple ono_tuples[] = {
 TEST_P(JsonGoodOnoTestP, GoodOno) {
   Ono_tuple param = GetParam();
   vet_only_needs_one(param.m_json_text, param.m_path_expression,
-                     param.m_expected_hits, thd());
+                     param.m_expected_hits);
 }
 
 INSTANTIATE_TEST_SUITE_P(OnoTesting, JsonGoodOnoTestP,

@@ -73,7 +73,9 @@ TEST_F(JsonBinaryTest, BasicTest) {
   std::string std_string;
   Json_dom_ptr dom = parse_json("false");
   String buf;
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val1 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val1.is_valid());
   EXPECT_EQ(Value::LITERAL_FALSE, val1.type());
@@ -84,7 +86,9 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_STREQ("false", std_string.c_str());
 
   dom = parse_json("-123");
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val2 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val2.is_valid());
   EXPECT_EQ(Value::INT, val2.type());
@@ -96,28 +100,36 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_STREQ("-123", std_string.c_str());
 
   dom = parse_json("3.14");
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val3 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val3.is_valid());
   EXPECT_EQ(Value::DOUBLE, val3.type());
   EXPECT_EQ(3.14, val3.get_double());
 
   dom = parse_json("18446744073709551615");
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val4 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val4.is_valid());
   EXPECT_EQ(Value::UINT, val4.type());
   EXPECT_EQ(18446744073709551615ULL, val4.get_uint64());
 
   dom = parse_json("\"abc\"");
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val5 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val5.is_valid());
   EXPECT_EQ(Value::STRING, val5.type());
   EXPECT_EQ("abc", get_string(val5));
 
   dom = parse_json("[ 1, 2, 3 ]");
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val6 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val6.is_valid());
   EXPECT_EQ(Value::ARRAY, val6.type());
@@ -136,7 +148,9 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_STREQ("[\n  1,\n  2,\n  3\n]", std_string.c_str());
 
   dom = parse_json("[ 1, [ \"a\", [ 3.14 ] ] ]");
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   // Top-level doc is an array of size 2.
   Value val7 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val7.is_valid());
@@ -171,7 +185,9 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_STREQ("[1, [\"a\", [3.14]]]", std_string.c_str());
 
   dom = parse_json("{\"key\" : \"val\"}");
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val8 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val8.is_valid());
   EXPECT_EQ(Value::OBJECT, val8.type());
@@ -197,7 +213,9 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_EQ("val", get_string(v8_v1));
 
   dom = parse_json("{ \"a\" : \"b\", \"c\" : [ \"d\" ] }");
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val9 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val9.is_valid());
   EXPECT_EQ(Value::OBJECT, val9.type());
@@ -229,7 +247,9 @@ TEST_F(JsonBinaryTest, BasicTest) {
   char blob[4];
   int4store(blob, 0xCAFEBABEU);
   Json_opaque opaque(MYSQL_TYPE_TINY_BLOB, blob, 4);
-  EXPECT_FALSE(serialize(thd(), &opaque, &buf));
+  EXPECT_FALSE(serialize(&opaque, &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val10 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val10.is_valid());
   EXPECT_EQ(Value::OPAQUE, val10.type());
@@ -238,7 +258,9 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_EQ(0xCAFEBABEU, uint4korr(val10.get_data()));
 
   dom = parse_json("[true,false,null,0,\"0\",\"\",{},[]]");
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val11 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val11.is_valid());
   EXPECT_EQ(Value::ARRAY, val11.type());
@@ -258,7 +280,9 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_EQ(0U, val11.element(7).element_count());
 
   dom = parse_json("{}");
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val12 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val12.is_valid());
   EXPECT_EQ(Value::OBJECT, val12.type());
@@ -268,7 +292,9 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_FALSE(val12.lookup("no such key").is_valid());
 
   dom = parse_json("[]");
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val13 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val13.is_valid());
   EXPECT_EQ(Value::ARRAY, val13.type());
@@ -287,7 +313,9 @@ TEST_F(JsonBinaryTest, BasicTest) {
                                        std::string("key1\0x", 6),
                                        std::string("key1\0y", 6)};
   const int64 expected_values[] = {10, 6, 8, 7, 3, 2, 4, 5};
-  EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
+  EXPECT_FALSE(serialize(dom.get(), &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val14 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val14.is_valid());
   EXPECT_EQ(Value::OBJECT, val14.type());
@@ -310,7 +338,9 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_EQ(2, md.frac);
 
   Json_decimal jd(md);
-  EXPECT_FALSE(serialize(thd(), &jd, &buf));
+  EXPECT_FALSE(serialize(&jd, &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val15 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val15.is_valid());
   EXPECT_EQ(Value::OPAQUE, val15.type());
@@ -378,7 +408,9 @@ TEST_F(JsonBinaryTest, DateAndTimeTest) {
 
   // Store the array ...
   String buf;
-  EXPECT_FALSE(serialize(thd(), &array, &buf));
+  EXPECT_FALSE(serialize(&array, &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
 
   // ... and read it back.
   Value val = parse_binary(buf.ptr(), buf.length());
@@ -479,7 +511,9 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
   EXPECT_EQ(80000U, array.size());
 
   String buf;
-  EXPECT_FALSE(serialize(thd(), &array, &buf));
+  EXPECT_FALSE(serialize(&array, &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val1 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val1.large_format());
   {
@@ -492,7 +526,9 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
     that it is valid.
   */
   String raw;
-  EXPECT_FALSE(val1.raw_binary(thd(), &raw));
+  EXPECT_FALSE(val1.raw_binary(&raw, &JsonDepthErrorHandler,
+                               &JsonKeyTooBigErrorHandler,
+                               &JsonValueTooBigErrorHandler));
   {
     SCOPED_TRACE("");
     validate_array_contents(parse_binary(raw.ptr(), raw.length()),
@@ -502,7 +538,9 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
   Json_array array2;
   array2.append_clone(&array);
   array2.append_clone(&array);
-  EXPECT_FALSE(serialize(thd(), &array2, &buf));
+  EXPECT_FALSE(serialize(&array2, &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val2 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val2.is_valid());
   EXPECT_EQ(Value::ARRAY, val2.type());
@@ -520,7 +558,9 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
   object.add_clone("a", &array);
   Json_string s_c("c");
   object.add_clone("b", &s_c);
-  EXPECT_FALSE(serialize(thd(), &object, &buf));
+  EXPECT_FALSE(serialize(&object, &buf, &JsonDepthErrorHandler,
+                         &JsonKeyTooBigErrorHandler,
+                         &JsonValueTooBigErrorHandler));
   Value val3 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val3.is_valid());
   EXPECT_TRUE(val3.large_format());
@@ -545,7 +585,9 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
     Extract the raw binary representation of the large object, and verify
     that it is valid.
   */
-  EXPECT_FALSE(val3.raw_binary(thd(), &raw));
+  EXPECT_FALSE(val3.raw_binary(&raw, &JsonDepthErrorHandler,
+                               &JsonKeyTooBigErrorHandler,
+                               &JsonValueTooBigErrorHandler));
   {
     SCOPED_TRACE("");
     Value val_a = parse_binary(raw.ptr(), raw.length()).lookup("a");
@@ -571,7 +613,9 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
     }
     current_array->append_clone(&array);
     // Serialize it. This used to take "forever".
-    ASSERT_FALSE(serialize(thd(), &deeply_nested_array, &buf));
+    ASSERT_FALSE(serialize(&deeply_nested_array, &buf, &JsonDepthErrorHandler,
+                           &JsonKeyTooBigErrorHandler,
+                           &JsonValueTooBigErrorHandler));
     // Parse the serialized DOM and verify its contents.
     Value val = parse_binary(buf.ptr(), buf.length());
     for (size_t i = 0; i < depth; i++) {
@@ -590,7 +634,9 @@ TEST_F(JsonBinaryTest, LargeDocumentTest) {
       current_object = o;
     }
     current_object->add_clone("key", &array);
-    ASSERT_FALSE(serialize(thd(), &deeply_nested_object, &buf));
+    ASSERT_FALSE(serialize(&deeply_nested_object, &buf, &JsonDepthErrorHandler,
+                           &JsonKeyTooBigErrorHandler,
+                           &JsonValueTooBigErrorHandler));
     val = parse_binary(buf.ptr(), buf.length());
     for (size_t i = 0; i < depth; i++) {
       ASSERT_EQ(Value::OBJECT, val.type());
@@ -633,76 +679,106 @@ TEST_F(JsonBinaryTest, RawBinaryTest) {
   array.append_clone(&array2);
 
   String buf;
-  EXPECT_FALSE(json_binary::serialize(thd(), &array, &buf));
+  EXPECT_FALSE(json_binary::serialize(&array, &buf, &JsonDepthErrorHandler,
+                                      &JsonKeyTooBigErrorHandler,
+                                      &JsonValueTooBigErrorHandler));
   Value v1 = parse_binary(buf.ptr(), buf.length());
 
   String raw;
-  EXPECT_FALSE(v1.raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.raw_binary(&raw, &JsonDepthErrorHandler,
+                             &JsonKeyTooBigErrorHandler,
+                             &JsonValueTooBigErrorHandler));
   Value v1_copy = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::ARRAY, v1_copy.type());
   EXPECT_EQ(array.size(), v1_copy.element_count());
 
-  EXPECT_FALSE(v1.element(0).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(0).raw_binary(&raw, &JsonDepthErrorHandler,
+                                        &JsonKeyTooBigErrorHandler,
+                                        &JsonValueTooBigErrorHandler));
   Value v1_0 = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::STRING, v1_0.type());
   EXPECT_EQ("a string", std::string(v1_0.get_data(), v1_0.get_data_length()));
 
-  EXPECT_FALSE(v1.element(1).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(1).raw_binary(&raw, &JsonDepthErrorHandler,
+                                        &JsonKeyTooBigErrorHandler,
+                                        &JsonValueTooBigErrorHandler));
   Value v1_1 = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::INT, v1_1.type());
   EXPECT_EQ(-123, v1_1.get_int64());
 
-  EXPECT_FALSE(v1.element(2).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(2).raw_binary(&raw, &JsonDepthErrorHandler,
+                                        &JsonKeyTooBigErrorHandler,
+                                        &JsonValueTooBigErrorHandler));
   Value v1_2 = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::UINT, v1_2.type());
   EXPECT_EQ(42U, v1_2.get_uint64());
 
-  EXPECT_FALSE(v1.element(3).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(3).raw_binary(&raw, &JsonDepthErrorHandler,
+                                        &JsonKeyTooBigErrorHandler,
+                                        &JsonValueTooBigErrorHandler));
   Value v1_3 = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::DOUBLE, v1_3.type());
   EXPECT_EQ(1.5, v1_3.get_double());
 
-  EXPECT_FALSE(v1.element(4).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(4).raw_binary(&raw, &JsonDepthErrorHandler,
+                                        &JsonKeyTooBigErrorHandler,
+                                        &JsonValueTooBigErrorHandler));
   Value v1_4 = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::LITERAL_NULL, v1_4.type());
 
-  EXPECT_FALSE(v1.element(5).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(5).raw_binary(&raw, &JsonDepthErrorHandler,
+                                        &JsonKeyTooBigErrorHandler,
+                                        &JsonValueTooBigErrorHandler));
   Value v1_5 = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::LITERAL_TRUE, v1_5.type());
 
-  EXPECT_FALSE(v1.element(6).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(6).raw_binary(&raw, &JsonDepthErrorHandler,
+                                        &JsonKeyTooBigErrorHandler,
+                                        &JsonValueTooBigErrorHandler));
   Value v1_6 = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::LITERAL_FALSE, v1_6.type());
 
-  EXPECT_FALSE(v1.element(7).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(7).raw_binary(&raw, &JsonDepthErrorHandler,
+                                        &JsonKeyTooBigErrorHandler,
+                                        &JsonValueTooBigErrorHandler));
   Value v1_7 = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::OPAQUE, v1_7.type());
   EXPECT_EQ(MYSQL_TYPE_BLOB, v1_7.field_type());
   EXPECT_EQ("abcd", std::string(v1_7.get_data(), v1_7.get_data_length()));
 
-  EXPECT_FALSE(v1.element(8).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(8).raw_binary(&raw, &JsonDepthErrorHandler,
+                                        &JsonKeyTooBigErrorHandler,
+                                        &JsonValueTooBigErrorHandler));
   Value v1_8 = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::OBJECT, v1_8.type());
   EXPECT_EQ(object.cardinality(), v1_8.element_count());
   EXPECT_EQ(Value::LITERAL_TRUE, v1_8.lookup("key").type());
 
-  EXPECT_FALSE(v1.element(8).key(0).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(8).key(0).raw_binary(&raw, &JsonDepthErrorHandler,
+                                               &JsonKeyTooBigErrorHandler,
+                                               &JsonValueTooBigErrorHandler));
   Value v1_8_key = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::STRING, v1_8_key.type());
   EXPECT_EQ("key",
             std::string(v1_8_key.get_data(), v1_8_key.get_data_length()));
 
-  EXPECT_FALSE(v1.element(8).element(0).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(8).element(0).raw_binary(
+      &raw, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
+      &JsonValueTooBigErrorHandler));
   Value v1_8_val = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::LITERAL_TRUE, v1_8_val.type());
 
-  EXPECT_FALSE(v1.element(9).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(9).raw_binary(&raw, &JsonDepthErrorHandler,
+                                        &JsonKeyTooBigErrorHandler,
+                                        &JsonValueTooBigErrorHandler));
   Value v1_9 = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::ARRAY, v1_9.type());
   EXPECT_EQ(array2.size(), v1_9.element_count());
   EXPECT_EQ(Value::LITERAL_FALSE, v1_9.element(0).type());
 
-  EXPECT_FALSE(v1.element(9).element(0).raw_binary(thd(), &raw));
+  EXPECT_FALSE(v1.element(9).element(0).raw_binary(
+      &raw, &JsonDepthErrorHandler, &JsonKeyTooBigErrorHandler,
+      &JsonValueTooBigErrorHandler));
   Value v1_9_0 = parse_binary(raw.ptr(), raw.length());
   EXPECT_EQ(Value::LITERAL_FALSE, v1_9_0.type());
 }
@@ -711,14 +787,16 @@ TEST_F(JsonBinaryTest, RawBinaryTest) {
   Create a JSON string of the given size, serialize it as a JSON binary, and
   then deserialize it and verify that we get the same string back.
 */
-void serialize_deserialize_string(const THD *thd, size_t size) {
+void serialize_deserialize_string(size_t size) {
   SCOPED_TRACE(testing::Message() << "size = " << size);
   char *str = new char[size];
   memset(str, 'a', size);
   Json_string jstr(str, size);
 
   String buf;
-  EXPECT_FALSE(json_binary::serialize(thd, &jstr, &buf));
+  EXPECT_FALSE(json_binary::serialize(&jstr, &buf, &JsonDepthErrorHandler,
+                                      &JsonKeyTooBigErrorHandler,
+                                      &JsonValueTooBigErrorHandler));
   Value v = parse_binary(buf.ptr(), buf.length());
   EXPECT_EQ(Value::STRING, v.type());
   EXPECT_EQ(size, v.get_data_length());
@@ -740,16 +818,15 @@ void serialize_deserialize_string(const THD *thd, size_t size) {
   We probably don't have enough memory to test the last category here...
 */
 TEST_F(JsonBinaryTest, StringLengthTest) {
-  const THD *thd = this->thd();
-  serialize_deserialize_string(thd, 0);
-  serialize_deserialize_string(thd, 1);
-  serialize_deserialize_string(thd, 127);
-  serialize_deserialize_string(thd, 128);
-  serialize_deserialize_string(thd, 16383);
-  serialize_deserialize_string(thd, 16384);
-  serialize_deserialize_string(thd, 2097151);
-  serialize_deserialize_string(thd, 2097152);
-  serialize_deserialize_string(thd, 3000000);
+  serialize_deserialize_string(0);
+  serialize_deserialize_string(1);
+  serialize_deserialize_string(127);
+  serialize_deserialize_string(128);
+  serialize_deserialize_string(16383);
+  serialize_deserialize_string(16384);
+  serialize_deserialize_string(2097151);
+  serialize_deserialize_string(2097152);
+  serialize_deserialize_string(3000000);
 }
 
 /**
@@ -831,7 +908,9 @@ static void check_corrupted_binary(THD *thd, const char *data, size_t length) {
 static void check_corruption(THD *thd, const Json_dom *dom) {
   // First create a valid binary representation of the DOM.
   String buf;
-  EXPECT_FALSE(json_binary::serialize(thd, dom, &buf));
+  EXPECT_FALSE(json_binary::serialize(dom, &buf, &JsonDepthErrorHandler,
+                                      &JsonKeyTooBigErrorHandler,
+                                      &JsonValueTooBigErrorHandler));
   EXPECT_TRUE(json_binary::parse_binary(buf.ptr(), buf.length()).is_valid());
 
   /*
@@ -900,9 +979,11 @@ TEST_F(JsonBinaryTest, CorruptedBinaryTest) {
 }
 
 /// How big is the serialized version of a Json_dom?
-static size_t binary_size(const THD *thd, const Json_dom *dom) {
+static size_t binary_size(const Json_dom *dom) {
   StringBuffer<256> buf;
-  EXPECT_FALSE(json_binary::serialize(thd, dom, &buf));
+  EXPECT_FALSE(json_binary::serialize(dom, &buf, &JsonDepthErrorHandler,
+                                      &JsonKeyTooBigErrorHandler,
+                                      &JsonValueTooBigErrorHandler));
   return buf.length();
 }
 
@@ -972,18 +1053,18 @@ TEST_P(SpaceNeededTest, SpaceNeeded) {
   if (param.m_result) {
     for (bool large : {true, false}) {
       Invalid_binary_handler handler(thd());
-      EXPECT_TRUE(space_needed(thd(), &param.m_value, large, &needed));
+      EXPECT_TRUE(space_needed(&param.m_value, large, &needed));
       EXPECT_TRUE(handler.is_called());
     }
     return;
   }
 
   needed = 0;
-  EXPECT_FALSE(space_needed(thd(), &param.m_value, false, &needed));
+  EXPECT_FALSE(space_needed(&param.m_value, false, &needed));
   EXPECT_EQ(param.m_needed_small, needed);
 
   needed = 0;
-  EXPECT_FALSE(space_needed(thd(), &param.m_value, true, &needed));
+  EXPECT_FALSE(space_needed(&param.m_value, true, &needed));
   EXPECT_EQ(param.m_needed_large, needed);
 
   const auto dom = param.m_value.to_dom();
@@ -993,7 +1074,7 @@ TEST_P(SpaceNeededTest, SpaceNeeded) {
       Not inlined. The size does not include the type byte, so expect
       one more byte.
     */
-    EXPECT_EQ(param.m_needed_small + 1, binary_size(thd(), dom));
+    EXPECT_EQ(param.m_needed_small + 1, binary_size(dom));
   } else {
     /*
       Inlined in the small storage format. Find the difference in size
@@ -1002,9 +1083,9 @@ TEST_P(SpaceNeededTest, SpaceNeeded) {
       type, 2 bytes for the inlined value).
     */
     Json_array a;
-    size_t base_size = binary_size(thd(), &a);
+    size_t base_size = binary_size(&a);
     a.append_clone(dom);
-    size_t full_size = binary_size(thd(), &a);
+    size_t full_size = binary_size(&a);
     EXPECT_EQ(base_size + 3, full_size);
   }
 
@@ -1016,9 +1097,9 @@ TEST_P(SpaceNeededTest, SpaceNeeded) {
     */
     Json_array a;
     a.append_alias(new (std::nothrow) Json_string(64 * 1024, 'a'));
-    size_t base_size = binary_size(thd(), &a);
+    size_t base_size = binary_size(&a);
     a.append_clone(dom);
-    size_t full_size = binary_size(thd(), &a);
+    size_t full_size = binary_size(&a);
     EXPECT_EQ(base_size + 5, full_size);
   }
 }
@@ -1113,11 +1194,13 @@ INSTANTIATE_TEST_SUITE_P(JsonBinary, SpaceNeededTest,
   array or JSON object and checks if has_space() reports the correct
   size and offset for an element in the array or object.
 */
-static void test_has_space(THD *thd, const Json_dom *container,
-                           Value::enum_type type, size_t size, size_t element,
+static void test_has_space(const Json_dom *container, Value::enum_type type,
+                           size_t size, size_t element,
                            size_t expected_offset) {
   StringBuffer<100> buf;
-  EXPECT_FALSE(json_binary::serialize(thd, container, &buf));
+  EXPECT_FALSE(json_binary::serialize(container, &buf, &JsonDepthErrorHandler,
+                                      &JsonKeyTooBigErrorHandler,
+                                      &JsonValueTooBigErrorHandler));
   Value v1 = parse_binary(buf.ptr(), buf.length());
   Value v2 = v1.element(element);
   EXPECT_EQ(type, v2.type());
@@ -1142,7 +1225,7 @@ static void test_has_space(THD *thd, const Json_dom *container,
   object and checking that has_size() returns the correct size and
   offset.
 */
-static void test_has_space(THD *thd, const Json_dom *dom, Value::enum_type type,
+static void test_has_space(const Json_dom *dom, Value::enum_type type,
                            size_t size) {
   {
     SCOPED_TRACE("array");
@@ -1156,7 +1239,7 @@ static void test_has_space(THD *thd, const Json_dom *dom, Value::enum_type type,
     size_t expected_offset = 2 + 2 + 3;
     {
       SCOPED_TRACE("first element");
-      test_has_space(thd, &a, type, size, 0, expected_offset);
+      test_has_space(&a, type, size, 0, expected_offset);
     }
 
     /*
@@ -1167,7 +1250,7 @@ static void test_has_space(THD *thd, const Json_dom *dom, Value::enum_type type,
     {
       SCOPED_TRACE("second element");
       a.insert_alias(0, create_dom_ptr<Json_null>());
-      test_has_space(thd, &a, type, size, 1, expected_offset);
+      test_has_space(&a, type, size, 1, expected_offset);
     }
 
     /*
@@ -1179,7 +1262,7 @@ static void test_has_space(THD *thd, const Json_dom *dom, Value::enum_type type,
     {
       SCOPED_TRACE("third element");
       a.insert_alias(0, create_dom_ptr<Json_double>(123.0));
-      test_has_space(thd, &a, type, size, 2, expected_offset);
+      test_has_space(&a, type, size, 2, expected_offset);
     }
 
     /*
@@ -1190,13 +1273,13 @@ static void test_has_space(THD *thd, const Json_dom *dom, Value::enum_type type,
     {
       SCOPED_TRACE("append literal");
       a.append_alias(new (std::nothrow) Json_boolean(true));
-      test_has_space(thd, &a, type, size, 2, expected_offset);
+      test_has_space(&a, type, size, 2, expected_offset);
     }
     expected_offset += 3;
     {
       SCOPED_TRACE("append double");
       a.append_alias(new (std::nothrow) Json_double(1.23));
-      test_has_space(thd, &a, type, size, 2, expected_offset);
+      test_has_space(&a, type, size, 2, expected_offset);
     }
   }
 
@@ -1216,7 +1299,7 @@ static void test_has_space(THD *thd, const Json_dom *dom, Value::enum_type type,
     size_t expected_offset = 2 + 2 + 4 + 3 + 1;
     {
       SCOPED_TRACE("first element");
-      test_has_space(thd, &o, type, size, 0, expected_offset);
+      test_has_space(&o, type, size, 0, expected_offset);
     }
 
     /*
@@ -1228,7 +1311,7 @@ static void test_has_space(THD *thd, const Json_dom *dom, Value::enum_type type,
     {
       SCOPED_TRACE("second element");
       o.add_alias("b", new (std::nothrow) Json_null);
-      test_has_space(thd, &o, type, size, 1, expected_offset);
+      test_has_space(&o, type, size, 1, expected_offset);
     }
 
     /*
@@ -1240,7 +1323,7 @@ static void test_has_space(THD *thd, const Json_dom *dom, Value::enum_type type,
     {
       SCOPED_TRACE("third element");
       o.add_alias("a", new (std::nothrow) Json_double(123.0));
-      test_has_space(thd, &o, type, size, 2, expected_offset);
+      test_has_space(&o, type, size, 2, expected_offset);
     }
 
     /*
@@ -1252,13 +1335,13 @@ static void test_has_space(THD *thd, const Json_dom *dom, Value::enum_type type,
     {
       SCOPED_TRACE("add literal");
       o.add_alias("x", new (std::nothrow) Json_boolean(true));
-      test_has_space(thd, &o, type, size, 2, expected_offset);
+      test_has_space(&o, type, size, 2, expected_offset);
     }
     expected_offset += 4 + 3 + 1;
     {
       SCOPED_TRACE("add double");
       o.add_alias("y", new (std::nothrow) Json_double(1.23));
-      test_has_space(thd, &o, type, size, 2, expected_offset);
+      test_has_space(&o, type, size, 2, expected_offset);
     }
   }
 }
@@ -1270,83 +1353,83 @@ TEST_F(JsonBinaryTest, HasSpace) {
   {
     SCOPED_TRACE("empty string");
     Json_string jstr;
-    test_has_space(thd(), &jstr, Value::STRING, 1);
+    test_has_space(&jstr, Value::STRING, 1);
   }
   {
     // Test longest possible string with 1-byte length field.
     SCOPED_TRACE("string(127)");
     Json_string jstr(127, 'a');
-    test_has_space(thd(), &jstr, Value::STRING, 128);
+    test_has_space(&jstr, Value::STRING, 128);
   }
   {
     // Test shortest possible string with 2-byte length field.
     SCOPED_TRACE("string(128)");
     Json_string jstr(128, 'a');
-    test_has_space(thd(), &jstr, Value::STRING, 130);
+    test_has_space(&jstr, Value::STRING, 130);
   }
   {
     SCOPED_TRACE("null literal");
     Json_null jnull;
-    test_has_space(thd(), &jnull, Value::LITERAL_NULL, 0);
+    test_has_space(&jnull, Value::LITERAL_NULL, 0);
   }
   {
     SCOPED_TRACE("true literal");
     Json_boolean jtrue(true);
-    test_has_space(thd(), &jtrue, Value::LITERAL_TRUE, 0);
+    test_has_space(&jtrue, Value::LITERAL_TRUE, 0);
   }
   {
     SCOPED_TRACE("false literal");
     Json_boolean jfalse(false);
-    test_has_space(thd(), &jfalse, Value::LITERAL_FALSE, 0);
+    test_has_space(&jfalse, Value::LITERAL_FALSE, 0);
   }
   {
     SCOPED_TRACE("inlined uint");
     Json_uint u(123);
     EXPECT_TRUE(u.is_16bit());
-    test_has_space(thd(), &u, Value::UINT, 0);
+    test_has_space(&u, Value::UINT, 0);
   }
   {
     SCOPED_TRACE("32-bit uint");
     Json_uint u(100000);
     EXPECT_FALSE(u.is_16bit());
     EXPECT_TRUE(u.is_32bit());
-    test_has_space(thd(), &u, Value::UINT, 4);
+    test_has_space(&u, Value::UINT, 4);
   }
   {
     SCOPED_TRACE("64-bit uint");
     Json_uint u(5000000000ULL);
     EXPECT_FALSE(u.is_32bit());
-    test_has_space(thd(), &u, Value::UINT, 8);
+    test_has_space(&u, Value::UINT, 8);
   }
   {
     SCOPED_TRACE("inlined int");
     Json_int i(123);
     EXPECT_TRUE(i.is_16bit());
-    test_has_space(thd(), &i, Value::INT, 0);
+    test_has_space(&i, Value::INT, 0);
   }
   {
     SCOPED_TRACE("32-bit int");
     Json_int i(100000);
     EXPECT_FALSE(i.is_16bit());
     EXPECT_TRUE(i.is_32bit());
-    test_has_space(thd(), &i, Value::INT, 4);
+    test_has_space(&i, Value::INT, 4);
   }
   {
     SCOPED_TRACE("64-bit uint");
     Json_int i(5000000000LL);
     EXPECT_FALSE(i.is_32bit());
-    test_has_space(thd(), &i, Value::INT, 8);
+    test_has_space(&i, Value::INT, 8);
   }
   {
     SCOPED_TRACE("double");
     Json_double d(3.14);
-    test_has_space(thd(), &d, Value::DOUBLE, 8);
+    test_has_space(&d, Value::DOUBLE, 8);
   }
   {
     SCOPED_TRACE("opaque");
     Json_opaque o(MYSQL_TYPE_BLOB, "abc", 3);
     // 1 byte for type, 1 byte for length, 3 bytes of blob data
-    test_has_space(thd(), &o, Value::OPAQUE, 5);
+    test_has_space(&o, Value::OPAQUE, 5);
   }
   {
     SCOPED_TRACE("empty array");
@@ -1355,13 +1438,13 @@ TEST_F(JsonBinaryTest, HasSpace) {
       An empty array has two bytes for element count and two bytes for
       total size in bytes.
     */
-    test_has_space(thd(), &a, Value::ARRAY, 4);
+    test_has_space(&a, Value::ARRAY, 4);
   }
   {
     SCOPED_TRACE("non-empty array");
     auto a = parse_json("[null]");
     // Here we have an additional 3 bytes for the value entry.
-    test_has_space(thd(), a.get(), Value::ARRAY, 4 + 3);
+    test_has_space(a.get(), Value::ARRAY, 4 + 3);
   }
   {
     SCOPED_TRACE("empty object");
@@ -1370,7 +1453,7 @@ TEST_F(JsonBinaryTest, HasSpace) {
       An empty object has two bytes for element count and two bytes for
       total size in bytes.
     */
-    test_has_space(thd(), &o, Value::OBJECT, 4);
+    test_has_space(&o, Value::OBJECT, 4);
   }
   {
     SCOPED_TRACE("non-empty object");
@@ -1380,7 +1463,7 @@ TEST_F(JsonBinaryTest, HasSpace) {
       Here we have an additional 4 bytes for the key entry, 3 bytes
       for the value entry, and 1 byte for the key.
     */
-    test_has_space(thd(), &o, Value::OBJECT, 4 + 4 + 3 + 1);
+    test_has_space(&o, Value::OBJECT, 4 + 4 + 3 + 1);
   }
 }
 
@@ -1394,13 +1477,14 @@ TEST_F(JsonBinaryTest, HasSpace) {
 static void serialize_benchmark(const Json_dom *dom, size_t num_iterations) {
   my_testing::Server_initializer initializer;
   initializer.SetUp();
-  const THD *thd = initializer.thd();
 
   StartBenchmarkTiming();
 
   for (size_t i = 0; i < num_iterations; ++i) {
     String buf;
-    EXPECT_FALSE(json_binary::serialize(thd, dom, &buf));
+    EXPECT_FALSE(json_binary::serialize(dom, &buf, &JsonDepthErrorHandler,
+                                        &JsonKeyTooBigErrorHandler,
+                                        &JsonValueTooBigErrorHandler));
   }
 
   StopBenchmarkTiming();
