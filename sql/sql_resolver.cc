@@ -7219,6 +7219,9 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
   // Disallow window functions: transform not valid in their presence.
   if (has_windows()) return false;
 
+  // Disallow ROLLUP
+  if (olap == ROLLUP_TYPE) return false;
+
   const size_t first_selected = CountHiddenFields(fields);
   if (is_implicitly_grouped()) {
     Item_sum::Collect_grouped_aggregate_info aggregates(this);
