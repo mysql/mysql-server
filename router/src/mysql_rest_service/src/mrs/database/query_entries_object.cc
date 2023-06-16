@@ -37,6 +37,12 @@
 
 IMPORT_LOG_FUNCTIONS()
 
+#if defined(_WIN32)
+#define mrs_strcasecmp(a, b) _stricmp(a, b)
+#else
+#define mrs_strcasecmp(a, b) strcasecmp(a, b)
+#endif  // defined(_WIN32)
+
 namespace mrs {
 namespace database {
 
@@ -265,11 +271,11 @@ void QueryEntryObject::on_field_row(const ResultRow &r) {
         return;
       }
 
-      if (strcasecmp(value, "auto_inc") == 0) {
+      if (mrs_strcasecmp(value, "auto_inc") == 0) {
         *out = entry::IdGenerationType::AUTO_INCREMENT;
-      } else if (strcasecmp(value, "rev_uuid") == 0) {
+      } else if (mrs_strcasecmp(value, "rev_uuid") == 0) {
         *out = entry::IdGenerationType::REVERSE_UUID;
-      } else if (strcasecmp(value, "null") == 0) {
+      } else if (mrs_strcasecmp(value, "null") == 0) {
         *out = entry::IdGenerationType::NONE;
       } else {
         throw std::runtime_error("bad metadata");
