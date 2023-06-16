@@ -109,7 +109,11 @@ mysqlrouter::sqlstring rest_param_to_sql_value(
       result << value;
       return result;
     }
-
+    case mrs::database::entry::ColumnType::JSON: {
+      mysqlrouter::sqlstring result{"CAST(? AS JSON)"};
+      result << value;
+      return result;
+    }
     case mrs::database::entry::ColumnType::UNKNOWN:
       return {};
   }
