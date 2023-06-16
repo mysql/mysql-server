@@ -2549,11 +2549,13 @@ static COMMANDS *find_command(char *name) {
    @param pos                Current position of input line
    @param last_end_of_mb_pos Last byte of previous multi-byte character.
                              Used to check if preceeding char is an mb char.
+   @param start_of_line      Start of input line
    @param end_of_line        End of input line
    @return length of dollar quote, 0 if not found
 */
 static size_t check_for_dollar_quote(const char *pos,
                                      const char *last_end_of_mb_pos,
+                                     const char *start_of_line,
                                      const char *end_of_line) {
   assert(*pos == '$');
   if (!dollar_quote_supported) return 0;
@@ -2563,8 +2565,8 @@ static size_t check_for_dollar_quote(const char *pos,
   // (We need info on valid characters in identifiers to ignore
   // the case when the dollar sign is inside an identifier
   const uchar *ident_map = charset_info->ident_map;
-  if (last_end_of_mb_pos == pos - 1 ||
-      ident_map[static_cast<uchar>(*(pos - 1))])
+  if (pos > start_of_line && (last_end_of_mb_pos == pos - 1 ||
+                              ident_map[static_cast<uchar>(*(pos - 1))]))
     return 0;
 
   // $ is first char of token
@@ -2793,8 +2795,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
         if (inchar == '\'' || inchar == '"' || inchar == '`')
           *in_string = (char)inchar;
         else if (inchar == '$') {
-          size_t len =
-              check_for_dollar_quote(pos, last_end_of_mb_pos, end_of_line);
+          size_t len = check_for_dollar_quote(pos, last_end_of_mb_pos, line,
+                                              end_of_line);
           if (len > 0) {
             *in_string = '$';
             for (size_t i = 0; i < len - 1; ++i) {
