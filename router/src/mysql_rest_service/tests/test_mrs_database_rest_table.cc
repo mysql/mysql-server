@@ -31,9 +31,9 @@ constexpr const char *k_test_ddl[] = {
 
     R"*(CREATE TABLE `typetest` (
   id INT PRIMARY KEY,
-  geom GEOMETRY NOT NULL,
-  bool BIT(1),
-  bin BLOB,
+  geom GEOMETRY DEFAULT NULL,
+  bool BIT(1) DEFAULT 0,
+  bin BLOB DEFAULT NULL,
   js JSON
 ))*",
 
@@ -279,6 +279,14 @@ constexpr const char *k_test_ddl[] = {
 (10,15,'2006-02-15 05:07:09'))*",
 
     // UUID PKs
+    R"*(CREATE TABLE t1_owner (
+      id BINARY(16) PRIMARY KEY,
+      data VARCHAR(32)
+  ))*",
+
+    R"*(INSERT INTO t1_owner VALUES (0x75756964310000000000000000000000, 'one'), 
+                    (0x75756964320000000000000000000000, 'two'))*",
+
     R"*(CREATE TABLE t1_ref_11 (
       id BINARY(16) PRIMARY KEY,
       data VARCHAR(30)

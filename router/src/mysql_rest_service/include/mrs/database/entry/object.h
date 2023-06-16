@@ -55,7 +55,8 @@ enum class ColumnType {
   BOOLEAN,
   STRING,
   BINARY,
-  GEOMETRY
+  GEOMETRY,
+  JSON
 };
 
 class Column {

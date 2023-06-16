@@ -682,9 +682,9 @@ class RefRowDelete : public RowDeleteOperation {
     assert(join);
     assert(!ref_pk_.empty());
 
-    mysqlrouter::sqlstring sql("SELECT ? FROM !.! WHERE ?");
+    mysqlrouter::sqlstring sql("SELECT ? FROM !.! ! WHERE ?");
     sql << format_join_columns(*join) << ref_table_->schema << ref_table_->table
-        << format_where_expr(ref_table_, ref_pk_);
+        << ref_table_->table_alias << format_where_expr(ref_table_, ref_pk_);
 
     return sql;
   }
@@ -1163,11 +1163,9 @@ class RowUpdate : public RowChangeOperation {
   mysqlrouter::sqlstring update_sql(const PrimaryKeyColumnValues &pk) const {
     assert(is_complete_primary_key(pk));
 
-    mysqlrouter::sqlstring sql{"UPDATE !.! SET "};
+    mysqlrouter::sqlstring sql{"UPDATE !.! ! SET "};
 
-    // TODO(alfredo) what to do with disabled columns?
-
-    sql << table_->schema << table_->table;
+    sql << table_->schema << table_->table << table_->table_alias;
 
     auto vit = insert_->values_.begin();
     auto pkit = insert_->not_updatable_.begin();
@@ -1391,6 +1389,9 @@ void validate_scalar_value(const entry::Column &column,
       if (!value.IsObject())
         throw std::runtime_error(jptr + " has invalid value type");
       break;
+    case entry::ColumnType::JSON:
+      // anything allowed for json
+      break;
   }
 }
 
@@ -1402,10 +1403,11 @@ void process_object_field(std::shared_ptr<entry::DataField> field,
                         join_json_pointer(jptr, field->name));
 
   mysqlrouter::sqlstring tmp("?");
-  if (value.IsBool()) {
-    tmp << value.GetBool();
-  } else if (value.IsObject()) {
+  if (field->source->type == entry::ColumnType::JSON ||
+      field->source->type == entry::ColumnType::GEOMETRY) {
     tmp << helper::json::to_string(value);
+  } else if (value.IsBool()) {
+    tmp << value.GetBool();
   } else {
     tmp << value;
   }

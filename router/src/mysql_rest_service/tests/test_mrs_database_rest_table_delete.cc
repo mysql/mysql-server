@@ -177,31 +177,43 @@ TEST_F(DatabaseQueryDelete, plain_autoinc_row_owner) {
     test_delete(root, {{"id", "3"}}, owner);
 
     EXPECT_ROWS_ADDED("t2_base", -1);
-    EXPECT_ROWS_ADDED("t2_owner", 0);
   }
   // pk = owner
   {
     auto root =
-        ObjectBuilder("mrstestdb", "t2_owner")
+        ObjectBuilder("mrstestdb", "t1_owner")
             .field("id", "id", "int", FieldFlag::PRIMARY | FieldFlag::AUTO_INC)
-            .field("user", "user", "text")
+            .field("user", "data", "text")
             .root();
     {
-      auto owner = ObjectRowOwnership(root->get_base_table(), "id",
-                                      mysqlrouter::sqlstring("444"));
+      auto owner = ObjectRowOwnership(
+          root->get_base_table(), "id",
+          mysqlrouter::sqlstring("0x75756964310000000000000000000000"));
 
-      test_delete(root, {{"id", "444"}}, owner);
+      // doc with wrong id
+      test_delete(root, {{"id", "0x75756964320000000000000000000000"}}, owner);
 
-      EXPECT_ROWS_ADDED("t2_owner", -1);
+      EXPECT_ROWS_ADDED("t1_owner", 0);
+      auto row = m_->query_one(
+          "SELECT * FROM mrstestdb.t1_owner WHERE "
+          "id=0x75756964310000000000000000000000");
+      EXPECT_TRUE(row);
+      EXPECT_STREQ("one", (*row)[1]);
     }
     // implicit
     {
-      auto owner = ObjectRowOwnership(root->get_base_table(), "id",
-                                      mysqlrouter::sqlstring("555"));
+      auto owner = ObjectRowOwnership(
+          root->get_base_table(), "id",
+          mysqlrouter::sqlstring("0x75756964310000000000000000000000"));
 
       test_delete(root, {}, owner);
 
-      EXPECT_ROWS_ADDED("t2_owner", -2);
+      EXPECT_ROWS_ADDED("t1_owner", -1);
+
+      auto row = m_->query_one(
+          "SELECT * FROM mrstestdb.t1_owner WHERE "
+          "id=0x75756964310000000000000000000000");
+      EXPECT_FALSE(row);
     }
   }
 }
