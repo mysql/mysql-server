@@ -84,7 +84,7 @@ GET /svc/basic/table?q={"my_id":{"$between":[1,3]}}
             "my_name": "First row",
             "my_comments": "First comment",
             "_metadata": {
-                "etag": "A2C0A4ACFAEF089B0ED2F3DF2220953ED2E7DA97D6036DC10D140C744601DD6B"
+                "etag": "B3476BB71FE2E6C243273E901FD73536859E2B55FF1F2F178DD6ED17554817C3"
             }
         },
         {
@@ -99,7 +99,7 @@ GET /svc/basic/table?q={"my_id":{"$between":[1,3]}}
             "my_name": "Second row",
             "my_comments": null,
             "_metadata": {
-                "etag": "94A3D90286FAECB50F59DC1497E5ABCF7A31B9DCF7AD86E7EFD8C5765CBFA638"
+                "etag": "EF465ED6FC5232851165DF5FA82931A9E68C26972125603A72FB1E2AC8CB3D9D"
             }
         },
         {
@@ -114,7 +114,7 @@ GET /svc/basic/table?q={"my_id":{"$between":[1,3]}}
             "my_name": "Thrid row",
             "my_comments": null,
             "_metadata": {
-                "etag": "A4DE1BB8011DDC5F2942FDBCE38BFE3A93A63C025C1D80FF2F147E2E2AC9470F"
+                "etag": "CE8EB51AF8E273C4CD869E3E9777A1EF090824839E00C4EA5D396AB56C2C6819"
             }
         }
     ],
@@ -148,7 +148,7 @@ GET /svc/basic/table?q={"my_name":{"$like":"%th row%"}}
             "my_name": "4th row",
             "my_comments": "This row was inserted as forth row.",
             "_metadata": {
-                "etag": "0F5E13B827063D91498675728045BA3EEF892B76D43A0C3C0B344EB56D21EF08"
+                "etag": "38ACFE8ADBF9251A37A4AE9A7184B8E022C2D643BDC860F97F2E1E13D43BB5B6"
             }
         },
         {
@@ -163,7 +163,7 @@ GET /svc/basic/table?q={"my_name":{"$like":"%th row%"}}
             "my_name": "5th row",
             "my_comments": "",
             "_metadata": {
-                "etag": "981FFD140BC2472ECBB0E8EDE3F88BDBF3EB23E59F19F7DF3620A4A7C32990C2"
+                "etag": "C0CCBA8C90F2D93A9EE7D8C3FFCBE25E1A953EFBCF9063FE343002B53D48F96D"
             }
         },
         {
@@ -178,7 +178,7 @@ GET /svc/basic/table?q={"my_name":{"$like":"%th row%"}}
             "my_name": "6th row",
             "my_comments": "...",
             "_metadata": {
-                "etag": "3A46D19C46A2C102BC6D4046A26EB6BACF18334F35A8FDD3E107F32532F0A424"
+                "etag": "3C12CCE5B9A014C81DF3E97F4AC0C039C8E89DE57D84F450D9076F6A73D7E0D4"
             }
         }
     ],
@@ -230,7 +230,7 @@ GET /svc/basic/table?q={"my_date":{"$gt":{"$date":"2000-01-01"}}}
             "my_name": "5th row",
             "my_comments": "",
             "_metadata": {
-                "etag": "981FFD140BC2472ECBB0E8EDE3F88BDBF3EB23E59F19F7DF3620A4A7C32990C2"
+                "etag": "C0CCBA8C90F2D93A9EE7D8C3FFCBE25E1A953EFBCF9063FE343002B53D48F96D"
             }
         },
         {
@@ -245,7 +245,7 @@ GET /svc/basic/table?q={"my_date":{"$gt":{"$date":"2000-01-01"}}}
             "my_name": "6th row",
             "my_comments": "...",
             "_metadata": {
-                "etag": "3A46D19C46A2C102BC6D4046A26EB6BACF18334F35A8FDD3E107F32532F0A424"
+                "etag": "3C12CCE5B9A014C81DF3E97F4AC0C039C8E89DE57D84F450D9076F6A73D7E0D4"
             }
         }
     ],
