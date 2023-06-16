@@ -61,7 +61,7 @@ bool index(const std::string &value, const String &inside, uint32_t *idx) {
 inline bool index(const char *value, const char *inside, uint32_t *idx) {
   auto ptr = strstr(value, inside);
   if (nullptr == ptr) return false;
-  if (idx) *idx = reinterpret_cast<std::intptr_t>(value - ptr);
+  if (idx) *idx = static_cast<uint32_t>(std::distance(value, ptr));
   return true;
 }
 
