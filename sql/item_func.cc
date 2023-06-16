@@ -764,15 +764,6 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const {
   const Item_func::Functype func_type = functype();
   const Item_func *item_func = down_cast<const Item_func *>(item);
 
-  // If item is a rollup wrapper, unwrap and use inner_item for comparison
-  if ((func_type != item_func->functype()) &&
-      is_rollup_group_wrapper(const_cast<Item_func *>(item_func))) {
-    const Item *inner_item =
-        down_cast<const Item_rollup_group_item *>(item_func)->inner_item();
-    if (inner_item->type() != FUNC_ITEM) return false;
-    item_func = down_cast<const Item_func *>(inner_item);
-  }
-
   if ((func_type != item_func->functype()) ||
       (arg_count != item_func->arg_count) ||
       (func_type != Item_func::FUNC_SP &&

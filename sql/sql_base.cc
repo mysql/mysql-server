@@ -131,7 +131,7 @@
 #include "sql/sql_data_change.h"
 #include "sql/sql_db.h"        // check_schema_readonly
 #include "sql/sql_error.h"     // Sql_condition
-#include "sql/sql_executor.h"  // is_rollup_group_wrapper()
+#include "sql/sql_executor.h"  // unwrap_rollup_group
 #include "sql/sql_handler.h"   // mysql_ha_flush_tables
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -8266,6 +8266,10 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
       }
     } else if (find_ident == nullptr || find_ident->table_name == nullptr ||
                is_rollup_group_wrapper(item)) {
+      // Unwrap rollup wrappers, if any
+      item = unwrap_rollup_group(item);
+      find = unwrap_rollup_group(find);
+
       if (find_ident != nullptr && item->item_name.eq_safe(find->item_name)) {
         *found = &*it;
         *counter = i;
