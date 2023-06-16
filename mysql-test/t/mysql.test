@@ -709,8 +709,9 @@ DROP USER bug21464621;
 --echo # Test support for dollar quoting
 --echo
 
---error 1
---exec $MYSQL test -e "CREATE FUNCTION f(i INTEGER) returns INTEGER LANGUAGE JAVASCRIPT AS \$mle\$ if (--i == 0) console.log('Hi!\nOops!'); return i; // Don't mess this up!\$mle\$;" 2>&1
+--exec $MYSQL test --show-warnings -e "CREATE FUNCTION f(i INTEGER) returns INTEGER LANGUAGE JAVASCRIPT AS \$mle\$ if (--i == 0) console.log('Hi!\nOops!'); return i; // Don't mess this up!\$mle\$;" 2>&1
+
+--exec $MYSQL test -e "DROP FUNCTION f;"
 
 --error 1064
 -exec $MYSQL test -e "SELECT \$mle\$test\$mle\$;" 2>&1

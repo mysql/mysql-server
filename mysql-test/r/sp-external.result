@@ -22,164 +22,249 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS where Language like "%JAVA%"//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_name = "foo" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION JAVASCRIPT(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE JAVASCRIPT
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION JAVASCRIPT//
-ERROR 42000: FUNCTION JAVASCRIPT does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+JAVASCRIPT	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `JAVASCRIPT`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'JAVASCRIPT'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	JAVASCRIPT	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+JAVASCRIPT	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT JAVASCRIPT(2)//
-ERROR 42000: FUNCTION test.JAVASCRIPT does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION JAVASCRIPT//
-ERROR 42000: FUNCTION test.JAVASCRIPT does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE PYTHON
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE PYTHON
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	PYTHON	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	PYTHON	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE RUBY
 AS $$
 x-1
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE RUBY
+AS $$
+x-1
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	RUBY	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	RUBY	SQL	
+x-1
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 # Test lower-case
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE javascript
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 # Test mixed-case
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE jAvaScRIpt
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 # Any valid identifier can be used for language name
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVA1
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVA1
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVA1	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVA1	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE $NOLANG
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE $NOLANG
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	$NOLANG	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	$NOLANG	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE $$JAVASCRIPT
 AS $$
@@ -195,39 +280,59 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE 123J
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	123J	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	123J	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE __
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE __
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	__	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	__	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC
 LANGUAGE "JAVASCRIPT"
 AS $$
@@ -298,20 +403,30 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 # Multiple languages in one clause is not allowed
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT PYTHON
@@ -330,20 +445,29 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE	
 JAVASCRIPT
@@ -351,40 +475,59 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE	  	 JAVASCRIPT  DETERMINISTIC	
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 LANGUAGE
 -- Comment
@@ -394,20 +537,29 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 The language will here be interpreted to be BEGIN
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE
@@ -446,20 +598,31 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    NO SQL
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC NO SQL
 LANGUAGE SQL
 BEGIN RETURN a-1; END //
@@ -473,60 +636,92 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC READS SQL DATA
 LANGUAGE JAVASCRIPT
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    READS SQL DATA
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE JAVASCRIPT
 MODIFIES SQL DATA
 AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    MODIFIES SQL DATA
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER DETERMINISTIC LANGUAGE SQL
 CONTAINS SQL
 BEGIN RETURN a-1; END //
@@ -548,18 +743,29 @@ AS $$
 return x-1;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
+DROP FUNCTION foo//
 # This is not SQL
 CREATE FUNCTION foo(a INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE SQL
@@ -587,179 +793,242 @@ DROP PROCEDURE bar//
 # Currently, no other language than SQL is supported
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS where Language like "%JAVA%"//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_name = "bar" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP PROCEDURE bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE JAVASCRIPT(a INTEGER) DETERMINISTIC
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure JAVASCRIPT//
-ERROR 42000: PROCEDURE JAVASCRIPT does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+JAVASCRIPT	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `JAVASCRIPT`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'JAVASCRIPT'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	JAVASCRIPT	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+JAVASCRIPT	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL JAVASCRIPT(2)//
-ERROR 42000: PROCEDURE test.JAVASCRIPT does not exist
+ERROR HY000: No Language component available
 DROP procedure JAVASCRIPT//
-ERROR 42000: PROCEDURE test.JAVASCRIPT does not exist
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE PYTHON
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE PYTHON
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	PYTHON	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	PYTHON	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE RUBY
 AS $$ b = a $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE RUBY
+AS $$ b = a $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	RUBY	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	RUBY	SQL	 b = a 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 # Test lower-case
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE javascript
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 # Test mixed-case
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE jAvaScRIpt
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 # Any valid identifier can be used for language name
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVA1
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVA1
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVA1	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVA1	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE $NOLANG
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1681	'$ as the first character of an unquoted identifier' is deprecated and will be removed in a future release.
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE $NOLANG
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	$NOLANG	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	$NOLANG	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE $$JAVASCRIPT
 AS $$ let b = a; $$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '$$JAVASCRIPT
 AS $$ let b = a; $$' at line 1
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE 123j
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE 123J
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	123J	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	123J	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE __
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE __
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	__	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	__	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE "JAVASCRIPT"
 AS $$ let b = a; $$ //
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"JAVASCRIPT"
@@ -794,20 +1063,26 @@ DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 # Multiple languages in one clause is not allowed
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE SQL DETERMINISTIC LANGUAGE JAVASCRIPT PYTHON
@@ -818,75 +1093,96 @@ CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE
 JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE	
 JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE	  	 JAVASCRIPT  DETERMINISTIC	
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE
 -- Comment
 JAVASCRIPT
 -- Comment
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 The language will here be interpreted to be BEGIN
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE
@@ -904,20 +1200,27 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC NO SQL
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    NO SQL
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC NO SQL
 LANGUAGE SQL
 BEGIN DECLARE b INTEGER DEFAULT a; END //
@@ -928,54 +1231,74 @@ DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 CONTAINS SQL
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC READS SQL DATA
 LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    READS SQL DATA
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE JAVASCRIPT
 MODIFIES SQL DATA
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    MODIFIES SQL DATA
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER) DETERMINISTIC LANGUAGE SQL
 CONTAINS SQL
 BEGIN DECLARE b INTEGER DEFAULT a; END //
@@ -993,20 +1316,25 @@ BEGIN DECLARE b INTEGER DEFAULT a; END //
 DROP PROCEDURE bar//
 CREATE PROCEDURE bar(a INTEGER) NOT DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$ let b = a; $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    LANGUAGE JAVASCRIPT
+AS $$ let b = a; $$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b = a; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 # This is not SQL
 CREATE PROCEDURE bar(a INTEGER)
 LANGUAGE SQL DETERMINISTIC LANGUAGE SQL
@@ -1060,93 +1388,135 @@ DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
 return x-1;
 $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS 'return x-1;' //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$return x-1;$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS "return x-1;" //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$return x-1;$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	return x-1;
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS '
   return x-1;
 ' //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+  return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+  return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
 "
    return x-1;
 " //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+   return x-1;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+   return x-1;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 Routine body must come after characteristics
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 AS $$
@@ -1165,20 +1535,30 @@ AS
   return "$$" + a + "$$";
 '
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+  return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+  return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1186,20 +1566,30 @@ $code$
 return "$$" + a + "$$";
 $code$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1207,20 +1597,30 @@ $coDE$
 return "$$" + a + "$$";
 $coDE$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1228,20 +1628,30 @@ $CODE$
 return "$$" + a + "$$";
 $CODE$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1249,20 +1659,30 @@ $tag$
 return "$$" + a + "$$";
 $tag$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1270,20 +1690,30 @@ $TAG$
 return "$$" + a + "$$";
 $TAG$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1291,20 +1721,30 @@ $NULL$
 return "$$" + a + "$$";
 $NULL$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1312,20 +1752,30 @@ $abdc_1234$
 return "$$" + a + "$$";
 $abdc_1234$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1333,20 +1783,30 @@ $_a$
 return "$$" + a + "$$";
 $_a$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1354,20 +1814,30 @@ $_$
 return "$$" + a + "$$";
 $_$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1375,20 +1845,30 @@ $0$
 return "$$" + a + "$$";
 $0$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1396,20 +1876,30 @@ $100$
 return "$$" + a + "$$";
 $100$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1417,20 +1907,30 @@ $12345678901234$
 return "$$" + a + "$$";
 $12345678901234$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1438,20 +1938,30 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 return "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1459,20 +1969,30 @@ $¡$
 return "$$" + a + "$$";
 $¡$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1480,20 +2000,30 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶
 return "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$$" + a + "$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS	      $$
@@ -1502,20 +2032,34 @@ const $y$ = 4;
 return $x + $y$ + a;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+const $x = 3;
+const $y$ = 4;
+return $x + $y$ + a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+const $x = 3;
+const $y$ = 4;
+return $x + $y$ + a;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -1525,20 +2069,34 @@ const $y$$z = 4;
 return x$$ + $y$$z + a;
 $code$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+const x$$ = 3;
+const $y$$z = 4;
+return x$$ + $y$$z + a;
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+const x$$ = 3;
+const $y$$z = 4;
+return x$$ + $y$$z + a;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 $$
@@ -1739,80 +2297,120 @@ AS $$
 return "∂" + a + "$∂$";
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "∂" + a + "$∂$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "∂" + a + "$∂$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
 return "∂" + a + "$∂$$";
 $code$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "∂" + a + "$∂$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "∂" + a + "$∂$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
 return "∂" + a + "$∂$$∂";
 $code$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "∂" + a + "$∂$$∂";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "∂" + a + "$∂$$∂";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$∂
 return "∂" + a + "$∂$";
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$∂
+return "∂" + a + "$∂$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	∂
+return "∂" + a + "$∂$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 Test multi-byte characters in quote tags
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -1820,160 +2418,252 @@ AS $∂$
 return "∂" + a + "∂$";
 $∂$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "∂" + a + "∂$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "∂" + a + "∂$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $co∂e$
 return "∂" + a + "$∂$$";
 $co∂e$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+return "∂" + a + "$∂$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "∂" + a + "$∂$$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀$
 return "😀$😔" + a + "😀$😔$";
 $😀$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "😀$😔" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "?$?" + a + "?$?$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀😔$
 return "😀$😔" + a + "😀$😔$";
 $😀😔$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "😀$😔" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "?$?" + a + "?$?$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀$
 return "$x😀😔" + a + "$x😀😔$";
 $x😀$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "$x😀😔" + a + "$x😀😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$x??" + a + "$x??$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀x$
 return "$😀x😔$" + a + "$😀😔x$";
 $😀x$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "$😀x😔$" + a + "$😀😔x$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$?x?$" + a + "$??x$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y$
 return "$x😀😔y$" + a + "$x😀y😔$";
 $x😀y$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "$x😀😔y$" + a + "$x😀y😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "$x??y$" + a + "$x?y?$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y😔$
 return "😀😔$" + a + "😀$😔$";
 $x😀y😔$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Aretur...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(a INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+return "😀😔$" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	
+return "??$" + a + "?$?$";
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀😔$
@@ -2005,20 +2695,26 @@ $code$' at line 4
 CREATE FUNCTION foo(x INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$ rtrn "$$" + x + "$foo$"; $code$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS varchar(20) CHARSET utf8mb4
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$ rtrn "$$" + x + "$foo$"; $JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	varchar	EXTERNAL	NULL	JAVASCRIPT	SQL	 rtrn "$$" + x + "$foo$"; 
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 CREATE FUNCTION foo(x INTEGER) RETURNS INTEGER
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
@@ -2027,20 +2723,34 @@ const $y = 1
 return $x + $y;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE FUNCTION foo//
-ERROR 42000: FUNCTION foo does not exist
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+foo	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `foo`(x INTEGER) RETURNS int
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+const $x = x,
+const $y = 1
+return $x + $y;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW FUNCTION STATUS WHERE Name = 'foo'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	foo	FUNCTION	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+foo	FUNCTION	int	EXTERNAL	NULL	JAVASCRIPT	SQL	
+const $x = x,
+const $y = 1
+return $x + $y;
+
 SELECT foo(2)//
-ERROR 42000: FUNCTION test.foo does not exist
+ERROR HY000: No Language component available
 DROP FUNCTION foo//
-ERROR 42000: FUNCTION test.foo does not exist
 # Multiple occurrences of routine body is not allowed
 CREATE FUNCTION foo(a INTEGER) RETURNS VARCHAR(20)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2074,93 +2784,135 @@ DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
 let b = a;
 $$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = a;
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS 'let b = a;' //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$let b = a;$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS "let b = a;" //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$let b = a;$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	let b = a;
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS '
   let b = a;
 ' //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+  let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+  let b = a;
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
 "
    let b = a;
 " //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+   let b = a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+   let b = a;
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 Routine body must come after characteristics
 CREATE PROCEDURE bar(a INTEGER)
 AS $$
@@ -2179,20 +2931,30 @@ AS
   let b = "$$" + a + "$$";
 '
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+  let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+  let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2200,20 +2962,30 @@ $code$
 let b = "$$" + a + "$$";
 $code$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2221,20 +2993,30 @@ $coDE$
 let b = "$$" + a + "$$";
 $coDE$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2242,20 +3024,30 @@ $CODE$
 let b = "$$" + a + "$$";
 $CODE$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2263,20 +3055,30 @@ $tag$
 let b = "$$" + a + "$$";
 $tag$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2284,20 +3086,30 @@ $TAG$
 let b = "$$" + a + "$$";
 $TAG$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2305,20 +3117,30 @@ $NULL$
 let b = "$$" + a + "$$";
 $NULL$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2326,20 +3148,30 @@ $abdc_1234$
 let b = "$$" + a + "$$";
 $abdc_1234$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2347,20 +3179,30 @@ $_a$
 let b = "$$" + a + "$$";
 $_a$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2368,20 +3210,30 @@ $_$
 let b = "$$" + a + "$$";
 $_$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2389,20 +3241,30 @@ $0$
 let b = "$$" + a + "$$";
 $0$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2410,20 +3272,30 @@ $100$
 let b = "$$" + a + "$$";
 $100$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2431,20 +3303,30 @@ $12345678901234$
 let b = "$$" + a + "$$";
 $12345678901234$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2452,20 +3334,30 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 let b = "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2473,20 +3365,30 @@ $¡$
 let b = "$$" + a + "$$";
 $¡$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2494,20 +3396,30 @@ $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶
 let b = "$$" + a + "$$";
 $1234567890qwertyuiopasdfghjklzxcvbnm_QWERTYUIOPASDFGHJKLZXCVBNM¡™£¢∞§¶•ªº–≠œ∑´®†¥¨ˆøπ“‘«åß∂ƒ©˙∆˚¬…æΩ≈ç√∫µ≤≥÷⁄€‹›ﬁﬂ‡°·‚—±ÅÍÎÏ˝ÓÔÒÚÆ¸˛Ç◊ıÂ¯˘¿$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "$$" + a + "$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$$" + a + "$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS	      $$
@@ -2516,20 +3428,34 @@ const $y$ = 4;
 let b = $x + $y$ + a;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+const $x = 3;
+const $y$ = 4;
+let b = $x + $y$ + a;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+const $x = 3;
+const $y$ = 4;
+let b = $x + $y$ + a;
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS
@@ -2539,20 +3465,34 @@ const $y$$z = 4;
 let b = x$$ + $y$$z + a;
 $code$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+const x$$ = 3;
+const $y$$z = 4;
+let b = x$$ + $y$$z + a;
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+const x$$ = 3;
+const $y$$z = 4;
+let b = x$$ + $y$$z + a;
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 $$
@@ -2753,80 +3693,120 @@ AS $$
 let b = "∂" + a + "$∂$";
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "∂" + a + "$∂$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "∂" + a + "$∂$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
 let b = "∂" + a + "$∂$$";
 $code$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "∂" + a + "$∂$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "∂" + a + "$∂$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$
 let b = "∂" + a + "$∂$$∂";
 $code$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "∂" + a + "$∂$$∂";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "∂" + a + "$∂$$∂";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$∂
 let b = "∂" + a + "$∂$";
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$∂
+let b = "∂" + a + "$∂$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	∂
+let b = "∂" + a + "$∂$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 Test multi-byte characters in quote tags
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
@@ -2834,160 +3814,252 @@ AS $∂$
 let b = "∂" + a + "∂$";
 $∂$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "∂" + a + "∂$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "∂" + a + "∂$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $co∂e$
 let b = "∂" + a + "$∂$$";
 $co∂e$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$
+let b = "∂" + a + "$∂$$";
+$JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "∂" + a + "$∂$$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀$
 let b = "😀$😔" + a + "😀$😔$";
 $😀$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "😀$😔" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "?$?" + a + "?$?$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀😔$
 let b = "😀$😔" + a + "😀$😔$";
 $😀😔$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "😀$😔" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "?$?" + a + "?$?$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀$
 let b = "$x😀😔" + a + "$x😀😔$";
 $x😀$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "$x😀😔" + a + "$x😀😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$x??" + a + "$x??$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀x$
 let b = "$😀x😔$" + a + "$😀😔x$";
 $😀x$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "$😀x😔$" + a + "$😀😔x$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$?x?$" + a + "$??x$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y$
 let b = "$x😀😔y$" + a + "$x😀y😔$";
 $x😀y$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "$x😀😔y$" + a + "$x😀y😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "$x??y$" + a + "$x?y?$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $x😀y😔$
 let b = "😀😔$" + a + "😀$😔$";
 $x😀y😔$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	1300	Cannot convert string '\x0Alet b...' from utf8mb4 to utf8mb3
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(a INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+let b = "😀😔$" + a + "😀$😔$";
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+let b = "??$" + a + "?$?$";
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $😀😔$
@@ -3019,20 +4091,26 @@ $code$' at line 4
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $code$ let b := "$$" + x + "$foo$"; $code$ //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $JAVASCRIPT$ let b := "$$" + x + "$foo$"; $JAVASCRIPT$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	 let b := "$$" + x + "$foo$"; 
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 CREATE PROCEDURE bar(x INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT
 AS $$
@@ -3041,20 +4119,34 @@ const $y = 1
 let b = $x + $y;
 $$
 //
-ERROR HY000: No Language component available
+Warnings:
+Warning	6001	No Language component available
 SHOW CREATE procedure bar//
-ERROR 42000: PROCEDURE bar does not exist
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+bar	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `bar`(x INTEGER)
+    DETERMINISTIC
+    LANGUAGE JAVASCRIPT
+AS $$
+const $x = x,
+const $y = 1
+let b = $x + $y;
+$$	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW PROCEDURE STATUS WHERE Name = 'bar'//
 Db	Name	Type	Language	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	bar	PROCEDURE	JAVASCRIPT	root@localhost	<modified>	<created>	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT routine_name, routine_type, data_type, routine_body,
 external_name, external_language, parameter_style, routine_definition
 FROM information_schema.routines
 WHERE routine_schema = "test" //
 ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	ROUTINE_BODY	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	ROUTINE_DEFINITION
+bar	PROCEDURE		EXTERNAL	NULL	JAVASCRIPT	SQL	
+const $x = x,
+const $y = 1
+let b = $x + $y;
+
 CALL bar(2)//
-ERROR 42000: PROCEDURE test.bar does not exist
+ERROR HY000: No Language component available
 DROP procedure bar//
-ERROR 42000: PROCEDURE test.bar does not exist
 # Multiple occurrences of routine body is not allowed
 CREATE PROCEDURE bar(a INTEGER)
 DETERMINISTIC LANGUAGE JAVASCRIPT

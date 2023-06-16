@@ -4397,24 +4397,27 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
         my_service<SERVICE_TYPE(external_program_capability_query)>
             lang_service("external_program_capability_query", srv_registry);
-        if (!lang_service.is_valid()) {
-          my_error(ER_LANGUAGE_COMPONENT_NOT_AVAILABLE, MYF(0));
-          goto error;
+        if (lang_service.is_valid()) {
+          bool supported = false;
+          if (lang_service->get(
+                  "supports_language",
+                  const_cast<char *>(lex->sp_chistics.language.str),
+                  &supported))
+            goto error;
+          if (!supported) {
+            my_error(ER_LANGUAGE_COMPONENT_UNSUPPORTED_LANGUAGE, MYF(0),
+                     lex->sp_chistics.language);
+            goto error;
+          }
+          my_service<SERVICE_TYPE(external_program_execution)> sp_service(
+              "external_program_execution", srv_registry);
+          if (!sp_service.is_valid())
+            push_warning(thd, ER_LANGUAGE_COMPONENT_NOT_AVAILABLE);
+          else if (lex->sphead->init_external_routine(sp_service))
+            goto error;
+        } else {
+          push_warning(thd, ER_LANGUAGE_COMPONENT_NOT_AVAILABLE);
         }
-        bool supported = false;
-        if (lang_service->get("supports_language",
-                              const_cast<char *>(lex->sp_chistics.language.str),
-                              &supported))
-          goto error;
-        if (!supported) {
-          my_error(ER_LANGUAGE_COMPONENT_UNSUPPORTED_LANGUAGE, MYF(0),
-                   lex->sp_chistics.language);
-          goto error;
-        }
-
-        my_service<SERVICE_TYPE(external_program_execution)> sp_service(
-            "external_program_execution", srv_registry);
-        if (lex->sphead->init_external_routine(sp_service)) goto error;
       }
 
       assert(lex->sphead->m_db.str); /* Must be initialized in the parser */
