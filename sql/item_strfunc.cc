@@ -2534,22 +2534,15 @@ bool Item_func_repeat::resolve_type(THD *thd) {
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   assert(collation.collation != nullptr);
   if (args[1]->const_item() && args[1]->may_eval_const_item(thd)) {
-    /* must be longlong to avoid truncation */
-    longlong count = args[1]->val_int();
+    ulonglong count = args[1]->val_uint();
     if (args[1]->null_value) goto end;
-
-    // If count is less than 1, returns an empty string.
-    const Integer_value count_val(count, args[1]->unsigned_flag);
-    if (count_val.is_negative()) count = 0;
-
-    unsigned long long count_ull = static_cast<unsigned long long>(count);
 
     /* Assumes that the maximum length of a String is < INT_MAX32. */
     /* Set here so that rest of code sees out-of-bound value as such. */
-    if (count_ull > INT_MAX32) count_ull = INT_MAX32;
+    if (count > INT_MAX32) count = INT_MAX32;
 
     const ulonglong char_length =
-        static_cast<ulonglong>(args[0]->max_char_length()) * count_ull;
+        static_cast<ulonglong>(args[0]->max_char_length()) * count;
     set_data_type_string(char_length);
     set_nullable(is_nullable() ||
                  max_length > thd->variables.max_allowed_packet);

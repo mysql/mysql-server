@@ -2660,3 +2660,23 @@ WHERE REPEAT(
 DROP TABLE t1;
 
 SET sql_mode = DEFAULT;
+
+--echo #
+--echo # Bug#35489153 String* Item_str_func::push_packet_overflow_warning
+--echo #              (THD*, const char*): Assertion `is_nullable()' failed
+--echo #
+
+SET SESSION sql_mode='';
+
+CREATE TABLE t1 (
+  c1 datetime NOT NULL
+) ;
+INSERT INTO t1 VALUES
+('2001-11-04 19:07:55');
+
+SELECT 1 FROM t1
+WHERE REPEAT( c1, LTRIM( -42 ^ ( 4 XOR -2023620608 ) ) );
+
+DROP TABLE IF EXISTS t1;
+
+SET SESSION sql_mode=default;
