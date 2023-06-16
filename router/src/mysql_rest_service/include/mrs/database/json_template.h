@@ -58,6 +58,14 @@ class JsonTemplate {
   virtual std::string get_result() = 0;
 };
 
+enum class JsonTemplateType { kStandard, kObjectNested, kObjectUnnested };
+class JsonTemplateFactory {
+ public:
+  virtual ~JsonTemplateFactory() = default;
+  virtual std::shared_ptr<JsonTemplate> create_template(
+      const JsonTemplateType type = JsonTemplateType::kStandard) const = 0;
+};
+
 }  // namespace database
 }  // namespace mrs
 

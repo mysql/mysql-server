@@ -82,42 +82,43 @@ TEST_F(FilterObjectsTest, orderby_field_must_be_an_object_with_fields) {
 
 TEST_F(FilterObjectsTest, orderby_one_field_asc) {
   sut_.parse(json("{\"$orderby\":{\"test_field\":1}}"));
-  ASSERT_EQ(" ORDER BY test_field ASC", sut_.get_result().str());
+  ASSERT_EQ(" ORDER BY `test_field` ASC", sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, orderby_two_fields_asc) {
   sut_.parse(json("{\"$orderby\":{\"test_field\":1, \"field2\":-1}}"));
-  ASSERT_EQ(" ORDER BY test_field ASC, field2 DESC", sut_.get_result().str());
+  ASSERT_EQ(" ORDER BY `test_field` ASC, `field2` DESC",
+            sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, match_field_by_int_value) {
   sut_.parse(json("{\"f1\":1}"));
-  ASSERT_EQ(" f1=1", sut_.get_result().str());
+  ASSERT_EQ(" `f1`=1", sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, match_field_by_string_value) {
   sut_.parse(json("{\"f1\":\"abc123\"}"));
-  ASSERT_EQ(" f1='abc123'", sut_.get_result().str());
+  ASSERT_EQ(" `f1`='abc123'", sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, match_fields) {
   sut_.parse(json("{\"f1\":\"abc123\", \"f2\":10}"));
-  ASSERT_EQ(" f1='abc123' AND f2=10", sut_.get_result().str());
+  ASSERT_EQ(" `f1`='abc123' AND `f2`=10", sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, match_field_complex) {
   sut_.parse(json("{\"f1\":{\"$eq\":1}}"));
-  ASSERT_EQ(" f1 = 1", sut_.get_result().str());
+  ASSERT_EQ(" `f1` = 1", sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, match_field_complex_greater) {
   sut_.parse(json("{\"f1\":{\"$gt\":1}}"));
-  ASSERT_EQ(" f1 > 1", sut_.get_result().str());
+  ASSERT_EQ(" `f1` > 1", sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, match_field_complex_between) {
   sut_.parse(json("{\"f1\":{\"$between\":[1,100]}}"));
-  ASSERT_EQ(" f1 BETWEEN 1 AND 100", sut_.get_result().str());
+  ASSERT_EQ(" `f1` BETWEEN 1 AND 100", sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, not_supported_match_field_complex_less_and_greater) {
@@ -127,22 +128,22 @@ TEST_F(FilterObjectsTest, not_supported_match_field_complex_less_and_greater) {
 
 TEST_F(FilterObjectsTest, complex_and_one_element) {
   sut_.parse(json("{\"$and\":[{\"v1\":1}]}"));
-  ASSERT_EQ("(( v1=1))", sut_.get_result().str());
+  ASSERT_EQ("(( `v1`=1))", sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, complex_and_two_elements) {
   sut_.parse(json("{\"$and\":[{\"v1\":1},{\"v2\":\"a\"}]}"));
-  ASSERT_EQ("(( v1=1) AND( v2='a'))", sut_.get_result().str());
+  ASSERT_EQ("(( `v1`=1) AND( `v2`='a'))", sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, complex_or_one_element) {
   sut_.parse(json("{\"$or\":[{\"v1\":1}]}"));
-  ASSERT_EQ("(( v1=1))", sut_.get_result().str());
+  ASSERT_EQ("(( `v1`=1))", sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, complex_or_two_elements) {
   sut_.parse(json("{\"$or\":[{\"v1\":1},{\"v2\":\"a\"}]}"));
-  ASSERT_EQ("(( v1=1) OR( v2='a'))", sut_.get_result().str());
+  ASSERT_EQ("(( `v1`=1) OR( `v2`='a'))", sut_.get_result().str());
 }
 
 TEST_F(FilterObjectsTest, invalid_match_objects) {

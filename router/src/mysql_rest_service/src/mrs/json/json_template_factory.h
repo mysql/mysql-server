@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,25 +22,22 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <gtest/gtest.h>
+#ifndef ROUTER_SRC_REST_MRS_SRC_MRS_JSON_JSON_TEMPLATE_FACTORY_H_
+#define ROUTER_SRC_REST_MRS_SRC_MRS_JSON_JSON_TEMPLATE_FACTORY_H_
 
-#include "test/helpers.h"
+#include "mrs/database/json_template.h"
 
-int main(int argc, char *argv[]) {
-  ::testing::InitGoogleTest(&argc, argv);
+namespace mrs {
+namespace json {
 
-  init_test_logger();
-  const char *kEnvLiveServer = "RUN_WITH_LIVE_MYSQLD";
-  if (nullptr == getenv(kEnvLiveServer)) {
-    auto &filter = testing::GTEST_FLAG(filter);
-    if (filter.empty() || filter == "*") {
-      filter = "-DatabaseQuery*.*";
-    }
-    std::cerr << filter << std::endl;
-    std::cerr << "Filtering out tests that run on live database. To run those "
-                 "tests set following environment variable: "
-              << kEnvLiveServer << std::endl;
-  }
+class JsonTemplateFactory : public database::JsonTemplateFactory {
+ public:
+  std::shared_ptr<database::JsonTemplate> create_template(
+      const database::JsonTemplateType type =
+          database::JsonTemplateType::kStandard) const override;
+};
 
-  return RUN_ALL_TESTS();
-}
+}  // namespace json
+}  // namespace mrs
+
+#endif  // ROUTER_SRC_REST_MRS_SRC_MRS_JSON_JSON_TEMPLATE_FACTORY_H_

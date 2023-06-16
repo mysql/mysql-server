@@ -33,6 +33,7 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_helper_response_json_template.cc
     ./test_collector_mysql_cache_manager.cc
     ./test_database_rest_table.cc
+    ./test_database_rest_sp.cc
     ./test_database_entries.cc
     ./test_mrs_database_rest_table.cc
     ./test_mrs_database_rest_table_get.cc
@@ -51,6 +52,7 @@ add_test_file(test_rest_mrs_plugin.cc
     ./test_rest_handler.cc
     ./test_rest_mrs_user_manager.cc
     ./test_rest_user_entry.cc
+    ./test_mrs_json_template.cc
     ./test_mrs_query_entries_db_object.cc
     ./test_mrs_user_cache.cc
     ./test_mrs_route_object.cc

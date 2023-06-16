@@ -24,6 +24,7 @@
 
 #include "mrs/database/query_rest_sp.h"
 
+#include "mrs/json/json_template_factory.h"
 #include "mrs/json/response_sp_json_template_nest.h"
 #include "mrs/json/response_sp_json_template_unnest.h"
 
@@ -46,16 +47,25 @@ static MYSQL_FIELD *columns_find(const std::string &look_for, unsigned number,
   return nullptr;
 }
 
+static const Field *columns_find(const std::string &look_for,
+                                 const std::vector<Field> &rs) {
+  for (auto &f : rs) {
+    if (look_for == f.bind_name) return &f;
+  }
+
+  return nullptr;
+}
+
 static void impl_columns_set(std::vector<helper::Column> &c,
-                             const std::vector<Field> &rs, unsigned number,
+                             const std::vector<Field> &rs, unsigned,
                              MYSQL_FIELD *fields) {
   c.resize(rs.size());
   int idx = 0;
   for (auto &i : c) {
-    auto &f = rs[idx++];
-    auto column_def = columns_find(f.bind_name, number, fields);
-    i = helper::Column(column_def);
-    i.name = f.name;
+    auto &f = fields[idx++];
+    i = helper::Column(&f);
+    auto column_def = columns_find(f.name, rs);
+    i.name = column_def->name;
   }
 }
 
@@ -81,6 +91,8 @@ static const Field *columns_match(const std::vector<Field> &columns,
 
   return nullptr;
 }
+
+QueryRestSP::QueryRestSP(JsonTemplateFactory *factory) : factory_{factory} {}
 
 void QueryRestSP::columns_set(unsigned number, MYSQL_FIELD *fields) {
   {
@@ -112,6 +124,17 @@ void QueryRestSP::columns_set(unsigned number, MYSQL_FIELD *fields) {
   impl_columns_set(columns_, number, fields);
 }
 
+std::shared_ptr<JsonTemplate> QueryRestSP::create_template(const bool nested) {
+  mrs::json::JsonTemplateFactory default_factory;
+  mrs::database::JsonTemplateFactory *factory = &default_factory;
+  using JsonTemplateType = mrs::database::JsonTemplateType;
+
+  if (factory_) factory = factory_;
+
+  return factory->create_template(nested ? JsonTemplateType::kObjectNested
+                                         : JsonTemplateType::kObjectUnnested);
+}
+
 void QueryRestSP::query_entries(
     MySQLSession *session, const std::string &schema, const std::string &object,
     const std::string &url, const std::string &ignore_column,
@@ -138,12 +161,7 @@ void QueryRestSP::query_entries(
   use_single_resultset_ =
       !always_nest_result_sets && rs.results.size() == 1 && no_out_params;
 
-  if (!use_single_resultset_) {
-    response_template_.reset(new ResponseSpJsonTemplateNest());
-  } else {
-    response_template_.reset(new ResponseSpJsonTemplateUnnest());
-  }
-
+  response_template_ = create_template(use_single_resultset_);
   response_template_->begin();
 
   prepare_and_execute(session, query_, pt);

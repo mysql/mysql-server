@@ -99,6 +99,7 @@ ADD_HARNESS_PLUGIN(mysql_rest_service
   mrs/authentication/sasl_handler.cc
   mrs/authentication/scram_handler.cc
   mrs/json/response_json_template.cc
+  mrs/json/json_template_factory.cc
   mrs/json/response_sp_json_template_unnest.cc
   mrs/json/response_sp_json_template_nest.cc
   mrs/http/cookie.cc

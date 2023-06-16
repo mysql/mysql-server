@@ -48,6 +48,7 @@ GET /svc/basic/t/1
 {
     "id": 1,
     "date": "1977-01-21 00:00:00.000000",
+    "name": "First row",
     "links": [
         {
             "rel": "self",
@@ -56,7 +57,7 @@ GET /svc/basic/t/1
     ],
     "comments": "First comment",
     "_metadata": {
-        "etag": "560824FD9225DDB8BC4F2C66954CE4F5739DDDF38CE9753C651ACF4B8F89F610"
+        "etag": "9A2E43465461EFB43E9B0677C9EB126B86A831270913B7B3764A66985D92D012"
     }
 }
 OK

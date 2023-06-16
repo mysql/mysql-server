@@ -44,6 +44,8 @@ class QueryRestSP : private QueryLog {
   using ResultSets = entry::ResultSets;
 
  public:
+  QueryRestSP(JsonTemplateFactory *factory = nullptr);
+
   virtual void query_entries(MySQLSession *session, const std::string &schema,
                              const std::string &object, const std::string &url,
                              const std::string &ignore_column,
@@ -55,12 +57,14 @@ class QueryRestSP : private QueryLog {
   std::string response;
   uint64_t items;
 
- private:
+ protected:
+  std::shared_ptr<JsonTemplate> create_template(const bool is_nested);
+
   bool items_started_;
   bool has_out_params_;
   uint64_t items_in_resultset_;
   uint64_t number_of_resultsets_;
-  std::unique_ptr<JsonTemplate> response_template_;
+  std::shared_ptr<JsonTemplate> response_template_;
   std::vector<helper::Column> columns_;
   std::string columns_items_type_;
   const char *ignore_column_{nullptr};
@@ -68,6 +72,7 @@ class QueryRestSP : private QueryLog {
   const ResultSets *rs_;
   bool use_single_resultset_;
   uint32_t resultset_{0};
+  JsonTemplateFactory *factory_{nullptr};
 
   void columns_set(unsigned number, MYSQL_FIELD *fields);
 
