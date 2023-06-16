@@ -124,15 +124,16 @@ void QueryRestSP::columns_set(unsigned number, MYSQL_FIELD *fields) {
   impl_columns_set(columns_, number, fields);
 }
 
-std::shared_ptr<JsonTemplate> QueryRestSP::create_template(const bool nested) {
+std::shared_ptr<JsonTemplate> QueryRestSP::create_template(
+    const bool unnested) {
   mrs::json::JsonTemplateFactory default_factory;
   mrs::database::JsonTemplateFactory *factory = &default_factory;
   using JsonTemplateType = mrs::database::JsonTemplateType;
 
   if (factory_) factory = factory_;
 
-  return factory->create_template(nested ? JsonTemplateType::kObjectNested
-                                         : JsonTemplateType::kObjectUnnested);
+  return factory->create_template(unnested ? JsonTemplateType::kObjectUnnested
+                                           : JsonTemplateType::kObjectNested);
 }
 
 void QueryRestSP::query_entries(
