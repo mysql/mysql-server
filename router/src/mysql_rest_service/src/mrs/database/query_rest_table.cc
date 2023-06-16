@@ -33,6 +33,7 @@
 #include "mrs/database/filter_object_generator.h"
 #include "mrs/database/helper/object_checksum.h"
 #include "mrs/database/helper/object_query.h"
+#include "mrs/json/json_template_factory.h"
 #include "mrs/json/response_json_template.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/utility/string.h"
@@ -42,8 +43,11 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace database {
 
-QueryRestTable::QueryRestTable() {
-  serializer_.reset(new json::ResponseJsonTemplate());
+QueryRestTable::QueryRestTable(const JsonTemplateFactory *factory) {
+  if (factory)
+    serializer_ = factory->create_template();
+  else
+    serializer_ = mrs::json::JsonTemplateFactory().create_template();
 }
 
 void QueryRestTable::query_entries(
@@ -54,19 +58,22 @@ void QueryRestTable::query_entries(
     const std::string &q, const bool compute_etag) {
   object_ = object;
   compute_etag_ = compute_etag;
-
+  metadata_received_ = false;
   items = 0;
-  build_query(field_filter, offset, limit + 1, url_route, row_ownership, q);
   config_ = {offset, limit, is_default_limit, url_route};
+
+  build_query(field_filter, offset, limit + 1, url_route, row_ownership, q);
 
   serializer_->begin();
   execute(session);
+  if (!metadata_received_) on_metadata(0, nullptr);
   serializer_->finish();
 
   response = serializer_->get_result();
 }
 
 void QueryRestTable::on_metadata(unsigned number, MYSQL_FIELD *fields) {
+  metadata_received_ = true;
   Query::on_metadata(number, fields);
   columns_.clear();
   for (unsigned int i = 0; i < number; ++i) {

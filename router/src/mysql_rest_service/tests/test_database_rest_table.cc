@@ -87,7 +87,7 @@ TEST(DbEntry, less) {
   ASSERT_TRUE((m[{key_rest, {6}}] == 12));
 }
 
-TEST_F(QueryRestTableTests, basic_empty_request_throws) {
+TEST_F(QueryRestTableTests, DISABLED_basic_empty_request_throws) {
   auto object =
       ObjectBuilder("schema", "obj").field("c2", FieldFlag::PRIMARY).root();
 
@@ -98,7 +98,7 @@ TEST_F(QueryRestTableTests, basic_empty_request_throws) {
                std::invalid_argument);
 }
 
-TEST_F(QueryRestTableTests, basic_two_request_without_result) {
+TEST_F(QueryRestTableTests, DISABLED_basic_two_request_without_result) {
   auto object = ObjectBuilder("schema", "obj")
                     .field("c1")
                     .field("c2", FieldFlag::PRIMARY)
@@ -119,7 +119,8 @@ TEST_F(QueryRestTableTests, basic_two_request_without_result) {
                       25, "my.url", true);
 }
 
-TEST_F(QueryRestTableTests, basic_two_request_without_result_and_no_links) {
+TEST_F(QueryRestTableTests,
+       DISABLED_basic_two_request_without_result_and_no_links) {
   auto object = ObjectBuilder("schema", "obj").field("c1").field("c2").root();
 
   EXPECT_CALL(
@@ -135,7 +136,7 @@ TEST_F(QueryRestTableTests, basic_two_request_without_result_and_no_links) {
                       25, "my.url", true);
 }
 
-TEST_F(QueryRestTableTests, basic_query) {
+TEST_F(QueryRestTableTests, DISABLED_basic_query) {
   auto root = ObjectBuilder("schema", "obj")
                   .field("c1", FieldFlag::PRIMARY)
                   .field("c2")

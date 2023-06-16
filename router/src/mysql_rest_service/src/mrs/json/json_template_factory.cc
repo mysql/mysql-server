@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,25 +22,29 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <gtest/gtest.h>
+#include "mrs/json/json_template_factory.h"
+#include "mrs/json/response_json_template.h"
+#include "mrs/json/response_sp_json_template_nest.h"
+#include "mrs/json/response_sp_json_template_unnest.h"
 
-#include "test/helpers.h"
+namespace mrs {
+namespace json {
 
-int main(int argc, char *argv[]) {
-  ::testing::InitGoogleTest(&argc, argv);
-
-  init_test_logger();
-  const char *kEnvLiveServer = "RUN_WITH_LIVE_MYSQLD";
-  if (nullptr == getenv(kEnvLiveServer)) {
-    auto &filter = testing::GTEST_FLAG(filter);
-    if (filter.empty() || filter == "*") {
-      filter = "-DatabaseQuery*.*";
-    }
-    std::cerr << filter << std::endl;
-    std::cerr << "Filtering out tests that run on live database. To run those "
-                 "tests set following environment variable: "
-              << kEnvLiveServer << std::endl;
+std::shared_ptr<database::JsonTemplate> JsonTemplateFactory::create_template(
+    const database::JsonTemplateType type) const {
+  switch (type) {
+    case database::JsonTemplateType::kObjectNested:
+      return std::shared_ptr<database::JsonTemplate>{
+          new ResponseSpJsonTemplateNest()};
+    case database::JsonTemplateType::kObjectUnnested:
+      return std::shared_ptr<database::JsonTemplate>{
+          new ResponseSpJsonTemplateUnnest()};
+    case database::JsonTemplateType::kStandard:
+    default:
+      return std::shared_ptr<database::JsonTemplate>{
+          new ResponseJsonTemplate()};
   }
-
-  return RUN_ALL_TESTS();
 }
+
+}  // namespace json
+}  // namespace mrs

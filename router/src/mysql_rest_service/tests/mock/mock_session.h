@@ -46,6 +46,13 @@ class MockMySQLSession : public collector::CountedMySQLSession {
 
   MOCK_METHOD(ConnectionParameters, get_connection_parameters, (), (override));
 
+  MOCK_METHOD(uint64_t, prepare, (const std::string &), (override));
+  MOCK_METHOD(void, prepare_execute,
+              (uint64_t, std::vector<enum_field_types>,
+               const ResultRowProcessor &, const FieldValidator &),
+              (override));
+  MOCK_METHOD(void, prepare_remove, (uint64_t), (override));
+
   MOCK_METHOD(void, execute, (const std::string &), (override));
   MOCK_METHOD(void, query,
               (const std::string &, const ResultRowProcessor &,

@@ -80,6 +80,7 @@ class HandleObjectTests : public Test {
       }
 
       auto builder = ObjectBuilder(schema, object);
+      builder.field(cached_primary, cached_primary, "text");
       for (auto &a : cached_columns) {
         builder.field(a, a, "text");
       }
@@ -114,8 +115,8 @@ class HandleObjectTests : public Test {
 
       EXPECT_CALL(parent_.mock_route, get_cached_object())
           .WillRepeatedly(Return(cached_object_));
-      EXPECT_CALL(parent_.mock_route, get_cached_columnes())
-          .WillRepeatedly(ReturnRef(cached_columns_));
+      //      EXPECT_CALL(parent_.mock_route, get_cached_columnes())
+      //          .WillRepeatedly(ReturnRef(cached_columns_));
 
       EXPECT_CALL(parent_.mock_route, get_on_page()).WillRepeatedly(Return(25));
       EXPECT_CALL(parent_.mock_route, get_user_row_ownership())

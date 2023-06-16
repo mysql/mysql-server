@@ -42,7 +42,6 @@ class DatabaseRestTableTest : public testing::Test {
   uint64_t initial_binlog_position_ = 0;
 
   void SetUp() override;
-
   void TearDown() override;
 
   void reset_test();

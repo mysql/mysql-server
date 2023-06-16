@@ -38,6 +38,12 @@ IMPORT_LOG_FUNCTIONS()
 namespace mrs {
 namespace database {
 
+static mysqlrouter::sqlstring format_pk(const std::string &table_name,
+                                        const std::string &column_name) {
+  if (table_name.empty()) return mysqlrouter::sqlstring("!") << column_name;
+  return mysqlrouter::sqlstring("!.!") << table_name << column_name;
+}
+
 mysqlrouter::sqlstring format_where_expr(
     std::shared_ptr<database::entry::Table> table,
     const std::string &table_name, const PrimaryKeyColumnValues &f) {
@@ -47,14 +53,16 @@ mysqlrouter::sqlstring format_where_expr(
     auto type = table->get_column(c.first)->type;
 
     mysqlrouter::sqlstring col;
-    if (table_name.empty()) {
+    if (table_name.empty() || type == entry::ColumnType::BINARY) {
       col = mysqlrouter::sqlstring("! = ?");
     } else {
       col = mysqlrouter::sqlstring("!.! = ?");
       col << table_name;
     }
-    if (type == entry::ColumnType::BOOLEAN) {
-      col << (mysqlrouter::sqlstring{"cast(! as BINARY)"} << c.first);
+
+    if (type == entry::ColumnType::BINARY) {
+      col << (mysqlrouter::sqlstring{"cast(! as BINARY)"}
+              << format_pk(table_name, c.first));
     } else {
       col << c.first;
     }

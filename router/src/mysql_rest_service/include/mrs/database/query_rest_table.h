@@ -53,7 +53,7 @@ class QueryRestTable : private QueryLog {
 
   using VectorOfRowGroupOwnershp = std::vector<RowGroupOwnership>;
 
-  QueryRestTable();
+  QueryRestTable(const JsonTemplateFactory *factory = nullptr);
 
  public:
   virtual void query_entries(
@@ -64,7 +64,7 @@ class QueryRestTable : private QueryLog {
       const std::string &query = {}, const bool compute_etag = false);
 
   std::string response;
-  uint64_t items;
+  uint64_t items{0};
 
  private:
   struct Config {
@@ -76,10 +76,11 @@ class QueryRestTable : private QueryLog {
 
   Config config_;
   std::vector<helper::Column> columns_;
-  std::unique_ptr<database::JsonTemplate> serializer_;
+  std::shared_ptr<database::JsonTemplate> serializer_;
   std::shared_ptr<database::entry::Object> object_;
-  bool compute_etag_ = false;
+  bool compute_etag_{false};
   mysqlrouter::sqlstring where_;
+  bool metadata_received_{false};
 
   void on_row(const ResultRow &r) override;
   void on_metadata(unsigned number, MYSQL_FIELD *fields) override;

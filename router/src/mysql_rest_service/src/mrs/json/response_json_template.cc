@@ -91,7 +91,6 @@ void ResponseJsonTemplate::begin_resultset(
 }
 
 void ResponseJsonTemplate::end_resultset() {
-  assert(began_ == true);
   json_root_items_ = JsonSerializer::Array();
   if (!limit_not_set_) {
     json_root_->member_add_value("limit", limit_);

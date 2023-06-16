@@ -159,11 +159,17 @@ database::PrimaryKeyColumnValues HandlerDbObject::get_rest_pk_parameter(
     std::shared_ptr<database::entry::Object> object,
     const HttpUri &requests_uri) {
   auto id = get_path_after_object_name(requests_uri);
+  auto pk_columns = object->get_base_table()->primary_key();
 
   if (id.empty()) return {};
 
+  mrs::database::PrimaryKeyColumnValues pk;
+  if (1 == pk_columns.size()) {
+    pk[pk_columns[0]->name] = rest_param_to_sql_value(*pk_columns[0], id);
+    return pk;
+  }
+
   auto pk_values = mysql_harness::split_string(id, ',', true);
-  auto pk_columns = object->get_base_table()->primary_key();
 
   if (pk_columns.empty()) {
     throw std::logic_error("Table has no primary key");
@@ -173,7 +179,6 @@ database::PrimaryKeyColumnValues HandlerDbObject::get_rest_pk_parameter(
     throw http::Error(HttpStatusCode::NotFound, "Invalid ID requested");
   }
 
-  mrs::database::PrimaryKeyColumnValues pk;
   for (size_t i = 0; i < pk_columns.size(); i++) {
     pk[pk_columns[i]->name] =
         rest_param_to_sql_value(*pk_columns[i], pk_values[i]);

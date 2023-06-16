@@ -54,7 +54,10 @@ GET /svc/pk/bit/0
         {
             "href": "/svc/pk/bit/0"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "341739954F684A53D09CE09A76B4F7FB2328D96270F63987CB170D01D1E7CFC4"
+    }
 }
 OK
 GET /svc/pk/bit/1
@@ -64,7 +67,10 @@ GET /svc/pk/bit/1
         {
             "href": "/svc/pk/bit/1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "124BDE3580C56E8A986AA172E8E760947C92891ED80856EA34D6F07C5AB4AD0B"
+    }
 }
 OK
 GET /svc/pk/bit/0
@@ -74,7 +80,10 @@ GET /svc/pk/bit/0
         {
             "href": "/svc/pk/bit/0"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "341739954F684A53D09CE09A76B4F7FB2328D96270F63987CB170D01D1E7CFC4"
+    }
 }
 OK
 GET /svc/pk/bit1/1
@@ -84,7 +93,10 @@ GET /svc/pk/bit1/1
         {
             "href": "/svc/pk/bit1/1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "124BDE3580C56E8A986AA172E8E760947C92891ED80856EA34D6F07C5AB4AD0B"
+    }
 }
 OK
 GET /svc/pk/bit1/true
@@ -94,7 +106,10 @@ GET /svc/pk/bit1/true
         {
             "href": "/svc/pk/bit1/1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "124BDE3580C56E8A986AA172E8E760947C92891ED80856EA34D6F07C5AB4AD0B"
+    }
 }
 OK
 GET /svc/pk/bit1/True
@@ -104,7 +119,10 @@ GET /svc/pk/bit1/True
         {
             "href": "/svc/pk/bit1/1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "124BDE3580C56E8A986AA172E8E760947C92891ED80856EA34D6F07C5AB4AD0B"
+    }
 }
 OK
 GET /svc/pk/bit1/false
@@ -114,7 +132,10 @@ GET /svc/pk/bit1/false
         {
             "href": "/svc/pk/bit1/0"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "341739954F684A53D09CE09A76B4F7FB2328D96270F63987CB170D01D1E7CFC4"
+    }
 }
 OK
 
@@ -127,7 +148,10 @@ GET /svc/pk/bit8/AA==
         {
             "href": "/svc/pk/bit8/AA=="
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "C127DFA89D7DF88AF3329811F814810F8EE10CE4B117BC3518D6588B354AE2A5"
+    }
 }
 OK
 GET /svc/pk/bit8/AQ==
@@ -137,7 +161,10 @@ GET /svc/pk/bit8/AQ==
         {
             "href": "/svc/pk/bit8/AQ=="
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "EE6FDF1E723A5FC2779061C8A49EFD9FD00F12C181D270FAEAC4A700A2F0AB9B"
+    }
 }
 OK
 GET /svc/pk/bin/AAAA
@@ -147,7 +174,10 @@ GET /svc/pk/bin/AAAA
         {
             "href": "/svc/pk/bin/AAAA"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "A901C185550AA3D41C881051F64203D07ECF34C0A4CD8658154669538D78EC87"
+    }
 }
 OK
 GET /svc/pk/bin/BwAA
@@ -157,7 +187,10 @@ GET /svc/pk/bin/BwAA
         {
             "href": "/svc/pk/bin/BwAA"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "DB309FEE7E2A2D2BF8D5DDD0E9CC4E56F4B12DD71FC41924CD69F62FDBFED2FD"
+    }
 }
 OK
 
@@ -170,7 +203,10 @@ GET /svc/pk/set/value1
         {
             "href": "/svc/pk/set/value1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "26B02829C009A8AE4C05676D7917EA8EBD0D94B8979D2C964055C15B5D82FBDC"
+    }
 }
 OK
 GET /svc/pk/set/value1,value2,value3
@@ -180,7 +216,10 @@ GET /svc/pk/set/value1,value2,value3
         {
             "href": "/svc/pk/set/value1,value2,value3"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "2835C7BDD734E85AA2B43E45AE8EE449C2E9458F0EED1F0FFE1F55E8CF425ED9"
+    }
 }
 OK
 GET /svc/pk/enum/value1
@@ -190,7 +229,10 @@ GET /svc/pk/enum/value1
         {
             "href": "/svc/pk/enum/value1"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "26B02829C009A8AE4C05676D7917EA8EBD0D94B8979D2C964055C15B5D82FBDC"
+    }
 }
 OK
 GET /svc/pk/enum/value3
@@ -200,7 +242,10 @@ GET /svc/pk/enum/value3
         {
             "href": "/svc/pk/enum/value3"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "38FA6EABD5B8C332853634F480F3C2ABBC9FCD31B0690980BA2EDEBBA9881A2D"
+    }
 }
 OK
 GET /svc/pk/varchar20/123456
@@ -210,7 +255,10 @@ GET /svc/pk/varchar20/123456
         {
             "href": "/svc/pk/varchar20/123456"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "F526F96CF76E40FEEA50160EC7079B8F893ABAC8F54333867C71D4A1DFF77C01"
+    }
 }
 OK
 
@@ -223,7 +271,10 @@ GET /svc/pk/date/2020-12-01
         {
             "href": "/svc/pk/date/2020-12-01"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "BD52F8AB5E35279345F86E54AA906965DC6B7AD9C5EDE4FB4A1416E3994F2791"
+    }
 }
 OK
 GET /svc/pk/date/2020-12-03
@@ -233,7 +284,10 @@ GET /svc/pk/date/2020-12-03
         {
             "href": "/svc/pk/date/2020-12-03"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "6EE2073066DA140E6C98B4C2C87D84F499B8A69259BD40FF4DDA17F224D1D918"
+    }
 }
 OK
 GET /svc/pk/time/12:01:50
@@ -243,7 +297,10 @@ GET /svc/pk/time/12:01:50
         {
             "href": "/svc/pk/time/12:01:50"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "F9117FD8E123E9813DDDB68362456C42AA91080A76001A366E4B79EFC2BC8427"
+    }
 }
 OK
 GET /svc/pk/time/12:01:51
@@ -253,7 +310,10 @@ GET /svc/pk/time/12:01:51
         {
             "href": "/svc/pk/time/12:01:51"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "70D7419380BD775A0F781939912AF20B46405CCF5E67F02AAC67539F8F33DA43"
+    }
 }
 OK
 GET /svc/pk/time/12:01:51.0000
@@ -263,7 +323,10 @@ GET /svc/pk/time/12:01:51.0000
         {
             "href": "/svc/pk/time/12:01:51.0000"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "70D7419380BD775A0F781939912AF20B46405CCF5E67F02AAC67539F8F33DA43"
+    }
 }
 OK
 GET /svc/pk/year/2020
@@ -273,7 +336,10 @@ GET /svc/pk/year/2020
         {
             "href": "/svc/pk/year/2020"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "37BA8FEC9583D8F179EB6138AEEA7F439CB9075BCF8C7D1C39620BBCCD8EDD1A"
+    }
 }
 OK
 GET /svc/pk/year/2022
@@ -283,7 +349,10 @@ GET /svc/pk/year/2022
         {
             "href": "/svc/pk/year/2022"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "250F83001693FF305BF442C63287915EC37A79EDDB105C6AD759643AF91C4CB9"
+    }
 }
 OK
 GET /svc/pk/datetime/2020-12-01 12:01:50.000000
@@ -293,7 +362,10 @@ GET /svc/pk/datetime/2020-12-01 12:01:50.000000
         {
             "href": "/svc/pk/datetime/2020-12-01 12:01:50.000000"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "63966305A57A2D2758F15A7829253A145CF1D6E5E0538E43F1349FCA79074F5D"
+    }
 }
 OK
 GET /svc/pk/datetime/2020-12-01 12:01:50
@@ -303,7 +375,10 @@ GET /svc/pk/datetime/2020-12-01 12:01:50
         {
             "href": "/svc/pk/datetime/2020-12-01 12:01:50"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "63966305A57A2D2758F15A7829253A145CF1D6E5E0538E43F1349FCA79074F5D"
+    }
 }
 OK
 GET /svc/pk/datetime/2020-12-02 12:01:50
@@ -313,7 +388,10 @@ GET /svc/pk/datetime/2020-12-02 12:01:50
         {
             "href": "/svc/pk/datetime/2020-12-02 12:01:50"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "189A3B833818169C218E92ACE1ED784277DB4CAE6E48F182ABD7F1D3E21FB4C2"
+    }
 }
 OK
 GET /svc/pk/timestamp/2020-12-02 12:01:50.000000
@@ -323,7 +401,10 @@ GET /svc/pk/timestamp/2020-12-02 12:01:50.000000
         {
             "href": "/svc/pk/timestamp/2020-12-02 12:01:50.000000"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "189A3B833818169C218E92ACE1ED784277DB4CAE6E48F182ABD7F1D3E21FB4C2"
+    }
 }
 OK
 GET /svc/pk/timestamp/2020-12-03 12:01:50
@@ -333,7 +414,10 @@ GET /svc/pk/timestamp/2020-12-03 12:01:50
         {
             "href": "/svc/pk/timestamp/2020-12-03 12:01:50"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "B4BED1CE1E79E66528C5FC04CD8BCC7E2BB2D96844EC78356D4249349CB5F278"
+    }
 }
 OK
 
@@ -346,7 +430,10 @@ GET /svc/pk/float/0
         {
             "href": "/svc/pk/float/0"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "4099F2F73CFA9CE2A54BA5E65A1EE35811B943D0A1662559E72D451CC9ECD80E"
+    }
 }
 OK
 GET /svc/pk/double/-999.9999
@@ -356,7 +443,10 @@ GET /svc/pk/double/-999.9999
         {
             "href": "/svc/pk/double/-999.9999"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "6B2458D3F4CBAB2E38779B9B531C33A72394F4E20E47B60C7387672AD3994B3A"
+    }
 }
 OK
 GET /svc/pk/decimal/-999.99
@@ -366,7 +456,10 @@ GET /svc/pk/decimal/-999.99
         {
             "href": "/svc/pk/decimal/-999.99"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "9EAF1F4FCB8062EB81FE4CFAED1D2C0556231858C1E14DC6FA85D2F807463030"
+    }
 }
 OK
 
@@ -379,7 +472,10 @@ GET /svc/pk/int/-2147483648
         {
             "href": "/svc/pk/int/-2147483648"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "AE3FEAE18A9277EB34465D6D09E3467E1334DFA2F6AC41A747348534EEAFBCBE"
+    }
 }
 OK
 GET /svc/pk/int/0
@@ -389,7 +485,10 @@ GET /svc/pk/int/0
         {
             "href": "/svc/pk/int/0"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "591C4C1A3DA84C963656823F8FF45E805CA1EA788453F9951C844B7EF2276B52"
+    }
 }
 OK
 GET /svc/pk/int/2147483647
@@ -399,7 +498,10 @@ GET /svc/pk/int/2147483647
         {
             "href": "/svc/pk/int/2147483647"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "A566A20D59445746B256C2A85E46F365B602531B6D32B489D2FC5D41B038291C"
+    }
 }
 OK
 GET /svc/pk/smallint/-32768
@@ -409,7 +511,10 @@ GET /svc/pk/smallint/-32768
         {
             "href": "/svc/pk/smallint/-32768"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "4A970D73F8D5FFB7B9C3E61C57985AD95A5C717BAEA1145AE824859C587C66EB"
+    }
 }
 OK
 GET /svc/pk/smallint/0
@@ -419,7 +524,10 @@ GET /svc/pk/smallint/0
         {
             "href": "/svc/pk/smallint/0"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "591C4C1A3DA84C963656823F8FF45E805CA1EA788453F9951C844B7EF2276B52"
+    }
 }
 OK
 GET /svc/pk/smallint/32767
@@ -429,7 +537,10 @@ GET /svc/pk/smallint/32767
         {
             "href": "/svc/pk/smallint/32767"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "6A798FC54506B6A527FA8F4E7A39F6779D2E686C9322BD983640DCBF0C0AB4CB"
+    }
 }
 OK
 GET /svc/pk/tinyint/-128
@@ -439,7 +550,10 @@ GET /svc/pk/tinyint/-128
         {
             "href": "/svc/pk/tinyint/-128"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "C62B9EE4F38EE745456D295F7649063EA1715B1B9B7E8FD544CC6CF15B0F2758"
+    }
 }
 OK
 GET /svc/pk/tinyint/0
@@ -449,7 +563,10 @@ GET /svc/pk/tinyint/0
         {
             "href": "/svc/pk/tinyint/0"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "591C4C1A3DA84C963656823F8FF45E805CA1EA788453F9951C844B7EF2276B52"
+    }
 }
 OK
 GET /svc/pk/tinyint/127
@@ -459,7 +576,10 @@ GET /svc/pk/tinyint/127
         {
             "href": "/svc/pk/tinyint/127"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "44CCCF91DA85E35944E4187E6AB87C89D8F27A19903010365C6289A9867D58EB"
+    }
 }
 OK
 GET /svc/pk/mediumint/-8388608
@@ -469,7 +589,10 @@ GET /svc/pk/mediumint/-8388608
         {
             "href": "/svc/pk/mediumint/-8388608"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "39EAF3D21C451505566E9612BF3F2BAA1E040F3F6A260FA8F2EDCF691CB9CEAD"
+    }
 }
 OK
 GET /svc/pk/mediumint/0
@@ -479,7 +602,10 @@ GET /svc/pk/mediumint/0
         {
             "href": "/svc/pk/mediumint/0"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "591C4C1A3DA84C963656823F8FF45E805CA1EA788453F9951C844B7EF2276B52"
+    }
 }
 OK
 GET /svc/pk/mediumint/8388607
@@ -489,7 +615,10 @@ GET /svc/pk/mediumint/8388607
         {
             "href": "/svc/pk/mediumint/8388607"
         }
-    ]
+    ],
+    "_metadata": {
+        "etag": "52316C8D5C5A7B8A3978CFA44EAB7C884166600FDAC7479031ED888DDA631CAD"
+    }
 }
 OK
 DROP SCHEMA pk_types_schema;
