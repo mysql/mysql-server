@@ -30,7 +30,8 @@
 Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share) :
   shadow_table(NULL),
   share(the_share),
-  pk_bitmap(NULL)
+  pk_bitmap(NULL),
+  pk_nonchar_bitmap(NULL)
 {
   ndb_value[0]= NULL;
   ndb_value[1]= NULL;
@@ -45,6 +46,8 @@ Ndb_event_data::~Ndb_event_data()
 
   delete pk_bitmap;
   pk_bitmap = NULL;
+  delete pk_nonchar_bitmap;
+  pk_nonchar_bitmap = NULL;
 
   free_root(&mem_root, MYF(0));
   share= NULL;
@@ -121,12 +124,21 @@ void Ndb_event_data::init_pk_bitmap()
   }
   pk_bitmap = new MY_BITMAP();
   ndb_bitmap_init(*pk_bitmap, pk_bitbuf, shadow_table->s->fields);
+  pk_nonchar_bitmap = new MY_BITMAP();
+  ndb_bitmap_init(*pk_nonchar_bitmap, pk_nonchar_bitbuf,
+                  shadow_table->s->fields);
   KEY* key = shadow_table->key_info + shadow_table->s->primary_key;
   KEY_PART_INFO* key_part_info = key->key_part;
   const uint key_parts = key->user_defined_key_parts;
   for (uint i = 0; i < key_parts; i++, key_part_info++)
   {
     bitmap_set_bit(pk_bitmap, key_part_info->fieldnr - 1);
+    const bool is_char = key_part_info->type == HA_KEYTYPE_TEXT ||
+                         key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
+                         key_part_info->type == HA_KEYTYPE_VARTEXT2;
+    if (!is_char) {
+      bitmap_set_bit(pk_nonchar_bitmap, key_part_info->fieldnr - 1);
+    }
   }
   assert(!bitmap_is_clear_all(pk_bitmap));
 }
@@ -150,8 +162,8 @@ void Ndb_event_data::generate_minimal_bitmap(MY_BITMAP *before, MY_BITMAP *after
     assert(!bitmap_is_clear_all(pk_bitmap));
     // set Before Image to contain only primary keys
     bitmap_copy(before, pk_bitmap);
-    // remove primary keys from After Image
-    bitmap_subtract(after, pk_bitmap);
+    // remove non-character primary keys from After Image
+    bitmap_subtract(after, pk_nonchar_bitmap);
   }
   else
   {

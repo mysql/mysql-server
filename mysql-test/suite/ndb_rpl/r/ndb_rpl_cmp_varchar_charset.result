@@ -516,9 +516,6 @@ select str from t1;
 str
 XYZ
 drop table t1;
-############################################################
-The two test cases below currently *fails* to replicate the
-changes due to Bug#35450016. The incorrect result is recorded.
 set global ndb_log_updated_only=0;
 set global ndb_log_update_as_write=0;
 set global ndb_log_update_minimal=1;
@@ -539,7 +536,7 @@ update t1 set str="one";
 Verify the replica update, no trailing spaces anymore!
 select concat("<<<",str,">>>") from t1;
 concat("<<<",str,">>>")
-<<<one        >>>
+<<<one>>>
 drop table t1;
 #########################################
 ############## Longvarchar ##############
@@ -550,7 +547,7 @@ update t1 set str="one";
 Verify the replica update, no trailing spaces anymore!
 select concat("<<<",str,">>>") from t1;
 concat("<<<",str,">>>")
-<<<one        >>>
+<<<one>>>
 drop table t1;
 #####################################
 ############ Varbinary ##############
@@ -580,7 +577,7 @@ update t1 set str="XYZ";
 Verify the replica updated varchar(32) to 'XYZ' as well
 select str from t1;
 str
-xyz
+XYZ
 drop table t1;
 ##################################
 ############## Char ##############
@@ -591,7 +588,7 @@ update t1 set str="XYZ";
 Verify the replica updated char(32) to 'XYZ' as well
 select str from t1;
 str
-xyz
+XYZ
 drop table t1;
 ##################################
 ############ Varbinary ###########
@@ -624,7 +621,7 @@ update t1 set str="one";
 Verify the replica update, no trailing spaces anymore!
 select concat("<<<",str,">>>") from t1;
 concat("<<<",str,">>>")
-<<<one        >>>
+<<<one>>>
 drop table t1;
 #########################################
 ############## Longvarchar ##############
@@ -635,7 +632,7 @@ update t1 set str="one";
 Verify the replica update, no trailing spaces anymore!
 select concat("<<<",str,">>>") from t1;
 concat("<<<",str,">>>")
-<<<one        >>>
+<<<one>>>
 drop table t1;
 #####################################
 ############ Varbinary ##############
@@ -665,7 +662,7 @@ update t1 set str="XYZ";
 Verify the replica updated varchar(32) to 'XYZ' as well
 select str from t1;
 str
-xyz
+XYZ
 drop table t1;
 ##################################
 ############## Char ##############
@@ -676,7 +673,7 @@ update t1 set str="XYZ";
 Verify the replica updated char(32) to 'XYZ' as well
 select str from t1;
 str
-xyz
+XYZ
 drop table t1;
 ##################################
 ############ Varbinary ###########

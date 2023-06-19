@@ -45,11 +45,20 @@ public:
   struct TABLE *shadow_table;
   struct NDB_SHARE *share;
   union NdbValue *ndb_value[2];
-  /* Bitmap with bit set for all primary key columns. */
+
+  // Bitmap with all primary key columns, used for "minimal bitmap"
   MY_BITMAP *pk_bitmap;
   my_bitmap_map pk_bitbuf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
                             8*sizeof(my_bitmap_map) - 1) /
                            (8*sizeof(my_bitmap_map))];
+
+  // Bitmap with all primary key columns not being a character data type.
+  // Note that char PK columns may compare-as-equal even if not being binary
+  // identical. Thus they can not be eliminated from a "minimal bitmap".
+  MY_BITMAP *pk_nonchar_bitmap;
+  my_bitmap_map pk_nonchar_bitbuf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
+                                    8*sizeof(my_bitmap_map) - 1) /
+                                   (8*sizeof(my_bitmap_map))];
 
   void print(const char* where, FILE* file) const;
   void init_pk_bitmap();
