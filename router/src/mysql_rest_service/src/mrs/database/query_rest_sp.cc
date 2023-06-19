@@ -24,6 +24,7 @@
 
 #include "mrs/database/query_rest_sp.h"
 
+#include "mrs/interface/http_result.h"
 #include "mrs/json/json_template_factory.h"
 #include "mrs/json/response_sp_json_template_nest.h"
 #include "mrs/json/response_sp_json_template_unnest.h"
@@ -134,6 +135,11 @@ std::shared_ptr<JsonTemplate> QueryRestSP::create_template(
 
   return factory->create_template(unnested ? JsonTemplateType::kObjectUnnested
                                            : JsonTemplateType::kObjectNested);
+}
+
+const char *QueryRestSP::get_sql_state() {
+  if (!sqlstate_.has_value()) return nullptr;
+  return sqlstate_.value().c_str();
 }
 
 void QueryRestSP::query_entries(

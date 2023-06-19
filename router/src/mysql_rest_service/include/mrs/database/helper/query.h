@@ -25,6 +25,8 @@
 #ifndef ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_H_
 #define ROUTER_SRC_REST_MRS_SRC_MRS_DATABASE_QUERY_H_
 
+#include <optional>
+
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils_sqlstring.h"
 
@@ -53,6 +55,7 @@ class Query {
   virtual void on_metadata(unsigned number, MYSQL_FIELD *fields);
 
   mysqlrouter::sqlstring query_;
+  std::optional<std::string> sqlstate_;
   MYSQL_FIELD *metadata_{nullptr};
   unsigned no_od_metadata_{0};
 };

@@ -102,6 +102,7 @@ void Query::prepare_and_execute(MySQLSession *session, const std::string &q,
         });
     session->prepare_remove(id);
   } catch (mysqlrouter::MySQLSession::Error &e) {
+    sqlstate_ = session->last_sqlstate();
     session->prepare_remove(id);
     log_debug("Following query failed: '%s'", e.message().c_str());
     throw;

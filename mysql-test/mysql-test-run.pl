@@ -2933,12 +2933,22 @@ sub mysqlxtest_arguments() {
 
 sub mysqlrouter_arguments() {
   my $exe;
-  # mysqlxtest executable may _not_ exist
+  # mysqlrouter executable may _not_ exist
   $exe = mtr_exe_maybe_exists("$path_client_bindir/mysqlrouter");
   return "" unless $exe;
 
   return $exe;
 }
+
+sub mysqlrouter_bootstrap_arguments() {
+  my $exe;
+  # mysqlrouter_bootstrap executable may _not_ exist
+  $exe = mtr_exe_maybe_exists("$path_client_bindir/mysqlrouter_bootstrap");
+  return "" unless $exe;
+
+  return $exe;
+}
+
 
 sub mysql_pump_arguments ($) {
   my ($group_suffix) = @_;
@@ -3295,6 +3305,7 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}          = native_path($exe_mysqladmin);
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
   $ENV{'MYSQLROUTER'}         = mysqlrouter_arguments();
+  $ENV{'MYSQLROUTER_BOOTSTRAP'}= mysqlrouter_bootstrap_arguments();
 
   $ENV{'MYSQL_MIGRATE_KEYRING'} = $exe_mysql_migrate_keyring;
   $ENV{'MYSQL_KEYRING_ENCRYPTION_TEST'} = $exe_mysql_keyring_encryption_test;

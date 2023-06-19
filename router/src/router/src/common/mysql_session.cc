@@ -834,6 +834,9 @@ std::string MySQLSession::quote(const std::string &s, char qchar) const {
   return r;
 }
 
+const char *MySQLSession::last_sqlstate() {
+  return connection_ ? mysql_sqlstate(connection_) : nullptr;
+}
 const char *MySQLSession::last_error() {
   return connection_ ? mysql_error(connection_) : nullptr;
 }
