@@ -242,11 +242,6 @@ nonchar	charone	chartwo	other
 5	ABCD	WXYZ	200
 6	abcd	wxyz	200
 delete from cpk;
-BEWARE: This connection use 'ndb_log_update_minimal=ON'.
-Updates to character columns in the PK in table 'cpk' are
-missing from the binlog, thus not replicated.
-The incorrect result is recorded below, pending fix for Bug#35450016:
-'ndb_log_update_minimal=ON' is not able to replicate primary key updates'
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
@@ -272,11 +267,11 @@ INSERT INTO `test`.`cpk` SET   @1=6   @2='ABCD'   @3='WXYZ'   @4=100
 UPDATE `test`.`ab` WHERE   @2=1   @5=1 SET   @3=111
 UPDATE `test`.`ab` WHERE   @2=2   @5=2 SET   @1=222   @4=222
 UPDATE `test`.`ba` WHERE   @1=4 SET   @3=40
-UPDATE `test`.`cpk` WHERE   @1=1   @2='ABCD'   @3='WXYZ' SET   @4=100
-UPDATE `test`.`cpk` WHERE   @1=2   @2='ABCD'   @3='WXYZ' SET   @4=100
-UPDATE `test`.`cpk` WHERE   @1=3   @2='ABCD'   @3='WXYZ' SET   @4=100
-UPDATE `test`.`cpk` WHERE   @1=5   @2='ABCD'   @3='WXYZ' SET   @4=200
-UPDATE `test`.`cpk` WHERE   @1=6   @2='ABCD'   @3='WXYZ' SET   @4=200
+UPDATE `test`.`cpk` WHERE   @1=1   @2='ABCD'   @3='WXYZ' SET   @2='abcd'   @3='WXYZ'   @4=100
+UPDATE `test`.`cpk` WHERE   @1=2   @2='ABCD'   @3='WXYZ' SET   @2='ABCD'   @3='wxyz'   @4=100
+UPDATE `test`.`cpk` WHERE   @1=3   @2='ABCD'   @3='WXYZ' SET   @2='abcd'   @3='wxyz'   @4=100
+UPDATE `test`.`cpk` WHERE   @1=5   @2='ABCD'   @3='WXYZ' SET   @2='ABCD'   @3='WXYZ'   @4=200
+UPDATE `test`.`cpk` WHERE   @1=6   @2='ABCD'   @3='WXYZ' SET   @2='abcd'   @3='wxyz'   @4=200
 select * from ab order by a2,a4;
 a1	a2	a3	a4	a5
 1	1	111	1	1
@@ -292,18 +287,13 @@ ks	st	lp
 delete from ba;
 select * from cpk order by nonchar;
 nonchar	charone	chartwo	other
-1	ABCD	WXYZ	100
-2	ABCD	WXYZ	100
-3	ABCD	WXYZ	100
+1	abcd	WXYZ	100
+2	ABCD	wxyz	100
+3	abcd	wxyz	100
 4	ABCD	WXYZ	100
 5	ABCD	WXYZ	200
-6	ABCD	WXYZ	200
+6	abcd	wxyz	200
 delete from cpk;
-BEWARE: This connection use 'ndb_log_update_minimal=ON'.
-Updates to character columns in the PK in table 'cpk' are
-missing from the binlog, thus not replicated.
-The incorrect result is recorded below, pending fix for Bug#35450016:
-'ndb_log_update_minimal=ON' is not able to replicate primary key updates'
 show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
@@ -329,11 +319,11 @@ INSERT INTO `test`.`cpk` SET   @1=6   @2='ABCD'   @3='WXYZ'   @4=100
 UPDATE `test`.`ab` WHERE   @2=1   @5=1 SET   @1=1   @3=111   @4=1
 UPDATE `test`.`ab` WHERE   @2=2   @5=2 SET   @1=222   @3=2   @4=222
 UPDATE `test`.`ba` WHERE   @1=4 SET   @2=4   @3=40
-UPDATE `test`.`cpk` WHERE   @1=1   @2='ABCD'   @3='WXYZ' SET   @4=100
-UPDATE `test`.`cpk` WHERE   @1=2   @2='ABCD'   @3='WXYZ' SET   @4=100
-UPDATE `test`.`cpk` WHERE   @1=3   @2='ABCD'   @3='WXYZ' SET   @4=100
-UPDATE `test`.`cpk` WHERE   @1=5   @2='ABCD'   @3='WXYZ' SET   @4=200
-UPDATE `test`.`cpk` WHERE   @1=6   @2='ABCD'   @3='WXYZ' SET   @4=200
+UPDATE `test`.`cpk` WHERE   @1=1   @2='ABCD'   @3='WXYZ' SET   @2='abcd'   @3='WXYZ'   @4=100
+UPDATE `test`.`cpk` WHERE   @1=2   @2='ABCD'   @3='WXYZ' SET   @2='ABCD'   @3='wxyz'   @4=100
+UPDATE `test`.`cpk` WHERE   @1=3   @2='ABCD'   @3='WXYZ' SET   @2='abcd'   @3='wxyz'   @4=100
+UPDATE `test`.`cpk` WHERE   @1=5   @2='ABCD'   @3='WXYZ' SET   @2='ABCD'   @3='WXYZ'   @4=200
+UPDATE `test`.`cpk` WHERE   @1=6   @2='ABCD'   @3='WXYZ' SET   @2='abcd'   @3='wxyz'   @4=200
 select * from ab order by a2,a4;
 a1	a2	a3	a4	a5
 1	1	111	1	1
@@ -349,12 +339,12 @@ ks	st	lp
 delete from ba;
 select * from cpk order by nonchar;
 nonchar	charone	chartwo	other
-1	ABCD	WXYZ	100
-2	ABCD	WXYZ	100
-3	ABCD	WXYZ	100
+1	abcd	WXYZ	100
+2	ABCD	wxyz	100
+3	abcd	wxyz	100
 4	ABCD	WXYZ	100
 5	ABCD	WXYZ	200
-6	ABCD	WXYZ	200
+6	abcd	wxyz	200
 delete from cpk;
 drop table ab;
 drop table ba;

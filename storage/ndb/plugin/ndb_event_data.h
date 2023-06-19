@@ -102,6 +102,11 @@ class Ndb_event_data {
   // Bitmap with all primary key columns, used for "minimal bitmap"
   MY_BITMAP pk_bitmap;
 
+  // Bitmap with all primary key columns not being a character data type.
+  // Note that char PK columns may compare-as-equal even if not being binary
+  // identical. Thus they can not be eliminated from a "minimal bitmap".
+  MY_BITMAP pk_nonchar_bitmap;
+
  public:
   void generate_minimal_bitmap(MY_BITMAP *before, MY_BITMAP *after) const;
 
