@@ -25,7 +25,9 @@
 #ifndef MYSQL_HARNESS_PROCESS_STATE_COMPONENT_INCLUDED
 #define MYSQL_HARNESS_PROCESS_STATE_COMPONENT_INCLUDED
 
+#include <functional>
 #include <string>
+#include <vector>
 
 #include "harness_export.h"
 #include "mysql/harness/stdx/monitor.h"
@@ -50,6 +52,8 @@ class HARNESS_EXPORT ShutdownPending {
   Reason reason_{Reason::NONE};
   std::string message_;
 };
+
+std::string HARNESS_EXPORT to_string(const ShutdownPending::Reason &reason);
 
 /**
  * manages the state of the process.
@@ -93,6 +97,19 @@ class HARNESS_EXPORT ProcessStateComponent {
       const ShutdownPending::Reason reason = ShutdownPending::Reason::REQUESTED,
       const std::string &msg = {});
 
+  using on_shutdown_request_callback = std::function<void(
+      ShutdownPending::Reason reason, const std::string &msg)>;
+  /**
+   * register a callback that will get exectued whenever the component gets the
+   * shutdown request
+   *
+   * @param callback callback to execute when the shutdown is requested
+   */
+  void register_on_shutdown_request_callback(
+      on_shutdown_request_callback callback) {
+    on_shutdown_request_callbacks_.push_back(callback);
+  }
+
   /**
    * pending shutdown state.
    *
@@ -107,6 +124,8 @@ class HARNESS_EXPORT ProcessStateComponent {
   ProcessStateComponent() = default;
 
   WaitableMonitor<ShutdownPending> shutdown_pending_{{}};
+
+  std::vector<on_shutdown_request_callback> on_shutdown_request_callbacks_;
 };
 
 }  // namespace mysql_harness

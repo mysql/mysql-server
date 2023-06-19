@@ -56,6 +56,7 @@
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
+#include "router_config.h"
 #include "router_test_helpers.h"  // get_file_output
 #include "script_generator.h"
 #include "socket_operations.h"
@@ -107,7 +108,12 @@ TEST_P(RouterBootstrapOkTest, BootstrapOk) {
        get_data_dir().join(param.trace_file).str()},
   };
 
-  ASSERT_NO_FATAL_FAILURE(bootstrap_failover(config, param.cluster_type));
+  const std::vector<std::string> expected_output{
+      "# Bootstrapping MySQL Router "s + MYSQL_ROUTER_VERSION + " \\(" +
+      MYSQL_ROUTER_VERSION_EDITION + "\\) instance at"};
+
+  ASSERT_NO_FATAL_FAILURE(bootstrap_failover(config, param.cluster_type, {},
+                                             EXIT_SUCCESS, expected_output));
 
   // let's check if the actual config file output is what we expect:
 

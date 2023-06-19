@@ -26,6 +26,7 @@
 #define MYSQL_HARNESS_LOGGER_PLUGIN_INCLUDED
 
 #include <array>
+#include <functional>
 
 #include "harness_export.h"
 #include "mysql/harness/loader_config.h"
@@ -51,5 +52,17 @@ void HARNESS_EXPORT
 create_plugin_loggers(const mysql_harness::LoaderConfig &config,
                       mysql_harness::logging::Registry &registry,
                       const mysql_harness::logging::LogLevel level);
+
+using on_switch_to_configured_loggers = std::function<void()>;
+
+/**
+ * Registers the callback that the plugin will execute once it is finished with
+ * initialization and switches from the default to the configured logger
+ * sink(s).
+ *
+ * @param callback    callback to execute
+ */
+void HARNESS_EXPORT register_on_switch_to_configured_loggers_callback(
+    on_switch_to_configured_loggers callback);
 
 #endif

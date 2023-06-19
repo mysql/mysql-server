@@ -37,6 +37,11 @@ namespace mysql_harness {
  */
 void ProcessStateComponent::request_application_shutdown(
     const ShutdownPending::Reason reason, const std::string &msg) {
+  for (auto &clb : on_shutdown_request_callbacks_) {
+    clb(reason, msg);
+  }
+  on_shutdown_request_callbacks_.clear();
+
   shutdown_pending_.serialize_with_cv([reason, msg](auto &pending, auto &cv) {
     pending.reason(reason);
     pending.message(msg);
@@ -50,4 +55,17 @@ ProcessStateComponent &ProcessStateComponent::get_instance() {
 
   return instance;
 }
+
+std::string to_string(const ShutdownPending::Reason &reason) {
+  switch (reason) {
+    case ShutdownPending::Reason::REQUESTED:
+      return "REQUESTED";
+    case ShutdownPending::Reason::FATAL_ERROR:
+      return "FATAL_ERRROR";
+    case ShutdownPending::Reason::NONE:;  // fallthrough
+  }
+
+  return "UNKNOWN";
+}
+
 }  // namespace mysql_harness

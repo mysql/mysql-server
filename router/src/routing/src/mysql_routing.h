@@ -336,7 +336,7 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   /** @brief container for connections */
   ConnectionContainer connection_container_;
 
-  /** Information if the routing plugging is still running. */
+  /** Information if the routing plugin is still running. */
   std::atomic<bool> is_running_{true};
 
   /** Used when the accepting port is been reopened and it failed, to schedule
