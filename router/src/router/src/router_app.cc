@@ -616,6 +616,24 @@ void MySQLRouter::start() {
     }
   }
 
+  register_on_switch_to_configured_loggers_callback([]() {
+    // once we switched to the configured logger(s) log the Router version
+    log_system("Starting '%s', version: %s (%s)", MYSQL_ROUTER_PACKAGE_NAME,
+               MYSQL_ROUTER_VERSION, MYSQL_ROUTER_VERSION_EDITION);
+  });
+
+  mysql_harness::ProcessStateComponent::get_instance()
+      .register_on_shutdown_request_callback(
+          [](mysql_harness::ShutdownPending::Reason reason,
+             const std::string &msg) {
+            // once we received the shutdown request, we want to log that along
+            // with the Router version
+            log_system("Stopping '%s', version: %s (%s), reason: %s %s",
+                       MYSQL_ROUTER_PACKAGE_NAME, MYSQL_ROUTER_VERSION,
+                       MYSQL_ROUTER_VERSION_EDITION, to_string(reason).c_str(),
+                       msg.c_str());
+          });
+
   init_loader(config);  // throws std::runtime_error
 
   if (!pid_file_path_.empty()) {

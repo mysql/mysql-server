@@ -46,6 +46,7 @@
 #include "random_generator.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
+#include "router_config.h"
 #include "router_test_helpers.h"  // get_file_output
 #include "tcp_port_pool.h"
 
@@ -80,11 +81,43 @@ class RouterLoggingTest : public RouterComponentTest {
 
   ProcessWrapper &launch_router_for_success(
       const std::vector<std::string> &params) {
-    return launch_router(
-        params, EXIT_SUCCESS, true, false, 5s,
-        RouterComponentBootstrapTest::kBootstrapOutputResponder);
+    return launch_router(params, EXIT_SUCCESS, true);
   }
 };
+
+/** @test Check that the Router logs its version when it is started and stopped
+ */
+TEST_F(RouterLoggingTest, log_start_stop_with_version) {
+  // create tmp dir where we will log
+  TempDirectory logging_folder;
+
+  std::map<std::string, std::string> params = get_DEFAULT_defaults();
+  params.at("logging_folder") = logging_folder.name();
+  TempDirectory conf_dir("conf");
+  const std::string conf_file =
+      create_config_file(conf_dir.name(), "[keepalive]", &params);
+
+  // run the router and close right away
+  auto &router = launch_router_for_success({"-c", conf_file});
+  router.send_shutdown_event();
+  router.wait_for_exit();
+
+  auto file_content =
+      router.get_logfile_content("mysqlrouter.log", logging_folder.name());
+  auto lines = mysql_harness::split_string(file_content, '\n');
+
+  EXPECT_THAT(
+      file_content,
+      ::testing::AllOf(
+          ::testing::ContainsRegex(
+              "main SYSTEM .* Starting 'MySQL Router', version: "s +
+              MYSQL_ROUTER_VERSION + " \\(" + MYSQL_ROUTER_VERSION_EDITION +
+              "\\)"),
+          ::testing::ContainsRegex(
+              "main SYSTEM .* Stopping 'MySQL Router', version: "s +
+              MYSQL_ROUTER_VERSION + " \\(" + MYSQL_ROUTER_VERSION_EDITION +
+              "\\), reason: REQUESTED")));
+}
 
 /** @test This test verifies that fatal error messages thrown before switching
  * to logger specified in config file (before Loader::run() runs

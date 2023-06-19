@@ -26,6 +26,7 @@
 #include "mysql/harness/logging/logger_plugin.h"
 
 #include <sstream>
+#include <vector>
 
 #include "consolelog_plugin.h"
 #include "dim.h"
@@ -51,6 +52,9 @@ IMPORT_LOG_FUNCTIONS()
 
 using HandlerPtr = std::shared_ptr<mysql_harness::logging::Handler>;
 using LoggerHandlersList = std::vector<std::pair<std::string, HandlerPtr>>;
+
+std::vector<on_switch_to_configured_loggers>
+    g_on_switch_to_configured_loggers_clbs;
 
 #ifdef WIN32
 #define NULL_DEVICE_NAME "NUL"
@@ -262,6 +266,11 @@ void create_plugin_loggers(const mysql_harness::LoaderConfig &config,
     attach_handler_to_all_loggers(registry, h);
 }
 
+void register_on_switch_to_configured_loggers_callback(
+    on_switch_to_configured_loggers callback) {
+  g_on_switch_to_configured_loggers_clbs.push_back(callback);
+}
+
 static bool init_handlers(mysql_harness::PluginFuncEnv *env,
                           const mysql_harness::LoaderConfig &config,
                           LoggerHandlersList &logger_handlers) {
@@ -421,6 +430,12 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   if (!res) return;
 
   switch_to_loggers_in_config(config, logger_handlers);
+
+  for (auto &clb : g_on_switch_to_configured_loggers_clbs) {
+    clb();
+  }
+
+  g_on_switch_to_configured_loggers_clbs.clear();
 }
 
 mysql_harness::Plugin harness_plugin_logger = {
