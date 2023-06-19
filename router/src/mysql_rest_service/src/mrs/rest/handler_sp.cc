@@ -297,15 +297,47 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
   if (format == Route::kFeed) {
     log_debug("HandlerSP::handle_get - generating feed response");
     database::QueryRestSP db;
+    try {
+      db.query_entries(session.get(), route_->get_schema_name(),
+                       route_->get_object_name(), route_->get_rest_url(),
+                       route_->get_user_row_ownership().user_ownership_column,
+                       result.c_str(), variables, p, always_nest_result_sets_);
 
-    db.query_entries(session.get(), route_->get_schema_name(),
-                     route_->get_object_name(), route_->get_rest_url(),
-                     route_->get_user_row_ownership().user_ownership_column,
-                     result.c_str(), variables, p, always_nest_result_sets_);
+      Counter<kEntityCounterRestReturnedItems>::increment(db.items);
+      Counter<kEntityCounterRestAffectedItems>::increment(
+          session->affected_rows());
+    } catch (const mysqlrouter::MySQLSession::Error &e) {
+      const static std::string k_state_with_user_defined_error = "45000";
 
-    Counter<kEntityCounterRestReturnedItems>::increment(db.items);
-    Counter<kEntityCounterRestAffectedItems>::increment(
-        session->affected_rows());
+      if (!db.get_sql_state()) throw e;
+
+      auto sql_state = db.get_sql_state();
+      log_debug("While handling SP, received a mysql-error with state: %s",
+                sql_state);
+      if (k_state_with_user_defined_error != sql_state) {
+        throw e;
+      }
+
+      // 5000 is the offset for HTTPStatus errors,
+      // Still first HTTP status begins with 100 code,
+      // because of that we are validating the value
+      // not against 5000, but 5100.
+      if (e.code() < 5100 || e.code() >= 5600) {
+        throw e;
+      }
+
+      helper::json::MapObject map{{"message", e.message()}};
+      HttpResult::HttpStatus status = e.code() - 5000;
+      try {
+        HttpStatusCode::get_default_status_text(status);
+      } catch (...) {
+        throw e;
+      }
+      auto json = helper::json::to_string(map);
+
+      log_debug("SP - generated custom HTTPstats + message:%s", json.c_str());
+      return HttpResult(status, std::move(json), HttpResult::Type::typeJson);
+    }
 
     return {std::move(db.response)};
   }

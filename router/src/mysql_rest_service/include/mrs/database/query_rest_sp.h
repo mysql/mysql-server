@@ -54,6 +54,7 @@ class QueryRestSP : private QueryLog {
                              const ResultSets &rs = {},
                              const bool always_nest_result_sets = false);
 
+  const char *get_sql_state();
   std::string response;
   uint64_t items;
 

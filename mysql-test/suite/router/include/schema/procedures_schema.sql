@@ -155,6 +155,18 @@ BEGIN
 END;$$
 
 
+CREATE PROCEDURE `proc_schema`.`report_back_mysql_error1` (mysql_error INTEGER)
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'This stored procedure signaled an error.', MYSQL_ERRNO = mysql_error;
+END;$$
+
+CREATE PROCEDURE `proc_schema`.`report_back_mysql_error2` (mysql_error INTEGER, mysql_message TEXT)
+BEGIN
+  SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = mysql_message, MYSQL_ERRNO = mysql_error;
+END;$$
+
+
+
 --enable_query_log
 --enable_result_log
 

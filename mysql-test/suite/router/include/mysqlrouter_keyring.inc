@@ -19,6 +19,7 @@ if (!$restart_router_id)
 
 if (!$keyring_file)
 {
+  --echo $MYSQL_TMP_DIR/router.$restart_router_id/data/
   --mkdir $MYSQL_TMP_DIR/router.$restart_router_id/data/
   --let $keyring_file=$MYSQL_TMP_DIR/router.$restart_router_id/data/keyring
 }

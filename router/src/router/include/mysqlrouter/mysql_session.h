@@ -483,6 +483,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
   virtual bool is_connected() noexcept { return connection_ && connected_; }
   const std::string &get_address() noexcept { return connection_address_; }
 
+  virtual const char *last_sqlstate();
   virtual const char *last_error();
   virtual unsigned int last_errno();
 

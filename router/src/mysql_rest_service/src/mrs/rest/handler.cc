@@ -244,7 +244,7 @@ class RestRequestHandler : public BaseRequestHandler {
     auto in_len = buffer.length();
     if (in_len && options.header_) {
       auto data = buffer.copy(in_len);
-      log_debug("HTTP %s body: %s", type,
+      log_debug("HTTP %s body: %-*s", type, static_cast<int>(data.size()),
                 reinterpret_cast<const char *>(&data[0]));
     }
   }
