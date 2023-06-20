@@ -58,6 +58,7 @@ SHOW CREATE TABLE purchase;
 
 # server was crashing here with ha_innodb.cc != nullptr
 --replace_column 1 #
+--sorted_result
 SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
 
 --echo ## Stop DB server
