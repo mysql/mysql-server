@@ -36916,11 +36916,32 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
     Uint32 max_no_progress_time =
       c_lcpFragWatchdog.MaxElapsedWithNoProgressMillis;
 
-    if ((c_lcpFragWatchdog.lcpState == LcpStatusConf::LCP_WAIT_END_LCP) &&
-        (max_no_progress_time < c_lcpFragWatchdog.MaxGcpWaitLimitMillis))
+    if (c_lcpFragWatchdog.lcpState == LcpStatusConf::LCP_WAIT_END_LCP)
     {
       jam();
-      max_no_progress_time = c_lcpFragWatchdog.MaxGcpWaitLimitMillis;
+      /**
+       * In WAIT_END_LCP state we have a dependency on GCP completion
+       * We will therefore extend the allowed duration so that GCP
+       * related issues do not result in LCP shutdown
+       */
+      if (c_lcpFragWatchdog.MaxGcpWaitLimitMillis == 0)
+      {
+        jam();
+        /**
+         * No GCP limit set, therefore LCP should not time out in
+         * WAIT_END_LCP state.
+         */
+        max_no_progress_time = 0;
+      }
+      else if (max_no_progress_time < c_lcpFragWatchdog.MaxGcpWaitLimitMillis)
+      {
+        jam();
+        /**
+         * GCP limit set which is larger than LCP limit, extend
+         * LCP limit to cover it
+         */
+        max_no_progress_time = c_lcpFragWatchdog.MaxGcpWaitLimitMillis;
+      }
     }
 
     char buf2[512];
@@ -36944,11 +36965,12 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
       g_eventLogger->info("%s", buf2);
     }
 
-    if (c_lcpFragWatchdog.elapsedNoProgressMillis >= max_no_progress_time)
+    if ((max_no_progress_time > 0) &&
+        (c_lcpFragWatchdog.elapsedNoProgressMillis >= max_no_progress_time))
     {
       jam();
       /* Too long with no progress... */
-      warningEvent("Waited too long with  LCP not progressing.");
+      warningEvent("Waited too long with LCP not progressing.");
       g_eventLogger->info("Waited too long with LCP not progressing.");
 
       /**
