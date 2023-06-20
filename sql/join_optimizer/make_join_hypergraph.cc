@@ -2779,29 +2779,25 @@ size_t EstimateRowWidthForJoin(const JoinHypergraph &graph,
 void SortPredicates(Predicate *begin, Predicate *end) {
   if (std::distance(begin, end) <= 1) return;  // Nothing to sort.
 
-  // Return 'true' if evaluating p1 before p2 is cheaper than the oposite.
-  const auto cheaper = [](const Predicate &p1, const Predicate &p2) {
-    return p1.condition->cost().FieldCost() * (1.0 - p2.selectivity) <
-           p2.condition->cost().FieldCost() * (1.0 - p1.selectivity);
+  /*
+    By ordering the predicates by rank(predicate) in ascending order, we should
+    minimize the expected cost of evaluating the conjunction.
+
+    The formulae is taken from:
+    "J. M. Hellerstein, M. Stonebraker,
+    Predicate migration: Optimizing queries with expensive predicates,
+    In Proceedings of the ACM SIGMOD Conference, 1993".
+  */
+  const auto rank = [](const Predicate &p) {
+    return (p.selectivity - 1.0) / std::max(1e-18,  // Prevent divide by zero.
+                                            p.condition->cost().FieldCost());
   };
 
   // Order the predicates so that we minimize the expected cost of evaluating
   // the conjuction.
   std::stable_sort(begin, end, [&](const Predicate &p1, const Predicate &p2) {
-    return cheaper(p1, p2);
+    return rank(p1) < rank(p2);
   });
-
-  // Check that 'cheaper()' is transitive.
-  assert([&]() {
-    for (const Predicate *first = begin; first < end; first++) {
-      for (const Predicate *second = first + 1; second < end; second++) {
-        if (cheaper(*second, *first)) {
-          return false;
-        }
-      }
-    }
-    return true;
-  }());
 
   // If the predicates contain subqueries, move them towards the end, regardless
   // of their selectivity, since they could be expensive to evaluate. We could

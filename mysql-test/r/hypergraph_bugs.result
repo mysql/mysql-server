@@ -887,4 +887,14 @@ EXPLAIN
 -> Filter: ((t1.b < '150') and (t1.c < 80))  (rows=40)
     -> Table scan on t1  (rows=100)
 
+#
+# BUG 35507456
+# Assertion `[&]() { for (const Predicate *first = begin; first < end; first++)
+#
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1
+WHERE  b<"150" AND RAND(0)>-1 AND c< 70;
+EXPLAIN
+-> Filter: ((t1.c < 70) and (t1.b < '150') and (rand(0) > <cache>(-(1))))  (cost=0.593..20.7 rows=35)
+    -> Table scan on t1  (cost=0.0025..0.25 rows=100)
+
 DROP TABLE num, t1;

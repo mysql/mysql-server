@@ -707,4 +707,11 @@ EXPLAIN  FORMAT=TREE SELECT 1 FROM t1 WHERE b<"150" AND c<70;
 --replace_regex $elide_costs
 EXPLAIN  FORMAT=TREE SELECT 1 FROM t1 WHERE b<"150" AND c<80;
 
+--echo #
+--echo # BUG 35507456
+--echo # Assertion `[&]() { for (const Predicate *first = begin; first < end; first++)
+--echo #
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1
+WHERE  b<"150" AND RAND(0)>-1 AND c< 70;
+
 DROP TABLE num, t1;
