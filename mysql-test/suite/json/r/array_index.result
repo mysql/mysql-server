@@ -3360,3 +3360,15 @@ id	j
 4	["7", "15", "3", "27"]
 DROP TABLE test;
 # restart:
+#
+# Bug#35507211 virtual longlong Item_typecast_signed::val_int():
+#              Assertion `is_nullable()' fail
+CREATE TABLE t1 ( c1 INT , c2 ENUM ( 0x0 ) PRIMARY KEY ) ;
+INSERT t1 SET c1 = DEFAULT ;
+UPDATE t1 SET c1 = 0x0 WHERE CONVERT ( c2 MEMBER OF ( c2 ) , SIGNED INT ) ;
+ERROR 22032: Invalid data type for JSON data in argument 2 to function member of; a JSON string or JSON type is required.
+CREATE TABLE t2(vc VARCHAR(10), j JSON DEFAULT (vc));
+INSERT INTO t2(vc) VALUES ('[1,2,3]'), ('[2,3,4]'), ('[3,4,5]'), ('[4,5,6]');
+SELECT * from t2 WHERE CONVERT ( json_overlaps('1234', 42) , SIGNED INT ) ;
+ERROR 22032: Invalid data type for JSON data in argument 2 to function json_overlaps; a JSON string or JSON type is required.
+DROP TABLE t1, t2;

@@ -932,8 +932,7 @@ longlong Item_func_json_contains::val_int() {
     // arg 0 is the document
     if (get_json_wrapper(args, 0, &m_doc_value, func_name(), &doc_wrapper) ||
         args[0]->null_value) {
-      null_value = true;
-      return 0;
+      return error_int();
     }
 
     Json_wrapper containee_wr;
@@ -941,8 +940,7 @@ longlong Item_func_json_contains::val_int() {
     // arg 1 is the possible containee
     if (get_json_wrapper(args, 1, &m_doc_value, func_name(), &containee_wr) ||
         args[1]->null_value) {
-      null_value = true;
-      return 0;
+      return error_int();
     }
 
     if (arg_count == 3) {
@@ -951,8 +949,7 @@ longlong Item_func_json_contains::val_int() {
         return error_int();
       const Json_path *path = m_path_cache.get_path(2);
       if (path == nullptr) {
-        null_value = true;
-        return 0;
+        return error_int();
       }
 
       Json_wrapper_vector v(key_memory_JSON);
@@ -960,8 +957,7 @@ longlong Item_func_json_contains::val_int() {
         return error_int(); /* purecov: inspected */
 
       if (v.size() == 0) {
-        null_value = true;
-        return 0;
+        return error_int();
       }
 
       bool ret;
@@ -1003,8 +999,7 @@ longlong Item_func_json_contains_path::val_int() {
     // arg 0 is the document
     if (get_json_wrapper(args, 0, &m_doc_value, func_name(), &wrapper) ||
         args[0]->null_value) {
-      null_value = true;
-      return 0;
+      return error_int();
     }
 
     // arg 1 is the oneOrAll flag
@@ -1034,8 +1029,7 @@ longlong Item_func_json_contains_path::val_int() {
         return error_int();
       const Json_path *path = m_path_cache.get_path(i);
       if (path == nullptr) {
-        null_value = true;
-        return 0;
+        return error_int();
       }
 
       hits.clear();
@@ -1723,8 +1717,7 @@ longlong Item_func_json_length::val_int() {
   try {
     if (get_json_wrapper(args, 0, &m_doc_value, func_name(), &wrapper) ||
         args[0]->null_value) {
-      null_value = true;
-      return 0;
+      return error_int();
     }
   } catch (...) {
     /* purecov: begin inspected */
@@ -3867,15 +3860,13 @@ longlong Item_func_json_overlaps::val_int() {
     // arg 0 is the document 1
     if (get_json_wrapper(args, 0, &m_doc_value, func_name(), doc_a) ||
         args[0]->null_value) {
-      null_value = true;
-      return 0;
+      return error_int();
     }
 
     // arg 1 is the document 2
     if (get_json_wrapper(args, 1, &m_doc_value, func_name(), doc_b) ||
         args[1]->null_value) {
-      null_value = true;
-      return 0;
+      return error_int();
     }
     // Handle case when doc_a is non-array and doc_b is array
     if (doc_a->type() != enum_json_type::J_ARRAY &&
@@ -3961,15 +3952,13 @@ longlong Item_func_member_of::val_int() {
     if (get_json_atom_wrapper(args, 0, func_name(), &m_doc_value, &conv_buf,
                               &doc_a, nullptr, true) ||
         args[0]->null_value) {
-      null_value = true;
-      return 0;
+      return error_int();
     }
 
     // arg 1 is the array to look up value in
     if (get_json_wrapper(args, 1, &m_doc_value, func_name(), &doc_b) ||
         args[1]->null_value) {
-      null_value = true;
-      return 0;
+      return error_int();
     }
 
     // If it's cached as JSON, pre-sort array (only) for faster lookups
