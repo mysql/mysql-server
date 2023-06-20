@@ -308,11 +308,8 @@ class Acceptor {
         auto sock_res = acceptor_socket_.accept(cur_io_thread_->context(),
                                                 client_endpoint, socket_flags);
         if (sock_res) {
-          // on Linux and AF_UNIX, the client_endpoint will be empty [only
-          // family is set]
-          //
-          // in that case, use the acceptor's endpoint
-          if (client_endpoint.size() == 2) {
+          // for AF_UNIX we use the acceptor's endpoint
+          if constexpr (std::is_same<Protocol, local::stream_protocol>::value) {
             client_endpoint = acceptor_endpoint_;
           }
 

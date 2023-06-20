@@ -161,13 +161,6 @@ void MysqlRoutingClassicConnectionBase::server_socket_failed(std::error_code ec,
   auto &server_conn = this->socket_splicer()->server_conn();
 
   if (server_conn.is_open()) {
-    auto &client_conn = this->socket_splicer()->client_conn();
-
-    log_debug("[%s] fd=%d -- %d: connection closed (up: %zub; down: %zub)",
-              this->context().get_name().c_str(), client_conn.native_handle(),
-              server_conn.native_handle(), this->get_bytes_up(),
-              this->get_bytes_down());
-
     if (ec != net::stream_errc::eof) {
       (void)server_conn.shutdown(net::socket_base::shutdown_send);
     }
@@ -191,21 +184,6 @@ void MysqlRoutingClassicConnectionBase::client_socket_failed(std::error_code ec,
                client_conn.endpoint().c_str());
 
       on_handshake_aborted();
-    }
-
-    auto &server_conn = this->socket_splicer()->server_conn();
-
-    if (server_conn.is_open()) {
-      log_debug("[%s] fd=%d -- %d: connection closed (up: %zub; down: %zub)",
-                this->context().get_name().c_str(), client_conn.native_handle(),
-                server_conn.native_handle(), this->get_bytes_up(),
-                this->get_bytes_down());
-    } else {
-      log_debug(
-          "[%s] fd=%d -- (not connected): connection closed (up: %zub; down: "
-          "%zub)",
-          this->context().get_name().c_str(), client_conn.native_handle(),
-          this->get_bytes_up(), this->get_bytes_down());
     }
 
     if (ec != net::stream_errc::eof) {
@@ -418,6 +396,7 @@ void MysqlRoutingClassicConnectionBase::finish() {
   }
 
   if (active_work_ == 0) {
+    log_connection_summary();
     if (server_socket.is_open()) {
       trace(Tracer::Event()
                 .stage("close::server")

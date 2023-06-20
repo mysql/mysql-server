@@ -53,6 +53,8 @@ class MySQLRoutingConnectionBase {
 
   virtual std::string get_destination_id() const = 0;
 
+  virtual net::impl::socket::native_handle_type get_client_fd() const = 0;
+
   /**
    * @brief Returns address of server to which connection is established.
    *
@@ -147,6 +149,13 @@ class MySQLRoutingConnectionBase {
   Monitor<Stats> stats_{{}};
 
   Monitor<bool> disconnect_{{}};
+
+  void log_connection_summary();
+
+ private:
+  net::impl::socket::native_handle_type client_fd_;
+  std::string client_id_;
+  std::string server_id_;
 };
 
 class ConnectorBase {

@@ -284,6 +284,10 @@ class MysqlRoutingClassicConnectionBase
     return this->socket_splicer()->dest_ssl_mode();
   }
 
+  net::impl::socket::native_handle_type get_client_fd() const override {
+    return socket_splicer()->client_conn().native_handle();
+  }
+
   std::string get_client_address() const override {
     return socket_splicer()->client_conn().endpoint();
   }

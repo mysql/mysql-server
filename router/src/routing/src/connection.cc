@@ -277,14 +277,32 @@ stdx::expected<void, std::error_code> ConnectorBase::next_destination() {
 void MySQLRoutingConnectionBase::accepted() {
   context().increase_info_active_routes();
   context().increase_info_handled_routes();
+
+  client_fd_ = get_client_fd();
+  client_id_ = get_client_address();
 }
 
 void MySQLRoutingConnectionBase::connected() {
   const auto now = clock_type::now();
   stats_([now](Stats &stats) { stats.connected_to_server = now; });
 
+  server_id_ = get_server_address();
+
   if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
-    log_debug("[%s] connected %s -> %s", context().get_name().c_str(),
-              get_client_address().c_str(), get_server_address().c_str());
+    log_debug("[%s] fd=%d connected %s -> %s", context().get_name().c_str(),
+              client_fd_, client_id_.c_str(), server_id_.c_str());
+  }
+}
+
+void MySQLRoutingConnectionBase::log_connection_summary() {
+  auto log_id = [](const std::string &id) -> std::string {
+    return id.empty() ? "(not connected)" : id;
+  };
+
+  if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
+    log_debug("[%s] fd=%d %s -> %s: connection closed (up: %zub; down: %zub)",
+              this->context().get_name().c_str(), client_fd_,
+              log_id(client_id_).c_str(), log_id(server_id_).c_str(),
+              this->get_bytes_up(), this->get_bytes_down());
   }
 }

@@ -352,7 +352,7 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
   set_option(ConnectTimeout(connect_timeout));
   set_option(ReadTimeout(read_timeout));
 
-  if (unix_socket.length() > 0) {
+  if (!unix_socket.empty()) {
 #ifdef _WIN32
     protocol = MYSQL_PROTOCOL_PIPE;
 #else
@@ -364,9 +364,8 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
   const unsigned long client_flags =
       (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_PROTOCOL_41 |
        CLIENT_MULTI_RESULTS);
-  std::string endpoint_str = unix_socket.length() > 0
-                                 ? unix_socket
-                                 : host + ":" + std::to_string(port);
+  std::string endpoint_str =
+      !unix_socket.empty() ? unix_socket : host + ":" + std::to_string(port);
 
   const bool ssl_disabled = ssl_mode() == SSL_MODE_DISABLED;
   auto &ssl_sessions_cache = SSLSessionsCache::instance();
@@ -375,9 +374,10 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
     ssl_sessions_cache.try_reuse_session(connection_, endpoint_str);
   }
 
-  if (!mysql_real_connect(connection_, host.c_str(), username.c_str(),
-                          password.c_str(), default_schema.c_str(), port,
-                          unix_socket.c_str(), client_flags)) {
+  if (!mysql_real_connect(
+          connection_, !unix_socket.empty() ? nullptr : host.c_str(),
+          username.c_str(), password.c_str(), default_schema.c_str(), port,
+          unix_socket.c_str(), client_flags)) {
     std::stringstream ss;
     ss << "Error connecting to MySQL server at " << endpoint_str;
     ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_)

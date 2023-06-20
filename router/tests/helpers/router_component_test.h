@@ -107,6 +107,15 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
     return static_cast<uint16_t>(std::strtoul((*result)[0], nullptr, 10));
   }
 
+  uint16_t make_new_connection_ok(const std::string &router_socket) {
+    MySQLSession session;
+    EXPECT_NO_THROW(
+        session.connect("", 0, "username", "password", router_socket, ""));
+
+    auto result{session.query_one("select @@port")};
+    return static_cast<uint16_t>(std::strtoul((*result)[0], nullptr, 10));
+  }
+
   void verify_new_connection_fails(uint16_t router_port) {
     MySQLSession session;
     ASSERT_ANY_THROW(session.connect("127.0.0.1", router_port, "username",
