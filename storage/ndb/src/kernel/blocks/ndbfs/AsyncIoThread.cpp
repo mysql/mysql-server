@@ -376,8 +376,18 @@ Request::actionName(Request::Action action)
     return "end";
   case Request::append:
     return "append";
+  case Request::append_synch:
+    return "append_synch";
   case Request::rmrf:
     return "rmrf";
+  case Request::readPartial:
+    return "readPartial";
+  case Request::allocmem:
+    return "allocmem";
+  case Request::buildindx:
+    return "buildindx";
+  case Request::suspend:
+    return "suspend";
   default:
     return "Unknown action";
   }
