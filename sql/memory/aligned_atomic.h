@@ -81,8 +81,8 @@ static inline size_t _cache_line_size() {
 static inline size_t _cache_line_size() {
   long size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
   if (size == -1) return 64;
-#if defined(__s390x__)
-  // returns 0 on s390x RHEL 7.x
+
+  // returns 0 on s390x RHEL 7.x and some __arch64__ configurations.
   if (size == 0) {
     FILE *p = fopen(
         "/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size", "r");
@@ -91,8 +91,9 @@ static inline size_t _cache_line_size() {
       fclose(p);
     }
   }
-#endif
-  return static_cast<size_t>(size);
+
+  if (size > 0) return static_cast<size_t>(size);
+  return 64;
 }
 
 #else
