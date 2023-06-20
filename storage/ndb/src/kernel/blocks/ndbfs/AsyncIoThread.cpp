@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -380,8 +380,18 @@ Request::actionName(Request::Action action)
     return "end";
   case Request::append:
     return "append";
+  case Request::append_synch:
+    return "append_synch";
   case Request::rmrf:
     return "rmrf";
+  case Request::readPartial:
+    return "readPartial";
+  case Request::allocmem:
+    return "allocmem";
+  case Request::buildindx:
+    return "buildindx";
+  case Request::suspend:
+    return "suspend";
   default:
     return "Unknown action";
   }
