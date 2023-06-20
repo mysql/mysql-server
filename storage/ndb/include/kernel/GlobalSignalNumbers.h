@@ -681,9 +681,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TCINDXREF                   521
 #define GSN_INDXKEYINFO                 522
 #define GSN_INDXATTRINFO                523
-#define GSN_TCINDXNEXTREQ               524
-#define GSN_TCINDXNEXTCONF              525
-#define GSN_TCINDXNEXREF                526
+#define GSN_524                         524
+#define GSN_525                         525
+#define GSN_526                         526
 #define GSN_FIRE_TRIG_ORD               527
 #define GSN_FIRE_TRIG_ORD_L             123 /* local from TUP to SUMA */
 
@@ -924,10 +924,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_ADD_ATTRCONF            674
 #define GSN_TUX_ADD_ATTRREF             675
 
-/*
- * REP
- */
-#define GSN_REP_DISCONNECT_REP          676
+#define GSN_676                         676
 
 #define GSN_TUX_MAINT_REQ               677
 #define GSN_TUX_MAINT_CONF              678
