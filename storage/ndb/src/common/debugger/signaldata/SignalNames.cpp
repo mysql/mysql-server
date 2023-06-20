@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_TCSEIZECONF,            "TCSEIZECONF" }
   ,{ GSN_TCSEIZEREF,             "TCSEIZEREF" }
   ,{ GSN_TCSEIZEREQ,             "TCSEIZEREQ" }
+  ,{ GSN_TCKEY_FAILREFCONF_R,    "TCKEY_FAILREFCONF_R" }
   ,{ GSN_DBINFO_SCANREQ,         "DBINFO_SCANREQ" }
   ,{ GSN_DBINFO_SCANCONF,        "DBINFO_SCANCONF" }
   ,{ GSN_DBINFO_SCANREF,         "DBINFO_SCANREF" }
@@ -170,6 +171,9 @@ const GsnName SignalNames [] = {
   ,{ GSN_DIH_RESTARTREQ,         "DIH_RESTARTREQ" }
 
   ,{ GSN_DISCONNECT_REP,         "DISCONNECT_REP" }
+  ,{ GSN_FIRE_TRIG_REQ,          "FIRE_TRIG_REQ" }
+  ,{ GSN_FIRE_TRIG_REF,          "FIRE_TRIG_REF" }
+  ,{ GSN_FIRE_TRIG_CONF,         "FIRE_TRIG_CONF" }
   ,{ GSN_DIVERIFYCONF,           "DIVERIFYCONF" }
   ,{ GSN_DIVERIFYREF,            "DIVERIFYREF" }
   ,{ GSN_DIVERIFYREQ,            "DIVERIFYREQ" }
@@ -283,6 +287,9 @@ const GsnName SignalNames [] = {
   ,{ GSN_SHRINKCHECK2,           "SHRINKCHECK2" }
   ,{ GSN_READ_CONFIG_REQ,        "READ_CONFIG_REQ" }
   ,{ GSN_READ_CONFIG_CONF,       "READ_CONFIG_CONF" }
+  ,{ GSN_COPY_DATA_REQ,          "COPY_DATA_REQ" }
+  ,{ GSN_COPY_DATA_REF,          "COPY_DATA_REF" }
+  ,{ GSN_COPY_DATA_CONF,         "COPY_DATA_CONF" }
   ,{ GSN_START_COPYCONF,         "START_COPYCONF" }
   ,{ GSN_START_COPYREF,          "START_COPYREF" }
   ,{ GSN_START_COPYREQ,          "START_COPYREQ" }
@@ -329,6 +336,9 @@ const GsnName SignalNames [] = {
   ,{ GSN_TUP_ADD_ATTRREQ,        "TUP_ADD_ATTRREQ" }
   ,{ GSN_TUP_ATTRINFO,           "TUP_ATTRINFO" }
   ,{ GSN_TUP_COMMITREQ,          "TUP_COMMITREQ" }
+  ,{ GSN_COPY_DATA_IMPL_REQ,     "COPY_DATA_IMPL_REQ" }
+  ,{ GSN_COPY_DATA_IMPL_REF,     "COPY_DATA_IMPL_REF" }
+  ,{ GSN_COPY_DATA_IMPL_CONF,    "COPY_DATA_IMPL_CONF" }
   ,{ GSN_TUPFRAGCONF,            "TUPFRAGCONF" }
   ,{ GSN_TUPFRAGREF,             "TUPFRAGREF" }
   ,{ GSN_TUPFRAGREQ,             "TUPFRAGREQ" }
@@ -406,8 +416,10 @@ const GsnName SignalNames [] = {
   ,{ GSN_WAIT_GCP_REF,           "WAIT_GCP_REF" }
   ,{ GSN_WAIT_GCP_CONF,          "WAIT_GCP_CONF" }
 
+  ,{ GSN_RESUME_REQ,             "RESUME_REQ" }
   ,{ GSN_STOP_REQ,               "STOP_REQ" }
   ,{ GSN_STOP_REF,               "STOP_REF" }
+  ,{ GSN_STOP_CONF,              "STOP_CONF" }
   ,{ GSN_API_VERSION_REQ,        "API_VERSION_REQ" }
   ,{ GSN_API_VERSION_CONF,       "API_VERSION_CONF" }
 
@@ -449,6 +461,8 @@ const GsnName SignalNames [] = {
   ,{ GSN_ALTER_INDX_REQ,         "ALTER_INDX_REQ" }
   ,{ GSN_ALTER_INDX_CONF,        "ALTER_INDX_CONF" }
   ,{ GSN_ALTER_INDX_REF,         "ALTER_INDX_REF" }
+  ,{ GSN_ALTER_TABLE_REP,        "ALTER_TABLE_REP" }
+  ,{ GSN_API_BROADCAST_REP,      "API_BROADCAST_REP" }
   ,{ GSN_TCINDXREQ, 		"TCINDXREQ" }
   ,{ GSN_TCINDXCONF, 		"TCINDXCONF" }
   ,{ GSN_TCINDXREF, 		"TCINDXREF" }
@@ -457,9 +471,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_BUILDINDXREQ, 		"BUILDINDXREQ" }
   ,{ GSN_BUILDINDXCONF, 		"BUILDINDXCONF" }
   ,{ GSN_BUILDINDXREF, 		"BUILDINDXREF" }
-  //,{ GSN_TCINDXNEXTREQ, 	"TCINDXNEXTREQ" }
-  //,{ GSN_TCINDEXNEXTCONF, 	"TCINDEXNEXTCONF" }
-  //,{ GSN_TCINDEXNEXREF, 	"TCINDEXNEXREF" }
 
   ,{ GSN_CREATE_EVNT_REQ,        "CREATE_EVNT_REQ" }
   ,{ GSN_CREATE_EVNT_CONF,       "CREATE_EVNT_CONF" }
@@ -607,6 +618,9 @@ const GsnName SignalNames [] = {
   ,{ GSN_CREATE_FILE_REQ,  "CREATE_FILE_REQ" }
   ,{ GSN_CREATE_FILE_REF,  "CREATE_FILE_REF" }
   ,{ GSN_CREATE_FILE_CONF, "CREATE_FILE_CONF" }
+
+  ,{ GSN_ALLOC_EXTENT_REQ, "ALLOC_EXTENT_REQ" }
+  ,{ GSN_FREE_EXTENT_REQ,  "FREE_EXTENT_REQ" }
   
   ,{ GSN_DROP_FILEGROUP_REQ,  "DROP_FILEGROUP_REQ" }
   ,{ GSN_DROP_FILEGROUP_REF,  "DROP_FILEGROUP_REF" }
@@ -659,6 +673,8 @@ const GsnName SignalNames [] = {
 
   ,{ GSN_ROUTE_ORD, "ROUTE_ORD" }
   ,{ GSN_NODE_VERSION_REP, "NODE_VERSION_REP" }
+
+  ,{ GSN_FSSUSPENDORD, "FSSUSPENDORD" }
 
   ,{ GSN_PREPARE_COPY_FRAG_REQ,   "PREPARE_COPY_FRAG_REQ" }
   ,{ GSN_PREPARE_COPY_FRAG_REF,   "PREPARE_COPY_FRAG_REF" }
