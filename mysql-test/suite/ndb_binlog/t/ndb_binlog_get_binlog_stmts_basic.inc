@@ -41,7 +41,11 @@ insert into binlog_stmt_parts_unassoc (txt,stmt_boundary)
 
 #select * from binlog_stmt_parts_unassoc;
 
-create table binlog_stmt_parts_assoc (txt varchar(1000), line_count int, stmt_num int);
+create table binlog_stmt_parts_assoc (
+  txt varchar(1000) collate utf8mb4_bin,
+  line_count int,
+  stmt_num int
+);
 
 set @stmt_count = 0;
 
@@ -56,7 +60,10 @@ insert into binlog_stmt_parts_assoc
 
 #select * from binlog_stmt_parts_assoc;
 
-create table binlog_stmts (txt varchar(1000), stmt_num int);
+create table binlog_stmts (
+  txt varchar(1000) collate utf8mb4_bin,
+  stmt_num int
+);
 
 insert into binlog_stmts 
   select group_concat(right(txt,             # Combine rows in statment into 1

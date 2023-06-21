@@ -34,8 +34,9 @@ connection mysqld1;
 # Create the tables we're going to use
 create table ab(a1 int, a2 int, a3 int, a4 int, a5 int, primary key(a2,a5)) engine = ndb;
 create table ba(ks int primary key, st int, lp int) engine = ndb;
-create table cpk(charone varchar(100), nonchar int, chartwo varchar(100), other int,
-                 primary key (charone, nonchar, chartwo)) engine=ndb;
+create table cpk(nonchar int, charone varchar(100), chartwo varchar(100),
+                 other int,
+                 primary key (nonchar, charone, chartwo)) engine=ndb;
 
 # Wait for each mysqld to startup binlogging
 --let $source_server=mysqld1
@@ -84,12 +85,12 @@ insert into ba values (1, 1, 1), (2,2,2), (3,3,3), (4,4,4);
 update ba set lp=40 where ks=4; # Update does not affect all columns
 delete from ba where ks=2;      # Also a delete for fun
 
-insert into cpk values("ABCD", 1, "WXYZ", 100);
-insert into cpk values("ABCD", 2, "WXYZ", 100);
-insert into cpk values("ABCD", 3, "WXYZ", 100);
-insert into cpk values("ABCD", 4, "WXYZ", 100);
-insert into cpk values("ABCD", 5, "WXYZ", 100);
-insert into cpk values("ABCD", 6, "WXYZ", 100);
+insert into cpk values(1, "ABCD", "WXYZ", 100);
+insert into cpk values(2, "ABCD", "WXYZ", 100);
+insert into cpk values(3, "ABCD", "WXYZ", 100);
+insert into cpk values(4, "ABCD", "WXYZ", 100);
+insert into cpk values(5, "ABCD", "WXYZ", 100);
+insert into cpk values(6, "ABCD", "WXYZ", 100);
 
 --echo Change one char key
 update cpk set charone="abcd" where charone="ABCD" and nonchar=1 and chartwo="WXYZ";
