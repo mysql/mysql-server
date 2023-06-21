@@ -87,7 +87,7 @@ static inline size_t _cache_line_size() {
     FILE *p = fopen(
         "/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size", "r");
     if (p) {
-      fscanf(p, "%ld", &size);
+      if (fscanf(p, "%ld", &size) != 1) size = 0;
       fclose(p);
     }
   }
