@@ -198,6 +198,11 @@ class ProcessManager {
    */
   static const Path &get_origin() { return origin_dir_; }
 
+  /** @brief Gets path to the directory containing testing data
+   *         (conf files, json files).
+   */
+  static Path get_data_dir() { return data_dir_; }
+
  protected:
   virtual ~ProcessManager() = default;
 
@@ -417,11 +422,6 @@ class ProcessManager {
       std::chrono::milliseconds wait_notify_ready =
           std::chrono::milliseconds(-1),
       OutputResponder output_responder = kEmptyResponder);
-
-  /** @brief Gets path to the directory containing testing data
-   *         (conf files, json files).
-   */
-  const Path &get_data_dir() const { return data_dir_; }
 
   /** @brief returns a map with default [DEFAULT] section parameters
    *
