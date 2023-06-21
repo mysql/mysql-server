@@ -156,6 +156,36 @@ mysqlrouter::sqlstring to_sqlstring(const std::string &value, DataType type) {
   return {};
 }
 
+static HttpResult handler_mysqlerror(const mysqlrouter::MySQLSession::Error &e,
+                                     database::QueryRestSP *db) {
+  static const std::string k_state_with_user_defined_error = "45000";
+  if (!db->get_sql_state()) throw e;
+
+  auto sql_state = db->get_sql_state();
+  log_debug("While handling SP, received a mysql-error with state: %s",
+            sql_state);
+  if (k_state_with_user_defined_error != sql_state) {
+    throw e;
+  }
+  // 5000 is the offset for HTTPStatus errors,
+  // Still first HTTP status begins with 100 code,
+  // because of that we are validating the value
+  // not against 5000, but 5100.
+  if (e.code() < 5100 || e.code() >= 5600) {
+    throw e;
+  }
+  helper::json::MapObject map{{"message", e.message()}};
+  HttpResult::HttpStatus status = e.code() - 5000;
+  try {
+    HttpStatusCode::get_default_status_text(status);
+  } catch (...) {
+    throw e;
+  }
+  auto json = helper::json::to_string(map);
+  log_debug("SP - generated custom HTTPstats + message:%s", json.c_str());
+  return HttpResult(status, std::move(json), HttpResult::Type::typeJson);
+}
+
 HandlerSP::HandlerSP(Route *r, mrs::interface::AuthorizeManager *auth_manager)
     : Handler{r->get_rest_url(), r->get_rest_path(), r->get_options(),
               auth_manager},
@@ -219,14 +249,19 @@ HttpResult HandlerSP::handle_put([[maybe_unused]] rest::RequestContext *ctxt) {
   }
 
   database::QueryRestSP db;
+  try {
+    db.query_entries(session.get(), route_->get_schema_name(),
+                     route_->get_object_name(), route_->get_rest_url(),
+                     route_->get_user_row_ownership().user_ownership_column,
+                     result.c_str(), variables, rs);
 
-  db.query_entries(session.get(), route_->get_schema_name(),
-                   route_->get_object_name(), route_->get_rest_url(),
-                   route_->get_user_row_ownership().user_ownership_column,
-                   result.c_str(), variables, rs);
+    Counter<kEntityCounterRestReturnedItems>::increment(db.items);
+    Counter<kEntityCounterRestAffectedItems>::increment(
+        session->affected_rows());
 
-  Counter<kEntityCounterRestReturnedItems>::increment(db.items);
-  Counter<kEntityCounterRestAffectedItems>::increment(session->affected_rows());
+  } catch (const mysqlrouter::MySQLSession::Error &e) {
+    return handler_mysqlerror(e, &db);
+  }
   return {std::move(db.response)};
 }
 
@@ -307,36 +342,7 @@ HttpResult HandlerSP::handle_get([[maybe_unused]] rest::RequestContext *ctxt) {
       Counter<kEntityCounterRestAffectedItems>::increment(
           session->affected_rows());
     } catch (const mysqlrouter::MySQLSession::Error &e) {
-      const static std::string k_state_with_user_defined_error = "45000";
-
-      if (!db.get_sql_state()) throw e;
-
-      auto sql_state = db.get_sql_state();
-      log_debug("While handling SP, received a mysql-error with state: %s",
-                sql_state);
-      if (k_state_with_user_defined_error != sql_state) {
-        throw e;
-      }
-
-      // 5000 is the offset for HTTPStatus errors,
-      // Still first HTTP status begins with 100 code,
-      // because of that we are validating the value
-      // not against 5000, but 5100.
-      if (e.code() < 5100 || e.code() >= 5600) {
-        throw e;
-      }
-
-      helper::json::MapObject map{{"message", e.message()}};
-      HttpResult::HttpStatus status = e.code() - 5000;
-      try {
-        HttpStatusCode::get_default_status_text(status);
-      } catch (...) {
-        throw e;
-      }
-      auto json = helper::json::to_string(map);
-
-      log_debug("SP - generated custom HTTPstats + message:%s", json.c_str());
-      return HttpResult(status, std::move(json), HttpResult::Type::typeJson);
+      return handler_mysqlerror(e, &db);
     }
 
     return {std::move(db.response)};
