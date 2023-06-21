@@ -397,8 +397,11 @@ stdx::expected<std::vector<uint64_t>, MysqlError>
 SharedServer::user_connection_ids(MysqlClient &cli) {
   auto ids_res = cli.query(R"(SELECT id
  FROM performance_schema.processlist
-WHERE id != CONNECTION_ID() AND
-      Command != "Daemon")");
+WHERE id != CONNECTION_ID() AND User NOT IN (
+      "system user",
+      "event_scheduler",
+      "gr_user"
+      ))");
   if (!ids_res) return stdx::make_unexpected(ids_res.error());
 
   std::vector<uint64_t> ids;
