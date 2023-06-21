@@ -49,6 +49,7 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 #include "mysqld_error.h"  // mysql-server error-codes
+#include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/connection_base.h"
 #include "processor.h"
@@ -338,14 +339,42 @@ ClientGreetor::client_greeting() {
   auto msg_res =
       ClassicFrame::recv_msg<classic_protocol::message::client::Greeting>(
           src_channel, src_protocol, src_protocol->server_capabilities());
-  if (!msg_res) return recv_client_failed(msg_res.error());
+  if (!msg_res) {
+    const auto ec = msg_res.error();
 
-  auto msg = std::move(*msg_res);
+    if (ec.category() != classic_protocol::codec_category()) {
+      return recv_client_failed(ec);
+    }
+
+    discard_current_msg(src_channel, src_protocol);
+
+    // server sends Bad Handshake instead of Malformed message.
+    const auto send_msg = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        src_channel, src_protocol,
+        {ER_HANDSHAKE_ERROR, "Bad handshake", "08S01"});
+    if (!send_msg) send_client_failed(send_msg.error());
+
+    stage(Stage::Error);
+
+    return Result::SendToClient;
+  }
 
   if (src_protocol->seq_id() != 1) {
-    // client-greeting has seq-id 1
-    return recv_client_failed(make_error_code(std::errc::bad_message));
+    discard_current_msg(src_channel, src_protocol);
+
+    const auto send_msg = ClassicFrame::send_msg<
+        classic_protocol::borrowed::message::server::Error>(
+        src_channel, src_protocol,
+        {ER_NET_PACKETS_OUT_OF_ORDER, "Got packets out of order", "08S01"});
+    if (!send_msg) send_client_failed(send_msg.error());
+
+    stage(Stage::Error);
+
+    return Result::SendToClient;
   }
+
+  auto msg = std::move(*msg_res);
 
   if (auto &tr = tracer()) {
     tr.trace(Tracer::Event().stage("client::greeting"));
