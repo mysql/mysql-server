@@ -2809,7 +2809,7 @@ void SortPredicates(Predicate *begin, Predicate *end) {
   // UDFs and stored procedures have unknown and potentially very high cost.
   // Move them last.
   std::stable_partition(begin, end, [](const Predicate &p) {
-    return p.condition->cost().IsExpensive();
+    return !p.condition->cost().IsExpensive();
   });
 }
 

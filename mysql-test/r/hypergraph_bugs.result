@@ -894,7 +894,19 @@ EXPLAIN
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1
 WHERE  b<"150" AND RAND(0)>-1 AND c< 70;
 EXPLAIN
--> Filter: ((t1.c < 70) and (t1.b < '150') and (rand(0) > <cache>(-(1))))  (cost=0.593..20.7 rows=35)
-    -> Table scan on t1  (cost=0.0025..0.25 rows=100)
+-> Filter: ((t1.c < 70) and (t1.b < '150') and (rand(0) > <cache>(-(1))))  (rows=35)
+    -> Table scan on t1  (rows=100)
 
+CREATE FUNCTION foo(i INT)
+RETURNS INT
+LANGUAGE SQL
+BEGIN
+RETURN i+1;
+END $$
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 WHERE foo(2)=3 AND c=5;
+EXPLAIN
+-> Filter: ((t1.c = 5) and (foo(2) = 3))  (rows=1)
+    -> Table scan on t1  (rows=100)
+
+DROP FUNCTION foo;
 DROP TABLE num, t1;

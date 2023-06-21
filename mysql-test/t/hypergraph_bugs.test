@@ -711,7 +711,22 @@ EXPLAIN  FORMAT=TREE SELECT 1 FROM t1 WHERE b<"150" AND c<80;
 --echo # BUG 35507456
 --echo # Assertion `[&]() { for (const Predicate *first = begin; first < end; first++)
 --echo #
+--replace_regex $elide_costs
 EXPLAIN FORMAT=TREE SELECT 1 FROM t1
 WHERE  b<"150" AND RAND(0)>-1 AND c< 70;
 
+DELIMITER $$;
+CREATE FUNCTION foo(i INT)
+  RETURNS INT
+  LANGUAGE SQL
+BEGIN
+  RETURN i+1;
+END $$
+DELIMITER ;$$
+
+# Function call should be evaluated last.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT 1 FROM t1 WHERE foo(2)=3 AND c=5;
+
+DROP FUNCTION foo;
 DROP TABLE num, t1;
