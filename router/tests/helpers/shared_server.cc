@@ -149,6 +149,7 @@ void SharedServer::prepare_datadir() {
 
   // remove the auto.cnf to get a unique server-uuid
   unlink(mysqld_dir_.file("auto.cnf").c_str());
+  unlink(mysqld_dir_.file("error.log").c_str());
 }
 
 void SharedServer::spawn_server_with_datadir(
