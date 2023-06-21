@@ -136,7 +136,9 @@ void SharedServer::prepare_datadir() {
 
     if (!mysqld_failed_to_start()) {
       spawn_server_with_datadir(mysqld_init_once_dir_name());
-      setup_mysqld_accounts();
+
+      // install plugins which are needed on all instances.
+      install_plugins();
 
       shutdown();
       process_manager().wait_for_exit();
@@ -371,9 +373,17 @@ END)"));
       cli.query("CREATE FUNCTION version_tokens_lock_exclusive"
                 "        RETURNS INT"
                 "         SONAME 'version_token" SO_EXTENSION "'"));
+}
 
-  // clone
+void SharedServer::install_plugins() {
+  SCOPED_TRACE("// install plugins");
+  auto cli_res = admin_cli();
+  ASSERT_NO_ERROR(cli_res);
 
+  install_plugins(*cli_res);
+}
+
+void SharedServer::install_plugins(MysqlClient &cli) {
   ASSERT_NO_ERROR(
       cli.query("INSTALL PLUGIN clone"
                 "        SONAME 'mysql_clone" SO_EXTENSION "'"));

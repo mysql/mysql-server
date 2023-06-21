@@ -91,6 +91,10 @@ class SharedServer {
 
   void setup_mysqld_accounts();
 
+  void install_plugins();
+
+  static void install_plugins(MysqlClient &cli);
+
   void flush_privileges();
 
   void flush_privileges(MysqlClient &cli);
