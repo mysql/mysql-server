@@ -254,8 +254,20 @@ lengthsp()  - returns the length of the given string without trailing spaces.
 Unicode conversion routines
 ---------------------------
 mb_wc       - converts the left multi-byte sequence into its Unicode code.
-mc_mb       - converts the given Unicode code into multi-byte sequence.
+  @retval   MY_CS_TOOSMALL If the string was too short to scan a character
+  @retval   1              If a 1-byte character was scanned
+  @retval   2              If a 2-byte character was scanned
+  @retval   3              If a 3-byte character was scanned
+  @retval  -2              If a 2-byte unassigned character was scanned
+  @retval  -3              If a 3-byte unassigned character was scanned
+  @retval   MY_CS_ILSEQ    If a wrong byte sequence was found
 
+wc_mb       - converts the given Unicode code into multi-byte sequence.
+  @retval   MY_CS_TOOSMALL If the string was too short to put a character
+  @retval   1              If a 1-byte character was put
+  @retval   2              If a 2-byte character was put
+  @retval   MY_CS_ILUNI    If the Unicode character does not exist in the
+                           given character set.
 
 Case and sort conversion
 ------------------------
