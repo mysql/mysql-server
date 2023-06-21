@@ -747,9 +747,10 @@ retry:
       goto ok;
     }
     thd->inc_examined_row_count(1);
-    if (cond && !cond->val_int()) {
+    if (cond != nullptr) {
+      const bool result = cond->val_int();
       if (thd->is_error()) goto err;
-      continue;
+      if (!result) continue;
     }
     if (num_rows >= offset_limit_cnt) {
       protocol->start_row();

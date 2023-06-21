@@ -1969,3 +1969,16 @@ INSERT INTO t2(vc) VALUES ('[1,2,3]'), ('[2,3,4]'), ('[3,4,5]'), ('[4,5,6]');
 SELECT * from t2 WHERE CONVERT ( json_overlaps('1234', 42) , SIGNED INT ) ;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#35507623 void Diagnostics_area::set_eof_status(THD*):
+--echo #              Assertion `!is_set()' failed.
+--echo #
+
+CREATE TABLE t1 ( c1 INT );
+INSERT INTO t1 VALUES(0);
+HANDLER t1 OPEN ;
+--error ER_INVALID_TYPE_FOR_JSON
+HANDLER t1 READ FIRST WHERE c1 MEMBER ( c1 ) IS NOT FALSE LIMIT 100 , 100 ;
+
+DROP TABLE t1;
