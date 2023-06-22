@@ -3340,3 +3340,14 @@ ERROR HY000: Expression of generated column 'c2' contains a disallowed function:
 ALTER TABLE t ADD COLUMN c3 CHAR(32) GENERATED ALWAYS AS (RANDOM_BYTES(32));
 ERROR HY000: Expression of generated column 'c3' contains a disallowed function: random_bytes.
 DROP TABLE t;
+#
+# Bug#35507164 Assertion `has_error == thd->get_stmt_da()->is_error()'
+#              failed
+#
+CREATE TABLE v0 ( c1 SERIAL )
+PARTITION BY RANGE ( c1 )
+SUBPARTITION BY
+LINEAR HASH ( c1 DIV - c1 ) ( PARTITION p2 VALUES LESS THAN MAXVALUE ) ;
+INSERT v0 SET c1 = 0;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(`c1` DIV -(`c1`))'
+DROP TABLE v0;

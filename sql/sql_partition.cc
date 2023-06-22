@@ -2501,8 +2501,8 @@ bool partition_key_modified(TABLE *table, const MY_BITMAP *fields) {
 
 static inline int part_val_int(Item *item_expr, longlong *result) {
   *result = item_expr->val_int();
+  if (current_thd->is_error()) return true;
   if (item_expr->null_value) {
-    if (current_thd->is_error()) return true;
     *result = LLONG_MIN;
   }
   return false;
