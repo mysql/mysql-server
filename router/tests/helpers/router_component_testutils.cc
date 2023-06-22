@@ -23,6 +23,7 @@
 */
 
 #include "router_component_testutils.h"
+#include "mysql/harness/net_ts/socket.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 #include "my_rapidjson_size_t.h"
@@ -344,10 +345,14 @@ void make_bad_connection(uint16_t port) {
   // whatever Router sends back. Router will read what we wrote in chunks,
   // in between its writes, thinking they're replies to its handshake packets.
   // Eventually it will finish the handshake with error and disconnect.
-  std::vector<char> bogus_data(1024, 0);
+  std::vector<char> bogus_data(3, 0);
   const auto write_res =
       net::impl::socket::write(sock, bogus_data.data(), bogus_data.size());
   if (!write_res) throw std::system_error(write_res.error(), "write() failed");
+
+  net::impl::socket::shutdown(
+      sock, static_cast<int>(net::socket_base::shutdown_type::shutdown_send));
+
   read_until_error(sock);  // error triggered by Router disconnecting
 
   net::impl::socket::close(sock);
