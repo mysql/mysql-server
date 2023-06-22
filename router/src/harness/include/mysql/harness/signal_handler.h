@@ -80,7 +80,7 @@ class HARNESS_EXPORT SignalHandler {
    * @param signum signal number
    * @param f signal handler
    */
-  void add_sig_handler(int signum, std::function<void(int)> f) {
+  void add_sig_handler(int signum, std::function<void(int, std::string)> f) {
     sig_handlers_([signum, f](auto &handlers) {
       handlers.emplace(signum, std::move(f));
     });
@@ -94,7 +94,8 @@ class HARNESS_EXPORT SignalHandler {
 
  private:
   // signal handlers per signal number.
-  Monitor<std::map<int, std::function<void(int)>>> sig_handlers_{{}};
+  Monitor<std::map<int, std::function<void(int, std::string)>>> sig_handlers_{
+      {}};
 
   WaitableMonitor<bool> signal_thread_ready_{false};
 

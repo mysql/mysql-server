@@ -61,7 +61,7 @@ std::string to_string(const ShutdownPending::Reason &reason) {
     case ShutdownPending::Reason::REQUESTED:
       return "REQUESTED";
     case ShutdownPending::Reason::FATAL_ERROR:
-      return "FATAL_ERRROR";
+      return "FATAL_ERROR";
     case ShutdownPending::Reason::NONE:;  // fallthrough
   }
 
