@@ -281,9 +281,18 @@ void SignalHandler::spawn_signal_handler_thread() {
     sigaddset(&ss, SIGUSR1);
 
     int sig = 0;
+    std::string signal_info;
     while (true) {
       sig = 0;
+#ifdef __APPLE__
       if (0 == sigwait(&ss, &sig)) {
+#else
+      siginfo_t sig_info;
+      if ((sig = sigwaitinfo(&ss, &sig_info)) != -1) {
+        signal_info = "Signal " + std::to_string(sig) +
+                      " sent by UID: " + std::to_string(sig_info.si_uid) +
+                      " and PID: " + std::to_string(sig_info.si_pid);
+#endif
         if (sig == SIGUSR1) {
           signal_thread_ready_.serialize_with_cv([](auto &ready, auto &cv) {
             ready = true;
@@ -292,8 +301,8 @@ void SignalHandler::spawn_signal_handler_thread() {
           });
           sigdelset(&ss, SIGUSR1);
         } else {
-          auto handler =
-              sig_handlers_([sig](auto &handlers) -> std::function<void(int)> {
+          auto handler = sig_handlers_(
+              [sig](auto &handlers) -> std::function<void(int, std::string)> {
                 auto it = handlers.find(sig);
                 if (it == handlers.end()) return {};
 
@@ -301,15 +310,24 @@ void SignalHandler::spawn_signal_handler_thread() {
               });
 
           // if a handler was found, call it.
-          if (handler) handler(sig);
+          if (handler) handler(sig, signal_info);
 
           // TERM and INT are only handled once and terminate the loop.
           if (sig == SIGTERM || sig == SIGINT) break;
         }
       } else {
+#ifdef __APPLE__
         // man sigwait() says, it should only fail if we provided invalid
         // signals.
         harness_assert_this_should_not_execute();
+#else
+        // sigwaitinfo() returns -1 on error, the error code is in errno
+        if (errno != EINTR) {
+          my_safe_printf_stderr(
+              "sigwaitinfo() returned error: %d.\nTerminating.", errno);
+          std::terminate();
+        }
+#endif
       }
     }
   });

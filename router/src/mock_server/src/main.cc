@@ -262,17 +262,21 @@ class MysqlServerMockFrontend {
     // as the LogReopener depends on the loggers being started, it must be
     // initialized after Loader::start_all() has been called.
     loader_->after_all_started([&]() {
-      signal_handler_.add_sig_handler(SIGTERM, [&](int /* sig */) {
-        mysql_harness::ProcessStateComponent::get_instance()
-            .request_application_shutdown(
-                mysql_harness::ShutdownPending::Reason::REQUESTED);
-      });
+      signal_handler_.add_sig_handler(
+          SIGTERM, [&](int /* sig */, const std::string &signal_info) {
+            mysql_harness::ProcessStateComponent::get_instance()
+                .request_application_shutdown(
+                    mysql_harness::ShutdownPending::Reason::REQUESTED,
+                    signal_info);
+          });
 
-      signal_handler_.add_sig_handler(SIGINT, [&](int /* sig */) {
-        mysql_harness::ProcessStateComponent::get_instance()
-            .request_application_shutdown(
-                mysql_harness::ShutdownPending::Reason::REQUESTED);
-      });
+      signal_handler_.add_sig_handler(
+          SIGINT, [&](int /* sig */, const std::string &signal_info) {
+            mysql_harness::ProcessStateComponent::get_instance()
+                .request_application_shutdown(
+                    mysql_harness::ShutdownPending::Reason::REQUESTED,
+                    signal_info);
+          });
 
       mysql_harness::on_service_ready(kSignalHandlerServiceName);
     });

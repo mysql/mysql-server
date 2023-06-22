@@ -106,6 +106,13 @@ TEST_F(RouterLoggingTest, log_start_stop_with_version) {
       router.get_logfile_content("mysqlrouter.log", logging_folder.name());
   auto lines = mysql_harness::split_string(file_content, '\n');
 
+#if !defined(__APPLE__) && !defined(_WIN32)
+  const std::string stopping_info =
+      " \\(Signal .* sent by UID: .* and PID: .*\\)";
+#else
+  const std::string stopping_info = "";
+#endif
+
   EXPECT_THAT(
       file_content,
       ::testing::AllOf(
@@ -116,7 +123,7 @@ TEST_F(RouterLoggingTest, log_start_stop_with_version) {
           ::testing::ContainsRegex(
               "main SYSTEM .* Stopping 'MySQL Router', version: "s +
               MYSQL_ROUTER_VERSION + " \\(" + MYSQL_ROUTER_VERSION_EDITION +
-              "\\), reason: REQUESTED")));
+              "\\), reason: REQUESTED" + stopping_info)));
 }
 
 /** @test This test verifies that fatal error messages thrown before switching
