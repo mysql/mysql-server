@@ -81,8 +81,8 @@ static const struct {
 libedit_private int
 parse_line(EditLine *el, const wchar_t *line)
 {
-	const wchar_t **argv;
-	int argc;
+	const wchar_t **argv = NULL;
+	int argc = 0;
 	TokenizerW *tok;
 
 	tok = tok_winit(NULL);
