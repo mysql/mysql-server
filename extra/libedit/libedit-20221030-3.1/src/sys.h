@@ -43,6 +43,7 @@
 #if defined(HAVE_SYS_TYPES_H) && defined(__sun)
 #include <sys/types.h>
 #endif
+#include <limits.h> // SIZE_MAX
 
 #if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
 # define __attribute__(A)
@@ -116,9 +117,9 @@ wchar_t * wcsdup(const wchar_t *str);
 typedef unsigned int	u_int32_t;
 #endif
 
-#ifndef HAVE_SIZE_MAX
-#define SIZE_MAX	((size_t)-1)
-#endif
+// #ifndef HAVE_SIZE_MAX
+// #define SIZE_MAX	((size_t)-1)
+// #endif
 
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
