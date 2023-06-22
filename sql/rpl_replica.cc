@@ -7498,61 +7498,64 @@ int heartbeat_queue_event(bool is_valid, Master_info *&mi,
                ER_THD(current_thd, ER_REPLICA_HEARTBEAT_FAILURE), errbuf);
     return 1;
   }
-  mysql_mutex_lock(&mi->data_lock);
-  mi->received_heartbeats++;
-  mi->last_heartbeat = my_getsystime() / 10;
-  std::string mi_log_filename{
-      mi->get_master_log_name() != nullptr ? mi->get_master_log_name() : ""};
+  {
+    MUTEX_LOCK(lock, &mi->data_lock);
+    mi->received_heartbeats++;
+    mi->last_heartbeat = my_getsystime() / 10;
+    std::string mi_log_filename{
+        mi->get_master_log_name() != nullptr ? mi->get_master_log_name() : ""};
 
-  /*
-    compare local and event's versions of log_file, log_pos.
+    /*
+      compare local and event's versions of log_file, log_pos.
 
-    Heartbeat is sent only after an event corresponding to the coordinates
-    the heartbeat carries.
-    Slave can not have a difference in coordinates except in the
-    special case when mi->get_master_log_name(), mi->get_master_log_pos()
-    have never been updated by Rotate event i.e when slave does not have
-    any history with the master (and thereafter mi->get_master_log_pos() is
-    NULL).
+      Heartbeat is sent only after an event corresponding to the coordinates
+      the heartbeat carries.
+      Slave can not have a difference in coordinates except in the
+      special case when mi->get_master_log_name(), mi->get_master_log_pos()
+      have never been updated by Rotate event i.e when slave does not have
+      any history with the master (and thereafter mi->get_master_log_pos() is
+      NULL).
 
-    TODO: handling `when' for SHOW REPLICA STATUS' snds behind
-  */
-  if (mi_log_filename.compare(binlog_name) != 0) {
-    std::ostringstream oss;
-    oss << "Replication heartbeat event contained the filename '" << binlog_name
-        << "' which is different from '" << mi_log_filename
-        << "' that was specified in earlier Rotate events.";
-    mi->report(ERROR_LEVEL, ER_REPLICA_HEARTBEAT_FAILURE,
-               ER_THD(current_thd, ER_REPLICA_HEARTBEAT_FAILURE),
-               oss.str().c_str());
-    return 1;
-  } else if (mi->get_master_log_pos() > position) {
-    std::ostringstream oss;
-    oss << "Replication heartbeat event contained the position " << position
-        << " which is smaller than the position " << mi->get_master_log_pos()
-        << " that was computed from earlier events received in the stream. "
-        << "The filename is '" << mi_log_filename << "'.";
-    mi->report(ERROR_LEVEL, ER_REPLICA_HEARTBEAT_FAILURE,
-               ER_THD(current_thd, ER_REPLICA_HEARTBEAT_FAILURE),
-               oss.str().c_str());
-    return 1;
-  }
-  /*
-    During GTID protocol, if the master skips transactions,
-    a heartbeat event is sent to the slave at the end of last
-    skipped transaction to update coordinates.
+      TODO: handling `when' for SHOW REPLICA STATUS' snds behind
+    */
+    if (mi_log_filename.compare(binlog_name) != 0) {
+      std::ostringstream oss;
+      oss << "Replication heartbeat event contained the filename '"
+          << binlog_name << "' which is different from '" << mi_log_filename
+          << "' that was specified in earlier Rotate events.";
+      mi->report(ERROR_LEVEL, ER_REPLICA_HEARTBEAT_FAILURE,
+                 ER_THD(current_thd, ER_REPLICA_HEARTBEAT_FAILURE),
+                 oss.str().c_str());
+      return 1;
+    } else if (mi->get_master_log_pos() > position) {
+      std::ostringstream oss;
+      oss << "Replication heartbeat event contained the position " << position
+          << " which is smaller than the position " << mi->get_master_log_pos()
+          << " that was computed from earlier events received in the stream. "
+          << "The filename is '" << mi_log_filename << "'.";
+      mi->report(ERROR_LEVEL, ER_REPLICA_HEARTBEAT_FAILURE,
+                 ER_THD(current_thd, ER_REPLICA_HEARTBEAT_FAILURE),
+                 oss.str().c_str());
+      return 1;
+    }
+    /*
+      During GTID protocol, if the master skips transactions,
+      a heartbeat event is sent to the slave at the end of last
+      skipped transaction to update coordinates.
 
-    I/O thread receives the heartbeat event and updates mi
-    only if the received heartbeat position is greater than
-    mi->get_master_log_pos(). This event is written to the
-    relay log as an ignored Rotate event. SQL thread reads
-    the rotate event only to update the coordinates corresponding
-    to the last skipped transaction. Note that,
-    we update only the positions and not the file names, as a ROTATE
-    EVENT from the master prior to this will update the file name.
-  */
-  if (mi->is_auto_position() && mi->get_master_log_pos() < position &&
-      !mi_log_filename.empty()) {
+      I/O thread receives the heartbeat event and updates mi
+      only if the received heartbeat position is greater than
+      mi->get_master_log_pos(). This event is written to the
+      relay log as an ignored Rotate event. SQL thread reads
+      the rotate event only to update the coordinates corresponding
+      to the last skipped transaction. Note that,
+      we update only the positions and not the file names, as a ROTATE
+      EVENT from the master prior to this will update the file name.
+    */
+    if ((mi->is_auto_position() == false ||
+         mi->get_master_log_pos() >= position || mi_log_filename.empty()))
+      return 0;
+
     DBUG_EXECUTE_IF("reached_heart_beat_queue_event",
                     { rpl_replica_debug_point(DBUG_RPL_S_HEARTBEAT_EV); };);
     mi->set_master_log_pos(position);
@@ -7561,14 +7564,11 @@ int heartbeat_queue_event(bool is_valid, Master_info *&mi,
        Put this heartbeat event in the relay log as a Rotate Event.
     */
     inc_pos = 0;
-    mysql_mutex_unlock(&mi->data_lock);
-    if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi, false
-                                                  /* force_flush_mi_info */))
-      return 0;
-    do_flush_mi = false; /* write_rotate_... above flushed master info */
-  } else
-    mysql_mutex_unlock(&mi->data_lock);
-
+  }
+  if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi, false
+                                                /* force_flush_mi_info */))
+    return 0;
+  do_flush_mi = false; /* write_rotate_... above flushed master info */
   return 0;
 }
 
