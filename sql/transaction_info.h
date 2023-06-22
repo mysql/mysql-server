@@ -125,11 +125,11 @@ class Transaction_ctx {
       return m_unsafe_rollback_flags;
     }
     void set_unsafe_rollback_flags(unsigned int flags) {
-      DBUG_PRINT("debug", ("set_unsafe_rollback_flags: %d", flags));
+      DBUG_PRINT("debug", ("set_unsafe_rollback_flags: %u", flags));
       m_unsafe_rollback_flags = flags;
     }
     void add_unsafe_rollback_flags(unsigned int flags) {
-      DBUG_PRINT("debug", ("add_unsafe_rollback_flags: %d", flags));
+      DBUG_PRINT("debug", ("add_unsafe_rollback_flags: %u", flags));
       m_unsafe_rollback_flags |= flags;
     }
     void reset_unsafe_rollback_flags() {

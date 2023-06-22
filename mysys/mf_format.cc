@@ -77,7 +77,7 @@ char *fn_format(char *to, const char *name, const char *dir,
   DBUG_TRACE;
   assert(name != nullptr);
   assert(extension != nullptr);
-  DBUG_PRINT("enter", ("name: %s  dir: %s  extension: %s  flag: %d", name, dir,
+  DBUG_PRINT("enter", ("name: %s  dir: %s  extension: %s  flag: %u", name, dir,
                        extension, flag));
 
   /* Copy and skip directory */

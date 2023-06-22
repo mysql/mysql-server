@@ -74,7 +74,7 @@ inline char *serialize_xid(char *buf, long fmt, long gln, long bln,
     *c++ = dig_vec_lower[static_cast<uchar>(dat[i]) & 0x0f];
   }
   *c++ = '\'';
-  sprintf(c, ",%lu", fmt);
+  sprintf(c, ",%ld", fmt);
 
   return buf;
 }
