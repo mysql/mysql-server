@@ -1967,8 +1967,6 @@ TEST_P(TracingCommandTest,
 - send command again, check there is a trace
 )");
 
-  std::cout << "\n";
-
   auto [connect_param, test_param] = GetParam();
 
   auto can_trace = connect_param.can_trace();
