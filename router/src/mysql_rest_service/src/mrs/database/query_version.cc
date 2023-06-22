@@ -37,7 +37,9 @@ static void throw_invalid_function_result() {
 }
 
 MrsSchemaVersion QueryVersion::query_version(MySQLSession *session) {
-  query(session, "SELECT mysql_rest_service_metadata.schema_version;");
+  query(session,
+        "SELECT `major`,`minor`,`patch` FROM "
+        "mysql_rest_service_metadata.schema_version;");
   return v_;
 }
 
