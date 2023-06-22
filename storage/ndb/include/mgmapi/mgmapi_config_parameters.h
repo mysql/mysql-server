@@ -38,6 +38,7 @@
 #define CFG_TOTAL_SEND_BUFFER_MEMORY  9
 #define CFG_LOCATION_DOMAIN_ID        10
 #define CFG_NODE_DEDICATED            11
+#define CFG_NODE_REQUIRE_CERT         12
 
 /**
  * DB config parameters
@@ -267,6 +268,7 @@
 
 #define CFG_DB_TRANS_ERROR_LOGLEVEL 679
 #define CFG_DB_ENCRYPTED_FILE_SYSTEM  680
+#define CFG_DB_REQUIRE_TLS            681
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
@@ -323,6 +325,7 @@
 #define CFG_TCP_MAXSEG_SIZE           459
 #define CFG_TCP_BIND_INADDR_ANY       460
 #define CFG_TCP_SPINTIME              461
+#define CFG_TCP_REQUIRE_TLS           462
 
 #define CFG_SHM_SEND_SIGNAL_ID        500
 #define CFG_SHM_CHECKSUM              501

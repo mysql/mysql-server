@@ -487,6 +487,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_DATA_NODE_ID) },
 
   {
+    CFG_NODE_REQUIRE_CERT,
+    "RequireCertificate",
+    DB_TOKEN,
+    "Require valid TLS key and certificate at startup time",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
     CFG_DB_SERVER_PORT,
     "ServerPort",
     DB_TOKEN,
@@ -1897,6 +1909,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     "1"},
+
+  {
+    CFG_DB_REQUIRE_TLS,
+    "RequireTls",
+    DB_TOKEN,
+    "Require TLS authenticated secure connections",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"
+  },
 
   {
     CFG_EXTRA_SEND_BUFFER_MEMORY,
@@ -3484,6 +3509,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     "2000"
+  },
+
+  {
+    CFG_TCP_REQUIRE_TLS,
+    "RequireTls",
+    "TCP",
+    "Use TLS authenticated secure connections for TCP transporter links",
+    ConfigInfo::CI_INTERNAL,
+    0,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"
   },
 
   {
@@ -6303,6 +6341,8 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
   Uint32 wan = 0;
   Uint32 location_domain1 = 0;
   Uint32 location_domain2 = 0;
+  Uint32 reqTls1 = 0;
+  Uint32 reqTls2 = 0;
   require(ctx.m_config->get("Node", nodeId1, &tmp));
   tmp->get("HostName", &hostname1);
   tmp->get("LocationDomainId", &location_domain1);
@@ -6318,6 +6358,7 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
       return ret == 0 ? true : false;
     }
   }
+  tmp->get("RequireTls", &reqTls1);
 
   require(ctx.m_config->get("Node", nodeId2, &tmp));
   tmp->get("HostName", &hostname2);
@@ -6345,7 +6386,8 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
       return ret == 0 ? true : false;
     }
   }
-  
+  tmp->get("RequireTls", &reqTls2);
+
   char buf[16];
   s.m_sectionData= new Properties(true);
   BaseString::snprintf(buf, sizeof(buf), "%u", nodeId1);
@@ -6372,6 +6414,8 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
       s.m_sectionData->put("TCP_SND_BUF_SIZE", 4194304);
       s.m_sectionData->put("TCP_MAXSEG_SIZE", 61440);
     }
+
+    s.m_sectionData->put("RequireTls", reqTls1 | reqTls2);
   }
   
   sections.push_back(s);

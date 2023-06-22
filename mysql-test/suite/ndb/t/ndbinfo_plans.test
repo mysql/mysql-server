@@ -39,13 +39,19 @@ let $extra= query_get_value(explain select count(*) from counters, Extra, 1);
 echo $extra;
 
 ## Information schema reveals row counts as seen by optimizer
-## (but filter out cpu-related tables where results are not predictable)
+# Filtered out:
+#   * cpu-related tables, where results are not predictable
+#   * config_params, which changes when parameters are added, but will
+#     be accurate
+#   * config_values, which is queried separately below, along with an
+#     explanatory comment that is copied to the result file
 set ndbinfo_show_hidden=1;
 --horizontal_results
 SELECT table_name, table_rows, avg_row_length
   FROM information_schema.tables
   WHERE table_schema='ndbinfo' AND table_type = 'BASE TABLE'
   AND table_name not like '%cpu%'
+  AND table_name not in ('ndb$config_params', 'ndb$config_values')
   ORDER BY table_name;
 
 --disable_query_log
@@ -85,8 +91,17 @@ END|;
 --delimiter ;
 --enable_query_log
 
-## List the tables where estimated size equals actual size.
 CALL populate_sizes();
+
+# Query config_values separately for clarity.
+SELECT table_name, est_rows, actual_rows from rowcounts
+WHERE table_name = "ndb$config_values";
+## Note:
+## the estimate for config_values relies on a constant in NdbinfoTables.cpp
+## which must be manually maintained in order for the test to pass.
+
+##
+## List the tables where estimated size equals actual size.
 SELECT count(*) from rowcounts WHERE est_rows = actual_rows;
 SELECT table_name from rowcounts WHERE est_rows = actual_rows
   ORDER BY table_name;
