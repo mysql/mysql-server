@@ -41,7 +41,7 @@ export LC_ALL LANG
 
 if [ "x$AWK" = "x" ]
 then
-   AWK=awk
+   AWK=@AWK@
 fi
 
 USAGE="Usage: $0 -h|-fc|-fh|-bh <filenames>"
