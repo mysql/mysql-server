@@ -608,19 +608,12 @@ void BootstrapConfigurator::check_mrs_metadata(
   try {
     mrs::database::QueryVersion q;
 
-    q.query_version(session);
+    auto version = q.query_version(session);
 
-    auto row = session->query_one(
-        "SELECT major, minor, patch FROM "
-        "mysql_rest_service_metadata.schema_version");
-
-    int major = std::stoi((*row)[0]);
-    int minor = std::stoi((*row)[1]);
-    int patch = std::stoi((*row)[2]);
-    if (major != 1 || (minor == 0 && patch < 31)) {
+    if (version.major != 2 || (version.minor == 0 && version.patch < 2)) {
       std::stringstream ss;
-      ss << "Unsupported MRS metadata version (" << major << "." << minor << "."
-         << patch << ")";
+      ss << "Unsupported MRS metadata version (" << version.major << "."
+         << version.minor << "." << version.patch << ")";
       throw std::runtime_error(ss.str());
     }
   } catch (const mysqlrouter::MySQLSession::Error &e) {
