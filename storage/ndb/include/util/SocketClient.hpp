@@ -46,6 +46,7 @@ public:
   int bind(ndb_sockaddr local);
   ndb_socket_t connect(ndb_sockaddr server_addr);
   void connect(NdbSocket &, ndb_sockaddr server_addr);
+  int authenticate(NdbSocket &);
 
   ndb_socket_t m_sockfd;
 };

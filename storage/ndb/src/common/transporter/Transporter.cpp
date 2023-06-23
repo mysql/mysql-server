@@ -145,9 +145,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     m_socket_client= nullptr;
   else
   {
-    m_socket_client= new SocketClient(new SocketAuthSimple("ndbd",
-                                                           "ndbd passwd"));
-
+    m_socket_client= new SocketClient(new SocketAuthSimple());
     m_socket_client->set_connect_timeout(m_timeOutMillis);
   }
 
@@ -335,6 +333,14 @@ Transporter::connect_client()
       }
     }
     m_socket_client->connect(secureSocket, remote_addr);
+
+   /** Socket Authentication */
+    if(m_socket_client->authenticate(secureSocket) < SocketAuthSimple::AuthOk)
+    {
+      DEBUG_FPRINTF((stderr, "Socket Authenticator failed\n"));
+      DBUG_RETURN(false);
+    }
+
   }
 
   DBUG_RETURN(connect_client(secureSocket));
