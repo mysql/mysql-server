@@ -684,6 +684,7 @@ class TestEnv : public ::testing::Environment {
           GTEST_SKIP() << "mysql-server failed to start.";
         }
         s->setup_mysqld_accounts();
+        s->install_plugins();
       }
     }
 
@@ -1964,6 +1965,7 @@ TEST_P(ShareConnectionTinyPoolOneServerTest, classic_protocol_clone) {
   ASSERT_NO_ERROR(recipient_res);
 
   auto recipient = std::move(*recipient_res);
+  SharedServer::install_plugins(recipient);
   {
     std::ostringstream oss;
 

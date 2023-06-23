@@ -558,6 +558,7 @@ class TestEnv : public ::testing::Environment {
           GTEST_SKIP() << "mysql-server failed to start.";
         }
         s->setup_mysqld_accounts();
+        s->install_plugins();
       }
     }
 

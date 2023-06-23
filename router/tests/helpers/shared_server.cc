@@ -133,17 +133,6 @@ void SharedServer::prepare_datadir() {
     mysqld_init_once_dir_ = new TempDirectory("mysqld-init-once");
 
     initialize_server(mysqld_init_once_dir_name());
-
-    if (!mysqld_failed_to_start()) {
-      spawn_server_with_datadir(mysqld_init_once_dir_name());
-
-      // install plugins which are needed on all instances.
-      install_plugins();
-
-      shutdown();
-      process_manager().wait_for_exit();
-      process_manager().clear();
-    }
   }
 
   // copy the init-once dir to the datadir.
