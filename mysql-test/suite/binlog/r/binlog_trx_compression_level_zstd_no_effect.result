@@ -17,8 +17,7 @@ include/save_binlog_position.inc
 INSERT INTO t VALUES (LOAD_FILE('../../std_data/mysqldump_57.sql'));
 include/save_binlog_position.inc
 #
-# 5) Compute the compressed size for binlog_transaction_compression_level
-#_zstd = 1
+# 5) Compute the compressed size for binlog_transaction_compression_level_zstd = 1
 #
 #
 # 6) Set the value of binlog_transaction_compression_level_zstd to 19
