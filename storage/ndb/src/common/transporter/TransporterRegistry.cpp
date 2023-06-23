@@ -117,19 +117,22 @@ TransporterRegistry::get_bytes_received(NodeId node_id) const
 SocketServer::Session * TransporterService::newSession(ndb_socket_t sockfd)
 {
   /* The connection is currently running over a plain network socket.
-     If m_auth is a TlsAuthenticator, it might get upgraded to a TLS socket
-     in server_authenticate().
+     If m_auth is a SocketAuthTls, it might get upgraded to a TLS socket.
   */
   NdbSocket secureSocket;
   secureSocket.init_from_new(sockfd);
 
   DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
   DEBUG_FPRINTF((stderr, "New session created\n"));
-  if (m_auth && !m_auth->server_authenticate(secureSocket))
+  if(m_auth)
   {
-    DEBUG_FPRINTF((stderr, "Failed to authenticate new session\n"));
-    secureSocket.close_with_reset(true); // Close with reset
-    DBUG_RETURN(0);
+    int r = m_auth->server_authenticate(secureSocket);
+    if(r < SocketAuthenticator::AuthOk)
+    {
+      DEBUG_FPRINTF((stderr, "Failed to authenticate new session\n"));
+      secureSocket.close_with_reset(true); // Close with reset
+      DBUG_RETURN(0);
+    }
   }
 
   BaseString msg;
@@ -3595,7 +3598,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
     if(t.m_s_service_port<0)
       port= -t.m_s_service_port; // is a dynamic port
     TransporterService *transporter_service =
-      new TransporterService(new SocketAuthSimple("ndbd", "ndbd passwd"));
+      new TransporterService(new SocketAuthSimple());
     ndb_sockaddr addr;
     if (t.m_interface && Ndb_getAddr(&addr, t.m_interface))
     {

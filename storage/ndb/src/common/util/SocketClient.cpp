@@ -26,6 +26,8 @@
 #include <ndb_global.h>
 
 #include <cassert>
+
+#include "EventLogger.hpp"
 #include "SocketClient.hpp"
 #include "SocketAuthenticator.hpp"
 #include "portlib/ndb_socket_poller.h"
@@ -209,16 +211,22 @@ done:
   assert(m_last_used_port == 0);
   ndb_socket_get_port(m_sockfd, &m_last_used_port);
 
+  // Transfer the fd to the NdbSocket
   secureSocket.init_from_new(m_sockfd);
-
-  if (m_auth) {
-    if (!m_auth->client_authenticate(secureSocket))
-    {
-      DEBUG_FPRINTF((stderr, "authenticate failed in connect\n"));
-      secureSocket.close();
-      secureSocket.invalidate();
-    }
-  }
-
   ndb_socket_invalidate(&m_sockfd);
+}
+
+int
+SocketClient::authenticate(NdbSocket & secureSocket)
+{
+  assert(m_auth);
+  int r = m_auth->client_authenticate(secureSocket);
+  if (r < SocketAuthenticator::AuthOk)
+  {
+    g_eventLogger->error("Socket authentication failed: %s\n",
+                         m_auth->error(r));
+    secureSocket.close();
+    secureSocket.invalidate();
+  }
+  return r;
 }

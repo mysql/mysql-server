@@ -26,49 +26,36 @@
 #include <SocketAuthenticator.hpp>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
-SocketAuthSimple::SocketAuthSimple(const char *username, const char *passwd) {
-  if (username)
-    m_username= strdup(username);
-  else
-    m_username= nullptr;
-  if (passwd)
-    m_passwd= strdup(passwd);
-  else
-    m_passwd= nullptr;
-}
 
-SocketAuthSimple::~SocketAuthSimple()
+const char * SocketAuthenticator::error(int result)
 {
-  if (m_passwd)
-    free(m_passwd);
-  if (m_username)
-    free(m_username);
+  return (result < AuthOk) ? "Socket Auth failure" : "Success";
 }
 
-bool SocketAuthSimple::client_authenticate(NdbSocket & sockfd)
+int SocketAuthSimple::client_authenticate(NdbSocket & sockfd)
 {
   SecureSocketOutputStream s_output(sockfd);
   SecureSocketInputStream  s_input(sockfd);
 
   // Write username and password
-  s_output.println("%s", m_username ? m_username : "");
-  s_output.println("%s", m_passwd ? m_passwd : "");
+  s_output.println("ndbd");
+  s_output.println("ndbd passwd");
 
   char buf[16];
 
   // Read authentication result
   if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return false;
+    return -1;
   buf[sizeof(buf)-1]= 0;
 
   // Verify authentication result
   if (strncmp("ok", buf, 2) == 0)
-    return true;
+    return 0;
 
-  return false;
+  return -1;
 }
 
-bool SocketAuthSimple::server_authenticate(NdbSocket & sockfd)
+int SocketAuthSimple::server_authenticate(NdbSocket & sockfd)
 {
   SecureSocketOutputStream s_output(sockfd);
   SecureSocketInputStream  s_input(sockfd);
@@ -77,17 +64,17 @@ bool SocketAuthSimple::server_authenticate(NdbSocket & sockfd)
 
   // Read username
   if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return false;
+    return -1;
   buf[sizeof(buf)-1]= 0;
 
   // Read password
   if (s_input.gets(buf, sizeof(buf)) == nullptr)
-    return false;
+    return -1;
   buf[sizeof(buf)-1]= 0;
 
   // Write authentication result
   s_output.println("ok");
 
-  return true;
+  return 0;
 }
 
