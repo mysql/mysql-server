@@ -1,6 +1,0 @@
-2021-08-29	Christos Zoulas	<christos@netbsd.org>
-
-	Change default mappings:
-	    map ^W to ed-delete-prev-word and not kill-region
-	    map ^R to em-inc-search-next and not redisplay
-
