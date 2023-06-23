@@ -102,12 +102,37 @@ class SharedServer {
   // get all connections, but ignore internal connections and this
   // connection.
   static stdx::expected<std::vector<uint64_t>, MysqlError> user_connection_ids(
-      MysqlClient &cli);
+      MysqlClient &cli) {
+    return user_connection_ids(cli, default_usernames());
+  }
+
+  static stdx::expected<std::vector<uint64_t>, MysqlError> user_connection_ids(
+      MysqlClient &cli, const std::vector<std::string> &usernames);
+
+  static std::vector<std::string> default_usernames() {
+    return {
+        admin_account().username,
+        caching_sha2_empty_password_account().username,
+        caching_sha2_password_account().username,
+        native_empty_password_account().username,
+        native_password_account().username,
+        sha256_empty_password_account().username,
+        sha256_password_account().username,
+        sha256_short_password_account().username,
+    };
+  }
 
   // close all connections.
-  void close_all_connections();
+  void close_all_connections() { close_all_connections(default_usernames()); }
 
-  void close_all_connections(MysqlClient &cli);
+  void close_all_connections(const std::vector<std::string> &usernames);
+
+  static void close_all_connections(MysqlClient &cli) {
+    close_all_connections(cli, default_usernames());
+  }
+
+  static void close_all_connections(MysqlClient &cli,
+                                    const std::vector<std::string> &usernames);
 
   // set some session-vars back to defaults.
   void reset_to_defaults();

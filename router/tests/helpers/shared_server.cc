@@ -393,14 +393,21 @@ void SharedServer::flush_privileges(MysqlClient &cli) {
 // get all connections, but ignore internal connections and this
 // connection.
 stdx::expected<std::vector<uint64_t>, MysqlError>
-SharedServer::user_connection_ids(MysqlClient &cli) {
-  auto ids_res = cli.query(R"(SELECT id
- FROM performance_schema.processlist
-WHERE id != CONNECTION_ID() AND User NOT IN (
-      "system user",
-      "event_scheduler",
-      "gr_user"
-      ))");
+SharedServer::user_connection_ids(MysqlClient &cli,
+                                  const std::vector<std::string> &usernames) {
+  std::ostringstream oss;
+
+  for (const auto &username : usernames) {
+    if (oss.tellp() != 0) {
+      oss << ", ";
+    }
+    oss << std::quoted(username);
+  }
+
+  auto ids_res = cli.query(
+      "SELECT id FROM performance_schema.processlist WHERE id != "
+      "CONNECTION_ID() AND User IN (" +
+      oss.str() + ")");
   if (!ids_res) return stdx::make_unexpected(ids_res.error());
 
   std::vector<uint64_t> ids;
@@ -414,18 +421,20 @@ WHERE id != CONNECTION_ID() AND User NOT IN (
 }
 
 // close all connections.
-void SharedServer::close_all_connections() {
+void SharedServer::close_all_connections(
+    const std::vector<std::string> &usernames) {
   SCOPED_TRACE("// closing all connections at the server.");
 
   auto cli_res = admin_cli();
   ASSERT_NO_ERROR(cli_res);
 
-  close_all_connections(*cli_res);
+  close_all_connections(*cli_res, usernames);
 }
 
-void SharedServer::close_all_connections(MysqlClient &cli) {
+void SharedServer::close_all_connections(
+    MysqlClient &cli, const std::vector<std::string> &usernames) {
   {
-    auto ids_res = user_connection_ids(cli);
+    auto ids_res = user_connection_ids(cli, usernames);
     ASSERT_NO_ERROR(ids_res);
 
     for (auto id : *ids_res) {
@@ -444,7 +453,7 @@ void SharedServer::close_all_connections(MysqlClient &cli) {
     using clock_type = std::chrono::steady_clock;
     auto end = clock_type::now() + 1000ms;
     do {
-      auto ids_res = user_connection_ids(cli);
+      auto ids_res = user_connection_ids(cli, usernames);
       ASSERT_NO_ERROR(ids_res);
 
       if ((*ids_res).empty()) break;
