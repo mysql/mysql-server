@@ -1921,9 +1921,9 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
   {
     g_eventLogger->info("NDBFS: Dump requests: %u",
                         theRequestPool->inuse());
-    for (unsigned ridx=0; ridx < theRequestPool->inuse(); ridx++)
+    const Request* req = nullptr;
+    while((req = theRequestPool->getNextInUseItem(req)))
     {
-      const Request* req = theRequestPool->peekInuseItem(ridx);
       Uint64 duration = 0;
 
       if (NdbTick_IsValid(req->m_startTime))
@@ -1932,10 +1932,9 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
                                    getHighResTimer()).microSec();
       }
 
-      g_eventLogger->info("Request %u action %u %s userRef 0x%x "
+      g_eventLogger->info("Request action %u %s userRef 0x%x "
                           "userPtr %u filePtr %u bind %u "
                           "duration(us) %llu filename %s",
-                          ridx,
                           req->action,
                           Request::actionName(req->action),
                           req->theUserReference,
