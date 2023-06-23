@@ -202,7 +202,8 @@ public:
     theIncSize(anIncSize),
     theTop(0),
     theCurrentSize(0),   
-    theList(0)
+    theList(0),
+    theInUseList(nullptr)
   {
     allocate(anInitSize);
   }
@@ -224,7 +225,7 @@ public:
   // inuse() : Return number items taken from pool
   unsigned inuse() const { return theCurrentSize - theTop; }
 
-  const T* peekInuseItem(unsigned idx) const;
+  const T* getNextInUseItem(const T*) const;
   
 protected:
   void allocate(int aSize)
@@ -252,6 +253,7 @@ private:
   int theCurrentSize;
   
   T** theList;
+  T*  theInUseList;
 };
 
 //******************************************************************************
@@ -264,6 +266,18 @@ template <class T> inline T* Pool<T>::get()
    }
    --theTop;
    tmp = theList[theTop];
+
+   /* Maintain inuse list */
+   /* Add to head */
+   if (theInUseList)
+   {
+     assert(theInUseList->listPrev == nullptr);
+     theInUseList->listPrev = tmp;
+   }
+   tmp->listNext = theInUseList;
+   tmp->listPrev = nullptr;
+   theInUseList = tmp;
+
    tmp->atGet();
    return tmp;
 }
@@ -274,13 +288,33 @@ template <class T> inline void Pool<T>::put(T* aT)
 {
    theList[theTop]= aT;
    ++theTop;
+
+   /* Remove item from InUse list */
+   T* next = aT->listNext;
+   T* prev = aT->listPrev;
+
+   if (next)
+   {
+     next->listPrev = prev;
+   }
+   if (prev)
+   {
+     prev->listNext = next;
+   }
+   else
+   {
+     theInUseList = next;
+   }
+   aT->listNext = aT->listPrev = nullptr;
 }
 
-template <class T> const T* Pool<T>::peekInuseItem(unsigned idx) const
+template <class T> const T* Pool<T>::getNextInUseItem(const T* item) const
 {
-  assert(idx <= inuse());
-  // theTop is index of the first item in use
-  return theList[theTop + idx];
+  if (item)
+  {
+    return item->listNext;
+  }
+  return theInUseList;
 }
 
 

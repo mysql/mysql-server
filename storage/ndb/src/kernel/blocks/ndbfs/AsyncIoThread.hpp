@@ -148,6 +148,10 @@ public:
 
   /* More debugging info */
   NDB_TICKS m_startTime;
+
+  /* Pool members */
+  Request* listNext;
+  Request* listPrev;
 };
 
 NdbOut& operator <<(NdbOut&, const Request&);
