@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1828,21 +1828,20 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
   {
     g_eventLogger->info("NDBFS: Dump requests: %u",
                         theRequestPool->inuse());
-    for (unsigned ridx=0; ridx < theRequestPool->inuse(); ridx++)
+    const Request* req = NULL;
+    while((req = theRequestPool->getNextInUseItem(req)))
     {
-      const Request* req = theRequestPool->peekInuseItem(ridx);
       Uint64 duration = 0;
 
       if (NdbTick_IsValid(req->m_startTime))
       {
         duration = NdbTick_Elapsed(req->m_startTime,
-                                   getHighResTimer()).milliSec();
+                                   getHighResTimer()).microSec();
       }
 
-      g_eventLogger->info("Request %u action %u %s userRef 0x%x "
+      g_eventLogger->info("Request action %u %s userRef 0x%x "
                           "userPtr %u filePtr %u bind %u "
-                          "duration(ms) %llu filename %s",
-                          ridx,
+                          "duration(us) %llu filename %s",
                           req->action,
                           Request::actionName(req->action),
                           req->theUserReference,
