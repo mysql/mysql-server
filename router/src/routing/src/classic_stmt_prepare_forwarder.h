@@ -35,6 +35,13 @@ class StmtPrepareForwarder : public ForwardingProcessor {
 
   enum class Stage {
     Command,
+
+    ForbidCommand,
+
+    PoolBackend,
+    SwitchBackend,
+    PrepareBackend,
+
     Connect,
     Connected,
     Forward,
@@ -59,6 +66,10 @@ class StmtPrepareForwarder : public ForwardingProcessor {
 
  private:
   stdx::expected<Result, std::error_code> command();
+  stdx::expected<Result, std::error_code> forbid_command();
+  stdx::expected<Result, std::error_code> pool_backend();
+  stdx::expected<Result, std::error_code> switch_backend();
+  stdx::expected<Result, std::error_code> prepare_backend();
   stdx::expected<Result, std::error_code> connect();
   stdx::expected<Result, std::error_code> connected();
   stdx::expected<Result, std::error_code> forward();
