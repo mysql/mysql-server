@@ -1,0 +1,14 @@
+!include suite/ndb_tls/my.cnf
+
+[ndb_mgmd.1.1]
+ndb-tls-search-path=
+
+[ndbd.1.1]
+ndb-tls-search-path=
+
+[ndbd.2.1]
+ndb-tls-search-path=
+
+[mysqld]
+ndb-tls-search-path=
+

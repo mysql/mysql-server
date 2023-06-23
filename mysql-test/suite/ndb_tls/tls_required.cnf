@@ -1,0 +1,22 @@
+!include suite/ndb_tls/my.cnf
+
+[cluster_config.ndbd.1.1]
+RequireTls=true
+
+[cluster_config.ndbd.2.1]
+RequireTls=true
+
+[ndbd.1.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+
+[ndbd.2.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+
+[ndb_mgmd.1.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+
+[mysqld.1.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+ndb-cluster-connection-pool=2
+ndb-cluster-connection-pool-nodeids=51,52
+

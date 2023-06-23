@@ -1,0 +1,5 @@
+SHOW VARIABLES LIKE 'ndb_tls_search_path';
+Variable_name	Value
+ndb_tls_search_path	
+SELECT * FROM ndbinfo.certificates;
+Node_id	Name	Expires	Serial

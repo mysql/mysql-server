@@ -1,0 +1,11 @@
+--source include/have_ndb.inc
+--source suite/ndb_tls/include/check_openssl.inc
+
+# Test with TLS search path set to an empty string
+
+# The MySQL server is up
+SHOW VARIABLES LIKE 'ndb_tls_search_path';
+
+# The certificates table is empty.
+SELECT * FROM ndbinfo.certificates;
+
