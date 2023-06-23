@@ -220,6 +220,15 @@ bool TCP_Transporter::connect_client_impl(NdbSocket & socket)
 
 bool TCP_Transporter::connect_common(NdbSocket & socket)
 {
+  struct x509_st * cert = socket.peer_certificate();
+  if(cert)
+  {
+    m_encrypted = true;
+    m_transporter_registry.getTlsKeyManager()->cert_table_set(remoteNodeId,
+                                                              cert);
+    socket.enable_locking();
+  }
+
   setSocketOptions(socket.ndb_socket());
   socket.set_nonblocking(true);
 
@@ -532,15 +541,13 @@ TCP_Transporter::shutdown()
 {
   if (theSocket.is_valid())
   {
-    DEB_MULTI_TRP(("Close socket for trp %u",
-                   getTransporterIndex()));
+    DEB_MULTI_TRP(("Close socket for trp %u", getTransporterIndex()));
     theSocket.close();
     theSocket.invalidate();
   }
   else
   {
-    DEB_MULTI_TRP(("Socket already closed for trp %u",
-                   getTransporterIndex()));
+    DEB_MULTI_TRP(("Socket already closed for trp %u", getTransporterIndex()));
   }
   m_connected = false;
 }
@@ -694,4 +701,7 @@ TCP_Transporter::disconnectImpl()
       report_error(TE_ERROR_CLOSING_SOCKET);
     }
   }
+
+  m_encrypted = false;
+  m_transporter_registry.getTlsKeyManager()->cert_table_clear(remoteNodeId);
 }

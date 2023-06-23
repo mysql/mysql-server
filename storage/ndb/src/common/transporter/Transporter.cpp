@@ -271,6 +271,11 @@ Transporter::connect_server(NdbSocket & sockfd,
   DBUG_RETURN(true);
 }
 
+inline static void
+tls_error(int code)
+{
+  g_eventLogger->error("TLS error %d '%s'", code, TlsKeyError::message(code));
+}
 
 bool
 Transporter::connect_client()
@@ -351,11 +356,41 @@ Transporter::connect_client()
     int auth = m_socket_client->authenticate(secureSocket);
     if(auth < SocketAuthenticator::AuthOk)
     {
-      DEBUG_FPRINTF((stderr, "Socket Authenticator failed\n"));
       DBUG_RETURN(false);
     }
     g_eventLogger->debug("Transporter client auth result: %d [%s]", auth,
                          SocketAuthenticator::error(auth));
+
+    if(auth == SocketAuthTls::negotiate_tls_ok) // Initiate TLS
+    {
+      struct ssl_ctx_st * ctx = m_transporter_registry.m_tls_keys.ctx();
+      struct ssl_st * ssl = NdbSocket::get_client_ssl(ctx);
+      if(ssl == nullptr)
+      {
+        tls_error(TlsKeyError::no_local_cert);
+        DBUG_RETURN(false);
+      }
+      if(! secureSocket.associate(ssl))
+      {
+        tls_error(TlsKeyError::openssl_error);
+        NdbSocket::free_ssl(ssl);
+        DBUG_RETURN(false);
+      }
+      if(! secureSocket.do_tls_handshake())
+      {
+        tls_error(TlsKeyError::authentication_failure);
+        DBUG_RETURN(false);
+      }
+
+      /* Certificate Authorization */
+      auth = TlsKeyManager::check_server_host_auth(secureSocket,
+                                                   remoteHostName);
+      if(auth)
+      {
+        tls_error(auth);
+        DBUG_RETURN(false);
+      }
+    }
   }
 
   DBUG_RETURN(connect_client(secureSocket));

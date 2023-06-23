@@ -126,12 +126,33 @@ SocketServer::Session * TransporterService::newSession(ndb_socket_t sockfd)
   DEBUG_FPRINTF((stderr, "New session created\n"));
   if(m_auth)
   {
-    int r = m_auth->server_authenticate(secureSocket);
-    if(r < SocketAuthenticator::AuthOk)
+    int auth_result = m_auth->server_authenticate(secureSocket);
+    g_eventLogger->debug("Transporter server auth result: %d [%s]",
+                         auth_result, SocketAuthenticator::error(auth_result));
+    if(auth_result < SocketAuthenticator::AuthOk)
     {
       DEBUG_FPRINTF((stderr, "Failed to authenticate new session\n"));
       secureSocket.close_with_reset(true); // Close with reset
-      DBUG_RETURN(0);
+      DBUG_RETURN(nullptr);
+    }
+
+    if(auth_result == SocketAuthTls::negotiate_tls_ok) // Intitate TLS
+    {
+      struct ssl_ctx_st * ctx = m_transporter_registry->m_tls_keys.ctx();
+      struct ssl_st * ssl = NdbSocket::get_server_ssl(ctx);
+      if(ssl == nullptr)
+      {
+        DBUG_RETURN(nullptr);
+      }
+      if(! secureSocket.associate(ssl))
+      {
+        NdbSocket::free_ssl(ssl);
+        DBUG_RETURN(nullptr);
+      }
+      if(! secureSocket.do_tls_handshake())
+      {
+        DBUG_RETURN(nullptr);
+      }
     }
   }
 
@@ -791,6 +812,23 @@ TransporterRegistry::connect_server(NdbSocket & socket,
     }
 
     // Failed to request client close
+    DBUG_RETURN(false);
+  }
+
+  /* Client Certificate Authorization.
+  */
+  ClientAuthorization * clientAuth;
+  int authResult = TlsKeyManager::check_socket_for_auth(socket, & clientAuth);
+
+  if((authResult == 0)  && clientAuth) {
+    // This check may block, waiting for a DNS lookup
+    authResult = TlsKeyManager::perform_client_host_auth(clientAuth);
+  }
+
+  if(authResult)
+  {
+    msg.assfmt("TLS %s (for node %d [%s])",
+               TlsKeyError::message(authResult), nodeId, t->remoteHostName);
     DBUG_RETURN(false);
   }
 

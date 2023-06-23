@@ -295,7 +295,7 @@ protected:
   // Sending/Receiving socket used by both client and server
   NdbSocket theSocket;
 private:
-  SocketClient *m_socket_client;
+  SocketClient *m_socket_client {nullptr};
   ndb_sockaddr m_connect_address;
 
   virtual bool send_is_possible(int timeout_millisec) const = 0;
