@@ -1171,6 +1171,22 @@ ndbd_run(bool foreground, int report_fd,
 
   globalTransporterRegistry.init_tls(tls_search_path, NODE_TYPE_DB, true);
 
+  const ndb_mgm_configuration_iterator *p =
+      globalEmulatorData.theConfiguration->getOwnConfigIterator();
+  require(p != nullptr);
+
+  {
+    Uint32 require_cert = 0;
+    ndb_mgm_get_int_parameter(p, CFG_NODE_REQUIRE_CERT, &require_cert);
+    if(require_cert && ! globalTransporterRegistry.hasTlsCert())
+    {
+      g_eventLogger->error(
+        "Shutting down. This node does not have a valid TLS certificate.");
+      stop_async_log_func(log_threadvar, thread_args);
+      ndbd_exit(-1);
+    }
+  }
+
   /**
     Printout various information about the threads in the
     run-time environment
@@ -1212,10 +1228,6 @@ ndbd_run(bool foreground, int report_fd,
   g_eventLogger->info("Memory Allocation for global memory pools Completed");
 
   log_memusage("Global memory pools allocated");
-
-  const ndb_mgm_configuration_iterator *p =
-      globalEmulatorData.theConfiguration->getOwnConfigIterator();
-  require(p != nullptr);
 
   bool have_password_option = g_filesystem_password_state.have_password_option();
   Uint32 encrypted_file_system = 0;

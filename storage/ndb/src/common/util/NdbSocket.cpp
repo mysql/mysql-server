@@ -33,8 +33,7 @@
 #include "portlib/ndb_openssl_version.h"
 
 static constexpr bool openssl_version_ok =
-  ((OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL) ||
-   (OPENSSL_VERSION_NUMBER == UBUNTU18_OPENSSL_VER_ID));
+  (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
 
 /* Utility Functions */
 
