@@ -458,6 +458,9 @@ private:
 
   const char * m_tls_search_path { nullptr };
 
+  bool m_require_tls { false };
+  bool m_require_cert { false };
+
   bool m_need_restart;
 
   ndb_sockaddr m_connect_address[MAX_NODES];
@@ -529,6 +532,9 @@ public:
                      bool mycnf, BaseString& msg);
 
   void show_variables(NdbOut& out = ndbout);
+
+  bool require_tls() const { return m_require_tls; }
+  bool require_cert() const { return m_require_tls || m_require_cert; }
 
 private:
   class NodeIdReservations {

@@ -108,9 +108,9 @@ struct ConfigFactory
     return config;
   }
 
-  static bool
+  template <typename T> static bool
   put(Properties& config, const char* section, Uint32 section_no,
-      const char* key, Uint32 value)
+      const char* key, T value)
   {
     Properties* p;
     // Get a copy of the section to modify

@@ -1936,6 +1936,22 @@ runTestSshKeySigning(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+runTestMgmdWithoutCert(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
+  BaseString cfg_path = path(wd.path(), "config.ini", nullptr);
+
+  Properties config = ConfigFactory::create();
+  ConfigFactory::put(config, "ndb_mgmd", 1, "RequireCertificate", "true");
+  CHECK(ConfigFactory::write_config_ini(config, cfg_path.c_str()));
+
+  Mgmd mgmd(1);
+  CHECK(mgmd.start_from_config_ini(wd.path()));    // Start management node
+  CHECK(! mgmd.connect(config));                   // Cannot connect
+  return NDBT_OK;
+}
+
+int
 runTestNdbdWithoutCert(NDBT_Context* ctx, NDBT_Step* step)
 {
   NDBT_Workingdir wd("test_mgmd"); // temporary working directory
@@ -2195,6 +2211,12 @@ TESTCASE("SshKeySigning",
          "Test remote key signing over ssh using ndb_sign_keys")
 {
   INITIALIZER(runTestSshKeySigning);
+}
+
+TESTCASE("MgmdWithoutCertificate",
+         "Test MGM server startup with TLS required but no certificate")
+{
+  INITIALIZER(runTestMgmdWithoutCert)
 }
 
 TESTCASE("NdbdWithoutCertificate",

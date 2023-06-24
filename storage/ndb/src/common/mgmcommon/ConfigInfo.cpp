@@ -1919,7 +1919,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_REQUIRE_TLS,
     "RequireTls",
     DB_TOKEN,
-    "Require TLS authenticated secure connections",
+    "Require TLS-authenticated secure connections",
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_BOOL,
@@ -3359,6 +3359,32 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)
   },
 
+ {
+    CFG_NODE_REQUIRE_CERT,
+    "RequireCertificate",
+    MGM_TOKEN,
+    "Require valid TLS key and certificate at startup time",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"
+ },
+
+  {
+    CFG_MGM_REQUIRE_TLS,
+    "RequireTls",
+    MGM_TOKEN,
+    "Require TLS-authenticated secure connections",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"
+  },
+
   /****************************************************************************
    * TCP
    ***************************************************************************/
@@ -3520,7 +3546,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_TCP_REQUIRE_TLS,
     "RequireLinkTls",
     "TCP",
-    "Use TLS authenticated secure connections for TCP transporter links",
+    "Use TLS-authenticated secure connections for TCP transporter links",
     ConfigInfo::CI_INTERNAL,
     0,
     ConfigInfo::CI_BOOL,

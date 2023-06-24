@@ -297,6 +297,7 @@
 #define CFG_MAX_LOGLEVEL          262
 
 #define CFG_MGM_PORT                  300
+#define CFG_MGM_REQUIRE_TLS           301
 
 #define CFG_DB_MAX_BUFFERED_EPOCH_BYTES 350
 

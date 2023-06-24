@@ -25,6 +25,7 @@
 #include "util/require.h"
 #include <ndb_global.h>
 #include <cstring>
+#include "openssl/ssl.h"
 
 #include "MgmtSrvr.hpp"
 #include "ndb_mgmd_error.h"
@@ -59,6 +60,7 @@
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include "portlib/ndb_sockaddr.h"
+#include "portlib/ndb_openssl_version.h"
 #include <EventLogger.hpp>
 #include <logger/FileLogHandler.hpp>
 #include <logger/ConsoleLogHandler.hpp>
@@ -95,6 +97,9 @@ int g_errorInsert = 0;
       return result;\
     }\
   }
+
+static constexpr bool openssl_version_ok =
+  (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
 
 void *
 MgmtSrvr::logLevelThread_C(void* m)
@@ -482,6 +487,18 @@ MgmtSrvr::start_mgm_service(const Config* config)
       g_eventLogger->error("PortNumber not defined for node %d", _ownNodeId);
       DBUG_RETURN(false);
     }
+
+    // Find the TLS requirement level
+    Uint32 requireCert = 0;
+    Uint32 requireTls = 0;
+
+    if(openssl_version_ok)
+    {
+      require(iter.get(CFG_MGM_REQUIRE_TLS, &requireTls) == 0);
+      require(iter.get(CFG_NODE_REQUIRE_CERT, &requireCert) == 0);
+    }
+    m_require_tls = requireTls;
+    m_require_cert = requireCert;
   }
 
   unsigned short port= m_port;
@@ -572,7 +589,7 @@ MgmtSrvr::start()
 {
   DBUG_ENTER("MgmtSrvr::start");
 
-  /* Configure TLS */
+  /* Configure TlsKeyManager */
   require(m_tls_search_path);
   theFacade->mgm_configure_tls(m_tls_search_path);
 
@@ -589,6 +606,19 @@ MgmtSrvr::start()
     g_eventLogger->error("Failed to start mangement service!");
     DBUG_RETURN(false);
   }
+
+  /* Check for required TLS certificate */
+  ssl_ctx_st * ctx = theFacade->get_registry()->getTlsKeyManager()->ctx();
+  if(require_cert() && ! ctx)
+  {
+    g_eventLogger->error(
+      "Shutting down. This node does not have a valid TLS certificate.");
+    DBUG_RETURN(false);
+  }
+
+  g_eventLogger->info(require_tls() ?
+                      "This server will require all MGM clients to use TLS" :
+                      "Not requiring TLS");
 
   /* Use local MGM port for TransporterRegistry */
   if(!connect_to_self())
