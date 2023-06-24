@@ -118,6 +118,7 @@ static struct my_option my_long_options[] =
   NdbStdOpt::mgmd_host,
   NdbStdOpt::connectstring,
   NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   NDB_STD_OPT_DEBUG
   { "config-file", 'f', "Specify cluster configuration file",
     &opts.config_filename, nullptr, nullptr, GET_STR, REQUIRED_ARG,
@@ -464,6 +465,7 @@ static int mgmd_main(int argc, char** argv)
   }
 
   opts.tls_search_path = opt_tls_search_path;
+  opts.mgm_tls = opt_mgm_tls;
 
   /* Setup use of event logger */
   g_eventLogger->setCategory(opt_logname);

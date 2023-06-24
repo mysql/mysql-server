@@ -44,7 +44,6 @@
 
 #include <TransporterRegistry.hpp>
 
-#include <ConfigRetriever.hpp>
 #include <LogLevel.hpp>
 
 #if defined NDB_SOLARIS
@@ -1034,7 +1033,7 @@ ndbd_run(bool foreground, int report_fd,
          const char* connect_str, int force_nodeid, const char* bind_address,
          bool no_start, bool initial, bool initialstart,
          unsigned allocated_nodeid, int connect_retries, int connect_delay,
-         size_t logbuffer_size, const char * tls_search_path)
+         size_t logbuffer_size, const char * tls_search_path, int mgm_tls_req)
 {
   log_memusage("ndbd_run");
   LogBuffer* logBuf = new LogBuffer(logbuffer_size);
@@ -1151,9 +1150,9 @@ ndbd_run(bool foreground, int report_fd,
     already assigned the nodeid, either by the operator or by the angel
     process.
   */
-  theConfig->fetch_configuration(connect_str, force_nodeid, bind_address,
-                                 allocated_nodeid, connect_retries,
-                                 connect_delay);
+  theConfig->fetch_configuration(connect_str, force_nodeid,
+      bind_address, allocated_nodeid, connect_retries, connect_delay,
+      tls_search_path, opt_mgm_tls);
 
   /**
     Set the NDB DataDir, this is where we will locate log files and data
@@ -1369,8 +1368,7 @@ ndbd_run(bool foreground, int report_fd,
     ndbd_exit(-1);
   }
   // Re-use the mgm handle as a transporter
-  if(!globalTransporterRegistry.connect_client(
-		 theConfig->get_config_retriever()->get_mgmHandlePtr()))
+  if(!globalTransporterRegistry.connect_client(theConfig->get_mgm_handle_ptr()))
       ERROR_SET(fatal, NDBD_EXIT_CONNECTION_SETUP_FAILED,
                 "Failed to convert mgm connection to a transporter",
                 __FILE__);

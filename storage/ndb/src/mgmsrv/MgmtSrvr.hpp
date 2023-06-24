@@ -116,6 +116,7 @@ public:
     int initial;
     NodeBitmask nowait_nodes;
     const char* tls_search_path;
+    int mgm_tls;
 
     MgmtOpts() : configdir(MYSQLCLUSTERDIR),
                  tls_search_path(NDB_TLS_SEARCH_PATH) {}
@@ -458,7 +459,8 @@ private:
 
   const char * m_tls_search_path { nullptr };
 
-  bool m_require_tls { false };
+  int m_client_tls_req;         // TLS requirement level as MGM client ...
+  bool m_require_tls { false }; // ... and as MGM server.
   bool m_require_cert { false };
 
   bool m_need_restart;

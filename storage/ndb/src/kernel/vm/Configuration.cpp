@@ -132,7 +132,8 @@ Configuration::fetch_configuration(const char* _connect_string,
                                    int force_nodeid,
                                    const char* _bind_address,
                                    NodeId allocated_nodeid,
-                                   int connect_retries, int connect_delay)
+                                   int connect_retries, int connect_delay,
+                                   const char * tls_search_path, int mgm_tls)
 {
   /**
    * Fetch configuration from management server
@@ -158,6 +159,8 @@ Configuration::fetch_configuration(const char* _connect_string,
 	      "Could not initialize handle to management server",
 	      m_config_retriever->getErrorString());
   }
+
+  m_config_retriever->init_mgm_tls(tls_search_path, Node::Type::DB, mgm_tls);
 
   if(m_config_retriever->do_connect(connect_retries, connect_delay, 1) == -1){
     const char * s = m_config_retriever->getErrorString();
@@ -1654,6 +1657,12 @@ Configuration::initThreadArray()
     threadInfo[i].type = NotInUse;
   }
   NdbMutex_Unlock(threadIdMutex);
+}
+
+NdbMgmHandle *
+Configuration::get_mgm_handle_ptr()
+{
+  return m_config_retriever->get_mgmHandlePtr();
 }
 
 template class Vector<struct ThreadInfo>;

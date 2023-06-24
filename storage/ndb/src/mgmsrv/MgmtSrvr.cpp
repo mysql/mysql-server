@@ -255,6 +255,7 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts) :
   _ownReference(0),
   m_config_manager(NULL),
   m_tls_search_path(opts.tls_search_path),
+  m_client_tls_req(opts.mgm_tls),
   m_need_restart(false),
   theFacade(NULL),
   _isStopThread(false),

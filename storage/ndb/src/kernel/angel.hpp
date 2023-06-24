@@ -39,7 +39,9 @@ angel_run(const char* progname,
           bool no_start,
           bool daemon,
           int connnect_retries,
-          int connect_delay);
+          int connect_delay,
+          const char * tls_search_path,
+          int mgm_tls_level);
 
 void
 angel_stop(void);

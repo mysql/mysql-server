@@ -36,7 +36,7 @@
 #include <portlib/ndb_daemon.h>
 #include <portlib/NdbSleep.h>
 #include <portlib/NdbDir.hpp>
-
+#include "util/TlsKeyManager.hpp"
 #include <ConfigRetriever.hpp>
 
 #include <NdbTCP.h>
@@ -212,7 +212,8 @@ static void
 reportShutdown(const ndb_mgm_configuration* config,
                NodeId nodeid, int error_exit,
                bool restart, bool nostart, bool initial,
-               Uint32 error, Uint32 signum, Uint32 sphase)
+               Uint32 error, Uint32 signum, Uint32 sphase,
+               ssl_ctx_st * tls, int tls_req_level)
 {
   // Only allow "initial" and "nostart" to be set if "restart" is set
   assert(restart ||
@@ -279,8 +280,9 @@ reportShutdown(const ndb_mgm_configuration* config,
       continue;
     }
 
+    ndb_mgm_set_ssl_ctx(h, tls);
     if (ndb_mgm_set_connectstring(h, connect_str.c_str()) ||
-        ndb_mgm_connect(h, 1, 0, 0) ||
+        ndb_mgm_connect_tls(h, 1, 0, 0, tls_req_level) ||
         ndb_mgm_report_event(h, theData, length))
     {
       g_eventLogger->warning("Unable to report shutdown reason "
@@ -613,7 +615,9 @@ angel_run(const char* progname,
           bool no_start,
           bool daemon,
           int connnect_retries,
-          int connect_delay)
+          int connect_delay,
+          const char * tls_search_path,
+          int mgm_tls_level)
 {
   ConfigRetriever retriever(connect_str,
                             force_nodeid,
@@ -626,6 +630,8 @@ angel_run(const char* progname,
                          "server, error: '%s'", retriever.getErrorString());
     angel_exit(1);
   }
+
+  retriever.init_mgm_tls(tls_search_path, Node::Type::DB, mgm_tls_level);
 
   const int verbose = 1;
   if (retriever.do_connect(connnect_retries, connect_delay, verbose) != 0)
@@ -879,7 +885,8 @@ angel_run(const char* progname,
       case NRT_Default:
         g_eventLogger->info("Angel shutting down");
         reportShutdown(config.get(), nodeid, 0, 0, false, false,
-                       child_error, child_signal, child_sphase);
+                       child_error, child_signal, child_sphase,
+                       retriever.ssl_ctx(), mgm_tls_level);
         angel_exit(0);
         break;
       case NRT_NoStart_Restart:
@@ -903,7 +910,8 @@ angel_run(const char* progname,
            */
           reportShutdown(config.get(), nodeid,
                          error_exit, 0, false, false,
-                         child_error, child_signal, child_sphase);
+                         child_error, child_signal, child_sphase,
+                         retriever.ssl_ctx(), mgm_tls_level);
           angel_exit(0);
         }
         [[fallthrough]];
@@ -932,7 +940,8 @@ angel_run(const char* progname,
          */
         reportShutdown(config.get(), nodeid,
                        error_exit, 0, false, false,
-                       child_error, child_signal, child_sphase);
+                       child_error, child_signal, child_sphase,
+                       retriever.ssl_ctx(), mgm_tls_level);
         angel_exit(0);
       }
       else
@@ -957,7 +966,8 @@ angel_run(const char* progname,
                              "not restarting again", failed_startups_counter);
         reportShutdown(config.get(), nodeid,
                        error_exit, 0, false, false,
-                       child_error, child_signal, child_sphase);
+                       child_error, child_signal, child_sphase,
+                       retriever.ssl_ctx(), mgm_tls_level);
         angel_exit(0);
       }
       g_eventLogger->info("Angel detected startup failure, count: %u",
@@ -975,7 +985,8 @@ angel_run(const char* progname,
                    error_exit, 1,
                    no_start,
                    initial,
-                   child_error, child_signal, child_sphase);
+                   child_error, child_signal, child_sphase,
+                   retriever.ssl_ctx(), mgm_tls_level);
     g_eventLogger->info("Child has terminated (pid %jd). "
                         "Angel restarting child process",
                         child_pid);

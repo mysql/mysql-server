@@ -3,13 +3,10 @@
 
 # Data node certs exist and are visible in ndbinfo
 
-# Expect 2 node certificates.
-# ndbinfo is aware of DB certs that belong to each data node, but it
-# is not aware of any API or MGM certs because no data node has a TLS
-# connection to an MGM or API node.
+# Expect 3 node certificates, for DB, DB, and MGM.
 #
 SELECT * FROM ndbinfo.certificates order by Node_id;
 
-# Expect all connections unencrypted 
+# Expect encrypted connections to MGMD (node 3) only
 SELECT node_id, remote_node_id, encrypted from ndbinfo.transporters
 WHERE status = 'CONNECTED' ORDER BY node_id, remote_node_id;

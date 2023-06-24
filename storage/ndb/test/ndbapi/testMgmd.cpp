@@ -310,6 +310,11 @@ public:
                                  retry_delay_in_seconds);
   }
 
+  int client_start_tls(struct ssl_ctx_st * ctx)
+  {
+    return m_mgmd_client.start_tls(ctx);
+  }
+
   bool wait_confirmed_config(int timeout = 30)
   {
     if (!m_mgmd_client.is_connected())
@@ -1903,6 +1908,14 @@ runTestMultiMGMDDisconnection(NDBT_Context* ctx, NDBT_Step* step)
 int
 runTestSshKeySigning(NDBT_Context* ctx, NDBT_Step* step)
 {
+  /* Skip this test in PB2 environments, where "ssh localhost"
+     does not necessarily work.
+  */
+  if(getenv("PB2WORKDIR")) {
+    printf("Skipping test SshKeySigning\n");
+    return NDBT_OK;
+  }
+
   NDBT_Workingdir wd("test_mgmd"); // temporary working directory
   Properties config = ConfigFactory::create();
   BaseString cfg_path = path(wd.path(), "config.ini", nullptr);
@@ -2023,6 +2036,7 @@ runTestNdbdWithCert(NDBT_Context* ctx, NDBT_Step* step)
   Properties db;
   db.put("RequireCertificate", "true");
   config.put("DB Default", & db);
+  ConfigFactory::put(config, "ndb_mgmd", 1, "RequireTls", "true");
   CHECK(ConfigFactory::write_config_ini(config, cfg_path.c_str()));
 
   CHECK(sign_tls_keys(wd));
@@ -2034,11 +2048,16 @@ runTestNdbdWithCert(NDBT_Context* ctx, NDBT_Step* step)
   mgmd.common_args(mgmdArgs, wd.path());
   mgmdArgs.add("--ndb-tls-search-path=", wd.path());
 
+  TlsKeyManager tls_km;
+  tls_km.init_mgm_client(wd.path(), Node::Type::DB);
+
   CHECK(mgmd.start(wd.path(), mgmdArgs));          // Start management node
   CHECK(mgmd.connect(config));                     // Connect to management node
+  CHECK(mgmd.client_start_tls(tls_km.ctx()) == 0); // Start TLS
   CHECK(mgmd.wait_confirmed_config());             // Wait for configuration
 
   ndbd.args().add("--ndb-tls-search-path=", wd.path());
+  ndbd.args().add("--ndb-mgm-tls=strict");
   ndbd.start(wd.path(), mgmd.connectstring(config)); // Start data node
   NdbMgmHandle handle = mgmd.handle();
   CHECK(ndbd.wait_started(handle));
@@ -2124,7 +2143,7 @@ int runTestRequireTls(NDBT_Context* ctx, NDBT_Step* step)
   TlsKeyManager tls_km;
   bool k = sign_tls_keys(wd);
   CHECK(k);
-  tls_km.init(wd.path(), 0, NODE_TYPE_API, true);
+  tls_km.init_mgm_client(wd.path());
   CHECK(tls_km.ctx());
 
   /* Start a management server that will require TLS */

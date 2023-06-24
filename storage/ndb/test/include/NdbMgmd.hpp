@@ -195,6 +195,11 @@ public:
     return true;
   }
 
+  int start_tls(struct ssl_ctx_st * ctx) {
+    ndb_mgm_set_ssl_ctx(m_handle, ctx);
+    return ndb_mgm_start_tls(m_handle);
+  }
+
   bool is_connected(void) {
     if (!m_handle){
       error("is_connected: no handle");
