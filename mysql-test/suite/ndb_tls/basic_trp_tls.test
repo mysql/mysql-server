@@ -1,0 +1,6 @@
+--source suite/ndbcluster/basic.test
+
+## Expect 6 encrypted links
+#
+SELECT node_id, remote_node_id, encrypted from ndbinfo.transporters
+WHERE status = 'CONNECTED' ORDER BY node_id, remote_node_id;
