@@ -1,0 +1,19 @@
+!include suite/ndbcluster/my.cnf
+
+[cluster_config.ndbd.1.1]
+RequireTls=On
+
+[cluster_config.ndbd.2.1]
+RequireTls=On
+
+# In this test, ndb_desc does *not* have a certificate available
+
+[ndbd.1.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+
+[ndbd.2.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+
+[mysqld.1.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+

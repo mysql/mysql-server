@@ -1,0 +1,28 @@
+!include suite/ndb_tls/my.cnf
+
+[cluster_config.ndb_mgmd.1.1]
+RequireTls=true
+
+# In this test, ndb_desc does *not* have a certificate available
+
+# MTR stops cluster using ndb_mgm, but with no group suffix:
+[ndb_mgm]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+
+# MTR internally uses ndb_waiter:
+[ndb_waiter.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+
+[ndbd.1.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+
+[ndbd.2.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+
+[ndb_mgmd.1.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+
+[mysqld.1.1]
+ndb-tls-search-path=$MYSQLTEST_VARDIR/std_data/ndb-tls/active
+ndb-cluster-connection-pool=2
+ndb-cluster-connection-pool-nodeids=51,52

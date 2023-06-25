@@ -1,0 +1,13 @@
+--source include/have_ndb.inc
+
+# Transporter TLS is required, but ndb_desc does not have a certificate
+
+# The server is up
+#
+SELECT 1;
+
+# ndb_desc fails without TLS
+--replace_regex /^.*--//
+--error 1
+--exec $NDB_DESC --connect-retries=0
+

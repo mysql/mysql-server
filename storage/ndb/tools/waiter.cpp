@@ -33,6 +33,8 @@
 #include <NdbTick.h>
 #include <portlib/ndb_localtime.h>
 
+#include "util/TlsKeyManager.hpp"
+
 #include <NdbToolsProgramExitCodes.hpp>
 
 #include <kernel/NodeBitmask.hpp>
@@ -50,6 +52,8 @@ static const char* _wait_nodes = 0;
 static const char* _nowait_nodes = 0;
 static NdbNodeBitmask nowait_nodes_bitmask;
 
+static TlsKeyManager tlsKeyManager;
+
 static struct my_option my_long_options[] =
 {
   NdbStdOpt::usage,
@@ -60,6 +64,8 @@ static struct my_option my_long_options[] =
   NdbStdOpt::connectstring,
   NdbStdOpt::connect_retry_delay,
   NdbStdOpt::connect_retries,
+  NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   NDB_STD_OPT_DEBUG
   { "no-contact", 'n', "Wait for cluster no contact",
     &_no_contact, nullptr, nullptr, GET_BOOL, NO_ARG,
@@ -93,7 +99,8 @@ void catch_signal(int signum)
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  Ndb_opts opts(argc, argv, my_long_options);
+  const char * groups[] = {"mysql_cluster", "ndb_waiter", nullptr};
+  Ndb_opts opts(argc, argv, my_long_options, groups);
 
 #ifndef NDEBUG
   opt_debug= "d:t:O,/tmp/ndb_waiter.trace";
@@ -173,6 +180,10 @@ int main(int argc, char** argv){
     nowait_nodes_bitmask.bitNOT();
   }
 
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
+  if(tlsKeyManager.ctx())
+    ndbout_c("Using TLS.");
+
   if (waitClusterStatus(connect_string, wait_status) != 0)
     return NdbToolsProgramExitCode::FAILED;
 
@@ -203,7 +214,9 @@ getStatus(){
       MGMERR(handle);
       retries++;
       ndb_mgm_disconnect(handle);
-      if (ndb_mgm_connect(handle, opt_connect_retries - 1, opt_connect_retry_delay, 1)) {
+      if (ndb_mgm_connect_tls(handle,
+                              opt_connect_retries - 1, opt_connect_retry_delay,
+                              1, opt_mgm_tls)) {
         MGMERR(handle);
         ndberr  << "Reconnect failed" << endl;
         break;
@@ -302,10 +315,14 @@ waitClusterStatus(const char* _addr,
     }
     return -1;
   }
+  ndb_mgm_set_ssl_ctx(handle, tlsKeyManager.ctx());
+
   char buf[1024];
   ndbout << "Connecting to management server at "
          << ndb_mgm_get_connectstring(handle, buf, sizeof(buf)) << endl;
-  if (ndb_mgm_connect(handle, opt_connect_retries - 1, opt_connect_retry_delay, 1)) {
+  if (ndb_mgm_connect_tls(handle,
+                          opt_connect_retries - 1, opt_connect_retry_delay, 1,
+                          opt_mgm_tls)) {
     MGMERR(handle);
     ndberr << "Connection to "
            << ndb_mgm_get_connectstring(handle, buf, sizeof(buf)) << " failed"
