@@ -84,6 +84,7 @@
 #include "util/cstrbuf.h"
 #include "mgmcommon/ConfigRetriever.hpp"
 #include "mgmcommon/Config.hpp"
+#include "portlib/ssl_applink.h"
 
 #include "my_alloc.h"
 
@@ -119,6 +120,8 @@ static struct my_option my_long_options[] =
   NdbStdOpt::connectstring,
   NdbStdOpt::connect_retry_delay,
   NdbStdOpt::connect_retries,
+  NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   NDB_STD_OPT_DEBUG
   { "nodes", NDB_OPT_NOSHORT, "Print nodes",
     &g_nodes, nullptr, nullptr, GET_BOOL, NO_ARG,
@@ -907,6 +910,8 @@ ConnectionTypeApply::apply(const ndb_mgm_configuration_iterator& iter)
 static ndb_mgm_configuration*
 fetch_configuration(int from_node)
 {
+  TlsKeyManager tlsKeyManager;
+  tlsKeyManager.init_mgm_client(opt_tls_search_path);
   ndb_mgm_configuration* conf = 0;
   NdbMgmHandle mgm = ndb_mgm_create_handle();
   if(mgm == NULL) {
@@ -926,7 +931,9 @@ fetch_configuration(int from_node)
     goto noconnect;
   }
 
-  if(ndb_mgm_connect(mgm, opt_connect_retries - 1, opt_connect_retry_delay, 1))
+  ndb_mgm_set_ssl_ctx(mgm, tlsKeyManager.ctx());
+  if(ndb_mgm_connect_tls(mgm, opt_connect_retries - 1, opt_connect_retry_delay,
+                         1, opt_mgm_tls))
   {
     fprintf(stderr, "Connect failed");
     fprintf(stderr, " code: %d, msg: %s\n",

@@ -25,6 +25,7 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include "my_getopt.h"
+#include "portlib/ssl_applink.h"
 
 #include "my_alloc.h"
 

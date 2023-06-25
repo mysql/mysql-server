@@ -36,6 +36,7 @@
 #include <NdbConfig.h>
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
+#include "portlib/ssl_applink.h"
 #include <ndb_version.h>
 #include <mgmapi_config_parameters.h>
 #include <NdbAutoPtr.hpp>
@@ -44,11 +45,6 @@
 #include <EventLogger.hpp>
 #include <LogBuffer.hpp>
 #include <OutputStream.hpp>
-
-/* On Win32 applink.c must be included in one compilation unit */
-#ifdef _WIN32
-#include <openssl/applink.c>
-#endif
 
 #if defined VM_TRACE || defined ERROR_INSERT
 extern int g_errorInsert;

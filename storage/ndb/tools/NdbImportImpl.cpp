@@ -25,8 +25,11 @@
 #include "util/ndb_math.h"
 #include "util/require.h"
 #include "NdbImportImpl.hpp"
+#include "util/TlsKeyManager.hpp"
 #include <inttypes.h>
 #include <new>
+
+TlsKeyManager g_tlsKeyManager;
 
 NdbImportImpl::NdbImportImpl(NdbImport& facade) :
   NdbImport(*this),
@@ -36,6 +39,7 @@ NdbImportImpl::NdbImportImpl(NdbImport& facade) :
 {
   c_connectionindex = 0;
   log_debug(1, "ctor");
+  g_tlsKeyManager.init_mgm_client(opt_tls_search_path);
 }
 
 NdbImportImpl::~NdbImportImpl()
@@ -86,7 +90,8 @@ NdbImportImpl::Mgm::do_connect()
   ndb_mgm_set_connectstring(m_handle, opt_ndb_connectstring);
   int retries = opt_connect_retries;
   int delay = opt_connect_retry_delay;
-  if (ndb_mgm_connect(m_handle, retries, delay, 0) == -1)
+  ndb_mgm_set_ssl_ctx(m_handle, g_tlsKeyManager.ctx());
+  if (ndb_mgm_connect_tls(m_handle, retries, delay, 0, opt_mgm_tls) == -1)
   {
     m_util.set_error_mgm(m_error, __LINE__, m_handle);
     return -1;
@@ -230,6 +235,7 @@ NdbImportImpl::do_connect()
         new Ndb_cluster_connection(opt_ndb_connectstring,
                                    c.m_mainconnection,
                                    nodeid);
+      c.m_connections[i]->configure_tls(opt_tls_search_path, opt_mgm_tls);
       if (i == 0)
         c.m_mainconnection = c.m_connections[i];
     }

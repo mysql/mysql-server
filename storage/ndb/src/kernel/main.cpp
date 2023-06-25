@@ -26,6 +26,7 @@
 #include <ndb_opts.h>
 #include <kernel/NodeBitmask.hpp>
 #include <portlib/ndb_daemon.h>
+#include "portlib/ssl_applink.h"
 #include "util/ndb_openssl_evp.h"
 
 #include "my_alloc.h"
@@ -36,11 +37,6 @@
 #include "OwnProcessInfo.hpp"
 
 #include <EventLogger.hpp>
-
-/* On Win32 applink.c must be included in one compilation unit */
-#ifdef _WIN32
-#include <openssl/applink.c>
-#endif
 
 #define JAM_FILE_ID 485
 

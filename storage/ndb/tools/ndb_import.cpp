@@ -30,6 +30,9 @@
 #include <ndb_rand.h>
 #include "NdbImport.hpp"
 #include "NdbImportUtil.hpp"
+#include "util/TlsKeyManager.hpp"
+#include "portlib/ssl_applink.h"
+
 // STL
 #include <string>
 
@@ -76,6 +79,8 @@ my_long_options[] =
   NdbStdOpt::ndb_nodeid,
   NdbStdOpt::connect_retry_delay,
   NdbStdOpt::connect_retries,
+  NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   NDB_STD_OPT_DEBUG
   { "connections", NDB_OPT_NOSHORT,
     "Number of cluster connections to create."

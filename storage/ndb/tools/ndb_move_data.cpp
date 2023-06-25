@@ -29,6 +29,7 @@
 #include <ndb_limits.h>
 #include <ndb_lib_move_data.hpp>
 #include "util/cstrbuf.h"
+#include "portlib/ssl_applink.h"
 
 static const char* opt_dbname = "TEST_DB";
 static bool opt_exclude_missing_columns = false;
@@ -86,6 +87,7 @@ doconnect()
   do
   {
     g_ncc = new Ndb_cluster_connection(opt_ndb_connectstring);
+    g_ncc->configure_tls(opt_tls_search_path, opt_mgm_tls);
     CHK2(g_ncc->connect(6, 5) == 0, getNdbError(g_ncc));
     CHK2(g_ncc->wait_until_ready(30, 10) == 0, getNdbError(g_ncc));
 
@@ -241,6 +243,8 @@ my_long_options[] =
   NdbStdOpt::ndb_nodeid,
   NdbStdOpt::connect_retry_delay,
   NdbStdOpt::connect_retries,
+  NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   NDB_STD_OPT_DEBUG
   { "database", 'd', "Default database of source and target tables",
     &opt_dbname, nullptr, nullptr, GET_STR, REQUIRED_ARG,

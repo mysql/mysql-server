@@ -32,6 +32,7 @@
 #include <NdbSleep.h>
 #include <NdbTick.h>
 #include <portlib/ndb_localtime.h>
+#include "portlib/ssl_applink.h"
 
 #include "util/TlsKeyManager.hpp"
 

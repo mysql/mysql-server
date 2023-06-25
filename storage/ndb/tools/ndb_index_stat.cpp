@@ -28,6 +28,7 @@
 #include <NDBT.hpp>
 #include <NdbIndexStatImpl.hpp>
 #include <ndb_rand.h>
+#include "portlib/ssl_applink.h"
 
 // stats options
 static const char* _dbname = 0;
@@ -581,6 +582,8 @@ my_long_options[] =
   NdbStdOpt::ndb_nodeid,
   NdbStdOpt::connect_retry_delay,
   NdbStdOpt::connect_retries,
+  NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   NDB_STD_OPT_DEBUG
   // stats options
   { "database", 'd', "Name of database table is in",

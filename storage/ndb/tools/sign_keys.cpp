@@ -45,6 +45,7 @@
 #include "portlib/NdbDir.hpp"
 #include "portlib/NdbProcess.hpp"
 #include "portlib/NdbTCP.h"
+#include "portlib/ssl_applink.h"
 
 #include "util/ndb_openssl3_compat.h"
 #include "util/File.hpp"
@@ -53,11 +54,6 @@
 #include "util/SocketServer.hpp"
 #include "util/TlsKeyErrors.h"
 #include "util/TlsKeyManager.hpp"
-
-/* On Win32 applink.c must be included in one compilation unit */
-#ifdef _WIN32
-#include <openssl/applink.c>
-#endif
 
 /* ndb_basename() is not declared in any header file: */
 const char * ndb_basename(const char *path);

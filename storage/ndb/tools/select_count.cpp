@@ -34,7 +34,8 @@
 #include <UtilTransactions.hpp>
 
 #include "my_alloc.h"
- 
+#include "portlib/ssl_applink.h"
+
 static int 
 select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int parallelism,
@@ -56,6 +57,8 @@ static struct my_option my_long_options[] =
   NdbStdOpt::ndb_nodeid,
   NdbStdOpt::connect_retry_delay,
   NdbStdOpt::connect_retries,
+  NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   NDB_STD_OPT_DEBUG
   { "database", 'd', "Name of database table is in",
     &_dbname, nullptr, nullptr, GET_STR, REQUIRED_ARG,
@@ -90,6 +93,7 @@ int main(int argc, char** argv){
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_select_count");
+  con.configure_tls(opt_tls_search_path, opt_mgm_tls);
   if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;

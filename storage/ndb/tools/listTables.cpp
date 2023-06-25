@@ -39,6 +39,7 @@
 #include <NdbOut.hpp>
 
 #include <NdbToolsProgramExitCodes.hpp>
+#include "portlib/ssl_applink.h"
 
 static int _fully_qualified = 0;
 static int _parsable = 0;
@@ -276,6 +277,8 @@ static struct my_option my_long_options[] =
   NdbStdOpt::ndb_nodeid,
   NdbStdOpt::connect_retry_delay,
   NdbStdOpt::connect_retries,
+  NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   NDB_STD_OPT_DEBUG
   { "database", 'd',
     "Name of database table is in. Requires table-name in argument",
@@ -335,6 +338,7 @@ int main(int argc, char** argv) {
   }
 
   ndb_cluster_connection->set_name("ndb_show_tables");
+  ndb_cluster_connection->configure_tls(opt_tls_search_path, opt_mgm_tls);
 
   if (ndb_cluster_connection->connect(opt_connect_retries - 1,
                                       opt_connect_retry_delay, 1)) {

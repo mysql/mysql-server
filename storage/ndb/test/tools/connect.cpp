@@ -43,6 +43,8 @@ static struct my_option my_long_options[] =
   NdbStdOpt::ndb_connectstring,
   NdbStdOpt::connectstring,
   NdbStdOpt::ndb_nodeid,
+  NdbStdOpt::tls_search_path,
+  NdbStdOpt::mgm_tls,
   NDB_STD_OPT_DEBUG
   { "loop", 'l', "loops",
     &opt_loop, &opt_loop, 0,
@@ -77,6 +79,7 @@ int main(int argc, char** argv){
   for (int i = 0; i<opt_loop; i++)
   {
     Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
+    con.configure_tls(opt_tls_search_path, opt_mgm_tls);
     if(con.connect(12, 5, 1) != 0)
     {
       ndbout << "Unable to connect to management server."
