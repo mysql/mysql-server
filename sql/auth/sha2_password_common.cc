@@ -417,7 +417,7 @@ bool generate_sha256_scramble(unsigned char *scramble, size_t scramble_size,
     scramble is: XOR(SHA2(secret1), SHA2(XOR(rnd, SHA2(SHA2(secret1)))))
     known is: SHA2(SHA2(secret2))
     Our aim is to check secret1 == secret2
-    - From known and rnd we generate: SHA2(XOR(rnd, scramble))
+    - From known and rnd we generate: SHA2(XOR(rnd, known))
       Let's call it X
     - We then do : XOR(X, scramble) => Let's call this Y
       If secret1 == secret2, this should give us SHA2(secret1)
