@@ -35,6 +35,7 @@
 #define _log_event_h
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <list>
 #include <map>
@@ -125,7 +126,7 @@ using binary_log::Log_event_type;
 using ColumnViewPtr = std::unique_ptr<cs::util::ReplicatedColumnsView>;
 #endif
 
-typedef ulonglong sql_mode_t;
+using sql_mode_t = uint64_t;
 struct db_worker_hash_entry;
 
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];

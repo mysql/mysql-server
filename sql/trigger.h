@@ -24,6 +24,7 @@
 #ifndef TRIGGER_H_INCLUDED
 #define TRIGGER_H_INCLUDED
 
+#include <stdint.h>
 #include <string.h>
 
 #include "my_config.h"
@@ -44,7 +45,7 @@ class THD;
 class sp_head;
 struct MEM_ROOT;
 
-typedef ulonglong sql_mode_t;
+using sql_mode_t = uint64_t;
 
 /**
   This class represents a trigger object.

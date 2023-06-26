@@ -24,6 +24,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
 #ifdef HAVE_SYS_TIME_H
@@ -208,7 +209,7 @@ struct Trg_file_data {
   List<LEX_STRING> definitions;
 
   // List of 'sql mode' values.
-  List<ulonglong> sql_modes;
+  List<uint64_t> sql_modes;
 
   // List of 'definer' values.
   List<LEX_STRING> definers_list;

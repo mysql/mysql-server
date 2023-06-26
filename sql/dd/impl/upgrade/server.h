@@ -23,6 +23,7 @@
 #ifndef DD_UPGRADE_IMPL__SERVER_H_INCLUDED
 #define DD_UPGRADE_IMPL__SERVER_H_INCLUDED
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include <set>
@@ -37,7 +38,7 @@ class Time_zone;
 
 struct CHARSET_INFO;
 
-using sql_mode_t = ulonglong;
+using sql_mode_t = uint64_t;
 
 namespace dd {
 class Routine;

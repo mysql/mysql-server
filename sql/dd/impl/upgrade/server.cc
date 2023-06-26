@@ -24,6 +24,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 #include "sql/dd/upgrade/server.h"
@@ -67,7 +68,7 @@
 #include "sql/trigger_def.h"
 #include "string_with_len.h"
 
-typedef ulonglong sql_mode_t;
+using sql_mode_t = uint64_t;
 extern const char *mysql_sys_schema[];
 extern const char *fill_help_tables[];
 

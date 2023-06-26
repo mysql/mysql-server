@@ -23,6 +23,8 @@
 #ifndef DD_EVENT_INCLUDED
 #define DD_EVENT_INCLUDED
 
+#include <cstdint>
+
 #include "my_inttypes.h"
 #include "my_time.h"             // interval_type
 #include "sql/dd/string_type.h"  // dd::String_type
@@ -33,7 +35,7 @@ class THD;
 
 struct LEX_USER;
 
-using sql_mode_t = ulonglong;
+using sql_mode_t = uint64_t;
 
 namespace dd {
 class Schema;

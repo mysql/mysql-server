@@ -25,6 +25,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 #include <string>
@@ -57,7 +58,7 @@ class sp_cache;
 struct TABLE;
 class Table_ref;
 
-typedef ulonglong sql_mode_t;
+using sql_mode_t = uint64_t;
 template <typename T>
 class SQL_I_List;
 
