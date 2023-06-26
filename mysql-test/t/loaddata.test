@@ -925,3 +925,31 @@ SELECT * FROM t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.csv
 
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#35514249 assert !thd->is_error() in update_generated_columns()
+--echo #              crash seen with load data
+--echo #
+
+CREATE TABLE ibstd_03 (
+  a INT NOT NULL,
+  d INT NOT NULL,
+  b BLOB NOT NULL,
+  c TEXT,
+  vadcol INT AS (a+length(d)) STORED,
+  vbcol CHAR(2) AS (substr(b,2,2)) VIRTUAL,
+  vbidxcol CHAR(3) AS (substr(b,1,3)) VIRTUAL
+  )
+;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let $file=$MYSQLTEST_VARDIR/tmp/bug35514249
+--eval SELECT '55,6,1,6,.8,.8\n' INTO DUMPFILE '$file'
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_WARN_TOO_FEW_RECORDS
+--eval LOAD DATA INFILE '$file' INTO TABLE ibstd_03 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n'
+
+--remove_file $file
+
+DROP TABLE ibstd_03;

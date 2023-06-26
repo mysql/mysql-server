@@ -827,6 +827,7 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
                             ER_WARN_TOO_FEW_RECORDS,
                             ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                             thd->get_stmt_da()->current_row_for_condition());
+        if (thd->is_error()) return true;
         if (field->type() == FIELD_TYPE_TIMESTAMP && !field->is_nullable()) {
           // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
           Item_func_now_local::store_in(field);
@@ -1064,6 +1065,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
+          if (thd->is_error()) return true;
         } else if (item->type() == Item::STRING_ITEM) {
           assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)
@@ -1267,6 +1269,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
+          if (thd->is_error()) return true;
         } else {
           assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
