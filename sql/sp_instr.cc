@@ -702,6 +702,9 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
                                                  bool open_tables) {
   Reprepare_observer reprepare_observer;
 
+  thd->set_secondary_engine_optimization(
+      Secondary_engine_optimization::PRIMARY_TENTATIVELY);
+
   while (true) {
     DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
     if (is_invalid() || (m_lex->has_udf() && !m_first_execution)) {

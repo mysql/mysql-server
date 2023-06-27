@@ -195,6 +195,8 @@ class Sql_cmd {
     m_secondary_engine_enabled = false;
   }
 
+  void enable_secondary_storage_engine() { m_secondary_engine_enabled = true; }
+
   /**
     Has use of secondary storage engines been disabled for this statement?
   */

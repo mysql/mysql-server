@@ -1081,4 +1081,6 @@ void set_external_engine_fail_reason(const LEX *lex, const char *reason);
 */
 void notify_plugins_after_select(THD *thd, const Sql_cmd *cmd);
 
+const char *get_secondary_engine_fail_reason(const LEX *lex);
+
 #endif /* SQL_SELECT_INCLUDED */

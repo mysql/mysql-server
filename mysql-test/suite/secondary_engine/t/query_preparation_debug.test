@@ -36,7 +36,20 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 FLUSH STATUS;
 EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+FLUSH STATUS;
 
+# Do the same but with a stored procedure
+CREATE PROCEDURE p()
+  SELECT * FROM t;
+
+CALL p();
+SET DEBUG = '+d,secondary_engine_mock_prepare_error';
+CALL p();
+SET DEBUG = '-d,secondary_engine_mock_prepare_error';
+CALL p();
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+DROP PROCEDURE p;
 DROP TABLE t;
 
 --echo #
@@ -58,7 +71,7 @@ SET DEBUG = "+d,secondary_engine_mock_optimize_error";
 FLUSH STATUS;
 --sorted_result
 SELECT * FROM t1;
---error ER_SECONDARY_ENGINE
+--error ER_SECONDARY_ENGINE_PLUGIN
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ x FROM t1;
 --sorted_result
 SELECT (SELECT y FROM t2 WHERE y = 1) FROM t1;

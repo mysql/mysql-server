@@ -6684,16 +6684,29 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   if (sql_cmd == nullptr || sql_cmd->secondary_storage_engine_disabled())
     return false;
 
+  // Save value of forced secondary engine, as it is not sufficiently persistent
+  thd->set_secondary_engine_forced(thd->variables.use_secondary_engine ==
+                                   SECONDARY_ENGINE_FORCED);
+
   // If the user has requested the use of a secondary storage engine
   // for this statement, skip past the initial optimization for the
   // primary storage engine and go straight to the secondary engine.
   if (thd->secondary_engine_optimization() ==
           Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
-      thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED) {
-    thd->set_secondary_engine_optimization(
-        Secondary_engine_optimization::SECONDARY);
-    mysql_thread_set_secondary_engine(true);
-    mysql_statement_set_secondary_engine(thd->m_statement_psi, true);
+      thd->is_secondary_engine_forced()) {
+    if ((sql_cmd->sql_command_code() == SQLCOM_SELECT &&
+         lex->table_count >= 1) ||  // 2
+        ((sql_cmd->sql_command_code() == SQLCOM_INSERT_SELECT ||
+          sql_cmd->sql_command_code() == SQLCOM_CREATE_TABLE) &&
+         lex->table_count >= 2)) {  // 3
+      thd->set_secondary_engine_optimization(
+          Secondary_engine_optimization::SECONDARY);
+      mysql_thread_set_secondary_engine(true);
+      mysql_statement_set_secondary_engine(thd->m_statement_psi, true);
+    } else {
+      thd->set_secondary_engine_optimization(
+          Secondary_engine_optimization::PRIMARY_ONLY);
+    }
   }
 
   // Only open secondary engine tables if use of a secondary engine

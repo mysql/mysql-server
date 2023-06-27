@@ -116,7 +116,7 @@ bool check_constraint_expr_refers_to_only_column(Item *check_expr,
                    (uchar *)&fields);
 
   // Expression does not refer to any columns.
-  if (fields.empty()) return false;
+  if (fields.empty()) return true;
 
   for (Item_field *cur_item : fields) {
     // Expression refers to some other column.

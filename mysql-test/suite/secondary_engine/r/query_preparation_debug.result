@@ -20,10 +20,27 @@ Secondary_engine_execution_count	0
 FLUSH STATUS;
 EXECUTE ps;
 x
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+FLUSH STATUS;
+CREATE PROCEDURE p()
+SELECT * FROM t;
+CALL p();
+x
+1
+SET DEBUG = '+d,secondary_engine_mock_prepare_error';
+CALL p();
+x
+1
+SET DEBUG = '-d,secondary_engine_mock_prepare_error';
+CALL p();
+x
 1
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
+DROP PROCEDURE p;
 DROP TABLE t;
 #
 # WL#12389: Add interface for optimizing queries in secondary engines
@@ -46,7 +63,7 @@ x
 2
 3
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ x FROM t1;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+ERROR HY000: 
 SELECT (SELECT y FROM t2 WHERE y = 1) FROM t1;
 (SELECT y FROM t2 WHERE y = 1)
 NULL

@@ -1526,7 +1526,7 @@ static bool deny_updates_if_read_only_option(THD *thd, Table_ref *all_tables) {
 }
 
 /**
-  Check if a statement should be restarted in another storage engine,
+  Check if a failed statement should be restarted in another storage engine,
   and restart the statement if needed.
 
   @param thd            the session
@@ -1538,10 +1538,12 @@ static void check_secondary_engine_statement(THD *thd,
                                              Parser_state *parser_state,
                                              const char *query_string,
                                              size_t query_length) {
+  assert(thd->is_error());
+
   bool use_secondary_engine = false;
 
   // Only restart the statement if a non-fatal error was raised.
-  if (!thd->is_error() || thd->is_killed() || thd->is_fatal_error()) return;
+  if (thd->is_killed() || thd->is_fatal_error()) return;
 
   // Only SQL commands can be restarted with another storage engine.
   if (thd->lex->m_sql_cmd == nullptr) return;
@@ -1562,10 +1564,11 @@ static void check_secondary_engine_statement(THD *thd,
       use_secondary_engine = true;
       break;
     case Secondary_engine_optimization::SECONDARY:
-      // If the query failed during offloading to a secondary engine,
-      // retry in the primary engine. Don't retry if the failing query
-      // was already using the primary storage engine.
-      if (!thd->lex->m_sql_cmd->using_secondary_storage_engine()) return;
+      // If query is forced to secondary engine, just exit with the error:
+      if (thd->is_secondary_engine_forced()) {
+        return;
+      }
+      // Otherwise, retry the query in the primary engine.
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::PRIMARY_ONLY);
       break;
@@ -1612,8 +1615,10 @@ static void check_secondary_engine_statement(THD *thd,
 
   // Check if the restarted statement failed, and if so, if it needs
   // another restart/fallback to the primary storage engine.
-  check_secondary_engine_statement(thd, parser_state, query_string,
-                                   query_length);
+  if (thd->is_error()) {
+    check_secondary_engine_statement(thd, parser_state, query_string,
+                                     query_length);
+  }
 }
 
 /*Reference to the GR callback that receives incoming connections*/
@@ -2096,12 +2101,13 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       // by setting maximum digest length to zero
       if (get_max_digest_length() != 0)
         parser_state.m_input.m_compute_digest = true;
-
-      // Initially, prepare and optimize the statement for the primary
-      // storage engine. If an eligible secondary storage engine is
-      // found, the statement may be reprepared for the secondary
-      // storage engine later.
-      const auto saved_secondary_engine = thd->secondary_engine_optimization();
+      /*
+        Initially, set up the statement for preparation and optimization
+        in the primary storage engine. If an eligible secondary storage engine
+        is found, the statement may be reprepared for the secondary storage
+        engine later. In addition, open_secondary_engine_tables() will directly
+        set up for the secondary storage engine if secondary engine is forced.
+      */
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::PRIMARY_TENTATIVELY);
 
@@ -2111,12 +2117,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       /* This will call MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES() */
       dispatch_sql_command(thd, &parser_state);
 
-      // Check if the statement failed and needs to be restarted in
-      // another storage engine.
-      check_secondary_engine_statement(thd, &parser_state, orig_query.str,
-                                       orig_query.length);
-
-      thd->set_secondary_engine_optimization(saved_secondary_engine);
+      // If statement failed, possibly restart it in another storage engine.
+      if (thd->is_error()) {
+        check_secondary_engine_statement(thd, &parser_state, orig_query.str,
+                                         orig_query.length);
+      }
 
       DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
         LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
@@ -2127,9 +2132,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
       while (!thd->killed && (parser_state.m_lip.found_semicolon != nullptr) &&
              !thd->is_error()) {
-        /*
-          Multiple queries exits, execute them individually
-        */
+        // Multiple queries exist, execute them individually
         const char *beginning_of_next_stmt = parser_state.m_lip.found_semicolon;
 
         /* Finalize server status flags after executing a statement. */
@@ -2150,7 +2153,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
         thd->reset_copy_status_var();
 
-        /* Remove garbage at start of query */
+        // Remove white space at start of query
         while (length > 0 &&
                my_isspace(thd->charset(), *beginning_of_next_stmt)) {
           beginning_of_next_stmt++;
@@ -2198,10 +2201,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         /* TODO: set thd->lex->sql_command to SQLCOM_END here */
         dispatch_sql_command(thd, &parser_state);
 
-        check_secondary_engine_statement(thd, &parser_state,
-                                         beginning_of_next_stmt, length);
-
-        thd->set_secondary_engine_optimization(saved_secondary_engine);
+        if (thd->is_error()) {
+          check_secondary_engine_statement(thd, &parser_state,
+                                           beginning_of_next_stmt, length);
+        }
       }
 
       thd->bind_parameter_values = nullptr;
@@ -7292,7 +7295,7 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
 
   /* That's it. */
 
-  ret_value = mysql_parse_status || thd->is_fatal_error();
+  ret_value = mysql_parse_status;
 
   if ((ret_value == 0) && (parser_state->m_digest_psi != nullptr)) {
     /*

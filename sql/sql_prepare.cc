@@ -1563,9 +1563,9 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
   // Initially, optimize the statement for the primary storage engine.
   // If an eligible secondary storage engine is found, the statement
   // may be reprepared for the secondary storage engine later.
-  const auto saved_secondary_engine = thd->secondary_engine_optimization();
   thd->set_secondary_engine_optimization(
       Secondary_engine_optimization::PRIMARY_TENTATIVELY);
+
   /* Create PS table entry, set query text after rewrite. */
   stmt->m_prepared_stmt =
       MYSQL_CREATE_PS(stmt, stmt->m_id, thd->m_statement_psi, stmt->name().str,
@@ -1578,7 +1578,6 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
     thd->stmt_map.erase(stmt);
   }
 
-  thd->set_secondary_engine_optimization(saved_secondary_engine);
   if (switch_protocol) thd->pop_protocol();
 
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
@@ -3010,6 +3009,9 @@ bool Prepared_statement::execute_loop(THD *thd, String *expanded_query,
     return true;
   }
 
+  if (m_lex->m_sql_cmd != nullptr) {
+    m_lex->m_sql_cmd->enable_secondary_storage_engine();
+  }
   // Remember if the general log was temporarily disabled when repreparing the
   // statement for a secondary engine.
   bool general_log_temporarily_disabled = false;
@@ -3119,15 +3121,17 @@ reexecute:
           set_external_engine_fail_reason(m_lex,
                                           thd->get_stmt_da()->message_text());
         }
-        thd->clear_error();
-        thd->set_secondary_engine_optimization(
-            Secondary_engine_optimization::PRIMARY_ONLY);
-        MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, false);
-        error = reprepare(thd);
-        if (!error) {
-          // The reprepared statement should not use a secondary engine.
-          assert(!m_lex->m_sql_cmd->using_secondary_storage_engine());
-          m_lex->m_sql_cmd->disable_secondary_storage_engine();
+        if (!thd->is_secondary_engine_forced()) {
+          thd->clear_error();
+          thd->set_secondary_engine_optimization(
+              Secondary_engine_optimization::PRIMARY_ONLY);
+          MYSQL_SET_PS_SECONDARY_ENGINE(m_prepared_stmt, false);
+          error = reprepare(thd);
+          if (!error) {
+            // The reprepared statement should not use a secondary engine.
+            assert(!m_lex->m_sql_cmd->using_secondary_storage_engine());
+            m_lex->m_sql_cmd->disable_secondary_storage_engine();
+          }
         }
       }
     }

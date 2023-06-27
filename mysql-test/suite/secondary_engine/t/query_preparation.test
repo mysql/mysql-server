@@ -247,7 +247,6 @@ EXECUTE ps;
 DROP PREPARE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
-# Queries inside a procedure should not be offloaded.
 FLUSH STATUS;
 CREATE PROCEDURE p1() SELECT COUNT(*) FROM t1;
 CALL p1();
@@ -486,7 +485,7 @@ SET @@use_secondary_engine = ON;
 EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 SET @@use_secondary_engine = FORCED;
---error ER_SECONDARY_ENGINE
+--error ER_SECONDARY_ENGINE_PLUGIN
 EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP PREPARE ps;

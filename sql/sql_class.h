@@ -4631,6 +4631,13 @@ class THD : public MDL_context_owner,
   */
   bool is_secondary_storage_engine_eligible() const;
 
+  /// Indicate whether secondary storage engine is forced for this execution
+  void set_secondary_engine_forced(bool forced) {
+    m_secondary_engine_forced = forced;
+  }
+
+  bool is_secondary_engine_forced() const { return m_secondary_engine_forced; }
+
  private:
   /**
     This flag tells if a secondary storage engine can be used to
@@ -4638,6 +4645,13 @@ class THD : public MDL_context_owner,
   */
   Secondary_engine_optimization m_secondary_engine_optimization =
       Secondary_engine_optimization::PRIMARY_ONLY;
+
+  /**
+    Flag that tells whether secondary storage engine is forced for execution.
+    Notice that use_secondary_engine is not reliable because it may be restored
+    early.
+  */
+  bool m_secondary_engine_forced{false};
 
   void cleanup_after_parse_error();
   /**

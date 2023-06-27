@@ -690,7 +690,7 @@ Variable_name	Value
 Secondary_engine_execution_count	2
 SET @@use_secondary_engine = FORCED;
 EXECUTE ps;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+ERROR HY000: Table has not been loaded
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	2
@@ -781,7 +781,7 @@ pk	a	b	c	d
 2	1	1	1	1
 3	2	2	2	2
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t1;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT 1 FROM t1 WHERE b=1;
 1
 1
@@ -796,11 +796,11 @@ SELECT 1 FROM t1 ORDER BY b;
 1
 1
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM t1 WHERE b=1;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM t1 GROUP BY b;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM t1 ORDER BY b;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT * FROM v1;
 pk	a	b	c	d
 1	1	1	1	1
@@ -823,15 +823,15 @@ SELECT 1 FROM v1 ORDER BY b;
 1
 1
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM v1;
-ERROR HY000: Secondary engine operation failed. No secondary engine defined for at least one of the query tables.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ SUM(b) FROM v1;
-ERROR HY000: Secondary engine operation failed. No secondary engine defined for at least one of the query tables.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM v1 WHERE b=1;
-ERROR HY000: Secondary engine operation failed. No secondary engine defined for at least one of the query tables.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM v1 GROUP BY b;
-ERROR HY000: Secondary engine operation failed. No secondary engine defined for at least one of the query tables.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM v1 ORDER BY b;
-ERROR HY000: Secondary engine operation failed. No secondary engine defined for at least one of the query tables.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT t1.a, t2.f FROM t1, t2;
 a	f
 1	2
@@ -844,7 +844,7 @@ a	f
 2	2
 2	3
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ t1.a, t2.f FROM t1, t2;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT * FROM v2;
 a	f
 1	2
@@ -857,7 +857,7 @@ a	f
 2	2
 2	3
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM v2;
-ERROR HY000: Secondary engine operation failed. No secondary engine defined for at least one of the query tables.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 # Statements which should be sent to the secondary engine since all
 # columns are in secondary engine.
 SET @@use_secondary_engine = FORCED;
@@ -899,7 +899,7 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ a FROM t1;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT a FROM t1;
 a
 -1
@@ -951,11 +951,11 @@ INSERT INTO t1 VALUES (1, 1);
 ALTER TABLE t1 SECONDARY_LOAD;
 FLUSH STATUS;
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t1;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SELECT a FROM t1;
 a
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ b FROM t1;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+ERROR HY000: Secondary engine operation failed. One or more read columns are marked as NOT SECONDARY.
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1

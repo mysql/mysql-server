@@ -344,7 +344,7 @@ static const MYSQL_LEX_CSTRING *get_eligible_secondary_engine_from(
 }
 
 const handlerton *get_secondary_engine_handlerton(const LEX *lex) {
-  if (const handlerton *hton = SecondaryEngineHandlerton(lex->thd);
+  if (const handlerton *hton = lex->m_sql_cmd->secondary_engine();
       hton != nullptr) {
     return hton;
   }
@@ -358,19 +358,18 @@ const handlerton *get_secondary_engine_handlerton(const LEX *lex) {
   return nullptr;
 }
 
-static const char *get_secondary_engine_fail_reason(const LEX *lex) {
+const char *get_secondary_engine_fail_reason(const LEX *lex) {
   auto *hton = get_secondary_engine_handlerton(lex);
   if (hton != nullptr &&
       hton->get_secondary_engine_offload_or_exec_fail_reason != nullptr &&
-      lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED) {
+      lex->thd->is_secondary_engine_forced()) {
     return hton->get_secondary_engine_offload_or_exec_fail_reason(lex->thd);
   }
   return nullptr;
 }
 
 void set_external_engine_fail_reason(const LEX *lex, const char *reason) {
-  if (lex->thd->variables.use_secondary_engine != SECONDARY_ENGINE_FORCED &&
-      reason != nullptr) {
+  if (!lex->thd->is_secondary_engine_forced() && reason != nullptr) {
     for (Table_ref *ref = lex->query_tables; ref != nullptr;
          ref = ref->next_global) {
       if (ref->is_external()) {
@@ -397,7 +396,7 @@ static bool set_secondary_engine_fail_reason(const LEX *lex,
   auto *hton = get_secondary_engine_handlerton(lex);
   if (hton != nullptr &&
       hton->set_secondary_engine_offload_fail_reason != nullptr &&
-      lex->thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED) {
+      lex->thd->is_secondary_engine_forced()) {
     hton->set_secondary_engine_offload_fail_reason(lex->thd, reason);
     return true;
   }
@@ -452,20 +451,10 @@ bool validate_use_secondary_engine(const LEX *lex) {
     }
     return false;
   }
-  // A query must be executed in secondary engine if these conditions are met:
-  //
-  // (1) use_secondary_engine is FORCED.
-  // (and either)
-  // (2) Is a SELECT statement that accesses one or more base tables.
-  // (or)
-  // (3) Is an INSERT SELECT or CREATE TABLE AS SELECT statement that accesses
-  // two or more base tables.
-  if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED &&  // 1
-      ((sql_cmd->sql_command_code() == SQLCOM_SELECT &&
-        lex->table_count >= 1) ||  // 2
-       ((sql_cmd->sql_command_code() == SQLCOM_INSERT_SELECT ||
-         sql_cmd->sql_command_code() == SQLCOM_CREATE_TABLE) &&
-        lex->table_count >= 2))) {  // 3
+
+  if (thd->secondary_engine_optimization() ==
+          Secondary_engine_optimization::SECONDARY &&
+      thd->is_secondary_engine_forced()) {
     // Gather secondary-engine-specific error message.
     const char *offloadfail_reason = get_secondary_engine_fail_reason(lex);
     if (offloadfail_reason != nullptr && strlen(offloadfail_reason) > 0) {
@@ -571,6 +560,8 @@ bool Sql_cmd_dml::prepare(THD *thd) {
     }
     if (!is_regular()) {
       if (save_cmd_properties(thd)) goto err;
+    }
+    if (needs_explicit_preparation()) {
       lex->set_secondary_engine_execution_context(nullptr);
     }
     set_prepared();
@@ -750,8 +741,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
     }
   } else if ((thd->secondary_engine_optimization() ==
                   Secondary_engine_optimization::PRIMARY_ONLY &&
-              lex->thd->variables.use_secondary_engine !=
-                  SECONDARY_ENGINE_FORCED) &&
+              !thd->is_secondary_engine_forced()) &&
              has_external_table(lex->query_tables)) {
     // throw the propagated error from the external engine in case there is an
     // external table
