@@ -33,36 +33,36 @@
 
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
---source ../include/mrs_add_service.inc
+--source ../include/mrs/add_service.inc
 
 --let $mrs_add_schema=proc_schema
 --let $mrs_add_schema_path=/proc
---source ../include/mrs_db_schema/add.inc
+--source ../include/mrs/db_schema/add.inc
 
 --let $mrs_add_db_object=one_resultset
 --let $mrs_add_db_object_path=/one
 --let $mrs_add_db_object_type=PROCEDURE
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object=two_resultsets
 --let $mrs_add_db_object_path=/two
 --let $mrs_add_db_object_type=PROCEDURE
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object=three_resultsets
 --let $mrs_add_db_object_path=/three
 --let $mrs_add_db_object_type=PROCEDURE
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object=no_resultset_out_param
 --let $mrs_add_db_object_path=/out
 --let $mrs_add_db_object_type=PROCEDURE
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object=one_resultset_out_param
 --let $mrs_add_db_object_path=/one_and_out
 --let $mrs_add_db_object_type=PROCEDURE
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --echo
 --echo #
@@ -117,4 +117,4 @@ exec $MRS_CLIENT_ARGS
 
 # Cleanup
 DROP SCHEMA proc_schema;
---source ../include/mrs_cleanup.inc
+--source ../include/mrs/cleanup.inc

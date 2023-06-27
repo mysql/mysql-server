@@ -50,25 +50,25 @@
 START TRANSACTION;
 --let $mrs_add_service_path="/svc1"
 --let $mrs_add_host_name=""
---source ../include/mrs_add_service.inc
+--source ../include/mrs/add_service.inc
 
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/basic1
 --let $mrs_add_schema_auth=TRUE
---source ../include/mrs_db_schema/add.inc
+--source ../include/mrs/db_schema/add.inc
 
 --let $mrs_add_db_object=table1
 --let $mrs_add_db_object_path=/o1
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/o2
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_auth_app=default authentication
 --let $mrs_add_auth_vendor=MySQL Internal
 --let $mrs_add_auth_service=/svc1
---source ../include/mrs_add_auth_app.inc
+--source ../include/mrs/add_auth_app.inc
 
 
 --echo
@@ -76,25 +76,25 @@ START TRANSACTION;
 --echo # I.2
 --let $mrs_add_service_path="/svc2"
 --let $mrs_add_host_name=""
---source ../include/mrs_add_service.inc
+--source ../include/mrs/add_service.inc
 
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/basic2
---source ../include/mrs_db_schema/add.inc
+--source ../include/mrs/db_schema/add.inc
 
 --let $mrs_add_db_object=table1
 --let $mrs_add_db_object_path=/o3
 --let $mrs_add_db_object_auth=TRUE
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/o4
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_auth_app=default authentication
 --let $mrs_add_auth_vendor=MySQL Internal
 --let $mrs_add_auth_service=/svc2
---source ../include/mrs_add_auth_app.inc
+--source ../include/mrs/add_auth_app.inc
 COMMIT;
 
 
@@ -200,4 +200,4 @@ exec $MRS_CLIENT_ARGS
 remove_file $MYSQL_TMP_DIR/user1_session.dat;
 remove_file $MYSQL_TMP_DIR/user2_session.dat;
 DROP SCHEMA basic_schema;
---source ../include/mrs_cleanup.inc
+--source ../include/mrs/cleanup.inc

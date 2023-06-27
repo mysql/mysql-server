@@ -31,16 +31,16 @@
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
---source ../include/mrs_add_service.inc
+--source ../include/mrs/add_service.inc
 
 --let $mrs_add_schema=paging_schema
 --let $mrs_add_schema_path=/test_between
 --let $mrs_add_schema_items_on_page=NULL
---source ../include/mrs_db_schema/add.inc
+--source ../include/mrs/db_schema/add.inc
 
 --let $mrs_add_db_object=long101
 --let $mrs_add_db_object_path=/table
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 # Sync with newly created REST object
 # wait for the creation
@@ -94,4 +94,4 @@ exec $MRS_CLIENT_ARGS
 
 # Cleanup
 DROP SCHEMA paging_schema;
---source ../include/mrs_cleanup.inc
+--source ../include/mrs/cleanup.inc
