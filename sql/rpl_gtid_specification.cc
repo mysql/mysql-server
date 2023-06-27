@@ -111,6 +111,21 @@ bool Gtid_specification::is_valid(const char *text) {
   }
 }
 
+bool Gtid_specification::is_tagged(const char *text) {
+  DBUG_TRACE;
+  assert(text != nullptr);
+  auto automatic_prefix_len = parse_automatic_prefix(text);
+  if (automatic_prefix_len) {
+    Tag parsed_tag;
+    std::tie(parsed_tag, std::ignore) =
+        Gtid::parse_tag_str(text, automatic_prefix_len);
+    return parsed_tag.is_defined();
+  } else {
+    auto [status, gtid] = Gtid::parse_gtid_from_cstring(text);
+    return (status == Return_status::ok) && gtid.get_tsid().is_tagged();
+  }
+}
+
 #endif  // ifdef MYSQL_SERVER
 
 std::size_t Gtid_specification::automatic_to_string(char *buf) const {

@@ -286,6 +286,42 @@ static bool update_keycache_param(THD *, KEY_CACHE *key_cache, ptrdiff_t offset,
 }
 
 /**
+  Check if correct privileges for GTID_NEXT tagged are granted.
+  Throw SQL error if not.
+
+  Use this when setting session variables that are to be protected within
+  replication applier context.
+
+  @retval true failure
+  @retval false success
+
+  @param self the system variable to set value for
+  @param thd the session context
+  @param setv the SET operations metadata
+ */
+static bool check_tagged_gtid_next_privileges(sys_var *self [[maybe_unused]],
+                                              THD *thd, set_var *setv) {
+  assert(self->scope() != sys_var::GLOBAL);
+  Security_context *sctx = thd->security_context();
+  if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
+      ((!sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
+             .first &&
+        !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+             .first &&
+        !sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_APPLIER"))
+             .first) ||
+       !sctx->has_global_grant(STRING_WITH_LEN("TRANSACTION_GTID_TAG"))
+            .first)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED, MYF(0),
+             "the TRANSACTION_GTID_TAG and at least one of the: "
+             "SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or "
+             "REPLICATION_APPLIER");
+    return true;
+  }
+  return false;
+}
+
+/**
   Check if REPLICATION_APPLIER granted. Throw SQL error if not.
 
   Use this when setting session variables that are to be protected within
@@ -1311,6 +1347,22 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var) {
   if (!is_prepared_trx && thd->in_active_multi_stmt_transaction()) {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
+  }
+  // we need to parse var in order to know which privileges are required
+  char buf[Gtid::MAX_TEXT_LENGTH + 1];
+  // Get the value
+  String str(buf, sizeof(buf), &my_charset_latin1);
+  char *res = nullptr;
+  if (!var->value) {
+    res = var->save_result.string_value.str;
+  } else if (var->value->val_str(&str))
+    res = var->value->val_str(&str)->c_ptr_safe();
+  bool is_tagged = false;
+  if (res) {
+    is_tagged = Gtid_specification::is_tagged(res);
+  }
+  if (is_tagged) {
+    return check_tagged_gtid_next_privileges(self, thd, var);
   }
   return check_session_admin_or_replication_applier(self, thd, var);
 }

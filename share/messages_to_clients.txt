@@ -10120,6 +10120,9 @@ ER_QUALIFY_WITHOUT_WINDOW_FUNCTION
 ER_SUPPORTED_ONLY_WITH_HYPERGRAPH
   eng "'%s' can be used only if the hypergraph optimizer is enabled."
 
+ER_SPECIFIC_ACCESS_DENIED
+  eng "Access denied; you need %-.256s privilege(s) for this operation"
+
 #
 #  End of 8.1+ error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

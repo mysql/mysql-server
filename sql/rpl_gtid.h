@@ -1154,8 +1154,8 @@ struct Gtid {
   static const int MAX_TEXT_LENGTH =
       mysql::gtid::tsid_max_length + 1 + MAX_GNO_TEXT_LENGTH;
   /**
-    Return true if parse() would succeed, but don't store the
-    result anywhere.
+    Returns true if parse() would succeed, but doesn't store the
+    result anywhere
   */
   static bool is_valid(const char *text);
   /**
@@ -4072,6 +4072,10 @@ struct Gtid_specification {
   /// @brief Returns true if the given string is a valid Gtid_specification.
   /// @param[in] text Textual representation of the GTID specification
   static bool is_valid(const char *text);
+
+  /// @brief Returns true if the given string is a tagged Gtid_specification.
+  /// @param[in] text Textual representation of the GTID specification
+  static bool is_tagged(const char *text);
 #endif
   static const int MAX_TEXT_LENGTH = Gtid::MAX_TEXT_LENGTH;
   /**

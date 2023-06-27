@@ -13346,6 +13346,19 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
     gtid_state->update_on_rollback(thd);
   }
 
+  if (this->is_tagged()) {
+    Applier_security_context_guard security_context{rli, thd};
+    if (!security_context.has_access({"TRANSACTION_GTID_TAG"})) {
+      rli->report(ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED,
+                  ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED),
+                  "the TRANSACTION_GTID_TAG and at least one of the: "
+                  "SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or "
+                  "REPLICATION_APPLIER");
+      thd->is_slave_error = true;
+      return 1;
+    }
+  }
+
   global_sid_lock->rdlock();
 
   // make sure that sid has been converted to sidno

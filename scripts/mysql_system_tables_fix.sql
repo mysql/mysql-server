@@ -1603,3 +1603,9 @@ ALTER TABLE gtid_executed
   ADD gtid_tag CHAR(32) NOT NULL COMMENT 'GTID Tag.',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(source_uuid, gtid_tag, interval_start);
+
+-- Grant the TRANSACTION_GTID_TAG privilege to every user with the BINLOG_ADMIN
+SET @hadTransactionGtidTagPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'TRANSACTION_GTID_TAG');
+INSERT INTO global_grants SELECT user, host, 'TRANSACTION_GTID_TAG',
+IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N') FROM global_grants WHERE priv = 'BINLOG_ADMIN' AND @hadTransactionGtidTagPriv = 0;
+COMMIT;
