@@ -46,7 +46,7 @@ CREATE TABLE t (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
 INSERT INTO t(a,b) VALUES (1,0);
 
 --echo # Disable page cleaners and prevent page flushing/checkpointing.
---source ../include/log_disable_page_cleaners.inc
+--source ../include/stop_dirty_page_flushing_and_redo_log_truncating.inc
 
 --echo # Skip log free checks to fill redo log up to its very end.
 SET GLOBAL DEBUG = '+d,log_free_check_skip';
@@ -128,7 +128,7 @@ SET GLOBAL DEBUG = '+d,syncpoint_log_writer_exited_extra_margin';
 --echo # Enable page cleaners.
 --echo ###############################
 
---source ../include/log_enable_page_cleaners.inc
+--source ../include/resume_dirty_page_flushing_and_redo_log_truncating.inc
 
 --echo # Ensure the started DML becomes completed eventually.
 --connection dml_connection

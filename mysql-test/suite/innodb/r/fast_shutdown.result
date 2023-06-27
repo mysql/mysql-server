@@ -1,6 +1,7 @@
 CREATE TABLE t (a INT);
 # 0. Disable checkpoints and page cleaners.
-SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
 SET GLOBAL innodb_purge_stop_now = 1;
 SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
 # 1. Commit transaction.

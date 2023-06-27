@@ -88,9 +88,7 @@ SET PERSIST innodb_extend_and_initialize=DEFAULT;
 SELECT @@GLOBAL.innodb_extend_and_initialize;
 
 --echo # Scenario-4: Server crashes before the checkpoint
-
-# Disable the checkpoint
-SET @@GLOBAL.INNODB_CHECKPOINT_DISABLED='ON';
+--source ../include/truncate_redo_log_and_stop_truncating.inc
 
 DROP TABLE IF EXISTS ttext;
 CREATE TABLE ttext(c1 INT, c2 TEXT);
@@ -123,8 +121,7 @@ SELECT @@GLOBAL.innodb_extend_and_initialize;
 SET @@GLOBAL.innodb_extend_and_initialize='OFF';
 SELECT @@GLOBAL.innodb_extend_and_initialize;
 
-# Disable the checkpoint
-SET @@GLOBAL.INNODB_CHECKPOINT_DISABLED='ON';
+--source ../include/truncate_redo_log_and_stop_truncating.inc
 
 CREATE TABLE ttext(c1 INT, c2 TEXT);
 

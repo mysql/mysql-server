@@ -44,7 +44,7 @@ UNLOCK TABLES;
 SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACEs
 WHERE name = 'test/t1' INTO @space_id;
 
-SET GLOBAL innodb_checkpoint_disabled=1;
+--source truncate_redo_log_and_stop_truncating.inc
 
 SET GLOBAL innodb_doublewrite=DETECT_ONLY;
 SELECT @@innodb_doublewrite;
@@ -57,8 +57,6 @@ SELECT @@innodb_doublewrite;
 
 BEGIN;
 INSERT INTO t1 VALUES (6, repeat('%', 12));
-
-SET GLOBAL innodb_checkpoint_disabled = 1;
 
 --echo # Make the first page dirty for table t1
 SET GLOBAL innodb_saved_page_number_debug = 0;
@@ -92,7 +90,7 @@ WHERE name = 'test/t1' INTO @space_id;
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 
-SET GLOBAL innodb_checkpoint_disabled=1;
+--source truncate_redo_log_and_stop_truncating.inc
 
 SELECT @@innodb_doublewrite;
 SET GLOBAL innodb_doublewrite=ON;
@@ -100,8 +98,6 @@ SELECT @@innodb_doublewrite;
 
 BEGIN;
 INSERT INTO t1 VALUES (6, repeat('%', 12));
-
-SET GLOBAL innodb_checkpoint_disabled = 1;
 
 --echo # Make the first page dirty for table t1
 SET GLOBAL innodb_saved_page_number_debug = 0;
@@ -133,7 +129,7 @@ WHERE name = 'test/t1' INTO @space_id;
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 
-SET GLOBAL innodb_checkpoint_disabled=1;
+--source truncate_redo_log_and_stop_truncating.inc
 
 SELECT @@innodb_doublewrite;
 SET GLOBAL innodb_doublewrite=ON;
@@ -141,8 +137,6 @@ SELECT @@innodb_doublewrite;
 
 BEGIN;
 INSERT INTO t1 VALUES (6, repeat('%', 400));
-
-SET GLOBAL innodb_checkpoint_disabled = 1;
 
 --echo # Make the 2nd page dirty for table t1
 SET GLOBAL innodb_saved_page_number_debug = 1;
@@ -175,7 +169,7 @@ WHERE name = 'test/t1' into @space_id;
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 
-SET GLOBAL innodb_checkpoint_disabled=1;
+--source truncate_redo_log_and_stop_truncating.inc
 
 SELECT @@innodb_doublewrite;
 SET GLOBAL innodb_doublewrite=ON;
@@ -183,8 +177,6 @@ SELECT @@innodb_doublewrite;
 
 BEGIN;
 INSERT INTO t1 VALUES (6, repeat('%', 400));
-
-SET GLOBAL innodb_checkpoint_disabled = 1;
 
 --echo # Make the 2nd page dirty for table t1
 SET GLOBAL innodb_saved_page_number_debug = 1;
@@ -218,7 +210,7 @@ SELECT @@innodb_doublewrite;
 BEGIN;
 INSERT INTO t1 VALUES (6, repeat('%', 400));
 
-SET GLOBAL innodb_checkpoint_disabled = 1;
+--source truncate_redo_log_and_stop_truncating.inc
 
 --echo # Make the first page dirty for system tablespace
 SET GLOBAL innodb_saved_page_number_debug = 0;
@@ -254,7 +246,7 @@ SELECT @@innodb_doublewrite;
 BEGIN;
 INSERT INTO t1 VALUES (6, repeat('%', 400));
 
-SET GLOBAL innodb_checkpoint_disabled = 1;
+--source truncate_redo_log_and_stop_truncating.inc
 
 --echo # Make the first page dirty for system tablespace
 SET GLOBAL innodb_saved_page_number_debug = 0;
@@ -288,7 +280,7 @@ SELECT @@innodb_doublewrite;
 BEGIN;
 INSERT INTO t1 VALUES (6, repeat('%', 400));
 
-SET GLOBAL innodb_checkpoint_disabled = 1;
+--source truncate_redo_log_and_stop_truncating.inc
 
 --echo # Make the second page dirty for system tablespace
 SET GLOBAL innodb_saved_page_number_debug = 1;
@@ -324,7 +316,7 @@ SELECT @@innodb_doublewrite;
 BEGIN;
 INSERT INTO t1 VALUES (6, repeat('%', 400));
 
-SET GLOBAL innodb_checkpoint_disabled = 1;
+--source truncate_redo_log_and_stop_truncating.inc
 
 --echo # Make the second page dirty for system tablespace
 SET GLOBAL innodb_saved_page_number_debug = 1;
@@ -350,5 +342,3 @@ SELECT f1, f2 FROM t1;
 --echo # ---------------------------------------------------------------
 
 DROP TABLE t1;
-
-

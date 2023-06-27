@@ -8,15 +8,9 @@ SET GLOBAL innodb_fast_shutdown = 0;
 # Take backup of original datadir
 # restart mysqld on backup datadir
 # restart: --datadir=BACKUP/data --log-error=BACKUP/my_restart.err
-SET GLOBAL innodb_dict_stats_disabled_debug = 1;
-SET GLOBAL innodb_master_thread_disabled_debug = 1;
-SET GLOBAL debug = "+d,disable_se_persists_gtid";
-FLUSH ENGINE LOGS;
-SET GLOBAL debug = "+d,gtid_persist_flush_disable";
-SET GLOBAL innodb_log_checkpoint_now = 1;
-SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
-SET GLOBAL innodb_checkpoint_disabled = 1;
-SET GLOBAL innodb_purge_stop_now = 1;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
 SET SESSION debug="+d,invalid_index_log_version";
 UPDATE t1 SET C2 = "r1c22";
 # Kill the server

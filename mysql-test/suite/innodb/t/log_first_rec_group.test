@@ -32,7 +32,7 @@ while ($pass != 2) {
   # Enable all METRICS within log module
   SET GLOBAL innodb_monitor_enable = module_log;
 
-  --source ../include/log_disable_page_cleaners.inc
+  --source ../include/stop_dirty_page_flushing_and_background_redo_producers.inc
 
   --echo # 0. Move to the next log block.
   let $log_fill_block_sql = INSERT INTO t(a) VALUES (101);
@@ -144,7 +144,7 @@ while ($pass != 4) {
   # Enable all METRICS within log module
   SET GLOBAL innodb_monitor_enable = module_log;
 
-  --source ../include/log_disable_page_cleaners.inc
+  --source ../include/stop_dirty_page_flushing_and_background_redo_producers.inc
 
   --echo # 0. Move to the next log block
   let $log_fill_block_sql = INSERT INTO t(a) VALUES (201);

@@ -41,7 +41,7 @@ innodb.fts_exec_interrupt                         : Bug#28534199 The test is uns
 innodb.slow_shutdown                              : Bug#31763837 mtr hits this debug assert post test run cleanup
 innodb.upgrade_fts_aux                            : Bug#33034679 Test needs an upgrade of its 5.7 data files
 innodb.instant_ddl_recovery_old                   : WL#12527 Redo format has changed - crashed_datadir.zip needs to be recreated.
-innodb.log_logical_size                           : WL#12527 Test is shaky - needs to be fixed.
+innodb.log_logical_size                           : Bug#35543413 Test is shaky - needs to be fixed.
 
 # keyring tests
 keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633
@@ -118,4 +118,3 @@ group_replication.gr_xa_commit_failure_before_gtid_externalization @windows : BU
 group_replication.gr_xa_commit_one_phase_failure_before_gtid_externalization @windows : BUG#34155238 Disabled until bug is fixed
 group_replication.gr_xa_prepare_failure_before_gtid_externalization @windows : BUG#34155238 Disabled until bug is fixed
 group_replication.gr_xa_rollback_failure_before_gtid_externalization @windows : BUG#34155238 Disabled until bug is fixed
-

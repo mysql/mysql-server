@@ -1,7 +1,7 @@
 #
 # This testcase checks if tablespace removal is handled correctly
 # during recovery. Assumption is file per table.
-# 
+#
 # Crash between MLOG_FILE_RENAME is written to redo and the file is removed.
 
 --source include/not_valgrind.inc
@@ -22,7 +22,7 @@ SET GLOBAL innodb_file_per_table=ON;
 --echo #
 --echo # Disable page cleaners and prevent page flushing/checkpointing.
 --echo #
---source ../include/log_disable_page_cleaners.inc
+--source ../include/stop_dirty_page_flushing_and_redo_log_truncating.inc
 
 --echo #
 --echo # Prepare tablespace and fill in some data.

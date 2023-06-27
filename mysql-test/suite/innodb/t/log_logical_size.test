@@ -16,7 +16,7 @@ SET GLOBAL innodb_log_checkpoint_now = 1;
 --source include/assert.inc
 
 --echo # Disable page cleaners and prevent page flushing/checkpointing.
---source ../include/log_disable_page_cleaners.inc
+--source ../include/stop_dirty_page_flushing_and_redo_log_truncating.inc
 
 --echo # Apply some modifications.
 INSERT INTO t(a,b) VALUES (1, REPEAT('x',100)), (2, REPEAT('x',100)), (3, REPEAT('x',100)),
@@ -55,7 +55,7 @@ SET DEBUG_SYNC = 'now SIGNAL continue_log_status_variables_updated';
 --source include/assert.inc
 
 --echo # Enable page cleaners, page flushing and log checkpointing.
---source ../include/log_enable_page_cleaners.inc
+--source ../include/resume_dirty_page_flushing_and_redo_log_truncating.inc
 
 --echo # Execute sharp checkpoint.
 SET GLOBAL innodb_log_checkpoint_now = 1;

@@ -27,9 +27,7 @@ END~~
 DELIMITER ;~~
 
 # Stop threads from interfering in the test
-SET GLOBAL innodb_purge_stop_now = ON;
-SET GLOBAL innodb_dict_stats_disabled_debug = ON;
-SET GLOBAL innodb_checkpoint_disabled = ON;
+--source ../include/stop_dirty_page_flushing_and_background_redo_producers.inc
 
 --echo #
 --echo # Create a table with one record in it and start an RR transaction
@@ -87,9 +85,4 @@ DROP TABLE t1;
 DROP PROCEDURE insert_n;
 DROP FUNCTION num_pages_get;
 # Restore values
-SET GLOBAL innodb_purge_stop_now = default;
-# Force the purge thread to run
-SET GLOBAL innodb_purge_run_now = ON;
-SET GLOBAL innodb_dict_stats_disabled_debug = default;
-SET GLOBAL innodb_checkpoint_disabled = default;
-
+--source ../include/resume_dirty_page_flushing_and_background_redo_producers.inc

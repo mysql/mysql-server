@@ -5,15 +5,9 @@ SET GLOBAL innodb_flush_log_at_trx_commit = 0;
 CREATE TABLE t (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
 INSERT INTO t(a,b) VALUES (1,0);
 # Disable page cleaners and prevent page flushing/checkpointing.
-SET GLOBAL innodb_dict_stats_disabled_debug = 1;
-SET GLOBAL innodb_master_thread_disabled_debug = 1;
-SET GLOBAL debug = "+d,disable_se_persists_gtid";
-FLUSH ENGINE LOGS;
-SET GLOBAL debug = "+d,gtid_persist_flush_disable";
-SET GLOBAL innodb_log_checkpoint_now = 1;
-SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
-SET GLOBAL innodb_checkpoint_disabled = 1;
-SET GLOBAL innodb_purge_stop_now = 1;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
 # Skip log free checks to fill redo log up to its very end.
 SET GLOBAL DEBUG = '+d,log_free_check_skip';
 # Request the log writer to generate a signal when it enters the extra_margin.
@@ -56,14 +50,8 @@ SET GLOBAL DEBUG = '+d,syncpoint_log_writer_exited_extra_margin';
 ###############################
 # Enable page cleaners.
 ###############################
-SET GLOBAL debug = "-d,gtid_persist_flush_disable";
-SET GLOBAL debug = "-d,disable_se_persists_gtid";
-SET GLOBAL innodb_dict_stats_disabled_debug = 0;
-SET GLOBAL innodb_master_thread_disabled_debug = 0;
-SET GLOBAL innodb_page_cleaner_disabled_debug = 0;
-SET GLOBAL innodb_checkpoint_disabled = 0;
-SET GLOBAL innodb_purge_stop_now = 0;
-SET GLOBAL innodb_purge_run_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = OFF;
+SET GLOBAL innodb_checkpoint_disabled = OFF;
 # Ensure the started DML becomes completed eventually.
 include/assert.inc ['The UPDATE has been completed']
 # Request the spammer to stop, but do not wait because earlier the log_writer/log_checkpointer

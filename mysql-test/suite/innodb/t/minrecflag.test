@@ -25,8 +25,9 @@ while ($i < 10000) {
 commit;
 
 SHOW CREATE TABLE t1;
-SET GLOBAL innodb_checkpoint_disabled = 1;
-SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+
+--source ../include/stop_dirty_page_flushing_and_redo_log_truncating.inc
+
 ALTER TABLE t1 ADD INDEX k1(f2);
 --source include/kill_and_restart_mysqld.inc
 CHECK TABLE t1;

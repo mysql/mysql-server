@@ -35,7 +35,7 @@ SET GLOBAL innodb_fast_shutdown = 0;
 
 # Make sure pages are not flushed and checkpoint is not moved so that REDOs are
 # applied at restart
---source ../include/log_disable_page_cleaners.inc
+--source ../include/stop_dirty_page_flushing_and_redo_log_truncating.inc
 
 # Let the wrong version be written when index is being logged
 SET SESSION debug="+d,invalid_index_log_version";

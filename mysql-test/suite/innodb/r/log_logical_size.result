@@ -8,12 +8,9 @@ SET GLOBAL innodb_log_checkpoint_now = 1;
 # Ensure that redo log is logically empty (within 1 block)
 include/assert.inc ['Redo log is logically empty (has 1 block)']
 # Disable page cleaners and prevent page flushing/checkpointing.
-SET GLOBAL innodb_dict_stats_disabled_debug = 1;
-SET GLOBAL innodb_master_thread_disabled_debug = 1;
-SET GLOBAL innodb_log_checkpoint_now = 1;
-SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
-SET GLOBAL innodb_checkpoint_disabled = 1;
-SET GLOBAL innodb_purge_stop_now = 1;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
 # Apply some modifications.
 INSERT INTO t(a,b) VALUES (1, REPEAT('x',100)), (2, REPEAT('x',100)), (3, REPEAT('x',100)),
 (4, REPEAT('x',100)), (5, REPEAT('x',100)), (6, REPEAT('x',100));
@@ -36,12 +33,8 @@ SET DEBUG_SYNC = 'now SIGNAL continue_log_status_variables_updated';
 include/assert.inc ['Redo log increased by at least 100 bytes']
 include/assert.inc ['Redo log increased by no more than 16kB']
 # Enable page cleaners, page flushing and log checkpointing.
-SET GLOBAL innodb_dict_stats_disabled_debug = 0;
-SET GLOBAL innodb_master_thread_disabled_debug = 0;
-SET GLOBAL innodb_page_cleaner_disabled_debug = 0;
-SET GLOBAL innodb_checkpoint_disabled = 0;
-SET GLOBAL innodb_purge_stop_now = 0;
-SET GLOBAL innodb_purge_run_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = OFF;
+SET GLOBAL innodb_checkpoint_disabled = OFF;
 # Execute sharp checkpoint.
 SET GLOBAL innodb_log_checkpoint_now = 1;
 # Ensure that redo log is logically empty (within 1 block)

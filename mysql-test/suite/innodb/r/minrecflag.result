@@ -18,8 +18,9 @@ t1	CREATE TABLE `t1` (
   `f4` char(255) DEFAULT NULL,
   PRIMARY KEY (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SET GLOBAL innodb_checkpoint_disabled = 1;
-SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
 ALTER TABLE t1 ADD INDEX k1(f2);
 # Kill and restart
 CHECK TABLE t1;
