@@ -35,29 +35,34 @@
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
---source ../include/mrs_add_service.inc
+--source ../include/mrs/add_service.inc
 
 --let $mrs_add_schema=proc_schema
 --let $mrs_add_schema_path=/proc
 --let $mrs_add_schema_items_on_page=NULL
---source ../include/mrs_db_schema/add.inc
+--source ../include/mrs/db_schema/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=report_back_mysql_error1
 --let $mrs_add_db_object_path=/report_back1
 --let $mrs_add_db_object_options='{"logging":{"exceptions":true, "request":{"headers":true, "body":true}, "response":{"headers":true, "body":true}}}'
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=report_back_mysql_error2
 --let $mrs_add_db_object_path=/report_back2
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
+
+#--let $mrs_add_db_object_type=PROCEDURE
+#--let $mrs_add_db_object=report_back_mysql_error_if
+#--let $mrs_add_db_object_path=/report_back_if
+#--source ../include/mrs/db_object/add.inc
 
 # Procedure just to sync to.
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=proc_do_nothing
 --let $mrs_add_db_object_path=/nothing
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 # Wait until MySQLRouter fetches db-object.
 exec $MRS_CLIENT_ARGS
@@ -92,6 +97,14 @@ exec $MRS_CLIENT_ARGS
 exec $MRS_CLIENT_ARGS
   --expected-status 511
   --path /svc/proc/report_back1?mysql_error=5511;
+
+#call `proc_schema`.`report_back_mysql_error_if`(1);
+#SHOW WARNINGS;
+
+#exec $MRS_CLIENT_ARGS
+#  --expected-status 511
+#  --path /svc/proc/report_back_if?error_out=1;
+  
 
 --echo
 --echo #
@@ -134,4 +147,4 @@ exec $MRS_CLIENT_ARGS
 
 # Cleanup
 DROP SCHEMA proc_schema;
---source ../include/mrs_cleanup.inc
+--source ../include/mrs/cleanup.inc

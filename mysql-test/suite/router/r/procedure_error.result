@@ -1,6 +1,5 @@
 # MySQL Rest Service schema created.
 # MySQL Rest Service, server accounts configured.
-/export/mysql/src/mysql-trunk/buildConfig/build/mysql-test/var/tmp/router.1/data/
 # mysqlrouter_keyring
 #  * "set" root password ""
 # mysqlrouter_keyring

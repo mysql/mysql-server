@@ -1,0 +1,5 @@
+--source include/have_router.inc
+
+exec $MYSQLROUTER_BOOTSTRAP --help;
+
+# Cleanup

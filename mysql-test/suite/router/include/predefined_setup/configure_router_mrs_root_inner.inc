@@ -1,8 +1,8 @@
---source ../mrs_initialize_schema.inc
+--source ../mrs/initialize_schema.inc
 
 --let $mrs_user_meta=root@localhost
 --let $mrs_user_data=root@localhost
---source ../mrs_user_configure.inc
+--source ../mrs/user_configure.inc
 
 --let $keyring_operation=init
 --let $keyring_set_path_and_value=root password ""

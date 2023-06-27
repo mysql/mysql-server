@@ -33,51 +33,51 @@
 
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
---source ../include/mrs_add_service.inc
+--source ../include/mrs/add_service.inc
 
 --let $mrs_add_schema=proc_schema
 --let $mrs_add_schema_path=/proc
---source ../include/mrs_db_schema/add.inc
+--source ../include/mrs/db_schema/add.inc
 
 --let $mrs_add_db_object=one_resultset
 --let $mrs_add_db_object_path=/one
 --let $mrs_add_db_object_type=PROCEDURE
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_modify_name=basicObject
 --let $mrs_modify_columns=id, name, comments, date
 --let $mrs_modify_fields=my_id, my_name, my_comments, my_date
---source ../include/mrs_db_object/add_named_resultset.inc
+--source ../include/mrs/db_object/add_named_resultset.inc
 
 --let $mrs_add_db_object=two_resultsets
 --let $mrs_add_db_object_path=/two
 --let $mrs_add_db_object_type=PROCEDURE
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_modify_name=basicObjectFirst
 --let $mrs_modify_columns=count(*)
 --let $mrs_modify_fields=numberOfItems
---source ../include/mrs_db_object/add_named_resultset.inc
+--source ../include/mrs/db_object/add_named_resultset.inc
 
 --let $mrs_modify_name=basicObjectSecond
 --let $mrs_modify_columns=id, name, comments, date
 --let $mrs_modify_fields=my_id, my_name, my_comments, my_date
---source ../include/mrs_db_object/add_named_resultset.inc
+--source ../include/mrs/db_object/add_named_resultset.inc
 
 --let $mrs_add_db_object=three_resultsets
 --let $mrs_add_db_object_path=/three
 --let $mrs_add_db_object_type=PROCEDURE
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_modify_name=basicObjectFirst
 --let $mrs_modify_columns=max(id)
 --let $mrs_modify_fields=last_id
---source ../include/mrs_db_object/add_named_resultset.inc
+--source ../include/mrs/db_object/add_named_resultset.inc
 
 --let $mrs_modify_name=basicObjectSecond
 --let $mrs_modify_columns=min(id)
 --let $mrs_modify_fields=first_id
---source ../include/mrs_db_object/add_named_resultset.inc
+--source ../include/mrs/db_object/add_named_resultset.inc
 
 
 
@@ -104,4 +104,4 @@ exec $MRS_CLIENT_ARGS
 
 # Cleanup
 DROP SCHEMA proc_schema;
---source ../include/mrs_cleanup.inc
+--source ../include/mrs/cleanup.inc

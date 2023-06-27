@@ -28,20 +28,20 @@
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
---source ../include/mrs_add_service.inc
+--source ../include/mrs/add_service.inc
 
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/basic
 --let $mrs_add_schema_items_on_page=NULL
---source ../include/mrs_db_schema/add.inc
+--source ../include/mrs/db_schema/add.inc
 
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/table
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_modify_columns=id, name, comments, date
 --let $mrs_modify_fields=my_id, my_name, my_comments, my_date
---source ../include/mrs_db_object/modify_fields.inc
+--source ../include/mrs/db_object/modify_fields.inc
 
 # Sync with newly created REST object
 # wait for the creation
@@ -106,4 +106,4 @@ exec $MRS_CLIENT_ARGS
 
 # Cleanup
 DROP SCHEMA basic_schema;
---source ../include/mrs_cleanup.inc
+--source ../include/mrs/cleanup.inc

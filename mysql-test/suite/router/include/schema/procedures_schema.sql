@@ -165,7 +165,15 @@ BEGIN
   SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = mysql_message, MYSQL_ERRNO = mysql_error;
 END;$$
 
-
+CREATE PROCEDURE `proc_schema`.`report_back_mysql_error_if`(IN error_out BOOLEAN)
+BEGIN
+    SELECT 1;
+    IF (error_out = 1) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'This stored procedured signaled an error.', MYSQL_ERRNO = 5511;
+    ELSE
+        SELECT 2;
+    END IF;
+END$$
 
 --enable_query_log
 --enable_result_log

@@ -11,7 +11,7 @@
 #
 # [--let $mrs_user_meta=some_account@%]
 # [--let $mrs_user_data=some_account@%]
-# --source ../include/mrs_user_configure.inc
+# --source ../include/mrs/user_configure.inc
 #
 
 

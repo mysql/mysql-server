@@ -9,7 +9,7 @@
 
 --disable_query_log
 --disable_result_log
---source ./schema/mrs_metadata_schema.sql
+--source ../schema/mrs_metadata_schema.sql
 --enable_query_log
 --enable_result_log
 

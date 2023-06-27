@@ -24,16 +24,16 @@
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
---source ../include/mrs_add_service.inc
+--source ../include/mrs/add_service.inc
 
 --let $mrs_add_schema=basic_schema
 --let $mrs_add_schema_path=/basic
---source ../include/mrs_db_schema/add.inc
+--source ../include/mrs/db_schema/add.inc
 
 --let $mrs_add_db_object=table2
 --let $mrs_add_db_object_path=/t
 --let $mrs_add_db_object_table_filter=NOT (COLUMN_NAME like "name")
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_host_and_port=127.0.0.1:$extra_http_port
 --let MRS_CLIENT_ARGS=$MRS_CLIENT --url https://$mrs_host_and_port
@@ -44,15 +44,15 @@
 --echo
 --echo #
 --echo # I.2
---source ../include/mrs_changes/fetch_object.inc
+--source ../include/mrs/changes/fetch_object.inc
 --eval SELECT $mrs_sql_changes_variable;
 
 --let $mrs_add_db_object_table_filter= (COLUMN_NAME like "name") 
 --let $mrs_add_db_object=table2
---source ../include/mrs_db_object/add_table_columns.inc
+--source ../include/mrs/db_object/add_table_columns.inc
 # By default waits until, number of changes is grater,
 # than it was checked last time
---source ../include/mrs_changes/wait_object.inc
+--source ../include/mrs/changes/wait_object.inc
 --eval SELECT $mrs_sql_changes_variable;
 
 --exec $MRS_CLIENT_ARGS --path /svc/basic/t/1
@@ -63,4 +63,4 @@ SELECT sleep(3);
 
 # Cleanup
 DROP SCHEMA basic_schema;
---source ../include/mrs_cleanup.inc
+--source ../include/mrs/cleanup.inc

@@ -81,88 +81,88 @@
 # The test uses HOST to have only paths in HREF fields.
 --let $mrs_add_service_path="/svc"
 --let $mrs_add_host_name=""
---source ../include/mrs_add_service.inc
+--source ../include/mrs/add_service.inc
 
 --let $mrs_add_schema=proc_schema
 --let $mrs_add_schema_path=/proc
 --let $mrs_add_schema_items_on_page=NULL
---source ../include/mrs_db_schema/add.inc
+--source ../include/mrs/db_schema/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=proc_sum
 --let $mrs_add_db_object_path=/sum
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=proc_sum_out
 --let $mrs_add_db_object_path=/sum_out
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=proc_concat
 --let $mrs_add_db_object_path=/concat
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=proc_concat_out
 --let $mrs_add_db_object_path=/concat_out
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_char
 --let $mrs_add_db_object_path=/move_char
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_date
 --let $mrs_add_db_object_path=/move_date
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_year
 --let $mrs_add_db_object_path=/move_year
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_time
 --let $mrs_add_db_object_path=/move_time
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_bit
 --let $mrs_add_db_object_path=/move_bit
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_tinyint1
 --let $mrs_add_db_object_path=/move_tinyint1
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_tinyint8
 --let $mrs_add_db_object_path=/move_tinyint8
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_decimal
 --let $mrs_add_db_object_path=/move_decimal
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_float
 --let $mrs_add_db_object_path=/move_float
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=move_double
 --let $mrs_add_db_object_path=/move_double
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 --let $mrs_add_db_object_type=PROCEDURE
 --let $mrs_add_db_object=proc_do_nothing
 --let $mrs_add_db_object_path=/nothing
---source ../include/mrs_db_object/add.inc
+--source ../include/mrs/db_object/add.inc
 
 # Wait until MySQLRouter fetches db-object.
 exec $MRS_CLIENT_ARGS
@@ -435,4 +435,4 @@ exec $MRS_CLIENT_ARGS
 
 # Cleanup
 DROP SCHEMA proc_schema;
---source ../include/mrs_cleanup.inc
+--source ../include/mrs/cleanup.inc
