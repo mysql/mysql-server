@@ -3374,6 +3374,24 @@ class Gtid_state {
     return global_sid_map->sidno_to_sid(server_sidno).get_uuid();
   }
 
+  /// @brief Increments atomic_automatic_tagged_gtid_session_count
+  void increase_gtid_automatic_tagged_count() {
+    ++atomic_automatic_tagged_gtid_session_count;
+  }
+
+  /// @brief Decrements atomic_automatic_tagged_gtid_session_count
+  void decrease_gtid_automatic_tagged_count() {
+    --atomic_automatic_tagged_gtid_session_count;
+  }
+
+  /// @brief Checks whether there are ongoing sessions executing transactions
+  /// with GTID_NEXT set to AUTOMATIC:tag
+  /// @return true in case there are ongoing sessions with GTID_NEXT set
+  /// to automatic, tagged
+  bool is_any_session_assigning_automatic_tagged_gtids() {
+    return atomic_automatic_tagged_gtid_session_count.load() != 0;
+  }
+
 #ifndef NDEBUG
   /**
     Debug only: Returns an upper bound on the length of the string
@@ -3566,6 +3584,9 @@ class Gtid_state {
   /// The number of clients that are executing
   /// WAIT_FOR_EXECUTED_GTID_SET.
   std::atomic<int32> atomic_gtid_wait_count{0};
+  /// The number of sessions that have GTID_NEXT set to AUTOMATIC with tag
+  /// assigned
+  std::atomic<int64_t> atomic_automatic_tagged_gtid_session_count{0};
 
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GTID_STATE

@@ -45,6 +45,9 @@
 bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
   DBUG_TRACE;
 
+  bool is_tagged = false;
+  mysql::gtid::Tsid tsid;
+
   spec.dbug_print();
   global_sid_lock->assert_some_lock();
   // we may acquire and release locks throughout this function; this
@@ -77,6 +80,15 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
 
   switch (spec.type) {
     case AUTOMATIC_GTID:
+      if (spec.is_automatic_tagged()) {
+        if (global_gtid_mode.get() != Gtid_mode::ON &&
+            global_gtid_mode.get() != Gtid_mode::ON_PERMISSIVE) {
+          my_error(
+              ER_CANT_SET_GTID_NEXT_TO_AUTOMATIC_TAGGED_WHEN_GTID_MODE_IS_OFF,
+              MYF(0));
+          goto err;
+        }
+      }
       thd->variables.gtid_next.set(spec);
       break;
 
@@ -102,13 +114,19 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
       assert(spec.gtid.sidno >= 1);
       assert(spec.gtid.gno >= 1);
       assert(spec.gtid.gno < GNO_END);
+      tsid = global_sid_map->sidno_to_sid(spec.gtid.sidno);
+      is_tagged = tsid.is_tagged();
       while (true) {
         // loop invariant: we should always hold global_sid_lock.rdlock
         assert(lock_count == 1);
         global_sid_lock->assert_some_lock();
 
         if (global_gtid_mode.get() == Gtid_mode::OFF) {
-          my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
+          auto err = ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF;
+          if (is_tagged) {
+            err = ER_GTID_NEXT_TAG_GTID_MODE_OFF;
+          }
+          my_error(err, MYF(0));
           goto err;
         }
 
@@ -183,6 +201,14 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
       assert(0);
       break;
   }
+
+  if (thd->has_incremented_gtid_automatic_count) {
+    gtid_state->decrease_gtid_automatic_tagged_count();
+  }
+  if (spec.is_automatic_tagged()) {
+    gtid_state->increase_gtid_automatic_tagged_count();
+  }
+  thd->has_incremented_gtid_automatic_count = spec.is_automatic_tagged();
 
   ret = false;
 

@@ -4511,6 +4511,16 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     goto err;
   }
 
+  // Can't set GTID_MODE=OFF_PERMISSIVE when there is any session executing
+  // transactions with automatic, tagged GTIDs
+  if (new_gtid_mode == Gtid_mode::OFF_PERMISSIVE &&
+      gtid_state->is_any_session_assigning_automatic_tagged_gtids()) {
+    my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF/OFF_PERMISSIVE",
+             "there is an ongoing session with GTID_NEXT "
+             "set to AUTOMATIC:<TAG>");
+    goto err;
+  }
+
   // Update the mode
   global_var(ulong) = new_gtid_mode;
   global_gtid_mode.set(new_gtid_mode);

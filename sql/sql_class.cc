@@ -723,6 +723,7 @@ THD::THD(bool enable_plugins)
       external_store_(),
       events_cache_(nullptr),
       audit_plugins_present(false) {
+  has_incremented_gtid_automatic_count = false;
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
@@ -1431,6 +1432,10 @@ THD::~THD() {
   THD_CHECK_SENTRY(this);
   DBUG_TRACE;
   DBUG_PRINT("info", ("THD dtor, this %p", this));
+
+  if (has_incremented_gtid_automatic_count) {
+    gtid_state->decrease_gtid_automatic_tagged_count();
+  }
 
   if (!release_resources_done()) release_resources();
 

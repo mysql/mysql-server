@@ -4761,7 +4761,12 @@ class THD : public MDL_context_owner,
   Event_reference_caching_cache *events_cache_{nullptr};
   Event_tracking_data_stack event_tracking_data_;
   bool audit_plugins_present;
-};  // End of class THD
+
+ public:
+  /// Flag indicating whether this session incremented the number of sessions
+  /// with GTID_NEXT set to AUTOMATIC:tag
+  bool has_incremented_gtid_automatic_count;
+};
 
 /**
    Return lock_tables_mode for secondary engine.

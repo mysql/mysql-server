@@ -1,0 +1,277 @@
+# ==== PURPOSE ====
+#
+# This test is to validate execution of the SET GTID_NEXT with a tag
+# in various GTID modes.
+#
+# ==== REQUIREMENTS ====
+#
+# R1. SET gtid_next='AUTOMATIC:<TAG>' shall:
+#   R1.1. succeed when gtid_mode is ON or ON_PERMISSIVE.
+#   R1.2. fail with an error when gtid_mode is OFF or OFF_PERMISSIVE.
+# R2. SET gtid_mode=OFF or OFF_PERMISSIVE shall fail with an error if there
+#   is any ongoing session with gtid_next set to 'AUTOMATIC:<TAG>'
+# R3. SET gtid_next='<UUID>:<TAG>:<NUMBER>' shall:
+#   R3.1. succeed when gtid_mode is ON, ON_PERMISSIVE or OFF_PERMISSIVE
+#   R3.2. fail with an error when gtid_mode is OFF.
+# R4. SET gtid_mode=OFF shall fail with an error if there is an ongoing
+#   session owning an assigned, tagged GTID.
+#
+# ==== IMPLEMENTATION ====
+#
+# This test is to validate correct execution of the
+# SET GTID_NEXT=AUTOMATIC:<tag> command in different GTID modes.
+#
+# T1.
+#     Test steps:
+#
+#     1. Execute N transactions with AUTOMATIC GTID with 'aa' tag
+#     2. Using connection 'conn_other':
+#        Try to set mode to OFF_PERMISSIVE
+#     3. Changing to OFF_PERMISSIVE shall fail with ER_CANT_SET_GTID_MODE
+#     4. Using default connection:
+#        Set GTID_NEXT back to AUTOMATIC without a tag
+#     5. Using connection 'conn_other':
+#        set GTID_MODE to OFF_PERMISSIVE
+#     6. Setting mode to OFF_PERMISSIVE shall succeed
+#     7. Using connection default:
+#        Try to set GTID_NEXT to AUTOMATIC with specified tag
+#     8. Check that command fails with
+#        ER_CANT_SET_GTID_NEXT_TO_AUTOMATIC_TAGGED_WHEN_GTID_MODE_IS_OFF
+#     9. Using connection default:
+#        Execute set GTID_NEXT to specified GTID with a tag
+#    10. Check that command succeeds
+#    11. Using connection 'conn_other':
+#        Try to set GTID_MODE to OFF
+#    12. Check that command fails with ER_CANT_SET_GTID_MODE
+#    13. Using connection default:
+#        Commit transaction (specified GTID with a tag)
+#    14. Using connection 'conn_other':
+#        Try to set GTID_MODE to OFF
+#    15. Check that command succeeds
+#    16. Using connection default:
+#        Try to set GTID_NEXT to specified GTID with a tag
+#    17. Check that command fails with
+#        ER_GTID_NEXT_TAG_GTID_MODE_OFF
+#
+#     Test pass conditions:
+#     - Step 3
+#     - Step 6
+#     - Step 8
+#     - Step 10
+#     - Step 12
+#     - Step 15
+#     - Step 17
+#
+# Below test is to validate correct counting of the sessions running with
+# SET GTID_NEXT=AUTOMATIC:<tag>
+#
+# T2.
+#
+#     Test steps:
+#
+#     1. Using N connections, execute:
+#        Set GTID_NEXT to 'AUTOMATIC:tag'
+#        Set GTID_NEXT to 'AUTOMATIC'
+#        Set GTID_NEXT to 'AUTOMATIC:tag'
+#     2. Using connections 0..N/2-1, execute:
+#        Set GTID_NEXT to 'AUTOMATIC'
+#     3. Using connection default:
+#        Try to set GTID_MODE to OFF_PERMISSIVE
+#     4. Check that command fails with ER_CANT_SET_GTID_MODE
+#     5. Using connections N/2 .. N-1, execute:
+#        Set GTID_NEXT to 'AUTOMATIC'
+#     6. Using connection default:
+#        Try to set GTID_MODE to OFF_PERMISSIVE
+#     7. Check that command succeeds
+#
+#    Test pass conditions:
+#
+#    - Step 4
+#    - Step 7
+#
+# Below test is to validate correct counting of the sessions running with
+# SET GTID_NEXT=AUTOMATIC:<tag>, in particular, the following corner case:
+# session counter is decremented in case session is ending without falling
+# back to AUTOMATIC.
+#
+# T3.
+#     Test steps:
+#
+#     1. Using connection conn_other:
+#        SET GTID_NEXT=AUTOMATIC:<tag>
+#     2. Disconnect conn_other
+#     3. Using connection default:
+#        set GTID_MODE to OFF_PERMISSIVE
+#     4. Command shall succeed
+#
+#     Test pass conditions:
+#
+#     - Step 4
+#
+# ==== REFERENCES ====
+#
+# WL#15294 Extending GTID with tags to identify group of transactions
+#          Step 6
+#
+
+# This test is independent from binlog format
+--source include/have_binlog_format_row.inc
+
+--echo
+--echo # T1.1 - T1.3
+--echo
+
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) engine=Innodb;
+
+SET GTID_NEXT= "AUTOMATIC:aa";
+
+--connect(conn_other, localhost, root,,,,)
+--connection conn_other
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+--error ER_CANT_SET_GTID_MODE
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+
+--echo
+--echo # T1.4. - T1.6.
+--echo
+
+--connection default
+SET GTID_NEXT='AUTOMATIC';
+--connection conn_other
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+
+--echo
+--echo # T1.7. - T1.8.
+--echo
+
+--connection default
+--error ER_CANT_SET_GTID_NEXT_TO_AUTOMATIC_TAGGED_WHEN_GTID_MODE_IS_OFF
+SET GTID_NEXT='AUTOMATIC:tag_other';
+
+--echo
+--echo # T1.9. - T1.10.
+--echo
+
+SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:tag_other:1";
+
+--echo
+--echo # T1.11. - T1.12.
+--echo
+
+--connection conn_other
+--error ER_CANT_SET_GTID_MODE
+SET GLOBAL GTID_MODE = 'OFF';
+
+--echo
+--echo # T1.13. - T1.15.
+--echo
+
+--connection default
+INSERT INTO t1 VALUES(NULL);
+--connection conn_other
+SET GLOBAL GTID_MODE = 'OFF';
+
+--echo
+--echo # T1.16. - T1.17.
+--echo
+
+--connection default
+--error ER_GTID_NEXT_TAG_GTID_MODE_OFF
+SET GTID_NEXT= "11111111-1111-1111-1111-111111111111:tag_other:2";
+
+--echo #
+--echo # Clean-up after T1
+--echo #
+
+SET GTID_NEXT= "AUTOMATIC";
+DROP TABLE t1;
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+SET GLOBAL GTID_MODE = 'ON';
+--disconnect conn_other
+
+--echo
+--echo # T2.1.
+--echo
+
+--let $num_conns = 20
+--let $num_conns_half = 10
+
+--let $i = 0
+while($i < $num_conns) {
+  --connect(conn_$i, localhost, root,,,,)
+  --connection conn_$i
+  SET GTID_NEXT='AUTOMATIC:tag';
+  --inc $i
+}
+
+--echo
+--echo # T2.2.
+--echo
+
+--let $i = 0
+while($i < $num_conns_half) {
+  --connection conn_$i
+  SET GTID_NEXT='AUTOMATIC';
+  --inc $i
+}
+
+--echo
+--echo # T2.3. - T2.4.
+--echo
+
+--connection default
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+--error ER_CANT_SET_GTID_MODE
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+
+--echo
+--echo # T2.5.
+--echo
+
+--let $i = $num_conns_half
+while($i < $num_conns) {
+  --connection conn_$i
+  SET GTID_NEXT='AUTOMATIC';
+  --inc $i
+}
+
+--echo
+--echo # T2.6. - T2.7.
+--echo
+
+--connection default
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+
+--echo #
+--echo # Clean-up after T2
+--echo #
+
+--let $i = 0
+while($i < $num_conns) {
+  --disconnect conn_$i
+  --inc $i
+}
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+SET GLOBAL GTID_MODE = 'ON';
+
+--echo
+--echo # T3.1. - T3.4.
+--echo
+
+--connect(conn_other, localhost, root,,,,)
+--connection conn_other
+SET GTID_NEXT='AUTOMATIC:test_3';
+--connection default
+--disconnect conn_other
+
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+SET GLOBAL GTID_MODE = 'OFF_PERMISSIVE';
+
+
+--echo
+--echo # Clean-up after T3
+--echo
+
+SET GLOBAL GTID_MODE = 'ON_PERMISSIVE';
+SET GLOBAL GTID_MODE = 'ON';
