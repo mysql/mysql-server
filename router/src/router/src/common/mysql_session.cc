@@ -592,6 +592,16 @@ class StmtResultRow : public MySQLSession::ResultRow {
   unsigned long *sizes_;
 };
 
+void MySQLSession::throw_mysqlerror(MYSQL_STMT *stmt, uint64_t ps_id) {
+  // non zero is an error.
+  auto err_no = mysql_stmt_errno(stmt);
+  auto err_msg = mysql_stmt_error(stmt);
+  std::stringstream ss;
+  ss << "Error executing prepared statement with id:" << ps_id;
+  ss << "\": " << err_msg << " (" << err_no << ")";
+  throw Error(ss.str(), err_no, err_msg);
+}
+
 void MySQLSession::prepare_execute(uint64_t ps_id,
                                    std::vector<enum_field_types> pt,
                                    const ResultRowProcessor &processor,
@@ -619,14 +629,9 @@ void MySQLSession::prepare_execute(uint64_t ps_id,
     throw Error(ss.str(), err_no, err_msg);
   }
 
+  // non zero is an error.
   if (mysql_stmt_execute(stmt)) {
-    // non zero is an error.
-    auto err_no = mysql_stmt_errno(stmt);
-    auto err_msg = mysql_stmt_error(stmt);
-    std::stringstream ss;
-    ss << "Error executing prepared statement with id:" << ps_id;
-    ss << "\": " << err_msg << " (" << err_no << ")";
-    throw Error(ss.str(), err_no, err_msg);
+    throw_mysqlerror(stmt, ps_id);
   }
 
   int status;
@@ -672,6 +677,11 @@ void MySQLSession::prepare_execute(uint64_t ps_id,
     }
     status = mysql_stmt_next_result(stmt);
   } while (status == 0);
+
+  if (status == MYSQL_NO_DATA) return;
+  if (status == CR_NO_RESULT_SET) return;
+
+  throw_mysqlerror(stmt, ps_id);
 }
 
 void MySQLSession::prepare_remove(uint64_t ps_id) {

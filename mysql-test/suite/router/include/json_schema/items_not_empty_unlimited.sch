@@ -8,7 +8,7 @@
         "Items": [
            {
              "type":"object",
-             "required":["items", "metadata"],
+             "required":["items", "_metadata"],
              "properties": {
                "items" : {
                  "type" : "array",

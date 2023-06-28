@@ -202,7 +202,7 @@ PUT /svc/proc/one (payload-size:2)
             "my_date": "2023-11-12 00:00:00"
         }
     ],
-    "metadata": {
+    "_metadata": {
         "columns": [
             {
                 "name": "my_id",
@@ -252,7 +252,7 @@ GET /svc/proc/two
                     "my_date": "1977-01-21 00:00:00"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "my_id",
@@ -280,7 +280,7 @@ GET /svc/proc/two
                     "numberOfItems": 27
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "numberOfItems",
@@ -305,7 +305,7 @@ GET /svc/proc/three
                     "first_id": 1
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "first_id",
@@ -321,7 +321,7 @@ GET /svc/proc/three
                     "last_id": 27
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "last_id",
@@ -340,7 +340,7 @@ GET /svc/proc/three
                     "date": "2023-11-12 00:00:00"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "id",

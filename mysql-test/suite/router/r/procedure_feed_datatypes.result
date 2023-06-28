@@ -67,7 +67,7 @@ GET /svc/basic/bit
                     "cbit": true
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cbit",
@@ -95,7 +95,7 @@ GET /svc/basic/bit1
                     "cbit": true
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cbit",
@@ -126,7 +126,7 @@ GET /svc/basic/bit10
                     "cbit10": "A/8="
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cbit10",
@@ -154,7 +154,7 @@ GET /svc/basic/bin
                     "cbin": "BwAA"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cbin",
@@ -182,7 +182,7 @@ GET /svc/basic/blob
                     "cblob": "ABGrAAASIzM="
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cblob",
@@ -213,7 +213,7 @@ GET /svc/basic/set
                     "cset": "value1,value2,value3"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cset",
@@ -241,7 +241,7 @@ GET /svc/basic/enum
                     "cenum": "value3"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cenum",
@@ -269,7 +269,7 @@ GET /svc/basic/varchar
                     "cvarchar": "thrid row"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cvarchar",
@@ -297,7 +297,7 @@ GET /svc/basic/text
                     "ctext": "numeric max"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "ctext",
@@ -328,7 +328,7 @@ GET /svc/basic/date
                     "cdate": "2020-12-03"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cdate",
@@ -356,7 +356,7 @@ GET /svc/basic/time
                     "ctime": "12:03:50"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "ctime",
@@ -384,7 +384,7 @@ GET /svc/basic/year
                     "cyear": "2022"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cyear",
@@ -412,7 +412,7 @@ GET /svc/basic/datetime
                     "cdatetime": "2020-12-03 12:03:50"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cdatetime",
@@ -440,7 +440,7 @@ GET /svc/basic/timestamp
                     "ctimestamp": "2020-12-03 12:03:50"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "ctimestamp",
@@ -471,7 +471,7 @@ GET /svc/basic/float
                     "cfloat": 1000
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cfloat",
@@ -499,7 +499,7 @@ GET /svc/basic/double
                     "cdouble": 999.9999
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cdouble",
@@ -527,7 +527,7 @@ GET /svc/basic/decimal
                     "cdecimal": 999.99
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cdecimal",
@@ -558,7 +558,7 @@ GET /svc/basic/int
                     "id": 3
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "id",
@@ -586,7 +586,7 @@ GET /svc/basic/bigint
                     "cbigint": 9223372036854775807
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cbigint",
@@ -614,7 +614,7 @@ GET /svc/basic/smallint
                     "csmallint": 32767
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "csmallint",
@@ -642,7 +642,7 @@ GET /svc/basic/tinyint
                     "ctinyint": 127
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "ctinyint",
@@ -670,7 +670,7 @@ GET /svc/basic/mediumint
                     "cmediumint": 8388607
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "cmediumint",

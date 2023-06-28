@@ -540,6 +540,7 @@ class ROUTER_LIB_EXPORT MySQLSession {
    */
   stdx::expected<mysql_result_type, MysqlError> logged_real_query(
       const std::string &q);
+  void throw_mysqlerror(MYSQL_STMT *stmt, uint64_t ps_id);
 };
 
 }  // namespace mysqlrouter
