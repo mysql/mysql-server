@@ -1589,9 +1589,9 @@ TEST_P(MetadataUnavailableTest, MetadataUnavailable) {
   const std::vector<std::string> expected_log_lines{
       "ERROR .* Failed fetching metadata from any of the 3 metadata servers",
       "INFO .* Stop accepting connections for routing routing:test_default" +
-          rw + " listening on " + rw,
+          rw + " listening on 127.0.0.1:" + rw,
       "INFO .* Stop accepting connections for routing routing:test_default" +
-          ro + " listening on " + ro};
+          ro + " listening on 127.0.0.1:" + ro};
   for (const auto &expected_line : expected_log_lines) {
     EXPECT_TRUE(wait_log_contains(router, expected_line, 5s));
   }

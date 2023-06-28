@@ -36,6 +36,9 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "mysqlrouter/routing.h"
+#include "router_test_helpers.h"
+#include "stdx_expected_no_error.h"
+#include "tcp_port_pool.h"
 #include "test/helpers.h"  // init_test_loggers
 
 using ::testing::_;
@@ -52,12 +55,6 @@ std::ostream &operator<<(std::ostream &os, const std::pair<int, int> &v) {
 class TestSetupTcpService : public ::testing::Test {
  public:
   TestSetupTcpService() {
-    routing_conf_.routing_strategy = routing::RoutingStrategy::kFirstAvailable;
-    routing_conf_.bind_address = mysql_harness::TCPAddress{"0.0.0.0", 7001};
-    routing_conf_.protocol = Protocol::Type::kXProtocol;
-    routing_conf_.connect_timeout = 1;
-    routing_conf_.max_connections = 10;
-
     std::unique_ptr<net::impl::socket::SocketServiceBase> socket_service =
         std::make_unique<::testing::StrictMock<MockSocketService>>();
     std::unique_ptr<net::IoServiceBase> io_service =
@@ -69,6 +66,7 @@ class TestSetupTcpService : public ::testing::Test {
 
     io_ctx_ = std::make_unique<net::io_context>(std::move(socket_service),
                                                 std::move(io_service));
+    bind_port_ = tcp_port_pool_.get_next_available();
   }
 
  protected:
@@ -109,14 +107,16 @@ class TestSetupTcpService : public ::testing::Test {
   }
 
  protected:
-  RoutingConfig routing_conf_;
   std::unique_ptr<net::io_context> io_ctx_;
   MockSocketService *sock_ops_;
   MockIoService *io_ops_;
+  TcpPortPool tcp_port_pool_;
+  uint16_t bind_port_;
 };
 
 TEST_F(TestSetupTcpService, single_addr_ok) {
-  MySQLRouting r(routing_conf_, *io_ctx_);
+  AcceptingEndpointTcpSocket tcp_acceptor(*io_ctx_, "routing", "127.0.0.1",
+                                          bind_port_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(1))));
@@ -132,24 +132,24 @@ TEST_F(TestSetupTcpService, single_addr_ok) {
   EXPECT_CALL(*sock_ops_, close(_));
   expect_io_ctx_cancel_calls(1);
 
-  EXPECT_THAT(r.setup_tcp_service(),
-              ::testing::Truly([](const auto &v) { return bool(v); }));
+  EXPECT_NO_ERROR(tcp_acceptor.setup());
 }
 
 TEST_F(TestSetupTcpService, getaddrinfo_fails) {
-  MySQLRouting r(routing_conf_, *io_ctx_);
+  AcceptingEndpointTcpSocket tcp_acceptor(*io_ctx_, "routing", "127.0.0.1",
+                                          bind_port_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(stdx::make_unexpected(
           make_error_code(net::ip::resolver_errc::host_not_found)))));
 
-  EXPECT_EQ(r.setup_tcp_service(),
-            stdx::make_unexpected(
-                make_error_code(net::ip::resolver_errc::host_not_found)));
+  EXPECT_EQ(tcp_acceptor.setup(), stdx::make_unexpected(make_error_code(
+                                      net::ip::resolver_errc::host_not_found)));
 }
 
 TEST_F(TestSetupTcpService, socket_fails_for_all_addr) {
-  MySQLRouting r(routing_conf_, *io_ctx_);
+  AcceptingEndpointTcpSocket tcp_acceptor(*io_ctx_, "routing", "127.0.0.1",
+                                          bind_port_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -161,13 +161,14 @@ TEST_F(TestSetupTcpService, socket_fails_for_all_addr) {
       .WillOnce(Return(stdx::make_unexpected(
           make_error_code(std::errc::address_family_not_supported))));
 
-  EXPECT_EQ(r.setup_tcp_service(),
+  EXPECT_EQ(tcp_acceptor.setup(),
             stdx::make_unexpected(
                 make_error_code(std::errc::address_family_not_supported)));
 }
 
 TEST_F(TestSetupTcpService, socket_fails) {
-  MySQLRouting r(routing_conf_, *io_ctx_);
+  AcceptingEndpointTcpSocket tcp_acceptor(*io_ctx_, "routing", "127.0.0.1",
+                                          bind_port_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -188,13 +189,14 @@ TEST_F(TestSetupTcpService, socket_fails) {
   EXPECT_CALL(*sock_ops_, close(_));
   expect_io_ctx_cancel_calls(1);
 
-  EXPECT_THAT(r.setup_tcp_service(),
+  EXPECT_THAT(tcp_acceptor.setup(),
               ::testing::Truly([](const auto &v) { return bool(v); }));
 }
 
 #ifndef _WIN32
 TEST_F(TestSetupTcpService, setsockopt_fails) {
-  MySQLRouting r(routing_conf_, *io_ctx_);
+  AcceptingEndpointTcpSocket tcp_acceptor(*io_ctx_, "routing", "127.0.0.1",
+                                          bind_port_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -217,13 +219,13 @@ TEST_F(TestSetupTcpService, setsockopt_fails) {
   EXPECT_CALL(*sock_ops_, close(_)).Times(2);
   expect_io_ctx_cancel_calls(2);
 
-  EXPECT_THAT(r.setup_tcp_service(),
-              ::testing::Truly([](const auto &v) { return bool(v); }));
+  EXPECT_NO_ERROR(tcp_acceptor.setup());
 }
 #endif
 
 TEST_F(TestSetupTcpService, bind_fails) {
-  MySQLRouting r(routing_conf_, *io_ctx_);
+  AcceptingEndpointTcpSocket tcp_acceptor(*io_ctx_, "routing", "127.0.0.1",
+                                          bind_port_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -247,12 +249,12 @@ TEST_F(TestSetupTcpService, bind_fails) {
   EXPECT_CALL(*sock_ops_, close(_)).Times(2);
   expect_io_ctx_cancel_calls(2);
 
-  EXPECT_THAT(r.setup_tcp_service(),
-              ::testing::Truly([](const auto &v) { return bool(v); }));
+  EXPECT_NO_ERROR(tcp_acceptor.setup());
 }
 
 TEST_F(TestSetupTcpService, listen_fails) {
-  MySQLRouting r(routing_conf_, *io_ctx_);
+  AcceptingEndpointTcpSocket tcp_acceptor(*io_ctx_, "routing", "127.0.0.1",
+                                          bind_port_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -274,11 +276,12 @@ TEST_F(TestSetupTcpService, listen_fails) {
 
   // the listen()'s error-code
   EXPECT_EQ(
-      r.setup_tcp_service(),
+      tcp_acceptor.setup(),
       stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
 }
 
 int main(int argc, char *argv[]) {
+  init_windows_sockets();
   ::testing::InitGoogleTest(&argc, argv);
 
   init_test_logger();
