@@ -53,10 +53,10 @@
 --let $mrs_add_db_object_path=/report_back2
 --source ../include/mrs/db_object/add.inc
 
-#--let $mrs_add_db_object_type=PROCEDURE
-#--let $mrs_add_db_object=report_back_mysql_error_if
-#--let $mrs_add_db_object_path=/report_back_if
-#--source ../include/mrs/db_object/add.inc
+--let $mrs_add_db_object_type=PROCEDURE
+--let $mrs_add_db_object=report_back_mysql_error_if
+--let $mrs_add_db_object_path=/report_back_if
+--source ../include/mrs/db_object/add.inc
 
 # Procedure just to sync to.
 --let $mrs_add_db_object_type=PROCEDURE
@@ -101,9 +101,9 @@ exec $MRS_CLIENT_ARGS
 #call `proc_schema`.`report_back_mysql_error_if`(1);
 #SHOW WARNINGS;
 
-#exec $MRS_CLIENT_ARGS
-#  --expected-status 511
-#  --path /svc/proc/report_back_if?error_out=1;
+exec $MRS_CLIENT_ARGS
+  --expected-status 511
+  --path /svc/proc/report_back_if?error_out=1;
   
 
 --echo

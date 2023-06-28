@@ -31,6 +31,7 @@
 # Registred DB_SCHEMA at path: /svc/proc
 # Registred DB_OBJECT at path: /svc/proc/report_back1
 # Registred DB_OBJECT at path: /svc/proc/report_back2
+# Registred DB_OBJECT at path: /svc/proc/report_back_if
 # Registred DB_OBJECT at path: /svc/proc/nothing
 GET /svc/proc/nothing
 {
@@ -72,6 +73,11 @@ OK
 GET /svc/proc/report_back1?mysql_error=5511
 {
     "message": "This stored procedure signaled an error."
+}
+OK
+GET /svc/proc/report_back_if?error_out=1
+{
+    "message": "This stored procedured signaled an error."
 }
 OK
 

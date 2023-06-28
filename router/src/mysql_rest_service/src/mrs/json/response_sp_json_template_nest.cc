@@ -63,7 +63,7 @@ void ResponseSpJsonTemplateNest::begin_resultset(
 void ResponseSpJsonTemplateNest::end_resultset() {
   json_root_items_object_items_ = JsonSerializer::Array();
   if (json_root_items_object_.is_usable()) {
-    auto m = json_root_items_object_->member_add_object("metadata");
+    auto m = json_root_items_object_->member_add_object("_metadata");
     auto a = m->member_add_array("columns");
     for (auto &c : columns_) {
       auto oc = a->add_object();

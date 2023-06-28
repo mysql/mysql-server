@@ -125,7 +125,7 @@ PUT /svc/proc/one (payload-size:2)
                     "name": "27th row"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "id",
@@ -177,7 +177,7 @@ GET /svc/proc/two
                     "date": "1977-01-21 00:00:00"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "id",
@@ -205,7 +205,7 @@ GET /svc/proc/two
                     "count(*)": 27
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "count(*)",
@@ -230,7 +230,7 @@ GET /svc/proc/three
                     "min(id)": 1
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "min(id)",
@@ -246,7 +246,7 @@ GET /svc/proc/three
                     "max(id)": 27
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "max(id)",
@@ -265,7 +265,7 @@ GET /svc/proc/three
                     "date": "2023-11-12 00:00:00"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "id",
@@ -302,7 +302,7 @@ GET /svc/proc/out
                     "v": 1
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "v",
@@ -330,7 +330,7 @@ GET /svc/proc/one_and_out
                     "date": "2023-11-12 00:00:00"
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "id",
@@ -358,7 +358,7 @@ GET /svc/proc/one_and_out
                     "v": 1
                 }
             ],
-            "metadata": {
+            "_metadata": {
                 "columns": [
                     {
                         "name": "v",
