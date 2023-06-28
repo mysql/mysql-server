@@ -224,16 +224,14 @@ template <class T, class BufferType,
               std::declval<typename std::add_lvalue_reference<T>::type>())),
           class End = decltype(net::buffer_sequence_end(
               std::declval<typename std::add_lvalue_reference<T>::type>()))>
-using buffer_sequence_requirements = std::integral_constant<
-    bool,
-    std::conjunction<
-        // check if buffer_sequence_begin(T &) and buffer_sequence_end(T &)
-        // exist and return the same type
-        std::is_same<Begin, End>,
-        // check if ::value_type of the retval of buffer_sequence_begin() can be
-        // converted into a BufferType
-        std::is_convertible<typename std::iterator_traits<Begin>::value_type,
-                            BufferType>>::value>;
+using buffer_sequence_requirements = std::bool_constant<std::conjunction_v<
+    // check if buffer_sequence_begin(T &) and buffer_sequence_end(T &)
+    // exist and return the same type
+    std::is_same<Begin, End>,
+    // check if ::value_type of the retval of buffer_sequence_begin() can be
+    // converted into a BufferType
+    std::is_convertible<typename std::iterator_traits<Begin>::value_type,
+                        BufferType>>>;
 
 template <class T, class BufferType, class = void>
 struct is_buffer_sequence : std::false_type {};
@@ -241,7 +239,7 @@ struct is_buffer_sequence : std::false_type {};
 template <class T, class BufferType>
 struct is_buffer_sequence<
     T, BufferType, std::void_t<buffer_sequence_requirements<T, BufferType>>>
-    : std::true_type {};
+    : buffer_sequence_requirements<T, BufferType> {};
 
 template <class T>
 struct is_const_buffer_sequence

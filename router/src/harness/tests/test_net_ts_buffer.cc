@@ -35,6 +35,9 @@ static_assert(net::is_mutable_buffer_sequence<net::mutable_buffer>::value,
 static_assert(net::is_const_buffer_sequence<net::const_buffer>::value,
               "net::const_buffer MUST be a const_buffer_sequence");
 
+static_assert(net::is_const_buffer_sequence<net::mutable_buffer>::value);
+static_assert(!net::is_mutable_buffer_sequence<net::const_buffer>::value);
+
 static_assert(
     net::is_const_buffer_sequence<std::vector<net::const_buffer>>::value,
     "std::vector<net::const_buffer> MUST be a const_buffer_sequence");
