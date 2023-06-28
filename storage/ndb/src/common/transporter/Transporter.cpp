@@ -354,12 +354,12 @@ Transporter::connect_client()
 
    /** Socket Authentication */
     int auth = m_socket_client->authenticate(secureSocket);
+    g_eventLogger->debug("Transporter client auth result: %d [%s]", auth,
+                         SocketAuthenticator::error(auth));
     if(auth < SocketAuthenticator::AuthOk)
     {
       DBUG_RETURN(false);
     }
-    g_eventLogger->debug("Transporter client auth result: %d [%s]", auth,
-                         SocketAuthenticator::error(auth));
 
     if(auth == SocketAuthTls::negotiate_tls_ok) // Initiate TLS
     {

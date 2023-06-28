@@ -671,6 +671,12 @@ STACK_OF(X509) * Certificate::open(const char * path) {
     Certificate::read(certs, fp);
     fclose(fp);
   }
+
+  if(sk_X509_num(certs) == 0) {
+    sk_X509_free(certs);
+    certs = nullptr;
+  }
+
   return certs;
 }
 

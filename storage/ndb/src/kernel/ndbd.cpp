@@ -57,8 +57,12 @@
 #include <LogBuffer.hpp>
 #include <OutputStream.hpp>
 
+#include "util/ndb_openssl3_compat.h"
+
 #define JAM_FILE_ID 484
 
+static constexpr bool openssl_version_ok =
+  (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
 
 static void
 systemInfo(const Configuration & config, const LogLevel & logLevel)
@@ -1175,15 +1179,22 @@ ndbd_run(bool foreground, int report_fd,
       globalEmulatorData.theConfiguration->getOwnConfigIterator();
   require(p != nullptr);
 
+  if(openssl_version_ok)
   {
-    Uint32 require_cert = 0;
+    Uint32 require_cert = 0, require_tls = 0;
     ndb_mgm_get_int_parameter(p, CFG_NODE_REQUIRE_CERT, &require_cert);
-    if(require_cert && ! globalTransporterRegistry.hasTlsCert())
+    ndb_mgm_get_int_parameter(p, CFG_DB_REQUIRE_TLS, &require_tls);
+    if((require_cert || require_tls) &&
+        ! globalTransporterRegistry.hasTlsCert())
     {
       g_eventLogger->error(
         "Shutting down. This node does not have a valid TLS certificate.");
       stop_async_log_func(log_threadvar, thread_args);
       ndbd_exit(-1);
+    }
+    if(require_tls)
+    {
+      g_eventLogger->info("This node will require TLS for all connections.");
     }
   }
 

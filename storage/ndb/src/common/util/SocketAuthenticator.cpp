@@ -109,7 +109,7 @@ int SocketAuthTls::client_authenticate(NdbSocket & sockfd)
   const bool tls_enabled = m_tls_keys->ctx();
 
   // Write first line
-  if(tls_required)
+  if(tls_required && tls_enabled)
     s_output.println("ndbd TLS required");
   else if(tls_enabled)
     s_output.println("ndbd TLS enabled");

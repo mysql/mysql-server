@@ -28,6 +28,7 @@
 #include <cstring>
 #include <optional>
 #include <time.h>
+#include "openssl/ssl.h"
 
 #include "ConfigInfo.hpp"
 #include <mgmapi_config_parameters.h>
@@ -37,8 +38,9 @@
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
+#include "portlib/ndb_localtime.h"
+#include "portlib/ndb_openssl_version.h"
 #include "portlib/ndb_sockaddr.h"
-#include <portlib/ndb_localtime.h>
 #include <NdbTCP.h>
 
 #define KEY_INTERNAL 0
@@ -48,6 +50,9 @@
 
 #define _STR_VALUE(x) #x
 #define STR_VALUE(x) _STR_VALUE(x)
+
+static constexpr bool openssl_version_ok =
+  (OPENSSL_VERSION_NUMBER >= NDB_TLS_MINIMUM_OPENSSL);
 
 /****************************************************************************
  * Section names
@@ -3513,7 +3518,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 
   {
     CFG_TCP_REQUIRE_TLS,
-    "RequireTls",
+    "RequireLinkTls",
     "TCP",
     "Use TLS authenticated secure connections for TCP transporter links",
     ConfigInfo::CI_INTERNAL,
@@ -6358,7 +6363,11 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
       return ret == 0 ? true : false;
     }
   }
-  tmp->get("RequireTls", &reqTls1);
+
+  if(openssl_version_ok)
+  {
+    tmp->get("RequireTls", &reqTls1);
+  }
 
   require(ctx.m_config->get("Node", nodeId2, &tmp));
   tmp->get("HostName", &hostname2);
@@ -6386,7 +6395,11 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
       return ret == 0 ? true : false;
     }
   }
-  tmp->get("RequireTls", &reqTls2);
+
+  if(openssl_version_ok)
+  {
+    tmp->get("RequireTls", &reqTls2);
+  }
 
   char buf[16];
   s.m_sectionData= new Properties(true);
@@ -6415,7 +6428,7 @@ add_a_connection(Vector<ConfigInfo::ConfigRuleSection>&sections,
       s.m_sectionData->put("TCP_MAXSEG_SIZE", 61440);
     }
 
-    s.m_sectionData->put("RequireTls", reqTls1 | reqTls2);
+    s.m_sectionData->put("RequireLinkTls", reqTls1 | reqTls2);
   }
   
   sections.push_back(s);
