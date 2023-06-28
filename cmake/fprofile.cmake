@@ -123,7 +123,7 @@ IF(FPROFILE_USE)
     # to be optimized as if they were compiled without profile feedback.
     # This leads to better performance when train run is not representative
     # but also leads to significantly bigger code.
-    IF(NOT ${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS 10)
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10)
       STRING_APPEND(CMAKE_C_FLAGS " -fprofile-partial-training")
       STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-partial-training")
     ENDIF()
