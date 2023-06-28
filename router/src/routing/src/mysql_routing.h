@@ -71,6 +71,7 @@
 #include "mysql/harness/stdx/monitor.h"
 #include "mysql_router_thread.h"
 #include "mysql_routing_base.h"
+#include "mysqlrouter/io_thread.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/routing_export.h"
@@ -86,6 +87,77 @@ class PluginFuncEnv;
 }
 
 struct Nothing {};
+class MySQLRouting;
+
+class ROUTING_EXPORT AcceptingEndpoint {
+ public:
+  AcceptingEndpoint(net::io_context &io_ctx,
+                    const std::string &parent_routing_name)
+      : io_ctx_(io_ctx), parent_routing_name_(parent_routing_name) {}
+
+  virtual stdx::expected<void, std::error_code> setup() = 0;
+  virtual stdx::expected<void, std::error_code> cancel() = 0;
+  virtual bool is_open() const = 0;
+
+  virtual void start(MySQLRouting *r, std::list<IoThread> &,
+                     WaitableMonitor<Nothing> &waitable) = 0;
+
+  virtual std::string name() = 0;
+
+  virtual ~AcceptingEndpoint() {}
+
+ protected:
+  net::io_context &io_ctx_;
+  // used when the acceptor logs
+  std::string parent_routing_name_;
+};
+
+class ROUTING_EXPORT AcceptingEndpointTcpSocket : public AcceptingEndpoint {
+ public:
+  AcceptingEndpointTcpSocket(net::io_context &io_ctx,
+                             const std::string &parent_routing_name,
+                             const std::string &address, uint16_t port);
+
+  stdx::expected<void, std::error_code> setup() override;
+  stdx::expected<void, std::error_code> cancel() override;
+  bool is_open() const override;
+
+  void start(MySQLRouting *r, std::list<IoThread> &,
+             WaitableMonitor<Nothing> &waitable) override;
+
+  std::string name() override;
+
+ private:
+  net::ip::tcp::acceptor service_;
+  net::ip::tcp::endpoint service_endpoint_;
+
+  std::string address_;
+  uint16_t port_;
+};
+
+#ifndef _WIN32
+class ROUTING_EXPORT AcceptingEndpointUnixSocket : public AcceptingEndpoint {
+ public:
+  AcceptingEndpointUnixSocket(net::io_context &io_ctx,
+                              const std::string &parent_routing_name,
+                              const std::string &socket_name);
+
+  stdx::expected<void, std::error_code> setup() override;
+  stdx::expected<void, std::error_code> cancel() override;
+  bool is_open() const override;
+
+  void start(MySQLRouting *r, std::list<IoThread> &,
+             WaitableMonitor<Nothing> &waitable) override;
+
+  std::string name() override;
+
+ private:
+  local::stream_protocol::acceptor service_;
+  local::stream_protocol::endpoint service_endpoint_;
+
+  std::string socket_name_;
+};
+#endif
 
 /** @class MySQLRouting
  *  @brief Manage Connections from clients to MySQL servers
@@ -222,8 +294,6 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
 
   RouteDestination *destinations() { return destination_.get(); }
 
-  net::ip::tcp::acceptor &tcp_socket() { return service_tcp_; }
-
   void disconnect_all();
 
   /**
@@ -241,41 +311,19 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   /**
    * Start accepting new connections on a listening socket
    *
-   * @returns std::error_code on errors.
+   * @returns std::string on errors.
    */
-  stdx::expected<void, std::error_code> start_accepting_connections() override;
+  stdx::expected<void, std::string> start_accepting_connections() override;
 
   /**
    * Start accepting new connections on a listening socket after it has been
    * quarantined for lack of valid destinations
    *
-   * @returns std::error_code on errors.
+   * @returns std::string on errors.
    */
-  stdx::expected<void, std::error_code> restart_accepting_connections()
-      override;
+  stdx::expected<void, std::string> restart_accepting_connections() override;
 
  private:
-  /**
-   * Get listening socket detail information used for the logging purposes.
-   */
-  std::string get_port_str() const;
-
-  /** @brief Sets up the TCP service
-   *
-   * Sets up the TCP service binding to IP addresses and TCP port.
-   *
-   * @returns std::error_code on errors.
-   */
-  stdx::expected<void, std::error_code> setup_tcp_service();
-
-  /** @brief Sets up the named socket service
-   *
-   * Sets up the named socket service creating a socket file on UNIX systems.
-   *
-   * @returns std::error_code on errors.
-   */
-  stdx::expected<void, std::error_code> setup_named_socket_service();
-
   /** @brief Sets unix socket permissions so that the socket is accessible
    *         to all users (no-op on Windows)
    * @param socket_file path to socket file
@@ -284,7 +332,7 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
    */
   static void set_unix_socket_permissions(const char *socket_file);
 
-  stdx::expected<void, std::error_code> run_acceptor(
+  stdx::expected<void, std::string> run_acceptor(
       mysql_harness::PluginFuncEnv *env);
 
  public:
@@ -320,16 +368,6 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
    */
   int max_connections_;
 
-  /** @brief Socket descriptor of the TCP service */
-  net::ip::tcp::acceptor service_tcp_;
-  net::ip::tcp::endpoint service_tcp_endpoint_;
-
-#if !defined(_WIN32)
-  /** @brief Socket descriptor of the named socket service */
-  local::stream_protocol::acceptor service_named_socket_;
-  local::stream_protocol::endpoint service_named_endpoint_;
-#endif
-
   /** @brief used to unregister from subscription on allowed nodes changes */
   AllowedNodesChangeCallbacksListIterator allowed_nodes_list_iterator_;
 
@@ -358,6 +396,8 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   FRIEND_TEST(TestSetupNamedSocketService, unix_socket_permissions_failure);
 #endif
 #endif
+
+  std::vector<std::unique_ptr<AcceptingEndpoint>> accepting_endpoints_;
 };
 
 extern "C" {

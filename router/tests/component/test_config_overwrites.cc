@@ -73,27 +73,6 @@ class RouterConfigOwerwriteTest : public RouterComponentTest {
         /*wait_for_notify_ready=*/-1s);
   }
 
-  static bool wait_file_exists(const std::string &file,
-                               std::chrono::milliseconds timeout = 5s) {
-    if (getenv("WITH_VALGRIND")) {
-      timeout *= 10;
-    }
-
-    const auto MSEC_STEP = 20ms;
-    bool found = false;
-    using clock_type = std::chrono::steady_clock;
-    const auto end = clock_type::now() + timeout;
-    do {
-      found = mysql_harness::Path(file).exists();
-      if (!found) {
-        auto step = std::min(timeout, MSEC_STEP);
-        RouterComponentTest::sleep_for(step);
-      }
-    } while (!found && clock_type::now() < end);
-
-    return found;
-  }
-
   TempDirectory conf_dir{"conf"};
   const std::string simple_trace_file{get_data_dir().join("my_port.js").str()};
 };

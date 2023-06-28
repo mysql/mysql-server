@@ -1090,7 +1090,8 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
   EXPECT_THAT(wait_for_correct_perms(5000), testing::Eq(true));
   EXPECT_TRUE(wait_log_contains(router,
                                 "Start accepting connections for routing "
-                                "routing:basic listening on named socket",
+                                "routing:basic listening on '" +
+                                    socket_file + "'",
                                 5s));
 }
 #endif

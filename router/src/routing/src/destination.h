@@ -63,7 +63,7 @@ using AllowedNodesChangeCallbacksListIterator =
     AllowedNodesChangeCallbacksList::iterator;
 // Starting a socket acceptor returns a value indicating if the start succeeded.
 using StartSocketAcceptorCallback =
-    std::function<stdx::expected<void, std::error_code>()>;
+    std::function<stdx::expected<void, std::string>()>;
 using StopSocketAcceptorCallback = std::function<void()>;
 // First callback argument informs if the instances returned from the metadata
 // has changed. Second argument is a list of new instances available after

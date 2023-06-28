@@ -132,6 +132,29 @@ void init_windows_sockets();
     uint16_t port, std::chrono::milliseconds timeout = kDefaultPortReadyTimeout,
     const std::string &hostname = "127.0.0.1");
 
+/** @brief Probes if the selected unix socket is accepting the connections.
+ *
+ * @param socket    name of the socket to check
+ * @param timeout   maximum timeout to wait for the socket
+ *
+ * @returns true if the selected socket accepts connections, false otherwise
+ */
+[[nodiscard]] bool wait_for_socket_ready(
+    const std::string &socket,
+    std::chrono::milliseconds timeout = kDefaultPortReadyTimeout);
+
+/** @brief Probes if the selected file exists or not.
+ *
+ * @param file    name of the file to check
+ * @param timeout maximum timeout to wait for the file to exist or not
+ * @param exists  determines if we expect the file to exist or not
+ *
+ * @returns true if the file exists, false otherwise
+ */
+[[nodiscard]] bool wait_file_exists(
+    const std::string &file, const bool exists = true,
+    std::chrono::milliseconds timeout = std::chrono::seconds(5));
+
 /** @brief Check if a given port is open / not used by any application.
  *
  * @param port TCP port that will be checked
@@ -147,6 +170,14 @@ void init_windows_sockets();
  * @returns true if the selected port can be bind to, false otherwise
  */
 [[nodiscard]] bool is_port_bindable(const uint16_t port);
+
+/** @brief Check if a given unix socket can be bind to.
+ *
+ * @param socket unix socket that will be checked
+ *
+ * @returns true if the selected socket can be bind to, false otherwise
+ */
+[[nodiscard]] bool is_socket_bindable(const std::string &socket);
 
 /**
  * Wait until the port is not available (is used by any application).
