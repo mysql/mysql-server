@@ -59,22 +59,22 @@ class Ndb_binlog_thread : public Ndb_component {
     // Binlog cache disk use
     ulong disk_use{0};
 
-    // Mask to bound warnings of disk spills by the binlog injector thread
-    static constexpr uint32 freq_mask = 0x3FE1;
+    // Bound warnings of disk spills by the binlog injector thread
+    ulong next_bound = 1;
 
     /**
-       Checks if val is in the mask. If val is greater than the
-       absolute value of the mask, then check that val is a multiple
-       of mask.
+       Checks if val is in next_bound boundary. If val matches
+       next_bound then increment next_bound by 64 and remove any bits
+       below 64 to avoid repeated warnings.
 
        @param    val    Value to test
-       @param    mask   Bit mask to test against
-       @return          True if val is present in mask or is in the
-       boundary, false otherwise
+       @return          True if val is on boundary, false otherwise
     */
-    bool is_on_significant_boundary(uint32 val, uint32 mask) const {
-      if (val > mask) return val % mask == 0;
-      return val == (val & mask);
+    bool is_on_significant_boundary(uint32 val) {
+      constexpr uint64 mask = ~0x3F;  // not(63)
+      bool ret = val == next_bound;
+      if (ret) next_bound = (next_bound + 64) & mask;
+      return ret;
     }
 
    public:
@@ -97,7 +97,7 @@ class Ndb_binlog_thread : public Ndb_component {
       }
       disk_use = value;
       m_disk_spills++;
-      return is_on_significant_boundary(m_disk_spills, freq_mask);
+      return is_on_significant_boundary(m_disk_spills);
     }
 
   } m_cache_spill_checker;

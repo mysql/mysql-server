@@ -64,16 +64,13 @@ save_master_pos;
 -- source include/assert.inc
 
 --echo # Check that error log contains message indicating cache spill
---disable_query_log ONCE
-SELECT DATA as "Error log message"
-  FROM performance_schema.error_log
-  WHERE SUBSYSTEM = "NDB" AND
-     DATA REGEXP "Binary log cache data overflowed to disk"
-  ORDER BY LOGGED DESC
-  LIMIT 1;
+-- let $qry= SELECT count(DATA) as warnings FROM performance_schema.error_log WHERE SUBSYSTEM = "NDB" AND DATA REGEXP "Binary log cache data overflowed to disk"
+-- let $assert_text= Binary log cache data overflowed to disk
+-- let $assert_cond= [$qry, warnings, 1] >= 1
+-- source include/assert.inc
 
 # Supress the provoked message
---disable_query_log ONCE
+-- disable_query_log ONCE
 call mtr.add_suppression(".*Binary log cache data overflowed to disk.*");
 
 -- echo
