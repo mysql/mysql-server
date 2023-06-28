@@ -138,6 +138,7 @@ static xcl::XError make_x_connection(
                           password.c_str(), "");
 }
 
+#ifndef _WIN32
 static xcl::XError make_x_connection(XProtocolSession &session,
                                      const std::string &socket,
                                      const std::string &username,
@@ -150,6 +151,7 @@ static xcl::XError make_x_connection(XProtocolSession &session,
   return session->connect(socket.c_str(), username.c_str(), password.c_str(),
                           "");
 }
+#endif  // _WIN32
 
 TEST_F(RouterRoutingTest, RoutingOk) {
   const auto server_port = port_pool_.get_next_available();
