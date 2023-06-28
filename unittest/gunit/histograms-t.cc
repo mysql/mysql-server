@@ -31,12 +31,12 @@
 #include "my_time.h"                     // MYSQL_TIME
 #include "mysql/strings/m_ctype.h"       // my_charset_latin1, my_charset_bin
 #include "sql-common/json_dom.h"         // Json_object
+#include "sql-common/my_decimal.h"       // my_decimal
 #include "sql/field.h"                   // my_charset_numeric
 #include "sql/histograms/equi_height.h"  // Equi_height
 #include "sql/histograms/histogram.h"    // Histogram, Histogram_comparator
 #include "sql/histograms/singleton.h"    // Singleton
 #include "sql/histograms/value_map.h"    // Value_map<T>
-#include "sql/my_decimal.h"              // my_decimal
 #include "sql/sql_time.h"                // my_time_compare
 #include "sql/tztime.h"                  // my_tz_UTC
 #include "template_utils.h"              // down_cast

@@ -49,11 +49,11 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "sql-common/my_decimal.h"  // str2my_decimal
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"            // Item_result_field
-#include "sql/my_decimal.h"      // str2my_decimal
 #include "sql/parse_location.h"  // POS
 #include "sql/set_var.h"         // enum_var_type
 #include "sql/sql_const.h"

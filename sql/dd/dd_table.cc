@@ -54,6 +54,7 @@
 #include "sql/dd/impl/utils.h"                 // dd::escape
 #include "sql/dd/performance_schema/init.h"    // performance_schema::
                                                //   set_PS_version_for_table
+#include "sql-common/my_decimal.h"
 #include "sql/create_field.h"
 #include "sql/dd/dd_version.h"  // DD_VERSION
 #include "sql/dd/properties.h"  // dd::Properties
@@ -86,7 +87,6 @@
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"
-#include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // lower_case_table_names
 #include "sql/partition_element.h"
 #include "sql/partition_info.h"        // partition_info

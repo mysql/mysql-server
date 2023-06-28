@@ -24,10 +24,10 @@
 
 #include "m_string.h"
 #include "mysql/strings/dtoa.h"
+#include "sql-common/my_decimal.h"
 #include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/item.h"
-#include "sql/my_decimal.h"
 #include "sql/sql_class.h"
 #include "sql_string.h"
 #include "template_utils.h"

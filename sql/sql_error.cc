@@ -68,9 +68,9 @@ This file contains the implementation of error and warnings related
 #include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "sql-common/my_decimal.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/item.h"
-#include "sql/my_decimal.h"
 #include "sql/protocol.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"

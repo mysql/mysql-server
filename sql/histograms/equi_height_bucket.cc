@@ -43,8 +43,8 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "sql-common/json_dom.h"       // Json_*
+#include "sql-common/my_decimal.h"     // my_decimal_cmp
 #include "sql/histograms/value_map.h"  // Histogram_comparator
-#include "sql/my_decimal.h"            // my_decimal_cmp
 #include "sql/sql_time.h"              // calc_time_diff
 #include "template_utils.h"
 

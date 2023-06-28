@@ -57,6 +57,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "sql-common/my_decimal.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"    // Item_func_any_value
 #include "sql/item_func.h"       // Item_func_udf_str
@@ -70,7 +71,6 @@
 #include "sql/item_sum.h"          // Item_sum_udf_str
 #include "sql/item_timefunc.h"     // Item_func_add_time
 #include "sql/item_xmlfunc.h"      // Item_func_xml_extractvalue
-#include "sql/my_decimal.h"
 #include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h"  // PT_item_list
 #include "sql/parser_yystype.h"

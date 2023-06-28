@@ -44,8 +44,8 @@
 #include "mysql_time.h"              // MYSQL_TIME
 #include "prealloced_array.h"        // Prealloced_array
 #include "sql-common/json_binary.h"  // json_binary::Value
+#include "sql-common/my_decimal.h"   // my_decimal
 #include "sql/malloc_allocator.h"    // Malloc_allocator
-#include "sql/my_decimal.h"          // my_decimal
 
 class Field_json;
 class Json_array;

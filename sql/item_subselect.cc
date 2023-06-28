@@ -49,6 +49,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "scope_guard.h"
+#include "sql-common/my_decimal.h"
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"  // current_thd
 #include "sql/debug_sync.h"   // DEBUG_SYNC
@@ -67,7 +68,6 @@
 #include "sql/join_optimizer/cost_model.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
-#include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // in_left_expr_name
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"  // OPT_TRACE_TRANSFORM

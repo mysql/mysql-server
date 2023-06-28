@@ -30,9 +30,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/strings/m_ctype.h>
 #include <mysql_time.h>
 #include <sql/current_thd.h>
-#include <sql/my_decimal.h>
 #include <sql/sql_class.h>
 #include <sql_string.h>
+#include "sql-common/my_decimal.h"
 
 namespace mysql_query_attributes {
 

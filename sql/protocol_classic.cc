@@ -449,11 +449,11 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"
+#include "sql-common/my_decimal.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_func.h"  // Item_func_set_user_var
-#include "sql/my_decimal.h"
-#include "sql/mysqld.h"  // global_system_variables
+#include "sql/mysqld.h"     // global_system_variables
 #include "sql/session_tracker.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"

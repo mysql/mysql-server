@@ -86,6 +86,7 @@
 #include "nulls.h"
 #include "sha1.h"  // SHA1_HASH_SIZE
 #include "sha2.h"
+#include "sql-common/my_decimal.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_password_policy
 #include "sql/auth/sql_security_ctx.h"
@@ -104,7 +105,6 @@
 #include "sql/events.h"          // Events::reconstruct_interval_expression
 #include "sql/filesort.h"
 #include "sql/handler.h"
-#include "sql/my_decimal.h"
 #include "sql/mysqld.h"                             // binary_keyword etc
 #include "sql/parse_tree_node_base.h"               // Parse_context
 #include "sql/resourcegroups/resource_group_mgr.h"  // num_vcpus

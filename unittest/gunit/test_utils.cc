@@ -35,6 +35,7 @@
 #include "my_inttypes.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
+#include "sql-common/my_decimal.h"
 #include "sql/binlog.h"
 #include "sql/client_settings.h"
 #include "sql/conn_handler/connection_handler_manager.h"
@@ -46,8 +47,7 @@
 #include "sql/derror.h"
 #include "sql/item_func.h"
 #include "sql/keycaches.h"
-#include "sql/log.h"  // query_logger
-#include "sql/my_decimal.h"
+#include "sql/log.h"     // query_logger
 #include "sql/mysqld.h"  // set_remaining_args
 #include "sql/mysqld_thd_manager.h"
 #include "sql/opt_costconstantcache.h"  // optimizer cost constant cache

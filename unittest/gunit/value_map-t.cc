@@ -28,12 +28,12 @@
 
 #include "my_alloc.h"                  // MEM_ROOT
 #include "mysql_time.h"                // MYSQL_TIME
+#include "sql-common/my_decimal.h"     // my_decimal
 #include "sql/field.h"                 // my_charset_numeric
 #include "sql/histograms/value_map.h"  // Value_map
 #include "sql/mem_root_allocator.h"
-#include "sql/my_decimal.h"  // my_decimal
-#include "sql/sql_time.h"    // my_time_compare
-#include "sql_string.h"      // String
+#include "sql/sql_time.h"  // my_time_compare
+#include "sql_string.h"    // String
 #include "unittest/gunit/benchmark.h"
 
 namespace value_map_unittest {

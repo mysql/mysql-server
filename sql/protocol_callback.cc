@@ -28,11 +28,11 @@
 
 #include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"
+#include "sql-common/my_decimal.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
-#include "sql/my_decimal.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"

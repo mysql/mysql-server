@@ -447,7 +447,6 @@ SET(SQL_SHARED_SOURCES
   mdl.cc
   mdl_context_backup.cc
   migrate_keyring.cc
-  my_decimal.cc
   mysqld.cc
   mysqld_thd_manager.cc
   opt_costconstantcache.cc
@@ -780,6 +779,7 @@ SET(SQL_SOURCE
   ../sql-common/sql_string.cc
   ../sql-common/bind_params.cc
   ../sql-common/json_binary.cc
+  ../sql-common/my_decimal.cc
   ../sql-common/json_dom.cc
   ../sql-common/json_error_handler.cc
   ../sql-common/json_path.cc

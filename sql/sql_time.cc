@@ -46,10 +46,10 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "nulls.h"
+#include "sql-common/my_decimal.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/field.h"
-#include "sql/my_decimal.h"
 #include "sql/sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
 #include "sql/sql_const.h"
 #include "sql/system_variables.h"

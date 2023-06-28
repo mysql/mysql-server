@@ -94,6 +94,7 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysql_version.h"
 #include "nulls.h"
+#include "sql-common/my_decimal.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // validate_user_plugins
 #include "sql/binlog.h"            // mysql_bin_log
@@ -108,7 +109,6 @@
 #include "sql/hostname_cache.h"  // host_cache_resize
 #include "sql/log.h"
 #include "sql/mdl.h"
-#include "sql/my_decimal.h"
 #include "sql/opt_trace_context.h"
 #include "sql/options_mysqld.h"
 #include "sql/protocol_classic.h"

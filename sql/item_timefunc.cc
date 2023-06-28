@@ -53,11 +53,11 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "nulls.h"
+#include "sql-common/my_decimal.h"
 #include "sql/current_thd.h"
 #include "sql/dd/info_schema/table_stats.h"
-#include "sql/dd/object_id.h"  // dd::Object_id
-#include "sql/derror.h"        // ER_THD
-#include "sql/my_decimal.h"
+#include "sql/dd/object_id.h"          // dd::Object_id
+#include "sql/derror.h"                // ER_THD
 #include "sql/parse_tree_node_base.h"  // Parse_context
 #include "sql/sql_class.h"             // THD
 #include "sql/sql_error.h"

@@ -49,6 +49,7 @@
 #include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_dbug.h"
+#include "my_decimal.h"
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "my_time.h"
@@ -61,7 +62,6 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql/malloc_allocator.h"
-#include "sql/my_decimal.h"
 #ifdef MYSQL_SERVER
 #include "sql/check_stack.h"
 #endif

@@ -51,13 +51,13 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "sql-common/my_decimal.h"
 #include "sql/enum_query_type.h"
 #include "sql/gis/geometries_cs.h"
 #include "sql/gis/wkb.h"
 #include "sql/item.h"       // Item_result_field
 #include "sql/item_func.h"  // Item_int_func
 #include "sql/mem_root_array.h"
-#include "sql/my_decimal.h"
 #include "sql/parse_location.h"     // POS
 #include "sql/parse_tree_window.h"  // PT_window
 #include "sql/sql_base.h"

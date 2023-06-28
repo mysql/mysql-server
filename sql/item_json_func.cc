@@ -50,6 +50,7 @@
 #include "sql-common/json_dom.h"
 #include "sql-common/json_path.h"
 #include "sql-common/json_syntax_check.h"
+#include "sql-common/my_decimal.h"
 #include "sql/current_thd.h"  // current_thd
 #include "sql/error_handler.h"
 #include "sql/field.h"
@@ -58,7 +59,6 @@
 #include "sql/item_subselect.h"
 #include "sql/json_diff.h"
 #include "sql/json_schema.h"
-#include "sql/my_decimal.h"
 #include "sql/parser_yystype.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_class.h"       // THD

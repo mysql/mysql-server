@@ -38,7 +38,7 @@
 #include "my_base.h"  // ha_rows
 #include "my_inttypes.h"
 #include "mysql_time.h"
-#include "sql/my_decimal.h"
+#include "sql-common/my_decimal.h"
 #include "sql_string.h"
 
 class Json_array;

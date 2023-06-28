@@ -52,6 +52,7 @@ struct TYPELIB;
 #include "mysql/psi/psi_memory.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysqld_error.h"
+#include "sql-common/my_decimal.h"
 #include "sql/changestreams/misc/replicated_columns_view_factory.h"  // get_columns_view
 #include "sql/create_field.h"
 #include "sql/dd/dd.h"          // get_dictionary
@@ -60,8 +61,7 @@ struct TYPELIB;
 #include "sql/field.h"          // Field
 #include "sql/log.h"
 #include "sql/log_event.h"  // Log_event
-#include "sql/my_decimal.h"
-#include "sql/mysqld.h"  // replica_type_conversions_options
+#include "sql/mysqld.h"     // replica_type_conversions_options
 #include "sql/psi_memory_key.h"
 #include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"    // Relay_log_info

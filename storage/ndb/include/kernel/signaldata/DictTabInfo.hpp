@@ -32,27 +32,9 @@
 #include <NdbSqlUtil.hpp>
 #include <ndb_global.h>
 #include "decimal.h"
+#include "sql-common/my_decimal.h"
 
 #define JAM_FILE_ID 87
-
-
-#ifndef my_decimal_h
-
-// sql/my_decimal.h requires many more sql/*.h new to ndb
-// for now, copy the bit we need  TODO proper fix
-
-#define DECIMAL_MAX_FIELD_SIZE ((9 * 9) - (2 * 8))
-
-#ifndef DECIMAL_NOT_SPECIFIED
-#define DECIMAL_NOT_SPECIFIED 31
-#endif
-
-inline int my_decimal_get_binary_size(uint precision, uint scale)
-{
-  return decimal_bin_size((int)precision, (int)scale);
-}
-
-#endif
 
 #define DTI_MAP_INT(x, y, z) \
   { DictTabInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::Uint32Value, 0, 0 }

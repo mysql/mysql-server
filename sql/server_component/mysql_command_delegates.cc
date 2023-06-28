@@ -28,7 +28,7 @@
 #include "include/mysqld_error.h"
 #include "include/sql_common.h"
 #include "mysql_command_services_imp.h"
-#include "sql/my_decimal.h"
+#include "sql-common/my_decimal.h"
 
 Command_delegate::Command_delegate(void *srv, SRV_CTX_H srv_ctx_h)
     : m_srv(srv), m_srv_ctx_h(srv_ctx_h), m_callbacks() {

@@ -30,10 +30,10 @@
 #include "my_time.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql/udf_registration_types.h"
+#include "sql-common/my_decimal.h"
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/field.h"          // Field
 #include "sql/handler.h"
-#include "sql/my_decimal.h"
 #include "sql/sql_const.h"
 #include "sql/table.h"   // TABLE
 #include "sql/tztime.h"  // Time_zone_offset

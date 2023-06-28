@@ -53,6 +53,7 @@
 #include "scope_guard.h"
 #include "sql-common/json_binary.h"  // json_binary::serialize
 #include "sql-common/json_dom.h"     // Json_dom, Json_wrapper
+#include "sql-common/my_decimal.h"
 #include "sql/create_field.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
@@ -70,8 +71,7 @@
 #include "sql/json_diff.h"  // Json_diff_vector
 #include "sql/key.h"
 #include "sql/log_event.h"  // class Table_map_log_event
-#include "sql/my_decimal.h"
-#include "sql/mysqld.h"  // log_10
+#include "sql/mysqld.h"     // log_10
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
 #include "sql/rpl_rli.h"                // Relay_log_info

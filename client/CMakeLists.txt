@@ -161,7 +161,7 @@ ADD_CONVENIENCE_LIBRARY(json_client_library
   )
 
 ADD_CONVENIENCE_LIBRARY(decimal
-  ${CMAKE_SOURCE_DIR}/sql/my_decimal.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/my_decimal.cc
   )
 
 SET(JSON_BINLOG_LIBS_TO_MERGE

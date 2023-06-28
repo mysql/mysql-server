@@ -53,6 +53,7 @@
 #include "mysqld_error.h"
 #include "scope_guard.h"          // create_scope_guard
 #include "sql-common/json_dom.h"  // Json_*
+#include "sql-common/my_decimal.h"
 #include "sql/auth/auth_common.h"
 #include "sql/create_field.h"
 #include "sql/dd/cache/dictionary_client.h"
@@ -70,8 +71,7 @@
 #include "sql/item.h"
 #include "sql/item_json_func.h"  // parse_json
 #include "sql/key.h"
-#include "sql/mdl.h"  // MDL_request
-#include "sql/my_decimal.h"
+#include "sql/mdl.h"             // MDL_request
 #include "sql/psi_memory_key.h"  // key_memory_histograms
 #include "sql/sql_base.h"        // open_and_lock_tables,
 #include "sql/sql_bitmap.h"

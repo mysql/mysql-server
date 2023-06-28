@@ -26,7 +26,7 @@
 #include "mysql/strings/m_ctype.h"
 #include "mysql_time.h"
 #include "mysys_util.h"
-#include "sql/my_decimal.h"
+#include "sql-common/my_decimal.h"
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"
 #include "sql_string.h"

@@ -58,10 +58,10 @@
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "nulls.h"
+#include "sql-common/my_decimal.h"  // my_decimal
 #include "sql/enum_query_type.h"
 #include "sql/field.h"  // Derivation
 #include "sql/mem_root_array.h"
-#include "sql/my_decimal.h"            // my_decimal
 #include "sql/parse_location.h"        // POS
 #include "sql/parse_tree_node_base.h"  // Parse_tree_node
 #include "sql/sql_array.h"             // Bounds_checked_array

@@ -91,6 +91,7 @@
 #include "pfs_table_provider.h"
 #include "prealloced_array.h"
 #include "scope_guard.h"
+#include "sql-common/my_decimal.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_fk_parent_table_access
 #include "sql/binlog.h"            // mysql_bin_log
@@ -141,7 +142,6 @@
 #include "sql/log_event.h"  // Query_log_event
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"
-#include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // lower_case_table_names
 #include "sql/partition_element.h"
 #include "sql/partition_info.h"                  // partition_info

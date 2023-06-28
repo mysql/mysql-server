@@ -40,12 +40,12 @@
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
+#include "sql-common/my_decimal.h"
 #include "sql/enum_query_type.h"
 #include "sql/item.h"
 #include "sql/item_func.h"       // Item_int_func
 #include "sql/item_row.h"        // Item_row
 #include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/my_decimal.h"
 #include "sql/parse_location.h"  // POS
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"

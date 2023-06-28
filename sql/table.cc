@@ -68,6 +68,7 @@
 #include "nulls.h"
 #include "sql-common/json_dom.h"  // Json_wrapper
 #include "sql-common/json_path.h"
+#include "sql-common/my_decimal.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // acl_getroot
 #include "sql/auth/sql_security_ctx.h"
@@ -92,7 +93,6 @@
 #include "sql/json_diff.h"  // Json_diff_vector
 #include "sql/key.h"        // find_ref_key
 #include "sql/log.h"
-#include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // reg_ext key_file_frm ...
 #include "sql/nested_join.h"
 #include "sql/opt_trace.h"  // opt_trace_disable_if_no_security_...

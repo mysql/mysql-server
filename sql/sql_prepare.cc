@@ -129,6 +129,7 @@ When one supplies long data for a placeholder:
 #include "mysqld_error.h"
 #include "nulls.h"
 #include "scope_guard.h"
+#include "sql-common/my_decimal.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/auth/sql_security_ctx.h"
@@ -141,7 +142,6 @@ When one supplies long data for a placeholder:
 #include "sql/item_func.h"  // user_var_entry
 #include "sql/log.h"        // query_logger
 #include "sql/mdl.h"
-#include "sql/my_decimal.h"
 #include "sql/mysqld.h"     // opt_general_log
 #include "sql/opt_trace.h"  // Opt_trace_array
 #include "sql/protocol.h"

@@ -72,6 +72,7 @@
 #include "mysqld_error.h"
 #include "priority_queue.h"
 #include "sql-common/json_dom.h"  // Json_wrapper
+#include "sql-common/my_decimal.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/bounded_queue.h"
 #include "sql/cmp_varlen_keys.h"
@@ -88,7 +89,6 @@
 #include "sql/key_spec.h"
 #include "sql/malloc_allocator.h"
 #include "sql/merge_many_buff.h"
-#include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // mysql_tmpdir
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace.h"

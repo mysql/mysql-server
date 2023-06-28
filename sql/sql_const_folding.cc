@@ -41,12 +41,12 @@
 #include "decimal.h"                       // E_DEC_FATAL_ERROR
 #include "field_types.h"                   // MYSQL_TYPE_DATE
                                            // assert
-#include "my_decimal.h"                    // my_decimal, my_decimal_cmp
 #include "my_inttypes.h"                   // longlong, ulonglong
 #include "my_time.h"                       // TIME_to_longlong_datetime_packed
 #include "mysql/strings/dtoa.h"            // DECIMAL_NOT_SPECIFIED
 #include "mysql/udf_registration_types.h"  // INT_RESULT, STRING_RESULT
 #include "mysql_time.h"                    // MYSQL_TIME
+#include "sql-common/my_decimal.h"         // my_decimal, my_decimal_cmp
 #include "sql/field.h"                     // Field_real, Field
 #include "sql/item.h"                      // Item, Item_field, Item_int
 #include "sql/item_cmpfunc.h"              // Item_bool_func2, Item_cond

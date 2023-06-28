@@ -71,10 +71,10 @@
 #include "psi_memory_key.h"
 #include "query_options.h"
 #include "scope_guard.h"
+#include "sql-common/my_decimal.h"  // my_decimal
 #include "sql/auth/auth_acls.h"
 #include "sql/binlog_reader.h"
 #include "sql/field_common_properties.h"
-#include "sql/my_decimal.h"               // my_decimal
 #include "sql/raii/thread_stage_guard.h"  // NAMED_THD_STAGE_GUARD
 #include "sql/rpl_handler.h"              // RUN_HOOK
 #include "sql/rpl_tblmap.h"

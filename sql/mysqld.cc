@@ -772,6 +772,7 @@ MySQL clients support the protocol:
 #ifdef _WIN32
 #include <shellapi.h>
 #endif
+#include "sql-common/my_decimal.h"
 #include "sql/auth/auth_common.h"         // grant_init
 #include "sql/auth/sql_authentication.h"  // init_rsa_keys
 #include "sql/auth/sql_security_ctx.h"
@@ -803,7 +804,6 @@ MySQL clients support the protocol:
 #include "sql/log_resource.h"
 #include "sql/mdl.h"
 #include "sql/mdl_context_backup.h"  // mdl_context_backup_manager
-#include "sql/my_decimal.h"
 #include "sql/mysqld_daemon.h"
 #include "sql/mysqld_thd_manager.h"              // Global_THD_manager
 #include "sql/opt_costconstantcache.h"           // delete_optimizer_cost_module

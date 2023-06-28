@@ -36,7 +36,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/strings/int2str.h"
-#include "sql/my_decimal.h"
+#include "sql-common/my_decimal.h"
 #include "template_utils.h"
 #include "unittest/gunit/benchmark.h"
 

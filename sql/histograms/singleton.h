@@ -74,11 +74,11 @@
 
 #include "my_inttypes.h"
 #include "mysql_time.h"
+#include "sql-common/my_decimal.h"
 #include "sql/histograms/histogram.h"  // Histogram, Histogram_comparator,
 #include "sql/histograms/value_map_type.h"
 #include "sql/mem_root_allocator.h"
 #include "sql/mem_root_array.h"
-#include "sql/my_decimal.h"
 #include "sql_string.h"
 
 class Json_array;

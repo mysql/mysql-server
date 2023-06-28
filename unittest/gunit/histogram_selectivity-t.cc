@@ -30,11 +30,11 @@
 #include "my_alloc.h"                    // MEM_ROOT
 #include "my_time.h"                     // MYSQL_TIME
 #include "mysql/strings/m_ctype.h"       // my_charset_utf8mb4_0900_ai_ci
+#include "sql-common/my_decimal.h"       // my_decimal
 #include "sql/field.h"                   // my_charset_numeric
 #include "sql/histograms/equi_height.h"  // Equi_height
 #include "sql/histograms/histogram.h"    // Histogram, Histogram_comparator
 #include "sql/histograms/value_map.h"    // Value_map<T>
-#include "sql/my_decimal.h"              // my_decimal
 #include "sql_string.h"                  // String
 
 namespace histogram_selectivity_test {
