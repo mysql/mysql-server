@@ -2680,3 +2680,14 @@ WHERE REPEAT( c1, LTRIM( -42 ^ ( 4 XOR -2023620608 ) ) );
 DROP TABLE t1;
 
 SET SESSION sql_mode=default;
+
+--echo #
+--echo # Bug#35499232 The quote function may return binary data
+--echo #
+
+SELECT QUOTE(x'01');
+SELECT QUOTE(NULL);
+--error ER_CANNOT_CONVERT_STRING
+SELECT QUOTE(x'80');
+--error ER_INVALID_CHARACTER_STRING
+SELECT QUOTE(_utf8mb4 x'80');

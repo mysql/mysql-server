@@ -5837,3 +5837,16 @@ Warning	1105	Cast to signed converted positive out-of-range integer to its negat
 Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 DROP TABLE t1;
 SET SESSION sql_mode=default;
+#
+# Bug#35499232 The quote function may return binary data
+#
+SELECT QUOTE(x'01');
+QUOTE(x'01')
+''
+SELECT QUOTE(NULL);
+QUOTE(NULL)
+NULL
+SELECT QUOTE(x'80');
+ERROR HY000: Cannot convert string '\x80' from binary to utf8mb4
+SELECT QUOTE(_utf8mb4 x'80');
+ERROR HY000: Invalid utf8mb4 character string: '80'
