@@ -127,9 +127,8 @@ class Observe_transmission_guard {
         }
         case mysql::binlog::event::QUERY_EVENT: {
           bool first_event_after_gtid =
-              prev_event_type ==
-                  mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT ||
-              prev_event_type == mysql::binlog::event::GTID_LOG_EVENT;
+              mysql::binlog::event::Log_event_type_helper::is_any_gtid_event(
+                  prev_event_type);
 
           Format_description_log_event fd_ev;
           fd_ev.common_footer->checksum_alg = checksum_alg;
@@ -725,7 +724,8 @@ bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
       set_fatal_error(buf);
       return true;
     }
-  } else if (type == mysql::binlog::event::GTID_LOG_EVENT) {
+  } else if (mysql::binlog::event::Log_event_type_helper::
+                 is_assigned_gtid_event(type)) {
     /*
       Normally, there will not be any GTID events when master has
       GTID_MODE=OFF, since GTID events are not generated when
@@ -751,7 +751,8 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr,
 
   uint8 event_type = (Log_event_type)event_ptr[LOG_EVENT_OFFSET];
   switch (event_type) {
-    case mysql::binlog::event::GTID_LOG_EVENT: {
+    case mysql::binlog::event::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_TAGGED_LOG_EVENT: {
       Format_description_log_event fd_ev;
       fd_ev.common_footer->checksum_alg = m_event_checksum_alg;
       Gtid_log_event gtid_ev(reinterpret_cast<const char *>(event_ptr), &fd_ev);

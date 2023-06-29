@@ -32,7 +32,7 @@ const size_t Uuid::BIT_LENGTH;
 namespace mysql::gtid {
 
 int Uuid::parse(const char *string, size_t len) {
-  return parse(string, len, bytes);
+  return parse(string, len, bytes.data());
 }
 
 int Uuid::parse(const char *in_string, size_t len,
@@ -113,5 +113,5 @@ size_t Uuid::to_string(const unsigned char *bytes_arg, char *buf) {
   return TEXT_LENGTH;
 }
 
-size_t Uuid::to_string(char *buf) const { return to_string(bytes, buf); }
+size_t Uuid::to_string(char *buf) const { return to_string(bytes.data(), buf); }
 }  // namespace mysql::gtid

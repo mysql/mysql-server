@@ -89,6 +89,7 @@ def	mysql	PRIMARY	def	mysql	func	name
 def	mysql	PRIMARY	def	mysql	global_grants	HOST
 def	mysql	PRIMARY	def	mysql	global_grants	PRIV
 def	mysql	PRIMARY	def	mysql	global_grants	USER
+def	mysql	PRIMARY	def	mysql	gtid_executed	gtid_tag
 def	mysql	PRIMARY	def	mysql	gtid_executed	interval_start
 def	mysql	PRIMARY	def	mysql	gtid_executed	source_uuid
 def	mysql	PRIMARY	def	mysql	help_category	help_category_id

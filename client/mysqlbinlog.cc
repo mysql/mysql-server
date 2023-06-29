@@ -1125,6 +1125,7 @@ static bool shall_skip_gtids(const Log_event *ev) {
 
   switch (ev->get_type_code()) {
     case mysql::binlog::event::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_TAGGED_LOG_EVENT:
     case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT: {
       Gtid_log_event *gtid =
           const_cast<Gtid_log_event *>(down_cast<const Gtid_log_event *>(ev));
@@ -1736,6 +1737,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         break;
       }
       case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT:
+      case mysql::binlog::event::GTID_TAGGED_LOG_EVENT:
       case mysql::binlog::event::GTID_LOG_EVENT: {
         seen_gtid = true;
         print_event_info->immediate_server_version =

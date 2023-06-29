@@ -67,6 +67,9 @@ const char *Binlog_read_error::get_str() const {
       return "Reading encrypted log files directly is not supported.";
     case ERROR_DECRYPTING_FILE:
       return "Failed to decrypt content read from binlog file.";
+    case EVENT_UNSUPPORTED_NEW_VERSION:
+      return "Unrecognized event format. The event appears to originate from "
+             "a future server version";
     default:
       /* There must be something wrong in the code if it reaches this branch. */
       assert(0);

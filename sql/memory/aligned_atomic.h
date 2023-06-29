@@ -135,6 +135,10 @@ static inline size_t minimum_cacheline_for() {
   return size;
 }
 
+/// @brief Template that may access Aligned_atomic internals
+template <class T>
+class Aligned_atomic_accessor;
+
 /**
   @class memory::Aligned_atomic
 
@@ -294,6 +298,9 @@ class Aligned_atomic {
     @return The in-memory size of the allocated byte buffer.
    */
   size_t allocated_size() const;
+
+  template <typename Accessor_type>
+  friend class Aligned_atomic_accessor;
 
  private:
   /** The size of the byte buffer. */

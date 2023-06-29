@@ -41,6 +41,7 @@ message GlobalTransactionIdentifiers {
 
     required bytes uuid = 1;
     repeated Range range = 2;
+    optional string tag = 3;
 }
 
 /**

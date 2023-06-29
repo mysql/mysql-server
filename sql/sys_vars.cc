@@ -1248,7 +1248,7 @@ static bool check_outside_trx(sys_var *var, THD *thd, set_var *) {
   if (!thd->owned_gtid_is_empty()) {
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
     if (thd->owned_gtid.sidno > 0)
-      thd->owned_gtid.to_string(thd->owned_sid, buf);
+      thd->owned_gtid.to_string(thd->owned_tsid, buf);
     else
       strcpy(buf, "ANONYMOUS");
     my_error(ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID, MYF(0), var->name.str, buf);
@@ -4099,7 +4099,7 @@ bool Sys_var_gtid_next::session_update(THD *thd, set_var *var) {
   }
   global_sid_lock->rdlock();
   Gtid_specification spec;
-  if (spec.parse(global_sid_map, res) != RETURN_STATUS_OK) {
+  if (spec.parse(global_sid_map, res) != mysql::utils::Return_status::ok) {
     global_sid_lock->unlock();
     return true;
   }

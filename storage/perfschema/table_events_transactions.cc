@@ -58,7 +58,7 @@ Plugin_table table_events_transactions_current::m_table_def(
     "  EVENT_NAME VARCHAR(128) not null,\n"
     "  STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),\n"
     "  TRX_ID BIGINT unsigned,\n"
-    "  GTID VARCHAR(64),\n"
+    "  GTID VARCHAR(90),\n"
     "  XID_FORMAT_ID INTEGER,\n"
     "  XID_GTRID VARCHAR(130),\n"
     "  XID_BQUAL VARCHAR(130),\n"
@@ -111,7 +111,7 @@ Plugin_table table_events_transactions_history::m_table_def(
     "  EVENT_NAME VARCHAR(128) not null,\n"
     "  STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),\n"
     "  TRX_ID BIGINT unsigned,\n"
-    "  GTID VARCHAR(64),\n"
+    "  GTID VARCHAR(90),\n"
     "  XID_FORMAT_ID INTEGER,\n"
     "  XID_GTRID VARCHAR(130),\n"
     "  XID_BQUAL VARCHAR(130),\n"
@@ -164,7 +164,7 @@ Plugin_table table_events_transactions_history_long::m_table_def(
     "  EVENT_NAME VARCHAR(128) not null,\n"
     "  STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),\n"
     "  TRX_ID BIGINT UNSIGNED,\n"
-    "  GTID VARCHAR(64),\n"
+    "  GTID VARCHAR(90),\n"
     "  XID_FORMAT_ID INTEGER,\n"
     "  XID_GTRID VARCHAR(130),\n"
     "  XID_BQUAL VARCHAR(130),\n"
@@ -285,10 +285,9 @@ int table_events_transactions_common::make_row(
      Given a SID, it can generate the textual representation of the
      GTID.
   */
-  rpl_sid *sid = &transaction->m_sid;
   Gtid_specification *gtid_spec = &transaction->m_gtid_spec;
-  m_row.m_gtid_length = gtid_spec->to_string(sid, m_row.m_gtid);
-
+  mysql::gtid::Tsid tsid(transaction->m_tsid);
+  m_row.m_gtid_length = gtid_spec->to_string(tsid, m_row.m_gtid);
   m_row.m_xid = transaction->m_xid;
   m_row.m_isolation_level = transaction->m_isolation_level;
   m_row.m_read_only = transaction->m_read_only;

@@ -62,6 +62,8 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/my_loglevel.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/serialization/serializer_default.h"
+#include "mysql/serialization/write_archive_binary.h"
 #include "mysql/strings/dtoa.h"
 #include "mysql/strings/int2str.h"
 #include "mysql/strings/m_ctype.h"
@@ -2598,7 +2600,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
   /* checking partitioning properties and perform corresponding actions */
 
   // Beginning of a group designated explicitly with BEGIN or GTID
-  if ((is_s_event = starts_group()) || is_gtid_event(this) ||
+  if ((is_s_event = starts_group()) || is_any_gtid_event(this) ||
       // or DDL:s or autocommit queries possibly associated with own p-events
       (!rli->curr_group_seen_begin && !rli->curr_group_seen_gtid &&
        /*
@@ -2627,7 +2629,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       assert(rli->last_assigned_worker == nullptr ||
              !is_mts_db_partitioned(rli));
 
-      if (is_s_event || is_gtid_event(this)) {
+      if (is_s_event || is_any_gtid_event(this)) {
         Slave_job_item job_item = {this, rli->get_event_relay_log_number(),
                                    rli->get_event_start_pos()};
         // B-event is appended to the Deferred Array associated with GCAP
@@ -2641,7 +2643,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
           rli->curr_group_seen_begin = true;
         }
 
-        if (is_gtid_event(this)) {
+        if (is_any_gtid_event(this)) {
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid = true;
 
@@ -2651,7 +2653,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
 
         if (schedule_next_event(this, rli)) {
           rli->abort_slave = true;
-          if (is_gtid_event(this)) {
+          if (is_any_gtid_event(this)) {
             rli->clear_processing_trx();
           }
           return nullptr;
@@ -2998,8 +3000,8 @@ int Log_event::apply_gtid_event(Relay_log_info *rli) {
   if (rli->curr_group_da.size() < 1) return 1;
 
   Log_event *ev = rli->curr_group_da[0].data;
-  assert(ev->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT ||
-         ev->get_type_code() == mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT);
+  assert(mysql::binlog::event::Log_event_type_helper::is_any_gtid_event(
+      ev->get_type_code()));
 
   error = ev->do_apply_event(rli);
   /* Clean up */
@@ -3119,9 +3121,8 @@ int Log_event::apply_event(Relay_log_info *rli) {
 #ifndef NDEBUG
           assert(rli->curr_group_da.size() == 1);
           Log_event *ev = rli->curr_group_da[0].data;
-          assert(ev->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT ||
-                 ev->get_type_code() ==
-                     mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT);
+          assert(mysql::binlog::event::Log_event_type_helper::is_any_gtid_event(
+              ev->get_type_code()));
 #endif
           /*
             With MTS logical clock mode, when coordinator is applying an
@@ -9765,7 +9766,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
         strcpy(buf, "applier_log_event");
       } else {
         if (!thd->owned_gtid_is_empty() && thd->owned_gtid.sidno > 0) {
-          thd->owned_gtid.to_string(thd->owned_sid, buf);
+          thd->owned_gtid.to_string(thd->owned_tsid, buf);
         } else {
           strcpy(buf, "ANONYMOUS");
         }
@@ -12890,19 +12891,14 @@ Gtid_log_event::Gtid_log_event(
       Log_event(header(), footer()) {
   DBUG_TRACE;
   if (!is_valid()) {
-    sid.clear();
+    tsid.clear();
     return;
   }
 
 #ifndef NDEBUG
   uint8_t const common_header_len = description_event->common_header_len;
-  uint8 const post_header_len =
-      buffer[EVENT_TYPE_OFFSET] ==
-              mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT
-          ? description_event->post_header_len
-                [mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT - 1]
-          : description_event
-                ->post_header_len[mysql::binlog::event::GTID_LOG_EVENT - 1];
+  auto ev_type = buffer[EVENT_TYPE_OFFSET];
+  uint8 const post_header_len = description_event->post_header_len[ev_type - 1];
   DBUG_PRINT("info",
              ("event_len: %zu; common_header_len: %d; post_header_len: %d",
               header()->data_written, common_header_len, post_header_len));
@@ -12911,7 +12907,7 @@ Gtid_log_event::Gtid_log_event(
   spec.type = get_type_code() == mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT
                   ? ANONYMOUS_GTID
                   : ASSIGNED_GTID;
-  sid.copy_from((uchar *)Uuid_parent_struct.bytes);
+  tsid = tsid_parent_struct;
   spec.gtid.sidno = gtid_info_struct.rpl_gtid_sidno;
   spec.gtid.gno = gtid_info_struct.rpl_gtid_gno;
 }
@@ -12939,18 +12935,22 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, bool using_trans,
   DBUG_TRACE;
   if (thd->owned_gtid.sidno > 0) {
     spec.set(thd->owned_gtid);
-    sid = thd->owned_sid;
+    tsid = thd->owned_tsid;
+    update_parent_gtid_info();
   } else {
     assert(thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS);
     spec.set_anonymous();
-    spec.gtid.clear();
-    sid.clear();
+    clear_gtid_and_spec();
   }
 
-  Log_event_type event_type =
-      (spec.type == ANONYMOUS_GTID
-           ? mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT
-           : mysql::binlog::event::GTID_LOG_EVENT);
+  Log_event_type event_type = mysql::binlog::event::GTID_LOG_EVENT;
+  if (spec.type == ANONYMOUS_GTID) {
+    event_type = mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT;
+  }
+  if (thd->owned_tsid.is_tagged()) {
+    event_type = mysql::binlog::event::GTID_TAGGED_LOG_EVENT;
+  }
+
   common_header->type_code = event_type;
 
 #ifndef NDEBUG
@@ -12959,6 +12959,18 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, bool using_trans,
   DBUG_PRINT("info", ("%s", buf));
 #endif
   common_header->set_is_valid(true);
+}
+
+void Gtid_log_event::update_parent_gtid_info() {
+  tsid_parent_struct = tsid;
+  gtid_info_struct.rpl_gtid_sidno = spec.gtid.sidno;
+  gtid_info_struct.rpl_gtid_gno = spec.gtid.gno;
+}
+
+void Gtid_log_event::clear_gtid_and_spec() {
+  spec.gtid.clear();
+  tsid.clear();
+  update_parent_gtid_info();
 }
 
 Gtid_log_event::Gtid_log_event(
@@ -12980,6 +12992,7 @@ Gtid_log_event::Gtid_log_event(
   common_header->unmasked_server_id = server_id_arg;
   common_header->set_is_valid(true);
 
+  Log_event_type event_type = mysql::binlog::event::GTID_LOG_EVENT;
   if (spec_arg.type == ASSIGNED_GTID) {
     assert(spec_arg.gtid.sidno > 0);
     assert(spec_arg.gtid.gno > 0);
@@ -12988,20 +13001,28 @@ Gtid_log_event::Gtid_log_event(
       common_header->set_is_valid(false);
     spec.set(spec_arg.gtid);
     global_sid_lock->rdlock();
-    sid = global_sid_map->sidno_to_sid(spec_arg.gtid.sidno);
+    tsid = global_sid_map->sidno_to_sid(spec_arg.gtid.sidno);
     global_sid_lock->unlock();
+    if (tsid.is_tagged()) {
+      event_type = mysql::binlog::event::GTID_TAGGED_LOG_EVENT;
+    } else {
+      auto specified_tag = spec_arg.generate_tag();
+      if (specified_tag.is_defined()) {
+        // AUTOMATIC GTID is being sent as specified GTID (1,1)
+        // update tsid tag to tag specified in GTID specification object
+        event_type = mysql::binlog::event::GTID_TAGGED_LOG_EVENT;
+        tsid.set_tag(specified_tag);
+      }
+    }
+    update_parent_gtid_info();
   } else {
     assert(spec_arg.type == ANONYMOUS_GTID);
     spec.set_anonymous();
-    spec.gtid.clear();
-    sid.clear();
+    event_type = mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT;
     common_header->flags |= LOG_EVENT_IGNORABLE_F;
+    clear_gtid_and_spec();
   }
 
-  Log_event_type event_type =
-      (spec.type == ANONYMOUS_GTID
-           ? mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT
-           : mysql::binlog::event::GTID_LOG_EVENT);
   common_header->type_code = event_type;
 
 #ifndef NDEBUG
@@ -13024,7 +13045,7 @@ size_t Gtid_log_event::to_string(char *buf) const {
   assert(strlen(SET_STRING_PREFIX) == SET_STRING_PREFIX_LENGTH);
   strcpy(p, SET_STRING_PREFIX);
   p += SET_STRING_PREFIX_LENGTH;
-  p += spec.to_string(&sid, p);
+  p += spec.to_string(tsid, p);
   *p++ = '\'';
   *p = '\0';
   return p - buf;
@@ -13041,18 +13062,23 @@ void Gtid_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   IO_CACHE *const head = &print_event_info->head_cache;
   if (!print_event_info->short_form) {
     print_header(head, print_event_info, false);
-    my_b_printf(head,
-                "\t%s\tlast_committed=%llu\tsequence_number=%llu\t"
-                "rbr_only=%s\t"
-                "original_committed_timestamp=%llu\t"
-                "immediate_commit_timestamp=%llu\t"
-                "transaction_length=%llu\n",
-                get_type_code() == mysql::binlog::event::GTID_LOG_EVENT
-                    ? "GTID"
-                    : "Anonymous_GTID",
-                last_committed, sequence_number,
-                may_have_sbr_stmts ? "no" : "yes", original_commit_timestamp,
-                immediate_commit_timestamp, transaction_length);
+    my_b_printf(
+        head,
+        "\t%s\tlast_committed=%llu\tsequence_number=%llu\t"
+        "rbr_only=%s\t"
+        "original_committed_timestamp=%llu\t"
+        "immediate_commit_timestamp=%llu\t"
+        "transaction_length=%llu\n",
+        mysql::binlog::event::Log_event_type_helper::is_assigned_gtid_event(
+            get_type_code())
+            ? "GTID"
+            : "Anonymous_GTID",
+        static_cast<unsigned long long>(last_committed),
+        static_cast<unsigned long long>(sequence_number),
+        may_have_sbr_stmts ? "no" : "yes",
+        static_cast<unsigned long long>(original_commit_timestamp),
+        static_cast<unsigned long long>(immediate_commit_timestamp),
+        get_trx_length());
   }
 
   /*
@@ -13112,25 +13138,26 @@ void Gtid_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
 #ifdef MYSQL_SERVER
 uint32 Gtid_log_event::write_post_header_to_memory(uchar *buffer) {
   DBUG_TRACE;
+
+  if (is_tagged()) {
+    return 0;
+  }
+
   uchar *ptr_buffer = buffer;
 
   /* Encode the GTID flags */
-  uchar gtid_flags = 0;
-  gtid_flags |= may_have_sbr_stmts
-                    ? mysql::binlog::event::Gtid_event::FLAG_MAY_HAVE_SBR
-                    : 0;
   *ptr_buffer = gtid_flags;
   ptr_buffer += ENCODED_FLAG_LENGTH;
 
 #ifndef NDEBUG
-  char buf[mysql::gtid::Uuid::TEXT_LENGTH + 1];
-  sid.to_string(buf);
-  DBUG_PRINT("info", ("sid=%s sidno=%d gno=%" PRId64, buf, spec.gtid.sidno,
-                      spec.gtid.gno));
+  std::string tsid_str = tsid.to_string();  // 2 step, cause we need const str
+  DBUG_PRINT("info", ("sid=%s sidno=%d gno=%" PRId64, tsid_str.c_str(),
+                      spec.gtid.sidno, spec.gtid.gno));
 #endif
 
-  sid.copy_to(ptr_buffer);
-  ptr_buffer += ENCODED_SID_LENGTH;
+  // this is an old format
+  ptr_buffer +=
+      tsid.encode_tsid(ptr_buffer, mysql::gtid::Gtid_format::untagged);
 
 #ifndef NDEBUG
   if (DBUG_EVALUATE_IF("send_invalid_gno_to_replica", true, false))
@@ -13166,14 +13193,47 @@ uint32 Gtid_log_event::write_post_header_to_memory(uchar *buffer) {
 #ifdef MYSQL_SERVER
 bool Gtid_log_event::write_data_header(Basic_ostream *ostream) {
   DBUG_TRACE;
+  if (is_tagged()) {
+    return 0;
+  }
   uchar buffer[POST_HEADER_LENGTH];
   write_post_header_to_memory(buffer);
   return wrapper_my_b_safe_write(ostream, (uchar *)buffer, POST_HEADER_LENGTH);
 }
 
+uint32 Gtid_log_event::write_tagged_event_body_to_memory(uchar *buffer) {
+  Encoder_type serializer;
+  // allocated buffer has get_max_payload_size() bytes
+  serializer.get_archive().set_stream(buffer, get_max_payload_size());
+  serializer << *this;
+  auto size_written = serializer.get_archive().get_size_written();
+  DBUG_EXECUTE_IF("add_unknown_ignorable_fields_to_gtid_log_event", {
+    uint64_t ser_size = 0;
+    mysql::serialization::Primitive_type_codec<uint64_t>::read_bytes<0>(
+        buffer + 1, size_written - 1, ser_size);
+    ser_size += 2;
+    mysql::serialization::Primitive_type_codec<uint64_t>::write_bytes<0>(
+        buffer + 1, ser_size);
+    uint64_t new_id = 100;
+    mysql::serialization::Primitive_type_codec<uint64_t>::write_bytes<0>(
+        buffer + size_written, new_id);
+    buffer[size_written + 1] = 3;  // some data
+    size_written += 2;             // safe to be called in this debug point
+  });
+  DBUG_EXECUTE_IF("change_unknown_fields_to_non_ignorable", {
+    uint64_t new_id = 100;
+    mysql::serialization::Primitive_type_codec<uint64_t>::write_bytes<0>(
+        buffer + 2, new_id);
+  });
+  return size_written;
+}
+
 uint32 Gtid_log_event::write_body_to_memory(uchar *buffer) {
   DBUG_TRACE;
   DBUG_EXECUTE_IF("do_not_write_rpl_timestamps", return 0;);
+  if (is_tagged()) {
+    return write_tagged_event_body_to_memory(buffer);
+  }
   uchar *ptr_buffer = buffer;
 
   /*
@@ -13200,7 +13260,7 @@ uint32 Gtid_log_event::write_body_to_memory(uchar *buffer) {
   }
 
   // Write the transaction length information
-  uchar *ptr_after_length = net_store_length(ptr_buffer, transaction_length);
+  uchar *ptr_after_length = net_store_length(ptr_buffer, get_trx_length());
   ptr_buffer = ptr_after_length;
 
   /*
@@ -13235,7 +13295,7 @@ uint32 Gtid_log_event::write_body_to_memory(uchar *buffer) {
 
 bool Gtid_log_event::write_data_body(Basic_ostream *ostream) {
   DBUG_TRACE;
-  uchar buffer[MAX_DATA_LENGTH];
+  uchar buffer[get_max_event_length()];
   uint32 len = write_body_to_memory(buffer);
   return wrapper_my_b_safe_write(ostream, (uchar *)buffer, len);
 }
@@ -13404,9 +13464,23 @@ Log_event::enum_skip_reason Gtid_log_event::do_shall_skip(Relay_log_info *rli) {
 }
 #endif  // MYSQL_SERVER
 
+void Gtid_log_event::set_trx_length_by_cache_size_tagged(
+    ulonglong cache_size, bool is_checksum_enabled, int event_counter) {
+  auto transaction_length_overhead = cache_size;
+  if (is_checksum_enabled) {
+    transaction_length_overhead += (event_counter + 1) * BINLOG_CHECKSUM_LEN;
+  }
+  transaction_length_overhead += LOG_EVENT_HEADER_LEN;
+  update_tagged_transaction_length(transaction_length_overhead);
+}
+
 void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
                                                   bool is_checksum_enabled,
                                                   int event_counter) {
+  if (is_tagged()) {
+    return set_trx_length_by_cache_size_tagged(cache_size, is_checksum_enabled,
+                                               event_counter);
+  }
   // Transaction content length
   transaction_length = cache_size;
   if (is_checksum_enabled)
@@ -13415,42 +13489,10 @@ void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
   // GTID length
   transaction_length += LOG_EVENT_HEADER_LEN;
   transaction_length += POST_HEADER_LENGTH;
+  transaction_length += is_checksum_enabled ? BINLOG_CHECKSUM_LEN : 0;
   transaction_length += get_commit_timestamp_length();
   transaction_length += get_server_version_length();
-  transaction_length += is_checksum_enabled ? BINLOG_CHECKSUM_LEN : 0;
-
-  /*
-    Notice that it is not possible to determine the transaction_length field
-    size using pack.cc:net_length_size() since the length of the field itself
-    must be added to the value.
-
-    Example: Suppose transaction_length is 250 without considering the
-    transaction_length field. Using net_length_size(250) would return 1, but
-    when adding the transaction_length field size to it (+1), the
-    transaction_length becomes 251, and the field must be represented using two
-    more bytes, so the correct transaction length must be in fact 253.
-  */
-#ifndef NDEBUG
-  const ulonglong size_without_transaction_length = transaction_length;
-#endif
-  // transaction_length will use at least TRANSACTION_LENGTH_MIN_LENGTH
-  transaction_length += TRANSACTION_LENGTH_MIN_LENGTH;
-  assert(transaction_length - size_without_transaction_length == 1);
-  if (transaction_length >= 251ULL) {
-    // transaction_length will use at least 3 bytes
-    transaction_length += 2;
-    assert(transaction_length - size_without_transaction_length == 3);
-    if (transaction_length >= 65536ULL) {
-      // transaction_length will use at least 4 bytes
-      transaction_length += 1;
-      assert(transaction_length - size_without_transaction_length == 4);
-      if (transaction_length >= 16777216ULL) {
-        // transaction_length will use 9 bytes
-        transaction_length += 5;
-        assert(transaction_length - size_without_transaction_length == 9);
-      }
-    }
-  }
+  return update_untagged_transaction_length();
 }
 
 rpl_sidno Gtid_log_event::get_sidno(bool need_lock) {
@@ -13459,7 +13501,8 @@ rpl_sidno Gtid_log_event::get_sidno(bool need_lock) {
       global_sid_lock->rdlock();
     else
       global_sid_lock->assert_some_lock();
-    spec.gtid.sidno = global_sid_map->add_sid(sid);
+    spec.gtid.sidno = global_sid_map->add_tsid(tsid);
+    gtid_info_struct.rpl_gtid_sidno = spec.gtid.sidno;
     if (need_lock) global_sid_lock->unlock();
   }
   return spec.gtid.sidno;

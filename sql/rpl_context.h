@@ -257,7 +257,7 @@ class Last_used_gtid_tracker_ctx {
    @param[in]  gtid  the used gtid.
    @param[in]  sid   the used sid.
   */
-  void set_last_used_gtid(const Gtid &gtid, const rpl_sid &sid);
+  void set_last_used_gtid(const Gtid &gtid, const mysql::gtid::Tsid &sid);
 
   /**
    Get the last used GTID the session.
@@ -267,15 +267,15 @@ class Last_used_gtid_tracker_ctx {
   void get_last_used_gtid(Gtid &gtid);
 
   /**
-   Get the last used SID of the session.
+   Get the last used TSID of the session.
 
-   @param[out]  sid the used sid.
+   @param[out]  tsid the used tsid.
   */
-  void get_last_used_sid(rpl_sid &sid);
+  void get_last_used_tsid(mysql::gtid::Tsid &tsid);
 
  private:
   std::unique_ptr<Gtid> m_last_used_gtid;
-  rpl_sid m_last_used_sid;
+  mysql::gtid::Tsid m_last_used_tsid;
 };
 
 class Transaction_compression_ctx {

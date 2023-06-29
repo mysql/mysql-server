@@ -3,4 +3,4 @@ SUBSTRING_INDEX(SUBSTRING(properties, LOCATE('PS_VERSION', properties), 30), ';'
 PS_VERSION=80200
 "Checking the performance schema database structure ..."
 CHECK STATUS
-The tables in the performance_schema were last changed in MySQL 8.2.0
+The tables in the performance_schema were last changed in MySQL 8.3.0

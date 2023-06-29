@@ -27,18 +27,23 @@
 #include <cinttypes>
 #include <list>
 #include <mutex>  // std::adopt_lock_t
+#include <vector>
 
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_thread_local.h"
 #include "mysql/binlog/event/compression/base.h"  // mysql::binlog::event::compression::type
 #include "mysql/gtid/global.h"
+#include "mysql/gtid/gtid.h"
+#include "mysql/gtid/tsid.h"
 #include "mysql/gtid/uuid.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_rwlock.h"  // mysql_rwlock_t
 #include "mysql/strings/m_ctype.h"   // my_isspace
-#include "prealloced_array.h"        // Prealloced_array
-#include "sql/rpl_reporting.h"       // MAX_SLAVE_ERRMSG
+#include "mysql/utils/return_status.h"
+#include "prealloced_array.h"  // Prealloced_array
+#include "sql/changestreams/index/sidno.h"
+#include "sql/rpl_reporting.h"  // MAX_SLAVE_ERRMSG
 #include "template_utils.h"
 
 class Table_ref;
@@ -75,6 +80,7 @@ extern PSI_memory_key key_memory_Gtid_state_group_commit_sidno;
 */
 #define SKIP_WHITESPACE() \
   while (my_isspace(&my_charset_utf8mb3_general_ci, *s)) s++
+
 /*
   This macro must be used to filter out parts of the code that
   is not used now but may be useful in future. In other words,
@@ -97,7 +103,8 @@ class THD;
 #endif  // ifdef MYSQL_SERVER
 
 /// Type of SIDNO (source ID number, first component of GTID)
-typedef int rpl_sidno;
+using rpl_sidno = cs::index::rpl_sidno;
+
 /// GNO, the second (numeric) component of a GTID, is an alias of
 /// mysql::gtid::gno_t
 using rpl_gno = mysql::gtid::gno_t;
@@ -740,6 +747,7 @@ class Sid_map {
     number of SIDNOs.
   */
   Sid_map(Checkable_rwlock *sid_lock);
+
   /// Destroy this Sid_map.
   ~Sid_map();
   /**
@@ -748,24 +756,34 @@ class Sid_map {
     @return RETURN_STATUS_OK or RETURN_STAUTS_REPORTED_ERROR
   */
   enum_return_status clear();
+
+  using Tsid = mysql::gtid::Tsid;
+  using Tag = mysql::gtid::Tag;
+  using Sid_to_sidno_allocator = Map_allocator_type<Tsid, rpl_sidno>;
+  using Sid_to_sidno_umap = malloc_unordered_map<Tsid, rpl_sidno, Tsid::Hash>;
+  using Sid_to_sidno_map = Map_myalloc<Tsid, rpl_sidno>;
+  using Sid_to_sidno_it = Sid_to_sidno_map::const_iterator;
+  using Tsid_ref = std::reference_wrapper<const Tsid>;
+  using Sidno_to_sid_cont = std::vector<Tsid_ref, Malloc_allocator<Tsid_ref>>;
+
   /**
-    Add the given SID to this map if it does not already exist.
+    Add the given TSID to this map if it does not already exist.
 
     The caller must hold the read lock or write lock on sid_lock
-    before invoking this function.  If the SID does not exist in this
+    before invoking this function.  If the TSID does not exist in this
     map, it will release the read lock, take a write lock, update the
     map, release the write lock, and take the read lock again.
 
-    @param sid The SID.
-    @retval SIDNO The SIDNO for the SID (a new SIDNO if the SID did
+    @param tsid The TSID.
+    @retval SIDNO The SIDNO for the TSID (a new SIDNO if the TSID did
     not exist, an existing if it did exist).
     @retval negative Error. This function calls my_error.
   */
-  rpl_sidno add_sid(const rpl_sid &sid);
+  [[NODISCARD]] rpl_sidno add_tsid(const Tsid &tsid);
   /**
     Get the SIDNO for a given SID
 
-    The caller must hold the read lock on sid_lock before invoking
+    The caller must hold the read lock on tsid_lock before invoking
     this function.
 
     @param sid The SID.
@@ -773,10 +791,28 @@ class Sid_map {
     @retval 0 if the given SID does not exist in this map.
   */
   rpl_sidno sid_to_sidno(const rpl_sid &sid) const {
+    Tsid tsid(sid, Tag());
     if (sid_lock != nullptr) sid_lock->assert_some_lock();
-    const auto it = _sid_to_sidno.find(sid);
+    const auto it = _sid_to_sidno.find(tsid);
     if (it == _sid_to_sidno.end()) return 0;
-    return it->second->sidno;
+    return it->second;
+  }
+
+  /**
+    Get the SIDNO for a given TSID
+
+    The caller must hold the read lock on tsid_lock before invoking
+    this function.
+
+    @param tsid The TSID.
+    @retval SIDNO if the given TSID exists in this map.
+    @retval 0 if the given TSID does not exist in this map.
+  */
+  rpl_sidno tsid_to_sidno(const Tsid &tsid) const {
+    if (sid_lock != nullptr) sid_lock->assert_some_lock();
+    const auto it = _sid_to_sidno.find(tsid);
+    if (it == _sid_to_sidno.end()) return 0;
+    return it->second;
   }
   /**
     Get the SID for a given SIDNO.
@@ -798,7 +834,7 @@ class Sid_map {
     even after this Sid_map is modified, but not if this Sid_map is
     destroyed.
   */
-  const rpl_sid &sidno_to_sid(rpl_sidno sidno, bool need_lock = false) const {
+  const Tsid &sidno_to_sid(rpl_sidno sidno, bool need_lock = false) const {
     if (sid_lock != nullptr) {
       if (need_lock)
         sid_lock->rdlock();
@@ -806,22 +842,31 @@ class Sid_map {
         sid_lock->assert_some_lock();
     }
     assert(sidno >= 1 && sidno <= get_max_sidno());
-    const rpl_sid &ret = (_sidno_to_sid[sidno - 1])->sid;
+    const auto &ret = (_sidno_to_sid[sidno - 1]);
     if (sid_lock != nullptr && need_lock) sid_lock->unlock();
-    return ret;
+    return ret.get();
   }
+
   /**
-    Return the n'th smallest sidno, in the order of the SID's UUID.
+    Returns TSID to SID map
 
     The caller must hold the read or write lock on sid_lock before
     invoking this function.
 
-    @param n A number in the interval [0, get_max_sidno()-1], inclusively.
+    @return constant reference to sid_to_sidno container
   */
-  rpl_sidno get_sorted_sidno(rpl_sidno n) const {
+  const Sid_to_sidno_map &get_sorted_sidno() const { return _sorted; }
+
+  const rpl_sidno &get_sidno(const Sid_to_sidno_it &it) const {
     if (sid_lock != nullptr) sid_lock->assert_some_lock();
-    return _sorted[n];
+    return it->second;
   }
+
+  const Tsid &get_tsid(const Sid_to_sidno_it &it) const {
+    if (sid_lock != nullptr) sid_lock->assert_some_lock();
+    return it->first;
+  }
+
   /**
     Return the biggest sidno in this Sid_map.
 
@@ -851,18 +896,6 @@ class Sid_map {
   enum_return_status copy(Sid_map *dest);
 
  private:
-  /// Node pointed to by both the hash and the array.
-  struct Node {
-    rpl_sidno sidno;
-    rpl_sid sid;
-  };
-
-  static const uchar *sid_map_get_key(const uchar *ptr, size_t *length) {
-    const Node *node = pointer_cast<const Node *>(ptr);
-    *length = mysql::gtid::Uuid::BYTE_LENGTH;
-    return node->sid.bytes;
-  }
-
   /**
     Create a Node from the given SIDNO and SID and add it to
     _sidno_to_sid, _sid_to_sidno, and _sorted.
@@ -871,10 +904,10 @@ class Sid_map {
     this function.
 
     @param sidno The SIDNO to add.
-    @param sid The SID to add.
+    @param tsid The TSID to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_node(rpl_sidno sidno, const rpl_sid &sid);
+  [[NODISCARD]] enum_return_status add_node(rpl_sidno sidno, const Tsid &tsid);
 
   /// Read-write lock that protects updates to the number of SIDNOs.
   mutable Checkable_rwlock *sid_lock;
@@ -883,20 +916,20 @@ class Sid_map {
     Array that maps SIDNO to SID; the element at index N points to a
     Node with SIDNO N-1.
   */
-  Prealloced_array<Node *, 8> _sidno_to_sid;
+  Sidno_to_sid_cont _sidno_to_sid{
+      Malloc_allocator<rpl_sid>{key_memory_Sid_map_Node}};
+
   /**
     Hash that maps SID to SIDNO.
   */
-  malloc_unordered_map<rpl_sid, unique_ptr_my_free<Node>,
-                       mysql::gtid::Hash_Uuid>
-      _sid_to_sidno{key_memory_Sid_map_Node};
+  Sid_to_sidno_umap _sid_to_sidno{key_memory_Sid_map_Node};
   /**
-    Array that maps numbers in the interval [0, get_max_sidno()-1] to
-    SIDNOs, in order of increasing SID.
+    Data structure that maps numbers in the interval [0, get_max_sidno()-1] to
+    SIDNOs, in order of increasing TSID.
 
     @see Sid_map::get_sorted_sidno.
   */
-  Prealloced_array<rpl_sidno, 8> _sorted;
+  Sid_to_sidno_map _sorted{Sid_to_sidno_allocator{key_memory_Sid_map_Node}};
 };
 
 extern Sid_map *global_sid_map;
@@ -1075,6 +1108,8 @@ struct Gtid_interval {
   THD::variables.
 */
 struct Gtid {
+  using Tsid = mysql::gtid::Tsid;
+  using Tag = mysql::gtid::Tag;
   /// SIDNO of this Gtid.
   rpl_sidno sidno;
   /// GNO of this Gtid.
@@ -1110,7 +1145,7 @@ struct Gtid {
     including the terminating '\0'.
   */
   static const int MAX_TEXT_LENGTH =
-      mysql::gtid::Uuid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH;
+      mysql::gtid::tsid_max_length + 1 + MAX_GNO_TEXT_LENGTH;
   /**
     Return true if parse() would succeed, but don't store the
     result anywhere.
@@ -1118,12 +1153,13 @@ struct Gtid {
   static bool is_valid(const char *text);
   /**
     Convert a Gtid to a string.
-    @param sid the sid to use. This overrides the sidno of this Gtid.
+    @param tsid the TSID to use. This overrides the sidno of this Gtid.
     @param[out] buf Buffer to store the Gtid in (normally
     MAX_TEXT_LENGTH+1 bytes long).
     @return Length of the string, not counting '\0'.
   */
-  int to_string(const rpl_sid &sid, char *buf) const;
+  int to_string(const Tsid &tsid, char *buf) const;
+
   /**
     Convert this Gtid to a string.
     @param sid_map sid_map to use when converting sidno to a SID.
@@ -1144,9 +1180,32 @@ struct Gtid {
 
     @param sid_map sid_map to use when converting SID to a sidno.
     @param text The text to parse
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+    @return status of operation
   */
-  enum_return_status parse(Sid_map *sid_map, const char *text);
+  [[NODISCARD]] mysql::utils::Return_status parse(Sid_map *sid_map,
+                                                  const char *text);
+
+  /// @brief Parses TAG from a textual representation of the GTID (text)
+  /// @param[in] text String with full GTID specification
+  /// @param[in] pos Current position within a text
+  /// @return Parsed tag
+  ///         Updated position within text
+  static std::pair<Tag, std::size_t> parse_tag_str(const char *text,
+                                                   std::size_t pos);
+
+  /// @brief Helper used to report BINLOG error
+  /// @param[in] text String with full GTID specification
+  static void report_parsing_error(const char *text);
+
+  /// @brief Parses GTID from text. In case GTID is valid, it will return
+  /// "ok" status code and a valid mysql::gtid::Gtid object. Otherwise,
+  /// it will return an empty Gtid and error
+  /// @param[in] text Text containing textual representation of a GTID
+  static std::pair<mysql::utils::Return_status, mysql::gtid::Gtid>
+  parse_gtid_from_cstring(const char *text);
+
+  /// @brief Definition of GTID separator (colon) which separates UUID and GNO
+  static constexpr auto gtid_separator = ':';
 
 #ifndef NDEBUG
   /// Debug only: print this Gtid to stdout.
@@ -1166,6 +1225,47 @@ struct Gtid {
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
   }
+
+ protected:
+  /// @brief Converts internal gno into the string
+  /// @param[out] buf Buffer to store the GNO in
+  /// @return Length of the string
+  int to_string_gno(char *buf) const;
+
+  /// @brief Helper function used to skip whitespaces in GTID specification
+  /// @param[in] text String with full GTID specification
+  /// @param[in] pos Current position within a text
+  /// @return Updated position in text
+  static std::size_t skip_whitespace(const char *text, std::size_t pos);
+
+  /// @brief Parses SID from a textual representation of the GTID.
+  /// @param[in] text String with full GTID specification
+  /// @param[in] pos Current position within a text
+  /// @return operation status;
+  ///         Parsed sidno in case status is equal to true,
+  ///           0 otherwise;
+  ///         Updated position within text up to which characters has
+  ///           been accepted
+  static std::tuple<mysql::utils::Return_status, rpl_sid, std::size_t>
+  parse_sid_str(const char *text, std::size_t pos);
+
+  /// @brief Parses GNO from a textual representation of the GTID (text)
+  /// @param[in] text String with full GTID specification
+  /// @param[in] pos Current position within a text
+  /// @return operation status;
+  ///         Parsed gno in case status is equal to true or 0;
+  ///         Updated position within text
+  static std::tuple<mysql::utils::Return_status, rpl_gno, std::size_t>
+  parse_gno_str(const char *text, std::size_t pos);
+
+  /// @brief Parses GTID separator from a textual representation of the GTID
+  /// (text)
+  /// @param[in] text String with full GTID specification
+  /// @param[in] pos Current position within a text
+  /// @return parsing status, error in case separator could not have been parsed
+  ///         Updated position within text
+  static std::pair<mysql::utils::Return_status, std::size_t>
+  parse_gtid_separator(const char *text, std::size_t pos);
 };
 
 /// Structure to store the GTID and timing information.
@@ -1636,6 +1736,12 @@ class Gtid_set {
   */
   enum_return_status add_gtid_text(const char *text, bool *anonymous = nullptr,
                                    bool *starts_with_plus = nullptr);
+
+  /// @brief Adds specified GTID (TSID+GNO) to this Gtid_set.
+  /// @param gtid mysql::gtid::Gtid object
+  /// @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  [[NODISCARD]] enum_return_status add_gtid(const mysql::gtid::Gtid &gtid);
+
   /**
     Decodes a Gtid_set from the given string.
 
@@ -1776,8 +1882,10 @@ class Gtid_set {
     const char *begin;
     /// The generated string begins with this.
     const char *end;
-    /// In 'SID:GNO', this is the ':'
-    const char *sid_gno_separator;
+    /// In 'SID:TAG', this is the ':'
+    const char *tag_sid_separator;
+    /// In 'TSID:GNO', this is the ':'
+    const char *tsid_gno_separator;
     /// In 'SID:GNO-GNO', this is the '-'
     const char *gno_start_end_separator;
     /// In 'SID:GNO:GNO', this is the second ':'
@@ -1789,7 +1897,8 @@ class Gtid_set {
     /// The following fields are the lengths of each field above.
     const int begin_length;
     const int end_length;
-    const int sid_gno_separator_length;
+    const int tag_sid_separator_length;
+    const int tsid_gno_separator_length;
     const int gno_start_end_separator_length;
     const int gno_gno_separator_length;
     const int gno_sid_separator_length;
@@ -2104,15 +2213,29 @@ class Gtid_set {
   };
 
  public:
-  /**
-    Encodes this Gtid_set as a binary string.
-  */
-  void encode(uchar *buf) const;
-  /**
-    Returns the length of this Gtid_set when encoded using the
-    encode() function.
-  */
-  size_t get_encoded_length() const;
+  /// @brief Encodes this Gtid_set as a binary string.
+  /// @param buf Buffer to write into
+  /// @param skip_tagged_gtids When true, tagged GTIDS will be filtered out
+  void encode(uchar *buf, bool skip_tagged_gtids = false) const;
+
+  /// @brief Returns the length of this Gtid_set when encoded using the
+  /// encode() function. Before calculation, analyzes GTID set format
+  /// @param skip_tagged_gtids When true, tagged GTIDS will be filtered out
+  /// @return length of Gtid_set encoding
+  size_t get_encoded_length(bool skip_tagged_gtids = false) const;
+
+  /// Returns the length of this Gtid_set when encoded using the
+  /// encode() function. Uses already analyzed GTID set format (faster version)
+  /// @param format Gtid format
+  /// @param skip_tagged_gtids When true, tagged GTIDS will be filtered out
+  /// @return Encoded gtid_set length
+  std::size_t get_encoded_length(const mysql::gtid::Gtid_format &format,
+                                 bool skip_tagged_gtids) const;
+
+  /// Returns true if this Gtid_set is equal to the other Gtid_set.
+  /// @param[in] other Gtid set to compare against
+  /// @return true in case gtid sets contain the same GTIDs
+  bool equals(const Gtid_set *other) const;
 
  private:
   /**
@@ -2139,8 +2262,6 @@ class Gtid_set {
   */
   bool sidno_equals(rpl_sidno sidno, const Gtid_set *other,
                     rpl_sidno other_sidno) const;
-  /// Returns true if this Gtid_set is equal to the other Gtid_set.
-  bool equals(const Gtid_set *other) const;
 
   /// Return the number of intervals for the given sidno.
   int get_n_intervals(rpl_sidno sidno) const {
@@ -2161,6 +2282,16 @@ class Gtid_set {
       ret += get_n_intervals(sidno);
     return ret;
   }
+
+  /// @brief Goes through recorded tsids. In case any of the TSIDs has a tag,
+  /// this function will return Gtid_format::tagged. Otherwise, it will
+  /// return Gtid_format::untagged
+  /// @param skip_tagged_gtids When true, function will always return
+  /// Gtid_format::untagged
+  /// @returns Gtid encoding format
+  mysql::gtid::Gtid_format analyze_encoding_format(
+      bool skip_tagged_gtids) const;
+
   /**
     Allocates a new chunk of Intervals and adds them to the list of
     unused intervals.
@@ -2483,7 +2614,9 @@ class Owned_gtids {
   }
   /// Returns the maximal sidno that this Owned_gtids currently has space for.
   rpl_sidno get_max_sidno() const {
-    sid_lock->assert_some_lock();
+    if (sid_lock != nullptr) {
+      sid_lock->assert_some_lock();
+    }
     return static_cast<rpl_sidno>(sidno_to_hash.size());
   }
 
@@ -2496,9 +2629,8 @@ class Owned_gtids {
   int to_string(char *out) const {
     char *p = out;
     rpl_sidno max_sidno = get_max_sidno();
-    rpl_sidno sid_map_max_sidno = global_sid_map->get_max_sidno();
-    for (rpl_sidno sid_i = 0; sid_i < sid_map_max_sidno; sid_i++) {
-      rpl_sidno sidno = global_sid_map->get_sorted_sidno(sid_i);
+    for (const auto &sid_it : global_sid_map->get_sorted_sidno()) {
+      rpl_sidno sidno = sid_it.second;
       if (sidno > max_sidno) continue;
       bool printed_sid = false;
       for (const auto &key_and_value : *get_hash(sidno)) {
@@ -2527,7 +2659,7 @@ class Owned_gtids {
       size_t records = get_hash(sidno)->size();
       if (records > 0)
         ret +=
-            mysql::gtid::Uuid::TEXT_LENGTH +
+            mysql::gtid::tsid_max_length +
             records * (1 + MAX_GNO_TEXT_LENGTH + 1 + MAX_THREAD_ID_TEXT_LENGTH);
     }
     return 1 + ret;
@@ -3062,6 +3194,7 @@ class Gtid_state {
     @retval The GNO or 0 if set is empty.
   */
   rpl_gno get_last_executed_gno(rpl_sidno sidno) const;
+
   /**
     Generates the GTID (or ANONYMOUS, if GTID_MODE = OFF or
     OFF_PERMISSIVE) for the THD, and acquires ownership.
@@ -3225,8 +3358,9 @@ class Gtid_state {
   rpl_sidno get_server_sidno() const { return server_sidno; }
   /// Return the server's SID
   const rpl_sid &get_server_sid() const {
-    return global_sid_map->sidno_to_sid(server_sidno);
+    return global_sid_map->sidno_to_sid(server_sidno).get_uuid();
   }
+
 #ifndef NDEBUG
   /**
     Debug only: Returns an upper bound on the length of the string
@@ -3694,8 +3828,11 @@ enum enum_gtid_type {
     if GTID_MODE>=ON_PERMISSIVE, then the transaction will be assigned
     a new GTID.
 
-    This is the default value: thd->variables.gtid_next has this state
-    when GTID_NEXT="AUTOMATIC".
+    In the latter case, the Gtid_specification may hold a tag. Then,
+    the new GTID will be generated with that tag.
+
+    AUTOMATIC_GTID with an empty tag is the default value:
+    thd->variables.gtid_next has this state when GTID_NEXT="AUTOMATIC".
 
     It is important that AUTOMATIC_GTID==0 so that the default value
     for thd->variables->gtid_next.type is AUTOMATIC_GTID.
@@ -3789,18 +3926,29 @@ log.  So at the time the binary log begins, we just set
     is only used for a very brief period of time.  It is not
     user-visible.
   */
-  PRE_GENERATE_GTID
+  PRE_GENERATE_GTID,
 };
 /// Global state of GTIDs.
 extern Gtid_state *gtid_state;
 
 /**
   This struct represents a specification of a GTID for a statement to
-  be executed: either "AUTOMATIC", "ANONYMOUS", or "SID:GNO".
+  be executed: either "AUTOMATIC", "ANONYMOUS", "UUID:AUTOMATIC" or "SID:GNO".
 
   This is a POD. It has to be a POD because it is used in THD::variables.
 */
 struct Gtid_specification {
+  // Constants used in gtid specification
+  static constexpr auto str_automatic = "AUTOMATIC";
+  static constexpr auto str_automatic_tagged = "AUTOMATIC:";
+  static constexpr auto str_automatic_sep = ":";
+  static constexpr auto str_pre_generated = "PRE_GENERATE_GTID";
+  static constexpr auto str_not_yet_determined = "NOT_YET_DETERMINED";
+  static constexpr auto str_anonymous = "ANONYMOUS";
+
+  using Tsid = mysql::gtid::Tsid;
+  using Tag = mysql::gtid::Tag;
+  using Tag_plain = mysql::gtid::Tag_plain;
   /// The type of this GTID
   enum_gtid_type type;
   /**
@@ -3809,23 +3957,81 @@ struct Gtid_specification {
     { 0, 0 } if type == AUTOMATIC or ANONYMOUS.
   */
   Gtid gtid;
+
+  /// @brief Tag defined by the user while specifying GTID_NEXT="AUTOMATIC:TAG".
+  /// We must store here the information about tag, because automatic
+  /// tagged GTID does not have sidno assigned
+  Tag_plain automatic_tag;
+
+  /// @brief Prints automatic tag specification to the given buffer
+  /// @param[in,out] buf Buffer to write to, must be allocated
+  /// @return The number of bytes written to the buffer
+  std::size_t automatic_to_string(char *buf) const;
+
   /// Set the type to ASSIGNED_GTID and SID, GNO to the given values.
   void set(rpl_sidno sidno, rpl_gno gno) {
     gtid.set(sidno, gno);
     type = ASSIGNED_GTID;
+    automatic_tag.clear();
   }
+
+  /// @brief Helper function indicating whether this is to-be-generated GTID
+  /// @param[in] type Type of the GTID
+  /// @retval true This GTID will be generated
+  /// @retval false Other type of the GTID
+  static bool is_automatic(const enum_gtid_type &type) {
+    return type == AUTOMATIC_GTID;
+  }
+  /// @brief Helper function indicating whether this is to-be-generated GTID
+  /// @retval true This GTID will be generated
+  /// @retval false Other type of the GTID
+  bool is_automatic() const { return is_automatic(type); }
+
+  /// @brief Helper function indicating whether this is an undefined GTID
+  /// @return Returns true for undefined GTIDs
+  bool is_undefined() const { return type == UNDEFINED_GTID; }
+
+  /// @brief Helper function indicating whether this is an assigned GTID
+  /// @return Returns true for assigned GTIDs
+  bool is_assigned() const { return type == ASSIGNED_GTID; }
+
+  /// @brief Returns tag object generated from internal tag data
+  /// @return Tag object
+  Tag generate_tag() const;
+
+  /// @brief Helper function indicating whether this is to-be-generated GTID
+  ///   with a tag assigned
+  /// @retval true This GTID will be generated with assigned tag
+  /// @retval false Other type of the GTID
+  bool is_automatic_tagged() const;
+
   /// Set the type to ASSIGNED_GTID and SID, GNO to the given Gtid.
+  /// @brief gtid_param GTID to copy from
   void set(const Gtid &gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
-  /// Set the type to AUTOMATIC_GTID.
-  void set_automatic() { type = AUTOMATIC_GTID; }
+  /// @brief Set the type to AUTOMATIC_GTID.
+  void set_automatic() {
+    type = AUTOMATIC_GTID;
+    automatic_tag.clear();
+  }
+  /// @brief Copy spec from other
+  /// @param[in] other Pattern to copy from
+  void set(const Gtid_specification &other);
+
   /// Set the type to ANONYMOUS_GTID.
-  void set_anonymous() { type = ANONYMOUS_GTID; }
+  void set_anonymous() {
+    type = ANONYMOUS_GTID;
+    automatic_tag.clear();
+  }
   /// Set the type to NOT_YET_DETERMINED_GTID.
-  void set_not_yet_determined() { type = NOT_YET_DETERMINED_GTID; }
+  void set_not_yet_determined() {
+    type = NOT_YET_DETERMINED_GTID;
+    automatic_tag.clear();
+  }
   /// Set to undefined. Must only be called if the type is ASSIGNED_GTID.
   void set_undefined() {
     assert(type == ASSIGNED_GTID);
     type = UNDEFINED_GTID;
+    automatic_tag.clear();
   }
   /// Return true if this Gtid_specification is equal to 'other'.
   bool equals(const Gtid_specification &other) const {
@@ -3845,10 +4051,13 @@ struct Gtid_specification {
 
     @param sid_map sid_map to use when converting SID to a sidno.
     @param text The text to parse
-    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+    @return operation status
   */
-  enum_return_status parse(Sid_map *sid_map, const char *text);
-  /// Returns true if the given string is a valid Gtid_specification.
+  [[NODISCARD]] mysql::utils::Return_status parse(Sid_map *sid_map,
+                                                  const char *text);
+
+  /// @brief Returns true if the given string is a valid Gtid_specification.
+  /// @param[in] text Textual representation of the GTID specification
   static bool is_valid(const char *text);
 #endif
   static const int MAX_TEXT_LENGTH = Gtid::MAX_TEXT_LENGTH;
@@ -3868,13 +4077,14 @@ struct Gtid_specification {
   /**
     Writes this Gtid_specification to the given string buffer.
 
-    @param sid SID to use if the type of this Gtid_specification is
+    @param tsid TSID to use if the type of this Gtid_specification is
     ASSIGNED_GTID.  Can be NULL if this Gtid_specification is
     ANONYMOUS_GTID or AUTOMATIC_GTID.
     @param[out] buf The buffer
     @retval The number of characters written.
   */
-  int to_string(const rpl_sid *sid, char *buf) const;
+  int to_string(const Tsid &tsid, char *buf) const;
+
 #ifndef NDEBUG
   /// Debug only: print this Gtid_specification to stdout.
   void print() const {
@@ -3896,6 +4106,9 @@ struct Gtid_specification {
 #endif
   }
 };
+
+static_assert(std::is_trivial_v<Gtid_specification>);
+static_assert(std::is_standard_layout_v<Gtid_specification>);
 
 /**
   Indicates if a statement should be skipped or not. Used as return
@@ -4009,7 +4222,7 @@ int gtid_acquire_ownership_multiple(THD *thd);
 /**
   Return sidno for a given sid, see Sid_map::add_sid() for details.
 */
-rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
+rpl_sidno get_sidno_from_global_sid_map(const mysql::gtid::Tsid &tsid);
 
 /**
   Return last gno for a given sidno, see

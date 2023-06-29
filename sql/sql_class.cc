@@ -1125,7 +1125,7 @@ void THD::init(void) {
   session_tracker.enable(this);
 
   owned_gtid.clear();
-  owned_sid.clear();
+  owned_tsid.clear();
   m_se_gtid_flags.reset();
   owned_gtid.dbug_print(nullptr, "set owned_gtid (clear) in THD::init");
 

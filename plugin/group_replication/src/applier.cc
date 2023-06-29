@@ -439,7 +439,8 @@ int Applier_module::apply_transaction_prepared_action_packet(
     Transaction_prepared_action_packet *packet) {
   DBUG_TRACE;
   return transaction_consistency_manager->handle_remote_prepare(
-      packet->get_sid(), packet->m_gno, packet->m_gcs_member_id);
+      packet->get_tsid(), packet->is_tsid_specified(), packet->m_gno,
+      packet->m_gcs_member_id);
 }
 
 int Applier_module::apply_sync_before_execution_action_packet(
@@ -592,6 +593,13 @@ int Applier_module::applier_thread_handle() {
       case RECOVERY_METADATA_PROCESSING_PACKET_TYPE:
         packet_application_error = apply_metadata_processing_packet(
             static_cast<Recovery_metadata_processing_packets *>(packet));
+        this->incoming->pop();
+        break;
+      case ERROR_PACKET_TYPE:
+        packet_application_error = 1;
+        LogPluginErr(
+            ERROR_LEVEL, ER_GRP_RPL_APPLIER_ERROR_PACKET_RECEIVED,
+            static_cast<Error_action_packet *>(packet)->get_error_message());
         this->incoming->pop();
         break;
       default:

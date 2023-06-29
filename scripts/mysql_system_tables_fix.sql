@@ -1598,3 +1598,8 @@ IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N') FROM global_grants WHERE priv = 'SET_USER
 COMMIT;
 
 SET @@session.sql_mode = @old_sql_mode;
+
+ALTER TABLE gtid_executed
+  ADD gtid_tag CHAR(32) NOT NULL COMMENT 'GTID Tag.',
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY(source_uuid, gtid_tag, interval_start);

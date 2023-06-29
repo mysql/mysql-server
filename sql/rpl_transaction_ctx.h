@@ -62,26 +62,18 @@ class Rpl_transaction_ctx {
   bool is_transaction_rollback();
 
   /**
-    Was GTID generated externally?
-
-    @retval true      GTID was generated.
-    @retval false     GTID was not generated.
-  */
-  bool is_generated_gtid();
-
-  /**
     Get transaction sidno.
 
     @return sidno sidno value.
   */
-  int get_sidno();
+  int get_sidno() const;
 
   /**
     Get transaction gno.
 
     @return gno   gno value.
   */
-  rpl_gno get_gno();
+  rpl_gno get_gno() const;
 
   /**
    Reset transaction context to default values.

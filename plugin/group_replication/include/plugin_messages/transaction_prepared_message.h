@@ -48,17 +48,23 @@ class Transaction_prepared_message : public Plugin_gcs_message {
     // Length of the payload item: 8 bytes
     PIT_SENT_TIMESTAMP = 3,
 
+    // Length of the payload item: 1-32
+    // Optional item.
+    PIT_TRANSACTION_PREPARED_TAG = 4,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 4
+    PIT_MAX = 5
   };
 
   /**
    Message constructor
 
-   @param[in]  sid              the prepared transaction sid
+   @param[in]  tsid             the prepared transaction tsid
+   @param[in]  is_tsid_specified information on whether tsid is specified
    @param[in]  gno              the prepared transaction gno
   */
-  Transaction_prepared_message(const rpl_sid *sid, rpl_gno gno);
+  Transaction_prepared_message(const gr::Gtid_tsid &tsid,
+                               bool is_tsid_specified, rpl_gno gno);
 
   /**
    Message decode constructor
@@ -68,8 +74,6 @@ class Transaction_prepared_message : public Plugin_gcs_message {
   */
   Transaction_prepared_message(const unsigned char *buf, size_t len);
   ~Transaction_prepared_message() override;
-
-  const rpl_sid *get_sid();
 
   rpl_gno get_gno();
 
@@ -85,6 +89,24 @@ class Transaction_prepared_message : public Plugin_gcs_message {
   static uint64_t get_sent_timestamp(const unsigned char *buffer,
                                      size_t length);
 
+  /// @brief returns information on whether TSID is specified for this trx
+  /// @return information on whether TSID is specified for this trx
+  bool is_tsid_specified() const { return m_tsid_specified; }
+
+  /// @brief TSID accessor
+  /// @return Const reference to transaction TSID
+  const gr::Gtid_tsid &get_tsid();
+
+  using Error_ptr = mysql::utils::Error_ptr;
+
+  /// @brief Checks whether message encoding/decoding succeeded
+  /// @return Message validity
+  bool is_valid() const;
+
+  /// @brief Gets information about decoding/encoding error
+  /// @return Const reference to decoding/encoding error information
+  const Error_ptr &get_error() const;
+
  protected:
   /*
    Implementation of the template methods
@@ -94,9 +116,11 @@ class Transaction_prepared_message : public Plugin_gcs_message {
                       const unsigned char *end) override;
 
  private:
-  bool m_sid_specified;
-  rpl_sid m_sid;
+  bool m_tsid_specified;
   rpl_gno m_gno;
+  gr::Gtid_tsid m_tsid;
+  /// Holds information about error that might occur during encoding/decoding
+  Error_ptr m_error;
 };
 
 #endif /* TRANSACTION_PREPARED_MESSAGE_INCLUDED */

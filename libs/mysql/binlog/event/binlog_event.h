@@ -51,6 +51,7 @@
 #include "my_checksum.h"
 #include "my_io.h"
 #include "mysql/binlog/event/debug_vars.h"
+#include "mysql/binlog/event/event_decoding_error.h"
 #include "mysql/binlog/event/event_reader.h"
 
 #if defined(_WIN32)
@@ -367,6 +368,8 @@ enum Log_event_type {
   TRANSACTION_PAYLOAD_EVENT = 40,
 
   HEARTBEAT_LOG_EVENT_V2 = 41,
+
+  GTID_TAGGED_LOG_EVENT = 42,
   /**
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -381,6 +384,20 @@ enum Log_event_type {
   @return std::string a text representing the event name.
 */
 const std::string &get_event_type_as_string(Log_event_type type);
+
+/// @brief Event type helpers, enclosed in the structure
+struct Log_event_type_helper {
+  /// @brief Helps to identify known GTID event - returns true
+  /// for GTID_LOG_EVENT and GTID_TAGGED_LOG_EVENT
+  inline static bool is_assigned_gtid_event(const Log_event_type &type) {
+    return type == GTID_LOG_EVENT || type == GTID_TAGGED_LOG_EVENT;
+  }
+  /// @brief Helps to identify any GTID event - returns true
+  /// for GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT and ANONYMOUS_GTID_LOG_EVENT
+  inline static bool is_any_gtid_event(const Log_event_type &type) {
+    return is_assigned_gtid_event(type) || type == ANONYMOUS_GTID_LOG_EVENT;
+  }
+};
 
 /**
   Struct to pass basic information about a event: type, query, is it ignorable
@@ -745,6 +762,14 @@ class Log_event_header {
 
   void set_is_valid(bool is_valid) { m_is_valid = is_valid; }
 
+  /// @brief Accessor for decoding error
+  /// @return Error that occurred during decoding
+  const Event_decoding_error &get_decoding_error() const;
+
+  /// @brief Sets specific decoding error
+  /// @param decoding_error Decoding error to be set
+  void set_decoding_error(const Event_decoding_error &decoding_error);
+
  private:
   /*
     As errors might happen when de-serializing events, the m_is_valid variable
@@ -755,6 +780,9 @@ class Log_event_header {
     memory pointers.
   */
   bool m_is_valid;
+
+  /// Holds information about specific decoding error
+  Event_decoding_error m_decoding_error = Event_decoding_error::ok;
 };
 
 /**

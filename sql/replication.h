@@ -115,10 +115,10 @@ typedef struct Trans_context_info {
   This represents the GTID context of the transaction.
  */
 typedef struct Trans_gtid_info {
-  rpl_sid sid;        // transaction sid
-  ulong type;         // enum values in enum_gtid_type
-  int sidno;          // transaction sidno
-  long long int gno;  // transaction gno
+  mysql::gtid::Tsid_plain tsid;  // last used transaction tsid
+  ulong type;                    // enum values in enum_gtid_type
+  int sidno;                     // transaction sidno
+  long long int gno;             // transaction gno
 } Trans_gtid_info;
 
 class Binlog_cache_storage;

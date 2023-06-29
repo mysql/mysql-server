@@ -54,6 +54,11 @@ struct mysql_mutex_t;
 #include "client/mysqlbinlog.h"
 #endif
 
+#include "sql/log.h"
+
+using mysql::gtid::Tsid;
+using mysql::utils::Return_status;
+
 ulong _gtid_consistency_mode;
 const char *gtid_consistency_mode_names[] = {"OFF", "ON", "WARN", NullS};
 TYPELIB gtid_consistency_mode_typelib = {
@@ -67,61 +72,150 @@ enum_gtid_consistency_mode get_gtid_consistency_mode() {
 }
 #endif
 
-enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
+std::size_t Gtid::skip_whitespace(const char *text, std::size_t pos) {
   DBUG_TRACE;
-  rpl_sid sid{};
-  const char *s = text;
-
-  SKIP_WHITESPACE();
-
-  // parse sid
-  if (sid.parse(s, mysql::gtid::Uuid::TEXT_LENGTH) == 0) {
-    rpl_sidno sidno_var = sid_map->add_sid(sid);
-    if (sidno_var <= 0) RETURN_REPORTED_ERROR;
-    s += mysql::gtid::Uuid::TEXT_LENGTH;
-
-    SKIP_WHITESPACE();
-
-    // parse colon
-    if (*s == ':') {
-      s++;
-
-      SKIP_WHITESPACE();
-
-      // parse gno
-      rpl_gno gno_var = parse_gno(&s);
-      if (gno_var > 0) {
-        SKIP_WHITESPACE();
-        if (*s == '\0') {
-          sidno = sidno_var;
-          gno = gno_var;
-          RETURN_OK;
-        } else
-          DBUG_PRINT("info", ("expected end of string, found garbage '%.80s' "
-                              "at char %d in '%s'",
-                              s, (int)(s - text), text));
-      } else
-        DBUG_PRINT("info",
-                   ("GNO was zero or invalid (%" PRId64 ") at char %d in '%s'",
-                    gno_var, (int)(s - text), text));
-    } else
-      DBUG_PRINT("info",
-                 ("missing colon at char %d in '%s'", (int)(s - text), text));
-  } else
-    DBUG_PRINT("info",
-               ("not a uuid at char %d in '%s'", (int)(s - text), text));
-  BINLOG_ERROR(("Malformed GTID specification: %.200s", text),
-               (ER_MALFORMED_GTID_SPECIFICATION, MYF(0), text));
-  RETURN_REPORTED_ERROR;
+  while (my_isspace(&my_charset_utf8mb3_general_ci, text[pos])) {
+    ++pos;
+  }
+  return pos;
 }
 
-int Gtid::to_string(const rpl_sid &sid, char *buf) const {
+std::tuple<Return_status, rpl_sid, std::size_t> Gtid::parse_sid_str(
+    const char *text, std::size_t pos) {
   DBUG_TRACE;
-  char *s = buf + sid.to_string(buf);
-  *s = ':';
-  s++;
-  s += format_gno(s, gno);
-  return (int)(s - buf);
+  Return_status status = Return_status::ok;
+  rpl_sid sid{};
+  sid.clear();
+  pos = skip_whitespace(text, pos);
+  if (sid.parse(&text[pos], mysql::gtid::Uuid::TEXT_LENGTH) == 0) {
+    pos += mysql::gtid::Uuid::TEXT_LENGTH;
+    pos = skip_whitespace(text, pos);
+  } else {
+    DBUG_PRINT("info", ("not a uuid at char %d in '%s'", (int)pos, text));
+    status = Return_status::error;
+  }
+  return std::make_tuple(status, sid, pos);
+}
+
+std::pair<Gtid::Tag, std::size_t> Gtid::parse_tag_str(const char *text,
+                                                      std::size_t pos) {
+  DBUG_TRACE;
+  Gtid::Tag tag;
+  pos = skip_whitespace(text, pos);
+  pos += tag.from_cstring(text + pos);
+  pos = skip_whitespace(text, pos);
+  return std::make_pair(tag, pos);
+}
+
+std::tuple<Return_status, rpl_gno, std::size_t> Gtid::parse_gno_str(
+    const char *text, std::size_t pos) {
+  DBUG_TRACE;
+  auto status = Return_status::ok;
+  const char *text_cpy = text + pos;
+  rpl_gno gno_var = parse_gno(&text_cpy);
+  pos = text_cpy - text;
+  if (gno_var > 0) {
+    pos = skip_whitespace(text, pos);
+    if (text[pos] != '\0') {
+      DBUG_PRINT("info", ("expected end of string, found garbage '%.80s' "
+                          "at char %d in '%s'",
+                          text_cpy, (int)pos, text));
+      status = Return_status::error;
+      gno_var = 0;
+    }
+  } else {
+    DBUG_PRINT("info",
+               ("GNO was zero or invalid (%" PRId64 ") at char %d in '%s'",
+                gno_var, (int)pos, text));
+    status = Return_status::error;
+  }
+  return std::make_tuple(status, gno_var, pos);
+}
+
+void Gtid::report_parsing_error(const char *text) {
+  DBUG_TRACE;
+  BINLOG_ERROR(("Malformed GTID specification: %.200s", text),
+               (ER_MALFORMED_GTID_SPECIFICATION, MYF(0), text));
+}
+
+std::pair<Return_status, std::size_t> Gtid::parse_gtid_separator(
+    const char *text, std::size_t pos) {
+  DBUG_TRACE;
+  auto status = Return_status::ok;
+  pos = skip_whitespace(text, pos);
+  if (text[pos] != gtid_separator) {
+    DBUG_PRINT("info", ("missing colon at char %d in '%s'", (int)pos, text));
+    status = Return_status::error;
+  } else {
+    pos = skip_whitespace(text, pos + 1);
+  }
+  return std::make_pair(status, pos);
+}
+
+std::pair<Return_status, mysql::gtid::Gtid> Gtid::parse_gtid_from_cstring(
+    const char *text) {
+  DBUG_TRACE;
+  auto invalid_gtid = std::make_pair(Return_status::error, mysql::gtid::Gtid());
+
+  auto [status, uuid, pos] = parse_sid_str(text, 0);
+  if (status != Return_status::ok) {
+    return invalid_gtid;
+  }
+  std::tie(status, pos) = parse_gtid_separator(text, pos);
+  if (status != Return_status::ok) {
+    return invalid_gtid;
+  }
+  mysql::gtid::Tag tag;
+  std::tie(tag, pos) = parse_tag_str(text, pos);
+  if (tag.is_defined()) {
+    std::tie(status, pos) = parse_gtid_separator(text, pos);
+    if (status != Return_status::ok) {
+      return invalid_gtid;
+    }
+  }
+  rpl_gno gno;
+  std::tie(status, gno, pos) = parse_gno_str(text, pos);
+  if (status != Return_status::ok) {
+    return invalid_gtid;
+  }
+  return std::make_pair(Return_status::ok,
+                        mysql::gtid::Gtid(mysql::gtid::Tsid(uuid, tag), gno));
+}
+
+Return_status Gtid::parse(Sid_map *sid_map, const char *text) {
+  DBUG_TRACE;
+  auto [status, parsed_gtid] = parse_gtid_from_cstring(text);
+  if (status == Return_status::error) {
+    report_parsing_error(text);
+    return status;
+  }
+  rpl_sidno sidno_var = sid_map->add_tsid(parsed_gtid.get_tsid());
+  if (sidno_var <= 0) {
+    status = Return_status::error;
+  }
+  rpl_gno gno_var = parsed_gtid.get_gno();
+  if (status == Return_status::ok) {
+    sidno = sidno_var;
+    gno = gno_var;
+  }
+  return status;
+}
+
+int Gtid::to_string_gno(char *buf) const {
+  DBUG_TRACE;
+  int id = 0;
+  *buf = ':';
+  ++id;
+  id += format_gno(buf + id, gno);
+  return id;
+}
+
+int Gtid::to_string(const Tsid &tsid, char *buf) const {
+  DBUG_TRACE;
+  int id = 0;
+  id += tsid.to_string(buf);
+  id += to_string_gno(buf + id);
+  return id;
 }
 
 int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
@@ -135,9 +229,9 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
       else
         lock->assert_some_lock();
     }
-    const rpl_sid &sid = sid_map->sidno_to_sid(sidno);
+    const auto tsid = sid_map->sidno_to_sid(sidno);
     if (lock && need_lock) lock->unlock();
-    ret = to_string(sid, buf);
+    ret = to_string(tsid, buf);
   } else {
 #ifdef NDEBUG
     /*
@@ -156,35 +250,9 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
 
 bool Gtid::is_valid(const char *text) {
   DBUG_TRACE;
-  const char *s = text;
-  SKIP_WHITESPACE();
-  if (!rpl_sid::is_valid(s, mysql::gtid::Uuid::TEXT_LENGTH)) {
-    DBUG_PRINT("info",
-               ("not a uuid at char %d in '%s'", (int)(s - text), text));
-    return false;
-  }
-  s += mysql::gtid::Uuid::TEXT_LENGTH;
-  SKIP_WHITESPACE();
-  if (*s != ':') {
-    DBUG_PRINT("info",
-               ("missing colon at char %d in '%s'", (int)(s - text), text));
-    return false;
-  }
-  s++;
-  SKIP_WHITESPACE();
-  if (parse_gno(&s) <= 0) {
-    DBUG_PRINT("info", ("GNO was zero or invalid at char %d in '%s'",
-                        (int)(s - text), text));
-    return false;
-  }
-  SKIP_WHITESPACE();
-  if (*s != 0) {
-    DBUG_PRINT("info", ("expected end of string, found garbage '%.80s' "
-                        "at char %d in '%s'",
-                        s, (int)(s - text), text));
-    return false;
-  }
-  return true;
+  Return_status status;
+  std::tie(status, std::ignore) = parse_gtid_from_cstring(text);
+  return status == Return_status::ok;
 }
 
 #ifndef NDEBUG
@@ -214,11 +282,12 @@ void check_return_status(enum_return_status status, const char *action,
 #endif  // ! NDEBUG
 
 #ifdef MYSQL_SERVER
-rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid) {
+
+rpl_sidno get_sidno_from_global_sid_map(const Tsid &tsid) {
   DBUG_TRACE;
 
   global_sid_lock->rdlock();
-  rpl_sidno sidno = global_sid_map->add_sid(sid);
+  rpl_sidno sidno = global_sid_map->add_tsid(tsid);
   global_sid_lock->unlock();
 
   return sidno;

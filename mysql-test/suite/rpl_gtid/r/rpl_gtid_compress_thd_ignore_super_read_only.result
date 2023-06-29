@@ -27,8 +27,8 @@ include/assert.inc [committed gtids MASTER_UUID:1-6]
 # it is MASTER_UUID:1:6
 #
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	6
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	6	
 "Clean up"
 SET GLOBAL super_read_only= @saved_value_super;
 SET GLOBAL read_only= @saved_value;

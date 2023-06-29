@@ -24,6 +24,7 @@ SET(LINK_LIBRARIES
   ext::zstd
   ext::zlib
   mysql_gtid
+  mysql_serialization
 )
 
 SET(TARGET_HEADERS

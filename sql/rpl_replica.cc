@@ -176,6 +176,7 @@ using mysql::binlog::event::checksum_crc32;
 using mysql::binlog::event::enum_binlog_checksum_alg;
 using mysql::binlog::event::Log_event_footer;
 using mysql::binlog::event::Log_event_type;
+using mysql::binlog::event::Log_event_type_helper;
 using std::max;
 using std::min;
 
@@ -4140,7 +4141,7 @@ static inline bool slave_sleep(THD *thd, time_t seconds, killed_func func,
 static void fix_gtid_set(MYSQL_RPL *rpl, uchar *packet_gtid_set) {
   Gtid_set *gtid_set = (Gtid_set *)rpl->gtid_set_arg;
 
-  gtid_set->encode(packet_gtid_set);
+  gtid_set->encode(packet_gtid_set, rpl->flags & MYSQL_RPL_SKIP_TAGGED_GTIDS);
 }
 
 static int request_dump(THD *thd, MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
@@ -4199,7 +4200,13 @@ static int request_dump(THD *thd, MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
     rpl->file_name = nullptr; /* No need to set rpl.file_name_length */
     rpl->start_position = 4;
     rpl->flags |= MYSQL_RPL_GTID;
-    rpl->gtid_set_encoded_size = gtid_executed.get_encoded_length();
+    if (mysql_get_server_version(mysql) < MYSQL_TAGGED_GTIDS_VERSION_SUPPORT) {
+      rpl->flags |= MYSQL_RPL_SKIP_TAGGED_GTIDS;
+    }
+    DBUG_EXECUTE_IF("com_binlog_dump_gtids_force_skipping_tagged_gtids",
+                    { rpl->flags |= MYSQL_RPL_SKIP_TAGGED_GTIDS; });
+    rpl->gtid_set_encoded_size = gtid_executed.get_encoded_length(
+        rpl->flags & MYSQL_RPL_SKIP_TAGGED_GTIDS);
     rpl->fix_gtid_set = fix_gtid_set;
     rpl->gtid_set_arg = (void *)&gtid_executed;
   } else {
@@ -4304,12 +4311,11 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
   assert(!rli->belongs_to_client());
 
   if (sql_delay) {
-    int type = ev->get_type_code();
+    auto type = ev->get_type_code();
     time_t sql_delay_end = 0;
 
     if (rli->commit_timestamps_status == Relay_log_info::COMMIT_TS_UNKNOWN &&
-        (type == mysql::binlog::event::GTID_LOG_EVENT ||
-         type == mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT)) {
+        Log_event_type_helper::is_any_gtid_event(type)) {
       if (static_cast<Gtid_log_event *>(ev)->has_commit_timestamps &&
           DBUG_EVALUATE_IF("sql_delay_without_timestamps", 0, 1)) {
         rli->commit_timestamps_status = Relay_log_info::COMMIT_TS_FOUND;
@@ -4319,8 +4325,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
     }
 
     if (rli->commit_timestamps_status == Relay_log_info::COMMIT_TS_FOUND) {
-      if (type == mysql::binlog::event::GTID_LOG_EVENT ||
-          type == mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT) {
+      if (Log_event_type_helper::is_any_gtid_event(type)) {
         /*
           Calculate when we should execute the event.
           The immediate master timestamp is expressed in microseconds.
@@ -4638,7 +4643,7 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
         ((ev->get_type_code() != mysql::binlog::event::XID_EVENT &&
           !is_committed_ddl(*ptr_ev)) ||
          skip_event ||
-         (rli->is_mts_recovery() && !is_gtid_event(ev) &&
+         (rli->is_mts_recovery() && !is_any_gtid_event(ev) &&
           (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
           bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index)))) {
 #ifndef NDEBUG
@@ -4715,7 +4720,7 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
       if (ev->starts_group()) {
         rli->mts_recovery_group_seen_begin = true;
       } else if ((ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
-                 !is_gtid_event(ev)) {
+                 !is_any_gtid_event(ev)) {
         rli->mts_recovery_index++;
         if (--rli->mts_recovery_group_cnt == 0) {
           rli->mts_recovery_index = 0;
@@ -5588,9 +5593,9 @@ extern "C" void *handle_slave_io(void *arg) {
         retry_count = 0;  // ok event, reset retry counter
         THD_STAGE_INFO(thd, stage_queueing_source_event_to_the_relay_log);
         event_buf = (const char *)mysql->net.read_pos + 1;
+        [[maybe_unused]] auto &ev_type = event_buf[EVENT_TYPE_OFFSET];
         DBUG_PRINT("info", ("IO thread received event of type %s",
-                            Log_event::get_type_str(
-                                (Log_event_type)event_buf[EVENT_TYPE_OFFSET])));
+                            Log_event::get_type_str(ev_type)));
         if (RUN_HOOK(binlog_relay_io, after_read_event,
                      (thd, mi, (const char *)mysql->net.read_pos + 1, event_len,
                       &event_buf, &event_len))) {
@@ -5689,50 +5694,43 @@ extern "C" void *handle_slave_io(void *arg) {
             goto err;
           }
         DBUG_EXECUTE_IF("flush_after_reading_user_var_event", {
-          if (event_buf[EVENT_TYPE_OFFSET] ==
-              mysql::binlog::event::USER_VAR_EVENT)
+          if (ev_type == mysql::binlog::event::USER_VAR_EVENT)
             rpl_replica_debug_point(DBUG_RPL_S_FLUSH_AFTER_USERV_EV);
         });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_gtid_log_event",
-            if (event_buf[EVENT_TYPE_OFFSET] ==
-                mysql::binlog::event::GTID_LOG_EVENT) {
+            if (Log_event_type_helper::is_assigned_gtid_event(
+                    static_cast<Log_event_type>(ev_type))) {
               thd->killed = THD::KILLED_NO_VALUE;
             });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_query_log_event",
-            if (event_buf[EVENT_TYPE_OFFSET] ==
-                mysql::binlog::event::QUERY_EVENT) {
+            if (ev_type == mysql::binlog::event::QUERY_EVENT) {
               thd->killed = THD::KILLED_NO_VALUE;
             });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_user_var_log_event",
-            if (event_buf[EVENT_TYPE_OFFSET] ==
-                mysql::binlog::event::USER_VAR_EVENT) {
+            if (ev_type == mysql::binlog::event::USER_VAR_EVENT) {
               thd->killed = THD::KILLED_NO_VALUE;
             });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_table_map_event",
-            if (event_buf[EVENT_TYPE_OFFSET] ==
-                mysql::binlog::event::TABLE_MAP_EVENT) {
+            if (ev_type == mysql::binlog::event::TABLE_MAP_EVENT) {
               thd->killed = THD::KILLED_NO_VALUE;
             });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_xid_log_event",
-            if (event_buf[EVENT_TYPE_OFFSET] ==
-                mysql::binlog::event::XID_EVENT) {
+            if (ev_type == mysql::binlog::event::XID_EVENT) {
               thd->killed = THD::KILLED_NO_VALUE;
             });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_write_rows_log_event",
-            if (event_buf[EVENT_TYPE_OFFSET] ==
-                mysql::binlog::event::WRITE_ROWS_EVENT) {
+            if (ev_type == mysql::binlog::event::WRITE_ROWS_EVENT) {
               thd->killed = THD::KILLED_NO_VALUE;
             });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_unknown_event",
-            if (event_buf[EVENT_TYPE_OFFSET] >=
-                mysql::binlog::event::ENUM_END_EVENT) {
+            if (ev_type >= mysql::binlog::event::ENUM_END_EVENT) {
               thd->killed = THD::KILLED_NO_VALUE;
             });
         DBUG_EXECUTE_IF("stop_io_after_queuing_event",
@@ -6371,7 +6369,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
         if (ev->starts_group()) {
           flag_group_seen_begin = true;
         } else if ((ev->ends_group() || !flag_group_seen_begin) &&
-                   !is_gtid_event(ev)) {
+                   !is_any_gtid_event(ev)) {
           int ret = 0;
           LOG_POS_COORD ev_coord = {
               const_cast<char *>(rli->get_group_master_log_name()),
@@ -7973,7 +7971,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       break;
     }
 
-    case mysql::binlog::event::GTID_LOG_EVENT: {
+    case mysql::binlog::event::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_TAGGED_LOG_EVENT: {
       /*
         This can happen if the master uses GTID_MODE=OFF_PERMISSIVE, and
         sends GTID events to the slave. A possible scenario is that user
@@ -8001,7 +8000,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       original_commit_timestamp = gtid_ev.original_commit_timestamp;
       immediate_commit_timestamp = gtid_ev.immediate_commit_timestamp;
       compressed_transaction_bytes = uncompressed_transaction_bytes =
-          gtid_ev.transaction_length - gtid_ev.get_event_length();
+          gtid_ev.get_trx_length() - gtid_ev.get_event_length();
 
       inc_pos = event_len;
     } break;
@@ -8055,7 +8054,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       original_commit_timestamp = anon_gtid_ev.original_commit_timestamp;
       immediate_commit_timestamp = anon_gtid_ev.immediate_commit_timestamp;
       compressed_transaction_bytes = uncompressed_transaction_bytes =
-          anon_gtid_ev.transaction_length - anon_gtid_ev.get_event_length();
+          anon_gtid_ev.get_trx_length() - anon_gtid_ev.get_event_length();
     }
       [[fallthrough]];
     default:
@@ -8190,8 +8189,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         transaction be queued. The call to mi->started_queueing() will save
         the GTID to be used later.
       */
-      if (event_type == mysql::binlog::event::GTID_LOG_EVENT ||
-          event_type == mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT) {
+      if (Log_event_type_helper::is_any_gtid_event(event_type)) {
         // set the timestamp for the start time of queueing this transaction
         mi->started_queueing(gtid, original_commit_timestamp,
                              immediate_commit_timestamp);

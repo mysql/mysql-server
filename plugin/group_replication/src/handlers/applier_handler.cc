@@ -143,7 +143,8 @@ int Applier_handler::handle_binary_log_event(Pipeline_event *event,
       mysql::binlog::event::TRANSACTION_CONTEXT_EVENT) {
     error = channel_interface.queue_packet((const char *)p->payload, p->len);
 
-    if (event->get_event_type() == mysql::binlog::event::GTID_LOG_EVENT) {
+    if (mysql::binlog::event::Log_event_type_helper::is_assigned_gtid_event(
+            event->get_event_type())) {
       applier_module->get_pipeline_stats_member_collector()
           ->increment_transactions_waiting_apply();
     }

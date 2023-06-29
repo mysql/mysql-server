@@ -1386,7 +1386,7 @@ ER_RPL_UNSUPPORTED_UNIGNORABLE_EVENT_IN_STREAM
   eng "Unsupported non-ignorable event fed into the event stream."
 
 ER_RPL_GTID_LOG_EVENT_IN_STREAM
-  eng "GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected in an event stream %s."
+  eng "GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected in an event stream %s."
 
 ER_RPL_UNEXPECTED_BEGIN_IN_STREAM
   eng "QUERY(BEGIN) is not expected in an event stream in the middle of a %s."
@@ -12579,6 +12579,12 @@ ER_COMPONENT_MASKING_VAR_REGISTRATION_FAILURE
 
 ER_COMPONENT_MASKING_NOTIFICATION_REGISTRATION_FAILURE
   eng "Masking component failed to register notification service. Periodical masking dictionaries flush will not work."
+
+ER_GRP_RPL_MSG_DECODING_FAILED
+  eng "Failed to decode Group Replication message: %s. Reason : %s"
+
+ER_GRP_RPL_APPLIER_ERROR_PACKET_RECEIVED
+  eng "The Applier process of Group Replication found an error and was requested to stop: %s"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

@@ -18,8 +18,8 @@ include/assert.inc [committed gtids MASTER_UUID:1-4]
 #
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	4
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	4	
 include/sync_slave_sql_with_master.inc
 #
 # connection slave
@@ -30,11 +30,11 @@ include/assert.inc [committed gtids MASTER_UUID:1-4]
 # each transaction if binlog is on and log_slave_updated is disabled.
 #
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	1
-MASTER_UUID	2	2
-MASTER_UUID	3	3
-MASTER_UUID	4	4
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	1	
+MASTER_UUID	2	2	
+MASTER_UUID	3	3	
+MASTER_UUID	4	4	
 SET @@GLOBAL.DEBUG= '-d, dont_compress_gtid_table';
 INSERT INTO t1 VALUES(2);
 INSERT INTO t2 VALUES(2);
@@ -47,11 +47,11 @@ SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD= 1;
 FLUSH LOGS;
 SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD= @old_compression_period;
 SELECT * FROM mysql.gtid_executed where source_uuid="MASTER_UUID";
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	4
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	4	
 SELECT * FROM mysql.gtid_executed where source_uuid="SLAVE_UUID";
-source_uuid	interval_start	interval_end
-SLAVE_UUID	1	2
+source_uuid	interval_start	interval_end	gtid_tag
+SLAVE_UUID	1	2	
 #
 # Verify that we can get the correct set of gtid_purged when purging
 # logs if binlog is enabled and log_replica_updates is disabled.
@@ -131,12 +131,12 @@ COMMIT;
 # Removing debug point 'dont_compress_gtid_table' from @@GLOBAL.debug
 SET GLOBAL MAX_BINLOG_SIZE=@SIZE_DEFAULT;
 SELECT * FROM mysql.gtid_executed where source_uuid="MASTER_UUID";
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	4
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	4	
 SELECT * FROM mysql.gtid_executed where source_uuid="SLAVE_UUID";
-source_uuid	interval_start	interval_end
-SLAVE_UUID	1	2
-SLAVE_UUID	3	3
+source_uuid	interval_start	interval_end	gtid_tag
+SLAVE_UUID	1	2	
+SLAVE_UUID	3	3	
 SET @@session.binlog_transaction_compression= SAVED;
 DROP TABLE t1,t2;
 include/rpl_end.inc

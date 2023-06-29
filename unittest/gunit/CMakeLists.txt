@@ -234,6 +234,7 @@ SET(SERVER_TESTS
   gis_wkb_parser
   gis_wkb_writer
   graph_simplification
+  gtid_specification_parsing
   handler
   hash_join
   histograms

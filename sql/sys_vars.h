@@ -2757,7 +2757,7 @@ class Sys_var_gtid_owned : Sys_var_charptr_func {
       if (buf) {
         /* Take the lock if accessing another session. */
         if (remote) global_sid_lock->rdlock();
-        running_thd->owned_gtid.to_string(target_thd->owned_sid, buf);
+        running_thd->owned_gtid.to_string(target_thd->owned_tsid, buf);
         if (remote) global_sid_lock->unlock();
       } else
         my_error(ER_OUT_OF_RESOURCES, MYF(0));

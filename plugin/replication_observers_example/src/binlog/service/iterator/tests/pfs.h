@@ -43,7 +43,7 @@ struct Row {
       mysql::binlog::event::UNKNOWN_EVENT};
   std::string event_name{};
   std::string storage_details{};
-  std::string trx_uuid{};
+  std::string trx_tsid{};
   uint64_t trx_seqno{0};
   uint64_t start_position{0};
   uint64_t end_position{0};
@@ -54,7 +54,7 @@ struct Row {
     event_name = mysql::binlog::event::get_event_type_as_string(event_type);
     storage_details = "";
     trx_seqno = 0;
-    trx_uuid = "";
+    trx_tsid = "";
     start_position = 0;
     extra = "";
   }

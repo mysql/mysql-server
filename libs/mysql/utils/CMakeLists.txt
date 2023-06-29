@@ -24,8 +24,9 @@ SET(TARGET_HEADERS
   bit_operations.h
   deprecate_header.h
   enumeration_utils.h
-  is_specialization.h
   error.h
+  is_specialization.h
+  return_status.h
 )
 
 SET(TARGET_SRCS

@@ -46,7 +46,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 --let $use_gtids= 0
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
-call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
+call mtr.add_suppression("GTID_LOG_EVENT.* is not expected in an event stream");
 --source include/start_slave_io.inc
 # Reset the GTID counter for assertion
 --source include/gtid_step_reset_on_retrieved.inc

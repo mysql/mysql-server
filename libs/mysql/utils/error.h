@@ -57,8 +57,8 @@ class Error {
   /// @param[in] file File name in which error occurred
   /// @param[in] line Line number in which error occurred
   /// @param[in] message Additional information
-  Error(const char *type, const char *file, std::size_t line,
-        const char *message) {
+  Error(const char *type, [[maybe_unused]] const char *file,
+        [[maybe_unused]] std::size_t line, const char *message) {
 #ifndef NDEBUG
     m_stream << type << " error occurred in file: " << file
              << " line: " << line;

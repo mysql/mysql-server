@@ -117,7 +117,8 @@ class Gtid_table_access_context : public System_table_access {
 
 class Gtid_table_persistor {
  public:
-  static const uint number_fields = 3;
+  static const uint number_fields =
+      4;  ///< the number of fields in mysql.gtid_executed
 
   Gtid_table_persistor() = default;
   virtual ~Gtid_table_persistor() = default;
@@ -238,7 +239,7 @@ class Gtid_table_persistor {
   std::atomic<int64> m_atomic_count{0};
   /**
     Compress the gtid_executed table, read each row by the
-    PK(sid, gno_start) in increasing order, compress the first
+    PK(sid, tag, gno_start) in increasing order, compress the first
     consecutive range of gtids within a single transaction.
 
     @param      thd          Thread requesting to compress the table
@@ -254,7 +255,7 @@ class Gtid_table_persistor {
   */
   int compress_in_single_transaction(THD *thd, bool &is_complete);
   /**
-    Read each row by the PK(sid, gno_start) in increasing order,
+    Read each row by the PK(sid, tag, gno_start) in increasing order,
     compress the first consecutive range of gtids.
     For example,
       1 1
@@ -281,43 +282,47 @@ class Gtid_table_persistor {
     Fill a gtid interval into fields of the gtid_executed table.
 
     @param  fields   Reference to table fields.
-    @param  sid      The source id of the gtid interval.
+    @param  sid      The source id component of TSID (UUID)
+    @param  tag      Tag component of a TSID
     @param  gno_start The first GNO of the gtid interval.
     @param  gno_end  The last GNO of the gtid interval.
 
     @retval 0    OK.
     @retval -1   Error.
   */
-  int fill_fields(Field **fields, const char *sid, rpl_gno gno_start,
-                  rpl_gno gno_end);
+  [[NODISCARD]] int fill_fields(Field **fields, const char *sid,
+                                const char *tag, rpl_gno gno_start,
+                                rpl_gno gno_end);
   /**
     Write a gtid interval into the gtid_executed table.
 
     @param  table    Reference to a table object.
-    @param  sid      The source id of the gtid interval.
+    @param  sid      The source id component of TSID (UUID)
+    @param  tag      Tag component of a TSID
     @param  gno_start The first GNO of the gtid interval.
     @param  gno_end  The last GNO of the gtid interval.
 
     @retval 0    OK.
     @retval -1   Error.
   */
-  int write_row(TABLE *table, const char *sid, rpl_gno gno_start,
-                rpl_gno gno_end);
+  [[NODISCARD]] int write_row(TABLE *table, const char *sid, const char *tag,
+                              rpl_gno gno_start, rpl_gno gno_end);
   /**
     Update a gtid interval in the gtid_executed table.
-    - locate the gtid interval by primary key (sid, gno_start)
+    - locate the gtid interval by primary key (sid, tag, gno_start)
       to update it with the new_gno_end.
 
     @param  table        Reference to a table object.
-    @param  sid          The source id of the gtid interval.
+    @param  sid          The source id component of TSID (UUID)
+    @param  tag          Tag component of a TSID
     @param  gno_start    The first GNO of the gtid interval.
     @param  new_gno_end  The new last GNO of the gtid interval.
 
     @retval 0    OK.
     @retval -1   Error.
   */
-  int update_row(TABLE *table, const char *sid, rpl_gno gno_start,
-                 rpl_gno new_gno_end);
+  [[NODISCARD]] int update_row(TABLE *table, const char *sid, const char *tag,
+                               rpl_gno gno_start, rpl_gno new_gno_end);
   /**
     Delete all rows in the gtid_executed table.
 
@@ -338,12 +343,13 @@ class Gtid_table_persistor {
     Get gtid interval from the the current row of the table.
 
     @param table          Reference to a table object.
-    @param [out] sid      The source id of the gtid interval.
+    @param [out] sid      The source id component of TSID (UUID)
+    @param [out] tag      tag component of a TSID
     @param [out] gno_start The first GNO of the gtid interval.
     @param [out] gno_end  The last GNO of the gtid interval.
   */
-  void get_gtid_interval(TABLE *table, std::string &sid, rpl_gno &gno_start,
-                         rpl_gno &gno_end);
+  void get_gtid_interval(TABLE *table, std::string &sid, std::string &tag,
+                         rpl_gno &gno_start, rpl_gno &gno_end);
   /**
     Insert the gtid set into table.
 

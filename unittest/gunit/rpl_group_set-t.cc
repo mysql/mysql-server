@@ -319,17 +319,18 @@ TEST_F(GroupTest, Sid_map) {
   while (sm.get_max_sidno() < N_SIDS)
     ASSERT_LE(1, sm.add_permanent(&sids[rand() % N_SIDS])) << errtext;
 
+  std::size_t i = 0;
   // Check that all N_SID SIDs are in the map, and that
   // get_sorted_sidno() has the correct order.  This implies that no
   // SID was added twice.
-  for (int i = 0; i < N_SIDS; i++) {
-    rpl_sidno sidno = sm.get_sorted_sidno(i);
+  for (const auto &sid_it : sid_map->get_sorted_sidno()) {
+    rpl_sidno sidno = sid_map->get_sidno(sid_it);
     const rpl_sid *sid;
     char buf[100];
     EXPECT_NE((rpl_sid *)nullptr, sid = sm.sidno_to_sid(sidno)) << errtext;
     const int max_len = mysql::gtid::Uuid::TEXT_LENGTH;
     EXPECT_EQ(max_len, sid->to_string(buf)) << errtext;
-    EXPECT_STRCASEEQ(uuids[i], buf) << errtext;
+    EXPECT_STRCASEEQ(uuids[i++], buf) << errtext;
     EXPECT_EQ(sidno, sm.sid_to_sidno(sid)) << errtext;
   }
   lock.unlock();

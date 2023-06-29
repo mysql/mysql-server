@@ -58,7 +58,8 @@ bool Tracker::track_and_update(std::shared_ptr<State> state,
 #endif
 
   switch (ev_type) {
-    case mysql::binlog::event::GTID_LOG_EVENT: {
+    case mysql::binlog::event::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_TAGGED_LOG_EVENT: {
       BAPI_ASSERT(!was_inside_transaction);
       BAPI_ASSERT(m_current_gtid_event_buffer.empty());
       // save the gtid buffer, so we can instantiate the event later and
@@ -112,7 +113,7 @@ bool Tracker::track_and_update(std::shared_ptr<State> state,
     mysql::binlog::event::Gtid_event gev{m_current_gtid_event_buffer.c_str(),
                                          m_fde.get()};
     if (!gev.header()->get_is_valid()) return true;
-    mysql::gtid::Gtid gtid(gev.get_uuid(), gev.get_gno());
+    mysql::gtid::Gtid gtid(gev.get_tsid(), gev.get_gno());
     state->add_gtid(gtid);
     m_current_gtid_event_buffer.clear();
   }

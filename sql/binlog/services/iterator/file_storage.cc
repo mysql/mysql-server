@@ -248,14 +248,15 @@ class Binlog_iterator_ctx {
     DBUG_TRACE;
     auto event_type = static_cast<Log_event_type>(buffer[EVENT_TYPE_OFFSET]);
     switch (event_type) {
-      case mysql::binlog::event::GTID_LOG_EVENT: {
+      case mysql::binlog::event::GTID_LOG_EVENT:
+      case mysql::binlog::event::GTID_TAGGED_LOG_EVENT: {
         Gtid_log_event gtid_ev(reinterpret_cast<const char *>(buffer),
                                &m_current_fde);
         if (!gtid_ev.is_valid())
           return std::make_tuple<bool, bool, uint64_t>(true, false, 0);
         Gtid gtid{};
-        const auto *const sid = gtid_ev.get_sid();
-        gtid.sidno = m_local_sid_map.sid_to_sidno(*sid);
+        const auto &tsid = gtid_ev.get_tsid();
+        gtid.sidno = m_local_sid_map.tsid_to_sidno(tsid);
         if (gtid.sidno == 0)
           return std::make_tuple<bool, bool, uint64_t>(
               false, false, static_cast<uint64_t>(gtid_ev.transaction_length));
@@ -361,12 +362,15 @@ class Binlog_iterator_ctx {
         // have we read a gtid? if so, we need to check if we skip the
         // transaction
         switch (static_cast<Log_event_type>(buffer[EVENT_TYPE_OFFSET])) {
-          case mysql::binlog::event::GTID_LOG_EVENT: {
+          case mysql::binlog::event::GTID_LOG_EVENT:
+          case mysql::binlog::event::GTID_TAGGED_LOG_EVENT: {
             // seek to the beginning of the log event and deserialize the GTID
             // event
             unsigned int bytes_read{0};
             unsigned char gtid_buffer_stack
-                [mysql::binlog::event::Gtid_event::MAX_EVENT_LENGTH];
+                [mysql::binlog::event::Gtid_event::get_max_event_length()];
+            memset(gtid_buffer_stack, 0,
+                   mysql::binlog::event::Gtid_event::get_max_event_length());
             unsigned char *gtid_buffer = gtid_buffer_stack;
 
             // swap buffer in the context
@@ -374,7 +378,7 @@ class Binlog_iterator_ctx {
             auto saved_buffer_capacity = get_buffer_capacity();
             set_buffer(gtid_buffer);
             set_buffer_capacity(
-                mysql::binlog::event::Gtid_event::MAX_EVENT_LENGTH);
+                mysql::binlog::event::Gtid_event::get_max_event_length());
             auto swap_and_free_buffer_guard{create_scope_guard([&]() {
               set_buffer(saved_buffer);
               set_buffer_capacity(saved_buffer_capacity);

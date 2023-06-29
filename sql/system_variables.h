@@ -512,6 +512,10 @@ struct System_variables {
 #endif
 };
 
+static_assert(std::is_trivially_copyable<System_variables>::value);
+static_assert(std::is_trivial<System_variables>::value);
+static_assert(std::is_standard_layout<System_variables>::value);
+
 /**
   Per thread status variables.
   Must be long/ulong up to last_system_status_var so that

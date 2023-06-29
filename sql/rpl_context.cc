@@ -124,7 +124,7 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
         to increased contention, we arrange for sidnos on the local
         sid map.
       */
-      rpl_sidno local_set_sidno = m_sid_map->add_sid(thd->owned_sid);
+      rpl_sidno local_set_sidno = m_sid_map->add_tsid(thd->owned_tsid);
 
       assert(!m_gtid_set->contains_gtid(local_set_sidno, gtid.gno));
       res = m_gtid_set->ensure_sidno(local_set_sidno) != RETURN_STATUS_OK;
@@ -195,10 +195,10 @@ Last_used_gtid_tracker_ctx::Last_used_gtid_tracker_ctx() {
 
 Last_used_gtid_tracker_ctx::~Last_used_gtid_tracker_ctx() = default;
 
-void Last_used_gtid_tracker_ctx::set_last_used_gtid(const Gtid &gtid,
-                                                    const rpl_sid &sid) {
+void Last_used_gtid_tracker_ctx::set_last_used_gtid(
+    const Gtid &gtid, const mysql::gtid::Tsid &tsid) {
   (*m_last_used_gtid).set(gtid.sidno, gtid.gno);
-  m_last_used_sid.copy_from(sid);
+  m_last_used_tsid = tsid;
 }
 
 void Last_used_gtid_tracker_ctx::get_last_used_gtid(Gtid &gtid) {
@@ -206,8 +206,8 @@ void Last_used_gtid_tracker_ctx::get_last_used_gtid(Gtid &gtid) {
   gtid.gno = (*m_last_used_gtid).gno;
 }
 
-void Last_used_gtid_tracker_ctx::get_last_used_sid(rpl_sid &sid) {
-  m_last_used_sid.copy_to(sid.bytes);
+void Last_used_gtid_tracker_ctx::get_last_used_tsid(mysql::gtid::Tsid &tsid) {
+  tsid = m_last_used_tsid;
 }
 
 Transaction_compression_ctx::Transaction_compression_ctx(PSI_memory_key key)

@@ -2406,8 +2406,8 @@ int Relay_log_info::set_rli_description_event(
     if (info_thd) {
       /* @see rpl_rli_pdb.h:Slave_worker::set_rli_description_event for a
          detailed explanation on the following code block's logic. */
-      if (info_thd->variables.gtid_next.type == AUTOMATIC_GTID ||
-          info_thd->variables.gtid_next.type == UNDEFINED_GTID) {
+      if (info_thd->variables.gtid_next.is_automatic() ||
+          info_thd->variables.gtid_next.is_undefined()) {
         bool in_active_multi_stmt =
             info_thd->in_active_multi_stmt_transaction();
 
@@ -2915,7 +2915,7 @@ void Relay_log_info::post_commit(bool on_rollback) {
 void Relay_log_info::set_group_source_log_start_end_pos(const Log_event *ev) {
   DBUG_TRACE;
   if (!group_source_log_seen_start_pos &&
-      (ev->starts_group() || is_gtid_event(ev))) {
+      (ev->starts_group() || is_any_gtid_event(ev))) {
     group_source_log_seen_start_pos = true;
     group_source_log_start_pos =
         ev->common_header->log_pos - ev->common_header->data_written;
@@ -3337,16 +3337,14 @@ bool Assign_gtids_to_anonymous_transactions_info::set_info(
       break;
     case Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_UUID: {
       assert(value_arg != nullptr);
-      rpl_sid rename_sid{};
-      if (rename_sid.parse(value_arg, strlen(value_arg))) {
+      mysql::gtid::Tsid rename_tsid;
+      if (rename_tsid.from_cstring(value_arg) == 0) {
         return true;
       }
       global_sid_lock->rdlock();
-      m_sidno = global_sid_map->add_sid(rename_sid);
+      m_sidno = global_sid_map->add_tsid(rename_tsid);
       global_sid_lock->unlock();
-      char normalized_uuid[mysql::gtid::Uuid::TEXT_LENGTH + 1];
-      rename_sid.to_string(normalized_uuid);
-      m_value.assign(normalized_uuid);
+      m_value = rename_tsid.to_string();
       break;
     }
     case Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF:

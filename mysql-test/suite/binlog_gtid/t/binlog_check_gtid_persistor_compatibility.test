@@ -1,0 +1,68 @@
+# ==== PURPOSE ====
+#
+#  Gtid clone persistor is able to use two versions of the GTID, version
+#  1 - text version or version 2, binary, that supports GTID tags. In this
+#  test, we check compatibility reading of GTID persisted in version 1.
+#
+# ==== IMPLEMENTATION ====
+#
+# Steps:
+#   1. Set debug points which save GTID in version 1 and cause
+#      a crash before GTID is persisted in table.
+#   2. Execute queries, restart server after crash
+#   3. Verify that GTIDs were persisted correctly
+#
+# ==== REQUIREMENTS ====
+#
+#  Server shall be  backward compatible with version 1 of the GTIDs saved in the
+#  clone persistor
+#
+# ==== REFERENCES ====
+#
+#  WL#15294 Extending GTID with tags to identify group of transactions
+#          Step 2
+#
+
+--source include/have_debug.inc
+
+--echo
+--echo # 1. Set debug points which save GTID in version 1 and cause
+--echo #    a crash before GTID is persisted in table.
+--echo
+
+--let $debug_point = crash_before_gtid_table_persistor_save
+--source include/add_debug_point.inc
+--let $debug_point = gtid_persistor_use_gtid_version_one
+--source include/add_debug_point.inc
+
+--echo
+--echo # 2. Execute queries, restart server after crash
+--echo
+
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+CREATE TABLE t (a INT);
+--error 2013
+FLUSH LOGS;
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo
+--echo # 3. Verify that GTIDs were persisted correctly
+--echo
+
+--let $server_uuid=`SELECT @@SERVER_UUID`
+
+--let $assert_cond= "[SELECT GTID_SUBSET("$server_uuid:1", @@GLOBAL.GTID_EXECUTED)]" = 1
+--let $assert_text= Verify gtid_executed
+--source include/assert.inc
+
+--let $assert_text= Verify mysql.gtid_executed table
+--let $assert_cond= "[SELECT COUNT(*) FROM mysql.gtid_executed WHERE interval_start = 1 AND source_uuid = "$server_uuid" AND gtid_tag = ""]" = 1
+--source include/assert.inc
+
+# Cleanup
+
+DROP TABLE t;

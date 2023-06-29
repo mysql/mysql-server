@@ -205,7 +205,8 @@ bool Until_before_gtids::check_at_start_slave() {
 
 bool Until_before_gtids::check_before_dispatching_event(const Log_event *ev) {
   DBUG_TRACE;
-  if (ev->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT) {
+  if (mysql::binlog::event::Log_event_type_helper::is_assigned_gtid_event(
+          ev->get_type_code())) {
     Gtid_log_event *gev =
         const_cast<Gtid_log_event *>(down_cast<const Gtid_log_event *>(ev));
     global_sid_lock->rdlock();

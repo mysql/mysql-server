@@ -1574,7 +1574,7 @@ bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen) {
     assert(head->variables.gtid_next.type != UNDEFINED_GTID);
 
     /* Generate GTID */
-    if (head->variables.gtid_next.type == AUTOMATIC_GTID) {
+    if (Gtid_specification::is_automatic(head->variables.gtid_next.type)) {
       if (!is_global_sid_locked) {
         global_sid_lock->rdlock();
         is_global_sid_locked = true;
@@ -1748,8 +1748,7 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
                        YESNO(writer->is_checksum_enabled())));
   DBUG_PRINT("debug", ("gtid_event.get_event_length()= %lu",
                        static_cast<ulong>(gtid_event.get_event_length())));
-  DBUG_PRINT("info",
-             ("transaction_length= %llu", gtid_event.transaction_length));
+  DBUG_PRINT("info", ("transaction_length= %llu", gtid_event.get_trx_length()));
 
   bool ret = gtid_event.write(writer);
   if (ret) goto end;
@@ -4102,7 +4101,8 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
 #endif
         break;
       }
-      case mysql::binlog::event::GTID_LOG_EVENT: {
+      case mysql::binlog::event::GTID_LOG_EVENT:
+      case mysql::binlog::event::GTID_TAGGED_LOG_EVENT: {
         /* If we didn't find any PREVIOUS_GTIDS in this file */
         if (!seen_prev_gtids) {
           my_error(ER_BINLOG_LOGICAL_CORRUPTION, MYF(0), filename,
@@ -4312,7 +4312,8 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
         });
         break;
       }
-      case mysql::binlog::event::GTID_LOG_EVENT: {
+      case mysql::binlog::event::GTID_LOG_EVENT:
+      case mysql::binlog::event::GTID_TAGGED_LOG_EVENT: {
         if (ret != GOT_GTIDS) {
           if (ret != GOT_PREVIOUS_GTIDS) {
             /*
@@ -10657,7 +10658,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
       commit usinga GTID), or
     - ENFORCE_GTID_CONSISTENCY=ON.
   */
-  if ((gtid_next_type == AUTOMATIC_GTID &&
+  if ((thd->variables.gtid_next.is_automatic() &&
        gtid_mode >= Gtid_mode::ON_PERMISSIVE) ||
       gtid_next_type == ASSIGNED_GTID ||
       gtid_consistency_mode == GTID_CONSISTENCY_MODE_ON) {
@@ -10680,7 +10681,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
       same transaction, which would make the counter go out of sync.
     */
     if (!thd->has_gtid_consistency_violation) {
-      if (gtid_next_type == AUTOMATIC_GTID)
+      if (Gtid_specification::is_automatic(gtid_next_type))
         gtid_state->begin_automatic_gtid_violating_transaction();
       else {
         assert(gtid_next_type == ANONYMOUS_GTID);

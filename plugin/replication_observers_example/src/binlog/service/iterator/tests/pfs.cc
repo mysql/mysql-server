@@ -361,7 +361,7 @@ int rnd_next(PSI_table_handle *h) {
       uint64_t storage_details_buffer_size{MAX_STORAGE_NAME_SIZE};
       char storage_details_buffer[MAX_STORAGE_NAME_SIZE];
       memset(storage_details_buffer, 0, sizeof(storage_details_buffer));
-      auto current_trx_uuid{handle->row.trx_uuid};
+      auto current_trx_tsid{handle->row.trx_tsid};
       auto current_trx_seqno{handle->row.trx_seqno};
       std::stringstream extra;
       auto &row = handle->row;
@@ -386,17 +386,16 @@ int rnd_next(PSI_table_handle *h) {
         case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT:
         case mysql::binlog::event::FORMAT_DESCRIPTION_EVENT:
         case mysql::binlog::event::ROTATE_EVENT:
-          row.trx_uuid = "";
+          row.trx_tsid = "";
           row.trx_seqno = 0;
 
           // TODO: extend to other events
           break;
-        case mysql::binlog::event::GTID_LOG_EVENT: {
+        case mysql::binlog::event::GTID_LOG_EVENT:
+        case mysql::binlog::event::GTID_TAGGED_LOG_EVENT: {
           mysql::binlog::event::Gtid_event gev(buffer, &handle->fde);
-          char suuid[mysql::gtid::Uuid::TEXT_LENGTH + 1];
           row.trx_seqno = gev.get_gno();
-          gev.get_uuid().to_string(suuid);
-          row.trx_uuid = suuid;
+          row.trx_tsid = gev.get_tsid().to_string();
           extra << "\"trx_size\" : \"" << gev.transaction_length << "\", ";
           extra << "\"trx_immediate_commit_ts\" : \""
                 << gev.immediate_commit_timestamp << "\", ";
@@ -410,7 +409,7 @@ int rnd_next(PSI_table_handle *h) {
           break;
         }
         default:
-          row.trx_uuid = current_trx_uuid;
+          row.trx_tsid = current_trx_tsid;
           row.trx_seqno = current_trx_seqno;
           break;
       }
@@ -445,9 +444,9 @@ int read_column_value(PSI_table_handle *h, PSI_field *field,
       pc_string_srv->set_varchar_utf8mb4_len(field, row.event_name.c_str(),
                                              row.event_name.size());
       break;
-    case 1: /* TRANSACTION_UUID */
-      pc_string_srv->set_char_utf8mb4(field, row.trx_uuid.c_str(),
-                                      row.trx_uuid.size());
+    case 1: /* TRANSACTION_TSID */
+      pc_string_srv->set_char_utf8mb4(field, row.trx_tsid.c_str(),
+                                      row.trx_tsid.size());
       break;
     case 2: /* TRANSACTION_GNO */
       pc_bigint_srv->set_unsigned(

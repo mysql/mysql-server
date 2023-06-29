@@ -11,7 +11,8 @@ gtid_executed	CREATE TABLE `gtid_executed` (
   `source_uuid` char(36) NOT NULL COMMENT 'uuid of the source where the transaction was originally executed.',
   `interval_start` bigint NOT NULL COMMENT 'First number of interval.',
   `interval_end` bigint NOT NULL COMMENT 'Last number of interval.',
-  PRIMARY KEY (`source_uuid`,`interval_start`)
+  `gtid_tag` char(32) NOT NULL COMMENT 'GTID Tag.',
+  PRIMARY KEY (`source_uuid`,`gtid_tag`,`interval_start`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 #
 # Verify that the specified gtid to GTID_NEXT can be reported from
@@ -28,9 +29,9 @@ FLUSH LOGS;
 # Store gtids MASTER_UUID:1:3 in gtid_executed table on binlog rotation
 #
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	1
-MASTER_UUID	3	3
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	1	
+MASTER_UUID	3	3	
 #
 # Verify that these gtids can be reported from global.gtid_executed and
 # are stored into gtid_executed table on next rotation for normal DDLs.
@@ -45,8 +46,8 @@ SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	4
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	4	
 #
 # Verify that these gtids can be reported from global.gtid_executed
 # and are stored into gtid_executed table for compound statement with
@@ -66,8 +67,8 @@ SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	8
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	8	
 #
 # Verify that transactions' gtids can be reported from
 # global.gtid_executed correctly and are stored into
@@ -96,8 +97,8 @@ SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 # Store gtids MASTER_UUID:1-11 in gtid_executed table on binlog rotation
 #
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	11
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	11	
 #
 # Verify that transaction's gtid can not be reported from
 # global.gtid_executed and is not stored into gtid_executed table
@@ -112,8 +113,8 @@ include/assert.inc [committed gtids MASTER_UUID:1-11]
 #
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	11
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	11	
 SET GLOBAL DEBUG= @debug_save;
 include/sync_slave_sql_with_master.inc
 #
@@ -136,8 +137,8 @@ include/assert.inc [committed gtids MASTER_UUID:1-11]
 SET GTID_NEXT='AUTOMATIC';
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	11
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	11	
 #
 # Verify that the specified gtid to GTID_NEXT is stored into
 # global.gtid_executed immediately and stored into gtid_executed table
@@ -153,9 +154,9 @@ include/assert.inc [committed gtids MASTER_UUID:1-11:17]
 SET GTID_NEXT='AUTOMATIC';
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	11
-MASTER_UUID	17	17
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	11	
+MASTER_UUID	17	17	
 #
 # Verify that we can get the correct set of gtid_purged
 # when purging logs.
@@ -175,11 +176,11 @@ COMMIT;
 #
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed where source_uuid="MASTER_UUID";
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	11
-MASTER_UUID	17	17
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	11	
+MASTER_UUID	17	17	
 SELECT * FROM mysql.gtid_executed where source_uuid="SLAVE_UUID";
-source_uuid	interval_start	interval_end
-SLAVE_UUID	1	1
+source_uuid	interval_start	interval_end	gtid_tag
+SLAVE_UUID	1	1	
 DROP TABLE t1, t2;
 include/rpl_end.inc

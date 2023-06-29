@@ -3725,10 +3725,10 @@ class THD : public MDL_context_owner,
   static const int OWNED_SIDNO_ANONYMOUS = -2;
 
   /**
-    For convenience, this contains the SID component of the GTID
+    For convenience, this contains the TSID component of the GTID
     stored in owned_gtid.
   */
-  rpl_sid owned_sid;
+  mysql::gtid::Tsid owned_tsid;
 
   /** SE GTID persistence flag types. */
   enum Se_GTID_flag : size_t {
@@ -3846,7 +3846,7 @@ class THD : public MDL_context_owner,
 #endif
     }
     owned_gtid.clear();
-    owned_sid.clear();
+    owned_tsid.clear();
     owned_gtid.dbug_print(nullptr, "set owned_gtid in clear_owned_gtids");
   }
 

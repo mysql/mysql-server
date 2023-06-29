@@ -132,6 +132,7 @@ int Certification_handler::handle_binary_log_event(Pipeline_event *pevent,
     case mysql::binlog::event::TRANSACTION_CONTEXT_EVENT:
       return handle_transaction_context(pevent, cont);
     case mysql::binlog::event::GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_TAGGED_LOG_EVENT:
       return handle_transaction_id(pevent, cont);
     case mysql::binlog::event::VIEW_CHANGE_EVENT:
       return extract_certification_info(pevent, cont);
@@ -481,12 +482,12 @@ after_certify:
     }
 
     if (seq_number > 0) {
-      const rpl_sid *sid = nullptr;
+      gr::Gtid_tsid tsid;
       rpl_sidno sidno = group_sidno;
       rpl_gno gno = seq_number;
 
       if (tcle->is_gtid_specified()) {
-        sid = gle->get_sid();
+        tsid = gr::Gtid_tsid(gle->get_tsid());
         sidno = gle->get_sidno(true);
         gno = gle->get_gno();
         error = cert_module->add_specified_gtid_to_group_gtid_executed(gle);
@@ -517,7 +518,8 @@ after_certify:
           GROUP_REPLICATION_CONSISTENCY_AFTER) {
         Transaction_consistency_info *transaction_consistency_info =
             new Transaction_consistency_info(
-                tcle->get_thread_id(), local_transaction, sid, sidno, gno,
+                tcle->get_thread_id(), local_transaction, tsid,
+                tcle->is_gtid_specified(), sidno, gno,
                 pevent->get_consistency_level(), pevent->get_online_members());
         pevent->release_online_members_memory_ownership();
         if (transaction_consistency_manager->after_certification(
@@ -554,14 +556,17 @@ after_certify:
       Remote transaction.
     */
     if (seq_number > 0) {
-      const rpl_sid *sid = nullptr;
+      gr::Gtid_tsid tsid;
       rpl_sidno sidno = group_sidno;
       rpl_gno gno = seq_number;
 
       if (!tcle->is_gtid_specified()) {
         // Create new GTID event.
         Gtid gtid = {sidno, gno};
-        Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid};
+        mysql::gtid::Tag_plain empty_tag;
+        empty_tag.clear();
+        Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid,
+                                                 empty_tag};
         Gtid_log_event *gle_generated = new Gtid_log_event(
             gle->server_id, gle->is_using_trans_cache(), gle->last_committed,
             gle->sequence_number, gle->may_have_sbr_stmts,
@@ -593,7 +598,7 @@ after_certify:
       }
 
       else {
-        sid = gle->get_sid();
+        tsid = gr::Gtid_tsid(gle->get_tsid());
         sidno = gle->get_sidno(true);
         gno = gle->get_gno();
 
@@ -621,7 +626,8 @@ after_certify:
           GROUP_REPLICATION_CONSISTENCY_AFTER) {
         Transaction_consistency_info *transaction_consistency_info =
             new Transaction_consistency_info(
-                tcle->get_thread_id(), local_transaction, sid, sidno, gno,
+                tcle->get_thread_id(), local_transaction, tsid,
+                tcle->is_gtid_specified(), sidno, gno,
                 pevent->get_consistency_level(), pevent->get_online_members());
         pevent->release_online_members_memory_ownership();
         if (transaction_consistency_manager->after_certification(
@@ -731,7 +737,9 @@ int Certification_handler::inject_transactional_events(
     cont->signal(1, true);
     return 1;
   }
-  Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid};
+  mysql::gtid::Tag_plain empty_tag;
+  empty_tag.clear();
+  Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid, empty_tag};
   /**
    The original_commit_timestamp for this GTID will be different for each
    member that generated this View_change_event.

@@ -63,7 +63,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
       assert(gtid_state->get_owned_gtids()->thread_owns_anything(
           thd->thread_id()));
 #endif
-      thd->owned_gtid.to_string(thd->owned_sid, buf);
+      thd->owned_gtid.to_string(thd->owned_tsid, buf);
     } else {
       assert(gtid_state->get_anonymous_ownership_count() > 0);
       strcpy(buf, "ANONYMOUS");
@@ -77,7 +77,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
 
   switch (spec.type) {
     case AUTOMATIC_GTID:
-      thd->variables.gtid_next.set_automatic();
+      thd->variables.gtid_next.set(spec);
       break;
 
     case ANONYMOUS_GTID:
@@ -585,21 +585,20 @@ void gtid_set_performance_schema_values(const THD *thd [[maybe_unused]]) {
 
     // Thread owns GTID.
     if (thd->owned_gtid.sidno >= 1) {
-      spec.type = ASSIGNED_GTID;
-      spec.gtid = thd->owned_gtid;
+      spec.set(thd->owned_gtid.sidno, thd->owned_gtid.gno);
     }
 
     // Thread owns ANONYMOUS.
     else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS) {
-      spec.type = ANONYMOUS_GTID;
+      spec.set_anonymous();
     }
 
     // Thread does not own anything.
     else {
       assert(thd->owned_gtid.sidno == 0);
-      spec.type = AUTOMATIC_GTID;
+      spec = thd->variables.gtid_next;
     }
-    MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid, &spec);
+    MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_tsid, &spec);
   }
 #endif
 }

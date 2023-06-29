@@ -10,7 +10,7 @@ SET GLOBAL super_read_only= ON;
 include/assert.inc [committed gtid set is MASTER_UUID:1-2]
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	2
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	2	
 DROP TABLE t;
 RESET BINARY LOGS AND GTIDS;

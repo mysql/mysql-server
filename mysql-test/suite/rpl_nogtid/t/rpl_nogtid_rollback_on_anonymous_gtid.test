@@ -39,7 +39,7 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY);
 --let $master_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave_io.inc
-CALL mtr.add_suppression('GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected');
+CALL mtr.add_suppression('GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected');
 CALL mtr.add_suppression('An unexpected event sequence was detected by the IO thread');
 
 --source include/rpl_connection_master.inc

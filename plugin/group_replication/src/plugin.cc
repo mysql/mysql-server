@@ -2371,17 +2371,16 @@ static int plugin_group_replication_check_uninstall(void *) {
 
 static bool init_group_sidno() {
   DBUG_TRACE;
-  rpl_sid group_sid;
+  gr::Gtid_tsid group_tsid;
 
-  if (group_sid.parse(ov.group_name_var, strlen(ov.group_name_var)) !=
-      RETURN_STATUS_OK) {
+  if (group_tsid.from_cstring(ov.group_name_var) == 0) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_PARSE_THE_GRP_NAME);
     return true;
     /* purecov: end */
   }
 
-  lv.group_sidno = get_sidno_from_global_sid_map(group_sid);
+  lv.group_sidno = get_sidno_from_global_sid_map(group_tsid);
   if (lv.group_sidno <= 0) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_GENERATE_SIDNO_FOR_GRP);
@@ -2390,11 +2389,9 @@ static bool init_group_sidno() {
   }
 
   if (strcmp(ov.view_change_uuid_var, "AUTOMATIC")) {
-    rpl_sid view_change_sid;
+    gr::Gtid_tsid view_change_tsid;
 
-    if (view_change_sid.parse(ov.view_change_uuid_var,
-                              strlen(ov.view_change_uuid_var)) !=
-        RETURN_STATUS_OK) {
+    if (view_change_tsid.from_cstring(ov.view_change_uuid_var) == 0) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_FAILED_TO_PARSE_THE_VIEW_CHANGE_UUID);
@@ -2402,7 +2399,7 @@ static bool init_group_sidno() {
       /* purecov: end */
     }
 
-    lv.view_change_sidno = get_sidno_from_global_sid_map(view_change_sid);
+    lv.view_change_sidno = get_sidno_from_global_sid_map(view_change_tsid);
     if (lv.view_change_sidno <= 0) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,

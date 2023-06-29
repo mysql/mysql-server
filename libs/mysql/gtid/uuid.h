@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <array>
 #include <string>
 #include <utility>
 
@@ -40,8 +41,7 @@ namespace mysql::gtid {
 /**
   @struct  Uuid
 
-  This is a POD.  It has to be a POD because it is a member of
-  Sid_map::Node which is stored in HASH in mysql-server code.
+  Uuid is a trivial and of standard layout
   The structure contains the following components.
   <table>
   <caption>Structure gtid_info</caption>
@@ -62,20 +62,23 @@ namespace mysql::gtid {
 
 struct Uuid {
   /// Set to all zeros.
-  void clear() { memset(bytes, 0, BYTE_LENGTH); }
+  void clear() { memset(bytes.data(), 0, BYTE_LENGTH); }
   /// Copies the given 16-byte data to this UUID.
   void copy_from(const unsigned char *data) {
-    memcpy(bytes, data, BYTE_LENGTH);
+    memcpy(bytes.data(), data, BYTE_LENGTH);
   }
+
   /// Copies the given UUID object to this UUID.
-  void copy_from(const Uuid &data) {
-    copy_from(pointer_cast<const unsigned char *>(data.bytes));
+  void copy_to(unsigned char *data) const {
+    memcpy(data, bytes.data(), BYTE_LENGTH);
   }
-  /// Copies the given UUID object to this UUID.
-  void copy_to(unsigned char *data) const { memcpy(data, bytes, BYTE_LENGTH); }
   /// Returns true if this UUID is equal the given UUID.
   bool equals(const Uuid &other) const {
-    return memcmp(bytes, other.bytes, BYTE_LENGTH) == 0;
+    return memcmp(bytes.data(), other.bytes.data(), BYTE_LENGTH) == 0;
+  }
+
+  bool operator<(const Uuid &other) const {
+    return memcmp(this->bytes.data(), other.bytes.data(), BYTE_LENGTH) < 0;
   }
   /**
     Returns true if parse() would succeed, but doesn't store the result.
@@ -136,9 +139,11 @@ struct Uuid {
   static bool read_section(int section_len, const char **section_str,
                            const unsigned char **out_binary_str);
   /** The number of bytes in the data of a Uuid. */
-  static const size_t BYTE_LENGTH = 16;
+  static constexpr std::size_t BYTE_LENGTH = 16;
+
   /** The data for this Uuid. */
-  unsigned char bytes[BYTE_LENGTH];
+  std::array<unsigned char, BYTE_LENGTH> bytes;
+
   /**
     Generates a 36+1 character long representation of this UUID object
     in the given string buffer.
@@ -183,14 +188,18 @@ struct Uuid {
   };
 };
 
-struct Hash_Uuid {
+static_assert(std::is_trivial_v<Uuid>);
+static_assert(std::is_standard_layout_v<Uuid>);
+
+struct Uuid_hash {
   size_t operator()(const Uuid &uuid) const {
-    return std::hash<std::string>()(
-        std::string(pointer_cast<const char *>(uuid.bytes), Uuid::BYTE_LENGTH));
+    return std::hash<std::string>()(std::string(
+        pointer_cast<const char *>(uuid.bytes.data()), Uuid::BYTE_LENGTH));
   }
 };
 
 inline bool operator==(const Uuid &a, const Uuid &b) { return a.equals(b); }
+inline bool operator!=(const Uuid &a, const Uuid &b) { return !a.equals(b); }
 
 }  // namespace mysql::gtid
 

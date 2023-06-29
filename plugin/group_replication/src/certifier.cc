@@ -28,6 +28,7 @@
 #include <mysql/components/services/log_builtins.h>
 #include "my_dbug.h"
 #include "my_systime.h"
+#include "mysql/gtid/tsid.h"
 #include "plugin/group_replication/include/certifier.h"
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin.h"
@@ -331,18 +332,18 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
   std::string gtid_executed;
   std::string applier_retrieved_gtids;
 
-  rpl_sid group_sid;
+  gr::Gtid_tsid group_tsid;
   const char *group_name = get_group_name_var();
-  rpl_sid view_sid;
+  gr::Gtid_tsid view_tsid;
   const char *view_uuid = get_view_change_uuid_var();
-  if (group_sid.parse(group_name, strlen(group_name)) != RETURN_STATUS_OK) {
+  if (group_tsid.from_cstring(group_name) == 0) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_GROUP_NAME_PARSE_ERROR); /* purecov: inspected */
     error = 1;                                       /* purecov: inspected */
     goto end;                                        /* purecov: inspected */
   }
 
-  group_gtid_sid_map_group_sidno = group_gtid_sid_map->add_sid(group_sid);
+  group_gtid_sid_map_group_sidno = group_gtid_sid_map->add_tsid(group_tsid);
   if (group_gtid_sid_map_group_sidno < 0) {
     LogPluginErr(
         ERROR_LEVEL,
@@ -372,7 +373,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
     views_sidno_group_representation = group_gtid_sid_map_group_sidno;
     views_sidno_server_representation = get_group_sidno();
   } else {
-    if (view_sid.parse(view_uuid, strlen(view_uuid)) != RETURN_STATUS_OK) {
+    if (view_tsid.from_cstring(view_uuid) == 0) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_VIEW_CHANGE_UUID_PARSE_ERROR);
       error = 1;
@@ -380,7 +381,7 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
       /* purecov: end */
     }
 
-    views_sidno_group_representation = group_gtid_sid_map->add_sid(view_sid);
+    views_sidno_group_representation = group_gtid_sid_map->add_tsid(view_tsid);
     if (views_sidno_group_representation < 0) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
@@ -793,11 +794,9 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
       // sidno is relative to global_sid_map.
       Gtid gtid = {gle->get_sidno(true), gle->get_gno()};
       if (is_gtid_committed(gtid)) {
-        char buf[rpl_sid::TEXT_LENGTH + 1];
-        gle->get_sid()->to_string(buf);
-
-        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_ALREADY_USED, buf,
-                     gle->get_gno());
+        std::string tsid_str = gle->get_tsid().to_string();
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_ALREADY_USED,
+                     tsid_str.c_str(), gle->get_gno());
         goto end;
       }
     }

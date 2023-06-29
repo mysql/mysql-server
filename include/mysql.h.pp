@@ -266,6 +266,7 @@ uint64_t net_field_length_ll(unsigned char **packet);
 unsigned char *net_store_length(unsigned char *pkg, unsigned long long length);
 unsigned int net_length_size(unsigned long long num);
 unsigned int net_field_length_size(const unsigned char *pos);
+uint64_t net_length_size_including_self(uint64_t length_without_self);
 enum connect_stage {
   CONNECT_STAGE_INVALID = 0,
   CONNECT_STAGE_NOT_STARTED,

@@ -594,6 +594,7 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
   switch (ev->get_type_code()) {
     case mysql::binlog::event::GTID_LOG_EVENT:
     case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT:
+    case mysql::binlog::event::GTID_TAGGED_LOG_EVENT:
       // TODO: control continuity
       ptr_group->sequence_number = sequence_number =
           static_cast<Gtid_log_event *>(ev)->sequence_number;

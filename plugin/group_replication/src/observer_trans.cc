@@ -283,7 +283,9 @@ int group_replication_trans_before_commit(Trans_param *param) {
     gtid.gno = 1;
   }
 
-  const Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid};
+  mysql::gtid::Tag_plain empty_tag;
+  empty_tag.clear();
+  Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid, empty_tag};
   Gtid_log_event *gle = nullptr;
 
   Transaction_context_log_event *tcle = nullptr;

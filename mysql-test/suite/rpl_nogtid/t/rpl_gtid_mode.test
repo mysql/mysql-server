@@ -50,7 +50,7 @@ call mtr.add_suppression("Replica I/O for channel '': The replication receiver t
 call mtr.add_suppression("Replica I/O for channel '': The replica IO thread stops");
 call mtr.add_suppression("Replica I/O for channel '': Got fatal error 1236 from source when reading data from binary log: 'Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
 call mtr.add_suppression("Replica I/O for channel '': Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
-call mtr.add_suppression("GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT.");
+call mtr.add_suppression("GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT, GTID_TAGGED_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT.");
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread while queuing the event received from source");
 call mtr.add_suppression("Detected misconfiguration: replication channel '' was configured with AUTO_POSITION = 1, but the server was started with --gtid-mode=off.");
 call mtr.add_suppression("Replica I/O for channel '': Relay log write failure: could not queue event from source");

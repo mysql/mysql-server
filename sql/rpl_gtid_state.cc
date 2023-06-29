@@ -95,9 +95,9 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid) {
   } else {
     thd->owned_gtid = gtid;
     thd->owned_gtid.dbug_print(nullptr, "set owned_gtid in acquire_ownership");
-    thd->owned_sid = sid_map->sidno_to_sid(gtid.sidno);
+    thd->owned_tsid = sid_map->sidno_to_sid(gtid.sidno);
     thd->rpl_thd_ctx.last_used_gtid_tracker_ctx().set_last_used_gtid(
-        gtid, thd->owned_sid);
+        gtid, thd->owned_tsid);
   }
   RETURN_OK;
 err:
@@ -476,7 +476,9 @@ enum_return_status Gtid_state::generate_automatic_gtid(
   DBUG_TRACE;
   enum_return_status ret = RETURN_STATUS_OK;
 
-  assert(thd->variables.gtid_next.type == AUTOMATIC_GTID);
+  [[maybe_unused]] const auto &gtid_next = thd->variables.gtid_next;
+
+  assert(gtid_next.is_automatic());
   assert(specified_sidno >= 0);
   assert(specified_gno >= 0);
   assert(thd->owned_gtid.is_empty());
@@ -665,7 +667,8 @@ int Gtid_state::init() {
   rpl_sid server_sid{};
   if (server_sid.parse(server_uuid, mysql::gtid::Uuid::TEXT_LENGTH) != 0)
     return 1;
-  rpl_sidno sidno = sid_map->add_sid(server_sid);
+  rpl_sidno sidno =
+      sid_map->add_tsid(Sid_map::Tsid(server_sid, Sid_map::Tag()));
   if (sidno <= 0) return 1;
   server_sidno = sidno;
   next_free_gno = 1;
@@ -901,8 +904,8 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit) {
       gtid_pre_statement_checks skips the test for undefined,
       e.g. ROLLBACK.
     */
-    assert(thd->variables.gtid_next.type == AUTOMATIC_GTID ||
-           thd->variables.gtid_next.type == UNDEFINED_GTID);
+    assert(thd->variables.gtid_next.is_automatic() ||
+           thd->variables.gtid_next.is_undefined());
   }
 }
 

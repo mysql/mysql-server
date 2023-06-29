@@ -16,8 +16,8 @@ SET DEBUG_SYNC= 'now SIGNAL notified_thread_complete';
 include/assert.inc [committed gtid set is MASTER_UUID:1-3]
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	3
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	3	
 #
 # Verify that no gtid is inserted into gtid_executed table on binlog
 # rotation if no gtid is stored into the last binlog.
@@ -25,8 +25,8 @@ MASTER_UUID	1	3
 FLUSH LOGS;
 include/assert.inc [committed gtid set is MASTER_UUID:1-3]
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	3
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	3	
 SET @@GLOBAL.DEBUG= '+d, disable_gtid_background_persister';
 INSERT INTO t1 VALUES(2);
 SET @@GLOBAL.DEBUG= '+d, simulate_error_on_compress_gtid_table';
@@ -40,9 +40,9 @@ SET @@GLOBAL.DEBUG= '-d, simulate_error_on_compress_gtid_table';
 #
 include/assert.inc [committed gtid set is MASTER_UUID:1-4]
 SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	3
-MASTER_UUID	4	4
+source_uuid	interval_start	interval_end	gtid_tag
+MASTER_UUID	1	3	
+MASTER_UUID	4	4	
 #
 # Verify that 'Compressing gtid_executed table' stage is set
 # for compression thread when compressing gtid_executed table.
