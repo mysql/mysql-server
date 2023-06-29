@@ -3543,9 +3543,9 @@ void ConfigGenerator::create_stop_script(
     throw std::system_error(ec,
                             "Could not open " + script_path + " for writing");
   }
-  script << "$filename = [Environment]::GetEnvironmentVariable(\"ROUTER_PID\", "
-            "\"Process\")"
-         << std::endl;
+  script << "$filename ="
+         << "\"" << directory << "\\"
+         << "mysqlrouter.pid\"" << std::endl;
   script << "If(Test-Path $filename) {" << std::endl;
   script << "  $mypid = [IO.File]::ReadAllText($filename)" << std::endl;
   script << "  Stop-Process -Id $mypid" << std::endl;

@@ -31,7 +31,7 @@
 namespace mrs {
 namespace database {
 
-class QueryEntryDbObject : protected QueryLog {
+class QueryEntryDbObject : protected Query {
  public:
   using DbObject = entry::DbObject;
   using VectorOfPathEntries = std::vector<DbObject>;
