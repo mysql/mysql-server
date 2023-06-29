@@ -66,7 +66,7 @@ TARGET_LINK_LIBRARIES(${XCL_UNIT_TESTS}
   ${GCOV_LDFLAGS}
   ${MYSQLX_CLIENT_FULL_LIB}
   ${MYSQLX_PROTOCOL_FULL_LIB}
-  ${PROTOBUF_LIBRARY}
+  ext::libprotobuf
   ext::lz4
   mysqlclient
   gtest

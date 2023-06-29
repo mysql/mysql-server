@@ -107,6 +107,11 @@ endif()
 
 add_library(libprotobuf ${protobuf_SHARED_OR_STATIC}
   ${libprotobuf_lite_files} ${libprotobuf_files} ${libprotobuf_includes} ${libprotobuf_rc_files})
+
+ADD_OBJDUMP_TARGET(show_libprotobuf "$<TARGET_FILE:libprotobuf>"
+  DEPENDS libprotobuf)
+ADD_LIBRARY(ext::libprotobuf ALIAS libprotobuf)
+
 target_link_libraries(libprotobuf ${CMAKE_THREAD_LIBS_INIT})
 if(protobuf_WITH_ZLIB)
   target_link_libraries(libprotobuf ${ZLIB_LIBRARIES})

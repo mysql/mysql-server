@@ -192,7 +192,7 @@ MYSQL_ADD_PLUGIN(group_replication
   ext::lz4
   ext::zlib
   ${SSL_LIBRARIES}
-  ${PROTOBUF_LITE_LIBRARY}
+  ext::libprotobuf-lite
   ${GR_PROTOBUF_LITE_LIB}
   mysqlgcs
   extra::rapidjson

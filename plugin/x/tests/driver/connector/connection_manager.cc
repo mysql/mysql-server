@@ -33,8 +33,6 @@
 
 #include "plugin/x/tests/driver/processor/variable_names.h"
 
-google::protobuf::LogHandler *g_lh = nullptr;
-
 Connection_manager::Connection_manager(const Connection_options &co,
                                        Variable_container *variables,
                                        const Console &console_with_flow_history,
@@ -43,14 +41,6 @@ Connection_manager::Connection_manager(const Connection_options &co,
       m_variables(variables),
       m_console_with_flow_history(console_with_flow_history),
       m_console(console) {
-  g_lh = google::protobuf::SetLogHandler([](google::protobuf::LogLevel level,
-                                            const char *filename, int line,
-                                            const std::string &message) {
-    if (g_lh) g_lh(level, filename, line, message);
-    DBUG_LOG("debug",
-             "Protobuf error (level:" << level << ", filename:" << filename
-                                      << ":" << line << ", text:" << message);
-  });
   m_variables->make_special_variable(
       k_variable_option_user,
       new Variable_dynamic_string(m_default_connection_options.user));

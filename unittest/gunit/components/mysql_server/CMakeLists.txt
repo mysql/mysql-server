@@ -70,7 +70,7 @@ IF(NOT WITH_SHARED_UNITTEST_LIBRARY)
 ENDIF()
 
 IF(WIN32)
-  ADD_DEPENDENCIES(minimal_chassis_test_driver-t "${PROTOBUF_LITE_LIBRARY}")
+  ADD_DEPENDENCIES(minimal_chassis_test_driver-t ext::libprotobuf-lite)
   # Copy dlls for libprotobuf-lite and libcrypto/libssl to plugin dir.
   FUNCTION(COPY_DLL_FOR_UNITTEST DLL_FILE_NAME)
     SET(run_dir  "${CMAKE_BINARY_DIR}/runtime_output_directory/")

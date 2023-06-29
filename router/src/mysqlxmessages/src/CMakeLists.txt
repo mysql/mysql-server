@@ -48,7 +48,7 @@ IF(WIN32)
     DESTINATION ${ROUTER_INSTALL_LIBDIR}
     LINK_LIBRARIES
       mysqlxmessages_lite
-      ${PROTOBUF_LITE_LIBRARY}
+      ext::libprotobuf-lite
     OUTPUT_NAME "mysqlrouter_mysqlxmessages"
     SOVERSION 1
     )
@@ -68,7 +68,7 @@ ELSE()
 
   TARGET_LINK_LIBRARIES(router_mysqlxmessages
     PUBLIC
-    ${PROTOBUF_LITE_LIBRARY}
+    ext::libprotobuf-lite
     )
 ENDIF()
 

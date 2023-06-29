@@ -41,8 +41,8 @@ MYSQL_ADD_EXECUTABLE(
 TARGET_LINK_LIBRARIES(
   xprotocol_plugin
   ${MYSQLX_PROTOCOL_FULL_LIB}
-  ${PROTOBUF_PROTOC_LIBRARY}
-  ${PROTOBUF_LIBRARY}
+  ext::libprotoc
+  ext::libprotobuf
 )
 
 # Workaround for an issue present on Debian 5.3.7-1
