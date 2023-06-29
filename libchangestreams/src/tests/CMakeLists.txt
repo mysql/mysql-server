@@ -48,7 +48,7 @@ IF (WITH_CS_PROTOBUF)
     cs-test-mysql-proto-reader-mtr)
 
   LIST(APPEND TEST_LINK_LIBRARIES
-    changestreams_pb_static ${PROTOBUF_LITE_LIBRARY})
+    changestreams_pb_static ext::libprotobuf-lite)
 ENDIF()
 
 FOREACH(test ${TESTS})

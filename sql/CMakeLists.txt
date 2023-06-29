@@ -946,7 +946,7 @@ TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
 # sql/immutable_string.h uses
 # google::protobuf::io::CodedOutputStream::WriteVarint64ToArray
 # which may or may not be inlined.
-TARGET_LINK_LIBRARIES(sql_main ${PROTOBUF_LITE_LIBRARY})
+TARGET_LINK_LIBRARIES(sql_main ext::libprotobuf-lite)
 
 ADD_LIBRARY(sql_gis STATIC ${SQL_GIS_SOURCES})
 ADD_DEPENDENCIES(sql_gis GenServerSource)
@@ -1092,7 +1092,7 @@ SET (RPL_REPLICA_SRCS
 ADD_LIBRARY(rpl_replica STATIC ${RPL_REPLICA_SRCS})
 ADD_DEPENDENCIES(rpl_replica GenError)
 TARGET_LINK_LIBRARIES(rpl_replica
-  binlog sql_main ${PROTOBUF_LITE_LIBRARY} ${RPL_PROTOBUF_LITE_LIB})
+  binlog sql_main ext::libprotobuf-lite ${RPL_PROTOBUF_LITE_LIB})
 
 IF(WIN32)
   # Silence warnings about: needs to have dll-interface

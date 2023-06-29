@@ -38,6 +38,6 @@ ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   mysqlxclient
   mysqlxmessages
   mysql_protocol
-  ${PROTOBUF_LIBRARY}
+  ext::libprotobuf
   )
 ENDFOREACH()

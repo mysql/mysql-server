@@ -97,7 +97,7 @@ ADD_ROUTER_TEST_FILE(
     mysqlxclient_lite
     mysqlxmessages_lite
     connection_pool
-    ${PROTOBUF_LITE_LIBRARY}
+    ext::libprotobuf-lite
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
