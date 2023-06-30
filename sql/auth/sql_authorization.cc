@@ -2202,12 +2202,8 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     if (!(sctx->check_access(SELECT_ACL, db_name))) {
       if (db &&
           (!thd->db().str || db_is_pattern || strcmp(db, thd->db().str))) {
-        if (sctx->get_active_roles()->size() > 0) {
-          db_access = sctx->db_acl({db, strlen(db)}, db_is_pattern);
-        } else {
-          db_access = acl_get(thd, sctx->host().str, sctx->ip().str,
-                              sctx->priv_user().str, db, db_is_pattern);
-        }
+        db_access =
+            sctx->check_db_level_access(thd, db, strlen(db), db_is_pattern);
       } else {
         /* get access for current db */
         db_access = sctx->current_db_access();
@@ -2247,17 +2243,9 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     return false;
   }
 
-  if (db && (!thd->db().str || db_is_pattern || strcmp(db, thd->db().str))) {
-    if (sctx->get_active_roles()->size() > 0) {
-      db_access = sctx->db_acl({db, strlen(db)}, db_is_pattern);
-      DBUG_PRINT("info", ("check_access using db-level privilege for %s. "
-                          "ACL: %lu",
-                          db, db_access));
-    } else {
-      db_access = acl_get(thd, sctx->host().str, sctx->ip().str,
-                          sctx->priv_user().str, db, db_is_pattern);
-    }
-  } else
+  if (db && (!thd->db().str || db_is_pattern || strcmp(db, thd->db().str)))
+    db_access = sctx->check_db_level_access(thd, db, strlen(db), db_is_pattern);
+  else
     db_access = sctx->current_db_access();
   DBUG_PRINT("info",
              ("db_access: %lu  want_access: %lu", db_access, want_access));
@@ -2446,6 +2434,8 @@ bool is_granted_table_access(THD *thd, ulong required_acl, Table_ref *table) {
   DBUG_TRACE;
   const char *table_name = table->get_table_name();
   const char *db_name = table->get_db_name();
+  Security_context *sctx = thd->security_context();
+  ulong db_acl = sctx->check_db_level_access(thd, db_name, strlen(db_name));
   if (thd->security_context()->get_active_roles()->size() != 0) {
     /* Check privilege against the role privilege cache */
     const ulong global_acl = thd->security_context()->master_access(db_name);
@@ -2454,9 +2444,7 @@ bool is_granted_table_access(THD *thd, ulong required_acl, Table_ref *table) {
                           db_name, table_name));
       return true;
     }
-    const ulong db_acl =
-        thd->security_context()->db_acl({db_name, strlen(db_name)}, true) |
-        global_acl;
+    db_acl |= global_acl;
     if ((db_acl & required_acl) == required_acl) {
       DBUG_PRINT("info", ("Access granted for %s.%s by schema privileges",
                           db_name, table_name));
@@ -2473,7 +2461,6 @@ bool is_granted_table_access(THD *thd, ulong required_acl, Table_ref *table) {
     }
   } else {
     /* No active roles */
-    Security_context *sctx = thd->security_context();
     if ((sctx->master_access(db_name) & required_acl) == required_acl) {
       DBUG_PRINT("info",
                  ("(no role) Access granted for %s.%s by global privileges",
@@ -2482,8 +2469,7 @@ bool is_granted_table_access(THD *thd, ulong required_acl, Table_ref *table) {
     }
     ulong db_access;
     if ((!thd->db().str || strcmp(db_name, thd->db().str)))
-      db_access = acl_get(thd, sctx->host().str, sctx->ip().str,
-                          sctx->priv_user().str, db_name, false);
+      db_access = db_acl;
     else
       db_access = sctx->current_db_access();
     db_access = (db_access | sctx->master_access(db_name));
@@ -5495,26 +5481,26 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                       " (%lu)",
                       (unsigned long)sctx->get_active_roles()->size()));
   const std::string db_name = db ? db : "";
+  const LEX_CSTRING str_db = {db, strlen(db)};
+  ulong db_access = sctx->check_db_level_access(thd, db, strlen(db));
   if (sctx->get_active_roles()->size() > 0) {
     /* global privileges */
     grant->privilege = sctx->master_access(db_name);
-    const LEX_CSTRING str_db = {db, strlen(db)};
     /* db privileges */
-    grant->privilege |= sctx->db_acl(str_db);
+    grant->privilege |= db_access;
     const LEX_CSTRING str_table = {table, strlen(table)};
     /* table privileges */
     grant->privilege |= sctx->table_acl(str_db, str_table);
     grant->grant_table = nullptr;
     DBUG_PRINT("info", ("Role used: %s db: %s db-acl: %lu all-acl: %lu ",
                         sctx->get_active_roles()->at(0).first.str, db,
-                        sctx->db_acl(str_db), grant->privilege));
+                        db_access, grant->privilege));
   } else {
     /* global privileges */
     grant->privilege = sctx->master_access(db_name);
 
     /* db privileges */
-    grant->privilege |= acl_get(thd, sctx->host().str, sctx->ip().str,
-                                priv_user.str, db, false);
+    grant->privilege |= db_access;
 
     DEBUG_SYNC(thd, "fill_effective_table_privileges");
     /* table privileges */

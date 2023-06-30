@@ -24,6 +24,28 @@ CREATE DATABASE db1name;
 DROP DATABASE db1name;
 DROP ROLE r1;
 DROP USER u1;
+#
+# Bug #35338567: Role with backslash in grant does not allow proper
+#                SHOW DATABASES
+#
+CREATE DATABASE db_name;
+CREATE USER testuser;
+CREATE ROLE abc_all_ro_role;
+GRANT ALL ON test.* to testuser;
+GRANT SELECT ON `db\_name`.* to abc_all_ro_role;
+GRANT abc_all_ro_role TO testuser;
+SET DEFAULT ROLE ALL TO testuser;
+SHOW DATABASES;
+Database
+db_name
+information_schema
+performance_schema
+test
+USE db_name;
+# Cleanup
+DROP ROLE abc_all_ro_role;
+DROP USER testuser;
+DROP DATABASE db_name;
 
 # End of 8.0 tests
 

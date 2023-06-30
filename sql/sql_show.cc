@@ -1268,19 +1268,14 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   strcpy(orig_dbname, dbname);
   if (lower_case_table_names && dbname != any_db)
     my_casedn_str(files_charset_info, dbname);
-
   if (sctx->check_access(DB_OP_ACLS, orig_dbname))
     db_access = DB_OP_ACLS;
-  else {
-    if (sctx->get_active_roles()->size() > 0 && dbname != nullptr) {
-      db_access = (sctx->db_acl({dbname, strlen(dbname)}) |
-                   sctx->master_access(dbname ? dbname : ""));
-    } else {
-      db_access = (acl_get(thd, sctx->host().str, sctx->ip().str,
-                           sctx->priv_user().str, dbname, false) |
-                   sctx->master_access(dbname ? dbname : ""));
-    }
-  }
+  else
+    db_access =
+        (Security_context::check_db_level_access(
+             thd, dbname ? sctx : nullptr, sctx->host().str, sctx->ip().str,
+             sctx->priv_user().str, dbname, strlen(dbname)) |
+         sctx->master_access(dbname ? dbname : ""));
   if (!(db_access & DB_OP_ACLS) && check_grant_db(thd, dbname, true)) {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->host_or_ip().str, dbname);

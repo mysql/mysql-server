@@ -849,16 +849,10 @@ void DB_restrictions_aggregator::aggregate_restrictions(
 */
 ulong DB_restrictions_aggregator::get_grantee_db_access(
     const std::string &db_name) const {
-  ulong db_access;
-  if (m_sctx && m_sctx->get_num_active_roles() > 0) {
-    const LEX_CSTRING db = {db_name.c_str(), db_name.length()};
-    db_access = m_sctx->db_acl(db, false);
-  } else {
-    db_access = acl_get(current_thd, m_grantee.host().c_str(),
-                        m_sctx ? m_sctx->ip().str : m_grantee.host().c_str(),
-                        m_grantee.user().c_str(), db_name.c_str(), false);
-  }
-  return db_access;
+  return Security_context::check_db_level_access(
+      current_thd, m_sctx, m_grantee.host().c_str(),
+      m_sctx ? m_sctx->ip().str : m_grantee.host().c_str(),
+      m_grantee.user().c_str(), db_name.c_str(), db_name.length());
 }
 
 /**

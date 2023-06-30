@@ -8608,8 +8608,8 @@ longlong Item_func_can_access_database::val_int() {
   Security_context *sctx = thd->security_context();
   if (!(sctx->master_access(schema_name_ptr->ptr()) &
             (DB_OP_ACLS | SHOW_DB_ACL) ||
-        acl_get(thd, sctx->host().str, sctx->ip().str, sctx->priv_user().str,
-                schema_name_ptr->ptr(), false) ||
+        sctx->check_db_level_access(thd, schema_name_ptr->ptr(),
+                                    schema_name_ptr->length()) ||
         !check_grant_db(thd, schema_name_ptr->ptr()))) {
     return 0;
   }

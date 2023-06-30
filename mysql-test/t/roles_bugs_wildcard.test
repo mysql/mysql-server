@@ -31,6 +31,32 @@ DROP DATABASE db1name;
 DROP ROLE r1;
 DROP USER u1;
 
+--echo #
+--echo # Bug #35338567: Role with backslash in grant does not allow proper
+--echo #                SHOW DATABASES
+--echo #
+
+CREATE DATABASE db_name;
+CREATE USER testuser;
+CREATE ROLE abc_all_ro_role;
+
+GRANT ALL ON test.* to testuser;
+GRANT SELECT ON `db\_name`.* to abc_all_ro_role;
+GRANT abc_all_ro_role TO testuser;
+SET DEFAULT ROLE ALL TO testuser;
+
+connect(con1,localhost,testuser,,test);
+
+SHOW DATABASES;
+USE db_name;
+
+--echo # Cleanup
+connection default;
+disconnect con1;
+DROP ROLE abc_all_ro_role;
+DROP USER testuser;
+DROP DATABASE db_name;
+
 --echo
 --echo # End of 8.0 tests
 --echo

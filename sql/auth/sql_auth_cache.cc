@@ -1326,8 +1326,12 @@ static void insert_entry_in_db_cache(THD *thd, acl_entry *entry) {
   Get privilege for a host, user, and db
   combination.
 
-  @note db_cache is not used if db_is_pattern
-  is set.
+  NOTES
+    1) db_cache is not used if db_is_pattern is set.
+    2) This function does not take into account privileges granted via active
+       roles.
+    3) This should not be used outside ACL subsystem code (sql/auth). Use
+       check_db_level_access() instead.
 
   @param thd   Thread handler
   @param host  Host name

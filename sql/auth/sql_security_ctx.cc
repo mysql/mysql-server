@@ -490,6 +490,9 @@ void Security_context::get_active_roles(THD *thd, List<LEX_USER> &list) {
   database name like db1name to match against wild card
   db entry db_name/db%name.
 
+  @note  This function should not be used outside ACL subsystem code (sql/auth).
+  Use check_db_level_access() instead.
+
   @param [in] db               Name of the database
   @param [in] use_pattern_scan Flag to treat database name as pattern
 
@@ -527,6 +530,56 @@ ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
     DBUG_PRINT("info", ("Found exact match for db %s", key.c_str()));
     return filter_access(found_acl_it->second, key);
   }
+}
+
+/**
+  Checks if any database level privileges are granted to the current session
+  either directly or through active roles.
+
+  @param [in] thd           Thread handler
+  @param [in] sctx          Security context
+  @param [in] host          Host name
+  @param [in] ip            Ip
+  @param [in] user          User name
+  @param [in] db            Database name
+  @param [in] db_len        Database name length
+  @param [in] db_is_pattern Flag to treat db name as pattern
+
+  @returns DB level privileges granted
+*/
+
+ulong Security_context::check_db_level_access(
+    THD *thd, const Security_context *sctx, const char *host, const char *ip,
+    const char *user, const char *db, size_t db_len, bool db_is_pattern) {
+  ulong db_access;
+  if (sctx && sctx->get_num_active_roles()) {
+    db_access = sctx->db_acl({db, db_len}, db_is_pattern);
+    DBUG_PRINT("info", ("check_access using db-level privilege for %s. "
+                        "ACL: %lu",
+                        db, db_access));
+  } else {
+    db_access = acl_get(thd, host, ip, user, db, db_is_pattern);
+  }
+  return db_access;
+}
+
+/**
+  Checks if any database level privileges are granted to the current session
+  either directly or through active roles.
+
+  @param [in] thd           Thread handler
+  @param [in] db            Database name
+  @param [in] db_len        Database name length
+  @param [in] db_is_pattern Flag to treat db name as pattern
+
+  @returns DB level privileges granted
+*/
+
+ulong Security_context::check_db_level_access(THD *thd, const char *db,
+                                              size_t db_len,
+                                              bool db_is_pattern) const {
+  return check_db_level_access(thd, this, m_host.ptr(), m_ip.ptr(), m_priv_user,
+                               db, db_len, db_is_pattern);
 }
 
 ulong Security_context::procedure_acl(LEX_CSTRING db,

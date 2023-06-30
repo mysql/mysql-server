@@ -90,6 +90,12 @@ class Security_context {
   void get_active_roles(THD *, List<LEX_USER> &);
   void checkout_access_maps(void);
   ulong db_acl(LEX_CSTRING db, bool use_pattern_scan = true) const;
+  static ulong check_db_level_access(THD *thd, const Security_context *sctx,
+                                     const char *host, const char *ip,
+                                     const char *user, const char *db,
+                                     size_t db_len, bool db_is_pattern = false);
+  ulong check_db_level_access(THD *thd, const char *db, size_t db_len,
+                              bool db_is_pattern = false) const;
   ulong procedure_acl(LEX_CSTRING db, LEX_CSTRING procedure_name);
   ulong function_acl(LEX_CSTRING db, LEX_CSTRING procedure_name);
   ulong table_acl(LEX_CSTRING db, LEX_CSTRING table);

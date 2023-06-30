@@ -1436,14 +1436,14 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   DBUG_PRINT("info", ("Use database: %s", new_db_file_name.str));
 
   if (sctx->get_active_roles()->size() == 0) {
-    db_access =
-        sctx->check_access(DB_OP_ACLS, new_db_file_name.str)
-            ? DB_OP_ACLS
-            : acl_get(thd, sctx->host().str, sctx->ip().str,
-                      sctx->priv_user().str, new_db_file_name.str, false) |
-                  sctx->master_access(new_db_file_name.str);
+    db_access = sctx->check_access(DB_OP_ACLS, new_db_file_name.str)
+                    ? DB_OP_ACLS
+                    : sctx->check_db_level_access(thd, new_db_file_name.str,
+                                                  new_db_file_name.length) |
+                          sctx->master_access(new_db_file_name.str);
   } else {
-    db_access = sctx->db_acl(new_db_file_name_cstr) |
+    db_access = sctx->check_db_level_access(thd, new_db_file_name.str,
+                                            new_db_file_name.length) |
                 sctx->master_access(new_db_file_name.str);
   }
 
