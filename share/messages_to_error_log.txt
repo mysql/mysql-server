@@ -10755,8 +10755,8 @@ ER_IB_MSG_DBLWR_1317
 ER_IB_MSG_DBLWR_1318
   eng "%s"
 
-ER_IB_MSG_DBLWR_1319
-  eng "Doublewrite load file %s size %lu is not a multiple of the configured page size %lu""
+ER_IB_MSG_DBLWR_LOAD_WRONG_SIZE
+  eng "Doublewrite load file %s size %llu is not a multiple of the configured page size %zu"
 
 ER_IB_MSG_DBLWR_1320
   eng "Doublewrite file %s truncate failed"
@@ -10764,8 +10764,8 @@ ER_IB_MSG_DBLWR_1320
 ER_IB_MSG_DBLWR_1321
   eng "Doublewrite file %s failed to writ zeros"
 
-ER_IB_MSG_DBLWR_1322
-  eng "Doublewrite create file %s size %lu is not a multiple of the configured page size %lu""
+ER_IB_MSG_DBLWR_OPEN_OR_CREATE_WRONG_SIZE
+  eng "Doublewrite open or create file %s size %llu is not a multiple of the configured page size %zu"
 
 ER_IB_MSG_DBLWR_1323
   eng "%s"

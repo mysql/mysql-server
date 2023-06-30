@@ -1728,9 +1728,11 @@ void Double_write::reset_file(dblwr::File &file, bool truncate) noexcept {
     }
 
   } else if (new_size > cur_size) {
-    auto err = os_file_write_zeros(pfs_file, file.m_name.c_str(),
-                                   univ_page_size.physical(), cur_size,
-                                   new_size - cur_size);
+    const auto start =
+        ut_uint64_align_down(cur_size, univ_page_size.physical());
+    auto err =
+        os_file_write_zeros(pfs_file, file.m_name.c_str(),
+                            univ_page_size.physical(), start, new_size - start);
 
     if (err != DB_SUCCESS) {
       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1321, file.m_name.c_str());
@@ -1750,8 +1752,9 @@ void Double_write::reduced_reset_file(dblwr::File &file,
   auto pfs_file = file.m_pfs;
 
   if (new_size > cur_size) {
+    const auto start = ut_uint64_align_down(cur_size, phy_size);
     auto err = os_file_write_zeros(pfs_file, file.m_name.c_str(), phy_size,
-                                   cur_size, new_size - cur_size);
+                                   start, new_size - start);
 
     if (err != DB_SUCCESS) {
       ib::fatal(UT_LOCATION_HERE, ER_IB_MSG_DBLWR_1321, file.m_name.c_str());
@@ -1974,8 +1977,8 @@ dberr_t Double_write::load(dblwr::File &file, recv::Pages *pages) noexcept {
   }
 
   if ((size % univ_page_size.physical())) {
-    ib::warn(ER_IB_MSG_DBLWR_1319, file.m_name.c_str(), (ulint)size,
-             (ulint)univ_page_size.physical());
+    ib::warn(ER_IB_MSG_DBLWR_LOAD_WRONG_SIZE, file.m_name.c_str(),
+             ulonglong{size}, univ_page_size.physical());
   }
 
   const uint32_t n_pages = size / univ_page_size.physical();
@@ -2140,8 +2143,8 @@ dberr_t Double_write::load_reduced_batch(dblwr::File &file,
   }
 
   if ((size % REDUCED_BATCH_PAGE_SIZE) != 0) {
-    ib::warn(ER_IB_MSG_DBLWR_1319, file.m_name.c_str(), (ulint)size,
-             (ulint)REDUCED_BATCH_PAGE_SIZE);
+    ib::warn(ER_IB_MSG_DBLWR_LOAD_WRONG_SIZE, file.m_name.c_str(),
+             ulonglong{size}, size_t{REDUCED_BATCH_PAGE_SIZE});
   }
 
   const uint32_t n_pages = size / REDUCED_BATCH_PAGE_SIZE;
@@ -2747,8 +2750,8 @@ dberr_t dblwr::reduced_open() noexcept {
   auto file_size = os_file_get_size(file.m_pfs);
 
   if (file_size == 0 || (file_size % phy_size)) {
-    ib::warn(ER_IB_MSG_DBLWR_1322, file.m_name.c_str(), (ulint)file_size,
-             (ulint)phy_size);
+    ib::warn(ER_IB_MSG_DBLWR_OPEN_OR_CREATE_WRONG_SIZE, file.m_name.c_str(),
+             ulonglong{file_size}, size_t{phy_size});
   }
 
   Double_write::reduced_reset_file(file, pages_per_file, phy_size);
@@ -2822,8 +2825,8 @@ dberr_t dblwr::open() noexcept {
     auto file_size = os_file_get_size(file.m_pfs);
 
     if (file_size == 0 || (file_size % univ_page_size.physical())) {
-      ib::warn(ER_IB_MSG_DBLWR_1322, file.m_name.c_str(), (ulint)file_size,
-               (ulint)univ_page_size.physical());
+      ib::warn(ER_IB_MSG_DBLWR_OPEN_OR_CREATE_WRONG_SIZE, file.m_name.c_str(),
+               ulonglong{file_size}, univ_page_size.physical());
     }
 
     /* Truncate the size after recovery: false. */

@@ -1,0 +1,47 @@
+# Checks if the server logs the warnings in case doublewrite
+# buffer file is not in multiple of the page size.
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .* Doublewrite .* file .* size .* is not a multiple of the configured page size .*");
+--enable_query_log
+
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+
+--source include/shutdown_mysqld.inc
+# Remove 1 byte from the end of the file to introduce the page size mismatch.
+--let FILE_PATH=$MYSQLD_DATADIR/#ib_16384_0.dblwr
+--let NUM_OF_BYTES=1
+--source suite/innodb/include/truncate_file.inc
+
+--let FILE_PATH=$MYSQLD_DATADIR/#ib_16384_0.bdblwr
+--source suite/innodb/include/truncate_file.inc
+
+--source include/start_mysqld.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+--echo # Expected: found
+--let $error_name=ER_IB_MSG_DBLWR_LOAD_WRONG_SIZE
+--source include/get_error_id.inc
+let SEARCH_PATTERN=$error_id.*ib_16384_0.dblwr.*;
+--source include/search_pattern.inc
+
+--echo # Expected: found
+let SEARCH_PATTERN=$error_id.*ib_16384_0.bdblwr.*;
+--source include/search_pattern.inc
+
+--echo # Expected: found
+--let $error_name=ER_IB_MSG_DBLWR_OPEN_OR_CREATE_WRONG_SIZE
+--source include/get_error_id.inc
+let SEARCH_PATTERN=$error_id.*ib_16384_0.dblwr.*;
+--source include/search_pattern.inc
+
+--echo # Expected: found
+let SEARCH_PATTERN=$error_id.*ib_16384_0.bdblwr.*;
+--source include/search_pattern.inc
+
+# Reset the variables
+--let $error_name=
+--let $error_id=
+
+--source include/restart_mysqld.inc
