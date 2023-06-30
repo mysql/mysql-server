@@ -169,6 +169,28 @@ MACRO(MYSQL_CHECK_PROTOBUF)
   ENDIF()
 
   FIND_PROTOBUF_VERSION()
+
+  # Version 22 and up depend on ~65 abseil .dylibs.
+  IF(APPLE AND WITH_PROTOBUF STREQUAL "system" AND
+      PB_MINOR_VERSION VERSION_GREATER 21)
+    # list(FILTER <list> {INCLUDE | EXCLUDE} REGEX <regex>)
+    FIND_OBJECT_DEPENDENCIES("${PROTOBUF_LIBRARY}" protobuf_dependencies)
+    LIST(FILTER protobuf_dependencies INCLUDE REGEX "${HOMEBREW_HOME}.*")
+    SET_TARGET_PROPERTIES(ext::libprotobuf PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${protobuf_dependencies}"
+      )
+    FIND_OBJECT_DEPENDENCIES("${PROTOBUF_LITE_LIBRARY}" lite_dependencies)
+    LIST(FILTER lite_dependencies  INCLUDE REGEX "${HOMEBREW_HOME}.*")
+    SET_TARGET_PROPERTIES(ext::libprotobuf-lite PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${lite_dependencies}"
+      )
+    FIND_OBJECT_DEPENDENCIES("${Protobuf_PROTOC_LIBRARY}" protoc_dependencies)
+    LIST(FILTER protoc_dependencies INCLUDE REGEX "${HOMEBREW_HOME}.*")
+    SET_TARGET_PROPERTIES(ext::libprotoc PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${protoc_dependencies}"
+      )
+  ENDIF()
+
   IF("${PROTOBUF_VERSION}" VERSION_LESS "${MIN_PROTOBUF_VERSION_REQUIRED}")
     COULD_NOT_FIND_PROTOBUF()
   ENDIF()
