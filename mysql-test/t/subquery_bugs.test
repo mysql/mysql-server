@@ -1996,3 +1996,17 @@ EXPLAIN FORMAT=TREE SELECT 1 FROM t1 x0 WHERE x0.c IN
 DROP TABLE num, t1;
 
 SET @@optimizer_switch=@old_opt_switch;
+
+--echo #
+--echo # Bug #35535934: Subquery in Semi-join inner expressions causes assert...
+--echo #
+
+CREATE TABLE t(id INT, id2 INT, PRIMARY KEY (id));
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 1), (4, 2);
+ANALYZE TABLE t;
+
+SELECT * FROM t t1 WHERE EXISTS
+  (SELECT t2.id FROM t t2 WHERE
+    t1.id = (SELECT id2 FROM t t3 WHERE t2.id = t3.id));
+
+DROP TABLE t;

@@ -2224,10 +2224,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.50"
+      "query_cost": "11.50"
     } /* cost_info */,
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "10.00"
+      } /* cost_info */,
       "table": {
         "table_name": "t1",
         "access_type": "ALL",

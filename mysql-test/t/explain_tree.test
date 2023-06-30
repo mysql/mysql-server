@@ -662,7 +662,8 @@ WITH tx AS (SELECT FLOOR(5*RAND(0)) i1 FROM t1 j1 JOIN t1 j2 ON j1.b=j2.a)
 --replace_regex $elide_time
 EXPLAIN ANALYZE
 WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
-SELECT * FROM x1 y1 WHERE y1.m1 = (SELECT MAX(m1) FROM x1);
+SELECT * FROM x1 y1 WHERE
+  y1.m1 = (SELECT MAX(m1) FROM x1) AND ABS(y1.m1) = (SELECT MIN(m1) FROM x1);
 
 --echo #
 --echo #  Bug#34051681 mysqld asan crash at ExplainMaterializeAccessPath

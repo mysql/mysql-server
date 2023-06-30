@@ -1132,10 +1132,11 @@ EXPLAIN
 
 EXPLAIN ANALYZE
 WITH x1 AS (SELECT MAX(a) AS m1 FROM t1 GROUP BY b)
-SELECT * FROM x1 y1 WHERE y1.m1 = (SELECT MAX(m1) FROM x1);
+SELECT * FROM x1 y1 WHERE
+y1.m1 = (SELECT MAX(m1) FROM x1) AND ABS(y1.m1) = (SELECT MIN(m1) FROM x1);
 EXPLAIN
--> Filter: (y1.m1 = (select #3))  (cost=0.35..0.35 rows=1) (actual rows=1 loops=1)
-    -> Covering index lookup on y1 using <auto_key0> (m1=(select #3))  (cost=0.35..0.35 rows=1) (actual rows=1 loops=1)
+-> Filter: (y1.m1 = (select #3))  (cost=2.73..2.73 rows=1) (actual rows=1 loops=1)
+    -> Table scan on y1  (cost=2.5..2.5 rows=0) (actual rows=1 loops=1)
         -> Materialize CTE x1 if needed (query plan printed elsewhere)  (cost=0..0 rows=0) (never executed)
     -> Select #3 (subquery in condition; run only once)
         -> Aggregate: max(x1.m1)  (cost=2.5..2.5 rows=1) (actual rows=1 loops=1)

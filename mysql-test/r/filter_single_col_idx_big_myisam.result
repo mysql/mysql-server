@@ -1571,7 +1571,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` between (/* select#2 */ select 1 from `test`.`t2`) and 2)
 EXPLAIN SELECT * FROM t1 WHERE col1_idx =   (SELECT 1 FROM t2 LIMIT 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	Using where
+1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	NULL
 2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` = (/* select#2 */ select 1 from `test`.`t2` limit 1))
@@ -1718,7 +1718,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` between (/* select#2 */ select 1 from `test`.`t2`) and 2)
 EXPLAIN SELECT * FROM t1 WHERE col1_idx =   (SELECT 1 FROM t2 LIMIT 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	Using where
+1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	NULL
 2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` = (/* select#2 */ select 1 from `test`.`t2` limit 1))

@@ -1401,6 +1401,7 @@ void Item_name_string::copy(const char *str_arg, size_t length_arg,
 */
 
 bool Item::eq(const Item *item, bool) const {
+  if (this == item) return true;
   /*
     Note, that this is never true if item is a Item_param:
     for all basic constants we have special checks, and Item_param's

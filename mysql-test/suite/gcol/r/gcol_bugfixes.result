@@ -1536,7 +1536,7 @@ GROUP BY n3;
 END |
 CALL p1('str');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	n12	n12	243	const	1	100.00	Using where; Using temporary
+1	SIMPLE	t1	NULL	ref	n12	n12	243	const	1	100.00	Using temporary
 n3	count
 DROP PROCEDURE p1;
 DROP TABLE t1;
