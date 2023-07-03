@@ -84,7 +84,7 @@ IF(MY_COMPILER_IS_GNU)
   MY_ADD_CXX_WARNING_FLAG("Wlogical-op")
 ENDIF()
 
-# Extra warning flags for Clang
+# Extra warning flags for Clang/Clang++
 IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(MY_C_WARNING_FLAGS " -Wconditional-uninitialized")
   STRING_APPEND(MY_C_WARNING_FLAGS " -Wextra-semi")
@@ -92,10 +92,8 @@ IF(MY_COMPILER_IS_CLANG)
 
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-break")
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-return")
-ENDIF()
+  MY_ADD_C_WARNING_FLAG("Wstring-concatenation")
 
-# Extra warning flags for Clang++
-IF(MY_COMPILER_IS_CLANG)
   # Disable a few default Clang++ warnings
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-null-conversion")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-unused-private-field")
@@ -122,6 +120,7 @@ IF(MY_COMPILER_IS_CLANG)
   MY_ADD_CXX_WARNING_FLAG("Winconsistent-missing-destructor-override")
   MY_ADD_CXX_WARNING_FLAG("Winconsistent-missing-override")
   MY_ADD_CXX_WARNING_FLAG("Wshadow-field")
+  MY_ADD_CXX_WARNING_FLAG("Wstring-concatenation")
 
   # Other possible options that give warnings (Clang 6.0):
   # -Wabstract-vbase-init
