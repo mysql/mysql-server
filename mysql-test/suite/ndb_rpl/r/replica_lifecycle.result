@@ -1,0 +1,26 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b VARCHAR(32)
+) engine=ndb;
+INSERT INTO t1 VALUES (1, "row 1");
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	row 1
+include/rpl_stop_slaves.inc
+include/rpl_start_slaves.inc
+include/rpl_stop_slaves.inc
+[connection slave]
+include/rpl_reset_slave.inc
+DROP TABLE t1;
+include/rpl_start_slaves.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

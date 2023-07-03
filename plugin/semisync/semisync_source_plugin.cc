@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
 
   if (semi_sync_slave != 0) {
     if (ack_receiver->add_slave(current_thd)) {
-      LogErr(ERROR_LEVEL, ER_SEMISYNC_FAILED_REGISTER_SLAVE_TO_RECEIVER);
+      LogErr(ERROR_LEVEL, ER_SEMISYNC_FAILED_REGISTER_REPLICA_TO_RECEIVER);
       return -1;
     }
 
@@ -160,7 +160,7 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
   } else
     param->set_dont_observe_flag();
 
-  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_START_BINLOG_DUMP_TO_SLAVE,
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_START_BINLOG_DUMP_TO_REPLICA,
          semi_sync_slave != 0 ? "semi-sync" : "asynchronous", param->server_id,
          log_file, (unsigned long)log_pos);
   return 0;
@@ -169,7 +169,7 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
 static int repl_semi_binlog_dump_end(Binlog_transmit_param *param) {
   bool semi_sync_slave = is_semi_sync_dump();
 
-  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_STOP_BINLOG_DUMP_TO_SLAVE,
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_STOP_BINLOG_DUMP_TO_REPLICA,
          semi_sync_slave ? "semi-sync" : "asynchronous", param->server_id);
 
   if (semi_sync_slave) {
@@ -658,7 +658,7 @@ static int semi_sync_source_plugin_check_uninstall(void *) {
   int ret = rpl_semi_sync_source_clients ? 1 : 0;
   if (ret) {
     my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), SEMI_SYNC_PLUGIN_NAME,
-             "Stop any active semisynchronous slaves of this master first.");
+             "Stop any active semisynchronous replicas of this source first.");
   }
   return ret;
 }

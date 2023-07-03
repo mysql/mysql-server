@@ -1,3 +1,4 @@
+--source include/big_test.inc
 # Test crashes during upgrade of the InnoDB redo log.
 
 # Avoid CrashReporter popup on Mac
@@ -26,98 +27,252 @@ SELECT * FROM t1;
 
 INSERT INTO t1 VALUES (123);
 
-let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-let $args=--console --log-error-verbosity=3 > $SEARCH_FILE 2>&1;
-let $recv_crash=$args --debug="d,log_force_upgrade" --innodb-force-recovery-crash;
 
 SET GLOBAL innodb_log_checkpoint_now = 1;
+--let $lctn= query_get_value(SHOW VARIABLES LIKE 'lower_case_table_names', Value, 1)
 
+--let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data_80011
+--let $ZIP_FILE= $MYSQLTEST_VARDIR/std_data/upgrade/data_80011.zip
+if ($lctn == 1)
+{
+  --let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data_80011_ci
+  --let $ZIP_FILE= $MYSQLTEST_VARDIR/std_data/upgrade/data_80011_ci_win.zip
+}
+if ($lctn == 2)
+{
+  --let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data_80011_ci
+  --let $ZIP_FILE= $MYSQLTEST_VARDIR/std_data/upgrade/data_80011_ci_mac.zip
+}
+
+--let $MYSQLD_LOG = $MYSQLD_DATADIR1/mysqld.err
+--let SEARCH_FILE= $MYSQLD_LOG
+let $args=--datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG --log-error-verbosity=3;
+let $recv_crash=$args --innodb-force-recovery-crash;
 --source include/kill_mysqld.inc
 
+--exec unzip -qo $ZIP_FILE -d $MYSQL_TMP_DIR
+--list_files $MYSQLD_DATADIR1 ib_logfile*
+
 --echo #
---echo # Crashing during recovery (initial phase)
+--echo # Crashing during recovery (common logic)
 --echo #
 
---echo # 1. Crash right before recovery starts:
+--echo # Crash right before recovery starts:
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=1
 let SEARCH_PATTERN= Completed space ID check;
+--echo # Expect "found"
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
---echo # 2. Crash right before log records are applied:
+--echo # Crash after log records applied:
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=2
 let SEARCH_PATTERN= Starting to parse redo log at lsn = [0-9]+, whereas checkpoint_lsn = [0-9]+;
+--echo # Expect "found"
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
---echo # 3. Crash right before recovery ends:
+--echo # Crash right before recovery ends:
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=3
 let SEARCH_PATTERN= Apply batch completed;
+--echo # Expect "found"
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
---echo
-
---echo #
---echo # Crashing during upgrade (next phase after recovery)
---echo #
-
---echo # 1. Crash at the beginning of upgrade:
+--echo # Crash after dynamic metadata apply:
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=4
 --remove_file $SEARCH_FILE
 
---echo # 2. Crash right after flushing dirty pages:
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+SHOW TABLES FROM test;
+
+# Upgraded succeeded, so now let's start again
+--source include/kill_mysqld.inc
+--force-rmdir $MYSQLD_DATADIR1
+--exec unzip -qo $ZIP_FILE -d $MYSQL_TMP_DIR
+
+--echo #
+--echo # Crashing during upgrade itself
+--echo #
+
+#--------------------------------------------------------
+--echo # Crash right after verifying clean shutdown:
+#--------------------------------------------------------
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=5
 let SEARCH_PATTERN= Apply batch completed;
+--echo # Expect "not found"
 --source include/search_pattern.inc
 let SEARCH_PATTERN= Upgrading redo log: .* LSN=[0-9]+;
+--echo # Expect "found"
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
---echo # 3. Crash right after flushing lsn to system tablespace:
---error 137,3
---exec $MYSQLD_CMD $recv_crash=6
---remove_file $SEARCH_FILE
-
---echo # 4. Crash right after deleting first log file:
+#--------------------------------------------------------
+--echo # Crash right after deleting first log file:
+#--------------------------------------------------------
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=7
+let SEARCH_PATTERN=innodb_force_recovery_crash=7;
+--echo # Expect "found"
+--source include/search_pattern.inc
+
+--list_files $MYSQLD_DATADIR1 ib_logfile*
 --remove_file $SEARCH_FILE
 
---echo # 5. Crash right after deleting all log files:
+# Server is not able to recover.
+# This bahaviour is actually wrong!
+# InnoDB should be able to continue after restart without manual intervention
+# from the user if one file is missing! But as of now, it doesn't work and this
+# test demonstrates manual steps are required.
+--error 1
+--exec $MYSQLD_CMD $args
+
+let SEARCH_PATTERN=Missing ib_logfile0 in the directory;
+--echo # Expect "found"
+--source include/search_pattern.inc
+
+# We would have to manually remove the other log file
+--remove_file $MYSQLD_DATADIR1/ib_logfile1
+# And also manually create the #innodb_redo directory
+--mkdir $MYSQLD_DATADIR1/#innodb_redo
+
+# Let's try to continue the upgrade
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+SHOW TABLES FROM test;
+
+# Upgraded succeeded, so now let's start again
+--source include/kill_mysqld.inc
+--force-rmdir $MYSQLD_DATADIR1
+--exec unzip -qo $ZIP_FILE -d $MYSQL_TMP_DIR
+
+#--------------------------------------------------------
+--echo # Crash right after deleting all log files:
+#--------------------------------------------------------
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=8
+let SEARCH_PATTERN=innodb_force_recovery_crash=8;
+--echo # Expect "found"
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
+--list_files $MYSQLD_DATADIR1 ib_logfile*
+# After restart there are no files, so it should work fine
+# Also the crash happens after we've already created #innodb_redo directory
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+SHOW TABLES FROM test;
 
---echo # 6. Crash after creating #ib_redo0_tmp:
+# Upgraded succeeded, so now let's start again
+--source include/kill_mysqld.inc
+--force-rmdir $MYSQLD_DATADIR1
+--exec unzip -qo $ZIP_FILE -d $MYSQL_TMP_DIR
+
+#--------------------------------------------------------
+--echo # Crash after creating #ib_redo0_tmp:
+#--------------------------------------------------------
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=9
+let SEARCH_PATTERN=innodb_force_recovery_crash=9;
+--echo # Expect "found"
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
+--list_files $MYSQLD_DATADIR1 ib_logfile*
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+SHOW TABLES FROM test;
 
---echo # 7. Crash after renaming #ib_redo0_tmp to #ib_redo0:
+# Upgraded succeeded, so now let's start again
+--source include/kill_mysqld.inc
+--force-rmdir $MYSQLD_DATADIR1
+--exec unzip -qo $ZIP_FILE -d $MYSQL_TMP_DIR
+
+#--------------------------------------------------------
+--echo # Crash after renaming #ib_redo0_tmp to #ib_redo0:
+#--------------------------------------------------------
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=10
+let SEARCH_PATTERN=innodb_force_recovery_crash=10;
+--echo # Expect "found"
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
+--list_files $MYSQLD_DATADIR1 ib_logfile*
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+SHOW TABLES FROM test;
 
---echo # 8. Crash after creating all log files:
+# Upgraded succeeded, so now let's start again
+--source include/kill_mysqld.inc
+--force-rmdir $MYSQLD_DATADIR1
+--exec unzip -qo $ZIP_FILE -d $MYSQL_TMP_DIR
+
+#--------------------------------------------------------
+--echo # Crash after creating all log files:
+#--------------------------------------------------------
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=11
+let SEARCH_PATTERN=innodb_force_recovery_crash=11;
+--echo # Expect "found"
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
+--list_files $MYSQLD_DATADIR1 ib_logfile*
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+SHOW TABLES FROM test;
 
---echo # 9. Crash after writing first checkpoint:
+# Upgraded succeeded, so now let's start again
+--source include/kill_mysqld.inc
+--force-rmdir $MYSQLD_DATADIR1
+--exec unzip -qo $ZIP_FILE -d $MYSQL_TMP_DIR
+
+#--------------------------------------------------------
+--echo # Crash after writing first checkpoint:
+#--------------------------------------------------------
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=12
+let SEARCH_PATTERN=innodb_force_recovery_crash=12;
+--echo # Expect "found"
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
+--list_files $MYSQLD_DATADIR1 ib_logfile*
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+SHOW TABLES FROM test;
 
---echo # 10. Crash after marking redo files as initialized:
+# Upgraded succeeded, so now let's start again
+--source include/kill_mysqld.inc
+--force-rmdir $MYSQLD_DATADIR1
+--exec unzip -qo $ZIP_FILE -d $MYSQL_TMP_DIR
+
+#--------------------------------------------------------
+--echo # Crash after marking redo files as initialized:
+#--------------------------------------------------------
 --error 137,3
 --exec $MYSQLD_CMD $recv_crash=13
+let SEARCH_PATTERN=innodb_force_recovery_crash=13;
+--echo # Expect "found"
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
+--list_files $MYSQLD_DATADIR1 ib_logfile*
+--let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+SHOW TABLES FROM test;
+
+# Upgraded succeeded, so now let's start again
+--source include/kill_mysqld.inc
+--force-rmdir $MYSQLD_DATADIR1
 
 --echo
 
@@ -125,4 +280,5 @@ let SEARCH_PATTERN= Upgrading redo log: .* LSN=[0-9]+;
 --echo # Start MySQL after upgrade.
 --echo #
 
+let $restart_parameters = restart: --innodb-redo-log-capacity=15M;
 --source include/start_mysqld.inc

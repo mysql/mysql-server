@@ -1,0 +1,51 @@
+#
+# Tests the interaction between query rewriter plugin and server telemetry traces feature
+#
+# Install query rewriter plugin
+# Query rewrite plugin was installed.
+# Prepare rewrite rules
+INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
+VALUES ( 'SELECT "original"', 'SELECT "rewritten"' );
+CALL query_rewrite.flush_rewrite_rules();
+# Install required components
+INSTALL COMPONENT 'file://component_query_attributes';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+# Run test query, should be processed by telemetry
+SELECT 'original';
+rewritten
+rewritten
+Warnings:
+Note	1105	Query 'SELECT 'original'' rewritten to 'SELECT "rewritten"' by a query rewrite plugin
+# Cleanup
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+UNINSTALL COMPONENT 'file://component_query_attributes';
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
+Component logs:
+test_server_telemetry_traces_component_init init:
+ - System variables registered.
+ - Status variables registered.
+ - Telemetry per-session data slot registered.
+ - Telemetry session callbacks registered.
+ - Telemetry statement callbacks registered.
+End of init
+ tm_session_create: telemetry session started, increase refcount by user=root to 1
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT "rewritten"', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT "rewritten"', digest='SELECT ?', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SHOW WARNINGS', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SHOW WARNINGS', digest='SHOW WARNINGS', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces'')
+test_server_telemetry_traces_component_deinit:
+ - Telemetry statement callbacks unregistered.
+ tm_session_destroy: telemetry session ended, decrease refcount to 0
+ - Current session aborted.
+ - Done waiting for telemetry sessions to finish (refcount = 0).
+ - Telemetry session callbacks unregistered.
+ - Telemetry per-session data slot unregistered.
+ - Status variables unregistered.
+ - System variables unregistered.
+End of deinit

@@ -1,15 +1,15 @@
 include/rpl_init.inc [topology=1->2, 1->3, 1->4]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server_1]
-CALL mtr.add_suppression("Semi-sync master failed on net_flush().*");
+CALL mtr.add_suppression("Semi-sync source failed on net_flush().*");
 ####################################################################
 # Test Case: semisync master can be enabled and disabled sucessfully
 # without any live slave connection and also test ON, OFF can be set
@@ -163,7 +163,7 @@ include/assert.inc [ack receiver thread is destroied]
 ############################################
 SET @save_debug = @@GLOBAL.debug;
 CALL mtr.add_suppression("Failed to start semi-sync ACK receiver thread.*");
-CALL mtr.add_suppression("Failed to register slave to semi-sync ACK receiver thread.*");
+CALL mtr.add_suppression("Failed to register replica to semi-sync ACK receiver thread.*");
 CALL mtr.add_suppression("Failed to stop ack receiver thread on my_thread_join.*");
 CALL mtr.add_suppression("Run function 'transmit_start' .* failed");
 SET GLOBAL rpl_semi_sync_source_trace_level = 255;

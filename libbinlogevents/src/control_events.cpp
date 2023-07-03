@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,8 +85,7 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       memset(server_version, 0, ST_SERVER_VER_LEN);
       snprintf(server_version, ST_SERVER_VER_LEN, "%.*s", ST_SERVER_VER_LEN - 1,
                server_ver);
-      if (binary_log_debug::debug_pretend_version_50034_in_binlog)
-        strcpy(server_version, "5.0.34");
+
       common_header_len = LOG_EVENT_HEADER_LEN;
       number_of_event_types = LOG_EVENT_TYPES;
       /**

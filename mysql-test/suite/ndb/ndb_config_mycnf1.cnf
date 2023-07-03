@@ -77,18 +77,6 @@ ndbd = localhost, localhost, localhost, localhost, localhost, localhost, localho
 ndb_mgmd = localhost
 mysqld =
 
-[cluster_config.bug32339789]
-ndbd = localhost,localhost,localhost,localhost
-ndb_mgmd = localhost,localhost
-mysqld = ,,,,
-[cluster_config.mysqld.1.bug32339789]
-NodeId=11
-[cluster_config.ndb_mgmd.1.bug32339789]
-NodeId=1
-PortNumber = 6000
-[cluster_config.ndbd.1.bug32339789]
-NodeId=3
-
 [cluster_config.bug32871875]
 NoOfReplicas = 1
 AutomaticThreadConfig = true

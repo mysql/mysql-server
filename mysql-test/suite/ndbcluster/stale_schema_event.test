@@ -17,6 +17,7 @@ set GLOBAL debug="+d,ndb_bi_sleep_before_gsl";
 --exec $NDB_DROP_TABLE -d mysql ndb_schema_result
 
 call mtr.add_suppression("Schema dist client detected timeout");
+call mtr.add_suppression("Distribution of '.*' - client timeout");
 # With out ndb_schema_result table, create table will fail.
 # So, retry create table in a loop untill the mysqld in connection 2 creates the
 # ndb_schema_result in NDB.

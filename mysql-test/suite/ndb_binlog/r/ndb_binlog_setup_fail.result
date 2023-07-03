@@ -1,0 +1,27 @@
+
+Testing for Bug#34733051: SQL node fails to start after ndb_restore
+=============================================================================
+CREATE TABLE t1 (a int primary key, b blob) ENGINE = NDB;
+CREATE TABLE t2 (a int primary key, b blob) ENGINE = NDB;
+CREATE TABLE t3 (a int primary key, b blob) ENGINE = NDB;
+CREATE TABLE t4 (a int primary key, b blob) ENGINE = NDB;
+# restart: --debug=d,ndb_dd_shuffle_ids,ndb_dd_dump
+include/assert_grep.inc [Shuffle of se-private-id on DD]
+include/assert_grep.inc [Successful Binlog startup]
+# Check that binlog is working doing some operations
+ALTER TABLE t1 ADD COLUMN c VARCHAR(8), ALGORITHM=COPY;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+
+Testing for Bug#34876468: Missing ndb_schema UUID
+=============================================================================
+# Delete all rows from ndb_schema
+# restart: --debug=d,ndb_schema_no_uuid
+include/assert_grep.inc [Empty ndb_schema table]
+include/assert_grep.inc [Generated new UUID]
+# Check everything works
+CREATE TABLE t1 (a int primary key, b blob) ENGINE = NDB;
+DROP TABLE t1;
+# restart

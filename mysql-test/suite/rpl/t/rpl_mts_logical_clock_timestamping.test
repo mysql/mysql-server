@@ -10,7 +10,7 @@
 --connection slave
 call mtr.add_suppression("Transaction is tagged with inconsistent logical timestamps");
 call mtr.add_suppression("Cannot execute the current event group in the parallel mode.");
-#call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log");
+#call mtr.add_suppression("Replica I/O: Got fatal error 1236 from source when reading data from binary log");
 
 --source include/stop_slave.inc
 
@@ -129,7 +129,7 @@ INSERT INTO t1 SET a=0;
 SET @@session.debug ='-d,feign_commit_parent';
 
 --connection slave
---let $slave_sql_errno= convert_error(ER_MTS_CANT_PARALLEL)
+--let $slave_sql_errno= convert_error(ER_MTA_CANT_PARALLEL)
 --source include/wait_for_slave_sql_to_stop.inc
 --source include/stop_slave_io.inc
 

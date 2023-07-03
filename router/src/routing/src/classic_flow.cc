@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,8 @@
 #include "classic_flow.h"
 
 #include "classic_command.h"
-#include "classic_connection.h"
-#include "classic_greeting.h"
-#include "classic_query.h"
+#include "classic_connection_base.h"
+#include "classic_greeting_receiver.h"
 
 stdx::expected<Processor::Result, std::error_code> FlowProcessor::process() {
   switch (stage()) {

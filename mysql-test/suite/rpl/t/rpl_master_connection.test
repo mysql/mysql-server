@@ -66,15 +66,15 @@ SET SQL_LOG_BIN=1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST', SOURCE_SSL = 1;
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
---error ER_SQLTHREAD_WITH_SECURE_SLAVE
+--error ER_SQLTHREAD_WITH_SECURE_REPLICA
 --eval START REPLICA SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password'
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
---error ER_SQLTHREAD_WITH_SECURE_SLAVE
+--error ER_SQLTHREAD_WITH_SECURE_REPLICA
 --eval START REPLICA SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin'
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
---error ER_SQLTHREAD_WITH_SECURE_SLAVE
+--error ER_SQLTHREAD_WITH_SECURE_REPLICA
 --eval START REPLICA SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
@@ -309,7 +309,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root', SOURCE_PASSWORD = '' , SOURCE_
 SET @old_log_output= @@log_output;
 SET GLOBAL log_output= 'TABLE,FILE';
 
-call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
+call mtr.add_suppression(".*Invalid .* username when attempting to connect to the source server.*");
 --disable_warnings
 
 --source include/stop_slave.inc
@@ -318,7 +318,7 @@ START REPLICA PASSWORD='secret';
 --let $slave_io_errno=13117
 --source include/wait_for_slave_io_error.inc
 
---let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --source include/stop_slave.inc
 TRUNCATE mysql.general_log;
 START REPLICA USER='root' PASSWORD='secret';

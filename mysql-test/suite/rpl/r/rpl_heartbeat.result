@@ -7,7 +7,7 @@ SELECT LAST_HEARTBEAT_TIMESTAMP FROM performance_schema.replication_connection_s
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
 HEARTBEAT_INTERVAL	5.000
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_HEARTBEAT_PERIOD= 4294968;
@@ -19,20 +19,20 @@ CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=SOURCE_PORT, SO
 Warnings:
 Warning	####	The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
 HEARTBEAT_INTERVAL	0.000
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_HEARTBEAT_PERIOD= 4294967;
 Warnings:
 Warning	####	The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
 HEARTBEAT_INTERVAL	4294967.000
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_HEARTBEAT_PERIOD= 0.001;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
 HEARTBEAT_INTERVAL	0.001
 reset slave;
@@ -43,7 +43,7 @@ CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=SOURCE_PORT, SO
 Warnings:
 Warning	####	The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
 HEARTBEAT_INTERVAL	5.001
 reset slave;
@@ -55,7 +55,7 @@ Warning	1704	The requested value for the heartbeat period exceeds the value of `
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_HEARTBEAT_PERIOD= 4;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
 HEARTBEAT_INTERVAL	4.000
 set @@global.replica_net_timeout= 3 /* must be a warning */;
@@ -71,7 +71,7 @@ set @@global.replica_net_timeout= 10;
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', SOURCE_HEARTBEAT_PERIOD= 0.5;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SELECT HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration;
 HEARTBEAT_INTERVAL	0.500
 start slave;
@@ -162,7 +162,7 @@ include/assert.inc [heartbeat_interval should reset to zero by RESET SLAVE ALL.]
 CHANGE REPLICATION SOURCE to SOURCE_HOST= '127.0.0.1', SOURCE_PORT= SOURCE_PORT, SOURCE_USER= 'root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 DROP TABLE IF EXISTS t1;
 include/sync_slave_sql_with_master.inc

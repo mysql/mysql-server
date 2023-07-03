@@ -3375,3 +3375,10 @@ INSERT INTO t1 (a, b) VALUES (999, (SELECT a UNION SELECT a));
 SELECT a, b FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#33725542: A bug in sql_derived.cc cause mysql-server crash when
+--echo #               input some sql statement..
+
+WITH x(y) AS (SELECT 1 UNION SELECT 1)
+SELECT (SELECT y FROM x WHERE y = 1) FROM x;

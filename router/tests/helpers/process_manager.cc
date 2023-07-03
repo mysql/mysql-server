@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -424,7 +424,8 @@ ProcessWrapper &ProcessManager::launch_router(
 std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
     const std::string &json_file, uint16_t port, uint16_t http_port,
     uint16_t x_port, const std::string &module_prefix /* = "" */,
-    const std::string &bind_address /*= "0.0.0.0"*/) {
+    const std::string &bind_address /*= "0.0.0.0"*/,
+    bool enable_ssl /* = false */) {
   std::vector<std::string> server_params{
       "--filename",       json_file,             //
       "--port",           std::to_string(port),  //
@@ -447,6 +448,15 @@ std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
   if (x_port > 0) {
     server_params.emplace_back("--xport");
     server_params.emplace_back(std::to_string(x_port));
+  }
+
+  if (enable_ssl) {
+    server_params.emplace_back("--ssl-mode");
+    server_params.emplace_back("PREFERRED");
+    server_params.emplace_back("--ssl-key");
+    server_params.emplace_back(SSL_TEST_DATA_DIR "server-key.pem");
+    server_params.emplace_back("--ssl-cert");
+    server_params.emplace_back(SSL_TEST_DATA_DIR "server-cert.pem");
   }
 
   return server_params;
@@ -474,12 +484,14 @@ ProcessWrapper &ProcessManager::launch_mysql_server_mock(
     bool debug_mode, uint16_t http_port, uint16_t x_port,
     const std::string &module_prefix /* = "" */,
     const std::string &bind_address /*= "127.0.0.1"*/,
-    std::chrono::milliseconds wait_for_notify_ready /*= 30s*/) {
+    std::chrono::milliseconds wait_for_notify_ready /*= 30s*/,
+    bool enable_ssl /* = false */) {
   if (mysqlserver_mock_exec_.str().empty())
     throw std::logic_error("path to mysql-server-mock must not be empty");
 
-  auto server_params = mysql_server_mock_cmdline_args(
-      json_file, port, http_port, x_port, module_prefix, bind_address);
+  auto server_params =
+      mysql_server_mock_cmdline_args(json_file, port, http_port, x_port,
+                                     module_prefix, bind_address, enable_ssl);
 
   if (debug_mode) {
     server_params.emplace_back("--verbose");

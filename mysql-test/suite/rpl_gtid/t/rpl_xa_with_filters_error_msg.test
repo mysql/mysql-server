@@ -35,8 +35,8 @@ CREATE TABLE t1 (a INT);
 # 2) Add a replication filter to the slave node
 #
 --source include/stop_slave_sql.inc
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
-CALL mtr.add_suppression(".*The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression(".*The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replica.*");
 CHANGE REPLICATION FILTER Replicate_Ignore_Table=(test.t1);
 --source include/start_slave_sql.inc
 
@@ -103,8 +103,8 @@ CHANGE REPLICATION FILTER Replicate_Ignore_Table=();
 # 4) Ensure that the error message get logged to the slave error log file.
 #
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_match= The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave
---let $assert_select= Slave SQL
+--let $assert_match= The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replica
+--let $assert_select= Replica SQL
 --let $assert_text= Found error message regarding usage of replication filters with XA transactions
 --source include/assert_grep.inc
 

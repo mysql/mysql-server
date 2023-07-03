@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 #include "classic_frame.h"
 
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/tls_error.h"
 
 static bool has_frame_header(ClassicProtocolState *src_protocol) {
@@ -65,7 +65,7 @@ stdx::expected<void, std::error_code> ClassicFrame::ensure_has_msg_prefix(
 
     const size_t msg_type_pos = 4 - current_frame.forwarded_frame_size_;
 
-    auto &recv_buf = src_channel->recv_plain_buffer();
+    auto &recv_buf = src_channel->recv_plain_view();
     if (msg_type_pos >= recv_buf.size()) {
       // read some more data.
       auto read_res = src_channel->read_to_plain(1);
@@ -125,7 +125,7 @@ decode_frame_header(const net::const_buffer &recv_buf) {
  */
 stdx::expected<void, std::error_code> ClassicFrame::ensure_frame_header(
     Channel *src_channel, ClassicProtocolState *src_protocol) {
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   const size_t min_size{4};
   const auto cur_size = recv_buf.size();
@@ -142,7 +142,7 @@ stdx::expected<void, std::error_code> ClassicFrame::ensure_frame_header(
   const auto decode_frame_res = decode_frame_header(net::buffer(recv_buf));
   if (!decode_frame_res) return decode_frame_res.get_unexpected();
 
-  src_protocol->current_frame() = std::move(decode_frame_res.value()).second;
+  src_protocol->current_frame() = decode_frame_res->second;
 
   return {};
 }
@@ -153,7 +153,7 @@ ClassicFrame::ensure_has_full_frame(Channel *src_channel,
   harness_assert(src_protocol->current_frame());
 
   auto &current_frame = src_protocol->current_frame().value();
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   const auto min_size = current_frame.frame_size_;
   const auto cur_size = recv_buf.size();
@@ -170,7 +170,7 @@ ClassicFrame::ensure_has_full_frame(Channel *src_channel,
 [[nodiscard]] stdx::expected<void, std::error_code>
 ClassicFrame::recv_frame_sequence(Channel *src_channel,
                                   ClassicProtocolState *src_protocol) {
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   bool expect_header{true};  // toggle between header and payload
   const size_t hdr_size{4};

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <memory>
 #include <system_error>
+#include <type_traits>
 #include <vector>
 
 #ifdef _WIN32
@@ -41,6 +42,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "mysql/harness/default_init_allocator.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/span.h"
 #include "mysql/harness/tls_types.h"
 #include "mysqlrouter/classic_protocol.h"
 
@@ -64,6 +66,7 @@ class Channel {
 
   using recv_buffer_type =
       std::vector<uint8_t, default_init_allocator<uint8_t>>;
+  using recv_view_type = stdx::span<typename recv_buffer_type::value_type>;
   using Ssl = mysql_harness::Ssl;
 
   explicit Channel(Ssl ssl) : ssl_{std::move(ssl)} {}
@@ -75,16 +78,6 @@ class Channel {
     ssl_.reset(SSL_new(ssl_ctx));
     // the BIOs are owned by the SSL
     SSL_set_bio(ssl_.get(), BIO_new(BIO_s_mem()), BIO_new(BIO_s_mem()));
-
-    const size_t max_record_size{16 * 1024};
-    const size_t max_header_size{5};
-    const size_t max_mac_size{32};
-    const size_t max_padding_size{256};
-
-    const size_t max_tls_frame_size{max_record_size + max_header_size +
-                                    max_mac_size + max_padding_size};
-
-    recv_buffer_.reserve(max_tls_frame_size);
   }
 
   /**
@@ -172,25 +165,15 @@ class Channel {
   stdx::expected<size_t, std::error_code> read_to_plain(size_t sz);
 
   /**
-   * write raw data from a net::const_buffer to the channel.
-   */
-  stdx::expected<size_t, std::error_code> write_encrypted(
-      const net::const_buffer &b);
-
-  /**
    * write unencrypted data from a net::const_buffer to the channel.
    *
-   * if the channel has an ssl session it transparently encrypts before
-   * the data is appended to the send_buf()
+   * call flush_to_send_buf() ensure data is written to the
+   * send-buffers for the socket.
+   *
+   * @see flush_to_send_buf()
    */
   stdx::expected<size_t, std::error_code> write_plain(
       const net::const_buffer &b);
-
-  /**
-   * read raw data from recv_buffer() into b.
-   */
-  stdx::expected<size_t, std::error_code> read_encrypted(
-      const net::mutable_buffer &b);
 
   /**
    * read plaintext data from recv_plain_buffer() into b.
@@ -236,36 +219,59 @@ class Channel {
 
   /**
    * buffer of data that was received from the socket.
-   *
-   * written into by write(), write_plain(), write_encrypted().
    */
   recv_buffer_type &recv_buffer() { return recv_buffer_; }
 
   /**
    * buffer of data to be sent to the socket.
    *
-   * written into by write(), write_plain(), write_encrypted().
+   * written into by write(), write_plain(), flush_to_send_buf().
    */
   recv_buffer_type &send_buffer() { return send_buffer_; }
 
   /**
+   * unencrypted data to be sent to the socket.
+   */
+  recv_buffer_type &send_plain_buffer();
+
+  /**
    * buffer of data that was received from the socket.
    *
-   * written into by write(), write_plain(), write_encrypted().
    */
   const recv_buffer_type &recv_buffer() const { return recv_buffer_; }
 
   /**
+   * network data after a recv().
+   */
+  const recv_view_type &recv_view() const;
+
+  /**
    * buffer of data to be sent to the socket.
-   *
-   * written into by write(), write_plain(), write_encrypted().
    */
   const recv_buffer_type &send_buffer() const { return send_buffer_; }
 
   /**
-   * unencrypted data after a recv().
+   * decrypted data after a recv().
    */
-  recv_buffer_type &recv_plain_buffer() { return recv_plain_buffer_; }
+  const recv_view_type &recv_plain_view() const;
+
+  // consume count bytes from the recv_buffers.
+  void consume_raw(size_t count);
+
+  // consume count bytes from the recv_plain_buffers.
+  void consume_plain(size_t count);
+
+  // discard the data from the recv-buffer that have been 'consumed'
+  void view_discard_raw();
+
+  // discard the data from the recv-plain-buffer that have been 'consumed'
+  void view_discard_plain();
+
+  // updated the recv-buffer's view with the recv-buffer.
+  void view_sync_raw();
+
+  // updated the recv-plain-buffer's view with the recv-plain-buffer.
+  void view_sync_plain();
 
   /**
    * mark channel as containing TLS data in the recv_buffer().
@@ -294,15 +300,19 @@ class Channel {
   SSL *ssl() const { return ssl_.get(); }
 
   /**
-   *
+   * release the internal Ssl structure.
    */
-  Ssl release_ssl() { return std::exchange(ssl_, {}); }
+  Ssl release_ssl();
 
  private:
   size_t want_recv_{};
 
   recv_buffer_type recv_buffer_;
+  recv_view_type recv_view_;
   recv_buffer_type recv_plain_buffer_;
+  recv_view_type recv_plain_view_;
+
+  recv_buffer_type send_plain_buffer_;
   recv_buffer_type send_buffer_;
 
   bool is_tls_{false};

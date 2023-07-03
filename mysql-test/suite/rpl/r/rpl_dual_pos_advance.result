@@ -1,10 +1,10 @@
 include/rpl_init.inc [topology=1->2->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 create table t1 (n int);
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
@@ -25,7 +25,7 @@ insert into t3 values(4);
 start slave until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart
+Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
 include/wait_for_slave_sql_to_stop.inc
 show tables;
 Tables_in_test
@@ -34,7 +34,7 @@ t2
 start slave until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart
+Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
 include/wait_for_slave_sql_to_stop.inc
 select * from t3;
 n
@@ -42,7 +42,7 @@ n
 start slave until SOURCE_LOG_FILE="MASTER_LOG_FILE",SOURCE_LOG_POS=MASTER_LOG_POS;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart
+Note	1278	It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart
 include/wait_for_slave_sql_to_stop.inc
 select * from t3;
 n

@@ -47,28 +47,81 @@ SET GLOBAL innodb_fast_shutdown = 0;
 
 --echo # Restart MySQL in read-only mode (different redo log capacity).
 let MYSQLD_LOG_2= $MYSQLTEST_VARDIR/log/log_read_only-2.log;
---error 1,42
---exec $MYSQLD_CMD $args --innodb-read-only --innodb-redo-log-capacity=8M --debug="d,log_force_resize" --log-error=$MYSQLD_LOG_2
-let SEARCH_FILE= $MYSQLD_LOG_2;
-let SEARCH_PATTERN= Cannot resize redo log files in read-only mode;
+--replace_result $MYSQLD_LOG_2 MYSQLD_LOG_2
+--let $restart_parameters = restart: --innodb-read-only --innodb-redo-log-capacity=8M --log-error=$MYSQLD_LOG_2
+--source include/start_mysqld.inc
+# Server had redo log files of 10M. User specified redo log capacity is printed but it has no effect.
+--let SEARCH_FILE= $MYSQLD_LOG_2
+--let SEARCH_PATTERN=Ignored the innodb-redo-log-capacity option in the Innodb read-only mode
 --source include/search_pattern.inc
+SELECT @@innodb_redo_log_capacity;
+--let $restart_parameters =
+SET GLOBAL innodb_fast_shutdown = 0;
+--source include/shutdown_mysqld.inc
 
 --echo # Scenario 3
+--echo # Ensure to print warning in case --innodb_log_file_size is specified.
+--echo #
+let MYSQLD_LOG_3= $MYSQLTEST_VARDIR/log/log_read_only-3.log;
+--replace_result $MYSQLD_LOG_3 MYSQLD_LOG_3
+--let $restart_parameters = restart: --innodb-read-only --innodb_log_file_size=4194304 --log-error=$MYSQLD_LOG_3
+--source include/start_mysqld.inc
+--let SEARCH_FILE= $MYSQLD_LOG_3
+--source include/search_pattern.inc
+SET GLOBAL innodb_fast_shutdown = 0;
+--source include/shutdown_mysqld.inc
+--let $restart_parameters =
+
+--echo # Scenario 4
+--echo # Ensure to print warning in case --innodb_log_files_in_group is specified.
+--echo #
+let MYSQLD_LOG_4= $MYSQLTEST_VARDIR/log/log_read_only-4.log;
+--replace_result $MYSQLD_LOG_4 MYSQLD_LOG_4
+--let $restart_parameters = restart: --innodb-read-only --innodb_log_files_in_group=4 --log-error=$MYSQLD_LOG_4
+--source include/start_mysqld.inc
+--let SEARCH_FILE= $MYSQLD_LOG_4
+--source include/search_pattern.inc
+SET GLOBAL innodb_fast_shutdown = 0;
+--source include/shutdown_mysqld.inc
+--let $restart_parameters =
+
+--echo # Scenario 5
 --echo # Refuse to start in read-only mode without log files.
 --echo #
 --echo # Remove all redo log files.
 --remove_files_wildcard $MYSQLD_DATADIR/#innodb_redo #ib_redo*
-let MYSQLD_LOG_3= $MYSQLTEST_VARDIR/log/log_read_only-3.log;
+let MYSQLD_LOG_5= $MYSQLTEST_VARDIR/log/log_read_only-5.log;
 --error 1,42
---exec $MYSQLD_CMD $args --innodb-read-only --log-error=$MYSQLD_LOG_3
-let SEARCH_FILE= $MYSQLD_LOG_3;
+--exec $MYSQLD_CMD $args --innodb-read-only --log-error=$MYSQLD_LOG_5
+let SEARCH_FILE= $MYSQLD_LOG_5;
 let SEARCH_PATTERN= Cannot create redo log files in read-only mode;
 --source include/search_pattern.inc
 
 --echo # Cleanup...
 --source include/start_mysqld.inc
 
+--echo # Scenario 6
+--echo # Restart MySQL in read-only mode
+--echo # Ensure we do not allow to change the innodb_redo_log_capacity in read-only mode.
+let MYSQLD_LOG_6=$MYSQLTEST_VARDIR/log/log_read_only-6.log;
+let $restart_parameters = restart: --innodb-read-only=ON --log-error=$MYSQLD_LOG_6;
+--source include/restart_mysqld_no_echo.inc
+--echo # Try to set some random value to innodb_redo_log_capacity
+--error ER_CANT_CHANGE_SYS_VAR_IN_READ_ONLY_MODE
+set global innodb_redo_log_capacity=60000000;
+--echo # Try to set default value to innodb_redo_log_capacity
+--error ER_CANT_CHANGE_SYS_VAR_IN_READ_ONLY_MODE
+set global innodb_redo_log_capacity=10485760;
+
+--echo # Cleanup...
+let $restart_parameters = restart;
+--source include/restart_mysqld_no_echo.inc
+
 # It might be useful to comment out code below, when debugging test failures
 --remove_file $MYSQLD_LOG_1
 --remove_file $MYSQLD_LOG_2
 --remove_file $MYSQLD_LOG_3
+--remove_file $MYSQLD_LOG_4
+--remove_file $MYSQLD_LOG_5
+--remove_file $MYSQLD_LOG_6
+

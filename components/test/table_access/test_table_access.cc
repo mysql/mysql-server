@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -830,20 +830,25 @@ static char *test_table_access_driver(UDF_INIT *, UDF_ARGS *args, char *result,
  @param [out] status: true for failure, false otherwise
  */
 static void thd_function(bool *ret) {
-  TA_table tb = nullptr;
+  TA_table tb = nullptr, write_tb = nullptr;
   Table_access ta = nullptr;
-  size_t ticket = 0;
+  size_t ticket = 0, ticket_write = 0;
   bool txn_started = false;
   *ret = true;
 
-  ta = ta_factory_srv->create(nullptr, 1);
+  ta = ta_factory_srv->create(nullptr, 2);
   if (!ta) goto cleanup;
   ticket = ta_srv->add(ta, CONST_STR_AND_LEN("mysql"), CONST_STR_AND_LEN("db"),
                        TA_READ);
+  ticket_write = ta_srv->add(ta, CONST_STR_AND_LEN("mysql"),
+                             CONST_STR_AND_LEN("user"), TA_WRITE);
+
   if (ta_srv->begin(ta)) goto cleanup;
   txn_started = true;
   tb = ta_srv->get(ta, ticket);
   if (!tb) goto cleanup;
+  write_tb = ta_srv->get(ta, ticket_write);
+  if (!write_tb) goto cleanup;
 
   *ret = false;
 cleanup:

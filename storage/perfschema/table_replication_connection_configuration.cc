@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -135,7 +135,7 @@ table_replication_connection_configuration::
 table_replication_connection_configuration::
     ~table_replication_connection_configuration() = default;
 
-void table_replication_connection_configuration::reset_position(void) {
+void table_replication_connection_configuration::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
@@ -148,7 +148,7 @@ ha_rows table_replication_connection_configuration::get_row_count() {
   return channel_map.get_max_channels();
 }
 
-int table_replication_connection_configuration::rnd_next(void) {
+int table_replication_connection_configuration::rnd_next() {
   Master_info *mi;
   channel_map.rdlock();
 
@@ -176,7 +176,8 @@ int table_replication_connection_configuration::rnd_pos(const void *pos) {
 
   set_position(pos);
 
-  if ((mi = channel_map.get_mi_at_pos(m_pos.m_index))) {
+  mi = channel_map.get_mi_at_pos(m_pos.m_index);
+  if (mi) {
     res = make_row(mi);
   }
 
@@ -196,7 +197,7 @@ int table_replication_connection_configuration::index_init(uint idx
   return 0;
 }
 
-int table_replication_connection_configuration::index_next(void) {
+int table_replication_connection_configuration::index_next() {
   int res = HA_ERR_END_OF_FILE;
 
   Master_info *mi;

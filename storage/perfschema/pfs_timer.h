@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -138,14 +138,16 @@ struct time_normalizer {
     @param wait a wait, expressed in timer units
     @return the wait, expressed in pico seconds
   */
-  inline ulonglong wait_to_pico(ulonglong wait) { return wait * m_factor; }
+  inline ulonglong wait_to_pico(ulonglong wait) const {
+    return wait * m_factor;
+  }
 
   /**
     Convert a time from timer units to pico seconds.
     @param t a time, expressed in timer units
     @return the time, expressed in pico seconds
   */
-  inline ulonglong time_to_pico(ulonglong t) {
+  inline ulonglong time_to_pico(ulonglong t) const {
     return (t == 0 ? 0 : (t - m_v0) * m_factor);
   }
 
@@ -158,7 +160,7 @@ struct time_normalizer {
     @param[out] pico_wait wait time, expressed in pico seconds
   */
   void to_pico(ulonglong start, ulonglong end, ulonglong *pico_start,
-               ulonglong *pico_end, ulonglong *pico_wait);
+               ulonglong *pico_end, ulonglong *pico_wait) const;
 
   ulong bucket_index(ulonglong t);
 };

@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
 //
-// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -17,7 +17,7 @@
 
 #include "../rapidjson.h"
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(UNDER_CE)
 #include <intrin.h>
 #if defined(_WIN64)
 #pragma intrinsic(_BitScanReverse64)
@@ -29,16 +29,12 @@
 RAPIDJSON_NAMESPACE_BEGIN
 namespace internal {
 
-#if (defined(__GNUC__) && __GNUC__ >= 4) || RAPIDJSON_HAS_BUILTIN(__builtin_clzll)
-#define RAPIDJSON_CLZLL __builtin_clzll
-#else
-
 inline uint32_t clzll(uint64_t x) {
     // Passing 0 to __builtin_clzll is UB in GCC and results in an
     // infinite loop in the software implementation.
     RAPIDJSON_ASSERT(x != 0);
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(UNDER_CE)
     unsigned long r = 0;
 #if defined(_WIN64)
     _BitScanReverse64(&r, x);
@@ -52,8 +48,12 @@ inline uint32_t clzll(uint64_t x) {
 #endif // _WIN64
 
     return 63 - r;
+#elif (defined(__GNUC__) && __GNUC__ >= 4) || RAPIDJSON_HAS_BUILTIN(__builtin_clzll)
+    // __builtin_clzll wrapper
+    return static_cast<uint32_t>(__builtin_clzll(x));
 #else
-    uint32_t r;
+    // naive version
+    uint32_t r = 0;
     while (!(x & (static_cast<uint64_t>(1) << 63))) {
         x <<= 1;
         ++r;
@@ -64,7 +64,6 @@ inline uint32_t clzll(uint64_t x) {
 }
 
 #define RAPIDJSON_CLZLL RAPIDJSON_NAMESPACE::internal::clzll
-#endif // (defined(__GNUC__) && __GNUC__ >= 4) || RAPIDJSON_HAS_BUILTIN(__builtin_clzll)
 
 } // namespace internal
 RAPIDJSON_NAMESPACE_END

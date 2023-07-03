@@ -1,0 +1,57 @@
+INSTALL COMPONENT 'file://component_query_attributes';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+#
+# Ensure statement using secondary engine is traced
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+SELECT * FROM t1;
+a
+ALTER TABLE t1 SECONDARY_UNLOAD;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+DROP TABLE t1;
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+UNINSTALL COMPONENT 'file://component_query_attributes';
+Component logs:
+test_server_telemetry_traces_component_init init:
+ - System variables registered.
+ - Status variables registered.
+ - Telemetry per-session data slot registered.
+ - Telemetry session callbacks registered.
+ - Telemetry statement callbacks registered.
+End of init
+ tm_session_create: telemetry session started, increase refcount by user=root to 1
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='INSTALL PLUGIN mock SONAME 'ha_mock.so'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='ALTER TABLE t1 SECONDARY_LOAD')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT * FROM t1', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='SELECT * FROM t1', query1='SELECT * FROM t1', digest='SELECT * FROM `t1`', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='SELECT * FROM t1')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT * FROM t1', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT * FROM t1', digest='SELECT * FROM `t1`', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='ALTER TABLE t1 SECONDARY_UNLOAD')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW CREATE TABLE t1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP TABLE t1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces'')
+test_server_telemetry_traces_component_deinit:
+ - Telemetry statement callbacks unregistered.
+ tm_session_destroy: telemetry session ended, decrease refcount to 0
+ - Current session aborted.
+ - Done waiting for telemetry sessions to finish (refcount = 0).
+ - Telemetry session callbacks unregistered.
+ - Telemetry per-session data slot unregistered.
+ - Status variables unregistered.
+ - System variables unregistered.
+End of deinit

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2477,7 +2477,7 @@ file::Block *dblwr::get_encrypted_frame(buf_page_t *bpage) noexcept {
     compressed_block = os_file_compress_page(type, frame, &n);
   }
 
-  space->get_encryption_info(type.get_encryption_info());
+  type.get_encryption_info().set(space->m_encryption_metadata);
   auto e_block = os_file_encrypt_page(type, frame, n);
 
   if (compressed_block != nullptr) {
@@ -2937,7 +2937,7 @@ bool dblwr::v1::is_inside(page_no_t page_no) noexcept {
 @param[in]  page_no  page_no within the actual tablespace.
 @param[out]  err     error code to check if decryption or decompression failed.
 @return true if dblwr page is corrupted, false otherwise. */
-static bool is_dblwr_page_corrupted(const byte *page, fil_space_t *space,
+static bool is_dblwr_page_corrupted(byte *page, fil_space_t *space,
                                     page_no_t page_no, dberr_t *err) noexcept {
   const page_size_t page_size(space->flags);
   const bool is_checksum_disabled = fsp_is_checksum_disabled(space->id);
@@ -2950,7 +2950,7 @@ static bool is_dblwr_page_corrupted(const byte *page, fil_space_t *space,
     IORequest req_type;
     size_t z_page_size;
 
-    space->get_encryption_info(en);
+    en.set(space->m_encryption_metadata);
     fil_node_t *node = space->get_file_node(&page_no);
     req_type.block_size(node->block_size);
 
@@ -2968,8 +2968,7 @@ static bool is_dblwr_page_corrupted(const byte *page, fil_space_t *space,
       z_page_size = page_size.physical();
     }
 
-    *err = en.decrypt(req_type, const_cast<byte *>(page), z_page_size, nullptr,
-                      z_page_size);
+    *err = en.decrypt(req_type, page, z_page_size, nullptr, 0);
     if (*err != DB_SUCCESS) {
       /* Could not decrypt.  Consider it corrupted. */
       corrupted = true;
@@ -2993,8 +2992,7 @@ static bool is_dblwr_page_corrupted(const byte *page, fil_space_t *space,
       ut_ad(fil_is_page_type_valid(page_type));
 
       if (page_type == FIL_PAGE_COMPRESSED) {
-        *err =
-            os_file_decompress_page(true, const_cast<byte *>(page), nullptr, 0);
+        *err = os_file_decompress_page(true, page, nullptr, 0);
 
         if (*err != DB_SUCCESS) {
           /* Could not decompress.  Consider it corrupted. */

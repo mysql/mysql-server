@@ -4,39 +4,39 @@
 include/rpl_init.inc [topology=1->2,3->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server_2]
 #
-#  1. Test ER_SLAVE_MULTIPLE_CHANNELS_CMD
+#  1. Test ER_REPLICA_MULTIPLE_CHANNELS_CMD
 #
 CHANGE REPLICATION SOURCE TO SOURCE_USER = "root";
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 SHOW RELAYLOG EVENTS;
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 SELECT SOURCE_POS_WAIT("dummy-bin.000001", 4);
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 START SLAVE UNTIL SOURCE_LOG_FILE = "dummy-bin.0000001", SOURCE_LOG_POS = 1729
-#--error ER_SLAVE_MULTIPLE_CHANNELS_CMD
+#--error ER_REPLICA_MULTIPLE_CHANNELS_CMD
 #SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("1111-1111-1111-1111:1");
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 START SLAVE UNTIL SOURCE_LOG_FILE = "dummy-bin.000001", SOURCE_LOG_POS = 4;
-ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
+ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 #
 # 2. Test errors of commands on an invalid channel
 #
 START SLAVE FOR CHANNEL "non_existent";
-ERROR HY000: Slave channel 'non_existent' does not exist.
+ERROR HY000: Replica channel 'non_existent' does not exist.
 STOP SLAVE FOR CHANNEL "non_existent";
-ERROR HY000: Slave channel 'non_existent' does not exist.
+ERROR HY000: Replica channel 'non_existent' does not exist.
 SHOW RELAYLOG EVENTS FOR CHANNEL "non_existent";
-ERROR HY000: Slave channel 'non_existent' does not exist.
+ERROR HY000: Replica channel 'non_existent' does not exist.
 RESET SLAVE FOR CHANNEL "non_existent";
-ERROR HY000: Slave channel 'non_existent' does not exist.
+ERROR HY000: Replica channel 'non_existent' does not exist.
 FLUSH RELAY LOGS FOR CHANNEL "non_existent";
-ERROR HY000: Slave channel 'non_existent' does not exist.
+ERROR HY000: Replica channel 'non_existent' does not exist.
 # Following wait functions shall return for a non_existnent channels
 SELECT SOURCE_POS_WAIT("dummy-bin.00001",4, 3, "non_existtent");
 SOURCE_POS_WAIT("dummy-bin.00001",4, 3, "non_existtent")
@@ -65,9 +65,9 @@ ERROR HY000: Maximum number of replication channels allowed exceeded.
 #  3.c) Check that restricted channel names cannot be used
 #
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_applier";
-ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
+ERROR HY000: CHANGE REPLICATION SOURCE with the given parameters cannot be performed on channel 'group_replication_applier'.
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_recovery";
-ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
+ERROR HY000: CHANGE REPLICATION SOURCE with the given parameters cannot be performed on channel 'group_replication_recovery'.
 # Assert that channels are not created for failed CHANGE MASTER command.
 # and number of channels configured must be 2
 include/assert.inc [there shall be only two rows representing 2 channels.]

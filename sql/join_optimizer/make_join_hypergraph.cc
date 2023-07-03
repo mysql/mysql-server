@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,6 +97,27 @@ Item_func_eq *MakeEqItem(Item *a, Item *b,
 }
 
 /**
+  Helper function for ReorderConditions(), which counts how many tables are
+  referenced by an equijoin condition. This enables ReorderConditions() to sort
+  the conditions on their complexity (referencing more tables == more complex).
+  Multiple equalities are considered simple, referencing two tables, regardless
+  of how many tables are actually referenced by them. This is because multiple
+  equalities will be split into one or more single equalities later, referencing
+  no more than two tables each.
+ */
+int CountTablesInEquiJoinCondition(Item *cond) {
+  assert(cond->type() == Item::FUNC_ITEM &&
+         down_cast<Item_func *>(cond)->contains_only_equi_join_condition());
+  if (IsMultipleEquals(cond)) {
+    // It's not a join condition if it has a constant argument.
+    assert(down_cast<Item_equal *>(cond)->const_arg() == nullptr);
+    return 2;
+  } else {
+    return PopulationCount(cond->used_tables());
+  }
+}
+
+/**
   Reorders the predicates in such a way that equalities are placed ahead
   of other types of predicates. These will be followed by predicates having
   subqueries and the expensive predicates at the end.
@@ -114,17 +135,26 @@ Item_func_eq *MakeEqItem(Item *a, Item *b,
    (t1.f1 != t2.f1) and
    (t1.f2 = t3.f2 OR t4.f1 = t5.f3) and
    (3 = select #2)
+
+   Simple equijoin conditions (like t1.x=t2.x) are placed ahead of more complex
+   ones (like t1.x=t2.x+t3.x), so that we prefer making simple edges and avoid
+   hyperedges when we can.
 */
 void ReorderConditions(Mem_root_array<Item *> *condition_parts) {
   // First equijoin conditions, followed by other conditions, then
   // subqueries (which can be expensive), then stored procedures
   // (which are unknown, so potentially _very_ expensive).
-  std::stable_partition(
+  const auto equi_cond_end = std::stable_partition(
       condition_parts->begin(), condition_parts->end(), [](Item *item) {
-        return (
-            item->type() == Item::FUNC_ITEM &&
-            down_cast<Item_func *>(item)->contains_only_equi_join_condition());
+        return item->type() == Item::FUNC_ITEM &&
+               down_cast<Item_func *>(item)
+                   ->contains_only_equi_join_condition();
       });
+  std::stable_sort(condition_parts->begin(), equi_cond_end,
+                   [](Item *a, Item *b) {
+                     return CountTablesInEquiJoinCondition(a) <
+                            CountTablesInEquiJoinCondition(b);
+                   });
   std::stable_partition(condition_parts->begin(), condition_parts->end(),
                         [](Item *item) { return !item->has_subquery(); });
   std::stable_partition(condition_parts->begin(), condition_parts->end(),
@@ -1141,6 +1171,9 @@ Item_func_eq *ConcretizeMultipleEquals(Item_equal *cond,
   // This is fairly arbitrary (we will add cycles later), but if there is
   // already a condition present, we prefer to pick one that refers to an
   // already-used table.
+  // Try to find a candidate from visible tables for this join.
+  // It is correct indeed and also that HeatWave does not support
+  // seeing inner tables of a semijoin from outside the semijoin.
   for (Item_field &item_field : cond->get_fields()) {
     if (Overlaps(item_field.used_tables(), GetVisibleTables(expr.left))) {
       if (left == nullptr ||
@@ -1152,6 +1185,27 @@ Item_func_eq *ConcretizeMultipleEquals(Item_equal *cond,
       if (right == nullptr ||
           !Overlaps(right->used_tables(), already_used_tables)) {
         right = &item_field;
+      }
+    }
+  }
+  // If a candidate was not found from the visible tables, try with
+  // all tables in the join. For certain cases, query transformations
+  // could have placed a semijoin condition outside of the semijoin
+  // or even as part of a WHERE condition. It might succeed here for
+  // such conditions. Such queries are not offloaded to HeatWave.
+  if (left == nullptr || right == nullptr) {
+    for (Item_field &item_field : cond->get_fields()) {
+      if (Overlaps(item_field.used_tables(), expr.left->tables_in_subtree)) {
+        if (left == nullptr ||
+            !Overlaps(left->used_tables(), already_used_tables)) {
+          left = &item_field;
+        }
+      } else if (Overlaps(item_field.used_tables(),
+                          expr.right->tables_in_subtree)) {
+        if (right == nullptr ||
+            !Overlaps(right->used_tables(), already_used_tables)) {
+          right = &item_field;
+        }
       }
     }
   }
@@ -1200,7 +1254,8 @@ static void FullyConcretizeMultipleEquals(Item_equal *cond,
   since we might plan two times, and the caches from the first time may confuse
   remove_eq_cond() in the second.
  */
-Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
+Item *CanonicalizeCondition(Item *condition, table_map visible_tables,
+                            table_map all_tables) {
   // Convert any remaining (unpushed) multiple equals to a series of equijoins.
   // Note this is a last-ditch resort, and should almost never happen;
   // thus, it's fine just to fully expand the multi-equality, even though it
@@ -1209,14 +1264,20 @@ Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
   // within OR conjunctions or the likes.
   condition = CompileItem(
       condition, [](Item *) { return true; },
-      [allowed_tables](Item *item) -> Item * {
+      [visible_tables, all_tables](Item *item) -> Item * {
         if (!IsMultipleEquals(item)) {
           return item;
         }
         Item_equal *equal = down_cast<Item_equal *>(item);
         assert(equal->const_arg() == nullptr);
         List<Item> eq_items;
-        FullyConcretizeMultipleEquals(equal, allowed_tables, &eq_items);
+        FullyConcretizeMultipleEquals(equal, visible_tables, &eq_items);
+        if (eq_items.is_empty()) {
+          // It is possible that for some semijoin conditions, we might
+          // not find replacements in only visible tables. So we try again
+          // with all tables which includes the non-visible tables as well.
+          FullyConcretizeMultipleEquals(equal, all_tables, &eq_items);
+        }
         assert(!eq_items.is_empty());
         return CreateConjunction(&eq_items);
       });
@@ -1238,11 +1299,12 @@ Mem_root_array<Item *> ResplitConditions(
 }
 
 // Calls CanonicalizeCondition() for each condition in the given array.
-bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
+bool CanonicalizeConditions(THD *thd, table_map visible_tables,
+                            table_map all_tables,
                             Mem_root_array<Item *> *conditions) {
   bool need_resplit = false;
   for (Item *&condition : *conditions) {
-    condition = CanonicalizeCondition(condition, tables_in_subtree);
+    condition = CanonicalizeCondition(condition, visible_tables, all_tables);
     if (condition == nullptr) {
       return true;
     }
@@ -1712,8 +1774,8 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
           *trace += StringPrintf("- condition %s induces a hypergraph cycle\n",
                                  ItemToString(cond).c_str());
         }
-        cycle_inducing_edges->push_back(
-            CanonicalizeCondition(cond, expr->tables_in_subtree));
+        cycle_inducing_edges->push_back(CanonicalizeCondition(
+            cond, expr->tables_in_subtree, expr->tables_in_subtree));
       }
       if (need_flatten) {
         FlattenInnerJoins(expr);
@@ -2094,7 +2156,7 @@ bool CanonicalizeJoinConditions(THD *thd, RelationalExpression *expr) {
              .empty());  // MakeHashJoinConditions() has not run yet.
   if (CanonicalizeConditions(
           thd, GetVisibleTables(expr->left) | GetVisibleTables(expr->right),
-          &expr->join_conditions)) {
+          expr->tables_in_subtree, &expr->join_conditions)) {
     return true;
   }
 
@@ -2145,23 +2207,13 @@ void MakeHashJoinConditions(THD *thd, RelationalExpression *expr) {
 
     for (Item *item : expr->join_conditions) {
       // See if this is a (non-degenerate) equijoin condition.
-      if ((item->used_tables() & expr->left->tables_in_subtree) &&
-          (item->used_tables() & expr->right->tables_in_subtree) &&
-          (item->type() == Item::FUNC_ITEM ||
-           item->type() == Item::COND_ITEM)) {
+      if (item->type() == Item::FUNC_ITEM) {
         Item_func *func_item = down_cast<Item_func *>(item);
         if (func_item->contains_only_equi_join_condition()) {
           Item_eq_base *join_condition = down_cast<Item_eq_base *>(func_item);
-          // Join conditions with items that returns row values (subqueries or
-          // row value expression) are set up with multiple child comparators,
-          // one for each column in the row. As long as the row contains only
-          // one column, use it as a join condition. If it has more than one
-          // column, attach it as an extra condition. Note that join
-          // conditions that does not return row values are not set up with
-          // any child comparators, meaning that get_child_comparator_count()
-          // will return 0.
-          if (join_condition->get_comparator()->get_child_comparator_count() <
-              2) {
+          if (IsHashEquijoinCondition(join_condition,
+                                      expr->left->tables_in_subtree,
+                                      expr->right->tables_in_subtree)) {
             expr->equijoin_conditions.push_back(join_condition);
             continue;
           }
@@ -3380,7 +3432,7 @@ bool MakeSingleTableHypergraph(THD *thd, const Query_block *query_block,
                                string *trace, JoinHypergraph *graph,
                                bool *where_is_always_false) {
   Table_ref *const table_ref = query_block->leaf_tables;
-  table_ref->fetch_number_of_rows();
+  table_ref->fetch_number_of_rows(kRowEstimateFallback);
 
   RelationalExpression *root = MakeRelationalExpression(thd, table_ref);
   MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
@@ -3495,9 +3547,9 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
     // don't need to worry about it.
     UnflattenInnerJoins(root);
 
-    if (CanonicalizeConditions(
-            thd, GetVisibleTables(root->left) | GetVisibleTables(root->right),
-            &where_conditions)) {
+    if (CanonicalizeConditions(thd, GetVisibleTables(root),
+                               TablesBetween(0, MAX_TABLES),
+                               &where_conditions)) {
       return true;
     }
 
@@ -3543,7 +3595,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph,
   // ha_archive, though.)
   for (Table_ref *tl = graph->query_block()->leaf_tables; tl != nullptr;
        tl = tl->next_leaf) {
-    tl->fetch_number_of_rows();
+    tl->fetch_number_of_rows(kRowEstimateFallback);
   }
 
   // Construct the hypergraph from the relational expression.

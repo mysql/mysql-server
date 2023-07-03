@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,16 +25,19 @@ DISABLE_MISSING_PROFILE_WARNING()
 MYSQL_ADD_PLUGIN(auth dialog.cc 
   MODULE_ONLY
   TEST_ONLY
+  SERVER_AND_CLIENT
   )
 MYSQL_ADD_PLUGIN(auth_test_plugin
   test_plugin.cc 
   MODULE_ONLY
   TEST_ONLY
+  SERVER_AND_CLIENT
   )
 MYSQL_ADD_PLUGIN(qa_auth_interface
   qa_auth_interface.cc 
   MODULE_ONLY
   TEST_ONLY
+  SERVER_AND_CLIENT
   )
 MYSQL_ADD_PLUGIN(qa_auth_server
   qa_auth_server.cc 
@@ -45,6 +48,7 @@ MYSQL_ADD_PLUGIN(qa_auth_client
   qa_auth_client.cc 
   MODULE_ONLY
   TEST_ONLY
+  CLIENT_ONLY
   )
 MYSQL_ADD_PLUGIN(mysql_no_login
   mysql_no_login.cc 

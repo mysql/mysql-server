@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1891,7 +1891,9 @@ static bool btr_search_hash_table_validate(ulint part_id) {
   ulint cell_count;
   Rec_offsets offsets;
 
+  mutex_enter(&btr_search_enabled_mutex);
   if (!btr_search_enabled) {
+    mutex_exit(&btr_search_enabled_mutex);
     return true;
   }
 
@@ -2036,6 +2038,8 @@ static bool btr_search_hash_table_validate(ulint part_id) {
   }
 
   btr_search_x_unlock_all();
+
+  mutex_exit(&btr_search_enabled_mutex);
 
   return ok;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,6 +103,7 @@ void Ndb_event_data::init_pk_bitmap() {
  */
 void Ndb_event_data::generate_minimal_bitmap(MY_BITMAP *before,
                                              MY_BITMAP *after) const {
+  DBUG_TRACE;
   if (shadow_table->s->primary_key == MAX_KEY) {
     // no usable PK bitmap, set Before Image = After Image
     bitmap_copy(before, after);

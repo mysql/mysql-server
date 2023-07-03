@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ int init_events_waits_history_long(uint events_waits_history_long_sizing) {
 }
 
 /** Cleanup table EVENTS_WAITS_HISTORY_LONG. */
-void cleanup_events_waits_history_long(void) {
+void cleanup_events_waits_history_long() {
   PFS_FREE_ARRAY(&builtin_memory_waits_history_long,
                  events_waits_history_long_size, sizeof(PFS_events_waits),
                  events_waits_history_long_array);
@@ -153,7 +153,7 @@ static void fct_reset_events_waits_current(PFS_thread *pfs_thread) {
 }
 
 /** Reset table EVENTS_WAITS_CURRENT data. */
-void reset_events_waits_current(void) {
+void reset_events_waits_current() {
   global_thread_container.apply_all(fct_reset_events_waits_current);
 }
 
@@ -169,12 +169,12 @@ static void fct_reset_events_waits_history(PFS_thread *pfs_thread) {
 }
 
 /** Reset table EVENTS_WAITS_HISTORY data. */
-void reset_events_waits_history(void) {
+void reset_events_waits_history() {
   global_thread_container.apply_all(fct_reset_events_waits_history);
 }
 
 /** Reset table EVENTS_WAITS_HISTORY_LONG data. */
-void reset_events_waits_history_long(void) {
+void reset_events_waits_history_long() {
   events_waits_history_long_index.m_u32.store(0);
   events_waits_history_long_full = false;
 

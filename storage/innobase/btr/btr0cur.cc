@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -3707,7 +3707,8 @@ dberr_t btr_cur_optimistic_update(ulint flags, btr_cur_t *cursor,
   ut_ad(err == DB_SUCCESS);
 
 func_exit:
-  if (!(flags & BTR_KEEP_IBUF_BITMAP) && !index->is_clustered()) {
+  if (!(flags & BTR_KEEP_IBUF_BITMAP) && !index->is_clustered() &&
+      !index->table->is_temporary()) {
     /* Update the free bits in the insert buffer. */
     if (page_zip) {
       ibuf_update_free_bits_zip(block, mtr);
@@ -4028,7 +4029,8 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
       if (adjust) {
         rec_offs_make_valid(page_cursor->rec, index, *offsets);
       }
-    } else if (!index->is_clustered() && page_is_leaf(page)) {
+    } else if (!index->is_clustered() && page_is_leaf(page) &&
+               !index->table->is_temporary()) {
       /* Update the free bits in the insert buffer.
       This is the same block which was skipped by
       BTR_KEEP_IBUF_BITMAP. */

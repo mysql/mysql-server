@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2022, Oracle and/or its affiliates.
+Copyright (c) 1997, 2023, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -320,75 +320,6 @@ byte *MetadataRecover::parseMetadataLog(table_id_t id, uint64_t version,
   }
 }
 
-/** Apply the collected persistent dynamic metadata to in-memory
-table objects */
-void MetadataRecover::apply() {
-  PersistentTables::iterator iter;
-
-  for (iter = m_tables.begin(); iter != m_tables.end(); ++iter) {
-    table_id_t table_id = iter->first;
-    PersistentTableMetadata *metadata = iter->second;
-    dict_table_t *table;
-
-    table = dd_table_open_on_id(table_id, nullptr, nullptr, false, true);
-
-    /* If the table is nullptr, it might be already dropped */
-    if (table == nullptr) {
-      continue;
-    }
-
-    dict_sys_mutex_enter();
-
-    /* At this time, the metadata in DDTableBuffer has
-    already been applied to table object, we can apply
-    the latest status of metadata read from redo logs to
-    the table now. We can read the dirty_status directly
-    since it's in recovery phase */
-
-    /* The table should be either CLEAN or applied BUFFERED
-    metadata from DDTableBuffer just now */
-    ut_ad(table->dirty_status.load() == METADATA_CLEAN ||
-          table->dirty_status.load() == METADATA_BUFFERED);
-
-    bool buffered = (table->dirty_status.load() == METADATA_BUFFERED);
-
-    mutex_enter(&dict_persist->mutex);
-
-    uint64_t autoinc_persisted = table->autoinc_persisted;
-    bool is_dirty = dict_table_apply_dynamic_metadata(table, metadata);
-
-    if (is_dirty) {
-      /* This table was not marked as METADATA_BUFFERED
-      before the redo logs are applied, so it's not in
-      the list */
-      if (!buffered) {
-        ut_ad(!table->in_dirty_dict_tables_list);
-#ifndef UNIV_HOTBACKUP
-        UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables, table);
-#endif
-      }
-
-      table->dirty_status.store(METADATA_DIRTY);
-      ut_d(table->in_dirty_dict_tables_list = true);
-      ++dict_persist->num_dirty_tables;
-
-      /* For those tables which are not initialized by
-      innobase_initialize_autoinc(), the next counter should be advanced to
-      point to the next auto increment value.  This is simlilar to
-      metadata_applier::operator(). */
-      if (autoinc_persisted != table->autoinc_persisted &&
-          table->autoinc != ~0ULL) {
-        ++table->autoinc;
-      }
-    }
-
-    mutex_exit(&dict_persist->mutex);
-    dict_sys_mutex_exit();
-
-    dd_table_close(table, nullptr, nullptr, false);
-  }
-}
-
 /** Creates the recovery system. */
 void recv_sys_create() {
   if (recv_sys != nullptr) {
@@ -397,7 +328,7 @@ void recv_sys_create() {
 
   recv_sys = static_cast<recv_sys_t *>(
       ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, sizeof(*recv_sys)));
-
+  ut_a(recv_sys->last_block_first_mtr_boundary == 0);
   mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
   mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
 
@@ -464,13 +395,11 @@ static void recv_sys_finish() {
   }
 
   ut::free(recv_sys->buf);
-  ut::aligned_free(recv_sys->last_block);
   ut::delete_(recv_sys->metadata_recover);
 
   recv_sys->buf = nullptr;
   recv_sys->spaces = nullptr;
   recv_sys->metadata_recover = nullptr;
-  recv_sys->last_block = nullptr;
 }
 
 /** Release recovery system mutexes. */
@@ -624,9 +553,6 @@ void recv_sys_init() {
   recv_sys->apply_log_recs = false;
   recv_sys->apply_batch_on = false;
   recv_sys->is_cloned_db = false;
-
-  recv_sys->last_block = static_cast<byte *>(
-      ut::aligned_alloc(OS_FILE_LOG_BLOCK_SIZE, OS_FILE_LOG_BLOCK_SIZE));
 
   recv_sys->found_corrupt_log = false;
   recv_sys->found_corrupt_fs = false;
@@ -880,7 +806,9 @@ void recv_sys_free() {
 @return error code
 @retval DB_SUCCESS  if the redo log is clean
 @retval DB_ERROR    if the redo log is corrupted or dirty */
-static dberr_t recv_log_recover_pre_8_0_30(log_t &log) {
+dberr_t recv_verify_log_is_clean_pre_8_0_30(log_t &log) {
+  ut_a(log.m_format < Log_format::CURRENT);
+
   const size_t n_files = log_files_number_of_existing_files(log.m_files);
   ut_a(n_files >= 2);
 
@@ -909,20 +837,24 @@ static dberr_t recv_log_recover_pre_8_0_30(log_t &log) {
     if (!file_handle.is_open()) {
       return DB_CANNOT_OPEN_FILE;
     }
+
     const dberr_t err =
         log_checkpoint_header_read(file_handle, hdr_no, header_buf);
     if (err != DB_SUCCESS) {
       return DB_ERROR;
     }
+
     Checkpoint_header h;
     if (!checkpoint_header_deserialize(header_buf, h)) {
       continue;
     }
+
     if (!checkpoint_found || h.m_checkpoint_no > chkp_header.m_checkpoint_no) {
       chkp_header = h;
       checkpoint_found = true;
     }
   }
+
   if (!checkpoint_found) {
     ib::error(ER_IB_MSG_RECOVERY_CHECKPOINT_NOT_FOUND);
     return DB_ERROR;
@@ -971,31 +903,13 @@ static dberr_t recv_log_recover_pre_8_0_30(log_t &log) {
     return DB_ERROR;
   }
 
-  /* Start at the beginning of the next block to avoid a need to rewrite
-  real data bytes for checkpoint_lsn-1, checkpoint_lsn-2, .. inside the
-  same log block to which the checkpoint_lsn belongs to. */
-  const lsn_t checkpoint_lsn =
-      ut_uint64_align_up(chkp_header.m_checkpoint_lsn, OS_FILE_LOG_BLOCK_SIZE) +
-      LOG_BLOCK_HDR_SIZE;
+  /* This lsn might be larger than flushed_lsn found in system tablespace if the
+  shutdown wasn't slow. This isn't officially supported scenario, but we can
+  handle it if redo was logically empty, by creating new redo with start_lsn
+  larger than the checkpoint_lsn found here. */
+  recv_sys->checkpoint_lsn = chkp_header.m_checkpoint_lsn;
 
-  recv_sys->parse_start_lsn = checkpoint_lsn;
-  recv_sys->bytes_to_ignore_before_checkpoint = 0;
-  recv_sys->recovered_lsn = checkpoint_lsn;
-  recv_sys->previous_recovered_lsn = checkpoint_lsn;
-  recv_sys->checkpoint_lsn = checkpoint_lsn;
-  recv_sys->scanned_lsn = checkpoint_lsn;
-  recv_sys->last_block_first_rec_group = 0;
-
-  ut_d(log.first_block_is_correct_for_lsn = checkpoint_lsn);
-
-  /* We are not going to rewrite the block, but just in case we prefer to
-  have first_rec_group which points on checkpoint_lsn (instead of pointing
-  on mini-transactions from earlier formats). This is extra safety if one
-  day this block would become rewritten because of some new bug (using new
-  format). */
-  log_block_set_first_rec_group(buf, checkpoint_lsn % OS_FILE_LOG_BLOCK_SIZE);
-
-  return log_start(log, checkpoint_lsn, checkpoint_lsn, nullptr);
+  return DB_SUCCESS;
 }
 
 /** Describes location of a single checkpoint. */
@@ -3029,8 +2943,7 @@ static void recv_track_changes_of_recovered_lsn() {
   if (old_block != new_block) {
     ut_a(new_block > old_block);
 
-    recv_sys->last_block_first_rec_group =
-        recv_sys->recovered_lsn % OS_FILE_LOG_BLOCK_SIZE;
+    recv_sys->last_block_first_mtr_boundary = recv_sys->recovered_lsn;
   }
 
   recv_sys->previous_recovered_lsn = recv_sys->recovered_lsn;
@@ -3768,7 +3681,7 @@ static dberr_t recv_recovery_begin(log_t &log, const lsn_t checkpoint_lsn) {
   /* We have to trust that the first_rec_group in the first block is
   correct as we can't start parsing earlier to check it ourselves. */
   recv_sys->previous_recovered_lsn = checkpoint_lsn;
-  recv_sys->last_block_first_rec_group = 0;
+  recv_sys->last_block_first_mtr_boundary = 0;
 
   recv_sys->scanned_epoch_no = 0;
   recv_previous_parsed_rec_type = MLOG_SINGLE_REC_FLAG;
@@ -3858,29 +3771,6 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   }
 
   recv_recovery_on = true;
-
-  switch (log.m_format) {
-    case Log_format::CURRENT:
-      break;
-
-    case Log_format::VERSION_5_7_9:
-    case Log_format::VERSION_8_0_1:
-    case Log_format::VERSION_8_0_3:
-    case Log_format::VERSION_8_0_19:
-    case Log_format::VERSION_8_0_28:
-
-      /* Check if the redo log from an older known redo log
-      version is from a clean shutdown. */
-      return recv_log_recover_pre_8_0_30(log);
-
-    default:
-      ib::error(ER_IB_MSG_LOG_FORMAT_NOT_SUPPORTED, ulong{to_int(log.m_format)},
-                ulong{to_int(Log_format::CURRENT)});
-
-      ut_ad(0);
-      recv_sys->found_corrupt_log = true;
-      return DB_ERROR;
-  }
 
   ut_a(log.m_format == Log_format::CURRENT);
 
@@ -4020,62 +3910,11 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
     return DB_ERROR;
   }
 
-  /* Read the last recovered log block. */
-  lsn_t start_lsn;
-  lsn_t end_lsn;
-
-  start_lsn = ut_uint64_align_down(recovered_lsn, OS_FILE_LOG_BLOCK_SIZE);
-
-  end_lsn = ut_uint64_align_up(recovered_lsn, OS_FILE_LOG_BLOCK_SIZE);
-
-  ut_a(start_lsn < end_lsn);
-  ut_a(start_lsn % log.buf_size + OS_FILE_LOG_BLOCK_SIZE <= log.buf_size);
-
-  const lsn_t recv_read_log_seg_ended_at_lsn =
-      recv_read_log_seg(log, recv_sys->last_block, start_lsn, end_lsn);
-
-  ut_a(recv_read_log_seg_ended_at_lsn == end_lsn);
-
-  if (recv_sys->last_block_first_rec_group != 0 &&
-      log_block_get_first_rec_group(recv_sys->last_block) !=
-          recv_sys->last_block_first_rec_group) {
-    /* We must not start with invalid first_rec_group in the first block,
-    because if we crashed, we could be unable to recover. We do NOT have
-    guarantee that the first_rec_group was correct because recovery did
-    not report error. The first_rec_group was used only to locate the
-    beginning of the log for recovery. For later blocks it was not used.
-    It might be corrupted on disk and stay unnoticed if checksums for
-    log blocks are disabled. In such case it would be better to repair
-    it now instead of relying on the broken value and risking data loss.
-    We emit warning to notice user about the situation. We repair that
-    only in the log buffer. */
-
-    ib::warn(ER_IB_RECV_FIRST_REC_GROUP_INVALID,
-             uint(log_block_get_first_rec_group(recv_sys->last_block)),
-             uint(recv_sys->last_block_first_rec_group));
-
-    log_block_set_first_rec_group(recv_sys->last_block,
-                                  recv_sys->last_block_first_rec_group);
-
-  } else if (log_block_get_first_rec_group(recv_sys->last_block) == 0) {
-    /* Again, if it was zero, for any reason, we prefer to fix it
-    before starting (we emit warning). */
-
-    ib::warn(ER_IB_RECV_FIRST_REC_GROUP_INVALID, uint(0),
-             uint(recovered_lsn % OS_FILE_LOG_BLOCK_SIZE));
-
-    log_block_set_first_rec_group(recv_sys->last_block,
-                                  recovered_lsn % OS_FILE_LOG_BLOCK_SIZE);
-  }
-
-  ut_d(log.first_block_is_correct_for_lsn = recovered_lsn);
-
   /* Disallow checkpoints until recovery is finished, and changes gathered
-  in recv_sys->recovered_metadata (srv_dict_metadata) are transferred to
+  in recv_sys->metadata_recover (dict_metadata) are transferred to
   dict_table_t objects (happens in srv0start.cc). */
 
-  err = log_start(log, checkpoint_lsn, recovered_lsn, recv_sys->last_block,
-                  false);
+  err = log_start(log, checkpoint_lsn, recovered_lsn, false);
   if (err != DB_SUCCESS) {
     return err;
   }
@@ -4165,14 +4004,10 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting) {
     }
   }
 
-  MetadataRecover *metadata;
+  MetadataRecover *metadata{};
 
   if (!aborting) {
-    metadata = recv_sys->metadata_recover;
-
-    recv_sys->metadata_recover = nullptr;
-  } else {
-    metadata = nullptr;
+    std::swap(metadata, recv_sys->metadata_recover);
   }
 
   recv_sys_free();

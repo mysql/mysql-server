@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -163,6 +163,8 @@ class Json_schema_validator {
   class My_remote_schema_document_provider
       : public rapidjson::IRemoteSchemaDocumentProvider {
    public:
+    using rapidjson::IRemoteSchemaDocumentProvider::GetRemoteDocument;
+
     const rapidjson::SchemaDocument *GetRemoteDocument(
         const char *, rapidjson::SizeType) override {
       m_used = true;

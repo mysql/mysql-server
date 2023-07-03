@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -667,6 +667,17 @@ void accumulate_statement_cost(const LEX *lex) {
   lex->thd->m_current_query_cost = total_cost;
 }
 
+static bool has_external_table(Table_ref *query_tables) {
+  for (Table_ref *ref = query_tables; ref != nullptr; ref = ref->next_global) {
+    if (ref->table != nullptr &&
+        (ref->table->file->ht->flags & HTON_SUPPORTS_EXTERNAL_SOURCE) != 0 &&
+        ref->table->s->has_secondary_engine()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
   Checks if a query should be retried using a secondary storage engine.
 
@@ -685,10 +696,6 @@ static bool retry_with_secondary_engine(THD *thd) {
   Sql_cmd *const sql_cmd = thd->lex->m_sql_cmd;
   assert(!sql_cmd->using_secondary_storage_engine());
 
-  // Don't retry if it's already determined that the statement should not be
-  // executed by a secondary engine.
-  if (sql_cmd->secondary_storage_engine_disabled()) return false;
-
   // Don't retry if there is a property of the statement that prevents use of
   // secondary engines.
   if (sql_cmd->eligible_secondary_storage_engine() == nullptr) {
@@ -696,14 +703,25 @@ static bool retry_with_secondary_engine(THD *thd) {
     return false;
   }
 
+  // Don't retry if it's already determined that the statement should not be
+  // executed by a secondary engine.
+  if (sql_cmd->secondary_storage_engine_disabled()) {
+    return false;
+  }
+
   // Don't retry if there is a property of the environment that prevents use of
   // secondary engines.
-  if (!thd->is_secondary_storage_engine_eligible()) return false;
+  if (!thd->is_secondary_storage_engine_eligible()) {
+    return false;
+  }
 
   // Only attempt to use the secondary engine if the estimated cost of the query
   // is higher than the specified cost threshold.
-  if (thd->m_current_query_cost <=
-      thd->variables.secondary_engine_cost_threshold) {
+  // We allow any query to be executed in the secondary_engine when it involves
+  // external tables.
+  if (!has_external_table(thd->lex->query_tables) &&
+      (thd->m_current_query_cost <=
+       thd->variables.secondary_engine_cost_threshold)) {
     Opt_trace_context *const trace = &thd->opt_trace;
     if (trace->is_started()) {
       Opt_trace_object wrapper(trace);
@@ -743,6 +761,9 @@ bool optimize_secondary_engine(THD *thd) {
   }
 
   const handlerton *secondary_engine = thd->lex->m_sql_cmd->secondary_engine();
+
+  /* When there is a secondary engine hook, return its return value,
+   * otherwise return false (success). */
   return secondary_engine != nullptr &&
          secondary_engine->optimize_secondary_engine != nullptr &&
          secondary_engine->optimize_secondary_engine(thd, thd->lex);
@@ -3705,9 +3726,7 @@ bool check_field_is_const(Item *cond, const Item *order_item,
   This function counts the number of fields, functions and sum
   functions (items with type SUM_FUNC_ITEM) for use by
   create_tmp_table() and stores it in the Temp_table_param object. It
-  also resets and calculates the allow_group_via_temp_table property, which may
-  have to be reverted if this function is called after deciding to use ROLLUP
-  (see JOIN::optimize_rollup()).
+  also updates the allow_group_via_temp_table property if needed.
 
   @param query_block           Query_block of query
   @param param                Description of temp table
@@ -3726,7 +3745,6 @@ void count_field_types(const Query_block *query_block, Temp_table_param *param,
   param->func_count = fields.size();
   param->hidden_field_count = 0;
   param->outer_sum_func_count = 0;
-  param->allow_group_via_temp_table = true;
   /*
     Loose index scan guarantees that all grouping is done and MIN/MAX
     functions are computed, so create_tmp_table() treats this as if

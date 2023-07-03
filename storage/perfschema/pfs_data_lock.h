@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ struct pk_pos_data_lock {
 };
 
 // This structure is memcmp-ed, so we need to have no padding.
-static_assert(sizeof(pk_pos_data_lock) == 128 + sizeof(size_t), "");
+static_assert(sizeof(pk_pos_data_lock) == 128 + sizeof(size_t));
 
 /** A row of table PERFORMANCE_SCHEMA.DATA_LOCKS. */
 struct row_data_lock {
@@ -119,7 +119,7 @@ struct pk_pos_data_lock_wait {
 };
 
 // This structure is memcmp-ed, so we need to have no padding.
-static_assert(sizeof(pk_pos_data_lock_wait) == 2 * (128 + sizeof(size_t)), "");
+static_assert(sizeof(pk_pos_data_lock_wait) == 2 * (128 + sizeof(size_t)));
 
 /** A row of table PERFORMANCE_SCHEMA.DATA_LOCK_WAITS. */
 struct row_data_lock_wait {

@@ -575,3 +575,31 @@ SELECT * FROM d;
 
 DROP TABLE d, dt;
 
+--echo #
+--echo # Bug#35080094: MySQL server crash -
+--echo #               Assertion CompatibleTypesForIndexLookup failed
+--echo #
+
+CREATE TABLE t(a VARCHAR(100) CHARSET latin1, KEY(a));
+INSERT INTO t VALUES ('2023-1-1'), ('2023-01-01');
+--sorted_result
+SELECT * FROM t WHERE a = DATE'2023-01-01';
+DROP TABLE t;
+
+--echo #
+--echo # Bug#35115909: Wrong join result when one of the join columns
+--echo #               is compared to a temporal literal
+--echo #
+
+CREATE TABLE t (a VARCHAR(10) CHARSET latin1,
+                b VARCHAR(10) CHARSET latin1);
+INSERT INTO t VALUES
+  ('2023-01-01', '2023-01-01'),
+  ('2023-01-01', '2023-1-1'),
+  ('2023-1-1',   '2023-01-01'),
+  ('2023-1-1',   '2023-1-1');
+# Used to return four rows. Should return only those two rows that
+# satisfy the a=b predicate.
+--sorted_result
+SELECT * FROM t WHERE a = b and b = DATE'2023-01-01';
+DROP TABLE t;

@@ -69,6 +69,8 @@ IF(WIN32_CLANG)
   STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-function")
 ENDIF()
 
+MSVC_CPPCHECK_DISABLE()
+
 #-----------------------------------------------------------------------------
 # Add extra compilation flags
 #-----------------------------------------------------------------------------

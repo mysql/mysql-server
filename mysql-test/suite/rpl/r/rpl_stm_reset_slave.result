@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 Master_User = 'root'
 Master_Host = '127.0.0.1'
@@ -9,7 +9,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='test';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Master_User = 'test'
 Master_Host = '127.0.0.1'
 reset slave;
@@ -20,7 +20,7 @@ Master_Host = '127.0.0.1'
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 Master_User = 'root'
 Master_Host = '127.0.0.1'
@@ -32,7 +32,7 @@ include/start_slave.inc
 create temporary table t1 (a int);
 include/stop_slave.inc
 Warnings:
-Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
+Warning	3022	This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0.
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -50,7 +50,7 @@ include/check_slave_no_error.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -59,7 +59,7 @@ include/stop_slave_sql.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 include/check_slave_no_error.inc
 
@@ -71,7 +71,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='impossible_user_name';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -84,7 +84,7 @@ include/check_slave_no_error.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -99,11 +99,11 @@ reset slave all;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 start slave;
-ERROR HY000: The server is not configured as slave; fix in config file or with CHANGE MASTER TO
+ERROR HY000: The server is not configured as replica; fix in config file or with CHANGE REPLICATION SOURCE TO
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'MASTER_HOST', SOURCE_USER= 'MASTER_USER', SOURCE_PORT= MASTER_PORT;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -113,7 +113,7 @@ include/rpl_reset_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER='', SOURCE_PORT=MASTER_PORT, SOURCE_HOST='localhost';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 # Issue a RESET SLAVE instruction and try to start the slave IO thread that will error out
 include/rpl_reset_slave.inc
 START SLAVE IO_THREAD;
@@ -127,7 +127,7 @@ include/rpl_reset_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
-call mtr.add_suppression("Slave I/O for channel '': Fatal error: Invalid .* username when attempting to connect to the master server*");
+call mtr.add_suppression("Replica I/O for channel '': Fatal error: Invalid .* username when attempting to connect to the source server*");
 include/rpl_end.inc

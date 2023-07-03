@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 #
@@ -24,9 +24,9 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 #
 # Wait for SQL thread error.
 #
-call mtr.add_suppression("Slave.* @@SESSION.GTID_NEXT cannot be set to UUID:NUMBER when @@GLOBAL.GTID_MODE = OFF.");
-call mtr.add_suppression("Slave worker thread has failed to apply an event");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("Replica.* @@SESSION.GTID_NEXT cannot be set to UUID:NUMBER when @@GLOBAL.GTID_MODE = OFF.");
+call mtr.add_suppression("Replica worker thread has failed to apply an event");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 include/wait_for_slave_sql_error.inc [errno=1781]
 include/stop_slave.inc
 RESET MASTER;

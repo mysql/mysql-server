@@ -17,6 +17,17 @@ set @@ndb_allow_copying_alter_table = 0;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1
   modify column b varchar(255);
+SHOW WARNINGS LIMIT 2;
+
+#
+# 1b) Query fails since implicit copying alter is not allowed
+#     - reason explaining that table with hidden primary key
+#       does not support inplace alter table
+#
+set @@ndb_allow_copying_alter_table = 0;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t8 ADD COLUMN VALUE_NEW VARCHAR(25) DEFAULT NULL;
+SHOW WARNINGS LIMIT 2;
 
 #
 # 2) Query is allowed since user explicitly requested ALGORITHM=COPY

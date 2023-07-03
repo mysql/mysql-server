@@ -33,11 +33,11 @@
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
-call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Update_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's master log master-bin.[0-9]*, end_log_pos [0-9]*, Error_code: MY-001032");
-call mtr.add_suppression("Slave: Can't find record in 't1' Error_code: MY-001032");
-call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Delete_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's master log master-bin.[0-9]*, end_log_pos [0-9]*, Error_code: MY-001032");
-call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state. A restart should restore consistency automatically, although using non-transactional storage for data or info tables or DDL queries could lead to problems. In such cases you have to examine your data (see documentation for details). Error_code: 1756");
-call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Delete_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's master log FIRST, end_log_pos [0-9]*, Error_code: MY-001032");
+call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Update_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's source log master-bin.[0-9]*, end_log_pos [0-9]*, Error_code: MY-001032");
+call mtr.add_suppression("Replica: Can't find record in 't1' Error_code: MY-001032");
+call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Delete_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's source log master-bin.[0-9]*, end_log_pos [0-9]*, Error_code: MY-001032");
+call mtr.add_suppression("Replica SQL for channel '': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state. A restart should restore consistency automatically, although using non-transactional storage for data or info tables or DDL queries could lead to problems. In such cases you have to examine your data (see documentation for details). Error_code: 1756");
+call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Delete_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's source log FIRST, end_log_pos [0-9]*, Error_code: MY-001032");
 
 SET sql_mode = default;
 

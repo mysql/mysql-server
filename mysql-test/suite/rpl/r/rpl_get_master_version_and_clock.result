@@ -1,13 +1,13 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
-call mtr.add_suppression("Slave I/O: .* failed with error: Lost connection to MySQL server at 'reading initial communication packet'");
-call mtr.add_suppression("Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; .*");
-call mtr.add_suppression("Slave I/O thread .* register on master");
-call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on master");
+call mtr.add_suppression("Replica I/O: Source command COM_REGISTER_REPLICA failed: .*");
+call mtr.add_suppression("Replica I/O: .* failed with error: Lost connection to MySQL server at 'reading initial communication packet'");
+call mtr.add_suppression("Fatal error: The replica I/O thread stops because source and replica have equal MySQL server ids; .*");
+call mtr.add_suppression("Replica I/O thread .* register on source");
+call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on source");
 include/stop_slave.inc
 SET @@global.debug= "+d,'debug_lock.before_get_UNIX_TIMESTAMP'";
 include/start_slave.inc
@@ -52,7 +52,7 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 *** must be having the replicate-same-server-id IO thread error ***
 include/wait_for_slave_io_error.inc [errno=13117]
-Last_IO_Error = 'Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).'
+Last_IO_Error = 'Fatal error: The replica I/O thread stops because source and replica have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on replica but this does not always make sense; please check the manual before using it).'
 SET DEBUG_SYNC= 'RESET';
 include/stop_slave_sql.inc
 RESET SLAVE;

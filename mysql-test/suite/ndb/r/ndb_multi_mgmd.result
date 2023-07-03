@@ -1,3 +1,2 @@
-Bug32339789
-MySQL Cluster Management Server
- INFO     -- Cluster configuration has multiple Management nodes. Please start the other mgmd nodes if not started yet.
+include/assert_grep.inc [Verified that "Cluster configuration has multiple Management nodes. Please start the other mgmd nodes if not started yet." is emitted when two mgmd configured.]
+include/assert_grep.inc [Verified that "Cluster configuration has multiple Management nodes. Please start the other mgmd nodes if not started yet." is emitted when two mgmd configured.]

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1109,7 +1109,9 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
   ASSERT_TRUE(MockServerRestClient(first_node_http_port)
                   .wait_for_rest_endpoint_ready());
 
-  set_mock_metadata(first_node_http_port, "", node_classic_ports);
+  set_mock_metadata(first_node_http_port, "",
+                    classic_ports_to_gr_nodes(node_classic_ports), 0,
+                    classic_ports_to_cluster_nodes(node_classic_ports));
 
   SCOPED_TRACE("// start the router with rest_routing enabled");
   for (size_t i = 0; i < 2; ++i) {

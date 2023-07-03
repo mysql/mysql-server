@@ -5,9 +5,9 @@
 -- source include/master-slave.inc
 
 --disable_warnings
-call mtr.add_suppression(".* since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement: insert into t2 set data=repeat.*'a', @act_size.*");
-call mtr.add_suppression(".* since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement: insert into t1 values.* NAME_CONST.*'n',.*, @data .*");
-call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression(".* since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica. Statement: insert into t2 set data=repeat.*'a', @act_size.*");
+call mtr.add_suppression(".* since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica. Statement: insert into t1 values.* NAME_CONST.*'n',.*, @data .*");
+call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 --enable_warnings
 
 connection master;

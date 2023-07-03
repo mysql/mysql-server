@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_inttypes.h"
 
+/* clang-format off */
+/**
+  @defgroup group_string_component_services_inventory MySQL string services
+  @ingroup group_components_services_inventory
+*/
+
+/* clang-format on */
+
 DEFINE_SERVICE_HANDLE(CHARSET_INFO_h);
 
 /**
@@ -41,6 +49,8 @@ typedef CHARSET_INFO_h (*get_charset_utf8mb4_v1_t)();
 typedef CHARSET_INFO_h (*get_charset_by_name_v1_t)(const char *name);
 
 /**
+  @ingroup group_string_component_services_inventory
+
   Lookup available character sets.
   Status: Active.
 */
@@ -61,6 +71,8 @@ DEFINE_SERVICE_HANDLE(my_h_string);
 DEFINE_SERVICE_HANDLE(my_h_string_iterator);
 
 /**
+  @ingroup group_string_component_services_inventory
+
   Service for String create and destroy.
 */
 BEGIN_SERVICE_DEFINITION(mysql_string_factory)
@@ -85,6 +97,8 @@ DECLARE_METHOD(void, destroy, (my_h_string string));
 END_SERVICE_DEFINITION(mysql_string_factory)
 
 /**
+  @ingroup group_string_component_services_inventory
+
   Service for String case conversions, to lower case and to upper case.
 */
 BEGIN_SERVICE_DEFINITION(mysql_string_case)
@@ -114,6 +128,8 @@ DECLARE_BOOL_METHOD(toupper, (my_h_string * out_string, my_h_string in_string));
 END_SERVICE_DEFINITION(mysql_string_case)
 
 /**
+  @ingroup group_string_component_services_inventory
+
   Service for conversions, string to buffer and buffer to string.
   Status: Deprecated, use mysql_string_charset_converter instead.
 */
@@ -191,6 +207,8 @@ typedef mysql_service_status_t (*convert_to_buffer_v2_t)(
     CHARSET_INFO_h dest_charset);
 
 /**
+  @ingroup group_string_component_services_inventory
+
   Service for conversions, string to buffer and buffer to string.
   Status: Active.
 */
@@ -202,6 +220,8 @@ convert_to_buffer_v2_t convert_to_buffer;
 END_SERVICE_DEFINITION(mysql_string_charset_converter)
 
 /**
+  @ingroup group_string_component_services_inventory
+
   Service to get a character in String and number of characters in string
 */
 BEGIN_SERVICE_DEFINITION(mysql_string_character_access)
@@ -232,6 +252,8 @@ DECLARE_BOOL_METHOD(get_char_length, (my_h_string string, uint *out_length));
 END_SERVICE_DEFINITION(mysql_string_character_access)
 
 /**
+  @ingroup group_string_component_services_inventory
+
   Service to get a byte in String and number of bytes in string
 */
 BEGIN_SERVICE_DEFINITION(mysql_string_byte_access)
@@ -261,6 +283,8 @@ DECLARE_BOOL_METHOD(get_byte_length, (my_h_string string, uint *out_length));
 END_SERVICE_DEFINITION(mysql_string_byte_access)
 
 /**
+  @ingroup group_string_component_services_inventory
+
   Service for listing Strings by iterator.
 */
 BEGIN_SERVICE_DEFINITION(mysql_string_iterator)
@@ -304,6 +328,8 @@ DECLARE_METHOD(void, iterator_destroy, (my_h_string_iterator iter));
 END_SERVICE_DEFINITION(mysql_string_iterator)
 
 /**
+  @ingroup group_string_component_services_inventory
+
   Service for String c_type.
 */
 BEGIN_SERVICE_DEFINITION(mysql_string_ctype)
@@ -354,9 +380,40 @@ END_SERVICE_DEFINITION(mysql_string_ctype)
 */
 typedef mysql_service_status_t (*mysql_string_reset_v1_t)(my_h_string s);
 
+/**
+  @ingroup group_string_component_services_inventory
+
+  Reset a string to the empty string.
+*/
 BEGIN_SERVICE_DEFINITION(mysql_string_reset)
 mysql_string_reset_v1_t reset;
 END_SERVICE_DEFINITION(mysql_string_reset)
+
+/**
+  Substring.
+  Allocates a string object and sets it value as substring of the input
+  string. Caller must free the allocated string by calling destroy().
+
+  @param [in]  in_string   String handle to extract substring from.
+  @param [in]  offset      Character offset of the substring.
+  @param [in]  count       Number of characters of the substring.
+  @param [out] out_string  Pointer to string handle holding the created result
+string.
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+typedef mysql_service_status_t (*mysql_string_substr_v1_t)(
+    my_h_string in_string, uint offset, uint count, my_h_string *out_string);
+
+/**
+  @ingroup group_string_component_services_inventory
+
+  Substring a string.
+*/
+BEGIN_SERVICE_DEFINITION(mysql_string_substr)
+mysql_string_substr_v1_t substr;
+END_SERVICE_DEFINITION(mysql_string_substr)
 
 /**
   Append a string.
@@ -367,6 +424,11 @@ END_SERVICE_DEFINITION(mysql_string_reset)
 typedef mysql_service_status_t (*mysql_string_append_v1_t)(my_h_string s1,
                                                            my_h_string s2);
 
+/**
+  @ingroup group_string_component_services_inventory
+
+  Append a string to another one.
+*/
 BEGIN_SERVICE_DEFINITION(mysql_string_append)
 mysql_string_append_v1_t append;
 END_SERVICE_DEFINITION(mysql_string_append)
@@ -381,6 +443,12 @@ END_SERVICE_DEFINITION(mysql_string_append)
 typedef mysql_service_status_t (*mysql_string_compare_v1_t)(my_h_string s1,
                                                             my_h_string s2,
                                                             int *cmp);
+
+/**
+  @ingroup group_string_component_services_inventory
+
+  Compare two strings.
+*/
 BEGIN_SERVICE_DEFINITION(mysql_string_compare)
 mysql_string_compare_v1_t compare;
 END_SERVICE_DEFINITION(mysql_string_compare)
@@ -399,6 +467,11 @@ typedef mysql_service_status_t (*mysql_string_get_data_v1_t)(
     my_h_string s, const char **buffer_pointer, size_t *buffer_length,
     CHARSET_INFO_h *buffer_charset);
 
+/**
+  @ingroup group_string_component_services_inventory
+
+  Access the string raw data.
+*/
 BEGIN_SERVICE_DEFINITION(mysql_string_get_data_in_charset)
 mysql_string_get_data_v1_t get_data;
 END_SERVICE_DEFINITION(mysql_string_get_data_in_charset)

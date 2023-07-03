@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 *** on slave there should be zero rows ***
 select count(*) from mysql.ndb_apply_status;
@@ -16,11 +16,34 @@ server_id	epoch	log_name	start_pos	end_pos
 # Bug#14139386 DDL APPLY SET MYSQL.NDB_APPLY_STATUS EPOCH=0
 #  - check that ndb_apply_status.epoch is not set to 0 by DDL
 #
-select epoch from mysql.ndb_apply_status into @current_epoch;
+select epoch from mysql.ndb_apply_status into @epoch_before_alter;
 alter table t1 add key k(b);
-select epoch=@current_epoch from mysql.ndb_apply_status;
-epoch=@current_epoch
+select epoch=@epoch_before_alter from mysql.ndb_apply_status;
+epoch=@epoch_before_alter
 1
+# Check again with copying alter table
+[connection master]
+alter table t1 modify b varchar(255);
+select epoch=@epoch_before_alter from mysql.ndb_apply_status;
+epoch=@epoch_before_alter
+1
+# Check copying alter without any row in ndb_apply_status -> should insert
+# row for source server_id with epoch 0
+[connection slave]
+stop replica;
+reset replica;
+select count(*) from mysql.ndb_apply_status;
+count(*)
+0
+[connection master]
+reset master;
+alter table t1 modify b varchar(255);
+[connection slave]
+start replica;
+[connection master]
+select server_id, epoch, log_name from mysql.ndb_apply_status;
+server_id	epoch	log_name
+1	0	master-bin.000001
 # End of test for Bug#14139386
 *** on slave there should be one row ***
 select count(*) from mysql.ndb_apply_status;
@@ -69,7 +92,7 @@ RESET SLAVE ALL zapped Master info - re-set it.
 include/rpl_change_topology.inc [new topology=1->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl_start_slaves.inc
 *** Test effect of ndb_clear_apply_status = 0 ***
 set global ndb_clear_apply_status=0;
@@ -114,11 +137,11 @@ RESET SLAVE ALL zapped Master info - re-set it.
 include/rpl_change_topology.inc [new topology=1->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl_start_slaves.inc
 set global ndb_clear_apply_status=1;
 drop table test.t1;
 include/rpl_end.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.

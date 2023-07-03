@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /** @file fil/fil0fil.cc
 The tablespace memory cache */
 
+#include <fil0fil.h>
 #include "my_config.h"
 
 #include "detail/fil/open_files_limit.h"
@@ -284,7 +285,7 @@ const char *dot_ext[] = {"",     ".ibd", ".cfg",   ".cfp",
                          ".ibt", ".ibu", ".dblwr", ".bdblwr"};
 
 /** Number of pending tablespace flushes */
-ulint fil_n_pending_tablespace_flushes = 0;
+std::atomic<std::uint64_t> fil_n_pending_tablespace_flushes = 0;
 
 /** Number of files currently open */
 std::atomic_size_t fil_n_files_open{0};
@@ -7551,12 +7552,8 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
     req_type.clear_encrypted();
     return;
   }
-
-  req_type.encryption_key(space->m_encryption_metadata.m_key,
-                          space->m_encryption_metadata.m_key_len,
-                          space->m_encryption_metadata.m_iv);
-
-  req_type.encryption_algorithm(Encryption::AES);
+  req_type.get_encryption_info().set(space->m_encryption_metadata);
+  ut_ad(space->m_encryption_metadata.m_type == Encryption::AES);
 }
 
 AIO_mode Fil_shard::get_AIO_mode(const IORequest &, bool sync) {
@@ -7586,7 +7583,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   IORequest req_type(type);
 
   ut_ad(req_type.validate());
-  ut_ad(!req_type.is_log());
+  ut_a(!req_type.is_log());
 
   ut_ad(len > 0);
   ut_ad(byte_offset < UNIV_PAGE_SIZE);
@@ -8066,7 +8063,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
 
       case FIL_TYPE_TABLESPACE:
       case FIL_TYPE_IMPORT:
-        ++fil_n_pending_tablespace_flushes;
+        fil_n_pending_tablespace_flushes.fetch_add(1);
         break;
     }
 
@@ -8126,7 +8123,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
 
       case FIL_TYPE_TABLESPACE:
       case FIL_TYPE_IMPORT:
-        --fil_n_pending_tablespace_flushes;
+        fil_n_pending_tablespace_flushes.fetch_sub(1);
         continue;
     }
 
@@ -8276,11 +8273,8 @@ struct Fil_page_iterator {
   /** Buffer to use for IO */
   byte *m_io_buffer;
 
-  /** Encryption key */
-  byte *m_encryption_key;
-
-  /** Encruption iv */
-  byte *m_encryption_iv;
+  /** Encryption metadata */
+  const Encryption_metadata &m_encryption_metadata;
 
   /** FS Block Size */
   size_t block_size;
@@ -8355,11 +8349,8 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     read_request.block_size(iter.block_size);
 
     /* For encrypted table, set encryption information. */
-    if (iter.m_encryption_key != nullptr && offset != 0) {
-      read_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
-                                  iter.m_encryption_iv);
-
-      read_request.encryption_algorithm(Encryption::AES);
+    if (iter.m_encryption_metadata.can_encrypt() && offset != 0) {
+      read_request.get_encryption_info().set(iter.m_encryption_metadata);
     }
 
     err = os_file_read(read_request, iter.m_filepath, iter.m_file, io_buffer,
@@ -8401,11 +8392,8 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     write_request.block_size(iter.block_size);
 
     /* For encrypted table, set encryption information. */
-    if (iter.m_encryption_key != nullptr && offset != 0) {
-      write_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
-                                   iter.m_encryption_iv);
-
-      write_request.encryption_algorithm(Encryption::AES);
+    if (iter.m_encryption_metadata.can_encrypt() && offset != 0) {
+      write_request.get_encryption_info().set(iter.m_encryption_metadata);
     }
 
     /* For compressed table, set compressed information.
@@ -8523,7 +8511,8 @@ void fil_adjust_name_import(dict_table_t *table [[maybe_unused]],
   return;
 }
 
-dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
+dberr_t fil_tablespace_iterate(const Encryption_metadata &encryption_metadata,
+                               dict_table_t *table, ulint n_io_buffers,
                                Compression::Type compression_type,
                                PageCallback &callback) {
   dberr_t err;
@@ -8625,23 +8614,19 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     err = DB_IO_ERROR;
 
   } else if ((err = callback.init(file_size, block)) == DB_SUCCESS) {
-    Fil_page_iterator iter;
-
-    iter.m_file = file;
-    iter.m_start = 0;
-    iter.m_end = file_size;
-    iter.m_filepath = filepath;
-    iter.m_file_size = file_size;
-    iter.m_n_io_buffers = n_io_buffers;
-    iter.m_page_size = callback.get_page_size().physical();
-    iter.block_size = block_size;
-
-    /* Set encryption info. */
-    iter.m_encryption_key = table->encryption_key;
-    iter.m_encryption_iv = table->encryption_iv;
-
-    iter.m_compression_type = compression_type;
-
+    Fil_page_iterator iter{
+        /* .m_file = */ file,
+        /* .m_filepath = */ filepath,
+        /* .m_start = */ 0,
+        /* .m_end = */ file_size,
+        /* .m_file_size = */ file_size,
+        /* .m_page_size = */ callback.get_page_size().physical(),
+        /* .m_n_io_buffers = */ n_io_buffers,
+        /* .m_io_buffer = */ nullptr,
+        /* .m_encryption_metadata = */ encryption_metadata,
+        /* .block_size = */ block_size,
+        /* .m_compression_type = */ compression_type,
+    };
     /* Check encryption is matched or not. */
     ulint space_flags = callback.get_space_flags();
 
@@ -8654,11 +8639,9 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
         err = DB_IO_NO_ENCRYPT_TABLESPACE;
       } else {
         /* encryption_key must have been populated while reading CFP file. */
-        ut_ad(table->encryption_key != nullptr &&
-              table->encryption_iv != nullptr);
+        ut_ad(encryption_metadata.can_encrypt());
 
-        if (table->encryption_key == nullptr ||
-            table->encryption_iv == nullptr) {
+        if (!encryption_metadata.can_encrypt()) {
           err = DB_ERROR;
         }
       }

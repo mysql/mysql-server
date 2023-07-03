@@ -1,12 +1,12 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=('test.a%');
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=('test.b%');
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
 include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=();
 CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=();

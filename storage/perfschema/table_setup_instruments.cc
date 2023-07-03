@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ PFS_engine_table *table_setup_instruments::create(PFS_engine_table_share *) {
   return new table_setup_instruments();
 }
 
-ha_rows table_setup_instruments::get_row_count(void) {
+ha_rows table_setup_instruments::get_row_count() {
   return wait_class_max + stage_class_max + statement_class_max +
          transaction_class_max + memory_class_max + error_class_max;
 }
@@ -106,12 +106,12 @@ ha_rows table_setup_instruments::get_row_count(void) {
 table_setup_instruments::table_setup_instruments()
     : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
-void table_setup_instruments::reset_position(void) {
+void table_setup_instruments::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_setup_instruments::rnd_next(void) {
+int table_setup_instruments::rnd_next() {
   PFS_instr_class *instr_class = nullptr;
   PFS_builtin_memory_class *pfs_builtin;
   bool update_enabled;
@@ -267,7 +267,7 @@ int table_setup_instruments::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_setup_instruments::index_next(void) {
+int table_setup_instruments::index_next() {
   PFS_instr_class *instr_class = nullptr;
   PFS_builtin_memory_class *pfs_builtin;
   bool update_enabled;
@@ -464,14 +464,14 @@ int table_setup_instruments::update_row_values(TABLE *table,
            */
           if (m_row.m_update_enabled) {
             value = (enum_yes_no)get_field_enum(f);
-            m_row.m_instr_class->m_enabled = (value == ENUM_YES) ? true : false;
+            m_row.m_instr_class->m_enabled = (value == ENUM_YES);
           }
           break;
         case 2: /* TIMED */
           /* Do not raise error if m_update_timed is false, silently ignore. */
           if (m_row.m_update_timed) {
             value = (enum_yes_no)get_field_enum(f);
-            m_row.m_instr_class->m_timed = (value == ENUM_YES) ? true : false;
+            m_row.m_instr_class->m_timed = (value == ENUM_YES);
           }
           break;
         case 4: /* FLAGS */

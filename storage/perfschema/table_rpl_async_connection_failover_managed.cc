@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +104,7 @@ table_rpl_async_connection_failover_managed::
 table_rpl_async_connection_failover_managed::
     ~table_rpl_async_connection_failover_managed() = default;
 
-void table_rpl_async_connection_failover_managed::reset_position(void) {
+void table_rpl_async_connection_failover_managed::reset_position() {
   DBUG_TRACE;
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
@@ -148,10 +148,10 @@ int table_rpl_async_connection_failover_managed::rnd_init(bool) {
     }
 
     Json_object_ptr res_obj_ptr(down_cast<Json_object *>(res_dom.release()));
-    Json_dom_ptr json_dom = create_dom_ptr<Json_object>();
-    Json_object *json_ob = down_cast<Json_object *>(json_dom.get());
+    const Json_dom_ptr json_dom = create_dom_ptr<Json_object>();
+    auto *json_ob = down_cast<Json_object *>(json_dom.get());
     json_ob->merge_patch(std::move(res_obj_ptr));
-    Json_wrapper wrapper(json_ob->clone());
+    const Json_wrapper wrapper(json_ob->clone());
 
     auto source_mng_detail =
         std::make_tuple(std::get<0>(source_detail), std::get<1>(source_detail),
@@ -166,7 +166,7 @@ int table_rpl_async_connection_failover_managed::rnd_init(bool) {
   return 0;
 }
 
-int table_rpl_async_connection_failover_managed::rnd_next(void) {
+int table_rpl_async_connection_failover_managed::rnd_next() {
   DBUG_TRACE;
 
   m_pos.set_at(&m_next_pos);
@@ -199,27 +199,26 @@ int table_rpl_async_connection_failover_managed::make_row(uint index) {
 
   if (index >= m_source_managed_list.size()) {
     return HA_ERR_END_OF_FILE;
-  } else {
-    std::string channel{};
-    std::string managed_name{};
-    std::string managed_type{};
-    Json_wrapper configuration;
-
-    auto managed_tuple = m_source_managed_list[index];
-    std::tie(channel, managed_name, managed_type, configuration) =
-        managed_tuple;
-
-    m_row.channel_name_length = channel.length();
-    memcpy(m_row.channel_name, channel.c_str(), channel.length());
-
-    m_row.managed_name_length = managed_name.length();
-    memcpy(m_row.managed_name, managed_name.c_str(), managed_name.length());
-
-    m_row.managed_type_length = managed_type.length();
-    memcpy(m_row.managed_type, managed_type.c_str(), managed_type.length());
-
-    m_row.configuration = Json_wrapper(configuration);
   }
+
+  std::string channel{};
+  std::string managed_name{};
+  std::string managed_type{};
+  Json_wrapper configuration;
+
+  auto managed_tuple = m_source_managed_list[index];
+  std::tie(channel, managed_name, managed_type, configuration) = managed_tuple;
+
+  m_row.channel_name_length = channel.length();
+  memcpy(m_row.channel_name, channel.c_str(), channel.length());
+
+  m_row.managed_name_length = managed_name.length();
+  memcpy(m_row.managed_name, managed_name.c_str(), managed_name.length());
+
+  m_row.managed_type_length = managed_type.length();
+  memcpy(m_row.managed_type, managed_type.c_str(), managed_type.length());
+
+  m_row.configuration = Json_wrapper(configuration);
 
   return 0;
 }

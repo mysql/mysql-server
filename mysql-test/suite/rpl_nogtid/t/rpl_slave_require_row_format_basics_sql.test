@@ -53,7 +53,7 @@
 # Suppressions
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 call mtr.add_suppression("The query does not comply with variable require_row_format restrictions.");
 
 # Test include

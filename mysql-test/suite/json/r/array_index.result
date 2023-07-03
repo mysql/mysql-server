@@ -2427,8 +2427,8 @@ vc	j
 [2,3,4]	[2, 3, 4]
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE 3 MEMBER OF (j);
 EXPLAIN
--> Filter: json'3' member of (cast(j as unsigned array))  (cost=0.80 rows=3)
-    -> Index lookup on t using j_idx (cast(j as unsigned array)=json'3')  (cost=0.80 rows=3)
+-> Filter: json'3' member of (cast(j as unsigned array))  (cost=0.8 rows=3)
+    -> Index lookup on t using j_idx (cast(j as unsigned array)=json'3')  (cost=0.8 rows=3)
 
 SELECT * FROM t WHERE 3 MEMBER OF (j);
 vc	j
@@ -2457,8 +2457,8 @@ vc	j
 [2,3,4]	[2, 3, 4]
 EXPLAIN FORMAT=TREE SELECT * FROM t WHERE 3 MEMBER OF (vc);
 EXPLAIN
--> Filter: json'3' member of (cast(vc as unsigned array))  (cost=0.80 rows=3)
-    -> Index lookup on t using vc_idx (cast(vc as unsigned array)=json'3')  (cost=0.80 rows=3)
+-> Filter: json'3' member of (cast(vc as unsigned array))  (cost=0.8 rows=3)
+    -> Index lookup on t using vc_idx (cast(vc as unsigned array)=json'3')  (cost=0.8 rows=3)
 
 SELECT * FROM t WHERE 3 MEMBER OF (vc);
 vc	j
@@ -3271,15 +3271,15 @@ EXPLAIN FORMAT=TREE
 SELECT * FROM t
 WHERE JSON_OVERLAPS(doc->'$[*].name', '["abc", "xyz"]');
 EXPLAIN
--> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].name') as char(3) array),json'["abc", "xyz"]')  (cost=1.10 rows=2)
-    -> Index range scan on t using functional_index over ('xyz' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name'))) OR ('abc' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name')))  (cost=1.10 rows=2)
+-> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].name') as char(3) array),json'["abc", "xyz"]')  (cost=1.1 rows=2)
+    -> Index range scan on t using functional_index over ('xyz' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name'))) OR ('abc' MEMBER OF (json_extract(doc,_utf8mb4'$[*].name')))  (cost=1.1 rows=2)
 
 EXPLAIN FORMAT=TREE
 SELECT * FROM t
 WHERE JSON_OVERLAPS(doc->'$[*].date', '["2020-01-01", "2021-01-01"]');
 EXPLAIN
--> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].date') as date array),json'["2020-01-01", "2021-01-01"]')  (cost=1.10 rows=2)
-    -> Index range scan on t using functional_index_2 over ('2021-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date'))) OR ('2020-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date')))  (cost=1.10 rows=2)
+-> Filter: json_overlaps(cast(json_extract(doc,_utf8mb4'$[*].date') as date array),json'["2020-01-01", "2021-01-01"]')  (cost=1.1 rows=2)
+    -> Index range scan on t using functional_index_2 over ('2021-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date'))) OR ('2020-01-01' MEMBER OF (json_extract(doc,_utf8mb4'$[*].date')))  (cost=1.1 rows=2)
 
 DROP TABLE t;
 # restart:

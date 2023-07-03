@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ PFS_engine_table *table_global_status::create(PFS_engine_table_share *) {
   return new table_global_status();
 }
 
-int table_global_status::delete_all_rows(void) {
+int table_global_status::delete_all_rows() {
   mysql_mutex_lock(&LOCK_status);
   reset_status_by_thread();
   reset_status_by_account();
@@ -99,9 +99,9 @@ int table_global_status::delete_all_rows(void) {
   return 0;
 }
 
-ha_rows table_global_status::get_row_count(void) {
+ha_rows table_global_status::get_row_count() {
   mysql_mutex_lock(&LOCK_status);
-  ha_rows status_var_count = all_status_vars.size();
+  const ha_rows status_var_count = all_status_vars.size();
   mysql_mutex_unlock(&LOCK_status);
   return status_var_count;
 }
@@ -112,7 +112,7 @@ table_global_status::table_global_status()
       m_pos(0),
       m_next_pos(0) {}
 
-void table_global_status::reset_position(void) {
+void table_global_status::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
@@ -124,7 +124,7 @@ int table_global_status::rnd_init(bool /* scan */) {
   return 0;
 }
 
-int table_global_status::rnd_next(void) {
+int table_global_status::rnd_next() {
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_status_cache.size();
        m_pos.next()) {
     const Status_variable *status_var = m_status_cache.get(m_pos.m_index);
@@ -158,7 +158,7 @@ int table_global_status::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_global_status::index_next(void) {
+int table_global_status::index_next() {
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_status_cache.size();
        m_pos.next()) {
     const Status_variable *status_var = m_status_cache.get(m_pos.m_index);

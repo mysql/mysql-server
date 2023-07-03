@@ -81,7 +81,7 @@
 --source include/not_binlog_transaction_compression_on.inc
 
 --disable_warnings
-call mtr.add_suppression("Recovery from master pos .*");
+call mtr.add_suppression("Recovery from source pos .*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Failed to read information on Previous GTIDs.");
 call mtr.add_suppression("Error reading GTIDs from binary log");
@@ -625,7 +625,7 @@ RESET MASTER;
 RESET MASTER;
 --connection slave
 --let $slave_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
---error ER_BAD_SLAVE_AUTO_POSITION
+--error ER_BAD_REPLICA_AUTO_POSITION
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1, SOURCE_LOG_FILE= 'master-bin.000001', SOURCE_LOG_POS= 4;
 --disable_warnings
 --source include/start_slave.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ namespace util {
   This class filters the first column on iteration.
  */
 class ColumnFilterInboundGipk : public ColumnFilter {
-  virtual bool filter_column(TABLE const *, size_t column_index) override;
+  bool filter_column(TABLE const *, size_t column_index) override;
 
   /**
     @brief Is this filter needed given context passed in the parameters

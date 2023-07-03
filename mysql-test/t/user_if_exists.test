@@ -184,6 +184,11 @@ ALTER USER IF EXISTS user1@localhost,ne_user3@localhost
 DROP USER IF EXISTS user1@localhost,user2@localhost,ne_user1@localhost,
                     ne_user2@localhost,ne_user3@localhost;
 
+# restore --log-raw option
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc
+
+
 --echo #
 --echo # Bug #21807286: "CREATE USER IF NOT EXISTS" REPORTS AN ERROR
 --echo #
@@ -195,9 +200,23 @@ DROP USER b21807286@localhost;
 --echo # Must not fail but return a warning
 ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'xyz';
 
-
 --echo # End of 5.7 tests
 
-# restore --log-raw option
-let $restart_parameters = restart:;
---source include/restart_mysqld.inc
+--echo #
+--echo # Bug #34906592: CREATE USER IF NOT EXISTS adds a password history entry
+--echo #
+
+SET GLOBAL password_history = 5;
+CREATE USER IF NOT EXISTS b34906592@localhost IDENTIFIED BY 'password';
+--echo # Test: should return 0 rows.
+SELECT User,Host FROM mysql.password_history WHERE User = 'b34906592';
+--echo # Test: shouls succeed with a warning that user exists
+CREATE USER IF NOT EXISTS b34906592@localhost IDENTIFIED BY 'password';
+--echo # Test: should return 0 rows.
+SELECT User,Host FROM mysql.password_history WHERE User = 'b34906592';
+
+#cleanup
+DROP USER b34906592@localhost;
+SET GLOBAL password_history = default;
+
+--echo # End of 8.0 tests

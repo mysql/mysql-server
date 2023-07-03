@@ -1,7 +1,7 @@
 include/group_replication.inc [rpl_server_count=4]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 ############################################################
@@ -28,7 +28,7 @@ SET @@GLOBAL.DEBUG='+d,rpl_acf_simulate_57_source';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_3_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'ch1']
 SELECT * FROM performance_schema.replication_asynchronous_connection_failover ORDER BY weight DESC;
 CHANNEL_NAME	HOST	PORT	NETWORK_NAMESPACE	WEIGHT	MANAGED_NAME
@@ -53,9 +53,6 @@ include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server1]
 ############################################################
 # 5. Clean up.
 [connection server4]
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.");
-SET SESSION sql_log_bin = 1;
 include/stop_slave.inc [FOR CHANNEL 'ch1']
 include/rpl_reset_slave.inc
 SELECT asynchronous_connection_failover_delete_managed('ch1', 'GROUP');

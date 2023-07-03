@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -59,6 +60,8 @@
 #include <pwd.h>
 #endif
 
+#include <openssl/ssl.h>
+
 /* Forward declarations */
 
 using namespace std;
@@ -83,6 +86,8 @@ enum certs {
 };
 
 enum extfiles { CAV3_EXT = 0, CERTV3_EXT };
+
+constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
 
 Sql_string_t cert_files[] = {
     create_string("ca.pem"),          create_string("ca-key.pem"),
@@ -147,6 +152,37 @@ static struct my_option my_options[] = {
      0, nullptr, 0, nullptr}};
 
 /* Helper Functions */
+
+/*
+  Fetch the SSL security level
+*/
+int security_level(void) {
+  int current_sec_level = 2;
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+  /*
+    create a temporary SSL_CTX, we're going to use it to fetch
+    the current OpenSSL security level. So that we can generate
+    keys accordingly.
+  */
+  SSL_CTX *temp_ssl_ctx = SSL_CTX_new(TLS_server_method());
+
+  /* get the current security level */
+  current_sec_level = SSL_CTX_get_security_level(temp_ssl_ctx);
+
+  assert(current_sec_level <= 5);
+
+  /* current range for security level is [1,5] */
+  if (current_sec_level > 5)
+    current_sec_level = 5;
+  else if (current_sec_level <= 1)
+    current_sec_level = 2;
+
+  /* get rid of temp_ssl_ctx, we're done with it */
+  SSL_CTX_free(temp_ssl_ctx);
+#endif
+
+  return current_sec_level;
+}
 
 /**
   The string class will break if constructed with a NULL pointer. This wrapper
@@ -224,7 +260,7 @@ static void free_resources() {
 
 class RSA_priv {
  public:
-  explicit RSA_priv(uint32_t key_size = 2048) : m_key_size(key_size) {}
+  explicit RSA_priv(uint32_t key_size) : m_key_size(key_size) {}
 
   ~RSA_priv() = default;
 
@@ -259,9 +295,10 @@ class X509_key {
   }
 
   Sql_string_t operator()(Sql_string_t suffix, const Sql_string_t &key_file,
-                          const Sql_string_t &req_file) {
+                          const Sql_string_t &req_file,
+                          const Sql_string_t &key_size) {
     stringstream command;
-    command << "openssl req -newkey rsa:2048 -days " << m_validity
+    command << "openssl req -newkey rsa:" << key_size << " -days " << m_validity
             << " -nodes -keyout " << key_file << " " << m_subj_prefix.str()
             << suffix << " -out " << req_file << " && openssl rsa -in "
             << key_file << " -out " << key_file;
@@ -377,6 +414,7 @@ static bool check_suffix() {
 
 int main(int argc, char *argv[]) {
   int ret_val = 0;
+  int sec_level = security_level();
   Sql_string_t openssl_check("openssl version");
   bool save_skip_unknown = my_getopt_skip_unknown;
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
@@ -528,7 +566,8 @@ int main(int argc, char *argv[]) {
       /* Generate CA Key and Certificate */
       if ((ret_val =
                execute_command(x509_key("_Auto_Generated_CA_Certificate",
-                                        cert_files[CA_KEY], cert_files[CA_REQ]),
+                                        cert_files[CA_KEY], cert_files[CA_REQ],
+                                        to_string(rsa_key_sizes[sec_level])),
                                "Error generating ca_key.pem and ca_req.pem")))
         goto end;
 
@@ -541,7 +580,8 @@ int main(int argc, char *argv[]) {
       /* Generate Server Key and Certificate */
       if ((ret_val = execute_command(
                x509_key("_Auto_Generated_Server_Certificate",
-                        cert_files[SERVER_KEY], cert_files[SERVER_REQ]),
+                        cert_files[SERVER_KEY], cert_files[SERVER_REQ],
+                        to_string(rsa_key_sizes[sec_level])),
                "Error generating server_key.pem and server_req.pem")))
         goto end;
 
@@ -555,7 +595,8 @@ int main(int argc, char *argv[]) {
       /* Generate Client Key and Certificate */
       if ((ret_val = execute_command(
                x509_key("_Auto_Generated_Client_Certificate",
-                        cert_files[CLIENT_KEY], cert_files[CLIENT_REQ]),
+                        cert_files[CLIENT_KEY], cert_files[CLIENT_REQ],
+                        to_string(rsa_key_sizes[sec_level])),
                "Error generating client_key.pem and client_req.pem")))
         goto end;
 
@@ -614,7 +655,7 @@ int main(int argc, char *argv[]) {
       info << "RSA key files are present in given dir. Skipping generation."
            << endl;
     } else {
-      RSA_priv rsa_priv;
+      RSA_priv rsa_priv(rsa_key_sizes[sec_level]);
       RSA_pub rsa_pub;
 
       /* Remove existing file if any */

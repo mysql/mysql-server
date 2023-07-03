@@ -7,7 +7,7 @@
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 --disable_query_log ONCE
-CALL mtr.add_suppression("Client requested master to start replication from position");
+CALL mtr.add_suppression("Client requested source to start replication from position");
 
 # make innodb updates run fast
 --connection slave
@@ -24,9 +24,9 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 # clean up
 --connection slave
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
-call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 call mtr.add_suppression("Unsafe statement.*. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.*");
-call mtr.add_suppression("Unsafe statement.*. Statement is unsafe because it uses a system function that may return a different value on the slave.*");
+call mtr.add_suppression("Unsafe statement.*. Statement is unsafe because it uses a system function that may return a different value on the replica.*");
 --connection master
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
 --let $rpl_only_running_threads= 1

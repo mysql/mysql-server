@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@
 #include "template_utils.h"
 #include "uuid.h"
 
-#include "compression/base.h"
+#include "compression/base.h"  // binary_log::transaction::compression::type
 
 namespace binary_log {
 /**
@@ -883,8 +883,8 @@ class Transaction_payload_event : public Binary_log_event {
   std::string to_string() const;
 
 #ifndef HAVE_MYSYS
-  virtual void print_event_info(std::ostream &) override;
-  virtual void print_long_info(std::ostream &) override;
+  void print_event_info(std::ostream &) override;
+  void print_long_info(std::ostream &) override;
 #endif
 };
 
@@ -1111,7 +1111,7 @@ class Gtid_event : public Binary_log_event {
   static const std::int64_t GNO_END = INT64_MAX;
 
  public:
-  std::int64_t get_gno() const { return gtid_info_struct.rpl_gtid_gno; }
+  virtual std::int64_t get_gno() const { return gtid_info_struct.rpl_gtid_gno; }
   Uuid get_uuid() const { return Uuid_parent_struct; }
   /// Total length of post header
   static const int POST_HEADER_LENGTH =
@@ -1527,8 +1527,8 @@ class Heartbeat_event_v2 : public Binary_log_event {
   // Return the max length of an encoded packet.
   static uint64_t max_encoding_length();
 #ifndef HAVE_MYSYS
-  virtual void print_event_info(std::ostream &info) override;
-  virtual void print_long_info(std::ostream &info) override;
+  void print_event_info(std::ostream &info) override;
+  void print_long_info(std::ostream &info) override;
 #endif
  protected:
   std::string m_log_filename{};

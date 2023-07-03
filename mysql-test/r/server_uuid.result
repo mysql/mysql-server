@@ -1,4 +1,4 @@
-CALL mtr.add_suppression("Master's UUID has changed, its old UUID is");
+CALL mtr.add_suppression("Source's UUID has changed, its old UUID is");
 
 # Case 1:
 # @@SERVER_UUID is readonly.

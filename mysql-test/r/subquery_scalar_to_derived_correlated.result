@@ -901,11 +901,11 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT a
 FROM t2 WHERE 1 = (SELECT t1.a FROM t1 WHERE t1.b = t2.a);
 EXPLAIN
--> Nested loop inner join  (cost=1.85 rows=1)
+-> Nested loop inner join  (cost=1.85 rows=1.33)
     -> Table scan on t2  (cost=0.45 rows=2)
-    -> Filter: reject_if((derived_1_2.Name_exp_3 > 1))  (cost=0.53..0.53 rows=1)
-        -> Index lookup on derived_1_2 using <auto_key0> (b=t2.a)  (cost=0.27..0.53 rows=2)
-            -> Materialize  (cost=0.00..0.00 rows=0)
+    -> Filter: reject_if((derived_1_2.Name_exp_3 > 1))  (cost=0.533..0.533 rows=0.667)
+        -> Index lookup on derived_1_2 using <auto_key0> (b=t2.a)  (cost=0.267..0.533 rows=2)
+            -> Materialize  (cost=0..0 rows=0)
                 -> Filter: (1 = any_value(t1.a))
                     -> Table scan on <temporary>
                         -> Aggregate using temporary table
@@ -924,10 +924,10 @@ FROM t2 WHERE 1 = (SELECT t1.a FROM t1 WHERE t1.b = t2.a);
 EXPLAIN
 -> Filter: reject_if((derived_1_2.Name_exp_3 > 1))  (cost=2.75 rows=0)
     -> Inner hash join (t2.a = derived_1_2.b)  (cost=2.75 rows=0)
-        -> Table scan on t2  (cost=0.26 rows=2)
+        -> Table scan on t2  (cost=0.263 rows=2)
         -> Hash
-            -> Table scan on derived_1_2  (cost=2.50..2.50 rows=0)
-                -> Materialize  (cost=0.00..0.00 rows=0)
+            -> Table scan on derived_1_2  (cost=2.5..2.5 rows=0)
+                -> Materialize  (cost=0..0 rows=0)
                     -> Filter: (1 = any_value(t1.a))
                         -> Table scan on <temporary>
                             -> Aggregate using temporary table
@@ -975,4 +975,21 @@ Note	1276	Field or reference 'test.alias1.b' of SELECT #3 was resolved in SELECT
 Note	1276	Field or reference 'test.alias1.b' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`alias1`.`b` AS `b` from `test`.`t1` `alias1` where (0 <> (/* select#2 */ select count(`test`.`t1`.`b`) from `test`.`t1` where (exists(/* select#3 */ select sum(`test`.`t1`.`b`) from `test`.`t1` where (0 <> `test`.`alias1`.`b`)) and (0 <> `test`.`alias1`.`b`))))
 DROP TABLE t1;
+#
+# Bug#34973220 Correlated scalar subquery transf. to derived table: wrong
+#              result dup predicate
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES(1), (2), (3), (4);
+INSERT INTO t2 VALUES(1), (2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT * FROM t1 WHERE (SELECT t2.a FROM t2 WHERE t2.a = t1.a AND t2.a = t1.a);
+a
+1
+2
+DROP TABLE t1, t2;
 SET optimizer_switch = 'subquery_to_derived=default';

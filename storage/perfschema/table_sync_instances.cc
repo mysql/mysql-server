@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -108,19 +108,19 @@ PFS_engine_table *table_mutex_instances::create(PFS_engine_table_share *) {
   return new table_mutex_instances();
 }
 
-ha_rows table_mutex_instances::get_row_count(void) {
+ha_rows table_mutex_instances::get_row_count() {
   return global_mutex_container.get_row_count();
 }
 
 table_mutex_instances::table_mutex_instances()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-void table_mutex_instances::reset_position(void) {
+void table_mutex_instances::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_mutex_instances::rnd_next(void) {
+int table_mutex_instances::rnd_next() {
   PFS_mutex *pfs;
 
   m_pos.set_at(&m_next_pos);
@@ -169,7 +169,7 @@ int table_mutex_instances::index_init(uint idx, bool) {
   return 0;
 }
 
-int table_mutex_instances::index_next(void) {
+int table_mutex_instances::index_next() {
   PFS_mutex *pfs;
 
   m_pos.set_at(&m_next_pos);
@@ -321,19 +321,19 @@ PFS_engine_table *table_rwlock_instances::create(PFS_engine_table_share *) {
   return new table_rwlock_instances();
 }
 
-ha_rows table_rwlock_instances::get_row_count(void) {
+ha_rows table_rwlock_instances::get_row_count() {
   return global_rwlock_container.get_row_count();
 }
 
 table_rwlock_instances::table_rwlock_instances()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-void table_rwlock_instances::reset_position(void) {
+void table_rwlock_instances::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_rwlock_instances::rnd_next(void) {
+int table_rwlock_instances::rnd_next() {
   PFS_rwlock *pfs;
 
   m_pos.set_at(&m_next_pos);
@@ -382,7 +382,7 @@ int table_rwlock_instances::index_init(uint idx, bool) {
   return 0;
 }
 
-int table_rwlock_instances::index_next(void) {
+int table_rwlock_instances::index_next() {
   PFS_rwlock *pfs;
 
   m_pos.set_at(&m_next_pos);
@@ -528,19 +528,19 @@ PFS_engine_table *table_cond_instances::create(PFS_engine_table_share *) {
   return new table_cond_instances();
 }
 
-ha_rows table_cond_instances::get_row_count(void) {
+ha_rows table_cond_instances::get_row_count() {
   return global_cond_container.get_row_count();
 }
 
 table_cond_instances::table_cond_instances()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-void table_cond_instances::reset_position(void) {
+void table_cond_instances::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_cond_instances::rnd_next(void) {
+int table_cond_instances::rnd_next() {
   PFS_cond *pfs;
 
   m_pos.set_at(&m_next_pos);
@@ -586,7 +586,7 @@ int table_cond_instances::index_init(uint idx, bool) {
   return 0;
 }
 
-int table_cond_instances::index_next(void) {
+int table_cond_instances::index_next() {
   PFS_cond *pfs;
 
   m_pos.set_at(&m_next_pos);

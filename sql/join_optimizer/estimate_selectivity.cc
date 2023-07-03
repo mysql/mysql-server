@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,22 +123,26 @@ static double EstimateFieldSelectivity(Field *field, double *selectivity_cap,
     const histograms::Histogram *const histogram =
         field->table->s->find_histogram(field->field_index());
 
-    if (histogram != nullptr) {
+    if (histogram != nullptr && !empty(*histogram)) {
       /*
         Assume that we do "SELECT ... FROM ... WHERE tab.field=<expression>".
         And there is a histogram on 'tab.field' indicating that there are
         N distinct values for that field. Then we estimate the selectivity
-        to be 1/N.
+        to be <fraction of non-null values>/N.
       */
-      const double distinct_values = histogram->get_num_distinct_values();
-      selectivity = 1.0 / std::max(1.0, distinct_values);
+      selectivity = histogram->get_non_null_values_fraction() /
+                    std::max<double>(1.0, histogram->get_num_distinct_values());
 
       if (trace != nullptr) {
-        *trace += StringPrintf(
-            " - estimating selectivity %f for field '%s.%s'"
-            " from histogram showing %.1f distinct values.\n",
-            selectivity, field->table->alias, field->field_name,
-            distinct_values);
+        std::ostringstream stream;
+        stream << " - estimating selectivity " << selectivity << " for field "
+               << field->table->alias << "." << field->field_name
+               << " from histogram showing "
+               << histogram->get_num_distinct_values()
+               << " distinct values and non-null fraction "
+               << histogram->get_non_null_values_fraction() << ".\n";
+
+        *trace += stream.str();
       }
     }
   }

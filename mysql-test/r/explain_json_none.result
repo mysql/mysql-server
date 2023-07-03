@@ -1103,35 +1103,37 @@ EXPLAIN
                       "attached_condition": "((0 <> `test`.`t1`.`b`) and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true))"
                     } /* table */
                   } /* query_block */
-                },
-                {
-                  "dependent": false,
-                  "cacheable": true,
-                  "query_block": {
-                    "select_id": 3,
-                    "cost_info": {
-                      "query_cost": "0.70"
-                    } /* cost_info */,
-                    "table": {
-                      "table_name": "t3",
-                      "access_type": "ALL",
-                      "rows_examined_per_scan": 2,
-                      "rows_produced_per_join": 2,
-                      "filtered": "100.00",
-                      "cost_info": {
-                        "read_cost": "0.50",
-                        "eval_cost": "0.20",
-                        "prefix_cost": "0.70",
-                        "data_read_per_join": "16"
-                      } /* cost_info */,
-                      "used_columns": [
-                        "e"
-                      ] /* used_columns */
-                    } /* table */
-                  } /* query_block */
                 }
               ] /* attached_subqueries */
-            } /* table */
+            } /* table */,
+            "optimized_away_subqueries": [
+              {
+                "dependent": false,
+                "cacheable": true,
+                "query_block": {
+                  "select_id": 3,
+                  "cost_info": {
+                    "query_cost": "0.70"
+                  } /* cost_info */,
+                  "table": {
+                    "table_name": "t3",
+                    "access_type": "ALL",
+                    "rows_examined_per_scan": 2,
+                    "rows_produced_per_join": 2,
+                    "filtered": "100.00",
+                    "cost_info": {
+                      "read_cost": "0.50",
+                      "eval_cost": "0.20",
+                      "prefix_cost": "0.70",
+                      "data_read_per_join": "16"
+                    } /* cost_info */,
+                    "used_columns": [
+                      "e"
+                    ] /* used_columns */
+                  } /* table */
+                } /* query_block */
+              }
+            ] /* optimized_away_subqueries */
           } /* query_block */
         }
       ] /* attached_subqueries */
@@ -2915,24 +2917,24 @@ EXPLAIN FORMAT=tree ( ( SELECT * FROM r UNION
 ORDER BY 1 LIMIT 3)
 ORDER BY 1;
 EXPLAIN
--> Sort: a  (cost=13.08..13.08 rows=3)
-    -> Table scan on <result temporary>  (cost=10.61..12.31 rows=3)
+-> Sort: a  (cost=13.1..13.1 rows=3)
+    -> Table scan on <result temporary>  (cost=10.6..12.3 rows=3)
         -> Temporary table  (cost=9.77..9.77 rows=3)
             -> Limit: 3 row(s)  (cost=9.47..9.47 rows=3)
                 -> Sort: a, limit input to 3 row(s) per chunk  (cost=9.47..9.47 rows=3)
                     -> Table scan on <union temporary>  (cost=5.92..8.19 rows=8)
                         -> Union materialize with deduplication  (cost=5.59..5.59 rows=8)
-                            -> Table scan on r  (cost=0.90 rows=4)
-                            -> Limit: 1 row(s)  (cost=1.00 rows=1)
-                                -> Sort: s.a, limit input to 1 row(s) per chunk  (cost=1.00 rows=5)
-                                    -> Table scan on s  (cost=1.00 rows=5)
+                            -> Table scan on r  (cost=0.902 rows=4)
+                            -> Limit: 1 row(s)  (cost=1 rows=1)
+                                -> Sort: s.a, limit input to 1 row(s) per chunk  (cost=1 rows=5)
+                                    -> Table scan on s  (cost=1 rows=5)
                             -> Limit: 3 row(s)  (cost=2.03..2.89 rows=3)
                                 -> Table scan on <union temporary>  (cost=2.03..4.18 rows=6)
-                                    -> Union materialize with deduplication  (cost=1.60..1.60 rows=6)
+                                    -> Union materialize with deduplication  (cost=1.6..1.6 rows=6)
                                         -> Limit table size: 3 unique row(s)
-                                            -> Table scan on s  (cost=1.00 rows=5)
+                                            -> Table scan on s  (cost=1 rows=5)
                                         -> Limit table size: 3 unique row(s)
-                                            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+                                            -> Rows fetched before execution  (cost=0..0 rows=1)
 
 # Test no result if no materializaton
 EXPLAIN FORMAT=json SELECT 1 UNION ALL SELECT 2;

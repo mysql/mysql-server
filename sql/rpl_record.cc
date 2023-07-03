@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -430,7 +430,7 @@ static const uchar *start_partial_bit_reader(const uchar *pack_ptr,
   if (net_field_length_checked<ulonglong>(&pack_ptr, &length,
                                           event_value_options) ||
       *event_value_options > 1) {
-    my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
+    my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
     return nullptr;
   }
   DBUG_PRINT("info", ("event_value_options=%llx", *event_value_options));
@@ -473,7 +473,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
 
   // check for mismatch between column counts in table_map_event and row_event
   if (tabledef->size() != source_column_count) {
-    my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
+    my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
     return true;
   }
 
@@ -655,7 +655,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
         DBUG_PRINT("info", ("calc_field_size ret=%d event_len=%d", (int)len,
                             (int)event_len));
         if (len > event_len) {
-          my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
+          my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
           return true;
         }
         if (only_seek)
@@ -731,7 +731,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
         DBUG_PRINT("info", ("Skipping field"));
         DBUG_DUMP("info", pack_ptr, len);
         if (len > event_len) {
-          my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
+          my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
           return true;
         }
         pack_ptr += len;

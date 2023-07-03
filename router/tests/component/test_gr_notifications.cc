@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/stdx/ranges.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "router_component_system_layout.h"
@@ -149,27 +150,23 @@ class GrNotificationsTest : public RouterComponentTest {
     JsonAllocator allocator;
     gr_id_.reset(new JsonValue(gr_id.c_str(), gr_id.length(), allocator));
 
-    size_t i{0};
     gr_nodes_.reset(new JsonValue(rapidjson::kArrayType));
     for (auto &gr_node : gr_node_ports) {
       JsonValue node(rapidjson::kArrayType);
       node.PushBack(JsonValue(static_cast<int>(gr_node)), allocator);
       node.PushBack(JsonValue("ONLINE", strlen("ONLINE"), allocator),
                     allocator);
-      node.PushBack(JsonValue(static_cast<int>(gr_node_xports[i++])),
-                    allocator);
       gr_nodes_->PushBack(node, allocator);
     }
 
-    i = 0;
     cluster_nodes_.reset(new JsonValue(rapidjson::kArrayType));
-    for (auto &cluster_node : cluster_node_ports) {
+    const auto &cluster_nodes =
+        cluster_node_ports.empty() ? gr_node_ports : cluster_node_ports;
+    for (auto [i, cluster_node] : stdx::views::enumerate(cluster_nodes)) {
       JsonValue node(rapidjson::kArrayType);
       node.PushBack(JsonValue(static_cast<int>(cluster_node)), allocator);
-      node.PushBack(JsonValue("ONLINE", strlen("ONLINE"), allocator),
-                    allocator);
-      node.PushBack(JsonValue(static_cast<int>(gr_node_xports[i++])),
-                    allocator);
+      node.PushBack(JsonValue(static_cast<int>(gr_node_xports[i])), allocator);
+      node.PushBack(JsonValue("{}", strlen("{}"), allocator), allocator);
       cluster_nodes_->PushBack(node, allocator);
     }
 
@@ -1015,7 +1012,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
         trace_file, nodes_ports[i], EXIT_SUCCESS, false, http_ports[i],
         nodes_xports[i]));
 
-    set_mock_metadata(http_ports[i], "00-000", nodes_ports, nodes_xports,
+    set_mock_metadata(http_ports[i], "uuid", nodes_ports, nodes_xports,
                       /*sent=*/false, nodes_ports);
 
     SCOPED_TRACE(
@@ -1039,7 +1036,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
 
   SCOPED_TRACE("// Create a router state file");
   const std::string state_file = GrNotificationsTest::create_state_file(
-      temp_test_dir.name(), "00-000", nodes_ports);
+      temp_test_dir.name(), "uuid", nodes_ports);
 
   SCOPED_TRACE(
       "// Create a configuration file sections with high ttl so that "
@@ -1075,7 +1072,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
   // cluster metadata should be missing a newly added node, GR metaadata should
   // already have it
   for (size_t i = 0; i <= 2; i++) {
-    set_mock_metadata(http_ports[i], "00-000", nodes_ports, nodes_xports,
+    set_mock_metadata(http_ports[i], "uuid", nodes_ports, nodes_xports,
                       /*send=*/true, cluster_nodes_ports);
   }
 
@@ -1094,7 +1091,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
   SCOPED_TRACE("// Now let the metadata be consistent again");
   // GR tables and cluster metadata should both contain the newly added node
   for (size_t i = 0; i <= 2; i++) {
-    set_mock_metadata(http_ports[i], "00-000", nodes_ports, nodes_xports,
+    set_mock_metadata(http_ports[i], "uuid", nodes_ports, nodes_xports,
                       /*send=*/true, nodes_ports);
   }
 

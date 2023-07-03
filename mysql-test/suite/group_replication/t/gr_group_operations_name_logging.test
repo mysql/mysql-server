@@ -32,9 +32,9 @@ call mtr.add_suppression("A member is joining the group while a group configurat
 call mtr.add_suppression("Can't start SQL THREAD for channel 'ch1' when group replication is running a group configuration operation 'Change to single primary mode'*");
 call mtr.add_suppression("Can't start IO THREAD for channel 'ch1' when group replication is running a group configuration operation 'Change to single primary mode'*");
 call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
-call mtr.add_suppression("Slave I/O for channel 'ch1': Fatal error: Failed to run 'thread_start' hook, Error_code: MY-013117");
+call mtr.add_suppression("Replica I/O for channel 'ch1': Fatal error: Failed to run 'thread_start' hook, Error_code: MY-013117");
 call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
-call mtr.add_suppression("Slave SQL for channel 'ch1': Fatal error: Failed to run 'applier_start' hook, Error_code: MY-013117");
+call mtr.add_suppression("Replica SQL for channel 'ch1': Fatal error: Failed to run 'applier_start' hook, Error_code: MY-013117");
 set session sql_log_bin=1;
 
 --replace_result $SERVER_MYPORT_2 SERVER_2_PORT
@@ -95,10 +95,10 @@ START GROUP_REPLICATION;
 
 START REPLICA FOR CHANNEL 'ch1';
 
---let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_io_error= 0
 
---let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_sql_error= 0
 
 --source include/wait_for_slave_io_error.inc

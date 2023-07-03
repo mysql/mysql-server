@@ -123,10 +123,10 @@
 --let SEARCH_PATTERN= Error in checking mysql\.slave_master_info repository info type of TABLE\.
 --source include/search_pattern.inc
 
---let SEARCH_PATTERN= Error creating master info\: Error checking repositories\.
+--let SEARCH_PATTERN= Error creating connection metadata\: Error checking repositories\.
 --source include/search_pattern.inc
 
---let SEARCH_PATTERN= Slave: Failed to initialize the master info structure for channel \'\'; its record may still be present in \'mysql.slave_master_info\' table, consider deleting it\.
+--let SEARCH_PATTERN= Replica: Failed to initialize the connection metadata structure for channel \'\'; its record may still be present in the applier metadata repository, consider deleting it\.
 --source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Failed to create or recover replication info repositories\.

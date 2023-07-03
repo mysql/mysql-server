@@ -83,7 +83,7 @@
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression("The query does not comply with variable require_row_format restrictions");
 --source include/start_slave.inc
 

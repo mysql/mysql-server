@@ -1,10 +1,10 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements*");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements*");
 SET SESSION sql_log_bin = 1;
 # 1. Setup scenario:
 # i. Create database 'dodb' on the source.
@@ -15,7 +15,7 @@ CREATE DATABASE dodb;
 CREATE TABLE dodb.t (a INT);
 include/sync_slave_sql_with_master.inc
 SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements*");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements*");
 SET SESSION sql_log_bin = 1;
 # 2. On replica: Stop replica and create do_db replication filter for
 #    database 'dbdb'. All other databases except dodb will be ignored.

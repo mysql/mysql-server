@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 # We are not interesting in profiling tests.
 DISABLE_MISSING_PROFILE_WARNING()
+MSVC_CPPCHECK_DISABLE()
 
 MYSQL_ADD_COMPONENT(test_udf_registration
   test_udf_registration.cc
@@ -166,6 +167,11 @@ MYSQL_ADD_COMPONENT(test_mysql_command_services
   )
 MYSQL_ADD_COMPONENT(test_status_var_reader
   test_status_var_reader.cc
+  MODULE_ONLY
+  TEST_ONLY
+  )
+MYSQL_ADD_COMPONENT(test_mysql_thd_store_service
+  test_mysql_thd_store_service.cc
   MODULE_ONLY
   TEST_ONLY
   )

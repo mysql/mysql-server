@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "util/ndb_math.h"
 #include "util/require.h"
 #include "NdbImportImpl.hpp"
-
 #include <inttypes.h>
+#include <new>
 
 NdbImportImpl::NdbImportImpl(NdbImport& facade) :
   NdbImport(*this),
@@ -2402,16 +2403,12 @@ NdbImportImpl::RelayOpWorker::RelayOpWorker(Team& team, uint n) :
   DbWorker(team, n)
 {
   m_relaystate = RelayState::State_null;
-  m_xfrmalloc = 0;
-  m_xfrmbuf = 0;
-  m_xfrmbuflen = 0;
   for (uint i = 0; i < g_max_ndb_nodes; i++)
     m_rows_exec[i] = 0;
 }
 
 NdbImportImpl::RelayOpWorker::~RelayOpWorker()
 {
-  delete [] m_xfrmalloc;
   for (uint i = 0; i < g_max_ndb_nodes; i++)
     delete m_rows_exec[i];
 }
@@ -2421,13 +2418,18 @@ NdbImportImpl::RelayOpWorker::do_init()
 {
   log_debug(1, "do_init");
   create_ndb(1);
-  uint len = (MAX_KEY_SIZE_IN_WORDS << 2) + sizeof(uint64);
-  m_xfrmalloc = new uchar [len];
-  // copied from Ndb::computeHash()
-  UintPtr org = UintPtr(m_xfrmalloc);
-  UintPtr use = (org + 7) & ~(UintPtr)7;
-  m_xfrmbuf = (uchar*)use;
-  m_xfrmbuflen = len - uint(use - org);
+  const Opt& opt = m_util.c_opt;
+  if (!opt.m_no_hint)
+  {
+    uint len = (MAX_KEY_SIZE_IN_WORDS << 2) * MAX_XFRM_MULTIPLY;
+    if (opt.m_errins_type != nullptr &&
+        strcmp(opt.m_errins_type, "bug34917498") == 0)
+      len = MAX_KEY_SIZE_IN_WORDS << 2;
+    const uint count64 = ndb_ceil_div<uint64>(len, sizeof(uint64)) + 1;
+    uint64* ptr = new uint64 [count64];
+    m_xfrmbuf.reset(ptr);
+    m_xfrmbuflen = count64 * sizeof(uint64);
+  }
   uint nodecnt = m_impl.c_nodes.m_nodecnt;
   require(nodecnt != 0);
   for (uint i = 0; i < nodecnt; i++)
@@ -2495,18 +2497,27 @@ NdbImportImpl::RelayOpWorker::state_define()
     const Table& table = m_util.get_table(row->m_tabid);
     const bool no_hint = opt.m_no_hint;
     uint nodeid = 0;
-    if (no_hint)
+    if (!no_hint)
+    {
+      require(m_xfrmbuf);
+      Uint32 hash;
+      int ret = m_ndb->computeHash(&hash, table.m_keyrec,
+                                   (const char*)row->m_data,
+                                   m_xfrmbuf.get(), m_xfrmbuflen);
+      if (ret != 0)
+      {
+        m_util.set_error_ndb(m_error, __LINE__, m_ndb->getNdbError(ret));
+      }
+      else
+      {
+        uint fragid = (uint)table.m_tab->getPartitionId(hash);
+        nodeid = table.get_nodeid(fragid);
+      }
+    }
+    if (nodeid == 0)
     {
       uint i = get_rand() % c.m_nodecnt;
       nodeid = c.m_nodes[i].m_nodeid;
-    }
-    else
-    {
-      Uint32 hash;
-      m_ndb->computeHash(&hash, table.m_keyrec, (const char*)row->m_data,
-                         m_xfrmbuf, m_xfrmbuflen);
-      uint fragid = (uint)table.m_tab->getPartitionId(hash);
-      nodeid = table.get_nodeid(fragid);
     }
     require(nodeid < g_max_nodes);
     uint nodeindex = c.m_index[nodeid];

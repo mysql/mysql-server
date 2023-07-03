@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,49 +68,9 @@ bool Ndb_server_hooks::register_server_hooks(hook_t *before_connections_hook,
   return true;
 }
 
-bool Ndb_server_hooks::register_applier_start(hook_t *hook_func) {
-  // Only allow one applier_start hook to be installed
-  assert(!m_binlog_relay_io_observer);
-
-  Ndb_plugin_reference ndbcluster_plugin;
-
-  // Resolve pointer to the ndbcluster plugin
-  if (!ndbcluster_plugin.lock()) return false;
-
-  m_binlog_relay_io_observer = new Binlog_relay_IO_observer{
-      sizeof(Binlog_relay_IO_observer),
-
-      nullptr,                     // thread_start
-      nullptr,                     // thread_stop
-      (applier_start_t)hook_func,  // applier_start
-      nullptr,                     // applier_stop
-      nullptr,                     // before_request_transmit
-      nullptr,                     // after_read_event
-      nullptr,                     // after_queue_event
-      nullptr,                     // after_reset
-      nullptr                      // applier_log_event
-  };
-
-  // Install replication observer to be called when applier thread start
-  if (register_binlog_relay_io_observer(m_binlog_relay_io_observer,
-                                        ndbcluster_plugin.handle())) {
-    ndb_log_error("Failed to register binlog relay io observer");
-    delete m_binlog_relay_io_observer;
-    m_binlog_relay_io_observer = nullptr;
-    return false;
-  }
-
-  return true;
-}
-
 void Ndb_server_hooks::unregister_all(void) {
   if (m_server_state_observer)
     unregister_server_state_observer(m_server_state_observer, nullptr);
-  if (m_binlog_relay_io_observer)
-    unregister_binlog_relay_io_observer(m_binlog_relay_io_observer, nullptr);
 }
 
-Ndb_server_hooks::~Ndb_server_hooks() {
-  delete m_server_state_observer;
-  delete m_binlog_relay_io_observer;
-}
+Ndb_server_hooks::~Ndb_server_hooks() { delete m_server_state_observer; }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -281,6 +281,22 @@ class mysql_string_imp {
   static DEFINE_BOOL_METHOD(reset, (my_h_string s));
 
   static DEFINE_BOOL_METHOD(append, (my_h_string s1, my_h_string s2));
+
+  /**
+    Allocates a string object and sets it value as substring of the input
+    string. Caller must free the allocated string by calling destroy().
+
+    @param [in]  in_string   String handle to extract substring from.
+    @param [in]  offset      Character offset of the substring.
+    @param [in]  count       Number of characters of the substring.
+    @param [out] out_string  Pointer to string handle holding the created result
+    string.
+    @return Status of performed operation
+    @retval false success
+    @retval true failure
+  */
+  static DEFINE_BOOL_METHOD(substr, (my_h_string in_string, uint offset,
+                                     uint count, my_h_string *out_string));
 
   static DEFINE_BOOL_METHOD(compare,
                             (my_h_string s1, my_h_string s2, int *cmp));

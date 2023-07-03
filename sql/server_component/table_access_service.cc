@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
+#include "sql/mysqld.h"  // mysqld_server_started
 #include "sql/mysqld_thd_manager.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
@@ -624,6 +625,14 @@ Table_access_impl::~Table_access_impl() {
 
   close_thread_tables(m_child_thd);
 
+  if (!mysqld_server_started) {
+    /*
+      After initialization of the server, InnoDB's data dictionary cache is
+      reset. It requires all tables, including the cached ones, to be released.
+    */
+    close_cached_tables(m_child_thd, m_table_array, false, LONG_TIMEOUT);
+  }
+
   m_child_thd->release_resources();
   m_child_thd->restore_globals();
 
@@ -730,7 +739,7 @@ size_t Table_access_impl::add_table(const char *schema_name,
 }
 
 int Table_access_impl::begin() {
-  if (m_write) {
+  if (m_write && m_parent_thd != nullptr) {
     if (m_parent_thd->global_read_lock.is_acquired()) {
       /*
         Avoid waiting in the child THD session

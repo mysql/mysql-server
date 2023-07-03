@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -163,6 +163,9 @@ struct AppendPathParameters {
   AccessPath *path;
   JOIN *join;
 };
+
+/// To indicate that a row estimate is not yet made.
+constexpr double kUnknownRowCount = -1.0;
 
 /**
   Access paths are a query planning structure that correspond 1:1 to iterators,
@@ -388,7 +391,8 @@ struct AccessPath {
 
   /// If no filter, identical to num_output_rows, cost, respectively.
   /// init_cost is always the same (filters have zero initialization cost).
-  double num_output_rows_before_filter{-1.0}, cost_before_filter{-1.0};
+  double num_output_rows_before_filter{kUnknownRowCount},
+      cost_before_filter{-1.0};
 
   /// Bitmap of WHERE predicates that we are including on this access path,
   /// referring to the “predicates” array internal to the join optimizer.
@@ -845,7 +849,7 @@ struct AccessPath {
 
  private:
   /// Expected number of output rows, -1.0 for unknown.
-  double m_num_output_rows{-1.0};
+  double m_num_output_rows{kUnknownRowCount};
 
   // We'd prefer if this could be an std::variant, but we don't have C++17 yet.
   // It is private to force all access to be through the type-checking
@@ -1607,11 +1611,14 @@ inline AccessPath *NewAppendAccessPath(
   path->cost = 0.0;
   path->init_cost = 0.0;
   path->init_once_cost = 0.0;
+  double num_output_rows = 0.0;
   for (const AppendPathParameters &child : *children) {
     path->cost += child.path->cost;
     path->init_cost += child.path->init_cost;
     path->init_once_cost += child.path->init_once_cost;
+    num_output_rows += child.path->num_output_rows();
   }
+  path->set_num_output_rows(num_output_rows);
   return path;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,8 @@ int init_events_statements_history_long(
 
   if (pfs_max_digest_length > 0) {
     /* Size of each digest text array. */
-    size_t digest_text_size = pfs_max_digest_length * sizeof(unsigned char);
+    const size_t digest_text_size =
+        pfs_max_digest_length * sizeof(unsigned char);
 
     h_long_stmts_digest_token_array =
         PFS_MALLOC_ARRAY(&builtin_memory_statements_history_long_tokens,
@@ -105,7 +106,7 @@ int init_events_statements_history_long(
 
   if (pfs_max_sqltext > 0) {
     /* Size of each sql text array. */
-    size_t sqltext_size = pfs_max_sqltext * sizeof(char);
+    const size_t sqltext_size = pfs_max_sqltext * sizeof(char);
 
     h_long_stmts_text_array =
         PFS_MALLOC_ARRAY(&builtin_memory_statements_history_long_sqltext,
@@ -130,7 +131,7 @@ int init_events_statements_history_long(
 }
 
 /** Cleanup table EVENTS_STATEMENTS_HISTORY_LONG. */
-void cleanup_events_statements_history_long(void) {
+void cleanup_events_statements_history_long() {
   PFS_FREE_ARRAY(&builtin_memory_statements_history_long,
                  events_statements_history_long_size,
                  sizeof(PFS_events_statements),
@@ -159,7 +160,7 @@ static inline void copy_events_statements(PFS_events_statements *dest,
              pointer_cast<const char *>(&source->m_statement_id));
 
   /* Copy SQL TEXT */
-  int sqltext_length = source->m_sqltext_length;
+  const int sqltext_length = source->m_sqltext_length;
 
   if (sqltext_length > 0) {
     memcpy(dest->m_sqltext, source->m_sqltext, sqltext_length);
@@ -238,7 +239,7 @@ static void fct_reset_events_statements_current(PFS_thread *pfs_thread) {
 }
 
 /** Reset table EVENTS_STATEMENTS_CURRENT data. */
-void reset_events_statements_current(void) {
+void reset_events_statements_current() {
   global_thread_container.apply_all(fct_reset_events_statements_current);
 }
 
@@ -254,12 +255,12 @@ static void fct_reset_events_statements_history(PFS_thread *pfs_thread) {
 }
 
 /** Reset table EVENTS_STATEMENTS_HISTORY data. */
-void reset_events_statements_history(void) {
+void reset_events_statements_history() {
   global_thread_container.apply_all(fct_reset_events_statements_history);
 }
 
 /** Reset table EVENTS_STATEMENTS_HISTORY_LONG data. */
-void reset_events_statements_history_long(void) {
+void reset_events_statements_history_long() {
   events_statements_history_long_index.m_u32.store(0);
   events_statements_history_long_full = false;
 

@@ -29,7 +29,7 @@ source include/master-slave.inc;
 source include/have_binlog_format_statement.inc;
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 
 # Prepare slave for different long_query_time we need to stop the slave 
 # and restart it as long_query_time variable is dynamic and, after 

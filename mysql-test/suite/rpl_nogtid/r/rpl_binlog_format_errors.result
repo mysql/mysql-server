@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ==== Initialize ====
 [on slave]
@@ -79,7 +79,7 @@ SET @@global.binlog_format = MIXED;
 SET @@session.binlog_format = MIXED;
 * TC5: Unsafe statement and stmt-only engine
 INSERT INTO t_stmt VALUES (UUID());
-ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the replica.
 SELECT * FROM t_stmt;
 a
 /* should be empty */;
@@ -139,7 +139,7 @@ a
 * TC13: Unsafe statement and binlog_format=statement
 INSERT INTO t VALUES (COALESCE(1, UUID()));
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 SELECT * FROM t /* should contain the value 1 */;
 a
 1

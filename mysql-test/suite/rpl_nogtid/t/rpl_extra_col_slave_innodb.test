@@ -2,7 +2,7 @@
 -- source include/no_valgrind_without_big.inc
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
-CALL mtr.add_suppression("Slave: .*Duplicate column name");
+CALL mtr.add_suppression("Replica: .*Duplicate column name");
 
 # sql_replica_skip_counter is not supported with compression
 --source include/not_binlog_transaction_compression_on.inc

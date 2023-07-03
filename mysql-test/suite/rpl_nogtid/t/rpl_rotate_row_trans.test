@@ -36,7 +36,7 @@ source include/have_debug_sync.inc;
 --source include/not_binlog_transaction_compression_on.inc
 
 --disable_query_log
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --enable_query_log
 
 --echo # Initial setup
@@ -77,7 +77,7 @@ while ($restarts)
 }
 
 --echo # Stop the SQL thread (it should be in the middle of the transaction/group)
---let $slave_sql_errno= convert_error(ER_MTS_INCONSISTENT_DATA)
+--let $slave_sql_errno= convert_error(ER_MTA_INCONSISTENT_DATA)
 --source include/stop_slave_sql.inc
 
 --echo # Remove the debug point and restart the both threads

@@ -1,0 +1,46 @@
+#
+# 1) Prepare a sample table and insert values.
+#
+CREATE TABLE t1(f1 LONGTEXT);
+INSERT INTO t1 VALUES (REPEAT('a', 1073741824/2));
+#
+# 2) Prepare a similar table like before created.
+#
+CREATE TABLE t2 LIKE t1;
+#
+# 3) Flushing logs to start a new fresh log.
+#
+FLUSH LOGS;
+#
+# 4) Get the filename of the binary log.
+#
+include/save_binlog_position.inc
+#
+# 5) Run a query to get events in mysqlbinlog greater than 4GB.
+#
+INSERT INTO t2 SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT
+f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL
+SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1;
+#
+# 6) Get the start position of the 14'th event.
+#
+#
+# 7)Verify that the position is actually bigger than 4 GiB.
+#
+include/assert.inc [The position of the 14th event should be bigger than 4 GiB]
+#
+# 8)Run mysqlbinlog, find only the lines beginning with '# at',
+# select the last of those lines,select only the number from that line,
+# and write that to the file.
+#
+include/read_file_to_var.inc
+include/assert.inc [The position should be greater than 4 GiB]
+#
+# 9)Checking the error message that will be generated when it is connected to remote.
+#
+ERROR: The option --start-position cannot be used with values greater than 4 GiB (4294967854), when one of read-from-remote-server or read-from-remote-source is used.
+#
+# 10) Cleanup.
+#
+DROP TABLE t2;
+DROP TABLE t1;

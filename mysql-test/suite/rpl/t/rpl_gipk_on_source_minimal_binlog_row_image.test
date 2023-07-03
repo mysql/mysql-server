@@ -104,10 +104,10 @@ RESET MASTER;
 --source include/start_slave.inc
 
 let $messages =
-Slave SQL for channel .*: Worker .* failed executing transaction .* at master log master-bin.000001, end_log_pos .* Could not execute Update_rows event on table test
-Slave SQL for channel .*: ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.
-Slave SQL for channel .*: Could not execute Update_rows event on table test.t1
-Slave: Can.* find record in 't1'
+Replica SQL for channel .*: Worker .* failed executing transaction .* at source log master-bin.000001, end_log_pos .* Could not execute Update_rows event on table test
+Replica SQL for channel .*: ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.
+Replica SQL for channel .*: Could not execute Update_rows event on table test.t1
+Replica: Can.* find record in 't1'
 ;
 --let $suppress_on_current_connection = 1
 --source include/suppress_messages.inc

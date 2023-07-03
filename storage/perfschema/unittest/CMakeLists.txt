@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +24,14 @@ DISABLE_MISSING_PROFILE_WARNING()
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
 ADD_LIBRARY(pfs_server_stubs STATIC pfs_server_stubs.cc)
+TARGET_LINK_LIBRARIES(pfs_server_stubs extra::rapidjson ext::zlib)
 
 ADD_DEPENDENCIES(pfs_server_stubs GenError)
 
 MACRO (PFS_ADD_TEST name)
   MYSQL_ADD_EXECUTABLE(${name}-t ${name}-t.cc ADD_TEST ${name})
   TARGET_LINK_LIBRARIES(${name}-t
-    mytap perfschema mysys pfs_server_stubs strings ${ICU_LIBRARIES})
+    mytap perfschema mysys pfs_server_stubs strings ext::icu)
 ENDMACRO()
 
 SET(tests

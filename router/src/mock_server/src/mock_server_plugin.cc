@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -295,6 +295,12 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
       // if the client presents a cert, verify it.
       tls_server_ctx.verify(TlsVerify::PEER);
+
+      // set the context object's address as a session id context to enable TLS
+      // sessions reuse
+      tls_server_ctx.session_id_context(
+          (const unsigned char *)tls_server_ctx.get(),
+          sizeof(tls_server_ctx.get()));
     }
 
     net::io_context &io_ctx = IoComponent::get_instance().io_context();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,19 +33,19 @@
 #include "sql/current_thd.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 
-ha_rows cursor_by_account::get_row_count(void) {
+ha_rows cursor_by_account::get_row_count() {
   return global_account_container.get_row_count();
 }
 
 cursor_by_account::cursor_by_account(const PFS_engine_table_share *share)
     : PFS_engine_table(share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-void cursor_by_account::reset_position(void) {
+void cursor_by_account::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int cursor_by_account::rnd_next(void) {
+int cursor_by_account::rnd_next() {
   PFS_account *pfs;
 
   m_pos.set_at(&m_next_pos);

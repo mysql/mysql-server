@@ -1,17 +1,17 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
 # 0. Create helper files for restarting the server with gaps
 [connection slave]
 include/suppress_messages.inc
-# Connection 2 suppresses message <Recovery from master pos .* and file .* for channel ''*>.
+# Connection 2 suppresses message <Recovery from source pos .* and file .* for channel ''*>.
 # Connection 2 suppresses message <Error looking for file after .*slave-relay-bin.000007.*>.
-# Connection 2 suppresses message <Slave: Failed to initialize the master info structure for channel .* its record may still be present in*>.
+# Connection 2 suppresses message <Replica: Failed to initialize the connection metadata structure for channel .* its record may still be present in*>.
 # Connection 2 suppresses message <Failed to create or recover replication info repositories.*>.
-# Connection 2 suppresses message <Slave SQL for channel .* Slave failed to initialize relay log info structure from the repository, Error_code*>.
+# Connection 2 suppresses message <Replica SQL for channel .* Replica failed to initialize applier metadata structure from the repository, Error_code*>.
 #
 # 1. Check the replica can start after a restart that leaves gaps on the relay log
 #    and relay log recovery is not used
@@ -128,7 +128,7 @@ include/rpl_stop_server.inc [server_number=2]
 [connection slave]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=1 --gtid_mode=ON_PERMISSIVE --enforce-gtid-consistency --log-replica-updates]
 START SLAVE;
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 include/rpl_restart_server.inc [server_number=2 parameters: --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=1 --gtid_mode=ON --enforce-gtid-consistency --log-replica-updates]
 include/start_slave.inc
 [connection master]

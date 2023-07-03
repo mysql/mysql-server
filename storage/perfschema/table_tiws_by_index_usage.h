@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,12 +65,12 @@ struct row_tiws_by_index_usage {
 struct pos_tiws_by_index_usage : public PFS_double_index {
   pos_tiws_by_index_usage() : PFS_double_index(0, 0) {}
 
-  inline void reset(void) {
+  inline void reset() {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void next_table(void) {
+  inline void next_table() {
     m_index_1++;
     m_index_2 = 0;
   }
@@ -87,7 +87,7 @@ class PFS_index_tiws_by_index_usage : public PFS_engine_index {
 
   ~PFS_index_tiws_by_index_usage() override = default;
 
-  virtual bool match(PFS_table_share *table);
+  virtual bool match(PFS_table_share *pfs);
   virtual bool match(PFS_table_share *share, uint index);
 
  private:
@@ -106,7 +106,7 @@ class table_tiws_by_index_usage : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_init(bool scan) override;
   int rnd_next() override;
@@ -124,7 +124,7 @@ class table_tiws_by_index_usage : public PFS_engine_table {
   ~table_tiws_by_index_usage() override = default;
 
  protected:
-  int make_row(PFS_table_share *table_share, uint index);
+  int make_row(PFS_table_share *pfs_share, uint index);
 
  private:
   /** Table share lock. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -144,7 +144,7 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
   assert(n > 0);
   assert(size > 0);
   void *ptr = nullptr;
-  size_t array_size = n * size;
+  const size_t array_size = n * size;
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size)) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OVERFLOW, n, size,
@@ -152,7 +152,8 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
     return nullptr;
   }
 
-  if (nullptr == (ptr = pfs_malloc(klass, array_size, flags))) {
+  ptr = pfs_malloc(klass, array_size, flags);
+  if (nullptr == ptr) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OOM, array_size,
                klass->m_class.m_name.str());
   }
@@ -171,7 +172,7 @@ void pfs_free_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
   if (ptr == nullptr) {
     return;
   }
-  size_t array_size = n * size;
+  const size_t array_size = n * size;
   /* Overflow should have been detected by pfs_malloc_array. */
   assert(!is_overflow(array_size, n, size));
   return pfs_free(klass, array_size, ptr);
@@ -185,11 +186,7 @@ void pfs_free_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
   @return true if multiplication caused an overflow.
 */
 bool is_overflow(size_t product, size_t n1, size_t n2) {
-  if (n1 != 0 && (product / n1 != n2)) {
-    return true;
-  } else {
-    return false;
-  }
+  return (n1 != 0 && (product / n1 != n2));
 }
 
 void pfs_print_error(const char *format, ...) {
@@ -201,9 +198,9 @@ void pfs_print_error(const char *format, ...) {
     (file I/O is instrumented), so that could lead to catastrophic results.
     Printing to something safe, and low level: stderr only.
   */
-  vfprintf(stderr, format, args);
+  (void)vfprintf(stderr, format, args);
   va_end(args);
-  fflush(stderr);
+  (void)fflush(stderr);
 }
 
 /** Convert raw ip address into readable format. Do not do a reverse DNS lookup.
@@ -224,8 +221,7 @@ uint pfs_get_socket_address(char *host, uint host_len, uint *port,
       if (host_len < INET_ADDRSTRLEN + 1) {
         return 0;
       }
-      const struct sockaddr_in *sa4 =
-          pointer_cast<const struct sockaddr_in *>(src_addr);
+      const auto *sa4 = pointer_cast<const struct sockaddr_in *>(src_addr);
 #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
       getnameinfo(pointer_cast<struct sockaddr *>(
@@ -242,8 +238,7 @@ uint pfs_get_socket_address(char *host, uint host_len, uint *port,
       if (host_len < INET6_ADDRSTRLEN + 1) {
         return 0;
       }
-      const struct sockaddr_in6 *sa6 =
-          pointer_cast<const struct sockaddr_in6 *>(src_addr);
+      const auto *sa6 = pointer_cast<const struct sockaddr_in6 *>(src_addr);
 #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
       getnameinfo(pointer_cast<struct sockaddr *>(

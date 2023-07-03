@@ -1,5 +1,4 @@
 set optimizer_switch='mrr=on,mrr_cost_based=off';
-drop table if exists t1, t2, t3;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
 event_date date DEFAULT '0000-00-00' NOT NULL,
@@ -35,7 +34,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`event_date` AS `event_date`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`event_id` AS `event_id` from `test`.`t1` where ((`test`.`t1`.`event_date` >= DATE'1999-07-01') and (`test`.`t1`.`event_date` < DATE'1999-07-15') and ((`test`.`t1`.`type` = 100600) or (`test`.`t1`.`type` = 100100))) order by `test`.`t1`.`event_date`
 explain format=tree select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 EXPLAIN
--> Filter: ((t1.event_date >= DATE'1999-07-01') and (t1.event_date < DATE'1999-07-15') and ((t1.`type` = 100600) or (t1.`type` = 100100)))  (cost=1.46 rows=1)
+-> Filter: ((t1.event_date >= DATE'1999-07-01') and (t1.event_date < DATE'1999-07-15') and ((t1.`type` = 100600) or (t1.`type` = 100100)))  (cost=1.46 rows=1.14)
     -> Covering index range scan on t1 using PRIMARY over ('1999-07-01' <= event_date <= '1999-07-15' AND 100100 <= type)  (cost=1.46 rows=6)
 
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
@@ -1996,11 +1995,11 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4
 EXPLAIN FORMAT=tree
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 EXPLAIN
--> Nested loop inner join  (cost=1.60 rows=3)
+-> Nested loop inner join  (cost=1.6 rows=3)
     -> Filter: (t1.i4 is not null)  (cost=0.55 rows=3)
         -> Index scan on t1 using i4_uq  (cost=0.55 rows=3)
-    -> Filter: (t2.pk between t1.i4 and t1.i4)  (cost=0.28 rows=1)
-        -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4)  (cost=0.28 rows=1)
+    -> Filter: (t2.pk between t1.i4 and t1.i4)  (cost=0.283 rows=1)
+        -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4)  (cost=0.283 rows=1)
 
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 pk	i4	pk	i4
@@ -2274,11 +2273,11 @@ Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`
 EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 EXPLAIN
--> Nested loop inner join  (cost=1.15 rows=1)
+-> Nested loop inner join  (cost=1.15 rows=0.667)
     -> Filter: (t1.col_int is not null)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Filter: (t2.pk < t1.pk)  (cost=0.27 rows=0.3)
-        -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int)  (cost=0.27 rows=1)
+    -> Filter: (t2.pk < t1.pk)  (cost=0.267 rows=0.333)
+        -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int)  (cost=0.267 rows=1)
 
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
@@ -2296,10 +2295,10 @@ Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`
 EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 EXPLAIN
--> Nested loop inner join  (cost=1.90 rows=4)
+-> Nested loop inner join  (cost=1.9 rows=4)
     -> Table scan on t1  (cost=0.45 rows=2)
-    -> Filter: ((t2.col_int_key = t1.col_int) and (t2.pk < t1.pk))  (cost=0.22 rows=2)
-        -> Index range scan on t2 (re-planned for each iteration)  (cost=0.22 rows=6)
+    -> Filter: ((t2.col_int_key = t1.col_int) and (t2.pk < t1.pk))  (cost=0.225 rows=2)
+        -> Index range scan on t2 (re-planned for each iteration)  (cost=0.225 rows=6)
 
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
@@ -4069,6 +4068,10 @@ CREATE TABLE t1 (a SERIAL, b INT);
 INSERT INTO t1(b) VALUES (1),(2),(3),(100);
 CREATE TABLE t2 (a SERIAL, b INT, c INT, INDEX(b,c));
 INSERT INTO t2(b,c) VALUES (10,10),(100,100),(200,200);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN  SELECT t1.* FROM t1 LEFT JOIN (SELECT a,b,c FROM t2 WHERE b=100 AND c<=100 AND c>=100) t ON t1.a=t.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
@@ -4094,4 +4097,813 @@ c
 z
 L
 DROP TABLE t1;
+# Bug#34856343: Assertion 'join->best_read < DBL_MAX'
+CREATE TABLE t (f1 INTEGER, f2 INTEGER, KEY(f1));
+INSERT INTO t VALUES(1, 10), (2, 20), (3, 30), (4, 40);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+explain format=tree SELECT 1 FROM t AS t1 JOIN t AS t2 ON t2.f1 < NULL;
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT 1 FROM t AS t1 JOIN t AS t2 ON t2.f1 < NULL;
+1
+explain format=tree SELECT 1 FROM t AS t1 JOIN t AS t2 ON t2.f1 BETWEEN 2 AND 3;
+EXPLAIN
+-> Inner hash join (no condition)  (rows=8)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t2.f1 between 2 and 3)  (rows=2)
+            -> Covering index range scan on t2 using f1 over (2 <= f1 <= 3)  (rows=2)
+
+explain format=tree SELECT 1 FROM t AS t1 JOIN (SELECT * FROM t WHERE f1 < NULL) AS t2 ON TRUE;
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT 1 FROM t AS t1 JOIN (SELECT * FROM t WHERE f1 < NULL) AS t2 ON TRUE;
+1
+explain format=tree SELECT 1
+FROM t AS t1 JOIN (SELECT * FROM t WHERE f1 BETWEEN 2 AND 3) AS t2 ON TRUE;
+EXPLAIN
+-> Inner hash join (no condition)  (rows=8)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t.f1 between 2 and 3)  (rows=2)
+            -> Covering index range scan on t using f1 over (2 <= f1 <= 3)  (rows=2)
+
+explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t2.f1 < NULL;
+EXPLAIN
+-> Index scan on t1 using f1  (rows=4)
+
+SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t2.f1 < NULL;
+1
+1
+1
+1
+1
+explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t2.f1 BETWEEN 2 AND 3;
+EXPLAIN
+-> Left hash join (no condition)  (rows=8)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t2.f1 between 2 and 3)  (rows=2)
+            -> Covering index range scan on t2 using f1 over (2 <= f1 <= 3)  (rows=2)
+
+explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN (SELECT * FROM t WHERE f1 < NULL) AS t2 ON TRUE;
+EXPLAIN
+-> Left hash join (no condition)  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t.f1 < NULL)  (rows=4)
+            -> Index scan on t using f1  (rows=4)
+
+SELECT 1 FROM t AS t1 LEFT JOIN (SELECT * FROM t WHERE f1 < NULL) AS t2 ON TRUE;
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN (SELECT * FROM t AS t2 WHERE f1 BETWEEN 2 AND 3) AS t2
+ON TRUE;
+EXPLAIN
+-> Left hash join (no condition)  (rows=8)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t2.f1 between 2 and 3)  (rows=2)
+            -> Covering index range scan on t2 using f1 over (2 <= f1 <= 3)  (rows=2)
+
+explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t1.f1 < NULL;
+EXPLAIN
+-> Left hash join (no condition), extra conditions: (t1.f1 < NULL)  (rows=16)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Index scan on t2 using f1  (rows=4)
+
+SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t1.f1 < NULL;
+1
+1
+1
+1
+1
+explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t1.f1 BETWEEN 2 AND 3;
+EXPLAIN
+-> Left hash join (no condition), extra conditions: (t1.f1 between 2 and 3)  (rows=16)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Index scan on t2 using f1  (rows=4)
+
+explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON TRUE WHERE t1.f1 < NULL;
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON TRUE WHERE t1.f1 < NULL;
+1
+explain format=tree SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON TRUE WHERE t1.f1 BETWEEN 2 AND 3;
+EXPLAIN
+-> Left hash join (no condition)  (rows=8)
+    -> Filter: (t1.f1 between 2 and 3)  (rows=2)
+        -> Covering index range scan on t1 using f1 over (2 <= f1 <= 3)  (rows=2)
+    -> Hash
+        -> Index scan on t2 using f1  (rows=4)
+
+explain format=tree SELECT 1 FROM (SELECT * FROM t WHERE f1 < NULL) AS t1 LEFT JOIN t AS t2 ON TRUE;
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT 1 FROM (SELECT * FROM t WHERE f1 < NULL) AS t1 LEFT JOIN t AS t2 ON TRUE;
+1
+explain format=tree SELECT 1
+FROM (SELECT * FROM t WHERE f1 BETWEEN 2 AND 3) AS t1 LEFT JOIN t AS t2 ON TRUE;
+EXPLAIN
+-> Left hash join (no condition)  (rows=8)
+    -> Filter: (t.f1 between 2 and 3)  (rows=2)
+        -> Covering index range scan on t using f1 over (2 <= f1 <= 3)  (rows=2)
+    -> Hash
+        -> Index scan on t2 using f1  (rows=4)
+
+explain format=tree SELECT 1 FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON t1.f1 < NULL;
+EXPLAIN
+-> Left hash join (no condition), extra conditions: (t.f1 < NULL)  (rows=16)
+    -> Index scan on t using f1  (rows=4)
+    -> Hash
+        -> Index scan on t2 using f1  (rows=4)
+
+SELECT 1 FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON t1.f1 < NULL;
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON t1.f1 BETWEEN 2 AND 3;
+EXPLAIN
+-> Left hash join (no condition), extra conditions: (t.f1 between 2 and 3)  (rows=16)
+    -> Index scan on t using f1  (rows=4)
+    -> Hash
+        -> Index scan on t2 using f1  (rows=4)
+
+explain format=tree SELECT 1
+FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON TRUE
+WHERE t1.f1 < NULL;
+EXPLAIN
+-> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT 1
+FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON TRUE
+WHERE t1.f1 < NULL;
+1
+explain format=tree SELECT 1
+FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON TRUE
+WHERE t1.f1 BETWEEN 2 AND 3;
+EXPLAIN
+-> Left hash join (no condition)  (rows=8)
+    -> Filter: (t.f1 between 2 and 3)  (rows=2)
+        -> Covering index range scan on t using f1 over (2 <= f1 <= 3)  (rows=2)
+    -> Hash
+        -> Index scan on t2 using f1  (rows=4)
+
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+ON TRUE;
+EXPLAIN
+-> Left hash join (no condition)  (rows=16)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t2.f1 < NULL)  (rows=16)
+            -> Inner hash join (no condition)  (rows=16)
+                -> Index scan on t3 using f1  (rows=4)
+                -> Hash
+                    -> Index scan on t2 using f1  (rows=4)
+
+SELECT 1
+FROM t AS t1 LEFT JOIN
+t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+ON TRUE;
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+ON TRUE;
+EXPLAIN
+-> Left hash join (no condition)  (rows=16)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t3.f1 < NULL)  (rows=16)
+            -> Inner hash join (no condition)  (rows=16)
+                -> Index scan on t2 using f1  (rows=4)
+                -> Hash
+                    -> Index scan on t3 using f1  (rows=4)
+
+SELECT 1
+FROM t AS t1 LEFT JOIN
+t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+ON TRUE;
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3
+ON TRUE;
+EXPLAIN
+-> Left hash join (no condition)  (rows=32)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t2.f1 between 2 and 3)  (rows=8)
+            -> Inner hash join (no condition)  (rows=8)
+                -> Index scan on t3 using f1  (rows=4)
+                -> Hash
+                    -> Covering index range scan on t2 using f1 over (2 <= f1 <= 3)  (rows=2)
+
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+ON TRUE;
+EXPLAIN
+-> Left hash join (no condition)  (rows=32)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t3.f1 between 2 and 3)  (rows=8)
+            -> Inner hash join (no condition)  (rows=8)
+                -> Index scan on t2 using f1  (rows=4)
+                -> Hash
+                    -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
+
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+(SELECT 1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL) AS t4
+ON TRUE;
+EXPLAIN
+-> Left hash join (no condition)  (rows=16)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t2.f1 < NULL)  (rows=16)
+            -> Inner hash join (no condition)  (rows=16)
+                -> Index scan on t3 using f1  (rows=4)
+                -> Hash
+                    -> Index scan on t2 using f1  (rows=4)
+
+SELECT 1
+FROM t AS t1 LEFT JOIN
+(SELECT 1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL) AS t4
+ON TRUE;
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+(SELECT 1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL) AS t4
+ON TRUE;
+EXPLAIN
+-> Left hash join (no condition)  (rows=16)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t3.f1 < NULL)  (rows=16)
+            -> Inner hash join (no condition)  (rows=16)
+                -> Index scan on t2 using f1  (rows=4)
+                -> Hash
+                    -> Index scan on t3 using f1  (rows=4)
+
+SELECT 1
+FROM t AS t1 LEFT JOIN
+(SELECT 1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL) AS t4
+ON TRUE;
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+(SELECT 1 FROM t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3) AS t4
+ON TRUE;
+EXPLAIN
+-> Left hash join (no condition)  (rows=32)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t2.f1 between 2 and 3)  (rows=8)
+            -> Inner hash join (no condition)  (rows=8)
+                -> Index scan on t3 using f1  (rows=4)
+                -> Hash
+                    -> Covering index range scan on t2 using f1 over (2 <= f1 <= 3)  (rows=2)
+
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+(SELECT 1 FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3) AS t4
+ON TRUE;
+EXPLAIN
+-> Left hash join (no condition)  (rows=32)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Hash
+        -> Filter: (t3.f1 between 2 and 3)  (rows=8)
+            -> Inner hash join (no condition)  (rows=8)
+                -> Index scan on t2 using f1  (rows=4)
+                -> Hash
+                    -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
+
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+t AS t2 LEFT JOIN t AS t3 ON t3.f1 < NULL
+ON t1.f1 = t2.f1;
+EXPLAIN
+-> Nested loop left join  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Nested loop left join  (rows=1)
+        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+        -> Filter: (t3.f1 < NULL)  (rows=1)
+            -> Index scan on t3 using f1  (rows=4)
+
+SELECT 1
+FROM t AS t1 LEFT JOIN
+t AS t2 LEFT JOIN t AS t3 ON t3.f1 < NULL
+ON t1.f1 = t2.f1;
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+t AS t2 LEFT JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+ON t1.f1 = t2.f1;
+EXPLAIN
+-> Filter: <if>(found_match(t3), true, true)  (rows=8)
+    -> Nested loop left join  (rows=8)
+        -> Index scan on t1 using f1  (rows=4)
+        -> Nested loop left join  (rows=2)
+            -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+            -> Filter: (t3.f1 between 2 and 3)  (rows=2)
+                -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
+
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+(SELECT t2.f1 FROM t AS t2 LEFT JOIN t AS t3 ON t3.f1 < NULL) AS t4
+ON t1.f1 = t4.f1;
+EXPLAIN
+-> Nested loop left join  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Nested loop left join  (rows=1)
+        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+        -> Filter: (t3.f1 < NULL)  (rows=1)
+            -> Index scan on t3 using f1  (rows=4)
+
+SELECT 1
+FROM t AS t1 LEFT JOIN
+(SELECT t2.f1 FROM t AS t2 LEFT JOIN t AS t3 ON t3.f1 < NULL) AS t4
+ON t1.f1 = t4.f1;
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1 LEFT JOIN
+(SELECT t2.f1 FROM t AS t2 LEFT JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+) AS t4
+ON t1.f1 = t4.f1;
+EXPLAIN
+-> Filter: <if>(found_match(t3), true, true)  (rows=8)
+    -> Nested loop left join  (rows=8)
+        -> Index scan on t1 using f1  (rows=4)
+        -> Nested loop left join  (rows=2)
+            -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+            -> Filter: (t3.f1 between 2 and 3)  (rows=2)
+                -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
+
+explain format=tree SELECT 1 FROM t WHERE f2 IN (SELECT f1 FROM t WHERE f1 < NULL);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT 1 FROM t WHERE f2 IN (SELECT f1 FROM t WHERE f1 < NULL);
+1
+explain format=tree SELECT 1 FROM t WHERE f2 IN (SELECT f1 FROM t WHERE f1 BETWEEN 2 AND 3);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)
+            -> Filter: (t.f1 between 2 and 3)
+                -> Covering index lookup on t using f1 (f1=<cache>(t.f2))  (rows=1)
+
+explain format=tree SELECT 1
+FROM t
+WHERE f2 IN (SELECT f1 FROM (SELECT f1 FROM t WHERE f1 < NULL) AS t2);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT f1 FROM (SELECT f1 FROM t WHERE f1 < NULL) AS t2);
+1
+explain format=tree SELECT 1
+FROM t
+WHERE f2 IN (SELECT f1 FROM (SELECT f1 FROM t WHERE f1 BETWEEN 2 AND 3) AS t2);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)
+            -> Filter: (t.f1 between 2 and 3)
+                -> Covering index lookup on t using f1 (f1=<cache>(t.f2))  (rows=1)
+
+explain format=tree SELECT 1
+FROM t
+WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL);
+1
+explain format=tree SELECT 1
+FROM t
+WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL);
+1
+explain format=tree SELECT 1
+FROM t
+WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Inner hash join (no condition)  (rows=4)
+                -> Index scan on t3 using f1  (rows=4)
+                -> Hash
+                    -> Filter: (t2.f1 between 2 and 3)  (rows=1)
+                        -> Covering index lookup on t2 using f1 (f1=<cache>(t.f2))  (rows=1)
+
+explain format=tree SELECT 1
+FROM t
+WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Inner hash join (no condition)  (rows=2)
+                -> Filter: (t3.f1 between 2 and 3)  (rows=2)
+                    -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
+                -> Hash
+                    -> Covering index lookup on t2 using f1 (f1=<cache>(t.f2))  (rows=1)
+
+explain format=tree SELECT 1
+FROM t
+WHERE f2 IN (SELECT t4.f1
+FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+) AS t4
+);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t4.f1
+FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+) AS t4
+);
+1
+explain format=tree SELECT 1
+FROM t
+WHERE f2 IN (SELECT t4.f1
+FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+) AS t4
+);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t4.f1
+FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+) AS t4
+);
+1
+explain format=tree SELECT 1
+FROM t
+WHERE f2 IN (SELECT t4.f1
+FROM (SELECT t2.f1
+FROM t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3
+) AS t4
+);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Inner hash join (no condition)  (rows=4)
+                -> Index scan on t3 using f1  (rows=4)
+                -> Hash
+                    -> Filter: (t2.f1 between 2 and 3)  (rows=1)
+                        -> Covering index lookup on t2 using f1 (f1=<cache>(t.f2))  (rows=1)
+
+explain format=tree SELECT 1
+FROM t
+WHERE f2 IN (SELECT t4.f1
+FROM (SELECT t2.f1
+FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+) AS t4
+);
+EXPLAIN
+-> Filter: <in_optimizer>(t.f2,<exists>(select #2))  (rows=4)
+    -> Table scan on t  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Inner hash join (no condition)  (rows=2)
+                -> Filter: (t3.f1 between 2 and 3)  (rows=2)
+                    -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
+                -> Hash
+                    -> Covering index lookup on t2 using f1 (f1=<cache>(t.f2))  (rows=1)
+
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT * FROM t AS t2 WHERE t2.f1 < NULL AND t1.f1 = t2.f1);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT * FROM t AS t2 WHERE t2.f1 < NULL AND t1.f1 = t2.f1);
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM t AS t2
+WHERE t2.f1 BETWEEN 2 AND 3 AND t1.f1 = t2.f1);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: (t2.f1 between 2 and 3)  (rows=1)
+                -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM (SELECT f1 FROM t AS t2 WHERE t2.f1 < NULL) AS t4
+WHERE t1.f1 = t4.f1
+);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM (SELECT f1 FROM t AS t2 WHERE t2.f1 < NULL) AS t4
+WHERE t1.f1 = t4.f1
+);
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM (SELECT f1 FROM t AS t2 WHERE t2.f1 BETWEEN 2 AND 3
+) AS t4
+WHERE t1.f1 = t4.f1
+);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Filter: (t2.f1 between 2 and 3)  (rows=1)
+                -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+WHERE t1.f1 = t2.f1);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+WHERE t1.f1 = t2.f1);
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+WHERE t1.f1 = t3.f1);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+WHERE t1.f1 = t3.f1);
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3
+WHERE t1.f1 = t2.f1);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Inner hash join (no condition)  (rows=4)
+                -> Index scan on t3 using f1  (rows=4)
+                -> Hash
+                    -> Filter: (t2.f1 between 2 and 3)  (rows=1)
+                        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+WHERE t1.f1 = t2.f1);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Inner hash join (no condition)  (rows=2)
+                -> Filter: (t3.f1 between 2 and 3)  (rows=2)
+                    -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
+                -> Hash
+                    -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+) AS t4
+WHERE t1.f1 = t4.f1
+);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+) AS t4
+WHERE t1.f1 = t4.f1
+);
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+) AS t4
+WHERE t1.f1 = t4.f1
+);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Zero rows (no matching row in const table)  (rows=0)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+) AS t4
+WHERE t1.f1 = t4.f1
+);
+1
+1
+1
+1
+1
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM (SELECT t2.f1
+FROM t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3
+) AS t4
+WHERE t1.f1 = t4.f1
+);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Inner hash join (no condition)  (rows=4)
+                -> Index scan on t3 using f1  (rows=4)
+                -> Hash
+                    -> Filter: (t2.f1 between 2 and 3)  (rows=1)
+                        -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+explain format=tree SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+FROM (SELECT t2.f1
+FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+) AS t4
+WHERE t1.f1 = t4.f1
+);
+EXPLAIN
+-> Filter: exists(select #2) is false  (rows=4)
+    -> Index scan on t1 using f1  (rows=4)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)  (rows=1)
+            -> Inner hash join (no condition)  (rows=2)
+                -> Filter: (t3.f1 between 2 and 3)  (rows=2)
+                    -> Covering index range scan on t3 using f1 over (2 <= f1 <= 3)  (rows=2)
+                -> Hash
+                    -> Covering index lookup on t2 using f1 (f1=t1.f1)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t;
 set optimizer_switch=default;

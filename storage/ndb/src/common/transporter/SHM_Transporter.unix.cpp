@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@
 void SHM_Transporter::make_error_info(char info[], int sz)
 {
   snprintf(info,sz,"Shm key=%d sz=%d id=%d",
-	   shmKey, shmSize, shmId);
+           static_cast<int>(shmKey), shmSize, shmId);
 }
 
 bool

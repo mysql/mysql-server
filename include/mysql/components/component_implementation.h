@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -346,7 +346,7 @@ Example:
 
   @param service A valid service name.
 */
-#define SERIVCE_PLACEHOLDER(service) mysql_service_##service
+#define SERVICE_PLACEHOLDER(service) mysql_service_##service
 
 /**
   A macro to end the last declaration started with the BEGIN_COMPONENT_REQUIRES.

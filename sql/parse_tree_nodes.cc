@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,6 +75,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_component.h"  // Sql_cmd_component
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
 #include "sql/sql_delete.h"  // Sql_cmd_delete...
@@ -476,7 +477,7 @@ static bool add_system_variable_assignment(THD *thd, LEX_CSTRING prefix,
   if (val && val->type() == Item::FIELD_ITEM) {
     Item_field *item_field = down_cast<Item_field *>(val);
     if (item_field->table_name != nullptr) {
-      // Reject a dot-separated identified at the RHS of:
+      // Reject a dot-separated identifier as the RHS of:
       //    SET <variable_name> = <table_name>.<field_name>
       my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var_tracker.get_var_name());
       return true;
@@ -1675,7 +1676,7 @@ bool PT_set_operation::contextualize_setop(Parse_context *pc,
   merge_descendants(pc, setop, ql);
 
   Query_expression *qe = pc->select->master_query_expression();
-  if (setop->set_block(qe->create_post_processing_block())) return true;
+  if (setop->set_block(qe->create_post_processing_block(setop))) return true;
   pc->m_stack.back().m_elts.push_back(setop);
   return false;
 }
@@ -3982,10 +3983,21 @@ bool PT_query_expression::contextualize(Parse_context *pc) {
     case QT_UNARY: {
       Query_term_unary *ex = down_cast<Query_term_unary *>(expr);
       Query_expression *qe = pc->select->master_query_expression();
-      if (ex->set_block(qe->create_post_processing_block())) return true;
-      if (m_order != nullptr) {
+
+      // The setting of no_table_names_allowed in the created post processing
+      // block below to false foreshadows our removing the parentheses in
+      // Query_term::pushdown_limit_order_by. We need to duplicate the logic
+      // here in order to allow a construction like
+      //
+      //   ( SELECT a FROM t ) ORDER BY t.a
+      //
+      // for which we remove the parentheses because the inner query expression
+      // has no LIMIT or ORDER BY of its own.
+      if (ex->set_block(qe->create_post_processing_block(ex))) return true;
+
+      if (m_order != nullptr)
         ex->query_block()->order_list = m_order->order_list->value;
-      }
+
       if (m_limit != nullptr) {
         ex->query_block()->select_limit = m_limit->limit_options.limit;
         ex->query_block()->offset_limit = m_limit->limit_options.opt_offset;
@@ -4043,7 +4055,7 @@ bool PT_query_expression::contextualize(Parse_context *pc) {
         ex = new (pc->mem_root) Query_term_unary(pc->mem_root, ex);
         if (ex == nullptr) return true;
         Query_expression *qe = pc->select->master_query_expression();
-        if (ex->set_block(qe->create_post_processing_block())) return true;
+        if (ex->set_block(qe->create_post_processing_block(ex))) return true;
       }
       if (m_order != nullptr) {
         ex->query_block()->order_list = m_order->order_list->value;
@@ -4772,4 +4784,61 @@ PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *mem_root,
         pc->key_create_info->m_secondary_engine_attribute = a;
         return false;
       });
+}
+
+PT_install_component::PT_install_component(
+    THD *thd, const Mem_root_array_YY<LEX_STRING> urns,
+    List<PT_install_component_set_element> *set_elements)
+    : m_urns(urns), m_set_elements(set_elements) {
+  const char *prefix = "file://component_";
+  const auto prefix_len = sizeof("file://component_") - 1;
+
+  if (m_urns.size() == 1 &&
+      !thd->charset()->coll->strnncoll(
+          thd->charset(), pointer_cast<const uchar *>(m_urns[0].str),
+          m_urns[0].length, pointer_cast<const uchar *>(prefix), prefix_len,
+          true)) {
+    for (auto &elt : *m_set_elements) {
+      if (elt.name.prefix.length == 0) {
+        elt.name.prefix.str = m_urns[0].str + prefix_len;
+        elt.name.prefix.length = m_urns[0].length - prefix_len;
+      }
+    }
+  }
+}
+
+Sql_cmd *PT_install_component::make_cmd(THD *thd) {
+  thd->lex->sql_command = SQLCOM_INSTALL_COMPONENT;
+
+  if (!m_set_elements->is_empty()) {
+    Parse_context pc(thd, thd->lex->current_query_block());
+    for (auto &elt : *m_set_elements) {
+      if (elt.expr->itemize(&pc, &elt.expr)) return nullptr;
+      /*
+        If the SET value is a field, change it to a string to allow things
+        SET variable = OFF
+      */
+      if (elt.expr->type() == Item::FIELD_ITEM) {
+        Item_field *item_field = down_cast<Item_field *>(elt.expr);
+        if (item_field->table_name != nullptr) {
+          // Reject a dot-separated identified at the RHS of:
+          //    SET <variable_name> = <table_name>.<field_name>
+          my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), elt.name.name.str);
+          return nullptr;
+        }
+        assert(item_field->field_name != nullptr);
+        elt.expr = new (thd->mem_root)
+            Item_string(item_field->field_name, strlen(item_field->field_name),
+                        system_charset_info);     // names are utf8
+        if (elt.expr == nullptr) return nullptr;  // OOM
+      }
+      if (elt.expr->has_subquery() || elt.expr->has_stored_program() ||
+          elt.expr->has_aggregation()) {
+        my_error(ER_SET_CONSTANTS_ONLY, MYF(0));
+        return nullptr;
+      }
+    }
+  }
+
+  return new (thd->mem_root) Sql_cmd_install_component(m_urns, m_set_elements);
 }

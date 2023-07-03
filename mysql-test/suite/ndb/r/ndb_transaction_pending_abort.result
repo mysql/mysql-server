@@ -1,0 +1,17 @@
+create table t(id int NOT NULL PRIMARY KEY, data int unsigned) engine=ndb;
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t
+fields terminated by ' ' lines terminated by '\n' (id, @data) set data = id;
+select count(*) from t;
+count(*)
+10000
+begin;
+update t set data=data+1 ORDER BY id LIMIT 5000;
+update t set data=data+1 ORDER BY id LIMIT 5000;
+update t set data=data+1 ORDER BY id LIMIT 5000;
+ERROR HY000: Got temporary error 234 'Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)' from NDBCLUSTER
+commit;
+begin;
+update t set data=data+1 ORDER BY id LIMIT 5000;
+update t set data=data+1 ORDER BY id LIMIT 5000;
+commit;
+drop table t;

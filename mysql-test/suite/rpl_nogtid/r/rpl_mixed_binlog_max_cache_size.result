@@ -1,21 +1,13 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Option binlog_cache_size ");
-call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occurred on the master.");
-call mtr.add_suppression("The content of the statement cache is corrupted "
-                         "while writing a rollback record of the transaction "
-                         "to the binary log. An incident event has been "
-                         "written to the binary log which will stop the "
-                         "slaves.");
-call mtr.add_suppression("Error happend while resetting the transaction "
-                         "cache for a rolled back transaction or a single "
-                         "statement not inside a transaction. An incident "
-                         "event has been written to the binary log which "
-                         "will stop the slaves.");
+call mtr.add_suppression("Replica SQL for channel '': The incident LOST_EVENTS occurred on the source.");
+call mtr.add_suppression("The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log. An incident event has been written to the binary log which will stop the replicas.");
+call mtr.add_suppression("Error happend while resetting the transaction cache for a rolled back transaction or a single statement not inside a transaction. An incident event has been written to the binary log which will stop the replicas.");
 SET GLOBAL max_binlog_cache_size = 4096;
 Warnings:
 Warning	1738	Option binlog_cache_size (32768) is greater than max_binlog_cache_size (4096); setting binlog_cache_size equal to max_binlog_cache_size.
@@ -150,8 +142,8 @@ include/start_slave.inc
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_stmt_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
-CALL mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occurred on the master. Message: error writing to the binary log");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+CALL mtr.add_suppression("Replica SQL.*The incident LOST_EVENTS occurred on the source. Message: error writing to the binary log");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 TRUNCATE t1;
 SET GLOBAL max_binlog_cache_size= ORIGINAL_VALUE;
 SET GLOBAL binlog_cache_size= ORIGINAL_VALUE;

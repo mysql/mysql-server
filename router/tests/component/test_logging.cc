@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -320,13 +320,13 @@ TEST_F(RouterLoggingTest, bad_loglevel) {
 
   // expect something like this to appear on STDERR
   // Configuration error: Log level 'unknown' is not valid. Valid values are:
-  // debug, error, fatal, info, note, system, and warning
+  // fatal, system, error, warning, info, note, and debug
   const std::string out = router.get_full_output();
   EXPECT_THAT(
       out.c_str(),
       HasSubstr(
           "Configuration error: Log level 'unknown' is not valid. Valid "
-          "values are: debug, error, fatal, info, note, system, and warning"));
+          "values are: fatal, system, error, warning, info, note, and debug"));
 }
 
 /**************************************************/
@@ -1058,7 +1058,7 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, note, system, and warning"),
+            "values are: fatal, system, error, warning, info, note, and debug"),
 
         // Invalid log level in the sink section
         /*8*/
@@ -1070,7 +1070,7 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, note, system, and warning"),
+            "values are: fatal, system, error, warning, info, note, and debug"),
 
         // Both level and sinks values invalid in the [logger] section
         /*9*/
@@ -1082,7 +1082,7 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, note, system, and warning"),
+            "values are: fatal, system, error, warning, info, note, and debug"),
 
         // Logging folder is empty but we request filelog as sink
         /*10*/
@@ -1110,7 +1110,7 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, note, system, and warning"),
+            "values are: fatal, system, error, warning, info, note, and debug"),
 
         // Let's also check that the eventlog is NOT supported
         LoggingConfigErrorParams(
@@ -1137,7 +1137,7 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, note, system, and warning"),
+            "values are: fatal, system, error, warning, info, note, and debug"),
 
         // Let's also check that the syslog is NOT supported
         LoggingConfigErrorParams(
@@ -1620,8 +1620,8 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Timestamp precision 'unknown' is not valid. "
-            "Valid values are: microsecond, millisecond, ms, msec, nanosecond, "
-            "ns, nsec, s, sec, second, us, and usec"),
+            "Valid values are: second, sec, s, millisecond, msec, ms, "
+            "microsecond, usec, us, nanosecond, nsec, and ns"),
         // Unknown timestamp_precision value in the [logger] section
         /*1*/ /*TS_FR3_1*/
         LoggingConfigErrorParams(
@@ -1631,8 +1631,8 @@ INSTANTIATE_TEST_SUITE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Timestamp precision 'unknown' is not valid. "
-            "Valid values are: microsecond, millisecond, ms, msec, nanosecond, "
-            "ns, nsec, s, sec, second, us, and usec"),
+            "Valid values are: second, sec, s, millisecond, msec, ms, "
+            "microsecond, usec, us, nanosecond, nsec, and ns"),
         /*2*/ /*TS_FR4_1*/
         LoggingConfigErrorParams("[logger]\n"
                                  "sinks=consolelog,filelog\n"
@@ -2097,7 +2097,9 @@ TEST_F(MetadataCacheLoggingTest,
       cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  set_mock_metadata(http_port, "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
   wait_for_transaction_count_increase(http_port);
 
   // We report to log info that we have connected only if there was an error,
@@ -2137,7 +2139,9 @@ TEST_F(MetadataCacheLoggingTest,
       cluster_nodes_ports[1], EXIT_SUCCESS, false, http_port);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, cluster_nodes_ports[1]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  set_mock_metadata(http_port, "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 1,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
 
   // launch the router with metadata-cache configuration
   auto &router = ProcessManager::launch_router(
@@ -2183,7 +2187,9 @@ TEST_F(MetadataCacheLoggingTest,
   ASSERT_NO_FATAL_FAILURE(check_port_ready(new_server, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(cluster_nodes_http_ports[0])
                   .wait_for_rest_endpoint_ready());
-  set_mock_metadata(cluster_nodes_http_ports[0], "", cluster_nodes_ports);
+  set_mock_metadata(cluster_nodes_http_ports[0], "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
   wait_for_transaction_count_increase(cluster_nodes_http_ports[0]);
 
   const auto connect_msg = "Connected with metadata server running on .*" +

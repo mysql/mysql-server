@@ -26,7 +26,7 @@ SET SESSION debug="+d,show_hidden_columns";
 SHOW CREATE TABLE t1;
 SET SESSION debug="-d,show_hidden_columns";
 
---connection master
+--source include/rpl_connection_master.inc
 DROP TABLE t1;
 
 SET @start_row_image_value= @@session.binlog_row_image;
@@ -45,7 +45,7 @@ EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
 SHOW CREATE TABLE t1;
 SET SESSION debug="-d,show_hidden_columns";
 
---connection master
+--source include/rpl_connection_master.inc
 DROP TABLE t1;
 
 
@@ -62,7 +62,7 @@ EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
 SHOW CREATE TABLE t1;
 SET SESSION debug="-d,show_hidden_columns";
 
---connection master
+--source include/rpl_connection_master.inc
 DROP TABLE t1;
 
 SET @@session.binlog_row_image= @start_row_image_value;
@@ -76,27 +76,27 @@ CREATE TABLE t1 (col1 INT, UNIQUE INDEX idx ((col1 + col1)));
 --source include/sync_slave_sql_with_master.inc
 INSERT INTO t1 (col1) VALUES (1);
 
---connection master
-call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_rows event on table test.t1");
-call mtr.add_suppression("Slave SQL for channel '': .*Error 'Duplicate entry '2'");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+--source include/rpl_connection_master.inc
+call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Write_rows event on table test.t1");
+call mtr.add_suppression("Replica SQL for channel '': .*Error 'Duplicate entry '2'");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 INSERT INTO t1 (col1) VALUES (1), (2);
 
---connection slave
+--source include/rpl_connection_slave.inc
 --let $slave_sql_errno = convert_error(ER_DUP_ENTRY)
 --let $slave_timeout = 5
 --source include/wait_for_slave_sql_error.inc
 DELETE FROM t1;
 START SLAVE;
 
---connection master
+--source include/rpl_connection_master.inc
 INSERT INTO t1 (col1) VALUES (3), (4);
 SELECT col1 FROM t1;
 
 --source include/sync_slave_sql_with_master.inc
 SELECT col1 FROM t1;
 
---connection master
+--source include/rpl_connection_master.inc
 DROP TABLE t1;
 
 --echo #
@@ -114,7 +114,7 @@ SELECT a, b FROM t;
 UPDATE t SET b = 5 WHERE b - a = 1;
 SELECT a, b FROM t;
 
---connection master
+--source include/rpl_connection_master.inc
 DROP TABLE t;
 
 --echo #
@@ -134,7 +134,7 @@ SELECT a, b FROM t;
 UPDATE t SET a = 9 WHERE a + b = 8;
 SELECT a, b FROM t;
 
---connection master
+--source include/rpl_connection_master.inc
 DROP TABLE t;
 
 --echo #
@@ -146,13 +146,13 @@ CREATE TABLE t(a INT, b INT);
 --source include/sync_slave_sql_with_master.inc
 ALTER TABLE t ADD UNIQUE INDEX i ((a + b));
 
---connection master
+--source include/rpl_connection_master.inc
 INSERT INTO t VALUES (1, 2);
 
 --source include/sync_slave_sql_with_master.inc
 SELECT a, b FROM t;
 
---connection master
+--source include/rpl_connection_master.inc
 DROP TABLE t;
 
 --echo #
@@ -168,11 +168,11 @@ SET @@session.sql_log_bin = 0;
 CREATE TABLE t (a INT, INDEX ((a+1)));
 ALTER TABLE t ADD COLUMN b INT;
 SET @@session.sql_log_bin = 1;
---connection slave
+--source include/rpl_connection_slave.inc
 SET @@session.sql_log_bin = 0;
 CREATE TABLE t (a INT, b INT, INDEX ((a+1)));
 SET @@session.sql_log_bin = 1;
---connection master
+--source include/rpl_connection_master.inc
 INSERT INTO t VALUES (1, 2);
 
 --source include/sync_slave_sql_with_master.inc
@@ -180,7 +180,35 @@ INSERT INTO t VALUES (1, 2);
 --let diff_tables= master:test.t,slave:test.t
 --source include/diff_tables.inc
 
---connection master
+--source include/rpl_connection_master.inc
 DROP TABLE t;
+
+--echo #
+--echo # Bug#107366 REPLICATION ERROR WITH HASH_SCAN ROW SEARCH ALGORITHM FOR
+--echo #            FUNCTIONAL INDEXES
+
+--source include/rpl_connection_master.inc
+
+CREATE TABLE t1 (
+  id INT,
+  c1 JSON NOT NULL,
+  c2 INT,
+  KEY comp ((CAST(c1 AS UNSIGNED ARRAY)))
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(1,'[1046, 2995]',1);
+
+UPDATE t1 SET c2=2;
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $row_count= `SELECT COUNT(*) FROM t1 WHERE c1->"$[0]"=1046 AND c1->"$[1]"=2995 AND c2=2;`
+--let $assert_text= Table t1 was updated
+--let $assert_cond= $row_count = 1
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
 
 --source include/rpl_end.inc

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,11 @@
 #
 # The default value for WITH_ICU is "bundled".
 
+# We create an INTERFACE library called icu_interface,
+# and an ALIAS ext::icu.
+# It will have the necessary INTERFACE_INCLUDE_DIRECTORIES property,
+# so just link with it, no need to do INCLUDE_DIRECTORIES.
+
 # To do: The default should probably be different depending on platform. On
 # Windows, it should likely be wherever NuGet puts the libraries.
 
@@ -40,7 +45,7 @@
 # The lowest checked version is 55 on Ubuntu 16.
 SET(MIN_ICU_VERSION_REQUIRED "55")
 
-MACRO(FIND_ICU_VERSION)
+MACRO(FIND_ICU_VERSION ICU_COMMON_DIR)
   # Extract the version number. Major version information looks like:
   #   #define U_ICU_VERSION_MAJOR_NUM nn
   FILE(STRINGS "${ICU_COMMON_DIR}/unicode/uvernum.h"
@@ -54,20 +59,16 @@ MACRO(FIND_ICU_VERSION)
 
   SET(ICU_VERSION "${ICU_MAJOR_VERSION}")
   SET(ICU_VERSION "${ICU_VERSION}" CACHE INTERNAL "ICU major")
-  MESSAGE(STATUS "ICU_VERSION (${WITH_ICU}) is ${ICU_VERSION}")
-  IF(WITH_ICU STREQUAL "system")
-    MESSAGE(STATUS "ICU_INCLUDE_DIR ${ICU_INCLUDE_DIR}")
-  ELSE()
-    MESSAGE(STATUS "ICU_INCLUDE_DIRS ${ICU_INCLUDE_DIRS}")
-  ENDIF()
-  MESSAGE(STATUS "ICU_LIBRARIES ${ICU_LIBRARIES}")
 
+  MESSAGE(STATUS "ICU_VERSION (${WITH_ICU}) is ${ICU_VERSION}")
+  MESSAGE(STATUS "ICU_INCLUDE_DIRS ${ICU_INCLUDE_DIRS}")
+  MESSAGE(STATUS "ICU_LIBRARIES ${ICU_LIBRARIES}")
 ENDMACRO()
 
 #
 # install_root is either 'system' or is assumed to be a path.
 #
-MACRO (FIND_ICU install_root)
+FUNCTION(FIND_ICU install_root)
   IF("${install_root}" STREQUAL "system")
     SET(EXTRA_FIND_LIB_ARGS)
     SET(EXTRA_FIND_INC_ARGS)
@@ -105,19 +106,19 @@ MACRO (FIND_ICU install_root)
     LIST(APPEND ICU_SYSTEM_LIBRARIES ${ICU_LIB_PATH})
   ENDFOREACH()
 
-  # To do: If we include the path in ICU_INCLUDE_DIR, it leads to GUnit
-  # picking up the wrong regex.h header. And it looks like we don't need it;
-  # at least on Linux, the header gets installed in an OS path anyway.
-  IF(NOT "${install_root}" STREQUAL "system")
-    SET(ICU_INCLUDE_DIRS ${ICU_INCLUDE_DIR})
-  ENDIF()
-
+  SET(ICU_INCLUDE_DIRS ${ICU_INCLUDE_DIR})
   SET(ICU_LIBRARIES ${ICU_SYSTEM_LIBRARIES})
 
-  # Needed for version information.
   SET(ICU_COMMON_DIR ${ICU_INCLUDE_DIR})
+  FIND_ICU_VERSION(${ICU_COMMON_DIR})
 
-ENDMACRO()
+  ADD_LIBRARY(icu_interface INTERFACE)
+  TARGET_LINK_LIBRARIES(icu_interface INTERFACE ${ICU_LIBRARIES})
+  IF(NOT ICU_INCLUDE_DIR STREQUAL "/usr/include")
+    TARGET_INCLUDE_DIRECTORIES(icu_interface SYSTEM INTERFACE
+      ${ICU_INCLUDE_DIR})
+  ENDIF()
+ENDFUNCTION(FIND_ICU)
 
 SET(ICU_VERSION_DIR "icu-release-69-1")
 SET(BUNDLED_ICU_PATH ${CMAKE_SOURCE_DIR}/extra/icu/${ICU_VERSION_DIR})
@@ -131,7 +132,7 @@ ELSE()
 ENDIF()
 
 
-MACRO (MYSQL_USE_BUNDLED_ICU)
+FUNCTION(MYSQL_USE_BUNDLED_ICU)
   SET(WITH_ICU "bundled" CACHE STRING "Use bundled icu library")
 
   SET(ICU_SOURCE_DIR ${BUNDLED_ICU_PATH}/source)
@@ -142,7 +143,7 @@ MACRO (MYSQL_USE_BUNDLED_ICU)
     ${ICU_SOURCE_DIR}/stubdata
     ${ICU_SOURCE_DIR}/i18n
   )
-  # We do not want to set both DIR and DIRS, see MY_INCLUDE_SYSTEM_DIRECTORIES
+  # Unset the variables used for system icu.
   UNSET(ICU_INCLUDE_DIR)
   UNSET(ICU_INCLUDE_DIR CACHE)
   UNSET(ICU_LIB_PATH)
@@ -151,8 +152,14 @@ MACRO (MYSQL_USE_BUNDLED_ICU)
   ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/extra/icu)
 
   SET(ICU_LIBRARIES icui18n icuuc icustubdata)
+  FIND_ICU_VERSION(${ICU_COMMON_DIR})
 
-ENDMACRO()
+  ADD_LIBRARY(icu_interface INTERFACE)
+  TARGET_LINK_LIBRARIES(icu_interface INTERFACE ${ICU_LIBRARIES})
+  TARGET_INCLUDE_DIRECTORIES(icu_interface SYSTEM BEFORE INTERFACE
+    ${ICU_INCLUDE_DIRS})
+
+ENDFUNCTION(MYSQL_USE_BUNDLED_ICU)
 
 MACRO (MYSQL_CHECK_ICU)
 
@@ -173,11 +180,15 @@ MACRO (MYSQL_CHECK_ICU)
     MESSAGE(FATAL_ERROR "WITH_ICU must be 'bundled', 'system' or a path")
   ENDIF()
 
-  FIND_ICU_VERSION()
-  IF(ICU_MAJOR_VERSION VERSION_LESS MIN_ICU_VERSION_REQUIRED)
+  IF(ICU_VERSION VERSION_LESS MIN_ICU_VERSION_REQUIRED)
     MESSAGE(FATAL_ERROR
       "ICU version must be at least ${MIN_ICU_VERSION_REQUIRED}, "
-      "found ${ICU_MAJOR_VERSION}.\nPlease use -DWITH_ICU=bundled")
+      "found ${ICU_VERSION}.\nPlease use -DWITH_ICU=bundled")
   ENDIF()
 
-ENDMACRO()
+  IF(WIN32)
+    TARGET_COMPILE_DEFINITIONS(icu_interface INTERFACE
+      -DU_STATIC_IMPLEMENTATION)
+  ENDIF()
+  ADD_LIBRARY(ext::icu ALIAS icu_interface)
+ENDMACRO(MYSQL_CHECK_ICU)

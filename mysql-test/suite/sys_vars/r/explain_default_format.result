@@ -55,7 +55,7 @@ Warnings:
 Note	1003	/* select#1 */ select 1 AS `1`
 explain format=tree select 1;
 EXPLAIN
--> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+-> Rows fetched before execution  (cost=0..0 rows=1)
 
 explain format=json select 1;
 EXPLAIN
@@ -70,7 +70,7 @@ Note	1003	/* select#1 */ select 1 AS `1`
 set explain_format=tree;
 explain select 1;
 EXPLAIN
--> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+-> Rows fetched before execution  (cost=0..0 rows=1)
 
 explain format=json select 1;
 EXPLAIN
@@ -85,7 +85,7 @@ Note	1003	/* select#1 */ select 1 AS `1`
 set explain_format=json;
 explain format=tree select 1;
 EXPLAIN
--> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+-> Rows fetched before execution  (cost=0..0 rows=1)
 
 explain select 1;
 EXPLAIN
@@ -105,7 +105,7 @@ Warnings:
 Note	1003	/* select#1 */ select 1 AS `1`
 explain format=tree select 1;
 EXPLAIN
--> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+-> Rows fetched before execution  (cost=0..0 rows=1)
 
 set global explain_format=json;
 set explain_format=traditional;
@@ -117,12 +117,12 @@ Note	1003	/* select#1 */ select 1 AS `1`
 set explain_format=traditional;
 explain analyze select 1;
 EXPLAIN
--> Rows fetched before execution  (cost=0.00..0.00 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
+-> Rows fetched before execution  (cost=0..0 rows=1) (actual rows=1 loops=1)
 
 set explain_format=traditional_strict;
 explain analyze select 1;
 EXPLAIN
--> Rows fetched before execution  (cost=0.00..0.00 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
+-> Rows fetched before execution  (cost=0..0 rows=1) (actual rows=1 loops=1)
 
 explain analyze format=traditional select 1;
 ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE with TRADITIONAL format'

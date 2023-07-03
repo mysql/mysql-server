@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2759,7 +2759,256 @@ runScanUsingMultipleNdbObjects(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runScanApiDisconnect(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Setup a new cluster connection, use it to scan
+   * with an error insert causing disconnection,
+   * check cluster does not fail
+   */
+  Ndb_cluster_connection* pCC = &ctx->m_cluster_connection;
+  int cases[] = {8120,  // TC ZSTART_FRAG_SCANS
+                 8121,  // TC ZSEND_FRAG_SCANS Early
+                 8122,  // TC ZSEND_FRAG_SCANS Later
+                 0};
+  int c = 0;
 
+  while (cases[c])
+  {
+    g_err << "Testing case " << cases[c] << endl;
+
+    char connectString[200];
+    Ndb_cluster_connection conn2 (pCC->get_connectstring(connectString,
+                                                         NDB_ARRAY_SIZE(connectString)));
+    if(conn2.connect() != 0)
+    {
+      g_err << "Failed to connect to cluster : "
+            << conn2.get_latest_error_msg()
+            << endl;
+      return NDBT_FAILED;
+    }
+
+    if (conn2.wait_until_ready(30,30) != 0)
+    {
+      g_err << "Failed to wait until ready : "
+            << conn2.get_latest_error_msg()
+            << endl;
+      return NDBT_FAILED;
+    }
+
+    Ndb ndb2(&conn2);
+    ndb2.init();
+    ndb2.setDatabaseAndSchemaName(ctx->getTab());
+
+    NdbRestarter restarter;
+    HugoTransactions hugoTrans(*ctx->getTab());
+
+    restarter.insertErrorInAllNodes(cases[c]);
+
+    /* Now scan, expect disconnection from cluster, but
+     * nothing worse
+     */
+    int rc = hugoTrans.scanReadRecords(&ndb2,
+                                       ctx->getNumRecords());
+
+    restarter.insertErrorInAllNodes(0);
+
+    if (rc == NDBT_OK)
+    {
+      g_err << "Scan did not fail - unexpected" << endl;
+      return NDBT_FAILED;
+    }
+
+    c++;
+  }
+
+  return NDBT_OK;
+}
+
+#define CHECK(b) if (!(b)) { \
+  g_err.println("ERR: failed on line %u", __LINE__); \
+  return -1; }
+
+#define CHECKE(b,obj) if (!(b)) {                          \
+    g_err.println("ERR:failed on line %u with err %u %s",  \
+                  __LINE__,                                \
+                  obj.getNdbError().code,                 \
+                  obj.getNdbError().message); \
+    return -1; }
+
+static
+int
+defineScan(HugoTransactions& hugoTrans,
+           const NdbDictionary::Table* pTab,
+           NdbScanOperation::LockMode lm)
+{
+  NdbTransaction* trans = hugoTrans.getTransaction();
+  CHECKE(trans != nullptr, hugoTrans);
+  NdbScanOperation* pScanOp =
+    trans->getNdbScanOperation(pTab->getName());
+  CHECKE(pScanOp != nullptr, (*trans));
+
+  CHECKE(pScanOp->readTuples(lm) == 0,
+         (*pScanOp));
+  for (int a=0; a < pTab->getNoOfColumns(); a++)
+  {
+    CHECKE(pScanOp->getValue(pTab->getColumn(a)) != nullptr,
+           (*pScanOp));
+  }
+
+  return NDBT_OK;
+}
+
+
+int
+runScanLateUnlock(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Test scenarios where some DML sequence commits or
+   * aborts, and the last lock holder on rows affected
+   * by the DML is a scan.
+   * This exercises code paths in LDM/ACC where action
+   * is deferred until the last lock holder unlocks.
+   */
+  /* Sequence of DML : INS, UPD, UPD, DEL, INS, UPD */
+  const Uint32 opSequence[] = {0,1,1,2,0,1};
+  const Uint32 numOps = NDB_ARRAY_SIZE(opSequence);
+
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+  HugoTransactions hugoTrans(*pTab);
+
+  /* present : Row exists at start or not - affects abort outcome */
+  for (Uint32 present=0; present < 2; present++) {
+    /* lm : Scan lockmode 0 Read-Shared 1 Exclusive 2 CommittedRead */
+    for (Uint32 lm = 0; lm < 3; lm++) {
+      /* commit : Commit or Rollback of DML */
+      for (Uint32 commit = 0; commit < 2; commit++) {
+        Uint32 firstOp = 0;
+        if (present) {
+          firstOp = 1; /* Skip insert, 1 op less */
+        }
+
+        /* seqlen : Sequence length of DML - affects commit outcome */
+        for (Uint32 seqlen = 1; seqlen <= numOps; seqlen++) {
+          /* scanModel : Vary number of scans interleaved + closed 'late'
+           * &1 - Pre DML
+           * &2 - With DML (Savepoint before)
+           * &4 - Post DML1 (Savepoint after)
+           * &8 - Post DML2
+           */
+          for (Uint32 scanModel = 0; scanModel < 16; scanModel++) {
+            g_err << "Present " << present << " lockmode " << lm << " commit "
+                  << commit << " seqlen " << seqlen << " scanModel "
+                  << scanModel << " : ";
+
+            /* Empty table */
+            CHECK(hugoTrans.clearTable2(pNdb, ctx->getNumRecords()) == NDBT_OK);
+
+            if (present) {
+              /* Create row to start */
+              CHECK(hugoTrans.loadTable(pNdb, 1) == NDBT_OK);
+              g_err << "((INS)) ";
+            }
+            CHECKE(hugoTrans.startTransaction(pNdb) == NDBT_OK, hugoTrans);
+
+            if (scanModel & 1) {
+              /* Define scan op before DML prepared */
+              CHECKE(defineScan(hugoTrans, pTab,
+                                (NdbScanOperation::LockMode)lm) == NDBT_OK,
+                     hugoTrans);
+
+              g_err << "SCAN sp0 (lm " << lm << ") ";
+
+              g_err << "EXEC_NC ";
+
+              /* Execute scan now */
+              CHECKE(hugoTrans.execute_NoCommit(pNdb) == NDBT_OK, hugoTrans);
+            }
+
+            /* Define sequence */
+            for (Uint32 i = firstOp; i < seqlen; i++) {
+              switch (opSequence[i]) {
+                case 0:
+                  CHECKE(hugoTrans.pkInsertRecord(pNdb, 0, 1) == NDBT_OK,
+                         hugoTrans);
+                  g_err << "INS ";
+                  break;
+                case 1:
+                  CHECKE(hugoTrans.pkUpdateRecord(pNdb, 0, 1, i) == NDBT_OK,
+                         hugoTrans);
+                  g_err << "UPD ";
+                  break;
+                case 2:
+                  CHECKE(hugoTrans.pkDeleteRecord(pNdb, 0, 1) == NDBT_OK,
+                         hugoTrans);
+                  g_err << "DEL ";
+                  break;
+                default:
+                  abort();
+              }
+            }
+
+            if (scanModel & 2) {
+              /* Define scan op alongside DML preparation */
+              CHECKE(defineScan(hugoTrans, pTab,
+                                (NdbScanOperation::LockMode)lm) == NDBT_OK,
+                     hugoTrans);
+
+              g_err << "SCAN sp0 (lm " << lm << ") ";
+            }
+
+            g_err << "EXEC_NC ";
+
+            /* Prepare DML sequence */
+            CHECKE(hugoTrans.execute_NoCommit(pNdb) == NDBT_OK, hugoTrans);
+
+            if (scanModel & 4) {
+              /* Define scan op after DML prepared */
+              CHECKE(defineScan(hugoTrans, pTab,
+                                (NdbScanOperation::LockMode)lm) == NDBT_OK,
+                     hugoTrans);
+
+              g_err << "SCAN sp1 (lm " << lm << ") ";
+            }
+
+            if (scanModel & 8) {
+              /* Define extra scan op after DML prepared*/
+              CHECKE(defineScan(hugoTrans, pTab,
+                                (NdbScanOperation::LockMode)lm) == NDBT_OK,
+                     hugoTrans);
+
+              g_err << "SCAN sp1 (lm " << lm << ") ";
+            }
+
+            /* Prepare Scan[s] */
+            CHECKE(hugoTrans.execute_NoCommit(pNdb) == NDBT_OK, hugoTrans);
+
+            /* Now commit or abort */
+            if (commit == 1) {
+              g_err << "COMMIT ";
+              CHECKE(hugoTrans.execute_Commit(pNdb) == NDBT_OK, hugoTrans);
+            } else {
+              g_err << "ROLLBACK ";
+              CHECKE(hugoTrans.execute_Rollback(pNdb) == NDBT_OK, hugoTrans);
+            }
+
+            g_err << "CLOSE ";
+            /* Now close the transaction */
+            /* This is where the scans are closed, and can be where
+             * problems occur
+             */
+            CHECKE(hugoTrans.closeTransaction(pNdb) == NDBT_OK, hugoTrans);
+
+            g_err << endl;
+          }
+        }
+      }
+    }
+  }
+  return NDBT_OK;  
+}
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -3452,6 +3701,20 @@ TESTCASE("ScanUsingMultipleNdbObjects",
   FINALIZER(runClearTable);
 }
 
+
+TESTCASE("ScanApiDisconnect",
+         "Run scan operations with API disconnecting at inappropriate times")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runScanApiDisconnect);
+  FINALIZER(runClearTable);
+}
+
+TESTCASE("ScanOnDMLLateUnlock",
+         "Run a scan on top of DML with scan unlocking late")
+{
+  STEP(runScanLateUnlock);
+}
 
 NDBT_TESTSUITE_END(testScan)
 

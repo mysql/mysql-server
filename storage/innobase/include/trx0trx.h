@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -54,6 +54,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "read0read.h"
 #include "sql/handler.h"  // Xa_state_list
 #include "srv0srv.h"
+
+/* std::vector to store the trx id & table id of tables that needs to be
+ * rollbacked. We take SHARED MDL on these tables inside
+ * trx_recovery_rollback_thread before letting server accept connections */
+extern std::vector<std::pair<trx_id_t, table_id_t>> to_rollback_trx_tables;
 
 // Forward declaration
 struct mtr_t;

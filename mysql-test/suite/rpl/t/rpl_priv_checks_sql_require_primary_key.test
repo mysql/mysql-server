@@ -50,7 +50,7 @@
 --source include/rpl_connection_slave.inc
 --eval GRANT REPLICATION_APPLIER,CREATE,DROP ON *.* TO $applier_user
 CALL mtr.add_suppression(".*Access denied; you need .at least one of. the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege.*");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 
 #
 # 2) Ensure `sql_require_primary_key` is set on the master.

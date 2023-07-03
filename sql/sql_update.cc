@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -576,7 +576,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   bool used_key_is_modified = false;
   uint used_index;
   {
-    ORDER_with_src order_src(order, ESC_ORDER_BY);
+    ORDER_with_src order_src(order, ESC_ORDER_BY, /*const_optimized=*/true);
     used_index = get_index_for_order(&order_src, table, limit, range_scan,
                                      &need_sort, &reverse);
     if (range_scan != nullptr) {
@@ -2959,7 +2959,7 @@ bool Query_result_update::send_eof(THD *thd) {
 bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {
   Query_block *const select = thd->lex->query_block;
   // Update tables
-  if (select->m_table_list.elements != 0 &&
+  if (select->has_tables() &&
       accept_for_join(select->m_current_table_nest, visitor))
     return true;
 

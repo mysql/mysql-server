@@ -9,9 +9,6 @@
 --disable_query_log
 call mtr.add_suppression("Tablespace innodb_temporary ran out of space. Please add another file or use 'autoextend' for the last file in setting innodb_temp_data_file_path.");
 call mtr.add_suppression("The table 't1' is full");
-call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
-call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
-call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 --enable_query_log
 
 ################################################################################
@@ -48,8 +45,6 @@ let $MYSQL_TMP_DIR = `select @@tmpdir`;
 let $MYSQL_DATA_DIR = `select @@datadir`;
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 let $args = --loose-console --core-file > $SEARCH_FILE 2>&1;
-let crash = --loose-console > $SEARCH_FILE 2>&1 --innodb-force-recovery-crash;
-let readonly = $args --innodb_read_only;
 let nameconflicts = $args --innodb_data_file_path="ibdata1:12M:autoextend:max:134217728" --innodb_temp_data_file_path="ibdata1:12M:autoextend";
 let rawdevice1 = $args --innodb_temp_data_file_path="/dev/hdd1:3Gnewraw;/dev/hdd2:2Gnewraw";
 let rawdevice2 = $args --innodb_temp_data_file_path="/dev/hdd1:3Graw;/dev/hdd2:2Graw";
@@ -155,8 +150,7 @@ select * from t1;
 #
 #
 --echo "testing temp-table creation in --innodb_read_only mode"
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 #
 use test;
 show tables;

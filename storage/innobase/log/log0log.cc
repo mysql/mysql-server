@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -611,7 +611,6 @@ static void log_sys_create() {
   log.m_requested_files_consumption = false;
   log.m_writer_inside_extra_margin = false;
   log.m_oldest_need_lsn_lowerbound = 0;
-  ut_d(log.first_block_is_correct_for_lsn = 0);
   log.m_unused_files_count = 0;
   log.m_encryption_metadata = {};
 
@@ -671,8 +670,43 @@ static void log_sys_create() {
   log_consumer_register(log, &(log.m_checkpoint_consumer));
 }
 
+static void log_fix_first_rec_group(lsn_t block_lsn,
+                                    Log_data_block_header &block_header,
+                                    lsn_t start_lsn) {
+  const uint16_t on_disc_value = block_header.m_first_rec_group;
+  uint16_t change_to_value = 0;  // no change
+  if (recv_sys != nullptr && recv_sys->last_block_first_mtr_boundary != 0 &&
+      block_lsn < recv_sys->last_block_first_mtr_boundary &&
+      recv_sys->last_block_first_mtr_boundary <
+          block_lsn + OS_FILE_LOG_BLOCK_SIZE &&
+      on_disc_value !=
+          recv_sys->last_block_first_mtr_boundary % OS_FILE_LOG_BLOCK_SIZE) {
+    ut_a(log_is_data_lsn(recv_sys->last_block_first_mtr_boundary));
+    change_to_value =
+        recv_sys->last_block_first_mtr_boundary % OS_FILE_LOG_BLOCK_SIZE;
+    /* We must not start with invalid first_rec_group in the first block,
+    because if we crashed, we could be unable to recover. We do NOT have
+    guarantee that the first_rec_group was correct because recovery did
+    not report error. The first_rec_group was used only to locate the
+    beginning of the log for recovery. For later blocks it was not used.
+    It might be corrupted on disk and stay unnoticed if checksums for
+    log blocks are disabled. In such case it would be better to repair
+    it now instead of relying on the broken value and risking data loss.
+    We emit warning to notice user about the situation. We repair that
+    only in the log buffer. */
+  } else if (on_disc_value == 0) {
+    /* Again, if it was zero, for any reason, we prefer to fix it
+    before starting (we emit warning). */
+    change_to_value = start_lsn % OS_FILE_LOG_BLOCK_SIZE;
+  }
+  if (change_to_value != 0) {
+    ib::warn(ER_IB_RECV_FIRST_REC_GROUP_INVALID, uint(on_disc_value),
+             uint(change_to_value));
+    block_header.m_first_rec_group = change_to_value;
+  }
+}
+
 dberr_t log_start(log_t &log, lsn_t checkpoint_lsn, lsn_t start_lsn,
-                  byte first_block[OS_FILE_LOG_BLOCK_SIZE],
                   bool allow_checkpoints) {
   ut_a(log_sys != nullptr);
   ut_a(checkpoint_lsn >= OS_FILE_LOG_BLOCK_SIZE);
@@ -722,19 +756,34 @@ dberr_t log_start(log_t &log, lsn_t checkpoint_lsn, lsn_t start_lsn,
   block = static_cast<byte *>(log.buf) + block_lsn % log.buf_size;
 
   Log_data_block_header block_header;
-  block_header.set_lsn(block_lsn);
-  block_header.m_data_len = start_lsn - block_lsn;
 
-  if (first_block != nullptr) {
-    std::memcpy(block, first_block, OS_FILE_LOG_BLOCK_SIZE);
-    block_header.m_first_rec_group = log_block_get_first_rec_group(block);
+  if (log.m_format == Log_format::CURRENT) {
+    {
+      auto file = log.m_files.find(block_lsn);
+      ut_a(file != log.m_files.end());
+      auto file_handle = file->open(Log_file_access_mode::READ_ONLY);
+      ut_a(file_handle.is_open());
+
+      const auto err = log_data_blocks_read(
+          file_handle, file->offset(block_lsn), OS_FILE_LOG_BLOCK_SIZE, block);
+      if (err != DB_SUCCESS) {
+        return err;
+      }
+      log_data_block_header_deserialize(block, block_header);
+    }
+
+    /* FOLLOWING IS NOT NEEDED IF WE DON'T ALLOW DISABLING crc32 checksum */
+    log_fix_first_rec_group(block_lsn, block_header, start_lsn);
   } else {
     ut_a(start_lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE);
     std::memset(block, 0x00, OS_FILE_LOG_BLOCK_SIZE);
     block_header.m_first_rec_group = LOG_BLOCK_HDR_SIZE;
   }
 
-  ut_ad(log.first_block_is_correct_for_lsn == start_lsn);
+  block_header.set_lsn(block_lsn);
+  /* The last mtr in the block might have been incomplete, thus we trim the
+  block to the start_lsn which is the end of the last mtr found in recovery */
+  block_header.m_data_len = start_lsn - block_lsn;
   ut_ad(LOG_BLOCK_HDR_SIZE <= block_header.m_first_rec_group);
   ut_ad(block_header.m_first_rec_group <= block_header.m_data_len);
 
@@ -1532,6 +1581,10 @@ static dberr_t log_sys_handle_creator(log_t &log) {
       ib::error(ER_IB_MSG_LOG_FILES_CREATED_BY_CLONE_AND_READ_ONLY_MODE);
       return DB_ERROR;
     }
+    if (log.m_format < Log_format::CURRENT) {
+      ib::error(ER_IB_MSG_LOG_UPGRADE_CLONED_DB, ulong{to_int(log.m_format)});
+      return DB_ERROR;
+    }
     ib::info(ER_IB_MSG_LOG_FILES_CREATED_BY_CLONE);
 
   } else if (!str_starts_with(creator_name, "MySQL ")) {
@@ -1777,7 +1830,8 @@ dberr_t log_sys_init(bool expect_no_files, lsn_t flushed_lsn,
 
     ut_a(log.m_files_ctx.m_files_ruleset == Log_files_ruleset::CURRENT);
 
-    return log_files_create(log, flushed_lsn, new_files_lsn);
+    new_files_lsn = flushed_lsn;
+    return log_files_create(log, flushed_lsn);
   }
 
   if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
@@ -1821,8 +1875,12 @@ dberr_t log_sys_init(bool expect_no_files, lsn_t flushed_lsn,
         const auto ret = log_remove_files(log.m_files_ctx);
         ut_a(ret.first == DB_SUCCESS);
       }
-
-      return log_files_create(log, flushed_lsn, new_files_lsn);
+      new_files_lsn =
+          flushed_lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE
+              ? flushed_lsn
+              : ut_uint64_align_up(flushed_lsn, OS_FILE_LOG_BLOCK_SIZE) +
+                    LOG_BLOCK_HDR_SIZE;
+      return log_files_create(log, new_files_lsn);
 
     case Log_files_find_result::SYSTEM_ERROR:
     case Log_files_find_result::FOUND_CORRUPTED_FILES:

@@ -13,7 +13,7 @@
 
 --disable_query_log
 call mtr.add_suppression('Attempting backtrace');
-call mtr.add_suppression("Recovery from master pos .*");
+call mtr.add_suppression("Recovery from source pos .*");
 call mtr.add_suppression("allocated tablespace .*, old maximum was .*");
 --enable_query_log
 

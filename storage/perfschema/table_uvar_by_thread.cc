@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd) {
   m_thread_internal_id = pfs->m_thread_internal_id;
   m_array.reserve(thd->user_vars.size());
 
-  User_variable empty;
+  const User_variable empty;
 
   /* Protects thd->user_vars. */
   mysql_mutex_assert_owner(&thd->LOCK_thd_data);
@@ -98,7 +98,7 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd) {
 
     /* Copy VARIABLE_NAME */
     const char *name = sql_uvar->entry_name.ptr();
-    size_t name_length = sql_uvar->entry_name.length();
+    const size_t name_length = sql_uvar->entry_name.length();
     assert(name_length <= sizeof(pfs_uvar.m_name));
     pfs_uvar.m_name.make_row(name, name_length);
 
@@ -106,7 +106,7 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd) {
     bool null_value;
     String *str_value;
     String str_buffer;
-    uint decimals = 0;
+    const uint decimals = 0;
     str_value = sql_uvar->val_str(&null_value, &str_buffer, decimals);
     if (str_value != nullptr) {
       pfs_uvar.m_value.make_row(str_value->ptr(), str_value->length());
@@ -170,7 +170,7 @@ PFS_engine_table *table_uvar_by_thread::create(PFS_engine_table_share *) {
   return new table_uvar_by_thread();
 }
 
-ha_rows table_uvar_by_thread::get_row_count(void) {
+ha_rows table_uvar_by_thread::get_row_count() {
   /*
     This is an estimate only, not a hard limit.
     The row count is given as a multiple of thread_max,
@@ -186,12 +186,12 @@ ha_rows table_uvar_by_thread::get_row_count(void) {
 table_uvar_by_thread::table_uvar_by_thread()
     : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
-void table_uvar_by_thread::reset_position(void) {
+void table_uvar_by_thread::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_uvar_by_thread::rnd_next(void) {
+int table_uvar_by_thread::rnd_next() {
   PFS_thread *thread;
   bool has_more_thread = true;
 
@@ -241,7 +241,7 @@ int table_uvar_by_thread::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_uvar_by_thread::index_next(void) {
+int table_uvar_by_thread::index_next() {
   PFS_thread *thread;
   bool has_more_thread = true;
 

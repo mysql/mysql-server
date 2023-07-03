@@ -22,6 +22,210 @@ EXPLAIN
 
 DROP TABLE t;
 #
+# Bug #34670701 Too many ROLLUP rows with hypergraph
+#
+CREATE TABLE t1(
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+PRIMARY KEY(a,b),
+KEY ix1 (c,d)
+);
+INSERT INTO t1 VALUES (0,0,0,0,1), (1,0,1,0,1), (0,1,2,0,1), (2,0,2,0,1), (4,0,0,0,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT a,c,d,sum(e) FROM t1 GROUP BY a,c,d WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
+    -> Sort: t1.a, t1.c, t1.d  (rows=5)
+        -> Table scan on t1  (rows=5)
+
+EXPLAIN FORMAT=TREE SELECT a,d,c,sum(e) FROM t1 GROUP BY a,d,c WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
+    -> Sort: t1.a, t1.d, t1.c  (rows=5)
+        -> Table scan on t1  (rows=5)
+
+EXPLAIN FORMAT=TREE SELECT c,a,d,sum(e) FROM t1 GROUP BY c,a,d WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
+    -> Sort: t1.c, t1.a, t1.d  (rows=5)
+        -> Table scan on t1  (rows=5)
+
+EXPLAIN FORMAT=TREE SELECT d,a,c,sum(e) FROM t1 GROUP BY d,a,c WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
+    -> Sort: t1.d, t1.a, t1.c  (rows=5)
+        -> Table scan on t1  (rows=5)
+
+EXPLAIN FORMAT=TREE SELECT c,d,b,sum(e) FROM t1 GROUP BY c,d,b WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
+    -> Sort: t1.c, t1.d, t1.b  (rows=5)
+        -> Table scan on t1  (rows=5)
+
+EXPLAIN FORMAT=TREE SELECT d,c,a,sum(e) FROM t1 GROUP BY d,c,a WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
+    -> Sort: t1.d, t1.c, t1.a  (rows=5)
+        -> Table scan on t1  (rows=5)
+
+EXPLAIN FORMAT=TREE SELECT b,a,sum(e) FROM t1 GROUP BY b,a WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=4.73)
+    -> Sort: t1.b, t1.a  (rows=5)
+        -> Table scan on t1  (rows=5)
+
+EXPLAIN FORMAT=TREE SELECT b,sum(e) FROM t1 GROUP BY b WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=3.24)
+    -> Sort: t1.b  (rows=5)
+        -> Table scan on t1  (rows=5)
+
+EXPLAIN FORMAT=TREE SELECT c,sum(e) FROM t1 GROUP BY c WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=3.24)
+    -> Index scan on t1 using ix1  (rows=5)
+
+SELECT c,sum(e) FROM t1 GROUP BY c WITH ROLLUP;
+c	sum(e)
+0	2
+1	1
+2	2
+NULL	5
+EXPLAIN FORMAT=TREE SELECT c,d,sum(e) FROM t1 GROUP BY c,d WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=4.73)
+    -> Index scan on t1 using ix1  (rows=5)
+
+SELECT c,d,sum(e) FROM t1 GROUP BY c,d WITH ROLLUP;
+c	d	sum(e)
+0	0	2
+0	NULL	2
+1	0	1
+1	NULL	1
+2	0	2
+2	NULL	2
+NULL	NULL	5
+EXPLAIN FORMAT=TREE SELECT c,d,a,sum(e) FROM t1 GROUP BY c,d,a WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=6.25)
+    -> Index scan on t1 using ix1  (rows=5)
+
+SELECT c,d,a,sum(e) FROM t1 GROUP BY c,d,a WITH ROLLUP;
+c	d	a	sum(e)
+0	0	0	1
+0	0	4	1
+0	0	NULL	2
+0	NULL	NULL	2
+1	0	1	1
+1	0	NULL	1
+1	NULL	NULL	1
+2	0	0	1
+2	0	2	1
+2	0	NULL	2
+2	NULL	NULL	2
+NULL	NULL	NULL	5
+EXPLAIN FORMAT=TREE SELECT c,d,a,b,sum(e) FROM t1 GROUP BY c,d,a,b WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=7.78)
+    -> Index scan on t1 using ix1  (rows=5)
+
+SELECT c,d,a,b,sum(e) FROM t1 GROUP BY c,d,a,b WITH ROLLUP;
+c	d	a	b	sum(e)
+0	0	0	0	1
+0	0	0	NULL	1
+0	0	4	0	1
+0	0	4	NULL	1
+0	0	NULL	NULL	2
+0	NULL	NULL	NULL	2
+1	0	1	0	1
+1	0	1	NULL	1
+1	0	NULL	NULL	1
+1	NULL	NULL	NULL	1
+2	0	0	1	1
+2	0	0	NULL	1
+2	0	2	0	1
+2	0	2	NULL	1
+2	0	NULL	NULL	2
+2	NULL	NULL	NULL	2
+NULL	NULL	NULL	NULL	5
+EXPLAIN FORMAT=TREE SELECT a,sum(e) FROM t1 GROUP BY a WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=3.24)
+    -> Index scan on t1 using PRIMARY  (rows=5)
+
+SELECT a,sum(e) FROM t1 GROUP BY a WITH ROLLUP;
+a	sum(e)
+0	2
+1	1
+2	1
+4	1
+NULL	5
+EXPLAIN FORMAT=TREE SELECT a,b,sum(e) FROM t1 GROUP BY a,b WITH ROLLUP;
+EXPLAIN
+-> Group aggregate with rollup: sum(t1.e)  (rows=4.73)
+    -> Index scan on t1 using PRIMARY  (rows=5)
+
+SELECT a,b,sum(e) FROM t1 GROUP BY a,b WITH ROLLUP;
+a	b	sum(e)
+0	0	1
+0	1	1
+0	NULL	2
+1	0	1
+1	NULL	1
+2	0	1
+2	NULL	1
+4	0	1
+4	NULL	1
+NULL	NULL	5
+EXPLAIN FORMAT=TREE SELECT d,a,c,sum(e) FROM t1 GROUP BY d,a,c;
+EXPLAIN
+-> Group aggregate: sum(t1.e)  (rows=2.24)
+    -> Index scan on t1 using ix1  (rows=5)
+
+SELECT d,a,c,sum(e) FROM t1 GROUP BY d,a,c;
+d	a	c	sum(e)
+0	0	0	1
+0	4	0	1
+0	1	1	1
+0	0	2	1
+0	2	2	1
+EXPLAIN FORMAT=TREE SELECT a,d,c,sum(e) FROM t1 GROUP BY a,d,c;
+EXPLAIN
+-> Group aggregate: sum(t1.e)  (rows=2.24)
+    -> Index scan on t1 using ix1  (rows=5)
+
+SELECT a,d,c,sum(e) FROM t1 GROUP BY a,d,c;
+a	d	c	sum(e)
+0	0	0	1
+4	0	0	1
+1	0	1	1
+0	0	2	1
+2	0	2	1
+EXPLAIN FORMAT=TREE SELECT b,a,sum(e) FROM t1 GROUP BY b,a;
+EXPLAIN
+-> Group aggregate: sum(t1.e)  (rows=2.24)
+    -> Index scan on t1 using PRIMARY  (rows=5)
+
+SELECT b,a,sum(e) FROM t1 GROUP BY b,a;
+b	a	sum(e)
+0	0	1
+1	0	1
+0	1	1
+0	2	1
+0	4	1
+EXPLAIN FORMAT=TREE SELECT a,c,e,sum(d) FROM t1 GROUP BY a,c,e;
+EXPLAIN
+-> Group aggregate: sum(t1.d)  (rows=2.24)
+    -> Sort: t1.a, t1.c, t1.e  (rows=5)
+        -> Table scan on t1  (rows=5)
+
+DROP TABLE t1;
+#
 # Bug #33968442: Hypergraph gives too high row estimates for GROUP BY
 #
 CREATE TABLE num10 (n INT);
@@ -81,8 +285,8 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY d,a,c WITH ROLLUP;
 EXPLAIN
--> Group (no aggregates)  (rows=470) (actual rows=806 loops=1)
-    -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+-> Group (no aggregates)  (rows=470) (actual rows=470 loops=1)
+    -> Covering index scan on t1 using ix2  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,d,a WITH ROLLUP;
 EXPLAIN
@@ -91,12 +295,13 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,a,d WITH ROLLUP;
 EXPLAIN
--> Group (no aggregates)  (rows=423) (actual rows=776 loops=1)
-    -> Covering index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
+-> Group (no aggregates)  (rows=423) (actual rows=446 loops=1)
+    -> Sort: t1.c, t1.a, t1.d  (rows=1000) (actual rows=1000 loops=1)
+        -> Index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY c,a;
 EXPLAIN
--> Group (no aggregates)  (rows=32) (actual rows=55 loops=1)
+-> Group (no aggregates)  (rows=32.3) (actual rows=55 loops=1)
     -> Sort: t1.c, t1.a  (rows=1000) (actual rows=1000 loops=1)
         -> Index scan on t1 using ix1  (rows=1000) (actual rows=1000 loops=1)
 
@@ -114,7 +319,7 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY g,h,i,j,k,l;
 EXPLAIN
--> Group (no aggregates)  (rows=47) (actual rows=10 loops=1)
+-> Group (no aggregates)  (rows=46.8) (actual rows=10 loops=1)
     -> Sort: t1.g, t1.h, t1.i, t1.j, t1.k, t1.l  (rows=1000) (actual rows=1000 loops=1)
         -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
@@ -140,13 +345,13 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 GROUP BY e,f;
 EXPLAIN
--> Group (no aggregates)  (rows=65) (actual rows=143 loops=1)
+-> Group (no aggregates)  (rows=64.8) (actual rows=143 loops=1)
     -> Sort: t1.e, t1.f  (rows=1000) (actual rows=1000 loops=1)
         -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b>95 GROUP BY e,f;
 EXPLAIN
--> Group (no aggregates)  (rows=28) (actual rows=40 loops=1)
+-> Group (no aggregates)  (rows=27.7) (actual rows=40 loops=1)
     -> Sort: t1.e, t1.f  (rows=40) (actual rows=40 loops=1)
         -> Filter: (t1.b > 95)  (rows=40) (actual rows=40 loops=1)
             -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
@@ -159,7 +364,7 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1 WHERE b>95 GROUP BY c+0,e+0;
 EXPLAIN
--> Group (no aggregates)  (rows=12) (actual rows=40 loops=1)
+-> Group (no aggregates)  (rows=11.7) (actual rows=40 loops=1)
     -> Sort: (t1.c + 0), (t1.e + 0)  (rows=40) (actual rows=40 loops=1)
         -> Filter: (t1.b > 95)  (rows=40) (actual rows=40 loops=1)
             -> Table scan on t1  (rows=1000) (actual rows=1000 loops=1)
@@ -192,7 +397,7 @@ EXPLAIN
 
 EXPLAIN ANALYZE SELECT 1 FROM t1,t2 GROUP BY c2;
 EXPLAIN
--> Group (no aggregates)  (rows=3) (actual rows=3 loops=1)
+-> Group (no aggregates)  (rows=3.16) (actual rows=3 loops=1)
     -> Nested loop inner join  (rows=10000) (actual rows=10000 loops=1)
         -> Sort: t2.c2  (rows=10) (actual rows=10 loops=1)
             -> Table scan on t2  (rows=10) (actual rows=10 loops=1)

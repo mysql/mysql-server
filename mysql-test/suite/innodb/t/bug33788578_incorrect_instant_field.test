@@ -2,7 +2,7 @@
 --source include/have_debug_sync.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Unexpected INSTANLY Added / Dropped *");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Unexpected INSTANTLY Added / Dropped *");
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* We detected index corruption in an InnoDB *");
 --enable_query_log
 
@@ -55,3 +55,31 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 CHECK TABLE t1;
 DROP TABLE t1;
+
+--echo # Now we parse the server ERROR log and print the expected error message
+--let $grep_pattern= Unexpected INSTANTLY Added / Dropped
+--let $grep_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+--echo # Error message:
+
+--let LOG= $grep_file
+--let PATTERN= $grep_pattern
+perl;
+  my $file = $ENV{'LOG'} or die "log file not set";
+  my $pattern = $ENV{'PATTERN'} or die "pattern not set";
+  my $result = "";
+  open(FILE, "$file") or die("Unable to open $file: $!\n");
+  while (<FILE>) {
+    my $line = $_;
+    if ($line =~ /$pattern/) {
+      $result = $result . $line;
+      $result =~ s/^[^E]*/[/;
+      last;
+    }
+  }
+  close(FILE) or die ("Unable to close $file: $!\n");
+  print $result;
+EOF
+--echo # End

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -739,9 +739,8 @@ size_t get_extra_bytes_for_temp_redundant(const dict_index_t *index,
 @param[in]      temp            whether to use the format for temporary
                                 files in index creation
 @param[in]      rec_version     rec version (could be 0 also)
-@return true    if this record is an instant record on leaf page
-@retval false   if not an instant record */
-static inline bool rec_convert_dtuple_to_rec_comp(
+@return record instant information for record on leaf page */
+static inline Rec_instant_state rec_convert_dtuple_to_rec_comp(
     rec_t *rec, const dict_index_t *index, const dfield_t *fields,
     ulint n_fields, const dtuple_t *v_entry, ulint status, bool temp,
     uint8_t rec_version) {
@@ -759,7 +758,7 @@ static inline bool rec_convert_dtuple_to_rec_comp(
   }
 
   byte *nulls = nullptr;
-  bool instant = false;
+  auto rec_instant_info = Rec_instant_state::REC_IS_SIMPLE;
   ulint n_node_ptr_field;
   if (temp) {
     ut_ad(status == REC_STATUS_ORDINARY);
@@ -787,9 +786,6 @@ static inline bool rec_convert_dtuple_to_rec_comp(
       temp = false;
     }
   } else {
-    /* INSTANT/VERSION bit will be set in following 'if' accordingly. */
-    rec_new_reset_instant_version(rec);
-
     ut_ad(v_entry == nullptr);
     ut_ad(num_v == 0);
     nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
@@ -810,8 +806,7 @@ static inline bool rec_convert_dtuple_to_rec_comp(
 
             /* Shift pointer to null byte before the version */
             nulls -= 1;
-            rec_new_set_versioned(rec);
-            instant = true;
+            rec_instant_info = Rec_instant_state::REC_IS_VERSIONED;
           } else {
             ut_ad(index->has_instant_cols());
             if (index->is_tuple_instant_format(n_fields)) {
@@ -820,8 +815,7 @@ static inline bool rec_convert_dtuple_to_rec_comp(
 
               /* Shift pointer to null byte before the number of fileds */
               nulls -= n_fields_len;
-              rec_new_set_instant(rec);
-              instant = true;
+              rec_instant_info = Rec_instant_state::REC_IS_INSTANT;
             }
           }
         }
@@ -999,7 +993,7 @@ static inline bool rec_convert_dtuple_to_rec_comp(
   }
 
   if (!num_v) {
-    return (instant);
+    return rec_instant_info;
   }
 
   /* reserve 2 bytes for writing length */
@@ -1051,7 +1045,7 @@ static inline bool rec_convert_dtuple_to_rec_comp(
 
   mach_write_to_2(end, ptr - end);
 
-  return (instant);
+  return rec_instant_info;
 }
 
 /** Builds a new-style physical record out of a data tuple and stores it
@@ -1072,37 +1066,28 @@ static rec_t *rec_convert_dtuple_to_rec_new(byte *buf,
                               &extra_size);
   rec = buf + extra_size;
 
-  bool instant = rec_convert_dtuple_to_rec_comp(
+  auto rec_state = rec_convert_dtuple_to_rec_comp(
       rec, index, dtuple->fields, dtuple->n_fields, nullptr, status, false,
       index->table->current_row_version);
 
-  {
-    /* Keep the INSTANT/VERSION bit from the prepared physical rec */
-    const bool is_instant = rec_get_instant_flag_new(rec);
-    const bool is_versioned = rec_new_is_versioned(rec);
-    if (instant) {
+  /* Set the info bits of the record from dtuple */
+  rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));
+
+  switch (rec_state) {
+    case Rec_instant_state::REC_IS_SIMPLE:
+      rec_new_reset_instant_version(rec);
+      break;
+    case Rec_instant_state::REC_IS_VERSIONED:
       ut_a(index->has_instant_cols_or_row_versions());
-      /* At least on the bit should be set */
-      ut_a(is_instant || is_versioned);
-      /* Only one of the bit sould be set */
-      ut_a(!(is_instant && is_versioned));
-    } else {
-      ut_a(!is_instant);
-      ut_a(!is_versioned);
-    }
-
-    /* Set the info bits of the record from dtuple */
-    rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));
-
-    /* Set the INSTANT/VERSION bit from the kept values */
-    if (is_versioned) {
       rec_new_set_versioned(rec);
-    } else if (is_instant) {
+      break;
+    case Rec_instant_state::REC_IS_INSTANT:
+      ut_a(index->has_instant_cols_or_row_versions());
       ut_a(index->table->has_instant_cols());
       rec_new_set_instant(rec);
-    } else {
-      rec_new_reset_instant_version(rec);
-    }
+      break;
+    default:
+      ut_error;
   }
 
   /* Only one of the bit (INSTANT or VERSION) could be set */

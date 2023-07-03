@@ -2306,3 +2306,72 @@ ADD KEY (c);
 DROP TABLE t1;
 
 SET @@SESSION.information_schema_stats_expiry = DEFAULT;
+
+--echo #
+--echo # Bug#33419246 AUTO_INCREMENT can be set to less than MAX + 1 and not forced to MAX + 1
+--echo # Bug#34418341 AUTOINC counter resets to 1 after ALTER TABLE following by restart
+--echo # Bug#34951259 alter table... auto_increment=1 does not work as expected
+--echo #
+
+#Test 1
+#This test will check whether after modifying existing column to  auto increment column,
+#The auto increment value is persisted even after the restart of server
+#Also whether Auto increment value from information_schema matches the auto increment value of table
+#Also if the insert after restart works fine
+
+CREATE TABLE `t1` (`id` INT NOT NULL PRIMARY KEY);
+INSERT INTO `t1` (`id`) VALUES (1), (2), (3);
+ALTER TABLE `t1` MODIFY `id` INT NOT NULL AUTO_INCREMENT;
+SHOW CREATE TABLE `t1`;
+select `AUTO_INCREMENT` from information_schema.tables where table_name='t1';
+
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+
+SHOW CREATE TABLE `t1`;
+select `AUTO_INCREMENT` from information_schema.tables where table_name='t1';
+
+SET SESSION information_schema_stats_expiry=0;
+INSERT INTO `t1` (`id`) VALUES (NULL);
+SELECT * FROM `t1`;
+
+SHOW CREATE TABLE `t1`;
+select `AUTO_INCREMENT` from information_schema.tables where table_name='t1';
+
+SET SESSION information_schema_stats_expiry=DEFAULT;
+
+DROP TABLE t1;
+
+#Test 2
+#This test will check if after the existing column is modified to auto increment column,
+#whether the auto increment forced to lower value than the existing is ignored
+#And whether the insert into table after this ignore works fine
+
+CREATE TABLE `t1` (`id` INT NOT NULL PRIMARY KEY);
+INSERT INTO `t1` (`id`) VALUES (1), (2), (3);
+ALTER TABLE `t1` MODIFY `id` INT NOT NULL AUTO_INCREMENT;
+ALTER TABLE `t1` AUTO_INCREMENT=1;
+SHOW CREATE TABLE `t1`;
+INSERT INTO `t1` (`id`) VALUES (NULL);
+DROP TABLE t1;
+
+#Test 3
+#This test will check if the recovery works fine or it has any adverse effects
+#After the alter table statement which is modifying the existing column to be an auto increment column,
+#We are crashing the server to verify if the alter table will not have any effect, which is the expected behaviour
+
+CREATE TABLE `t1` (`id` INT NOT NULL PRIMARY KEY);
+INSERT INTO `t1` (`id`) VALUES (1), (2), (3);
+show create table t1;
+SET SESSION debug= "+d, crash_create_after_autoinc_persisted_update";
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+
+ALTER TABLE `t1` MODIFY `id` INT NOT NULL AUTO_INCREMENT;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SHOW CREATE TABLE `t1`;
+DROP TABLE t1;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -87,10 +87,6 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /** Event used for locking sn */
   os_event_t sn_lock_event;
 
-#ifdef UNIV_PFS_RWLOCK
-  /** The instrumentation hook */
-  struct PSI_rwlock *pfs_psi;
-#endif /* UNIV_PFS_RWLOCK */
 #ifdef UNIV_DEBUG
   /** The rw_lock instance only for the debug info list */
   /* NOTE: Just "rw_lock_t sn_lock_inst;" and direct minimum initialization
@@ -125,6 +121,21 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /** Size of the log buffer expressed in number of total bytes,
   that is including bytes for headers and footers of log blocks. */
   size_t buf_size;
+
+#ifdef UNIV_PFS_RWLOCK
+  /** The instrumentation hook.
+  @remarks This field is rarely modified, so can not be the cause of
+  frequent cache line invalidations. However, user threads read it only during
+  mtr.commit(), which in some scenarios happens rarely enough, that the cache
+  line containing pfs_psi is evicted between mtr.commit()s causing a cache miss,
+  a stall and in consequence MACHINE_CLEARS during mtr.commit(). As this miss
+  seems inevitable, we at least want to make it really worth it. So, we put the
+  pfs_psi in the same cache line which contains buf, buf_size_sn and buf_size,
+  which are also needed during mtr.commit(). This way instead of two separate
+  cache misses, we have just one.
+  TBD: We could additionally use `lfence` to limit MACHINE_CLEARS.*/
+  struct PSI_rwlock *pfs_psi;
+#endif /* UNIV_PFS_RWLOCK */
 
   /** The recent written buffer.
   Protected by: locking sn not to add. */
@@ -562,12 +573,6 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   We check for this in functions that write to the redo log. */
   bool disable_redo_writes;
 
-  /** DEBUG only - if we copied or initialized the first block in buffer,
-  this is set to lsn for which we did that. We later ensure that we start
-  the redo log at the same lsn. Else it is zero and we would crash when
-  trying to start redo then. */
-  lsn_t first_block_is_correct_for_lsn;
-
 #endif /* UNIV_DEBUG */
 
   /** @} */
@@ -583,7 +588,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   /** Mutex which protects fields: available_for_checkpoint_lsn,
   requested_checkpoint_lsn. It also synchronizes updates of:
-  free_check_limit_sn, concurrency_margin, dict_persist_margin.
+  free_check_limit_lsn, concurrency_margin, dict_persist_margin.
   It protects reads and writes of m_writer_inside_extra_margin.
   It also protects the srv_checkpoint_disabled (together with the
   checkpointer_mutex). */
@@ -634,8 +639,8 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   This is never set from true to false after log_start(). */
   std::atomic_bool m_allow_checkpoints;
 
-  /** Maximum sn up to which there is free space in the redo log.
-  Threads check this limit and compare to current log.sn, when they
+  /** Maximum lsn up to which there is free space in the redo log.
+  Threads check this limit and compare to current lsn, when they
   are outside mini-transactions and hold no latches. The formula used
   to compute the limitation takes into account maximum size of mtr and
   thread concurrency to include proper margins and avoid issues with
@@ -647,9 +652,9 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   Updated by: log_writer (after pausing/resuming user threads)
   Updated by: DD (after update of dict_persist_margin)
   Protected by (updates only): limits_mutex. */
-  atomic_sn_t free_check_limit_sn;
+  atomic_lsn_t free_check_limit_lsn;
 
-  /** Margin used in calculation of @see free_check_limit_sn.
+  /** Margin used in calculation of @see free_check_limit_lsn.
   Protected by (updates only): limits_mutex. */
   atomic_sn_t concurrency_margin;
 
@@ -658,7 +663,7 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   Protected by (updates only): limits_mutex. */
   std::atomic<bool> concurrency_margin_is_safe;
 
-  /** Margin used in calculation of @see free_check_limit_sn.
+  /** Margin used in calculation of @see free_check_limit_lsn.
   Read by: page_cleaners, log_checkpointer
   Updated by: DD
   Protected by (updates only): limits_mutex. */

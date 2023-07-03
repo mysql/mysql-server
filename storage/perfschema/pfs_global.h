@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,8 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "sql/thr_malloc.h"
+
+#include <mysql/components/services/mysql_server_telemetry_traces_service.h>
 
 /**
   @file storage/perfschema/pfs_global.h

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include <list>
 #include <mutex>  // std::adopt_lock_t
 
-#include "libbinlogevents/include/compression/base.h"
+#include "libbinlogevents/include/compression/base.h"  // binary_log::transaction::compression::type
 #include "libbinlogevents/include/gtids/global.h"
 #include "libbinlogevents/include/uuid.h"
 #include "map_helpers.h"

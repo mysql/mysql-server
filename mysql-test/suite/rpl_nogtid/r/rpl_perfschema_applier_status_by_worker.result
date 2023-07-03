@@ -1,11 +1,11 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Error 'Table 'test.t' doesn't exist' on query.");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
-call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes;");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("Request to stop replica SQL Thread received while applying a group that has non-transactional changes;");
 include/assert.inc [On master, the table should return an empty set.]
 
 # Setup MTS and perform testing on a fresh slave.
@@ -47,7 +47,7 @@ include/wait_for_slave_sql_error.inc [errno=1146]
 
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 Last_Error_Message
-Worker 1 failed executing transaction 'ANONYMOUS' at master log FILENAME, end_log_pos POSITION; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
+Worker 1 failed executing transaction 'ANONYMOUS' at source log FILENAME, end_log_pos POSITION; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
 
 # Verify that the error fields are preserved after STOP SLAVE.
@@ -65,7 +65,7 @@ include/assert.inc [So, Service_State after STOP SLAVE should be "OFF".]
 include/assert.inc [Worker_Id should be 1]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 Last_Error_Message
-Worker 1 failed executing transaction 'ANONYMOUS' at master log FILENAME, end_log_pos POSITION; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
+Worker 1 failed executing transaction 'ANONYMOUS' at source log FILENAME, end_log_pos POSITION; Error 'Table 'test.t' doesn't exist' on query. Default database: 'test'. Query: 'insert into t values(1)'
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Timestamp should be same.]
 stop slave;
 Warnings:
@@ -87,7 +87,7 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=MASTER_MYPORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SET @@global.replica_parallel_workers=1;
 set @save_replica_transaction_retries= @@global.replica_transaction_retries;
 start slave;

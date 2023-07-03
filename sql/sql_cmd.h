@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -184,9 +184,9 @@ class Sql_cmd {
   }
 
   /**
-    Mark the current statement as using a secondary storage engine.
-    This function must be called before the statement starts opening
-    tables in a secondary engine.
+  Mark the current statement as using a secondary storage engine.
+  This function must be called before the statement starts opening
+  tables in a secondary engine.
   */
   void use_secondary_storage_engine(const handlerton *hton) {
     assert(m_secondary_engine_enabled);

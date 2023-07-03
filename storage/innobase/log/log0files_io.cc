@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -346,11 +346,7 @@ IORequest Log_file_handle::prepare_io_request(int req_type, os_offset_t offset,
 
   // Assume the whole encrypted region is in the body, none of it in the header
   ut_a(offset >= LOG_FILE_HDR_SIZE);
-
-  io_request.encryption_key(m_encryption_metadata.m_key,
-                            m_encryption_metadata.m_key_len,
-                            m_encryption_metadata.m_iv);
-  io_request.encryption_algorithm(m_encryption_metadata.m_type);
+  io_request.get_encryption_info().set(m_encryption_metadata);
 
   return io_request;
 }

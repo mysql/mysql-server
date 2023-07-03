@@ -1,4 +1,5 @@
 --source include/have_udf.inc
+--source include/elide_costs.inc
 #
 # To run this test, "sql/udf_example.cc" need to be compiled into
 # udf_example.so and LD_LIBRARY_PATH should be setup to point out where
@@ -859,12 +860,27 @@ let $query =
                  FROM t1 GROUP BY f1) as dt
   WHERE median != 1;
 
---replace_regex /cost=\d+.\d+(\.\.\d+\.\d+)?/cost=***/  /rows=\d+/rows=***/
+--replace_regex $elide_costs_and_rows
 --skip_if_hypergraph  # Hypergraph optimizer prints more costs.
 --eval EXPLAIN FORMAT=tree $query
 --eval $query
 
 DROP TABLE t1;
 DROP FUNCTION my_median;
+
+#
+# Bug#34666531: Mysqld failure - String::ptr()
+#
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION sequence RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+
+SELECT a FROM t1 WHERE a = sequence();
+SELECT a FROM (SELECT sequence() AS seq, a FROM t1) AS dt WHERE a = seq;
+
+DROP FUNCTION sequence;
+DROP TABLE t1;
 
 --echo # End of the 8.0 tests

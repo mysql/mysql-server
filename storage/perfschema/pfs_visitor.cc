@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ static PFS_thread *get_pfs_from_THD(THD *thd) {
   /*
     And now, finally dive into the performance schema itself.
   */
-  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
+  auto *pfs = reinterpret_cast<PFS_thread *>(psi);
   return pfs;
 }
 
@@ -638,8 +638,7 @@ void PFS_instance_iterator::visit_instances(PFS_instr_class *klass,
 
   switch (klass->m_type) {
     case PFS_CLASS_SOCKET: {
-      PFS_socket_class *socket_class =
-          reinterpret_cast<PFS_socket_class *>(klass);
+      auto *socket_class = reinterpret_cast<PFS_socket_class *>(klass);
       PFS_instance_iterator::visit_socket_instances(socket_class, visitor,
                                                     thread, visit_class);
     } break;
@@ -1268,14 +1267,14 @@ void PFS_object_wait_visitor::visit_global() {
 }
 
 void PFS_object_wait_visitor::visit_table_share(PFS_table_share *pfs) {
-  uint safe_key_count = sanitize_index_count(pfs->m_key_count);
+  const uint safe_key_count = sanitize_index_count(pfs->m_key_count);
   pfs->sum(&m_stat, safe_key_count);
 }
 
 void PFS_object_wait_visitor::visit_table(PFS_table *pfs) {
   PFS_table_share *table_share = sanitize_table_share(pfs->m_share);
   if (table_share != nullptr) {
-    uint safe_key_count = sanitize_index_count(table_share->m_key_count);
+    const uint safe_key_count = sanitize_index_count(table_share->m_key_count);
     pfs->m_table_stat.sum(&m_stat, safe_key_count);
   }
 }
@@ -1290,7 +1289,7 @@ void PFS_table_io_wait_visitor::visit_global() {
 
 void PFS_table_io_wait_visitor::visit_table_share(PFS_table_share *pfs) {
   PFS_table_io_stat io_stat;
-  uint safe_key_count = sanitize_index_count(pfs->m_key_count);
+  const uint safe_key_count = sanitize_index_count(pfs->m_key_count);
   uint index;
   PFS_table_share_index *index_stat;
 
@@ -1316,7 +1315,7 @@ void PFS_table_io_wait_visitor::visit_table(PFS_table *pfs) {
 
   if (likely(safe_share != nullptr)) {
     PFS_table_io_stat io_stat;
-    uint safe_key_count = sanitize_index_count(safe_share->m_key_count);
+    const uint safe_key_count = sanitize_index_count(safe_share->m_key_count);
     uint index;
 
     /* Aggregate index stats */
@@ -1338,7 +1337,7 @@ PFS_table_io_stat_visitor::PFS_table_io_stat_visitor() = default;
 PFS_table_io_stat_visitor::~PFS_table_io_stat_visitor() = default;
 
 void PFS_table_io_stat_visitor::visit_table_share(PFS_table_share *pfs) {
-  uint safe_key_count = sanitize_index_count(pfs->m_key_count);
+  const uint safe_key_count = sanitize_index_count(pfs->m_key_count);
   uint index;
   PFS_table_share_index *index_stat;
 
@@ -1361,7 +1360,7 @@ void PFS_table_io_stat_visitor::visit_table(PFS_table *pfs) {
   PFS_table_share *safe_share = sanitize_table_share(pfs->m_share);
 
   if (likely(safe_share != nullptr)) {
-    uint safe_key_count = sanitize_index_count(safe_share->m_key_count);
+    const uint safe_key_count = sanitize_index_count(safe_share->m_key_count);
     uint index;
 
     /* Aggregate index stats */

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@ OPTION(WITH_MYSQLX "Build MySQL X plugin" ON)
 SET(MYSQLX_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 SET(MYSQLX_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 SET(MYSQLX_PLUGIN_NAME "mysqlx")
+
+MSVC_CPPCHECK_DISABLE()
 
 IF(WIN32)
   # Activate necessary dllexport/dllimport declarations.
@@ -81,9 +83,6 @@ INCLUDE_DIRECTORIES(
   ${MYSQLX_CLIENT_INCLUDE_DIR}
 )
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
-MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
-
 ADD_COMPILE_FLAGS(${XPLUGIN_SRC}
   COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
 )
@@ -96,11 +95,14 @@ IF(WITH_MYSQLX)
     DEPENDENCIES xprotocol_tags
     LINK_LIBRARIES
     ${MYSQLX_PROTBUF_AND_PROTOCOL_LIB}
-    ${LIBEVENT_LIBRARIES}
-    ${ICU_LIBRARIES}
-    ${LZ4_LIBRARY}
+    ext::libevent
+    ext::icu
     ${MYSQLX_PROTOCOL_LIB}
     ${MYSQLX_PROTOBUF_LIB}
+    extra::rapidjson
+    ext::lz4
+    ext::zstd
+    ext::zlib
     )
 ENDIF()
 

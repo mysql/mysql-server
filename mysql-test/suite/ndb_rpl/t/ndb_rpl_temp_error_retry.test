@@ -1,0 +1,78 @@
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--echo ##################################################################
+--echo #
+--echo # Check that applier retries temporary errors
+--echo # - first show that applier stops when no retries are allowed.
+--echo # - then reconfigure to allow transaction retries and show how
+--echo #   applier is retrying until the provoked error is cleared
+--echo #
+
+--source include/rpl_connection_slave.inc
+# Supress warnings caused by provoked temporary error retries
+call mtr.add_suppression(".*Lock timed out; Retry transaction.*");
+call mtr.add_suppression(".*worker thread retried transaction 1 time.*");
+call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (
+  nid int NOT NULL,
+  nom char(4) default NULL,
+  prenom char(4) default NULL,
+  PRIMARY KEY USING HASH (nid)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1,"XYZ1","ABC1");
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--echo # Lock the row on replica
+BEGIN;
+UPDATE t1 SET nom="LOCK" WHERE nid=1;
+
+--echo # Set number of retries low so retries are not allowed
+SET GLOBAL replica_transaction_retries=1;
+
+--source include/rpl_connection_master.inc
+--echo # Change the row on source, this will cause lock wait timeout when
+--echo # applying on replica
+UPDATE t1 SET nom="DEAD" WHERE nid=1;
+
+--source include/rpl_connection_slave1.inc
+--echo # Wait for deadlock to be detected and applier to stop since
+--echo # retries where not allowed. Use different connection.
+--let $slave_sql_errno= convert_error(ER_LOCK_WAIT_TIMEOUT)
+--let $show_slave_sql_error= 0
+--source include/wait_for_slave_sql_error.inc
+
+--echo # Reconfigure retries high enough to allow retries, start replication
+SET GLOBAL replica_transaction_retries=10;
+--source include/start_slave.inc
+
+--echo # Wait for deadlock to be detected and retried at least two times.
+let $wait_condition=
+  SELECT APPLYING_TRANSACTION_RETRIES_COUNT >= 2 FROM
+    performance_schema.replication_applier_status_by_worker
+      WHERE CHANNEL_NAME = "";
+--source include/wait_condition.inc
+
+--source include/rpl_connection_slave.inc
+--echo # Switch back to the connection holding lock on replica, commit the
+--echo # transaction to release lock and thus let the currently retrying
+--echo # applier succeed
+select * from t1 order by nid;
+COMMIT;
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--echo # Verify that the row was applied sucessfully on replica
+SELECT * FROM t1;
+
+--source include/rpl_connection_master.inc
+--echo # Cleanup
+DROP TABLE t1;
+
+--source include/rpl_end.inc

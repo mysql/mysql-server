@@ -1217,3 +1217,13 @@ SELECT * FROM cte1
 FROM t1 AS table1;
 ERROR 42S22: Unknown column 'sq1_t1.a' in 'field list'
 DROP TABLE t1;
+#
+# Bug#32383712: CTE PRODUCES WRONG RESULT
+#
+CREATE TABLE t1 (f1 TEXT);
+INSERT INTO t1 VALUES ('x');
+WITH cte1 AS (SELECT * FROM t1 UNION SELECT * FROM t1),
+cte2 AS (SELECT COUNT(*) FROM cte1) SELECT * from cte1,cte2;
+f1	COUNT(*)
+x	1
+DROP TABLE t1;

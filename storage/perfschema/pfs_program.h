@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,9 +71,9 @@ struct PFS_ALIGNED PFS_program : public PFS_instr {
 };
 
 int init_program(const PFS_global_param *param);
-void cleanup_program(void);
+void cleanup_program();
 int init_program_hash(const PFS_global_param *param);
-void cleanup_program_hash(void);
+void cleanup_program_hash();
 
 void reset_esms_by_program();
 
@@ -81,7 +81,7 @@ PFS_program *find_or_create_program(PFS_thread *thread,
                                     enum_object_type object_type,
                                     const char *object_name,
                                     uint object_name_length, const char *schema,
-                                    uint schema_length);
+                                    uint schema_name_length);
 
 void drop_program(PFS_thread *thread, enum_object_type object_type,
                   const char *object_name, uint object_name_length,

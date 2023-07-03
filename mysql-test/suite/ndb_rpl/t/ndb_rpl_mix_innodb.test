@@ -1,15 +1,15 @@
 #############################################
-#Purpose:    Generic replication to cluster
+#Purpose:    Generic replication from Innodb to NDB
+#            using 'binlog_format = MIXED'
 #            and ensuring that the ndb_apply_status
 #            table is updated.
 #############################################
 
---disable_query_log
 --source include/have_ndb.inc
---source include/have_binlog_format_mixed.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
---enable_query_log
-let $off_set = 9;
+
+SET binlog_format = MIXED;
+let $off_set = 10;
 let $rpl_format = 'MIX';
 --source suite/ndb_rpl/t/ndb_rpl_xxx_innodb.inc
 

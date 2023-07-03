@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -779,7 +779,7 @@ gcs_xcom_group_interfaces *Gcs_xcom_interface::get_group_interfaces(
         new Gcs_xcom_state_exchange(group_interface->communication_interface);
 
     Gcs_xcom_group_management *xcom_group_management =
-        new Gcs_xcom_group_management(s_xcom_proxy, group_identifier);
+        new Gcs_xcom_group_management(s_xcom_proxy, group_identifier, vce);
     group_interface->management_interface = xcom_group_management;
 
     std::unique_ptr<Network_provider_operations_interface>

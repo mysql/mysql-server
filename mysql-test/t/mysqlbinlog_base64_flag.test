@@ -105,56 +105,7 @@ Dl1YRxcBAAAAIgAAAFYBAAAQABAAAAAAAAEAAf/+BQAAAA==
 # the above line should fail and 5 should not be in the binlog.
 select * from t1;
 
-# Test that BUG#37426 is triggered.
-
-CREATE TABLE char128_utf8 (
-    i1 INT NOT NULL,
-    c CHAR(128) CHARACTER SET utf8 NOT NULL,
-    i2 INT NOT NULL);
-CREATE TABLE char63_utf8 (
-      i1 INT NOT NULL,
-      c CHAR(63) CHARACTER SET utf8 NOT NULL,
-      i2 INT NOT NULL);
-
-#
-# This is the format description log event
-#
-
-BINLOG '
-MuNkSA8BAAAAZgAAAGoAAAAAAAQANS4xLjI1LXJjLWRlYnVnLWxvZwAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAy42RIEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
-';
-
-# ... this event corresponding to
-#
-#    INSERT INTO char63_utf8 VALUES ( 1, "123", 1 )
-#
-# The binlog event below shall not trigger the bug check
-
-BINLOG '
-3u9kSBMBAAAANgAAAJYBAAAAABAAAAAAAAAABHRlc3QAC2NoYXI2M191dGY4AAMD/gMC/r0A
-3u9kSBcBAAAAKgAAAMABAAAQABAAAAAAAAEAA//4AQAAAAMxMjMBAAAA
-';
-SELECT * FROM char63_utf8;
-
-# ... and this is an event corresponding to
-#
-#    INSERT INTO char128_utf8 VALUES ( 1, "123", 1 )
-#
-# The binlog event below shall trigger the bug check and produce an error
-#
-
-error ER_UNKNOWN_ERROR;
-BINLOG '
-iONkSBMBAAAANwAAAJkBAAAAABAAAAAAAAAABHRlc3QADGNoYXIxMjhfdXRmOAADA/4DAv6AAA==
-iONkSBcBAAAAKwAAAMQBAAAQABAAAAAAAAEAA//4AQAAAAMAMTIzAQAAAA==
-';
-
-drop table t1, char63_utf8, char128_utf8;
-
-call mtr.add_suppression("Slave SQL.*master suffers from this bug: http:..bugs.mysql.com.bug.php.id=37426.* Error_code: MY-013127");
-call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 1 size mismatch.* Error_code: 1535");
-call mtr.add_suppression("Slave SQL.*Column 1 of table .test.char128_utf8. cannot be converted.* Error_code: MY-013146");
+drop table t1;
 
 --echo #
 --echo # Bug #54393: crash and/or valgrind errors in

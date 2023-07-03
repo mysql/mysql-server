@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,7 @@
 #define HAVE_PSI_DATA_LOCK_INTERFACE
 #define HAVE_PSI_SYSTEM_INTERFACE
 #define HAVE_PSI_TLS_CHANNEL_INTERFACE
+#define HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
 
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -197,6 +198,9 @@ static void set_mem_cnt_THD_noop(THD *, THD **backup_thd) {
   return;
 }
 
+static void detect_telemetry_noop(PSI_thread * /*unused*/) {}
+static void abort_telemetry_noop(PSI_thread * /*unused*/) {}
+
 static PSI_thread_service_t psi_thread_noop = {
     register_thread_noop,
     spawn_thread_noop,
@@ -233,7 +237,9 @@ static PSI_thread_service_t psi_thread_noop = {
     notify_session_connect_noop,
     notify_session_disconnect_noop,
     notify_session_change_user_noop,
-    set_mem_cnt_THD_noop};
+    set_mem_cnt_THD_noop,
+    detect_telemetry_noop,
+    abort_telemetry_noop};
 
 struct PSI_thread_bootstrap *psi_thread_hook = nullptr;
 PSI_thread_service_t *psi_thread_service = &psi_thread_noop;
@@ -777,6 +783,11 @@ static void drop_sp_noop(uint, const char *, uint, const char *, uint) {
   return;
 }
 
+static void notify_statement_query_attributes_noop(PSI_statement_locker *,
+                                                   bool) {}
+
+static void abort_statement_telemetry_noop(PSI_statement_locker * /*unused*/) {}
+
 static PSI_statement_service_t psi_statement_noop = {
     register_statement_noop,
     get_thread_statement_locker_noop,
@@ -814,7 +825,9 @@ static PSI_statement_service_t psi_statement_noop = {
     release_sp_share_noop,
     start_sp_noop,
     end_sp_noop,
-    drop_sp_noop};
+    drop_sp_noop,
+    notify_statement_query_attributes_noop,
+    abort_statement_telemetry_noop};
 
 struct PSI_statement_bootstrap *psi_statement_hook = nullptr;
 PSI_statement_service_t *psi_statement_service = &psi_statement_noop;
@@ -993,3 +1006,5 @@ PSI_tls_channel_service_t *psi_tls_channel_service = &psi_tls_channel_noop;
 void set_psi_tls_channel_service(void *psi) {
   psi_tls_channel_service = (PSI_tls_channel_service_t *)psi;
 }
+
+// ===========================================================================

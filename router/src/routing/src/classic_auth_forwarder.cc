@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,10 +32,14 @@
 #include <openssl/x509.h>
 
 #include "auth_digest.h"
-#include "classic_auth_caching_sha2.h"
-#include "classic_auth_cleartext.h"
-#include "classic_auth_native.h"
-#include "classic_auth_sha256_password.h"
+#include "classic_auth_caching_sha2_forwarder.h"
+#include "classic_auth_caching_sha2_sender.h"
+#include "classic_auth_cleartext_forwarder.h"
+#include "classic_auth_cleartext_sender.h"
+#include "classic_auth_native_forwarder.h"
+#include "classic_auth_native_sender.h"
+#include "classic_auth_sha256_password_forwarder.h"
+#include "classic_auth_sha256_password_sender.h"
 #include "classic_frame.h"
 #include "harness_assert.h"
 #include "hexify.h"
@@ -43,19 +47,18 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysqld_error.h"  // mysql-server error-codes
 #include "mysqlrouter/classic_protocol_wire.h"
-#include "openssl_version.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 using mysql_harness::hexify;
 
-class AuthGenericForwarder : public Processor {
+class AuthGenericForwarder : public ForwardingProcessor {
  public:
-  AuthGenericForwarder(MysqlRoutingClassicConnection *conn,
+  AuthGenericForwarder(MysqlRoutingClassicConnectionBase *conn,
                        std::string auth_method_name,
                        std::string initial_server_auth_data,
                        bool in_handshake = false)
-      : Processor(conn),
+      : ForwardingProcessor(conn),
         auth_method_name_{std::move(auth_method_name)},
         initial_server_auth_data_{std::move(initial_server_auth_data)},
         stage_{in_handshake ? Stage::Response : Stage::Init} {}
@@ -124,11 +127,14 @@ AuthGenericForwarder::init() {
   auto dst_channel = socket_splicer->client_channel();
   auto dst_protocol = connection()->client_protocol();
 
-  trace(Tracer::Event().stage("generic::forward::switch: " + auth_method_name_ +
+  if (auto &tr = tracer()) {
+    tr.trace(
+        Tracer::Event().stage("generic::forward::switch: " + auth_method_name_ +
                               "\n" + hexify(initial_server_auth_data_)));
+  }
 
   auto send_res = ClassicFrame::send_msg<
-      classic_protocol::message::server::AuthMethodSwitch>(
+      classic_protocol::borrowed::message::server::AuthMethodSwitch>(
       dst_channel, dst_protocol,
       {auth_method_name_, initial_server_auth_data_});
   if (!send_res) return send_client_failed(send_res.error());
@@ -143,14 +149,16 @@ AuthGenericForwarder::client_data() {
   auto src_channel = socket_splicer->client_channel();
   auto src_protocol = connection()->client_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::client::AuthMethodData>(
-          src_channel, src_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::client::AuthMethodData>(
+      src_channel, src_protocol);
   if (!msg_res) return recv_client_failed(msg_res.error());
 
-  trace(Tracer::Event().stage(
-      "generic::forward::client:\n" +
-      mysql_harness::hexify(msg_res->auth_method_data())));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage(
+        "generic::forward::client:\n" +
+        mysql_harness::hexify(msg_res->auth_method_data())));
+  }
 
   // if it isn't a public-key request, it is a fast-auth.
   stage(Stage::Response);
@@ -192,7 +200,7 @@ AuthGenericForwarder::response() {
   }
 
   // if there is another packet, dump its payload for now.
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   // get as much data of the current frame from the recv-buffers to log it.
   (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
@@ -209,13 +217,15 @@ AuthGenericForwarder::auth_data() {
   auto dst_channel = socket_splicer->server_channel();
   auto dst_protocol = connection()->server_protocol();
 
-  auto msg_res =
-      ClassicFrame::recv_msg<classic_protocol::message::server::AuthMethodData>(
-          dst_channel, dst_protocol);
+  auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::AuthMethodData>(
+      dst_channel, dst_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  trace(Tracer::Event().stage("generic::forward::data\n" +
-                              hexify(msg_res->auth_method_data())));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("generic::forward::data\n" +
+                                   hexify(msg_res->auth_method_data())));
+  }
   stage(Stage::ClientData);
 
   return forward_server_to_client();
@@ -224,7 +234,9 @@ AuthGenericForwarder::auth_data() {
 stdx::expected<Processor::Result, std::error_code> AuthGenericForwarder::ok() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("generic::forward::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("generic::forward::ok"));
+  }
 
   // leave the message in the queue for the AuthForwarder.
   return Result::Again;
@@ -234,7 +246,9 @@ stdx::expected<Processor::Result, std::error_code>
 AuthGenericForwarder::error() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("generic::forward::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("generic::forward::error"));
+  }
 
   // leave the message in the queue for the AuthForwarder.
   return Result::Again;
@@ -290,7 +304,10 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::init() {
             : "old_password";
   }
 
-  trace(Tracer::Event().stage("auth::forwarder::direct: " + auth_method_name));
+  if (auto &tr = tracer()) {
+    tr.trace(
+        Tracer::Event().stage("auth::forwarder::direct: " + auth_method_name));
+  }
 
   if (auth_method_name == AuthSha256Password::kName) {
     connection()->push_processor(std::make_unique<AuthSha256Forwarder>(
@@ -321,61 +338,64 @@ AuthForwarder::auth_method_switch() {
   auto *src_protocol = connection()->server_protocol();
   auto *dst_protocol = connection()->client_protocol();
 
-  auto msg_res = ClassicFrame::recv_msg<
-      classic_protocol::message::server::AuthMethodSwitch>(src_channel,
-                                                           src_protocol);
+  const auto msg_res = ClassicFrame::recv_msg<
+      classic_protocol::borrowed::message::server::AuthMethodSwitch>(
+      src_channel, src_protocol);
   if (!msg_res) return recv_server_failed(msg_res.error());
 
-  auto msg = std::move(*msg_res);
+  const auto msg = *msg_res;
 
-  src_protocol->auth_method_name(msg.auth_method());
-  src_protocol->auth_method_data(msg.auth_method_data());
-  dst_protocol->auth_method_name(msg.auth_method());
-  dst_protocol->auth_method_data(msg.auth_method_data());
+  const auto auth_method_name = std::string(msg.auth_method());
+  const auto auth_method_data = std::string(msg.auth_method_data());
 
-  trace(Tracer::Event().stage("auth::forwarder::switch: " + msg.auth_method()));
+  src_protocol->auth_method_name(auth_method_name);
+  src_protocol->auth_method_data(auth_method_data);
+  dst_protocol->auth_method_name(auth_method_name);
+  dst_protocol->auth_method_data(auth_method_data);
 
+  if (auto &tr = tracer()) {
+    tr.trace(
+        Tracer::Event().stage("auth::forwarder::switch: " + auth_method_name));
+  }
+
+  // invalidates 'msg'
   discard_current_msg(src_channel, src_protocol);
 
-  if (msg.auth_method() == AuthSha256Password::kName) {
+  if (auth_method_name == AuthSha256Password::kName) {
     if (dst_protocol->password().has_value()) {
       connection()->push_processor(std::make_unique<AuthSha256Sender>(
-          connection(), msg.auth_method_data(),
-          dst_protocol->password().value()));
+          connection(), auth_method_data, dst_protocol->password().value()));
     } else {
       connection()->push_processor(std::make_unique<AuthSha256Forwarder>(
-          connection(), msg.auth_method_data()));
+          connection(), auth_method_data));
     }
-  } else if (msg.auth_method() == AuthCachingSha2Password::kName) {
+  } else if (auth_method_name == AuthCachingSha2Password::kName) {
     if (dst_protocol->password().has_value()) {
       connection()->push_processor(std::make_unique<AuthCachingSha2Sender>(
-          connection(), msg.auth_method_data(),
-          dst_protocol->password().value()));
+          connection(), auth_method_data, dst_protocol->password().value()));
     } else {
       connection()->push_processor(std::make_unique<AuthCachingSha2Forwarder>(
-          connection(), msg.auth_method_data()));
+          connection(), auth_method_data));
     }
-  } else if (msg.auth_method() == AuthNativePassword::kName) {
+  } else if (auth_method_name == AuthNativePassword::kName) {
     if (dst_protocol->password().has_value()) {
       connection()->push_processor(std::make_unique<AuthNativeSender>(
-          connection(), msg.auth_method_data(),
-          dst_protocol->password().value()));
+          connection(), auth_method_data, dst_protocol->password().value()));
     } else {
       connection()->push_processor(std::make_unique<AuthNativeForwarder>(
-          connection(), msg.auth_method_data()));
+          connection(), auth_method_data));
     }
-  } else if (msg.auth_method() == AuthCleartextPassword::kName) {
+  } else if (auth_method_name == AuthCleartextPassword::kName) {
     if (dst_protocol->password().has_value()) {
       connection()->push_processor(std::make_unique<AuthCleartextSender>(
-          connection(), msg.auth_method_data(),
-          dst_protocol->password().value()));
+          connection(), auth_method_data, dst_protocol->password().value()));
     } else {
       connection()->push_processor(std::make_unique<AuthCleartextForwarder>(
-          connection(), msg.auth_method_data()));
+          connection(), auth_method_data));
     }
   } else {
     connection()->push_processor(std::make_unique<AuthGenericForwarder>(
-        connection(), msg.auth_method(), msg.auth_method_data()));
+        connection(), auth_method_name, auth_method_data));
   }
 
   stage(Stage::Response);
@@ -409,10 +429,12 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::response() {
       return Result::Again;
   }
 
-  trace(Tracer::Event().stage("auth::forwarder::response"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("auth::forwarder::response"));
+  }
 
   // if there is another packet, dump its payload for now.
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   // get as much data of the current frame from the recv-buffers to log it.
   (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
@@ -426,7 +448,9 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::response() {
 stdx::expected<Processor::Result, std::error_code> AuthForwarder::ok() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("auth::forwarder::ok"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("auth::forwarder::ok"));
+  }
 
   // leave the message in the queue for the caller.
   return Result::Again;
@@ -435,7 +459,9 @@ stdx::expected<Processor::Result, std::error_code> AuthForwarder::ok() {
 stdx::expected<Processor::Result, std::error_code> AuthForwarder::error() {
   stage(Stage::Done);
 
-  trace(Tracer::Event().stage("auth::forwarder::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("auth::forwarder::error"));
+  }
 
   // leave the message in the queue for the caller.
   return Result::Again;

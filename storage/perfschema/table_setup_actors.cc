@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -154,8 +154,8 @@ int table_setup_actors::write_row(PFS_engine_table *, TABLE *table,
     return HA_ERR_WRONG_COMMAND;
   }
 
-  enabled = (enabled_value == ENUM_YES) ? true : false;
-  history = (history_value == ENUM_YES) ? true : false;
+  enabled = (enabled_value == ENUM_YES);
+  history = (history_value == ENUM_YES);
 
   PFS_user_name user_value;
   PFS_host_name host_value;
@@ -168,16 +168,16 @@ int table_setup_actors::write_row(PFS_engine_table *, TABLE *table,
                             history);
 }
 
-int table_setup_actors::delete_all_rows(void) { return reset_setup_actor(); }
+int table_setup_actors::delete_all_rows() { return reset_setup_actor(); }
 
-ha_rows table_setup_actors::get_row_count(void) {
+ha_rows table_setup_actors::get_row_count() {
   return global_setup_actor_container.get_row_count();
 }
 
 table_setup_actors::table_setup_actors()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-void table_setup_actors::reset_position(void) {
+void table_setup_actors::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
@@ -310,7 +310,7 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
           if ((value != ENUM_YES) && (value != ENUM_NO)) {
             return HA_ERR_NO_REFERENCED_ROW;
           }
-          *m_row.m_enabled_ptr = (value == ENUM_YES) ? true : false;
+          *m_row.m_enabled_ptr = (value == ENUM_YES);
           break;
         case 4: /* HISTORY */
           value = (enum_yes_no)get_field_enum(f);
@@ -318,7 +318,7 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
           if ((value != ENUM_YES) && (value != ENUM_NO)) {
             return HA_ERR_NO_REFERENCED_ROW;
           }
-          *m_row.m_history_ptr = (value == ENUM_YES) ? true : false;
+          *m_row.m_history_ptr = (value == ENUM_YES);
           break;
         default:
           return HA_ERR_WRONG_COMMAND;

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -4085,7 +4085,7 @@ OBSOLETE_ER_DUMP_NOT_IMPLEMENTED
         swe "Tabellhanteraren klarar inte en binär kopiering av tabellen"
         ukr "Цей тип таблиці не підтримує бінарну передачу таблиці"
 OBSOLETE_ER_FLUSH_MASTER_BINLOG_CLOSED
-        eng "Binlog closed, cannot RESET MASTER"
+        eng "Binlog closed, cannot RESET SOURCE"
         ger "Binlog geschlossen. Kann RESET MASTER nicht ausführen"
         jpn "バイナリログがクローズされています。RESET MASTER を実行できません。"
         por "Binlog fechado. Não pode fazer RESET MASTER"
@@ -4108,11 +4108,11 @@ OBSOLETE_ER_INDEX_REBUILD
         serbian "Izgradnja indeksa dump-ovane tabele '%-.192s' nije uspela"
         spa "Falla reconstruyendo el indice de la tabla dumped '%-.192s'"
         ukr "Невдале відновлення індекса переданої таблиці '%-.192s'"
-ER_MASTER
+ER_SOURCE
         cze "Chyba masteru: '%-.64s'"
         dan "Fejl fra master: '%-.64s'"
         nla "Fout van master: '%-.64s'"
-        eng "Error from master: '%-.64s'"
+        eng "Error from source: '%-.64s'"
         fre "Erreur reçue du maître: '%-.64s'"
         ger "Fehler vom Master: '%-.64s'"
         ita "Errore dal master: '%-.64s"
@@ -4123,11 +4123,11 @@ ER_MASTER
         spa "Error del master: '%-.64s'"
         swe "Fel från master: '%-.64s'"
         ukr "Помилка від головного: '%-.64s'"
-ER_MASTER_NET_READ 08S01
+ER_SOURCE_NET_READ 08S01
         cze "Síťová chyba při čtení z masteru"
         dan "Netværksfejl ved læsning fra master"
         nla "Net fout tijdens lezen van master"
-        eng "Net error reading from master"
+        eng "Net error reading from source"
         fre "Erreur de lecture réseau reçue du maître"
         ger "Netzfehler beim Lesen vom Master"
         ita "Errore di rete durante la ricezione dal master"
@@ -4138,11 +4138,11 @@ ER_MASTER_NET_READ 08S01
         spa "Error de red leyendo del master"
         swe "Fick nätverksfel vid läsning från master"
         ukr "Мережева помилка читання від головного"
-ER_MASTER_NET_WRITE 08S01
+ER_SOURCE_NET_WRITE 08S01
         cze "Síťová chyba při zápisu na master"
         dan "Netværksfejl ved skrivning til master"
         nla "Net fout tijdens schrijven naar master"
-        eng "Net error writing to master"
+        eng "Net error writing to source"
         fre "Erreur d'écriture réseau reçue du maître"
         ger "Netzfehler beim Schreiben zum Master"
         ita "Errore di rete durante l'invio al master"
@@ -4265,7 +4265,7 @@ ER_TRANS_CACHE_FULL
 OBSOLETE_ER_SLAVE_MUST_STOP
         dan "Denne handling kunne ikke udføres med kørende slave, brug først kommandoen STOP SLAVE"
         nla "Deze operatie kan niet worden uitgevoerd met een actieve slave, doe eerst STOP SLAVE"
-        eng "This operation cannot be performed with a running slave; run STOP SLAVE first"
+        eng "This operation cannot be performed with a running replica; run STOP REPLICA first"
         fre "Cette opération ne peut être réalisée avec un esclave actif, faites STOP SLAVE d'abord"
         ger "Diese Operation kann bei einem aktiven Slave nicht durchgeführt werden. Bitte zuerst STOP SLAVE ausführen"
         ita "Questa operazione non puo' essere eseguita con un database 'slave' che gira, lanciare prima STOP SLAVE"
@@ -4276,10 +4276,10 @@ OBSOLETE_ER_SLAVE_MUST_STOP
         spa "Esta operación no puede ser hecha con el esclavo funcionando, primero use STOP SLAVE"
         swe "Denna operation kan inte göras under replikering; Gör STOP SLAVE först"
         ukr "Операція не може бути виконана з запущеним підлеглим, спочатку виконайте STOP SLAVE"
-ER_SLAVE_NOT_RUNNING
+ER_REPLICA_NOT_RUNNING
         dan "Denne handling kræver en kørende slave. Konfigurer en slave og brug kommandoen START SLAVE"
         nla "Deze operatie vereist een actieve slave, configureer slave en doe dan START SLAVE"
-        eng "This operation requires a running slave; configure slave and do START SLAVE"
+        eng "This operation requires a running replica; configure replica and do START REPLICA"
         fre "Cette opération nécessite un esclave actif, configurez les esclaves et faites START SLAVE"
         ger "Diese Operation benötigt einen aktiven Slave. Bitte Slave konfigurieren und mittels START SLAVE aktivieren"
         ita "Questa operaione richiede un database 'slave', configurarlo ed eseguire START SLAVE"
@@ -4290,10 +4290,10 @@ ER_SLAVE_NOT_RUNNING
         spa "Esta operación necesita el esclavo funcionando, configure esclavo y haga el START SLAVE"
         swe "Denna operation kan endast göras under replikering; Konfigurera slaven och gör START SLAVE"
         ukr "Операція вимагає запущеного підлеглого, зконфігуруйте підлеглого та виконайте START SLAVE"
-ER_BAD_SLAVE
+ER_BAD_REPLICA
         dan "Denne server er ikke konfigureret som slave. Ret in config-filen eller brug kommandoen CHANGE MASTER TO"
         nla "De server is niet geconfigureerd als slave, fix in configuratie bestand of met CHANGE MASTER TO"
-        eng "The server is not configured as slave; fix in config file or with CHANGE MASTER TO"
+        eng "The server is not configured as replica; fix in config file or with CHANGE REPLICATION SOURCE TO"
         fre "Le server n'est pas configuré comme un esclave, changez le fichier de configuration ou utilisez CHANGE MASTER TO"
         ger "Der Server ist nicht als Slave konfiguriert. Bitte in der Konfigurationsdatei oder mittels CHANGE MASTER TO beheben"
         ita "Il server non e' configurato come 'slave', correggere il file di configurazione cambiando CHANGE MASTER TO"
@@ -4304,17 +4304,17 @@ ER_BAD_SLAVE
         spa "El servidor no está configurado como esclavo, edite el archivo config file o con CHANGE MASTER TO"
         swe "Servern är inte konfigurerade som en replikationsslav. Ändra konfigurationsfilen eller gör CHANGE MASTER TO"
         ukr "Сервер не зконфігуровано як підлеглий, виправте це у файлі конфігурації або з CHANGE MASTER TO"
-ER_MASTER_INFO
-        eng "Could not initialize master info structure; more error messages can be found in the MySQL error log"
+ER_CONNECTION_METADATA
+        eng "Could not initialize connection metadata structure; more error messages can be found in the MySQL error log"
         fre "Impossible d'initialiser les structures d'information de maître, vous trouverez des messages d'erreur supplémentaires dans le journal des erreurs de MySQL"
         ger "Konnte Master-Info-Struktur nicht initialisieren. Weitere Fehlermeldungen können im MySQL-Error-Log eingesehen werden"
         jpn "'master info'構造体の初期化ができませんでした。MySQLエラーログでエラーメッセージを確認してください。"
         serbian "Nisam mogao da inicijalizujem informacionu strukturu glavnog servera, proverite da li imam privilegije potrebne za pristup file-u 'master.info'"
         swe "Kunde inte initialisera replikationsstrukturerna. See MySQL fel fil för mera information"
-ER_SLAVE_THREAD
+ER_REPLICA_THREAD
         dan "Kunne ikke danne en slave-tråd; check systemressourcerne"
         nla "Kon slave thread niet aanmaken, controleer systeem resources"
-        eng "Could not create slave thread; check system resources"
+        eng "Could not create replica thread; check system resources"
         fre "Impossible de créer une tâche esclave, vérifiez les ressources système"
         ger "Konnte Slave-Thread nicht starten. Bitte System-Ressourcen überprüfen"
         ita "Impossibile creare il thread 'slave', controllare le risorse di sistema"
@@ -4537,9 +4537,9 @@ ER_ROW_IS_REFERENCED 23000
         serbian "Ne mogu da izbrišem roditeljski slog: provera spoljnog ključa je neuspela"
         spa "No puede deletar una línea padre: falla de clave extranjera constraint"
         swe "FOREIGN KEY-konflikt:  Kan inte radera fader"
-ER_CONNECT_TO_MASTER 08S01
+ER_CONNECT_TO_SOURCE 08S01
         nla "Fout bij opbouwen verbinding naar master: %-.128s"
-        eng "Error connecting to master: %-.128s"
+        eng "Error connecting to source: %-.128s"
         ger "Fehler bei der Verbindung zum Master: %-.128s"
         ita "Errore durante la connessione al master: %-.128s"
         jpn "マスターへの接続エラー: %-.128s"
@@ -4549,7 +4549,7 @@ ER_CONNECT_TO_MASTER 08S01
         swe "Fick fel vid anslutning till master: %-.128s"
 OBSOLETE_ER_QUERY_ON_MASTER
         nla "Fout bij uitvoeren query op master: %-.128s"
-        eng "Error running query on master: %-.128s"
+        eng "Error running query on source: %-.128s"
         ger "Beim Ausführen einer Abfrage auf dem Master trat ein Fehler auf: %-.128s"
         ita "Errore eseguendo una query sul master: %-.128s"
         jpn "マスターでのクエリ実行エラー: %-.128s"
@@ -4730,9 +4730,9 @@ ER_NOT_SUPPORTED_YET 42000
         rus "Эта версия MySQL пока еще не поддерживает '%s'"
         spa "Esta versión de MySQL no soporta todavia '%s'"
         swe "Denna version av MySQL kan ännu inte utföra '%s'"
-ER_MASTER_FATAL_ERROR_READING_BINLOG
+ER_SOURCE_FATAL_ERROR_READING_BINLOG
         nla "Kreeg fatale fout %d: '%-.512s' van master tijdens lezen van data uit binaire log"
-        eng "Got fatal error %d from master when reading data from binary log: '%-.512s'"
+        eng "Got fatal error %d from source when reading data from binary log: '%-.512s'"
         ger "Schwerer Fehler %d: '%-.512s vom Master beim Lesen des binären Logs"
         ita "Errore fatale %d: '%-.512s' dal master leggendo i dati dal log binario"
         jpn "致命的なエラー %d: '%-.512s' がマスターでバイナリログ読み込み中に発生しました。"
@@ -4741,8 +4741,8 @@ ER_MASTER_FATAL_ERROR_READING_BINLOG
         spa "Recibió fatal error %d: '%-.512s' del master cuando leyendo datos del binary log"
         swe "Fick fatalt fel %d: '%-.512s' från master vid läsning av binärloggen"
 
-ER_SLAVE_IGNORED_TABLE
-        eng "Slave SQL thread ignored the query because of replicate-*-table rules"
+ER_REPLICA_IGNORED_TABLE
+        eng "Replica SQL thread ignored the query because of replicate-*-table rules"
         ger "Slave-SQL-Thread hat die Abfrage aufgrund von replicate-*-table-Regeln ignoriert"
         jpn "replicate-*-table ルールに従って、スレーブSQLスレッドはクエリを無視しました。"
         nla "Slave SQL thread negeerde de query vanwege replicate-*-table opties"
@@ -4890,7 +4890,7 @@ ER_COLLATION_CHARSET_MISMATCH 42000
         spa "COLLATION '%s' no es válido para CHARACTER SET '%s'"
         swe "COLLATION '%s' är inte tillåtet för CHARACTER SET '%s'"
 OBSOLETE_ER_SLAVE_WAS_RUNNING
-        eng "Slave is already running"
+        eng "Replica is already running"
         ger "Slave läuft bereits"
         jpn "スレーブはすでに稼働中です。"
         nla "Slave is reeds actief"
@@ -4898,7 +4898,7 @@ OBSOLETE_ER_SLAVE_WAS_RUNNING
         spa "Slave ya está funcionando"
         swe "Slaven har redan startat"
 OBSOLETE_ER_SLAVE_WAS_NOT_RUNNING
-        eng "Slave already has been stopped"
+        eng "Replica already has been stopped"
         ger "Slave wurde bereits angehalten"
         jpn "スレーブはすでに停止しています。"
         nla "Slave is reeds gestopt"
@@ -5009,8 +5009,8 @@ ER_UNKNOWN_COLLATION
         jpn "不明な照合順序: '%-.64s'"
         por "Collation desconhecida: '%-.64s'"
         spa "Collation desconocida: '%-.64s'"
-ER_SLAVE_IGNORED_SSL_PARAMS
-        eng "SSL parameters in CHANGE MASTER are ignored because this MySQL slave was compiled without SSL support; they can be used later if MySQL slave with SSL is started"
+ER_REPLICA_IGNORED_SSL_PARAMS
+        eng "SSL parameters in CHANGE REPLICATION SOURCE are ignored because this MySQL replica was compiled without SSL support; they can be used later if MySQL replica with SSL is started"
         ger "SSL-Parameter in CHANGE MASTER werden ignoriert, weil dieser MySQL-Slave ohne SSL-Unterstützung kompiliert wurde. Sie können aber später verwendet werden, wenn ein MySQL-Slave mit SSL gestartet wird"
         jpn "このMySQLスレーブはSSLサポートを含めてコンパイルされていないので、CHANGE MASTER のSSLパラメータは無視されました。今後SSLサポートを持つMySQLスレーブを起動する際に利用されます。"
         por "SSL parâmetros em CHANGE MASTER são ignorados porque este escravo MySQL foi compilado sem o SSL suporte. Os mesmos podem ser usados mais tarde quando o escravo MySQL com SSL seja iniciado."
@@ -5030,14 +5030,14 @@ ER_WARN_FIELD_RESOLVED
         rus "Поле или ссылка '%-.192s%s%-.192s%s%-.192s' из SELECTа #%d была найдена в SELECTе #%d"
         spa "Campo o referencia '%-.192s%s%-.192s%s%-.192s' de SELECT #%d fue resolvido en SELECT #%d"
         ukr "Стовбець або посилання '%-.192s%s%-.192s%s%-.192s' із SELECTу #%d було знайдене у SELECTі #%d"
-ER_BAD_SLAVE_UNTIL_COND
-        eng "Incorrect parameter or combination of parameters for START SLAVE UNTIL"
+ER_BAD_REPLICA_UNTIL_COND
+        eng "Incorrect parameter or combination of parameters for START REPLICA UNTIL"
         ger "Falscher Parameter oder falsche Kombination von Parametern für START SLAVE UNTIL"
         jpn "START SLAVE UNTIL へのパラメータまたはその組み合わせが不正です。"
         por "Parâmetro ou combinação de parâmetros errado para START SLAVE UNTIL"
         spa "Parametro equivocado o combinación de parametros para START SLAVE UNTIL"
-ER_MISSING_SKIP_SLAVE
-        eng "It is recommended to use --skip-replica-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart"
+ER_MISSING_SKIP_REPLICA
+        eng "It is recommended to use --skip-replica-start when doing step-by-step replication with START REPLICA UNTIL; otherwise, you will get problems if you get an unexpected replica's mysqld restart"
         ger "Es wird empfohlen, mit --skip-replica-start zu starten, wenn mit START SLAVE UNTIL eine Schritt-für-Schritt-Replikation ausgeführt wird. Ansonsten gibt es Probleme, wenn ein Slave-Server unerwartet neu startet"
         jpn "START SLAVE UNTIL で段階的にレプリケーションを行う際には、--skip-replica-start オプションを使うことを推奨します。使わない場合、スレーブのmysqldが不慮の再起動をすると問題が発生します。"
         por "É recomendado para rodar com --skip-replica-start quando fazendo replicação passo-por-passo com START SLAVE UNTIL, de outra forma você não está seguro em caso de inesperada reinicialição do mysqld escravo"
@@ -5970,10 +5970,10 @@ ER_BINLOG_ROW_LOGGING_FAILED
         eng "Writing one row to the row-based binary log failed"
         ger "Schreiben einer Zeilen ins zeilenbasierte Binärlog fehlgeschlagen"
 OBSOLETE_ER_BINLOG_ROW_WRONG_TABLE_DEF
-        eng "Table definition on master and slave does not match: %s"
+        eng "Table definition on source and replica does not match: %s"
         ger "Tabellendefinition auf Master und Slave stimmt nicht überein: %s"
 OBSOLETE_ER_BINLOG_ROW_RBR_TO_SBR
-        eng "Slave running with --log-replica-updates must use row-based binary logging to be able to replicate row-based binary log events"
+        eng "Replica running with --log-replica-updates must use row-based binary logging to be able to replicate row-based binary log events"
         ger "Slave, die mit --log-replica-updates laufen, müssen zeilenbasiertes Loggen verwenden, um zeilenbasierte Binärlog-Ereignisse loggen zu können"
 ER_EVENT_ALREADY_EXISTS
         eng "Event '%-.192s' already exists"
@@ -6170,7 +6170,7 @@ ER_EVENT_CANNOT_ALTER_IN_THE_PAST
   eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future."
   ger "Execution Zeitpunkt des Ereignisses in der Vergangenheit liegt, und es war NACH ABSCHLUSS Set nicht erhalten. Die Veranstaltung wurde nicht verändert. Geben Sie einen Zeitpunkt in der Zukunft."
 OBSOLETE_ER_SLAVE_INCIDENT
-  eng "The incident %s occurred on the master. Message: %s"
+  eng "The incident %s occurred on the source. Message: %s"
   ger "Der Vorfall %s passierte auf dem Master. Meldung: %s"
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
   eng "Table has no partition for some existing values"
@@ -6192,7 +6192,7 @@ OBSOLETE_ER_SLAVE_CREATE_EVENT_FAILURE
   eng "Failed to create %s"
   ger "Erzeugen von %s fehlgeschlagen"
 OBSOLETE_ER_SLAVE_MASTER_COM_FAILURE
-  eng "Master command %s failed: %s"
+  eng "Source command %s failed: %s"
   ger "Master-Befehl %s fehlgeschlagen: %s"
 ER_BINLOG_LOGGING_IMPOSSIBLE
   eng "Binary logging not possible. Message: %s"
@@ -6225,12 +6225,12 @@ OBSOLETE_ER_CANT_CREATE_SROUTINE
   eng "Cannot create stored routine `%-.64s`. Check warnings"
   ger "Kann gespeicherte Routine `%-.64s` nicht erzeugen. Beachten Sie die Warnungen"
 OBSOLETE_ER_NEVER_USED
-  eng "Ambiguous slave modes combination. %s"
+  eng "Ambiguous replica modes combination. %s"
   ger "Mehrdeutige Kombination von Slave-Modi. %s"
 ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
   eng "The BINLOG statement of type `%s` was not preceded by a format description BINLOG statement."
   ger "Der BINLOG-Anweisung vom Typ `%s` ging keine BINLOG-Anweisung zur Formatbeschreibung voran."
-ER_SLAVE_CORRUPT_EVENT
+ER_REPLICA_CORRUPT_EVENT
   eng "Corrupted replication event was detected"
   ger "Beschädigtes Replikationsereignis entdeckt"
 OBSOLETE_ER_LOAD_DATA_INVALID_COLUMN_UNUSED
@@ -6251,8 +6251,8 @@ ER_NEED_REPREPARE
 OBSOLETE_ER_DELAYED_NOT_SUPPORTED
   eng "DELAYED option not supported for table '%-.192s'"
   ger "Die DELAYED-Option wird für Tabelle '%-.192s' nicht unterstützt"
-WARN_NO_MASTER_INFO
-  eng "The master info structure does not exist"
+WARN_NO_CONNECTION_METADATA
+  eng "The connection metadata structure does not exist"
   ger "Die Master-Info-Struktur existiert nicht"
 WARN_OPTION_IGNORED
   eng "<%-.64s> option ignored"
@@ -6270,9 +6270,9 @@ ER_WARN_ENGINE_TRANSACTION_ROLLBACK
   eng "Storage engine %s does not support rollback for this statement. Transaction rolled back and must be restarted"
   ger "Speicher-Engine %s unterstützt für diese Anweisung kein Rollback. Transaktion wurde zurückgerollt und muss neu gestartet werden"
 OBSOLETE_ER_SLAVE_HEARTBEAT_FAILURE
-  eng "Unexpected master's heartbeat data: %s"
+  eng "Unexpected source's heartbeat data: %s"
   ger "Unerwartete Daten vom Heartbeat des Masters: %s"
-ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
+ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE
   eng "The requested value for the heartbeat period is either negative or exceeds the maximum allowed (%s seconds)."
 ER_NDB_REPLICATION_SCHEMA_ERROR
   eng "Bad schema for mysql.ndb_replication table. Message: %-.64s"
@@ -6360,8 +6360,8 @@ ER_COND_ITEM_TOO_LONG
 ER_UNKNOWN_LOCALE
   eng "Unknown locale: '%-.64s'"
   ger "Unbekannte Locale: '%-.64s'"
-ER_SLAVE_IGNORE_SERVER_IDS
-  eng "The requested server id %d clashes with the slave startup option --replicate-same-server-id"
+ER_REPLICA_IGNORE_SERVER_IDS
+  eng "The requested server id %d clashes with the replica startup option --replicate-same-server-id"
   ger "Die angeforderte Server-ID %d steht im Konflikt mit der Startoption --replicate-same-server-id für den Slave"
 OBSOLETE_ER_QUERY_CACHE_DISABLED
   eng "Query cache is disabled; restart the server with query_cache_type=1 to enable it"
@@ -6413,15 +6413,15 @@ ER_BINLOG_UNSAFE_LIMIT
 OBSOLETE_ER_UNUSED4
   eng "The statement is unsafe because it uses INSERT DELAYED. This is unsafe because the times when rows are inserted cannot be predicted."
 ER_BINLOG_UNSAFE_SYSTEM_TABLE
-  eng "The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves."
+  eng "The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on replicas."
 ER_BINLOG_UNSAFE_AUTOINC_COLUMNS
   eng "Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly."
 ER_BINLOG_UNSAFE_UDF
-  eng "Statement is unsafe because it uses a UDF which may not return the same value on the slave."
+  eng "Statement is unsafe because it uses a UDF which may not return the same value on the replica."
 ER_BINLOG_UNSAFE_SYSTEM_VARIABLE
-  eng "Statement is unsafe because it uses a system variable that may have a different value on the slave."
+  eng "Statement is unsafe because it uses a system variable that may have a different value on the replica."
 ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
-  eng "Statement is unsafe because it uses a system function that may return a different value on the slave."
+  eng "Statement is unsafe because it uses a system function that may return a different value on the replica."
 ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
   eng "Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction."
 
@@ -6430,7 +6430,7 @@ ER_MESSAGE_AND_STATEMENT
 
 OBSOLETE_ER_SLAVE_CONVERSION_FAILED
   eng "Column %d of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"
-ER_SLAVE_CANT_CREATE_CONVERSION
+ER_REPLICA_CANT_CREATE_CONVERSION
   eng "Can't create conversion table for table '%-.192s.%-.192s'"
 ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
   eng "Cannot modify @@session.binlog_format inside a transaction"
@@ -6523,10 +6523,10 @@ ER_TRUNCATE_ILLEGAL_FK 42000
 ER_PLUGIN_IS_PERMANENT
   eng "Plugin '%s' is force_plus_permanent and can not be unloaded"
 
-ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN
+ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN
   eng "The requested value for the heartbeat period is less than 1 millisecond. The value is reset to 0, meaning that heartbeating will effectively be disabled."
 
-ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
+ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
   eng "The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout."
 
 ER_STMT_CACHE_FULL
@@ -6559,22 +6559,22 @@ ER_UNDO_RECORD_TOO_BIG
   eng "Undo log record is too big."
 
 ER_BINLOG_UNSAFE_INSERT_IGNORE_SELECT
-  eng "INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+  eng "INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on source and the replica."
 
 ER_BINLOG_UNSAFE_INSERT_SELECT_UPDATE
-  eng "INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on master and the slave."
+  eng "INSERT... SELECT... ON DUPLICATE KEY UPDATE is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are updated. This order cannot be predicted and may differ on source and the replica."
 
 ER_BINLOG_UNSAFE_REPLACE_SELECT
- eng "REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
+ eng "REPLACE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on source and the replica."
 
 ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT
-  eng "CREATE... IGNORE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+  eng "CREATE... IGNORE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on source and the replica."
 
 ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT
-  eng "CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave."
+  eng "CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on source and the replica."
 
 ER_BINLOG_UNSAFE_UPDATE_IGNORE
-  eng "UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave."
+  eng "UPDATE IGNORE is unsafe because the order in which rows are updated determines which (if any) rows are ignored. This order cannot be predicted and may differ on source and the replica."
 
 ER_PLUGIN_NO_UNINSTALL
   eng "Plugin '%s' is marked as not dynamically uninstallable. You have to stop the server to uninstall it."
@@ -6583,10 +6583,10 @@ ER_PLUGIN_NO_INSTALL
   eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
 
 ER_BINLOG_UNSAFE_WRITE_AUTOINC_SELECT
-  eng "Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave."
+  eng "Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on source and the replica."
 
 ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC
-  eng "CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave."
+  eng "CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on source and the replica."
 
 ER_BINLOG_UNSAFE_INSERT_TWO_KEYS
   eng "INSERT... ON DUPLICATE KEY UPDATE  on a table with more than one UNIQUE KEY is unsafe"
@@ -6608,8 +6608,8 @@ ER_CANNOT_LOAD_FROM_TABLE_V2
   ger "Kann %s.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
 
 
-ER_MASTER_DELAY_VALUE_OUT_OF_RANGE
-  eng "The requested value %s for the master delay exceeds the maximum %u"
+ER_SOURCE_DELAY_VALUE_OUT_OF_RANGE
+  eng "The requested value %s for the source delay exceeds the maximum %u"
 ER_ONLY_FD_AND_RBR_EVENTS_ALLOWED_IN_BINLOG_STATEMENT
   eng "Only Format_description_log_event and row events are allowed in BINLOG statements (but %s was provided)"
 
@@ -6694,13 +6694,13 @@ ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE
 ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE
   eng "Some temporary tables were dropped, but these operations could not be rolled back."
 
-ER_MTS_FEATURE_IS_NOT_SUPPORTED
-  eng "%s is not supported in multi-threaded slave mode. %s"
-ER_MTS_UPDATED_DBS_GREATER_MAX
+ER_MTA_FEATURE_IS_NOT_SUPPORTED
+  eng "%s is not supported in multi-threaded replica mode. %s"
+ER_MTA_UPDATED_DBS_GREATER_MAX
   eng "The number of modified databases exceeds the maximum %d; the database names will not be included in the replication event metadata."
-ER_MTS_CANT_PARALLEL
+ER_MTA_CANT_PARALLEL
   eng "Cannot execute the current event group in the parallel mode. Encountered event %s, relay-log name %s, position %s which prevents execution of this event group in parallel mode. Reason: %s."
-ER_MTS_INCONSISTENT_DATA
+ER_MTA_INCONSISTENT_DATA
   eng "%s"
 
 ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING
@@ -6714,8 +6714,8 @@ ER_DA_INVALID_CONDITION_NUMBER 35000
 ER_INSECURE_PLAIN_TEXT
   eng "Sending passwords in plain text without SSL/TLS is extremely insecure."
 
-ER_INSECURE_CHANGE_MASTER
-  eng "Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information."
+ER_INSECURE_CHANGE_SOURCE
+  eng "Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information."
 
 ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO 23000 S1009
         eng "Foreign key constraint for table '%.192s', record '%-.192s' would lead to a duplicate entry in table '%.192s', key '%.192s'"
@@ -6727,8 +6727,8 @@ ER_FOREIGN_DUPLICATE_KEY_WITHOUT_CHILD_INFO 23000 S1009
         ger "Fremdschlüssel-Beschränkung für Tabelle '%.192s', Datensatz '%-.192s' würde zu einem doppelten Eintrag in einer Kind-Tabelle führen"
         swe "FOREIGN KEY constraint för tabell '%.192s', posten '%-.192s' kan inte uppdatera en barntabell på grund av UNIQUE-test"
 
-ER_SQLTHREAD_WITH_SECURE_SLAVE
-  eng "Setting authentication options is not possible when only the Slave SQL Thread is being started."
+ER_SQLTHREAD_WITH_SECURE_REPLICA
+  eng "Setting authentication options is not possible when only the Replica SQL Thread is being started."
 
 ER_TABLE_HAS_NO_FT
   eng "The table does not have FULLTEXT index to support this query"
@@ -6766,11 +6766,11 @@ ER_MALFORMED_GTID_SPECIFICATION
 ER_GNO_EXHAUSTED
   eng "Impossible to generate GTID: the integer component reached the maximum value. Restart the server with a new server_uuid."
 
-ER_BAD_SLAVE_AUTO_POSITION
-  eng "Parameters MASTER_LOG_FILE, MASTER_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when MASTER_AUTO_POSITION is active."
+ER_BAD_REPLICA_AUTO_POSITION
+  eng "Parameters SOURCE_LOG_FILE, SOURCE_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when SOURCE_AUTO_POSITION is active."
 
 ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF
-  eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF."
+  eng "CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF."
 
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
   eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
@@ -6805,8 +6805,8 @@ OBSOLETE_ER_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRANSACTION
 ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
   eng "The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions."
 
-ER_MASTER_HAS_PURGED_REQUIRED_GTIDS
-  eng "Cannot replicate because the master purged required binary logs. Replicate the missing transactions from elsewhere, or provision a new slave from backup. Consider increasing the master's binary log expiration period. %s"
+ER_SOURCE_HAS_PURGED_REQUIRED_GTIDS
+  eng "Cannot replicate because the source purged required binary logs. Replicate the missing transactions from elsewhere, or provision a new replica from backup. Consider increasing the source's binary log expiration period. %s"
 
 ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
   eng "@@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns %s. Ownership is released on COMMIT or ROLLBACK."
@@ -6821,8 +6821,8 @@ ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION 25006
 ER_TOO_LONG_TABLE_PARTITION_COMMENT
   eng "Comment for table partition '%-.64s' is too long (max = %lu)"
 
-ER_SLAVE_CONFIGURATION
-  eng "Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log."
+ER_REPLICA_CONFIGURATION
+  eng "Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log."
 
 ER_INNODB_FT_LIMIT
   eng "InnoDB presently supports one FULLTEXT index creation at a time"
@@ -6845,21 +6845,21 @@ ER_UNKNOWN_ALTER_ALGORITHM
 ER_UNKNOWN_ALTER_LOCK
   eng "Unknown LOCK type '%s'"
 
-ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
-  eng "CHANGE MASTER cannot be executed when the slave was stopped with an error or killed in MTS mode. Consider using RESET SLAVE or START SLAVE UNTIL."
+ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS
+  eng "CHANGE REPLICATION SOURCE cannot be executed when the replica was stopped with an error or killed in MTA mode. Consider using RESET REPLICA or START REPLICA UNTIL."
 
-ER_MTS_RECOVERY_FAILURE
-  eng "Cannot recover after SLAVE errored out in parallel execution mode. Additional error messages can be found in the MySQL error log."
+ER_MTA_RECOVERY_FAILURE
+  eng "Cannot recover after REPLICA errored out in parallel execution mode. Additional error messages can be found in the MySQL error log."
 
-ER_MTS_RESET_WORKERS
+ER_MTA_RESET_WORKERS
   eng "Cannot clean up worker info tables. Additional error messages can be found in the MySQL error log."
 
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
   ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
 
-ER_SLAVE_SILENT_RETRY_TRANSACTION
-  eng "Slave must silently retry current transaction"
+ER_REPLICA_SILENT_RETRY_TRANSACTION
+  eng "Replica must silently retry current transaction"
 
 ER_DISCARD_FK_CHECKS_RUNNING
   eng "There is a foreign key check running on table '%-.192s'. Cannot discard the table."
@@ -7062,7 +7062,7 @@ ER_ROW_IN_WRONG_PARTITION
   eng "Found a row in wrong partition %s"
   swe "Hittade en rad i fel partition %s"
 
-ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX
+ER_MTA_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX
   eng "Cannot schedule event %s, relay-log name %s, position %s to Worker thread because its size %lu exceeds %lu of replica_pending_jobs_size_max."
 
 OBSOLETE_ER_INNODB_NO_FT_USES_PARSER
@@ -7083,11 +7083,11 @@ ER_AUTO_INCREMENT_CONFLICT
 WARN_ON_BLOCKHOLE_IN_RBR
   eng "Row events are not logged for %s statements that modify BLACKHOLE tables in row format. Table(s): '%-.192s'"
 
-ER_SLAVE_MI_INIT_REPOSITORY
-  eng "Slave failed to initialize master info structure from the repository"
+ER_REPLICA_CM_INIT_REPOSITORY
+  eng "Replica failed to initialize connection metadata structure from the repository"
 
-ER_SLAVE_RLI_INIT_REPOSITORY
-  eng "Slave failed to initialize relay log info structure from the repository"
+ER_REPLICA_AM_INIT_REPOSITORY
+  eng "Replica failed to initialize applier metadata structure from the repository"
 
 ER_ACCESS_DENIED_CHANGE_USER_ERROR 28000
         eng "Access denied trying to change to user '%-.48s'@'%-.64s' (using password: %s). Disconnecting."
@@ -7096,11 +7096,11 @@ ER_ACCESS_DENIED_CHANGE_USER_ERROR 28000
 ER_INNODB_READ_ONLY
   eng "InnoDB is in read only mode."
 
-ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
-  eng "STOP SLAVE command execution is incomplete: Slave SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
+ER_STOP_REPLICA_SQL_THREAD_TIMEOUT
+  eng "STOP REPLICA command execution is incomplete: Replica SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
 
-ER_STOP_SLAVE_IO_THREAD_TIMEOUT
-  eng "STOP SLAVE command execution is incomplete: Slave IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
+ER_STOP_REPLICA_IO_THREAD_TIMEOUT
+  eng "STOP REPLICA command execution is incomplete: Replica IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
 
 ER_TABLE_CORRUPT
   eng "Operation cannot be performed. The table '%-.64s.%-.64s' is missing, corrupt or contains bad data."
@@ -7127,8 +7127,8 @@ ER_PLUGIN_CANNOT_BE_UNINSTALLED
 ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_ASSIGNED_GTID
   eng "Cannot execute statement because it needs to be written to the binary log as multiple statements, and this is not allowed when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
 
-ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
-  eng "Slave has more GTIDs than the master has, using the master's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The master may or may not have rolled back transactions that were already replicated to the slave. Suggest to replicate any transactions that master has rolled back from slave to master, and/or commit empty transactions on master to account for transactions that have been committed on master but are not included in GTID_EXECUTED."
+ER_REPLICA_HAS_MORE_GTIDS_THAN_SOURCE
+  eng "Replica has more GTIDs than the source has, using the source's SERVER_UUID. This may indicate that the the last binary log file was truncated or lost, e.g., after a power failure when sync_binlog != 1. The source may have rolled back transactions that were already replicated to the replica. Replicate any transactions that source has rolled back from replica to source, and/or commit empty transactions on source to account for transactions that have been committed on source but are not included in GTID_EXECUTED."
 
 ER_MISSING_KEY
   eng "The table '%s.%s' does not have the necessary key(s) defined on it. Please check the table definition and create index(s) accordingly."
@@ -7159,11 +7159,11 @@ start-error-number 3000
 ER_FILE_CORRUPT
   eng "File %s is corrupted"
 
-ER_ERROR_ON_MASTER
-  eng "Query partially completed on the master (error on master: %d) and was aborted. There is a chance that your master is inconsistent at this point. If you are sure that your master is ok, run this query manually on the slave and then restart the slave with SET GLOBAL SQL_REPLICA_SKIP_COUNTER=1; START SLAVE;. Query:'%s'"
+ER_ERROR_ON_SOURCE
+  eng "Query partially completed on the source (error on source: %d) and was aborted. There is a chance that your source is inconsistent at this point. If you are sure that your source is ok, run this query manually on the replica and then restart the replica with SET GLOBAL SQL_REPLICA_SKIP_COUNTER=1; START REPLICA;. Query:'%s'"
 
 OBSOLETE_ER_INCONSISTENT_ERROR
-  eng "Query caused different errors on master and slave. Error on master: message (format)='%s' error code=%d; Error on slave:actual message='%s', error code=%d. Default database:'%s'. Query:'%s'"
+  eng "Query caused different errors on source and replica. Error on source: message (format)='%s' error code=%d; Error on replica:actual message='%s', error code=%d. Default database:'%s'. Query:'%s'"
 
 ER_STORAGE_ENGINE_NOT_LOADED
         eng "Storage engine for table '%s'.'%s' is not loaded."
@@ -7175,7 +7175,7 @@ ER_WARN_LEGACY_SYNTAX_CONVERTED
   eng "%s is no longer supported. The statement was converted to %s."
 
 ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN
-  eng "Statement is unsafe because it uses a fulltext parser plugin which may not return the same value on the slave."
+  eng "Statement is unsafe because it uses a fulltext parser plugin which may not return the same value on the replica."
 
 ER_CANNOT_DISCARD_TEMPORARY_TABLE
   eng "Cannot DISCARD/IMPORT tablespace associated with temporary table"
@@ -7207,8 +7207,8 @@ ER_ENGINE_OUT_OF_MEMORY
 ER_PASSWORD_EXPIRE_ANONYMOUS_USER
   eng "The password for anonymous user cannot be expired."
 
-ER_SLAVE_SQL_THREAD_MUST_STOP
-  eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first"
+ER_REPLICA_SQL_THREAD_MUST_STOP
+  eng "This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD first"
 
 ER_NO_FT_MATERIALIZED_SUBQUERY
   eng "Cannot create FULLTEXT index on materialized subquery"
@@ -7219,14 +7219,14 @@ ER_INNODB_UNDO_LOG_FULL
 ER_INVALID_ARGUMENT_FOR_LOGARITHM 2201E
   eng "Invalid argument for logarithm"
 
-ER_SLAVE_CHANNEL_IO_THREAD_MUST_STOP
-  eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '%s' first."
+ER_REPLICA_CHANNEL_IO_THREAD_MUST_STOP
+  eng "This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '%s' first."
 
 ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO
-  eng "This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0."
+  eng "This operation may not be safe when the replica has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0."
 
-ER_WARN_ONLY_MASTER_LOG_FILE_NO_POS
-  eng "CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file."
+ER_WARN_ONLY_SOURCE_LOG_FILE_NO_POS
+  eng "CHANGE REPLICATION SOURCE TO with a SOURCE_LOG_FILE clause but no SOURCE_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file."
 
 ER_QUERY_TIMEOUT
   eng "Query execution was interrupted, maximum statement execution time exceeded"
@@ -7246,8 +7246,8 @@ ER_AGGREGATE_ORDER_FOR_UNION
 ER_AGGREGATE_ORDER_NON_AGG_QUERY
   eng "Expression #%u of ORDER BY contains aggregate function and applies to the result of a non-aggregated query"
 
-ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
-  eng "Slave worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled. To preserve commit order, the last transaction executed by this thread has not been committed. When restarting the slave after fixing any failed threads, you should fix this worker as well."
+ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR
+  eng "Replica worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled. To preserve commit order, the last transaction executed by this thread has not been committed. When restarting the replica after fixing any failed threads, you should fix this worker as well."
 
 ER_DONT_SUPPORT_REPLICA_PRESERVE_COMMIT_ORDER
   eng "replica_preserve_commit_order is not supported %s."
@@ -7324,7 +7324,7 @@ ER_STD_UNKNOWN_EXCEPTION
 ER_GIS_DATA_WRONG_ENDIANESS
   eng "Geometry byte string must be little endian."
 
-ER_CHANGE_MASTER_PASSWORD_LENGTH
+ER_CHANGE_SOURCE_PASSWORD_LENGTH
   eng "The password provided for the replication user exceeds the maximum length of 32 characters"
 
 ER_USER_LOCK_WRONG_NAME 42000
@@ -7348,7 +7348,7 @@ ER_GTID_MODE_OFF
   eng "Cannot %s when GTID_MODE = OFF."
 
 OBSOLETE_ER_UNSUPPORTED_BY_REPLICATION_THREAD
-  eng "Cannot %s from a replication slave thread."
+  eng "Cannot %s from a replica thread."
 
 ER_INCORRECT_TYPE
   eng "Incorrect type for argument %s in function %s."
@@ -7380,44 +7380,44 @@ ER_INVALID_GEOJSON_UNSPECIFIED
 ER_DIMENSION_UNSUPPORTED
   eng "Unsupported number of coordinate dimensions in function %s: Found %u, expected %u"
 
-ER_SLAVE_CHANNEL_DOES_NOT_EXIST
-  eng "Slave channel '%s' does not exist."
+ER_REPLICA_CHANNEL_DOES_NOT_EXIST
+  eng "Replica channel '%s' does not exist."
 
 OBSOLETE_ER_SLAVE_MULTIPLE_CHANNELS_HOST_PORT
-  eng "A slave channel '%s' already exists for the given host and port combination."
+  eng "A replica channel '%s' already exists for the given host and port combination."
 
-ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG
+ER_REPLICA_CHANNEL_NAME_INVALID_OR_TOO_LONG
   eng "Couldn't create channel: Channel name is either invalid or too long."
 
-ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
+ER_REPLICA_NEW_CHANNEL_WRONG_REPOSITORY
   eng "To have multiple channels, repository cannot be of type FILE; Please check the repository configuration and convert them to TABLE."
 
 OBSOLETE_ER_SLAVE_CHANNEL_DELETE
-   eng "Cannot delete slave info objects for channel '%s'."
+   eng "Cannot delete replica info objects for channel '%s'."
 
-ER_SLAVE_MULTIPLE_CHANNELS_CMD
-   eng "Multiple channels exist on the slave. Please provide channel name as an argument."
+ER_REPLICA_MULTIPLE_CHANNELS_CMD
+   eng "Multiple channels exist on the replica. Please provide channel name as an argument."
 
-ER_SLAVE_MAX_CHANNELS_EXCEEDED
+ER_REPLICA_MAX_CHANNELS_EXCEEDED
    eng "Maximum number of replication channels allowed exceeded."
 
-ER_SLAVE_CHANNEL_MUST_STOP
-   eng "This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '%s' first"
+ER_REPLICA_CHANNEL_MUST_STOP
+   eng "This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '%s' first"
 
-ER_SLAVE_CHANNEL_NOT_RUNNING
-   eng "This operation requires running replication threads; configure slave and run START SLAVE FOR CHANNEL '%s'"
+ER_REPLICA_CHANNEL_NOT_RUNNING
+   eng "This operation requires running replication threads; configure replica and run START REPLICA FOR CHANNEL '%s'"
 
-ER_SLAVE_CHANNEL_WAS_RUNNING
+ER_REPLICA_CHANNEL_WAS_RUNNING
    eng "Replication thread(s) for channel '%s' are already runnning."
 
-ER_SLAVE_CHANNEL_WAS_NOT_RUNNING
+ER_REPLICA_CHANNEL_WAS_NOT_RUNNING
   eng "Replication thread(s) for channel '%s' are already stopped."
 
-ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
-  eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '%s' first."
+ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP
+  eng "This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '%s' first."
 
-ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER
-  eng "When sql_replica_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START SLAVE [SQL_THREAD]'. Value of sql_replica_skip_counter can only be used by one SQL thread at a time. Please use 'START SLAVE [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_replica_skip_counter."
+ER_REPLICA_CHANNEL_SQL_SKIP_COUNTER
+  eng "When sql_replica_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START REPLICA [SQL_THREAD]'. Value of sql_replica_skip_counter can only be used by one SQL thread at a time. Please use 'START REPLICA [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_replica_skip_counter."
 
 # When using this error message, use the ER_WRONG_FIELD_WITH_GROUP error code.
 ER_WRONG_FIELD_WITH_GROUP_V2
@@ -7584,7 +7584,7 @@ ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND
 ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID
   eng "Variable %-.192s cannot be changed by a client that owns a GTID. The client owns %s. Ownership is released on COMMIT or ROLLBACK."
 
-ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED
    eng "%-.192s cannot be performed on channel '%-.192s'."
 
 ER_INVALID_JSON_TEXT 22032
@@ -7741,8 +7741,8 @@ ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
 ER_USER_COLUMN_OLD_LENGTH
   eng "It seems that your db schema is old. The %s column is 77 characters long and should be 93 characters long. Please perform the MySQL upgrade procedure."
 
-ER_CANT_RESET_MASTER
-  eng "RESET MASTER is not allowed because %-.384s."
+ER_CANT_RESET_SOURCE
+  eng "RESET SOURCE is not allowed because %-.384s."
 
 ER_GROUP_REPLICATION_MAX_GROUP_SIZE
   eng "The START GROUP_REPLICATION command failed since the group already has 9 members."
@@ -7769,7 +7769,7 @@ ER_KEYRING_AWS_UDF_AWS_KMS_ERROR
   eng "Function %s failed due to: %s."
 
 ER_BINLOG_UNSAFE_XA
-  eng "Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements."
+  eng "Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements."
 
 ER_UDF_ERROR
   eng "%s UDF failed; %s"
@@ -7853,7 +7853,7 @@ OBSOLETE_WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
   eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
 
 OBSOLETE_ER_XA_REPLICATION_FILTERS
-  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
+  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replica."
 
 OBSOLETE_ER_CANT_OPEN_ERROR_LOG
   eng "Could not open file '%s' for error logging%s%s"
@@ -8135,7 +8135,7 @@ ER_WARN_SRS_NOT_FOUND_AXIS_ORDER 01000
 ER_NO_ACCESS_TO_NATIVE_FCT
   eng "Access to native function '%.64s' is rejected."
 
-ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+ER_RESET_SOURCE_TO_VALUE_OUT_OF_RANGE
   eng "The requested value '%llu' for the next binary log index is out of range. Please use a value between '1' and '%lu'."
 
 ER_UNRESOLVED_TABLE_LOCK
@@ -8617,8 +8617,8 @@ ER_RESERVED_TABLESPACE_NAME
 ER_UNABLE_TO_SET_OPTION
   eng "This option cannot be set %s."
 
-ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL
-  eng "A commit for an atomic DDL statement was unsuccessful on the master and the slave. The slave supports atomic DDL statements but the master does not, so the action taken by the slave and master might differ. Check that their states have not diverged before proceeding."
+ER_REPLICA_POSSIBLY_DIVERGED_AFTER_DDL
+  eng "A commit for an atomic DDL statement was unsuccessful on the source and the replica. The replica supports atomic DDL statements but the source does not, so the action taken by the replica and source might differ. Check that their states have not diverged before proceeding."
 
 ER_SRS_NOT_GEOGRAPHIC 22S00
   eng "Function %s is only defined for geographic spatial reference systems, but one of its arguments is in SRID %u, which is not geographic."
@@ -8684,7 +8684,7 @@ ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
   eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Replica_open_temp_tables = 0 and try again"
 
 ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
-  eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP SLAVE SQL_THREAD and try again."
+  eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP REPLICA SQL_THREAD and try again."
 
 ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
   eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE are not allowed inside a transaction or inside a procedure in a transactional context when @@session.binlog_format=STATEMENT."
@@ -9017,8 +9017,8 @@ ER_DEPENDENT_BY_PARTITION_FUNC
 ER_WARN_DEPRECATED_FLOAT_AUTO_INCREMENT
   eng "AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column '%-.192s'."
 
-ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP
-  eng "Cannot stop the slave SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first."
+ER_RPL_CANT_STOP_REPLICA_WHILE_LOCKED_BACKUP
+  eng "Cannot stop the replica SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first."
 
 # When using this error message, use the
 # ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
@@ -9149,7 +9149,7 @@ ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE
   eng "AuthId `%.64s`@`%.64s` is set as mandatory_roles. Cannot grant the '%s' privilege."
 
 ER_XA_REPLICATION_FILTERS
-  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
+  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replica."
 
 ER_UNSUPPORTED_SQL_MODE
   eng "sql_mode=0x%08x is not supported."
@@ -9214,11 +9214,11 @@ ER_GLOBSTAT_CHANGE_DURING_QUERY
 ER_GRP_RPL_MESSAGE_SERVICE_INIT_FAILURE
   eng "The START GROUP_REPLICATION command failed to start its message service."
 
-ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT
-  eng "Invalid MASTER_COMPRESSION_ALGORITHMS '%.192s' for channel '%.192s'."
+ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_CLIENT
+  eng "Invalid SOURCE_COMPRESSION_ALGORITHMS '%.192s' for channel '%.192s'."
 
-ER_CHANGE_MASTER_WRONG_COMPRESSION_LEVEL_CLIENT
-  eng "Invalid MASTER_ZSTD_COMPRESSION_LEVEL %u for channel '%.192s'."
+ER_CHANGE_SOURCE_WRONG_COMPRESSION_LEVEL_CLIENT
+  eng "Invalid SOURCE_ZSTD_COMPRESSION_LEVEL %u for channel '%.192s'."
 
 ER_WRONG_COMPRESSION_ALGORITHM_CLIENT
   eng "Invalid compression algorithm '%.192s'."
@@ -9226,7 +9226,7 @@ ER_WRONG_COMPRESSION_ALGORITHM_CLIENT
 ER_WRONG_COMPRESSION_LEVEL_CLIENT
   eng "Invalid zstd compression level for algorithm '%.192s'."
 
-ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_LIST_CLIENT
+ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_LIST_CLIENT
   eng "Specified compression algorithm list '%.192s' exceeds total count of 3 for channel '%.192s'."
 
 ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS
@@ -9236,7 +9236,7 @@ ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST
   eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' was set to `%.64s`@`%.255s`, but this is not an existing user."
 
 ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT
-  eng "Invalid, corrupted PRIVILEGE_CHECKS_USER was found in the replication configuration repository for channel '%.192s'. Use CHANGE MASTER TO PRIVILEGE_CHECKS_USER to correct the configuration."
+  eng "Invalid, corrupted PRIVILEGE_CHECKS_USER was found in the replication configuration repository for channel '%.192s'. Use CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER to correct the configuration."
 
 ER_CLIENT_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV
   eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' was set to `%.64s`@`%.255s`, but this user does not have REPLICATION_APPLIER privilege."
@@ -9434,16 +9434,16 @@ ER_SCHEMA_READ_ONLY
   eng "Schema '%s' is in read only mode."
 
 ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF
-  eng "Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when @@GLOBAL.GTID_MODE = ON."
+  eng "Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when @@GLOBAL.GTID_MODE = ON."
 
 ER_RPL_ASYNC_RECONNECT_AUTO_POSITION_OFF
-  eng "Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when MASTER_AUTO_POSITION option of CHANGE MASTER TO is enabled."
+  eng "Failed to enable Asynchronous Replication Connection Failover feature. The CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 1 can only be set when SOURCE_AUTO_POSITION option of CHANGE REPLICATION SOURCE TO is enabled."
 
 ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF
-  eng "The @@GLOBAL.GTID_MODE = %-.64s cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1."
+  eng "The @@GLOBAL.GTID_MODE = %-.64s cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 1."
 
 ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF
-  eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 1."
+  eng "CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 1."
 
 ER_INVALID_PARAMETER_USE
   eng "Invalid use of parameters in '%s'"
@@ -9495,7 +9495,7 @@ WARN_UNSUPPORTED_ACL_TABLES_READ
   eng "Reads with serializable isolation/SELECT FOR SHARE are not supported for ACL tables."
 
 ER_BINLOG_UNSAFE_ACL_TABLE_READ_IN_DML_DDL
-  eng "The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave."
+  eng "The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on source and replica."
 
 ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT
   eng "STOP REPLICA command execution is incomplete: Replica Monitor thread got the stop signal, thread is busy, Monitor thread will stop once the current task is complete."
@@ -9507,10 +9507,10 @@ ER_CANT_USE_ANONYMOUS_TO_GTID_WITH_GTID_MODE_NOT_ON
  eng "Replication cannot start%.192s with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> as this server uses @@GLOBAL.GTID_MODE <> ON."
 
 ER_CANT_COMBINE_ANONYMOUS_TO_GTID_AND_AUTOPOSITION
-  eng "The options ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> and MASTER_AUTO_POSITION = 1 cannot be used together."
+  eng "The options ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> and SOURCE_AUTO_POSITION = 1 cannot be used together."
 
 ER_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_REQUIRES_GTID_MODE_ON
-  eng "CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> cannot be executed because @@GLOBAL.GTID_MODE <> ON."
+  eng "CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> cannot be executed because @@GLOBAL.GTID_MODE <> ON."
 
 ER_SQL_REPLICA_SKIP_COUNTER_USED_WITH_GTID_MODE_ON
   eng "The value of sql_replica_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF."
@@ -9528,7 +9528,7 @@ ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME
   eng "Replication '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> where the UUID value is equal to the group_replication_group_name"
 
 ER_CANT_USE_SAME_UUID_AS_GROUP_NAME
-  eng "CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> cannot be executed because the UUID value is equal to the group_replication_group_name."
+  eng "CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> cannot be executed because the UUID value is equal to the group_replication_group_name."
 
 ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING
   eng "The group_replication_recovery channel is still running, most likely it is waiting for a database/table lock, which is preventing the channel from stopping. Please check database/table locks, including the ones created by backup tools."
@@ -9773,10 +9773,10 @@ ER_IF_NOT_EXISTS_UNSUPPORTED_UDF_NATIVE_FCT_NAME_COLLISION
 ER_SET_PASSWORD_AUTH_PLUGIN_ERROR
   eng "SET PASSWORD has no significance for user '%s'@'%s' as the authentication method used doesn't store authentication data in the MySQL server. Please consider using ALTER USER instead if you want to change authentication parameters."
 
-ER_REDUCED_DBLWR_FILE_CORRUPTED
+OBSOLETE_ER_REDUCED_DBLWR_FILE_CORRUPTED
   eng "Cannot recover from detect_only doublewrite buffer as page %u from batch doublewrite file is corrupted."
 
-ER_REDUCED_DBLWR_PAGE_FOUND
+OBSOLETE_ER_REDUCED_DBLWR_PAGE_FOUND
   eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
 
 ER_SRS_INVALID_LATITUDE_OF_ORIGIN SR002
@@ -9816,7 +9816,7 @@ ER_COMMAND_SERVICE_BACKEND_FAILED
   eng "Error in command service backend interface, because of : "%s""
 
 ER_CLIENT_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS
-  eng "The PRIVILEGE_CHECKS_USER for channel '%.192s' would need FILE privilege to execute a LOAD DATA INFILE statement replicated in statement format. Consider using binlog_format=ROW on master. If the replicated events are trusted, recover from the failure by temporarily granting FILE to the PRIVILEGE_CHECKS_USER."
+  eng "The PRIVILEGE_CHECKS_USER for channel '%.192s' would need FILE privilege to execute a LOAD DATA INFILE statement replicated in statement format. Consider using binlog_format=ROW on source. If the replicated events are trusted, recover from the failure by temporarily granting FILE to the PRIVILEGE_CHECKS_USER."
 
 ER_GROUP_REPLICATION_FORCE_MEMBERS_COMMAND_FAILURE
   eng "The 'SET GLOBAL group_replication_force_members=%s' command encountered a failure. %s"
@@ -9943,6 +9943,15 @@ ER_INNODB_INSTANT_ADD_NOT_SUPPORTED_MAX_FIELDS
 
 ER_CANT_SET_PERSISTED
   eng "Failed to set persisted options."
+
+ER_INSTALL_COMPONENT_SET_NULL_VALUE
+  eng "The value supplied for %s in the SET list cannot be null"
+
+ER_INSTALL_COMPONENT_SET_UNUSED_VALUE
+  eng "The assignment of %s in SET doesn't match any of the variables registered by the component(s)"
+
+ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS
+  eng "'%s' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead."
 
 #
 #  End of 8.0 error messages (server-to-client).

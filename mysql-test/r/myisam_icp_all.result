@@ -396,7 +396,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where ((`test`.`t3`.`c1` >= 'c-1004=w') and (`test`.`t3`.`c1` <= 'c-1006=w') and (`test`.`t3`.`i1` > 2))
 EXPLAIN FORMAT=tree SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
 EXPLAIN
--> Filter: ((t3.c1 >= 'c-1004=w') and (t3.c1 <= 'c-1006=w') and (t3.i1 > 2))  (cost=0.71 rows=0.3)
+-> Filter: ((t3.c1 >= 'c-1004=w') and (t3.c1 <= 'c-1006=w') and (t3.i1 > 2))  (cost=0.71 rows=0.333)
     -> Index range scan on t3 using c1 over (unprintable_blob_value <= c1 <= unprintable_blob_value AND 2 < i1)  (cost=0.71 rows=1)
 
 SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;

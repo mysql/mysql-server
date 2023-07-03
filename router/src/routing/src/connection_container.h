@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -213,6 +213,15 @@ class ConnectionContainer {
    * @brief Disconnects all connection in the ConnectionContainer.
    */
   void disconnect_all();
+
+  /**
+   * @brief Retrieve the connection object for the given client endpoint
+   *
+   * @param client_endpoint The endpoint string
+   * @returns the connection object, or nullptr
+   */
+  MySQLRoutingConnectionBase *get_connection(
+      const std::string &client_endpoint);
 
   /**
    * @brief removes connection from container

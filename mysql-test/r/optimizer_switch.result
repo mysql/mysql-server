@@ -573,8 +573,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Note	1276	Field or reference 'test.ta.b' of SELECT #4 was resolved in SELECT #1
 Note	1276	Field or reference 'test.tb.d' of SELECT #3 was resolved in SELECT #2
+Note	1276	Field or reference 'test.ta.b' of SELECT #4 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` where <in_optimizer>(`test`.`ta`.`a`,<exists>(/* select#2 */ select `test`.`tb`.`c` from `test`.`t2` `tb` where (<nop>(<in_optimizer>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`)),<exists>(/* select#4 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and <if>(outer_field_is_not_null, (<cache>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`))) < `test`.`tc`.`e`), true))))) and (<cache>(`test`.`ta`.`a`) = `test`.`tb`.`c`))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
@@ -596,8 +596,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Note	1276	Field or reference 'test.ta.b' of SELECT #4 was resolved in SELECT #1
 Note	1276	Field or reference 'test.tb.d' of SELECT #3 was resolved in SELECT #2
+Note	1276	Field or reference 'test.ta.b' of SELECT #4 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and <nop>(<in_optimizer>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`)),<exists>(/* select#4 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and <if>(outer_field_is_not_null, (<cache>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`tb`.`d` = `test`.`tc`.`e`))) < `test`.`tc`.`e`), true))))))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb

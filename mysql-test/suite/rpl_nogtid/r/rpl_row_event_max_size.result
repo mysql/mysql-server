@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
@@ -51,7 +51,7 @@ LENGTH(data1)	LENGTH(data2)
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
-# Test it will cause ER_MASTER_FATAL_ERROR_READING_BINLOG when the value
+# Test it will cause ER_SOURCE_FATAL_ERROR_READING_BINLOG when the value
 # of the bigger one of max_allowed_packet and binlog_row_event_max_size
 # is lower than the the required size.
 CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
@@ -63,9 +63,9 @@ LENGTH(data1)	LENGTH(data2)	LENGTH(data3)
 67108864	67108864	67108864
 drop table t1;
 include/sync_slave_sql_with_master.inc
-call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");
+call mtr.add_suppression("Replica I/O: Got fatal error 1236 from source when reading data from binary log: .*");
 call mtr.add_suppression("Found invalid event in binary log");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
 ==== clean up ====
 include/stop_slave.inc

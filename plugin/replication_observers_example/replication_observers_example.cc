@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -322,7 +322,7 @@ static int trans_before_rollback(Trans_param *) {
 }
 
 static int trans_after_commit(Trans_param *) {
-  DBUG_EXECUTE_IF("group_replication_before_commit_hook_wait", {
+  DBUG_EXECUTE_IF("bgc_after_after_commit_stage", {
     const char act[] = "now wait_for continue_commit";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });

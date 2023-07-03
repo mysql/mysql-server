@@ -710,12 +710,12 @@ EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, my_median(f2) as median
 FROM t1 GROUP BY f1) as dt
 WHERE median != 1;
 EXPLAIN
--> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
-        -> Filter: (my_median(t1.f2) <> 1)  (cost=*** rows=***)
-            -> Group aggregate: my_median(t1.f2)  (cost=*** rows=***)
-                -> Sort: t1.f1  (cost=*** rows=***)
-                    -> Table scan on t1  (cost=*** rows=***)
+-> Table scan on dt  (...)
+    -> Materialize  (...)
+        -> Filter: (my_median(t1.f2) <> 1)  (...)
+            -> Group aggregate: my_median(t1.f2)  (...)
+                -> Sort: t1.f1  (...)
+                    -> Table scan on t1  (...)
 
 SELECT * FROM (SELECT f1, my_median(f2) as median
 FROM t1 GROUP BY f1) as dt
@@ -725,4 +725,21 @@ f1	median
 2	100
 DROP TABLE t1;
 DROP FUNCTION my_median;
+CREATE FUNCTION sequence RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+SELECT a FROM t1 WHERE a = sequence();
+a
+1
+2
+3
+4
+SELECT a FROM (SELECT sequence() AS seq, a FROM t1) AS dt WHERE a = seq;
+a
+1
+2
+3
+4
+DROP FUNCTION sequence;
+DROP TABLE t1;
 # End of the 8.0 tests

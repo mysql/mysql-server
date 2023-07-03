@@ -1,9 +1,9 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: .*");
+call mtr.add_suppression("Replica: Can\'t find record in \'t1\' Error_code: .*");
 [on slave]
 SET @old_replica_exec_mode= @@global.replica_exec_mode;
 ######## Run with replica_exec_mode=STRICT ########
@@ -28,8 +28,8 @@ include/wait_for_slave_sql_error.inc [errno=1062]
 SELECT "1062" as 'Last_SQL_Errno';
 Last_SQL_Errno
 1062
-call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .t1.PRIMARY.* Error_code: MY-001062");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*Duplicate entry .1. for key .t1.PRIMARY.* Error_code: MY-001062");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SELECT * FROM t1;
 a
 1
@@ -59,7 +59,7 @@ SELECT * FROM t1;
 a
 [on slave]
 ---- Wait until slave stops with an error ----
-call mtr.add_suppression("Slave SQL.*Can.t find record in .t1., Error_code: 1032");
+call mtr.add_suppression("Replica SQL.*Can.t find record in .t1., Error_code: 1032");
 include/wait_for_slave_sql_error.inc [errno=1032]
 SELECT "1032" as 'Last_SQL_Errno';
 Last_SQL_Errno

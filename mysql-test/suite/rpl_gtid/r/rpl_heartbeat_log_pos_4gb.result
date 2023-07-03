@@ -1,0 +1,32 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0;
+include/start_slave_io.inc
+[connection master]
+CREATE TABLE t (a LONGBLOB);
+include/save_binlog_position.inc
+include/sync_slave_io_with_master.inc
+include/stop_slave_io.inc
+BEGIN;
+INSERT INTO t VALUES ('Hi!');
+[START] COMMIT;
+[START] COMMIT;
+[END] COMMIT;
+[END] COMMIT;
+include/assert.inc [The event we think is the second GTID, should actually be the second GTID]
+include/assert.inc [The second GTID event should have position > 4 GiB]
+[connection slave]
+include/rpl_receive_event_count.inc [stop after 2 Gtid events]
+[connection master]
+[connection slave]
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/assert.inc [Exactly 1 heartbeat event occurred]
+[connection master]
+DROP TABLE t;
+include/rpl_end.inc

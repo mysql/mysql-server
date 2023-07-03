@@ -51,8 +51,8 @@ SET GLOBAL innodb_lock_wait_timeout = 2;
 --disable_warnings
 SET GLOBAL slave_rows_search_algorithms = 'INDEX_SCAN,HASH_SCAN';
 --enable_warnings
-CALL mtr.add_suppression("Slave SQL for channel.*Consider raising the value of the replica_transaction_retries variable.*");
-CALL mtr.add_suppression("Slave SQL for channel.*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression("Replica SQL for channel.*Consider raising the value of the replica_transaction_retries variable.*");
+CALL mtr.add_suppression("Replica SQL for channel.*The replica coordinator and worker threads are stopped.*");
 
 --echo # 2. For each slave_rows_search_algorithms[INDEX_SCAN, HASH_SCAN(with
 --echo #    index), HASH_SCAN(with two non-unique index), HASH_SCAN(with out

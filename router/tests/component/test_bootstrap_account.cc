@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -305,13 +305,12 @@ class AccountReuseTestBase : public RouterComponentBootstrapTest {
   }
 
   // ---- account validation queries ----
-  static std::string sql_val1(const std::string &cluster_name = "test") {
+  static std::string sql_val1() {
     return "select C.cluster_id, C.cluster_name, I.mysql_server_uuid, "
            "I.endpoint, I.xendpoint, I.attributes "
            "from mysql_innodb_cluster_metadata.v2_instances I join "
            "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
-           "C.cluster_id where C.cluster_name = '" +
-           cluster_name + "'";
+           "C.cluster_id where C.cluster_name = 'some_cluster_name'";
   }
   static std::string sql_val2() {
     return "show status like 'group_replication_primary_member'";
@@ -1368,9 +1367,6 @@ class AccountReuseCreateComboTestP
 
     const std::string HOST = get_local_hostname();
     const auto local_ipv4_res = get_local_ipv4(HOST);
-    EXPECT_TRUE(local_ipv4_res)
-        << "for host " << HOST << ": " << local_ipv4_res.error() << " "
-        << local_ipv4_res.error().message();
     const std::string IP = local_ipv4_res.value_or("");
 
     const std::string kColonUser = kAccountUser + ":" + kAccountUserPassword;
@@ -4765,7 +4761,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
     // check if the bootstrapping was successful
     EXPECT_THAT(router.get_full_output(),
                 ::testing::HasSubstr("MySQL Router configured for the "
-                                     "InnoDB Cluster 'mycluster'"));
+                                     "InnoDB Cluster 'test'"));
     check_exit_code(router, EXIT_SUCCESS);
 
     server_mock.kill();

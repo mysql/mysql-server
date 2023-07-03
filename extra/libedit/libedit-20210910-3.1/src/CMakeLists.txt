@@ -164,3 +164,15 @@ MY_CHECK_C_COMPILER_FLAG("-Wstringop-truncation" HAVE_STRINGOP_TRUNCATION)
 IF(HAVE_STRINGOP_TRUNCATION)
   TARGET_COMPILE_OPTIONS(edit PRIVATE "-Wno-stringop-truncation")
 ENDIF()
+
+# warning: comparing the result of pointer addition
+MY_CHECK_C_COMPILER_FLAG("-Waddress" HAVE_ADDRESS)
+IF(HAVE_ADDRESS)
+  TARGET_COMPILE_OPTIONS(edit PRIVATE "-Wno-address")
+ENDIF()
+
+# warning: pointer may be used after realloc
+MY_CHECK_C_COMPILER_FLAG("-Wuse-after-free" HAVE_USE_AFTER_FREE)
+IF(HAVE_USE_AFTER_FREE)
+  TARGET_COMPILE_OPTIONS(edit PRIVATE "-Wno-use-after-free")
+ENDIF()

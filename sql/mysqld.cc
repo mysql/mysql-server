@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -399,6 +399,7 @@ MySQL clients support the protocol:
   @page PAGE_SERVICES Available services
 
   @subpage PAGE_TABLE_ACCESS_SERVICE
+  @subpage PAGE_MYSQL_SERVER_TELEMETRY_TRACES_SERVICE
 */
 
 
@@ -968,6 +969,7 @@ MySQL clients support the protocol:
 #include "sql/server_component/log_builtins_filter_imp.h"
 #include "sql/server_component/log_builtins_imp.h"
 #include "sql/server_component/mysql_server_keyring_lockable_imp.h"
+#include "sql/server_component/mysql_thd_store_imp.h"
 #include "sql/server_component/persistent_dynamic_loader_imp.h"
 #include "sql/srv_session.h"
 
@@ -1077,6 +1079,8 @@ static PSI_mutex_key key_LOCK_compress_gtid_table;
 static PSI_mutex_key key_LOCK_collect_instance_log;
 static PSI_mutex_key key_BINLOG_LOCK_commit;
 static PSI_mutex_key key_BINLOG_LOCK_commit_queue;
+static PSI_mutex_key key_BINLOG_LOCK_after_commit;
+static PSI_mutex_key key_BINLOG_LOCK_after_commit_queue;
 static PSI_mutex_key key_BINLOG_LOCK_done;
 static PSI_mutex_key key_BINLOG_LOCK_flush_queue;
 static PSI_mutex_key key_BINLOG_LOCK_index;
@@ -1085,6 +1089,7 @@ static PSI_mutex_key key_BINLOG_LOCK_binlog_end_pos;
 static PSI_mutex_key key_BINLOG_LOCK_sync;
 static PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 static PSI_mutex_key key_BINLOG_LOCK_xids;
+static PSI_mutex_key key_BINLOG_LOCK_log_info;
 static PSI_mutex_key key_BINLOG_LOCK_wait_for_group_turn;
 static PSI_rwlock_key key_rwlock_global_sid_lock;
 PSI_rwlock_key key_rwlock_gtid_mode_lock;
@@ -2074,7 +2079,15 @@ static bool component_infrastructure_init() {
 /**
   This function is used to initialize the mysql_server component services.
 */
-static void server_component_init() { mysql_comp_sys_var_services_init(); }
+static void server_component_init() {
+  mysql_comp_sys_var_services_init();
+  init_thd_store_service();
+}
+
+/**
+  This function is used to de-initialize the mysql_server component services.
+*/
+static void server_component_deinit() { deinit_thd_store_service(); }
 
 /**
   Initializes MySQL Server component infrastructure part by initialize of
@@ -2091,6 +2104,9 @@ static bool mysql_component_infrastructure_init() {
   Disable_autocommit_guard autocommit_guard(thd.thd);
   dd::cache::Dictionary_client::Auto_releaser scope_releaser(
       thd.thd->dd_client());
+
+  server_component_init();
+
   if (persistent_dynamic_loader_init(thd.thd)) {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_PERSIST_LOADER_BOOTSTRAP);
     trans_rollback_stmt(thd.thd);
@@ -2098,7 +2114,6 @@ static bool mysql_component_infrastructure_init() {
     trans_rollback(thd.thd);
     return true;
   }
-  server_component_init();
   return trans_commit_stmt(thd.thd) || trans_commit(thd.thd);
 }
 
@@ -2130,6 +2145,15 @@ static bool component_infrastructure_deinit() {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
     retval = true;
   }
+  /*
+    It's the deinitialize_minimal_chassis() that actually unloads all
+    components. Services provided by mysql_server component may still
+    be required at that time. E.g. mysql_thd_store::unregister_slot()
+    can be used by a component as a part of deinitialization.
+    Hence, deinitialize internal data structures used by mysql_server
+    component's services here.
+  */
+  server_component_deinit();
   return retval;
 }
 
@@ -2303,7 +2327,7 @@ static void close_connections(void) {
 
   Set_kill_conn set_kill_conn;
   thd_manager->do_for_all_thd(&set_kill_conn);
-  LogErr(INFORMATION_LEVEL, ER_SHUTTING_DOWN_SLAVE_THREADS);
+  LogErr(INFORMATION_LEVEL, ER_SHUTTING_DOWN_REPLICA_THREADS);
   end_slave();
 
   if (set_kill_conn.get_dump_thread_count()) {
@@ -2428,6 +2452,10 @@ static void unireg_abort(int exit_code) {
   // At this point it does not make sense to buffer more messages.
   // Just flush what we have and write directly to stderr.
   flush_error_log_messages();
+
+  // set server state to SHUTTING DOWN as we may exit from BOOTING state
+  // it helps other modules waiting for server bootup to complete, exit early
+  server_operational_state = SERVER_SHUTTING_DOWN;
 
   if (opt_help) usage();
 
@@ -4768,12 +4796,13 @@ int init_common_variables() {
   */
   mysql_bin_log.set_psi_keys(
       key_BINLOG_LOCK_index, key_BINLOG_LOCK_commit,
-      key_BINLOG_LOCK_commit_queue, key_BINLOG_LOCK_done,
+      key_BINLOG_LOCK_commit_queue, key_BINLOG_LOCK_after_commit,
+      key_BINLOG_LOCK_after_commit_queue, key_BINLOG_LOCK_done,
       key_BINLOG_LOCK_flush_queue, key_BINLOG_LOCK_log,
       key_BINLOG_LOCK_binlog_end_pos, key_BINLOG_LOCK_sync,
       key_BINLOG_LOCK_sync_queue, key_BINLOG_LOCK_xids,
-      key_BINLOG_LOCK_wait_for_group_turn, key_BINLOG_COND_done,
-      key_BINLOG_COND_flush_queue, key_BINLOG_update_cond,
+      key_BINLOG_LOCK_log_info, key_BINLOG_LOCK_wait_for_group_turn,
+      key_BINLOG_COND_done, key_BINLOG_COND_flush_queue, key_BINLOG_update_cond,
       key_BINLOG_prep_xids_cond, key_BINLOG_COND_wait_for_group_turn,
       key_file_binlog, key_file_binlog_index, key_file_binlog_cache,
       key_file_binlog_index_cache);
@@ -9549,6 +9578,18 @@ static int show_resource_group_support(THD *, SHOW_VAR *var, char *buf) {
   return 0;
 }
 
+static int show_telemetry_traces_support(THD * /*unused*/, SHOW_VAR *var,
+                                         char *buf) {
+  var->type = SHOW_BOOL;
+  var->value = buf;
+#ifdef HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
+  *(pointer_cast<bool *>(buf)) = true;
+#else
+  *(pointer_cast<bool *>(buf)) = false;
+#endif /* HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE */
+  return 0;
+}
+
 SHOW_VAR status_vars[] = {
     {"Aborted_clients", (char *)&aborted_threads, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"Aborted_connects", (char *)&show_aborted_connects, SHOW_FUNC,
@@ -9907,6 +9948,8 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Resource_group_supported", (char *)show_resource_group_support, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
+    {"Telemetry_traces_supported", (char *)show_telemetry_traces_support,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}};
 
 void add_terminator(vector<my_option> *options) {
@@ -11712,6 +11755,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_BINLOG_LOCK_sync_queue, "MYSQL_BIN_LOG::LOCK_sync_queue", 0, 0, PSI_DOCUMENT_ME},
   { &key_BINLOG_LOCK_xids, "MYSQL_BIN_LOG::LOCK_xids", 0, 0, PSI_DOCUMENT_ME},
   { &key_BINLOG_LOCK_wait_for_group_turn, "MYSQL_BIN_LOG::LOCK_wait_for_group_turn", 0, 0, PSI_DOCUMENT_ME},
+  { &key_BINLOG_LOCK_after_commit, "MYSQL_BIN_LOG::LOCK_after_commit", 0, 0, PSI_DOCUMENT_ME},
+  { &key_BINLOG_LOCK_after_commit_queue, "MYSQL_BIN_LOG::LOCK_after_commit_queue", 0, 0, PSI_DOCUMENT_ME},
   { &key_RELAYLOG_LOCK_commit, "MYSQL_RELAY_LOG::LOCK_commit", 0, 0, PSI_DOCUMENT_ME},
   { &key_RELAYLOG_LOCK_index, "MYSQL_RELAY_LOG::LOCK_index", 0, 0, PSI_DOCUMENT_ME},
   { &key_RELAYLOG_LOCK_log, "MYSQL_RELAY_LOG::LOCK_log", 0, 0, PSI_DOCUMENT_ME},

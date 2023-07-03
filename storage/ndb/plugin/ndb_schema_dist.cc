@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include "storage/ndb/plugin/ndb_name_util.h"
 #include "storage/ndb/plugin/ndb_require.h"
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
+#include "storage/ndb/plugin/ndb_schema_object.h"
 #include "storage/ndb/plugin/ndb_schema_result_table.h"
 #include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_thd.h"
@@ -241,7 +242,7 @@ bool Ndb_schema_dist_client::check_identifier_limits(
 
   // Check that identifiers does not exceed the limits imposed
   // by the ndb_schema table layout
-  for (auto key : m_prepared_keys.keys()) {
+  for (const auto &key : m_prepared_keys.keys()) {
     // db
     if (!schema_dist_table.check_column_identifier_limit(
             Ndb_schema_dist_table::COL_DB, key.first)) {
@@ -265,7 +266,7 @@ void Ndb_schema_dist_client::Prepared_keys::add_key(const char *db,
 
 bool Ndb_schema_dist_client::Prepared_keys::check_key(
     const char *db, const char *tabname) const {
-  for (auto key : m_keys) {
+  for (const auto &key : m_keys) {
     if (key.first == db && key.second == tabname) {
       return true;  // OK, key has been prepared
     }
@@ -273,20 +274,18 @@ bool Ndb_schema_dist_client::Prepared_keys::check_key(
   return false;
 }
 
-extern void update_slave_api_stats(const Thd_ndb *);
-
 Ndb_schema_dist_client::~Ndb_schema_dist_client() {
   if (m_share) {
     // Release the reference to mysql.ndb_schema table
     NDB_SHARE::release_reference(m_share, m_share_reference.c_str());
   }
 
-  if (m_thd_ndb && m_thd_ndb->is_slave_thread()) {
-    // Copy-out slave thread statistics
-    // NOTE! This is just a "convenient place" to call this
-    // function, it could be moved to "end of statement"(if there
-    // was such a place..).
-    update_slave_api_stats(m_thd_ndb);
+  if (m_thd_ndb) {
+    // Inform Applier that one schema distribution has completed
+    Ndb_applier *const applier = m_thd_ndb->get_applier();
+    if (applier) {
+      applier->atSchemaDistCompleted();
+    }
   }
 
   if (m_holding_acl_mutex) {
@@ -319,6 +318,15 @@ uint32 Ndb_schema_dist_client::unique_version() const {
   const uint32 ver = m_thd_ndb->connection->node_id();
   assert(ver != 0);
   return ver;
+}
+
+void Ndb_schema_dist_client::save_schema_op_results(
+    const NDB_SCHEMA_OBJECT *ndb_schema_object) {
+  std::vector<NDB_SCHEMA_OBJECT::Result> participant_results;
+  ndb_schema_object->client_get_schema_op_results(participant_results);
+  for (const auto &it : participant_results) {
+    m_schema_op_results.push_back({it.nodeid, it.result, it.message});
+  }
 }
 
 void Ndb_schema_dist_client::push_and_clear_schema_op_results() {
@@ -735,7 +743,7 @@ const char *Ndb_schema_dist_client::type_name(SCHEMA_OP_TYPE type) {
 
 uint32 Ndb_schema_dist_client::calculate_anyvalue(bool force_nologging) const {
   Uint32 anyValue = 0;
-  if (!thd_slave_thread(m_thd)) {
+  if (!m_thd_ndb->get_applier()) {
     /* Schema change originating from this MySQLD, check SQL_LOG_BIN
      * variable and pass 'setting' to all logging MySQLDs via AnyValue
      */

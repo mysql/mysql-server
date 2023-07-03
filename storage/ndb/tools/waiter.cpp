@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -288,16 +288,28 @@ waitClusterStatus(const char* _addr,
     ndberr << "Could not create ndb_mgm handle" << endl;
     return -1;
   }
-  ndbout << "Connecting to mgmsrv at " << _addr << endl;
+
   if (ndb_mgm_set_connectstring(handle, _addr))
   {
     MGMERR(handle);
-    ndberr  << "Connectstring " << _addr << " invalid" << endl;
+    if (_addr != nullptr)
+    {
+      ndberr << "Connectstring " << _addr << " is invalid" << endl;
+    }
+    else
+    {
+      ndberr << "Connectstring is invalid" << endl;
+    }
     return -1;
   }
+  char buf[1024];
+  ndbout << "Connecting to management server at "
+         << ndb_mgm_get_connectstring(handle, buf, sizeof(buf)) << endl;
   if (ndb_mgm_connect(handle, opt_connect_retries - 1, opt_connect_retry_delay, 1)) {
     MGMERR(handle);
-    ndberr  << "Connection to " << _addr << " failed" << endl;
+    ndberr << "Connection to "
+           << ndb_mgm_get_connectstring(handle, buf, sizeof(buf)) << " failed"
+           << endl;
     return -1;
   }
 

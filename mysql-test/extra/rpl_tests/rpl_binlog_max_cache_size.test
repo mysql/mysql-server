@@ -29,18 +29,9 @@
 --source include/have_myisam.inc
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Option binlog_cache_size ");
-call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occurred on the master.");
-call mtr.add_suppression("The content of the statement cache is corrupted "
-                         "while writing a rollback record of the transaction "
-                         "to the binary log. An incident event has been "
-                         "written to the binary log which will stop the "
-                         "slaves.");
-call mtr.add_suppression("Error happend while resetting the transaction "
-                         "cache for a rolled back transaction or a single "
-                         "statement not inside a transaction. An incident "
-                         "event has been written to the binary log which "
-                         "will stop the slaves.");
-
+call mtr.add_suppression("Replica SQL for channel '': The incident LOST_EVENTS occurred on the source.");
+call mtr.add_suppression("The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log. An incident event has been written to the binary log which will stop the replicas.");
+call mtr.add_suppression("Error happend while resetting the transaction cache for a rolled back transaction or a single statement not inside a transaction. An incident event has been written to the binary log which will stop the replicas.");
 
 let $old_max_binlog_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_cache_size", Value, 1);
 let $old_binlog_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_cache_size", Value, 1);
@@ -79,7 +70,7 @@ eval INSERT INTO t2 (a, data) VALUES (2,
 --enable_query_log
 
 # Incident event
-# 13119=ER_SLAVE_INCIDENT
+# 13119=ER_REPLICA_INCIDENT
 --let $slave_sql_errno= 13119
 --source include/wait_for_slave_sql_error_and_skip.inc
 
@@ -99,7 +90,7 @@ eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
                        t1.data = CONCAT($data, $data, $data, $data);
 --enable_query_log
 
-# 13119=ER_SLAVE_INCIDENT
+# 13119=ER_REPLICA_INCIDENT
 --let $slave_sql_errno= 13119
 --let $slave_skip_counter= `SELECT IF(@@binlog_format = 'ROW', 2, 1)`
 --source include/wait_for_slave_sql_error_and_skip.inc
@@ -432,8 +423,8 @@ source include/start_slave.inc;
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_stmt_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
-CALL mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occurred on the master. Message: error writing to the binary log");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+CALL mtr.add_suppression("Replica SQL.*The incident LOST_EVENTS occurred on the source. Message: error writing to the binary log");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 connection master;
 TRUNCATE t1;

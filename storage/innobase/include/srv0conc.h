@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -48,8 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define srv_conc_h
 
 /** We are prepared for a situation that we have this many threads waiting for
-a semaphore inside InnoDB. innobase_start_or_create_for_mysql() sets the
-value. */
+a semaphore inside InnoDB. */
 
 extern uint32_t srv_max_n_threads;
 

@@ -37,7 +37,7 @@ INSERT INTO t1 VALUES(1);
 CALL mtr.add_suppression("Disk is full writing");
 CALL mtr.add_suppression("Retry in 60 secs");
 CALL mtr.add_suppression("Relay log write failure");
-CALL mtr.add_suppression("Recovery from master pos");
+CALL mtr.add_suppression("Recovery from source pos");
 CALL mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 CALL mtr.add_suppression("Waiting until I/O thread .* finish writing to disk before stopping");
 
@@ -90,7 +90,7 @@ SET DEBUG_SYNC="now WAIT_FOR reached_stopping_io_thread";
 --reap
 
 --source include/rpl_connection_slave.inc
---let $slave_io_errno= convert_error(ER_SLAVE_RELAY_LOG_WRITE_FAILURE)
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
 --source include/wait_for_slave_io_error.inc
 
 # Restore the debug options to "simulate" freed space on disk
@@ -100,7 +100,7 @@ SET DEBUG_SYNC="now WAIT_FOR reached_stopping_io_thread";
 # that it was waiting for space to write on the relay log.
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 # Grep only after the message that the I/O thread has started
---let $assert_only_after= Slave I/O .* connected to master .*replication started in log .* at position
+--let $assert_only_after= Replica I/O .* connected to source .*replication started in log .* at position
 --let $assert_count= 1
 --let $assert_select=Disk is full writing .*$relay_log_file.* No space left on device
 --let $assert_text= Found the disk full error message on the slave
@@ -110,7 +110,7 @@ SET DEBUG_SYNC="now WAIT_FOR reached_stopping_io_thread";
 # that it truncate the relay log file.
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 # Grep only after the message that the I/O thread has started
---let $assert_only_after= Slave I/O .* connected to master .*replication started in log .* at position
+--let $assert_only_after= Replica receiver thread.* connected to source .* with server_uuid
 --let $assert_count= 1
 --let $assert_select= Relaylog file .* size was .* but was truncated at
 --let $assert_text= Found the relay log truncate message on the slave
@@ -157,7 +157,7 @@ INSERT INTO t1 VALUES(9);
 # that it was waiting for space to stop the I/O thread.
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 # Grep only after the message that the I/O thread has started
---let $assert_only_after= Slave I/O .* connected to master .*replication started in log .* at position
+--let $assert_only_after= Replica receiver thread.* connected to source .* with server_uuid
 --let $assert_count= 0
 --let $assert_select=Waiting until I/O thread for channel
 --let $assert_text= Found no warning messages about I/O thread waiting before stopping

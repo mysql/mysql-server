@@ -1,7 +1,7 @@
 include/group_replication.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 # 1. server1 start group replication and server2 join
@@ -14,14 +14,14 @@ include/start_group_replication.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=SERVER_3_PORT for channel 'ch3_1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'ch3_1']
 
 # 3. Execute action to single primary mode with server2 as the primary.
 #    It shall fail as server1 has slave connections
 [connection server2]
 SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
-ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. The requested primary is not valid as a slave channel is running on member MEMBER1_UUID
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. The requested primary is not valid as a replica channel is running on member MEMBER1_UUID
 
 # 4. Execute action switch to single primary mode with server1 as primary
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
@@ -31,7 +31,7 @@ Mode switched to single-primary successfully.
 # 5. Execute action set as primary to server2.
 #    It shall fail due to server1 slave connections
 SELECT group_replication_set_as_primary("MEMBER2_UUID");
-ERROR HY000: The function 'group_replication_set_as_primary' failed. There is a slave channel running in the group's current primary member.
+ERROR HY000: The function 'group_replication_set_as_primary' failed. There is a replica channel running in the group's current primary member.
 
 # 6. Cleanup
 [connection server1]
@@ -42,13 +42,13 @@ RESET SLAVE ALL FOR CHANNEL 'ch3_1';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 set session sql_log_bin=0;
-call mtr.add_suppression("Error while executing a group configuration operation: The requested primary is not valid as a slave channel is running on member*");
-call mtr.add_suppression("Error while executing a group configuration operation: There is a slave channel running in the group's current primary member.");
+call mtr.add_suppression("Error while executing a group configuration operation: The requested primary is not valid as a replica channel is running on member*");
+call mtr.add_suppression("Error while executing a group configuration operation: There is a replica channel running in the group's current primary member.");
 set session sql_log_bin=1;
 [connection server2]
 SET GLOBAL read_only= 0;
 set session sql_log_bin=0;
-call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. The requested primary is not valid as a slave channel is running on member*");
-call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a slave channel running in the group's current primary member.");
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. The requested primary is not valid as a replica channel is running on member*");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a replica channel running in the group's current primary member.");
 set session sql_log_bin=1;
 include/group_replication_end.inc

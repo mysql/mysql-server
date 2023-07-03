@@ -1,5 +1,5 @@
 RESET MASTER;
-call mtr.add_suppression("REVOKE/GRANT failed while storing table level and column level grants in the privilege tables. An incident event has been written to the binary log which will stop the slaves.");
+call mtr.add_suppression("REVOKE/GRANT failed while storing table level and column level grants in the privilege tables. An incident event has been written to the binary log which will stop the replicas.");
 CREATE TABLE t1(a INT, b INT);
 CREATE USER u1@h;
 #

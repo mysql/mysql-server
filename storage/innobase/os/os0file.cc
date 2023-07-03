@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -105,9 +105,6 @@ unsigned long long os_fsync_threshold = 0;
 
 /** Insert buffer segment id */
 static const ulint IO_IBUF_SEGMENT = 0;
-
-/** Log segment id */
-static const ulint IO_LOG_SEGMENT = 1;
 
 /** Number of retries for partial I/O's */
 static const ulint NUM_RETRIES_ON_PARTIAL_IO = 10;
@@ -225,45 +222,68 @@ InnoDB AIO Implementation:
 
 We support native AIO for Windows and Linux. For rest of the platforms
 we simulate AIO by special IO-threads servicing the IO-requests.
+Therefore we have three specialized implementations.
+
+What is common to all three of them, is that they use AIO array objects to keep
+track of ongoing requests:
+ - s_ibuf for reads of IBUF pages
+ - s_reads for reads of other pages
+ - s_writes for writes.
+Another common trait, is that there are threads running io_handler_thread() tied
+to these arrays:
+ - 1 thread for s_ibuf array,
+ - innodb_read_io_threads for s_reads array,
+ - innodb_write_io_threads for s_writes array.
+The s_ibuf helps avoid a deadlock when completing a read of regular page
+requires performing IBUF merge, which in turn needs read request for IBUF page,
+which might be blocked if we run out of free slots.
+As IBUF needs to be empty when starting InnoDB in read-only mode, this mechanism
+is not needed in read-only mode, so s_ibuf and associated thread are not
+initialized then.
+
+The differences between these three implementations - mostly in what role the
+io_handler_thread() play in conducting the IO operations - are described below.
 
 Simulated AIO:
 ==============
 
 On platforms where we 'simulate' AIO, the following is a rough explanation
 of the high level design.
-There are four io-threads (for ibuf, log, read, write).
 All synchronous IO requests are serviced by the calling thread using
 os_file_write/os_file_read. The Asynchronous requests are queued up
-in an array (there are four such arrays) by the calling thread.
+in an array by the calling thread.
 Later these requests are picked up by the IO-thread and are serviced
 synchronously.
+
 
 Windows native AIO:
 ==================
 
 If srv_use_native_aio is not set then Windows follow the same
-code as simulated AIO. If the flag is set then native AIO interface
-is used. On windows, one of the limitation is that if a file is opened
+code as Simulated AIO. If the flag is set then native AIO interface
+is used. On Windows, one limitation is that if a file is opened
 for AIO no synchronous IO can be done on it. The os_file_write/os_file_read take
-this into account. There are innodb_file_io_threads helper threads. These
-threads work on the four arrays mentioned above in Simulated AIO.
-If an AIO request is made the calling thread not only queues it in the
-array but also submits the requests. The helper thread then collects
-the completed IO request and calls completion routine on it.
+this into account.
+If an asynchronous request is made the calling thread not only queues it in the
+array but also submits the requests to OS using OVERLAPPED ReadFile/WriteFile().
+The io_handler_thread() thread then collects the completed IO request from the
+segment of SRV_N_PENDING_IOS_PER_THREAD slots of the array it is responsible for
+with WaitForMultipleObjects() and calls completion routine on it.
+
 
 Linux native AIO:
 =================
 
 If we have libaio installed on the system and innodb_use_native_aio
 is set to true we follow the code path of native AIO, otherwise we
-do simulated AIO.
-There are innodb_file_io_threads helper threads. These threads work
-on the four arrays mentioned above in Simulated AIO.
+do Simulated AIO.
 If a synchronous IO request is made, it is handled by calling
 os_file_write/os_file_read.
-If an AIO request is made the calling thread not only queues it in the
-array but also submits the requests. The helper thread then collects
-the completed IO request and calls completion routine on it.
+If an asynchronous request is made the calling thread not only queues it in the
+array but also submits the requests to OS using io_submit().
+The io_handler_thread() thread then collects the completed IO request from the
+segment of 8 * OS_AIO_N_PENDING_IOS_PER_THREAD slots of the array it is
+responsible for with io_getevents() and calls completion routine on it.
 
 **********************************************************************/
 
@@ -276,8 +296,6 @@ mysql_pfs_key_t innodb_dblwr_file_key;
 mysql_pfs_key_t innodb_arch_file_key;
 mysql_pfs_key_t innodb_clone_file_key;
 #endif /* UNIV_PFS_IO */
-
-#endif /* !UNIV_HOTBACKUP */
 
 /** The asynchronous I/O context */
 struct Slot {
@@ -318,7 +336,7 @@ struct Slot {
 
   /** used only in simulated aio: true if the physical i/o
   already made and only the slot message needs to be passed
-  to the caller of os_aio_simulated_handle */
+  to the caller of os_aio_simulated_handler */
   bool io_already_done{false};
 
   /** The file node for which the IO is requested. */
@@ -370,9 +388,6 @@ struct Slot {
 
   /** true, if we shouldn't punch a hole after writing the page */
   bool skip_punch_hole{false};
-
-  /** Buffer for encrypt log */
-  void *encrypt_log_buf{nullptr};
 
   Slot() {
 #if defined(LINUX_NATIVE_AIO)
@@ -558,10 +573,6 @@ class AIO {
     if (s_ibuf != NULL) {
       s_ibuf->signal();
     }
-
-    if (s_log != NULL) {
-      s_log->signal();
-    }
   }
 #endif /* WIN_ASYNC_IO */
 
@@ -599,12 +610,11 @@ class AIO {
   @return own: AIO array, NULL on failure */
   [[nodiscard]] static AIO *create(latch_id_t id, ulint n, ulint n_segments);
 
-  /** Initializes the asynchronous io system. Creates one array each
-  for ibuf and log I/O. Also creates one array each for read and write
+  /** Initializes the asynchronous io system. Creates one array for ibuf I/O.
+  Also creates one array each for read and write
   where each array is divided logically into n_readers and n_writers
   respectively. The caller must create an i/o handler thread for each
-  segment in these arrays.
-  No I/O handler thread needs to be created for that
+  segment in these arrays by calling start_threads().
   @param[in]    n_per_seg       maximum number of pending aio
                                   operations allowed per segment
   @param[in]    n_readers       number of reader threads
@@ -612,6 +622,9 @@ class AIO {
   @return true if AIO sub-system was started successfully */
   [[nodiscard]] static bool start(ulint n_per_seg, ulint n_readers,
                                   ulint n_writers);
+
+  /** Starts a thread for each segment */
+  static void start_threads();
 
   /** Free the AIO arrays */
   static void shutdown();
@@ -668,6 +681,11 @@ class AIO {
   static ulint total_pending_io_count();
 
  private:
+  /** Returns the number of arrays other than n_readers and n_writers that
+  start() will create. In srv_read_only_mode this is 0. Otherwise this is
+  just one for ibuf i/o.*/
+  static size_t number_of_extra_threads();
+
   /** Initialise the slots
   @return DB_SUCCESS or error code */
   [[nodiscard]] dberr_t init_slots();
@@ -753,9 +771,6 @@ class AIO {
   /** Insert buffer */
   static AIO *s_ibuf;
 
-  /** Redo log */
-  static AIO *s_log;
-
   /** Reads */
   static AIO *s_reads;
 
@@ -767,7 +782,6 @@ class AIO {
 AIO *AIO::s_reads;
 AIO *AIO::s_writes;
 AIO *AIO::s_ibuf;
-AIO *AIO::s_log;
 
 #if defined(LINUX_NATIVE_AIO)
 /** timeout for each io_getevents() call = 500ms. */
@@ -790,6 +804,8 @@ static ulint os_aio_n_segments = ULINT_UNDEFINED;
 wait until a batch of new read requests have been posted */
 static bool os_aio_recommend_sleep_for_read_threads = false;
 
+#endif /* !UNIV_HOTBACKUP */
+
 ulint os_n_file_reads = 0;
 static ulint os_bytes_read_since_printout = 0;
 ulint os_n_file_writes = 0;
@@ -797,6 +813,7 @@ ulint os_n_fsyncs = 0;
 static ulint os_n_file_reads_old = 0;
 static ulint os_n_file_writes_old = 0;
 static ulint os_n_fsyncs_old = 0;
+
 /** Number of pending write operations */
 std::atomic<ulint> os_n_pending_writes{0};
 /** Number of pending read operations */
@@ -804,6 +821,8 @@ std::atomic<ulint> os_n_pending_reads{0};
 
 static std::chrono::steady_clock::time_point os_last_printout;
 bool os_has_said_disk_full = false;
+
+#ifndef UNIV_HOTBACKUP
 
 /** Default Zip compression level */
 extern uint page_zip_level;
@@ -813,6 +832,7 @@ static_assert(DATA_TRX_ID_LEN <= 6, "COMPRESSION_ALGORITHM will not fit!");
 /** Validates the consistency of the aio system.
 @return true if ok */
 static bool os_aio_validate();
+#endif /* !UNIV_HOTBACKUP */
 
 /** Does error handling when a file operation fails.
 @param[in]      name            File name or NULL
@@ -840,24 +860,23 @@ static bool os_file_handle_error_no_exit(const char *name,
 @param[in]      type            IO context
 @param[in]      fh              Open file handle
 @param[in,out]  buf             Buffer to transform
-@param[in,out]  scratch         Scratch area for read decompression
 @param[in]      src_len         Length of the buffer before compression
 @param[in]      offset          file offset from the start where to read
 @param[in]      len             Compressed buffer length for write and size
                                 of buf len for read
 @return DB_SUCCESS or error code */
 static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
-                                   byte *buf, byte *scratch, ulint src_len,
-                                   os_offset_t offset, ulint len);
+                                   byte *buf, ulint src_len, os_offset_t offset,
+                                   ulint len);
 
+#ifndef UNIV_HOTBACKUP
 /** Does simulated AIO. This function should be called by an i/o-handler
 thread.
 
 @param[in]      global_segment  The number of the segment in the aio arrays to
                                 await for; segment 0 is the ibuf i/o thread,
-                                segment 1 the log i/o thread, then follow the
-                                non-ibuf read threads, and as the last are the
-                                non-ibuf write threads
+                                then follow the non-ibuf read threads,
+                                and as the last are the non-ibuf write threads
 @param[out]     m1              the messages passed with the AIO request; note
                                 that also in the case where the AIO operation
                                 failed, these output parameters are valid and
@@ -868,6 +887,7 @@ thread.
 @return DB_SUCCESS or error code */
 static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
                                         void **m2, IORequest *type);
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef WIN_ASYNC_IO
 /** This function is only used in Windows asynchronous i/o.
@@ -877,10 +897,9 @@ into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 @param[in]      segment         The number of the segment in the aio arrays to
-wait for; segment 0 is the ibuf I/O thread,
-segment 1 the log I/O thread, then follow the
-non-ibuf read threads, and as the last are the
-non-ibuf write threads
+                                wait for; segment 0 is the ibuf I/O thread,
+                                then follow the non-ibuf read threads,
+                                and as the last are the non-ibuf write threads
 @param[out]     m1              the messages passed with the AIO request; note
 that also in the case where the AIO operation
 failed, these output parameters are valid and
@@ -1003,6 +1022,7 @@ void os_free_block(file::Block *block) noexcept {
     ut::free(block);
   }
 }
+#ifndef UNIV_HOTBACKUP
 
 /** Generic AIO Handler methods. Currently handles IO post processing. */
 class AIOHandler {
@@ -1017,8 +1037,8 @@ class AIOHandler {
     ut_a(slot->offset > 0);
     ut_a(slot->type.is_read() || !slot->skip_punch_hole);
     return (os_file_io_complete(slot->type, slot->file.m_file, slot->buf,
-                                nullptr, slot->type.get_original_size(),
-                                slot->offset, slot->len));
+                                slot->type.get_original_size(), slot->offset,
+                                slot->len));
   }
 
  private:
@@ -1080,6 +1100,7 @@ class AIOHandler {
   @return DB_SUCCESS or error code */
   static dberr_t check_read(Slot *slot, ulint n_bytes);
 };
+#endif /* !UNIV_HOTBACKUP */
 
 /** Helper class for doing synchronous file IO. Currently, the objective
 is to hide the OS specific code, so that the higher level functions aren't
@@ -1162,14 +1183,14 @@ ulint os_file_original_page_size(const byte *buf) {
 
   return (ULINT_UNDEFINED);
 }
-
+#ifndef UNIV_HOTBACKUP
 /** Check if we need to read some more data.
 @param[in]      slot            The slot that contains the IO request
 @param[in]      n_bytes         Total bytes read so far
 @return DB_SUCCESS or error code */
 dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
   dberr_t err;
-
+  ut_a(!slot->type.is_log());
   ut_ad(slot->type.is_read());
   ut_ad(slot->type.get_original_size() > slot->len);
 
@@ -1192,8 +1213,7 @@ dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
 
       err = DB_FAIL;
     }
-  } else if (is_encrypted_page(slot) ||
-             (slot->type.is_log() && slot->offset >= LOG_FILE_HDR_SIZE)) {
+  } else if (is_encrypted_page(slot)) {
     ut_a(slot->offset > 0);
 
     slot->len = slot->type.get_original_size();
@@ -1215,11 +1235,6 @@ dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
     slot->buf_block = nullptr;
   }
 
-  if (slot->encrypt_log_buf != nullptr) {
-    ut::free(slot->encrypt_log_buf);
-    slot->encrypt_log_buf = nullptr;
-  }
-
   return (err);
 }
 
@@ -1227,7 +1242,7 @@ dberr_t AIOHandler::check_read(Slot *slot, ulint n_bytes) {
 @return DB_SUCCESS or error code. */
 dberr_t AIOHandler::post_io_processing(Slot *slot) {
   dberr_t err;
-
+  ut_a(!slot->type.is_log());
   ut_ad(slot->is_reserved);
 
   /* Total bytes read so far */
@@ -1238,8 +1253,7 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
   if (n_bytes == slot->type.get_original_size() ||
       (slot->type.is_write() && slot->type.is_compressed() &&
        slot->len == static_cast<ulint>(slot->n_bytes))) {
-    if ((slot->type.is_log() && slot->offset >= LOG_FILE_HDR_SIZE) ||
-        is_compressed_page(slot) || is_encrypted_page(slot)) {
+    if (is_compressed_page(slot) || is_encrypted_page(slot)) {
       ut_a(slot->offset > 0);
 
       if (slot->type.is_read()) {
@@ -1266,10 +1280,6 @@ dberr_t AIOHandler::post_io_processing(Slot *slot) {
       slot->buf_block = nullptr;
     }
 
-    if (slot->encrypt_log_buf != nullptr) {
-      ut::free(slot->encrypt_log_buf);
-      slot->encrypt_log_buf = nullptr;
-    }
   } else if ((ulint)slot->n_bytes == (ulint)slot->len) {
     /* It *must* be a partial read. */
     ut_ad(slot->len < slot->type.get_original_size());
@@ -1315,6 +1325,7 @@ ulint AIO::pending_io_count() const {
 
   return (reserved);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Compress a data page
 @param[in]      compression     Compression algorithm
@@ -1511,45 +1522,42 @@ static int os_file_lock(int fd, const char *name) {
 }
 #endif /* USE_FILE_LOCK */
 
+#ifndef UNIV_HOTBACKUP
+
 /** Calculates local segment number and aio array from global
 segment number.
 @param[out]     array           AIO wait array
 @param[in]      segment         global segment number
 @return local segment number within the aio array */
 ulint AIO::get_array_and_local_segment(AIO *&array, ulint segment) {
-  ulint limit = srv_read_only_mode ? 0 : 2;
-
+  const auto extra = number_of_extra_threads();
   ut_a(segment < os_aio_n_segments);
 
-  if (!srv_read_only_mode && segment < limit) {
-    /* We don't support ibuf/log IO during read only mode. */
-
-    if (segment == IO_IBUF_SEGMENT) {
-      array = s_ibuf;
-
-    } else if (segment == IO_LOG_SEGMENT) {
-      array = s_log;
-
-    } else {
-      array = nullptr;
-    }
+  if (segment < extra) {
+    /* We don't support ibuf IO during read only mode. */
+    ut_ad(!srv_read_only_mode);
+    ut_a(segment == IO_IBUF_SEGMENT);
+    ut_ad(s_ibuf != nullptr);
+    ut_ad(s_ibuf->get_n_segments() == 1);
+    ut_ad(s_ibuf->get_n_segments() == extra);
+    array = s_ibuf;
 
     return 0;
   }
+  segment -= extra;
 
-  if (segment < s_reads->m_n_segments + limit) {
+  if (segment < s_reads->m_n_segments) {
     array = s_reads;
 
-    return segment - limit;
+    return segment;
   }
+  segment -= s_reads->m_n_segments;
 
-  limit += s_reads->m_n_segments;
-
-  ut_a(segment < s_writes->m_n_segments + limit);
+  ut_a(segment < s_writes->m_n_segments);
 
   array = s_writes;
 
-  return segment - limit;
+  return segment;
 }
 
 /** Frees a slot in the aio array. Assumes caller owns the mutex.
@@ -1601,7 +1609,6 @@ void AIO::release_with_mutex(Slot *slot) {
   release();
 }
 
-#ifndef UNIV_HOTBACKUP
 FILE *os_file_create_tmpfile() {
   FILE *file = nullptr;
   int fd = innobase_mysql_tmpfile(mysql_tmpdir);
@@ -1639,19 +1646,9 @@ void os_file_read_string(FILE *file, char *str, ulint size) {
   }
 }
 
-/** Decompress after a read and punch a hole in the file if it was a write
-@param[in]      type            IO context
-@param[in]      fh              Open file handle
-@param[in,out]  buf             Buffer to transform
-@param[in,out]  scratch         Scratch area for read decompression
-@param[in]      src_len         Length of the buffer before compression
-@param[in]      offset          file offset from the start where to read
-@param[in]      len             Compressed buffer length for write and size
-                                of buf len for read
-@return DB_SUCCESS or error code */
 static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
-                                   byte *buf, byte *scratch, ulint src_len,
-                                   os_offset_t offset, ulint len) {
+                                   byte *buf, ulint src_len, os_offset_t offset,
+                                   ulint len) {
   dberr_t ret = DB_SUCCESS;
 
   /* We never compress/decompress the first page */
@@ -1660,9 +1657,7 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
 
   if (!type.is_compression_enabled()) {
     if (type.is_log() && offset >= LOG_FILE_HDR_SIZE) {
-      Encryption encryption(type.encryption_algorithm());
-
-      ret = encryption.decrypt_log(type, buf, src_len, scratch);
+      ret = type.encryption_algorithm().decrypt_log(buf, src_len);
     }
 
     return (ret);
@@ -1670,10 +1665,10 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
     ut_ad(!type.is_row_log());
     Encryption encryption(type.encryption_algorithm());
 
-    ret = encryption.decrypt(type, buf, src_len, scratch, len);
+    ret = encryption.decrypt(type, buf, src_len, nullptr, 0);
 
     if (ret == DB_SUCCESS) {
-      return (os_file_decompress_page(type.is_dblwr(), buf, scratch, len));
+      return (os_file_decompress_page(type.is_dblwr(), buf, nullptr, 0));
     } else {
       return (ret);
     }
@@ -1990,17 +1985,27 @@ file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint n) {
   return (block);
 }
 
-/** Encrypt log blocks content when write it to disk.
+/** Encrypt log blocks provided in first n bytes of buf.
+If encryption is successful then buf will be repointed to the encrypted redo log
+of length n.
+If encryption fails then buf is not modified.
+The encrypted redo log will be stored in a newly allocated block returned from
+the function or in a newly allocated memory pointed by scratch.
+The caller takes ownership of the returned block and memory pointed by scratch,
+and when the buf is no longer needed, it should free the block using
+os_free_block(block) and scratch memory by using ut::aligned_free(scratch).
 @param[in]      type            IO flags
-@param[in,out]  buf             buffer to read or write
-@param[in,out]  scratch         buffer for encrypting log
-@param[in,out]  n               number of bytes to read/write, starting from
-                                offset
-@return pointer to the encrypted log blocks */
+@param[in,out]  buf             before the call should contain unencrypted data,
+                                after the call will point to encrypted data, or
+                                to the original unencrypted data on failure
+@param[in,out]  scratch         if not null contains the buf, and should be
+                                freed using ut::aligned_free
+@param[in]      n               number of bytes in buf (encryption does not
+                                change the length)
+@return if not null, then it's the block which contain the buf, and should be
+freed using os_free_block(block). */
 static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
                                         byte *&scratch, ulint n) {
-  byte *encrypted_log;
-  ulint encrypted_len = n;
   byte *buf_ptr;
   Encryption encryption(type.encryption_algorithm());
   file::Block *block{};
@@ -2012,24 +2017,23 @@ static file::Block *os_file_encrypt_log(const IORequest &type, void *&buf,
     block = os_alloc_block();
     buf_ptr = static_cast<byte *>(ut_align(block->m_ptr, os_io_ptr_align));
     scratch = nullptr;
+    block->m_size = n;
   } else {
     buf_ptr = static_cast<byte *>(ut::aligned_alloc(n, os_io_ptr_align));
     scratch = buf_ptr;
   }
 
-  encrypted_log = buf_ptr;
-
-  encrypted_log = encryption.encrypt_log(type, reinterpret_cast<byte *>(buf), n,
-                                         encrypted_log, &encrypted_len);
-  block->m_size = encrypted_len;
-
-  bool encrypted = encrypted_log != buf;
-
-  if (encrypted) {
-    buf = encrypted_log;
+  if (!encryption.encrypt_log(reinterpret_cast<byte *>(buf), n, buf_ptr)) {
+    if (block) {
+      os_free_block(block);
+    } else {
+      ut::aligned_free(scratch);
+      scratch = nullptr;
+    }
+    return nullptr;
   }
-
-  return (block);
+  buf = buf_ptr;
+  return block;
 }
 
 #ifndef _WIN32
@@ -2506,11 +2510,9 @@ for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 
 @param[in]      global_segment  segment number in the aio array
-                                to wait for; segment 0 is the ibuf
-                                i/o thread, segment 1 is log i/o thread,
+                                to wait for; segment 0 is the ibuf i/o thread,
                                 then follow the non-ibuf read threads,
-                                and the last are the non-ibuf write
-                                threads.
+                                and the last are the non-ibuf write threads.
 @param[out]     m1              the messages passed with the
 @param[out]     m2                      AIO request; note that in case the
                                 AIO operation failed, these output
@@ -4834,6 +4836,7 @@ bool os_file_close_no_error_handling(os_file_t file) {
 }
 #endif /* UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /** This function can be called if one wants to post a batch of reads and
 prefers an i/o-handler thread to handle them all at once later. You must
 call os_aio_simulated_wake_handler_threads later to ensure the threads
@@ -4870,6 +4873,7 @@ void AIO::simulated_put_read_threads_to_sleep() {
     }
   }
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Depth first traversal of the directory starting from basedir
 @param[in]      basedir    Start scanning from this directory
@@ -5009,8 +5013,6 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
       encryption involved. */
       ut_ad(!type.is_encrypted());
     }
-  } else {
-    block = nullptr;
   }
 
   /* We do encryption after compression, since if we do encryption
@@ -5036,6 +5038,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
         os_free_block(compressed_block);
       }
     } else {
+      ut_a(block == nullptr);
       /* Skip encrypt log file header */
       if (offset >= LOG_FILE_HDR_SIZE) {
         block = os_file_encrypt_log(type, buf, encrypt_log_buf, n);
@@ -5057,7 +5060,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 
       if (offset > 0 && (type.is_compressed() || type.is_read())) {
         *err = os_file_io_complete(type, file, reinterpret_cast<byte *>(buf),
-                                   nullptr, original_n, offset, n);
+                                   original_n, offset, n);
       } else {
         *err = DB_SUCCESS;
       }
@@ -5067,7 +5070,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
       }
 
       if (encrypt_log_buf != nullptr) {
-        ut::free(encrypt_log_buf);
+        ut::aligned_free(encrypt_log_buf);
       }
 
       return (original_n);
@@ -5097,7 +5100,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
   }
 
   if (encrypt_log_buf != nullptr) {
-    ut::free(encrypt_log_buf);
+    ut::aligned_free(encrypt_log_buf);
   }
 
   if (*err != DB_IO_DECRYPT_FAIL) {
@@ -6051,7 +6054,7 @@ bool os_file_check_mode(const char *name, bool read_only) {
     return true;
   }
 }
-
+#ifndef UNIV_HOTBACKUP
 dberr_t os_aio_handler(ulint segment, fil_node_t **m1, void **m2,
                        IORequest *request) {
   dberr_t err;
@@ -6114,6 +6117,8 @@ AIO::AIO(latch_id_t id, ulint n, ulint segments)
 
   os_event_set(m_is_empty);
 }
+
+size_t AIO::number_of_extra_threads() { return srv_read_only_mode ? 0 : 1; }
 
 /** Initialise the slots */
 dberr_t AIO::init_slots() {
@@ -6276,53 +6281,34 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
 
   srv_reset_io_thread_op_info();
 
-  s_reads =
-      create(LATCH_ID_OS_AIO_READ_MUTEX, n_readers * n_per_seg, n_readers);
+  const auto n_extra = number_of_extra_threads();
 
-  if (s_reads == nullptr) {
-    return false;
-  }
+  size_t n_segments = 0;
 
-  ulint start = srv_read_only_mode ? 0 : 2;
-  ulint n_segs = n_readers + start;
-
-#ifndef UNIV_HOTBACKUP
-  /* 0 is the ibuf segment and 1 is the redo log segment. */
-  for (ulint i = start; i < n_segs; ++i) {
-    ut_a(i < SRV_MAX_N_IO_THREADS);
-    srv_io_thread_function[i] = "read thread";
-  }
-#endif /* !UNIV_HOTBACKUP */
-
-  ulint n_segments = n_readers;
-
-  if (!srv_read_only_mode) {
+  if (0 < n_extra) {
+    ut_ad(n_extra == 1);
     s_ibuf = create(LATCH_ID_OS_AIO_IBUF_MUTEX, n_per_seg, 1);
 
     if (s_ibuf == nullptr) {
       return false;
     }
 
-    ++n_segments;
-
-#ifndef UNIV_HOTBACKUP
-    srv_io_thread_function[0] = "insert buffer thread";
-#endif /* !UNIV_HOTBACKUP */
-
-    s_log = create(LATCH_ID_OS_AIO_LOG_MUTEX, n_per_seg, 1);
-
-    if (s_log == nullptr) {
-      return false;
-    }
-
-    ++n_segments;
-
-#ifndef UNIV_HOTBACKUP
-    srv_io_thread_function[1] = "log thread";
-#endif /* !UNIV_HOTBAKUP */
+    srv_io_thread_function[++n_segments] = "insert buffer thread";
 
   } else {
-    s_ibuf = s_log = nullptr;
+    s_ibuf = nullptr;
+  }
+  ut_ad(n_extra == n_segments);
+
+  s_reads =
+      create(LATCH_ID_OS_AIO_READ_MUTEX, n_readers * n_per_seg, n_readers);
+  if (s_reads == nullptr) {
+    return false;
+  }
+
+  for (size_t i = 0; i < n_readers; ++i) {
+    ut_a(n_segments < SRV_MAX_N_IO_THREADS);
+    srv_io_thread_function[++n_segments] = "read thread";
   }
 
   s_writes =
@@ -6332,16 +6318,12 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
     return false;
   }
 
-  n_segments += n_writers;
-
-#ifndef UNIV_HOTBACKUP
-  for (ulint i = start + n_readers; i < n_segments; ++i) {
-    ut_a(i < SRV_MAX_N_IO_THREADS);
-    srv_io_thread_function[i] = "write thread";
+  for (size_t i = 0; i < n_writers; ++i) {
+    ut_a(n_segments < SRV_MAX_N_IO_THREADS);
+    srv_io_thread_function[++n_segments] = "write thread";
   }
-#endif /* !UNIV_HOTBACKUP */
 
-  ut_ad(n_segments >= static_cast<ulint>(srv_read_only_mode ? 2 : 4));
+  ut_ad(n_segments == n_extra + n_readers + n_writers);
 
   os_aio_n_segments = n_segments;
 
@@ -6355,7 +6337,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
     return false;
   }
 
-  for (ulint i = 0; i < n_segments; ++i) {
+  for (size_t i = 0; i < n_segments; ++i) {
     os_aio_segment_wait_events[i] = os_event_create();
   }
 
@@ -6364,13 +6346,48 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers) {
   return true;
 }
 
+/** I/o-handler thread function.
+@param[in]      segment         The AIO segment the thread will work on */
+static void io_handler_thread(ulint segment) {
+  while (srv_shutdown_state.load() != SRV_SHUTDOWN_EXIT_THREADS ||
+         buf_flush_page_cleaner_is_active() || !os_aio_all_slots_free()) {
+    fil_aio_wait(segment);
+  }
+}
+
+#ifdef UNIV_PFS_THREAD
+mysql_pfs_key_t io_ibuf_thread_key;
+mysql_pfs_key_t io_read_thread_key;
+mysql_pfs_key_t io_write_thread_key;
+#endif /* UNIV_PFS_THREAD */
+
+void AIO::start_threads() {
+  ulint segment = 0;
+  const auto start = [&](mysql_pfs_key_t key, PSI_thread_seqnum seqnum) {
+    os_thread_create(key, seqnum, io_handler_thread, segment++).start();
+  };
+  /* For read only mode, we don't need ibuf I/O thread. */
+  if (number_of_extra_threads()) {
+    ut_ad(s_ibuf != nullptr);
+    ut_ad(s_ibuf->get_n_segments() == 1);
+    start(io_ibuf_thread_key, 0);
+  } else {
+    ib::info(ER_IB_MSG_1128);
+  }
+  /* Numbering for ib_io_rd-NN starts with N=1. */
+  for (PSI_thread_seqnum i = 1; i <= s_reads->get_n_segments(); ++i) {
+    start(io_read_thread_key, i);
+  }
+  /* Numbering for ib_io_wr-NN starts with N=1. */
+  for (PSI_thread_seqnum i = 1; i <= s_writes->get_n_segments(); ++i) {
+    start(io_write_thread_key, i);
+  }
+}
+
 /** Free the AIO arrays */
 void AIO::shutdown() {
   ut::delete_(s_ibuf);
   s_ibuf = nullptr;
-
-  ut::delete_(s_log);
-  s_log = nullptr;
 
   ut::delete_(s_writes);
   s_writes = nullptr;
@@ -6378,7 +6395,7 @@ void AIO::shutdown() {
   ut::delete_(s_reads);
   s_reads = nullptr;
 }
-
+#endif /* !UNIV_HOTBACKUP*/
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
 
 /** Max disk sector size */
@@ -6509,7 +6526,10 @@ void meb_free_block_cache() {
 
   block_cache = nullptr;
 }
+
 #endif /* UNIV_HOTBACKUP */
+
+#ifndef UNIV_HOTBACKUP
 
 bool os_aio_init(ulint n_readers, ulint n_writers) {
   /* Maximum number of pending aio operations allowed per segment */
@@ -6529,6 +6549,8 @@ bool os_aio_init(ulint n_readers, ulint n_writers) {
 
   return (AIO::start(limit, n_readers, n_writers));
 }
+
+void os_aio_start_threads() { AIO::start_threads(); }
 
 /** Frees the asynchronous io system. */
 void os_aio_free() {
@@ -6595,38 +6617,27 @@ void os_aio_wait_until_no_pending_writes() {
 @return segment number (which is the number used by, for example,
         I/O handler threads) */
 ulint AIO::get_segment_no_from_slot(const AIO *array, const Slot *slot) {
-  ulint segment;
-  ulint seg_len;
-
   if (array == s_ibuf) {
-    ut_ad(!srv_read_only_mode);
-
-    segment = IO_IBUF_SEGMENT;
-
-  } else if (array == s_log) {
-    ut_ad(!srv_read_only_mode);
-
-    segment = IO_LOG_SEGMENT;
-
-  } else if (array == s_reads) {
-    seg_len = s_reads->slots_per_segment();
-
-    segment = (srv_read_only_mode ? 0 : 2) + slot->pos / seg_len;
-  } else {
-    ut_a(array == s_writes);
-
-    seg_len = s_writes->slots_per_segment();
-
-    segment = s_reads->m_n_segments + (srv_read_only_mode ? 0 : 2) +
-              slot->pos / seg_len;
+    ut_ad(s_ibuf->get_n_segments() == 1);
+    ut_ad(s_ibuf->get_n_segments() == number_of_extra_threads());
+    return IO_IBUF_SEGMENT;
   }
-  return (segment);
+  auto earlier_segments = number_of_extra_threads();
+
+  if (array == s_reads) {
+    return earlier_segments + slot->pos / s_reads->slots_per_segment();
+  }
+  earlier_segments += s_reads->m_n_segments;
+
+  ut_a(array == s_writes);
+  return earlier_segments + slot->pos / s_writes->slots_per_segment();
 }
 
 Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
                         pfs_os_file_t file, const char *name, void *buf,
                         os_offset_t offset, ulint len,
                         const file::Block *e_block) {
+  ut_a(!type.is_log());
 #ifdef WIN_ASYNC_IO
   ut_a((len & 0xFFFFFFFFUL) == len);
 #endif /* WIN_ASYNC_IO */
@@ -6743,7 +6754,6 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   }
   slot->io_already_done = false;
   slot->buf_block = nullptr;
-  slot->encrypt_log_buf = nullptr;
 
   if (!srv_use_native_aio) {
     slot->buf_block = const_cast<file::Block *>(e_block);
@@ -6781,43 +6791,22 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   if (srv_use_native_aio && offset > 0 && type.is_write() &&
       (type.is_encrypted() || e_block != nullptr)) {
     file::Block *encrypted_block = nullptr;
-    byte *encrypt_log_buf;
 
     release();
 
     void *src_buf = slot->buf;
-    if (!type.is_log()) {
-      if (e_block == nullptr) {
-        encrypted_block = os_file_encrypt_page(type, src_buf, slot->len);
-      } else {
-        encrypted_block = const_cast<file::Block *>(e_block);
-      }
-
-      if (slot->buf_block != nullptr) {
-        os_free_block(slot->buf_block);
-      }
-
-      slot->buf_block = encrypted_block;
+    ut_a(!type.is_log());
+    if (e_block == nullptr) {
+      encrypted_block = os_file_encrypt_page(type, src_buf, slot->len);
     } else {
-      /* Skip encrypt log file header */
-      if (offset >= LOG_FILE_HDR_SIZE) {
-        ut_ad(e_block == nullptr);
-        encrypted_block =
-            os_file_encrypt_log(type, src_buf, encrypt_log_buf, slot->len);
-
-        if (slot->buf_block != nullptr) {
-          os_free_block(slot->buf_block);
-        }
-
-        slot->buf_block = encrypted_block;
-
-        if (slot->encrypt_log_buf != nullptr) {
-          ut::free(slot->encrypt_log_buf);
-        }
-
-        slot->encrypt_log_buf = encrypt_log_buf;
-      }
+      encrypted_block = const_cast<file::Block *>(e_block);
     }
+
+    if (slot->buf_block != nullptr) {
+      os_free_block(slot->buf_block);
+    }
+
+    slot->buf_block = encrypted_block;
 
     slot->buf = static_cast<byte *>(src_buf);
 
@@ -6985,9 +6974,7 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
     and array of event handles, both initialized on startup. Therefore
     we do not have to acquire the protecting mutex yet.  */
 
-#ifndef UNIV_HOTBACKUP
     ut_ad(os_aio_validate_skip());
-#endif /* !UNIV_HOTBACKUP */
 
     srv_set_io_thread_op_info(segment, "wait Windows aio");
 
@@ -6997,14 +6984,8 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
 
     array->acquire();
 
-    if (
-#ifndef UNIV_HOTBACKUP
-        srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS
-#else  /* !UNIV_HOTBACKUP */
-        true
-#endif /* !UNIV_HOTBACKUP */
-        && array->is_empty() && !buf_flush_page_cleaner_is_active()) {
-
+    if (srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS &&
+        array->is_empty() && !buf_flush_page_cleaner_is_active()) {
       *m1 = NULL;
       *m2 = NULL;
 
@@ -7082,6 +7063,7 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
   }
 
   if (err == DB_SUCCESS) {
+    ut_ad(!slot->type.is_log());
     /** If write of the page is compressed (compression is enabled, it is not
     the first page, it is not a redolog, not a doublewrite buffer) and punch
     holes are enabled, call AIOHandler::io_complete to check if hole punching is
@@ -7107,6 +7089,7 @@ static dberr_t os_aio_windows_handler(ulint segment, fil_node_t **m1, void **m2,
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,
                     bool read_only, fil_node_t *m1, void *m2) {
+  ut_a(!type.is_log());
 #ifdef WIN_ASYNC_IO
   BOOL ret = TRUE;
 #endif /* WIN_ASYNC_IO */
@@ -7122,9 +7105,7 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
   ut_ad(n > 0);
   ut_ad((n % OS_FILE_LOG_BLOCK_SIZE) == 0);
   ut_ad((offset % OS_FILE_LOG_BLOCK_SIZE) == 0);
-#ifndef UNIV_HOTBACKUP
   ut_ad(os_aio_validate_skip());
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef WIN_ASYNC_IO
   ut_ad((n & 0xFFFFFFFFUL) == n);
@@ -7538,9 +7519,7 @@ ulint SimulatedAIOHandler::check_pending(ulint global_segment,
   /* NOTE! We only access constant fields in os_aio_array.
   Therefore we do not have to acquire the protecting mutex yet */
 
-#ifndef UNIV_HOTBACKUP
   ut_ad(os_aio_validate_skip());
-#endif /* !UNIV_HOTBACKUP */
 
   ut_ad(m_segment < m_array->get_n_segments());
 
@@ -7565,9 +7544,8 @@ thread.
 
 @param[in]      global_segment  The number of the segment in the aio arrays to
                                 await for; segment 0 is the ibuf i/o thread,
-                                segment 1 the log i/o thread, then follow the
-                                non-ibuf read threads, and as the last are the
-                                non-ibuf write threads
+                                then follow the non-ibuf read threads,
+                                and as the last are the non-ibuf write threads
 @param[out]     m1              the messages passed with the AIO request; note
                                 that also in the case where the AIO operation
                                 failed, these output parameters are valid and
@@ -7608,13 +7586,8 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
     if (slot != nullptr) {
       break;
 
-    } else if (n_reserved == 0
-#ifndef UNIV_HOTBACKUP
-               && !buf_flush_page_cleaner_is_active() &&
-               srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS
-#endif /* !UNIV_HOTBACKUP */
-    ) {
-
+    } else if (n_reserved == 0 && !buf_flush_page_cleaner_is_active() &&
+               srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS) {
       /* There is no completed request. If there
       are no pending request at all, and the system
       is being shut down, exit. */
@@ -7716,10 +7689,6 @@ ulint AIO::total_pending_io_count() {
     count += s_ibuf->pending_io_count();
   }
 
-  if (s_log != nullptr) {
-    count += s_log->pending_io_count();
-  }
-
   return (count);
 }
 
@@ -7803,11 +7772,6 @@ void AIO::print_all(FILE *file) {
     fputs(",\n ibuf aio reads:", file);
     s_ibuf->print(file);
   }
-
-  if (s_log != nullptr) {
-    fputs(", log i/o's:", file);
-    s_log->print(file);
-  }
 }
 
 /** Prints info of the aio arrays.
@@ -7815,8 +7779,7 @@ void AIO::print_all(FILE *file) {
 void os_aio_print(FILE *file) {
   double avg_bytes_read;
 
-#ifndef UNIV_HOTBACKUP
-  for (ulint i = 0; i < srv_n_file_io_threads; ++i) {
+  for (ulint i = 0; i < os_aio_n_segments; ++i) {
     fprintf(file, "I/O thread %lu state: %s (%s)", (ulong)i,
             srv_io_thread_op_info[i], srv_io_thread_function[i]);
 
@@ -7828,7 +7791,6 @@ void os_aio_print(FILE *file) {
 
     fprintf(file, "\n");
   }
-#endif /* !UNIV_HOTBACKUP */
 
   fputs("Pending normal aio reads:", file);
 
@@ -7851,9 +7813,9 @@ void os_aio_print(FILE *file) {
   fprintf(file,
           "Pending flushes (fsync) log: " UINT64PF
           "; "
-          "buffer pool: " ULINTPF "\n" ULINTPF " OS file reads, " ULINTPF
+          "buffer pool: " UINT64PF "\n" ULINTPF " OS file reads, " ULINTPF
           " OS file writes, " ULINTPF " OS fsyncs\n",
-          n_log_pending_flushes, fil_n_pending_tablespace_flushes,
+          n_log_pending_flushes, fil_n_pending_tablespace_flushes.load(),
           os_n_file_reads, os_n_file_writes, os_n_fsyncs);
 
   auto pending_writes = os_n_pending_writes.load();
@@ -7944,11 +7906,6 @@ void AIO::print_to_file(FILE *file) {
     fprintf(file, "Pending ibuf aio reads:");
     s_ibuf->to_file(file);
   }
-
-  if (s_log != nullptr) {
-    fprintf(file, "Pending log i/o's:");
-    s_log->to_file(file);
-  }
 }
 
 /** Prints all pending IO
@@ -7956,6 +7913,7 @@ void AIO::print_to_file(FILE *file) {
 void os_aio_print_pending_io(FILE *file) { AIO::print_to_file(file); }
 
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 /**
 Set the file create umask

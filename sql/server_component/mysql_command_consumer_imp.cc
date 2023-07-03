@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -116,11 +116,21 @@ DEFINE_BOOL_METHOD(mysql_command_consumer_dom_imp::field_metadata,
   try {
     Dom_ctx *ctx = reinterpret_cast<Dom_ctx *>(srv_ctx_h);
     if (ctx == nullptr) return true;
-    ctx->m_fields->db = const_cast<char *>(field->db_name);
-    ctx->m_fields->table = const_cast<char *>(field->table_name);
-    ctx->m_fields->org_table = const_cast<char *>(field->org_table_name);
-    ctx->m_fields->name = const_cast<char *>(field->col_name);
-    ctx->m_fields->org_name = const_cast<char *>(field->org_col_name);
+    /* The field metadata strings are part of the query context and will be
+       freed after query execution. Copy the metadata strings into the result
+       set context so they can be accessed upon return to the caller.
+    */
+    MEM_ROOT *mem_root = (*ctx->m_result)->alloc;
+    ctx->m_fields->db =
+        strmake_root(mem_root, field->db_name, strlen(field->db_name));
+    ctx->m_fields->table =
+        strmake_root(mem_root, field->table_name, strlen(field->table_name));
+    ctx->m_fields->org_table = strmake_root(mem_root, field->org_table_name,
+                                            strlen(field->org_table_name));
+    ctx->m_fields->name =
+        strmake_root(mem_root, field->col_name, strlen(field->col_name));
+    ctx->m_fields->org_name = strmake_root(mem_root, field->org_col_name,
+                                           strlen(field->org_col_name));
     ctx->m_fields->length = field->length;
     ctx->m_fields->charsetnr = field->charsetnr;
     ctx->m_fields->flags = field->flags;
@@ -434,6 +444,7 @@ DEFINE_METHOD(void, mysql_command_consumer_dom_imp::end,
        free_result->mysql_free_result()->free_rows() api.
        In non result cases, it has to be freed here. */
     if (*ctx->m_result) {
+      (*ctx->m_result)->alloc->Clear();
       my_free((*ctx->m_result)->alloc);
       my_free(*ctx->m_result);
     }

@@ -18,6 +18,7 @@ phone VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_phone_ci
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_phone_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_phone_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO t1 VALUES ('Svoj','+7 912 800 80 02');
 INSERT INTO t1 VALUES ('Hf','+7 (912) 800 80 04');
 INSERT INTO t1 VALUES ('Bar','+7-912-800-80-01');
@@ -47,6 +48,7 @@ create table t1 (c1 char(1) character set utf8 collate utf8_test_ci);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 insert into t1 values ('a');
 select * from t1 where c1='b';
 c1
@@ -59,6 +61,7 @@ create table t1 (c1 char(1) character set ucs2 collate ucs2_test_ci);
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	4079	'ucs2_test_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	4162	'ucs2_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 insert into t1 values ('a');
 select * from t1 where c1='b';
 c1
@@ -68,6 +71,8 @@ show collation like 'utf8mb4_test_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 utf8mb4_test_ci	utf8mb4	326			8	PAD SPACE
 create table t1 (c1 char(1) character set utf8mb4 collate utf8mb4_test_ci);
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 insert into t1 values ('a');
 select * from t1 where c1='b';
 c1
@@ -77,6 +82,8 @@ show collation like 'utf16_test_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 utf16_test_ci	utf16	327			8	PAD SPACE
 create table t1 (c1 char(1) character set utf16 collate utf16_test_ci);
+Warnings:
+Warning	4162	'utf16_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 insert into t1 values ('a');
 select * from t1 where c1='b';
 c1
@@ -86,6 +93,8 @@ show collation like 'utf32_test_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 utf32_test_ci	utf32	391			8	PAD SPACE
 create table t1 (c1 char(1) character set utf32 collate utf32_test_ci);
+Warnings:
+Warning	4162	'utf32_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 insert into t1 values ('a');
 select * from t1 where c1='b';
 c1
@@ -94,62 +103,85 @@ drop table t1;
 SELECT hex(weight_string(_utf8mb4'a' collate utf8mb4_test_ci));
 hex(weight_string(_utf8mb4'a' collate utf8mb4_test_ci))
 120F
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_ci))
 314A
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci), hex(lower(@a));
 hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci)	hex(lower(@a))
 F0909080	F09090A8
 Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_ci), hex(upper(@a));
 hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_ci)	hex(upper(@a))
 F09090A8	F0909080
 Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_ci), hex(lower(@a));
 hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_ci)	hex(lower(@a))
 E2B080	E2B0B0
 Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_ci), hex(upper(@a));
 hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_ci)	hex(upper(@a))
 E2B0B0	E2B080
 Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT hex(weight_string(convert(_utf32 0x61 using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_utf32 0x61 using utf8mb4) collate utf8mb4_test_ci))
 120F
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(weight_string(convert(_utf32 0x62 using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_utf32 0x62 using utf8mb4) collate utf8mb4_test_ci))
 120F
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(weight_string(convert(_utf32 0x10062 using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_utf32 0x10062 using utf8mb4) collate utf8mb4_test_ci))
 120F
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(weight_string(convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci))
 30D2
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(weight_string(convert(_utf32 0x100400 using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_utf32 0x100400 using utf8mb4) collate utf8mb4_test_ci))
 30D2
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(weight_string(_utf8mb4 0x64 collate utf8mb4_test_ci));
 hex(weight_string(_utf8mb4 0x64 collate utf8mb4_test_ci))
 1250
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(weight_string(convert(_ucs2 0x0064017e using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_ucs2 0x0064017e using utf8mb4) collate utf8mb4_test_ci))
 1251
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(weight_string(convert(_ucs2 0x0044017e using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_ucs2 0x0044017e using utf8mb4) collate utf8mb4_test_ci))
 1251
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(weight_string(convert(_ucs2 0x0044017d using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_ucs2 0x0044017d using utf8mb4) collate utf8mb4_test_ci))
 1251
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 #
 # Bug#45645 Mysql server close all connection and restart using lower function
 #
@@ -157,6 +189,7 @@ CREATE TABLE t1 (a VARCHAR(10)) CHARACTER SET utf8 COLLATE utf8_test_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO t1 (a) VALUES ('hello!');
 SELECT * FROM t1 WHERE LOWER(a)=LOWER('N');
 a
@@ -168,6 +201,7 @@ CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO t1 (a) VALUES ('Hello');
 SELECT a, UPPER(a), LOWER(a) FROM t1;
 a	UPPER(a)	LOWER(a)
@@ -180,6 +214,7 @@ CREATE TABLE t1 (c1 VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_test_ci);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_test_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT IGNORE INTO t1 SELECT REPEAT('a',11);
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
@@ -192,6 +227,7 @@ create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	4079	'ucs2_vn_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	4162	'ucs2_vn_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 insert into t1 values (0x0061),(0x0041),(0x00E0),(0x00C0),(0x1EA3),(0x1EA2),
 (0x00E3),(0x00C3),(0x00E1),(0x00C1),(0x1EA1),(0x1EA0);
 insert into t1 values (0x0103),(0x0102),(0x1EB1),(0x1EB0),(0x1EB3),(0x1EB2),
@@ -469,6 +505,8 @@ latin1_test	latin1	1025			0	PAD SPACE
 select "foo" = "foo " collate latin1_test;
 "foo" = "foo " collate latin1_test
 1
+Warnings:
+Warning	4162	'latin1_test' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 The following tests check that two-byte collation IDs work
 select collation_name, character_set_name, id from information_schema.collations where id>256 order by id;
 collation_name	character_set_name	id
@@ -567,6 +605,7 @@ create table t1 (c1 char(1) character set ucs2 collate ucs2_vn_ci);
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	4079	'ucs2_vn_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	4162	'ucs2_vn_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -584,6 +623,7 @@ CREATE TABLE t1 (s1 char(10) character set utf8 collate utf8_maxuserid_ci);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_maxuserid_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_maxuserid_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 INSERT INTO t1 VALUES ('a'),('b');
 SELECT * FROM t1 WHERE s1='a' ORDER BY BINARY s1;
 s1
@@ -596,6 +636,7 @@ SET NAMES utf8 COLLATE utf8_phone_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_phone_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_phone_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SHOW COLLATION LIKE 'utf8_phone_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 utf8_phone_ci	utf8mb3	352			8	PAD SPACE
@@ -605,28 +646,36 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT hex(weight_string(_utf8mb4'a' collate utf8mb4_test_400_ci));
 hex(weight_string(_utf8mb4'a' collate utf8mb4_test_400_ci))
 0E33
+Warnings:
+Warning	4162	'utf8mb4_test_400_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_400_ci));
 hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_400_ci))
 FFFD
+Warnings:
+Warning	4162	'utf8mb4_test_400_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_400_ci), hex(lower(@a));
 hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_400_ci)	hex(lower(@a))
 F0909080	F09090A8
 Warnings:
+Warning	4162	'utf8mb4_test_400_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_400_ci), hex(upper(@a));
 hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_400_ci)	hex(upper(@a))
 F09090A8	F09090A8
 Warnings:
+Warning	4162	'utf8mb4_test_400_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_400_ci), hex(lower(@a));
 hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_400_ci)	hex(lower(@a))
 E2B080	E2B080
 Warnings:
+Warning	4162	'utf8mb4_test_400_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_400_ci), hex(upper(@a));
 hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_400_ci)	hex(upper(@a))
 E2B0B0	E2B0B0
 Warnings:
+Warning	4162	'utf8mb4_test_400_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 #
 # WL#5624 Collation customization improvements
@@ -635,6 +684,7 @@ SET NAMES utf8 COLLATE utf8_5624_1;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_5624_1' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_5624_1' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 CREATE TABLE t1 AS SELECT REPEAT(' ', 16) AS a LIMIT 0;
 INSERT INTO t1 VALUES ('012345'),('001234'),('000123'),('000012'),('000001');
 INSERT INTO t1 VALUES ('12345'),('01234'),('00123'),('00012'),('00001');
@@ -813,6 +863,7 @@ ALTER TABLE t1 CONVERT TO CHARACTER SET ucs2 COLLATE ucs2_5624_1;
 Warnings:
 Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	4079	'ucs2_5624_1' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
+Warning	4162	'ucs2_5624_1' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SELECT a, HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, LENGTH(a), BINARY(a);
 a	HEX(WEIGHT_STRING(a))
 lp-ft	0001
@@ -967,6 +1018,7 @@ SET NAMES utf8 COLLATE utf8_5624_4;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_5624_4' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_5624_4' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES ('\\'),('u'),('x'),('X');
 SELECT a, HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, LENGTH(a), BINARY(a);
@@ -985,6 +1037,7 @@ SET NAMES utf8, collation_connection=utf8_bengali_standard_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bengali_standard_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_bengali_standard_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 CREATE TABLE t1 AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES (_ucs2 0x09FA), (_ucs2 0x09F8), (_ucs2 0x09F9), (_ucs2 0x09F2);
 Warnings:
@@ -1025,6 +1078,7 @@ SET NAMES utf8, collation_connection=utf8_bengali_traditional_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bengali_traditional_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_bengali_traditional_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 CREATE TABLE t1 AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES
 (_ucs2 0x0985),(_ucs2 0x0986),(_ucs2 0x0987),(_ucs2 0x0988),
@@ -1309,6 +1363,7 @@ SET NAMES utf8 COLLATE utf8_5624_5;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_5624_5' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_5624_5' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS a LIMIT 0;
 INSERT INTO t1 VALUES ('0'),('1'),('0z'),(_ucs2 0x0030FF9D);
 Warnings:

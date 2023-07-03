@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
+#include <map>
+#include <queue>
 #include <sstream>
 #include <string>
 
@@ -49,8 +51,73 @@ using namespace std::string_literals;
 /*static*/ const char MySQLSession::kSslModeVerifyIdentity[] =
     "VERIFY_IDENTITY";
 
-/*static*/ const std::function<void(unsigned, MYSQL_FIELD *)>
-    MySQLSession::null_field_validator = [](unsigned, MYSQL_FIELD *) {};
+namespace {
+
+class SSLSessionsCache {
+ public:
+  using EndpointId = std::string;
+  using CachedType = std::string;
+
+  static SSLSessionsCache &instance() {
+    static SSLSessionsCache i;
+    return i;
+  }
+
+  bool was_session_reused(MYSQL *con) {
+    return mysql_get_ssl_session_reused(con);
+  }
+
+  void store_ssl_session(MYSQL *con, const EndpointId &endpoint_id) {
+    unsigned int len = 0;
+    std::lock_guard lk(mtx_);
+
+    static_assert(kMaxEntriesPerEndpoint > 0);
+
+    void *data = mysql_get_ssl_session_data(con, 0, &len);
+    if (len == 0) {
+      // we failed to get the ssl session data, nothing to store
+      return;
+    }
+
+    if (cache_.count(endpoint_id) > 0 &&
+        cache_[endpoint_id].size() >= kMaxEntriesPerEndpoint) {
+      // cache is full, remove the oldest entry to make room for the new one
+      cache_[endpoint_id].pop();
+    }
+
+    cache_[endpoint_id].emplace(reinterpret_cast<char *>(data), len);
+
+    mysql_free_ssl_session_data(con, data);
+  }
+
+  void try_reuse_session(MYSQL *con, const EndpointId &endpoint_id) {
+    std::lock_guard lk(mtx_);
+
+    if (cache_.count(endpoint_id) == 0 || cache_[endpoint_id].empty()) {
+      return;
+    }
+
+    const auto &sess_data = cache_[endpoint_id].front();
+    mysql_options(con, MYSQL_OPT_SSL_SESSION_DATA, sess_data.c_str());
+
+    // once the session data was reused remove it from the cache
+    cache_[endpoint_id].pop();
+  }
+
+ private:
+  SSLSessionsCache() = default;
+
+  // disable copying
+  SSLSessionsCache(SSLSessionsCache &) = delete;
+  SSLSessionsCache *operator=(SSLSessionsCache &) = delete;
+
+  std::map<EndpointId, std::queue<CachedType>> cache_;
+  std::mutex mtx_;
+
+  static constexpr size_t kMaxEntriesPerEndpoint{2};
+};
+
+}  // namespace
 
 MySQLSession::MySQLSession(std::unique_ptr<LoggingStrategy> logging_strategy)
     : logging_strategy_(std::move(logging_strategy)) {
@@ -205,20 +272,33 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
   const unsigned long client_flags =
       (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_PROTOCOL_41 |
        CLIENT_MULTI_RESULTS);
-  std::string tmp_conn_addr = unix_socket.length() > 0
-                                  ? unix_socket
-                                  : host + ":" + std::to_string(port);
+  std::string endpoint_str = unix_socket.length() > 0
+                                 ? unix_socket
+                                 : host + ":" + std::to_string(port);
+
+  const bool ssl_disabled = conn_params_.ssl_opts.ssl_mode == SSL_MODE_DISABLED;
+  auto &ssl_sessions_cache = SSLSessionsCache::instance();
+
+  if (!ssl_disabled) {
+    ssl_sessions_cache.try_reuse_session(connection_, endpoint_str);
+  }
+
   if (!mysql_real_connect(connection_, host.c_str(), username.c_str(),
                           password.c_str(), default_schema.c_str(), port,
                           unix_socket.c_str(), client_flags)) {
     std::stringstream ss;
-    ss << "Error connecting to MySQL server at " << tmp_conn_addr;
+    ss << "Error connecting to MySQL server at " << endpoint_str;
     ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_)
        << ")";
     throw Error(ss.str(), mysql_errno(connection_));
   }
+
+  if (!ssl_disabled) {
+    ssl_sessions_cache.store_ssl_session(connection_, endpoint_str);
+  }
+
   connected_ = true;
-  connection_address_ = tmp_conn_addr;
+  connection_address_ = endpoint_str;
 
   // archive options for future connection templating
   conn_params_.conn_opts = {

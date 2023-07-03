@@ -1,4 +1,4 @@
-# Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,16 +40,24 @@ MYSQL_ADD_PLUGIN(
   # Authentication plugin main
   authentication_oci_client_plugin.cc
 
-  # Request signing
-  ${CMAKE_SOURCE_DIR}/sql-common/oci/ssl.cc
-  ${CMAKE_SOURCE_DIR}/sql-common/oci/signing_key.cc
-
-  # Utilities
-  ${CMAKE_SOURCE_DIR}/sql-common/oci/utilities.cc
-
-  LINK_LIBRARIES ${SSL_LIBRARIES}
+  LINK_LIBRARIES oci_common mysys ${SSL_LIBRARIES}
 
   CLIENT_ONLY
   MODULE_ONLY MODULE_OUTPUT_NAME "authentication_oci_client"
 )
 
+IF(LINUX OR SOLARIS)
+  SET(PLUGIN_VERSION_FILE
+    ${CMAKE_CURRENT_SOURCE_DIR}/authentication_oci_client.ver)
+  IF(SOLARIS)
+    MY_TARGET_LINK_OPTIONS(authentication_oci_client
+      "LINKER:-z,gnu-version-script-compat")
+  ENDIF()
+  # hide all symbols in mysys, to avoid ODR violations.
+  # There is *one* visible symbol: _mysql_client_plugin_declaration_
+  MY_TARGET_LINK_OPTIONS(authentication_oci_client
+    "LINKER:--version-script=${PLUGIN_VERSION_FILE}"
+    )
+  SET_TARGET_PROPERTIES(authentication_oci_client
+    PROPERTIES LINK_DEPENDS ${PLUGIN_VERSION_FILE})
+ENDIF()

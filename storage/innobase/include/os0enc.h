@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -181,21 +181,14 @@ class Encryption {
   Encryption &operator=(const Encryption &) = default;
 
   /** Check if page is encrypted page or not
-  @param[in]  page  page which need to check
+  @param[in]  page  page to check
   @return true if it is an encrypted page */
   [[nodiscard]] static bool is_encrypted_page(const byte *page) noexcept;
 
   /** Check if a log block is encrypted or not
-  @param[in]  block block which need to check
+  @param[in]  block block to check
   @return true if it is an encrypted block */
   [[nodiscard]] static bool is_encrypted_log(const byte *block) noexcept;
-
-  /** Check the encryption option and set it
-  @param[in]      option      encryption option
-  @param[in,out]  type        The encryption type
-  @return DB_SUCCESS or DB_UNSUPPORTED */
-  [[nodiscard]] dberr_t set_algorithm(const char *option,
-                                      Encryption *type) noexcept;
 
   /** Validate the algorithm string.
   @param[in]  option  Encryption option
@@ -319,56 +312,50 @@ class Encryption {
                                      const byte *encryption_info,
                                      bool decrypt_key) noexcept;
 
-  /** Encrypt the redo log block.
-  @param[in]      type      IORequest
-  @param[in,out]  src_ptr   log block which need to encrypt
-  @param[in,out]  dst_ptr   destination area
+  /** Encrypt the redo log block (OS_FILE_LOG_BLOCK_SIZE bytes).
+  @param[in,out]  src_ptr   redo log block to encrypt
+  @param[in,out]  dst_ptr   destination area, must not overlap with src_ptr
   @return true if success. */
-  bool encrypt_log_block(const IORequest &type, byte *src_ptr,
-                         byte *dst_ptr) noexcept;
+  bool encrypt_log_block(byte *src_ptr, byte *dst_ptr) const noexcept;
 
-  /** Encrypt the redo log data contents.
-  @param[in]      type      IORequest
-  @param[in,out]  src       page data which need to encrypt
-  @param[in]      src_len   size of the source in bytes
-  @param[in,out]  dst       destination area
-  @param[in,out]  dst_len   size of the destination in bytes
-  @return buffer data, dst_len will have the length of the data */
-  byte *encrypt_log(const IORequest &type, byte *src, ulint src_len, byte *dst,
-                    ulint *dst_len) noexcept;
+  /** Encrypt the redo log data blocks.
+  On success the buffer provided by caller as dst will contain src_len bytes
+  of encrypted redo log.
+  @param[in,out]  src       pointer to the first block to encrypt
+  @param[in]      src_len   size of the source in bytes, must be a multiple of
+                            OS_FILE_LOG_BLOCK_SIZE
+  @param[in,out]  dst       destination area.
+                            Must be at least src_len bytes long.
+                            Must not overlap with src.
+  @return true on success */
+  bool encrypt_log(byte *src, size_t src_len, byte *dst) const noexcept;
 
   /** Encrypt the page data contents. Page type can't be
   FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
   FIL_PAGE_ENCRYPTED_RTREE.
   @param[in]      type      IORequest
-  @param[in,out]  src       page data which need to encrypt
+  @param[in,out]  src       page data to encrypt
   @param[in]      src_len   size of the source in bytes
   @param[in,out]  dst       destination area
   @param[in,out]  dst_len   size of the destination in bytes
   @return buffer data, dst_len will have the length of the data */
   [[nodiscard]] byte *encrypt(const IORequest &type, byte *src, ulint src_len,
-                              byte *dst, ulint *dst_len) noexcept;
+                              byte *dst, ulint *dst_len) const noexcept;
 
-  /** Decrypt the log block.
-  @param[in]      type  IORequest
-  @param[in,out]  src   data read from disk, decrypted data
-                        will be copied to this page
-  @param[in,out]  dst   scratch area to use for decryption
+  /** Decrypt the log block (OS_FILE_LOG_BLOCK_SIZE bytes) in place.
+  @param[in,out]  buf   a buffer which contains a single redo log block to be
+                        decrypted in place
   @return DB_SUCCESS or error code */
-  dberr_t decrypt_log_block(const IORequest &type, byte *src,
-                            byte *dst) noexcept;
+  dberr_t decrypt_log_block(byte *buf) const noexcept;
 
-  /** Decrypt the log data contents.
-  @param[in]      type      IORequest
-  @param[in,out]  src       data read from disk, decrypted data
-                            will be copied to this page
-  @param[in]      src_len   source data length
-  @param[in,out]  dst       scratch area to use for decryption
+  /** Decrypt the redo log data blocks in place.
+  @param[in,out]  buf       pointer to the first block to decrypt in place
+  @param[in]      buf_len   lenght of the buffer in bytes, must be a multiple of
+                            OS_FILE_LOG_BLOCK_SIZE
   @return DB_SUCCESS or error code */
-  dberr_t decrypt_log(const IORequest &type, byte *src, ulint src_len,
-                      byte *dst) noexcept;
+  dberr_t decrypt_log(byte *buf, size_t buf_len) const noexcept;
 
-  /** Decrypt the page data contents. Page type must be
+  /** Decrypt the page data contents in place. Page type must be
   FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
   FIL_PAGE_ENCRYPTED_RTREE, if not then the source contents are
   left unchanged and DB_SUCCESS is returned.
@@ -376,11 +363,11 @@ class Encryption {
   @param[in,out]  src     data read from disk, decrypt
                           data will be copied to this page
   @param[in]      src_len source data length
-  @param[in,out]  dst     scratch area to use for decrypt
-  @param[in]  dst_len     size of the scratch area in bytes
+  @param[in,out]  tmp     scratch area to use for decrypt
+  @param[in]  tmp_len     size of the scratch area in bytes
   @return DB_SUCCESS or error code */
   [[nodiscard]] dberr_t decrypt(const IORequest &type, byte *src, ulint src_len,
-                                byte *dst, ulint dst_len) noexcept;
+                                byte *tmp, ulint tmp_len) const noexcept;
 
   /** Check if keyring plugin loaded. */
   static bool check_keyring() noexcept;
@@ -413,6 +400,11 @@ class Encryption {
   @param[in]  iv  initial_vector **/
   void set_initial_vector(const byte *iv);
 
+  /** Uses metadata to configure this instance. Caller must ensure that the
+  metadata is not freed before this instance, because iv and key will reference
+  those inside metadata object. The key_len and type are copied by value. */
+  void set(const struct Encryption_metadata &metadata) noexcept;
+
   /** Get master key id
   @return master key id **/
   static uint32_t get_master_key_id();
@@ -421,13 +413,13 @@ class Encryption {
   /** Encrypt the page data contents. Page type can't be
   FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
   FIL_PAGE_ENCRYPTED_RTREE.
-  @param[in]  src       page data which need to encrypt
+  @param[in]  src       page data to encrypt
   @param[in]  src_len   size of the source in bytes
   @param[in,out]  dst       destination area
   @param[in,out]  dst_len   size of the destination in bytes
   @return true if operation successful, false otherwise. */
   [[nodiscard]] bool encrypt_low(byte *src, ulint src_len, byte *dst,
-                                 ulint *dst_len) noexcept;
+                                 ulint *dst_len) const noexcept;
 
   /** Encrypt type */
   Type m_type;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -73,6 +73,7 @@ Plugin_table table_threads::m_table_def(
     "  MAX_CONTROLLED_MEMORY BIGINT unsigned not null,\n"
     "  TOTAL_MEMORY BIGINT unsigned not null,\n"
     "  MAX_TOTAL_MEMORY BIGINT unsigned not null,\n"
+    "  TELEMETRY_ACTIVE ENUM ('YES', 'NO') not null,\n"
     "  PRIMARY KEY (THREAD_ID) USING HASH,\n"
     "  KEY (PROCESSLIST_ID) USING HASH,\n"
     "  KEY (THREAD_OS_ID) USING HASH,\n"
@@ -328,6 +329,8 @@ int table_threads::make_row(PFS_thread *pfs) {
 
   m_row.m_session_all_memory_row.set(&pfs->m_session_all_memory_stat);
 
+  m_row.m_telemetry_active = (pfs->m_telemetry_session != nullptr);
+
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
@@ -403,8 +406,8 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 8: /* PROCESSLIST_TIME */
           if (m_row.m_start_time) {
-            time_t now = time(nullptr);
-            ulonglong elapsed =
+            const time_t now = time(nullptr);
+            const ulonglong elapsed =
                 (now > m_row.m_start_time ? now - m_row.m_start_time : 0);
             set_field_ulonglong(f, elapsed);
           } else {
@@ -475,6 +478,9 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
         case 22: /* MAX_TOTAL_MEMORY */
           m_row.m_session_all_memory_row.set_field(f->field_index() - 19, f);
           break;
+        case 23: /* TELEMETRY_ACTIVE */
+          set_field_enum(f, m_row.m_telemetry_active ? ENUM_YES : ENUM_NO);
+          break;
         default:
           assert(false);
       }
@@ -493,11 +499,11 @@ int table_threads::update_row_values(TABLE *table, const unsigned char *,
       switch (f->field_index()) {
         case 13: /* INSTRUMENTED */
           value = (enum_yes_no)get_field_enum(f);
-          m_row.m_psi->set_enabled((value == ENUM_YES) ? true : false);
+          m_row.m_psi->set_enabled(value == ENUM_YES);
           break;
         case 14: /* HISTORY */
           value = (enum_yes_no)get_field_enum(f);
-          m_row.m_psi->set_history((value == ENUM_YES) ? true : false);
+          m_row.m_psi->set_history(value == ENUM_YES);
           break;
         default:
           return HA_ERR_WRONG_COMMAND;

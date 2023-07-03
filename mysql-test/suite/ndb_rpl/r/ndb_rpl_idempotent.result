@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
 STOP REPLICA;
@@ -98,11 +98,12 @@ call mtr.add_suppression("Table \'t2\' already exists.*");
 call mtr.add_suppression("Worker 1 failed executing transaction.*");
 START REPLICA;
 include/wait_for_slave_sql_error.inc [errno=1050]
-SELECT LAST_ERROR_MESSAGE
+SELECT COUNT(*) as FOUND_ERROR_MESSAGE
 FROM performance_schema.replication_applier_status_by_worker
-WHERE LAST_ERROR_NUMBER=1050 AND channel_name = '';
-LAST_ERROR_MESSAGE
-Error 'Table 't2' already exists' on query. Default database: 'test'. Query: 'create table t2 (a int primary key) engine=ndb'
+WHERE LAST_ERROR_NUMBER=1050 AND channel_name = ''  AND
+LAST_ERROR_MESSAGE LIKE "%Table 't2' already exists%";
+FOUND_ERROR_MESSAGE
+1
 STOP REPLICA;
 RESET MASTER;
 RESET REPLICA;

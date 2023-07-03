@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,27 @@
 #include <NdbSpin.h>
 #include <NdbTick.h>
 
+
+/**
+ * Initial guess, calibrated by NdbSpin_Init() and adjusted
+ * with NdbSpin_Change() if needed.
+ *
+ * We want a single call to NdbSpin() to pause the thread on-cpu
+ * for ~1000 nanos (1us) by making one or more calls to cpu_pause().
+ * We need to calibrate how many calls results in 1000 nanos of
+ * pausing on this system'
+ *
+ * Note that we need to NdbSpin_Init() in order for
+ * NdbSpin_is_supported() to return true.
+ */
 static Uint64 glob_num_spin_loops = 10;
-static Uint64 glob_current_spin_nanos = 800;
+static Uint64 glob_current_spin_nanos = 1000;
+static bool glob_spin_enabled = false;
+
+bool NdbSpin_is_supported()
+{
+  return glob_spin_enabled;
+}
 
 Uint64 NdbSpin_get_num_spin_loops()
 {
@@ -37,26 +56,49 @@ void NdbSpin_Init()
 {
   Uint64 loops = 0;
 #ifdef NDB_HAVE_CPU_PAUSE
-  Uint64 spin_nanos = glob_current_spin_nanos;
-  Uint64 min_nanos_per_call = 0xFFFFFFFF;
+  /**
+   * Sample the cpu_pause() duration which is platform dependent
+   * in the order of a few to tens of nanoseconds.
+   *
+   * Find how many times we need to pause in order to get a
+   * a total pause duration of ~1000ns. (glob_current_spin_nanos.)
+   * As each 'pause' is short, in the ns range, and resolution of
+   * NdbTick is not guaranteed (platform dependent) we sample 1000
+   * pauses.
+   *
+   * In theory we can still end up with a measured 'nanos_passed'
+   * time of 0 nanos. In such cases 'glob_spin_enabled' will remain
+   * 'false' and NdbSpin_is_supported() -> false.
+   *
+   * If it takes < 1 cpu_pause() instruction to delay for 1000 nanos
+   * then we will delay for > 1000 nanos. (We are not aware of any
+   * platforms where a pause takes longer than 10's of nanos.)
+   *
+   * We do 5 rounds of sampling and takes the highest number of
+   * calculated loop spins in order to reduce the risks mentioned
+   * above.
+   */
+  const Uint64 spin_nanos = glob_current_spin_nanos;
   for (Uint32 i = 0; i < 5; i++)
   {
-    Uint32 loop_count = 100;
-    NDB_TICKS start = NdbTick_getCurrentTicks();
+    constexpr Uint32 loop_count = 1000;
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     for (Uint32 j = 0; j < loop_count; j++)
     {
-      NdbSpin();
+      cpu_pause();
     }
-    NDB_TICKS now = NdbTick_getCurrentTicks();
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
     const Uint64 nanos_passed = NdbTick_Elapsed(start, now).nanoSec();
-    const Uint64 nanos_per_call = nanos_passed / loop_count;
-    if ((nanos_per_call > 0) && (nanos_per_call < min_nanos_per_call))
+    if (nanos_passed > 0)
     {
-      min_nanos_per_call = nanos_per_call;
+      const Uint64 new_spin_loops = (loop_count*spin_nanos) / nanos_passed;
+      if (new_spin_loops > loops)
+      {
+        loops = new_spin_loops;
+        glob_spin_enabled = true;
+      }
     }
   }
-
-  loops = ((min_nanos_per_call - 1) + spin_nanos) / min_nanos_per_call;
 #endif
   if (loops == 0)
   {
@@ -65,9 +107,8 @@ void NdbSpin_Init()
   glob_num_spin_loops = loops;
 }
 
-void NdbSpin_Change(Uint64 spin_nanos)
+void NdbSpin_Change(Uint64 spin_nanos[[maybe_unused]])
 {
-  (void)spin_nanos;
 #ifdef NDB_HAVE_CPU_PAUSE
   if (spin_nanos < 300)
   {
@@ -83,15 +124,6 @@ void NdbSpin_Change(Uint64 spin_nanos)
   }
   glob_current_spin_nanos = spin_nanos;
   glob_num_spin_loops = Uint32(new_spin_loops);
-#endif
-}
-
-bool NdbSpin_is_supported()
-{
-#ifdef NDB_HAVE_CPU_PAUSE
-  return true;
-#else
-  return false;
 #endif
 }
 
@@ -111,10 +143,11 @@ void NdbSpin()
     cpu_pause();
   }
 }
+
 #else
-void NdbSpin()
-{
-  /* Should not happen */
-  abort();
-}
+  /**
+   * If a 'pause' implementation is not available on the platform, we do
+   * not want the CPU to do spin-waiting either. Let compiler enforce it
+   * by not implementing the NdbSpin() at all in such cases.
+   */
 #endif

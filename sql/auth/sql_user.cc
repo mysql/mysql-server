@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -1236,6 +1236,8 @@ error:
   @param[out] generated_passwords A list of generated random passwords. Depends
   on LEX_USER.
   @param[out] i_mfa Interface to Multi factor authentication methods.
+  @param if_not_exists   True if this is a CREATE ... IF NOT EXISTS type of
+                         statement. Valid for CREATE USER/ROLE.
 
   @retval 0 ok
   @retval 1 ERROR;
@@ -1245,7 +1247,8 @@ bool set_and_validate_user_attributes(
     THD *thd, LEX_USER *Str, acl_table::Pod_user_what_to_update &what_to_set,
     bool is_privileged_user, bool is_role, Table_ref *history_table,
     bool *history_check_done, const char *cmd,
-    Userhostpassword_list &generated_passwords, I_multi_factor_auth **i_mfa) {
+    Userhostpassword_list &generated_passwords, I_multi_factor_auth **i_mfa,
+    bool if_not_exists) {
   bool user_exists = false;
   ACL_USER *acl_user;
   plugin_ref plugin = nullptr;
@@ -1293,6 +1296,16 @@ bool set_and_validate_user_attributes(
       what_to_set.m_what = NONE_ATTR;
       return false;
     }
+  }
+
+  if (user_exists && if_not_exists) {
+    /*
+      CREATE USER/ROLE IF NOT EXISTS ... when the account exists
+      should be a no-op and be ignored.
+    */
+    assert(command == SQLCOM_CREATE_USER || command == SQLCOM_CREATE_ROLE);
+    what_to_set.m_what = NONE_ATTR;
+    return false;
   }
 
   mysql_mutex_lock(&LOCK_password_history);
@@ -2690,7 +2703,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       if (set_and_validate_user_attributes(
               thd, user_name, what_to_update, true, is_role,
               &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], &history_check_done,
-              "CREATE USER", generated_passwords, &mfa)) {
+              "CREATE USER", generated_passwords, &mfa, if_not_exists)) {
         result = 1;
         log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
         continue;

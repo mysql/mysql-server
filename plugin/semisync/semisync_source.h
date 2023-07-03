@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -530,7 +530,7 @@ class AckContainer : public Trace {
       else if (m_ack_array[i].is_server(server_id)) {
         m_ack_array[i].update(log_file_name, log_file_pos);
         if (trace_level_ & kTraceDetail)
-          LogErr(INFORMATION_LEVEL, ER_SEMISYNC_UPDATE_EXISTING_SLAVE_ACK, i);
+          LogErr(INFORMATION_LEVEL, ER_SEMISYNC_UPDATE_EXISTING_REPLICA_ACK, i);
         break;
       }
     }

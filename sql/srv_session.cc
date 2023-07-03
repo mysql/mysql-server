@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -624,6 +624,10 @@ static void set_psi(THD *thd) {
 */
 bool Srv_session::init_thread(const void *plugin) {
   char stack_start;
+
+  /* If not null, means its already initialized, so return success*/
+  if (THR_srv_session_thread != nullptr) return false;
+
   if (my_thread_init()) {
     connection_errors_internal++;
     return true;
@@ -679,7 +683,10 @@ static void close_all_sessions_of_plugin_if_any(const st_plugin_int *plugin) {
 */
 void Srv_session::deinit_thread() {
   const st_plugin_int *plugin = THR_srv_session_thread;
-  if (plugin) close_currently_attached_session_if_any(plugin);
+  if (plugin)
+    close_currently_attached_session_if_any(plugin);
+  else
+    return;
 
   if (server_session_threads.remove(my_thread_self()))
     LogErr(ERROR_LEVEL, ER_FAILED_TO_DECREMENT_NUMBER_OF_THREADS);

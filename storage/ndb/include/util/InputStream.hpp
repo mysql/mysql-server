@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "ndb_global.h"
 #include "portlib/ndb_socket.h"
 #include "portlib/NdbMutex.h"
+#include "util/NdbSocket.h"
 
 /**
  * Input stream
@@ -56,19 +57,27 @@ public:
 
 extern FileInputStream Stdin;
 
-class SocketInputStream : public InputStream {
-  ndb_socket_t m_socket;
+class SecureSocketInputStream : public InputStream {
+  const NdbSocket & m_socket;
   unsigned m_timeout_ms;
   unsigned m_timeout_remain;
   bool m_startover;
   bool m_timedout;
 public:
-  SocketInputStream(ndb_socket_t socket, unsigned read_timeout_ms = 3000);
-  ~SocketInputStream() override {}
+  SecureSocketInputStream(const NdbSocket &, unsigned read_timeout_ms = 3000);
+  ~SecureSocketInputStream() override {}
   char* gets(char * buf, int bufLen) override;
   bool timedout() { return m_timedout; }
   void reset_timeout() override { m_timedout= false; m_timeout_remain= m_timeout_ms;}
+};
 
+class SocketInputStream : public SecureSocketInputStream {
+  NdbSocket m_owned_socket;
+public:
+  SocketInputStream(ndb_socket_t s, unsigned timeout_ms = 3000) :
+    SecureSocketInputStream(m_owned_socket, timeout_ms),
+    m_owned_socket(s, NdbSocket::From::Existing) {}
+  ~SocketInputStream() override {}
 };
 
 #endif

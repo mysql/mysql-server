@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,12 +86,12 @@ DECLARE_NDBINFO_TABLE(POOLS,14) =
            pools, named "Data memory" and "Long message buffer".
         */
         (6  * c.threads.ldm)   +   // BACKUP
-        (14 * c.instances.tc)  +   // TC
+        (15 * c.instances.tc)  +   // TC
         (3  * c.instances.lqh) +   // LQH
         (5  * c.instances.lqh) +   // ACC
         (9  * c.instances.lqh) +   // TUP
         (7  * c.instances.lqh) +   // TUX
-        7 + 2 + 2 + 7 + 8);        // DICT + CMVMI + TRIX + UTIL + SUMA
+        8 + 2 + 2 + 7 + 8);        // DICT + CMVMI + TRIX + UTIL + SUMA
     },
     "pool usage"
   },

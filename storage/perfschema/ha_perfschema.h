@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,14 +63,14 @@ class ha_perfschema : public handler {
 
   ~ha_perfschema() override;
 
-  const char *table_type(void) const override { return pfs_engine_name; }
+  const char *table_type() const override { return pfs_engine_name; }
 
   const char *index_type(uint key_number);
 
-  const char **bas_ext(void) const;
+  const char **bas_ext() const;
 
   /** Capabilities of the performance schema tables. */
-  ulonglong table_flags(void) const override {
+  ulonglong table_flags() const override {
     /*
       About HA_FAST_KEY_READ:
 
@@ -105,31 +105,31 @@ class ha_perfschema : public handler {
     return HA_KEY_ALG_HASH;
   }
 
-  uint max_supported_record_length(void) const override {
+  uint max_supported_record_length() const override {
     return HA_MAX_REC_LENGTH;
   }
 
-  uint max_supported_keys(void) const override { return MAX_KEY; }
+  uint max_supported_keys() const override { return MAX_KEY; }
 
-  uint max_supported_key_parts(void) const override { return MAX_REF_PARTS; }
+  uint max_supported_key_parts() const override { return MAX_REF_PARTS; }
 
-  uint max_supported_key_length(void) const override { return MAX_KEY_LENGTH; }
+  uint max_supported_key_length() const override { return MAX_KEY_LENGTH; }
 
   uint max_supported_key_part_length(HA_CREATE_INFO *create_info
                                      [[maybe_unused]]) const override {
     return MAX_KEY_LENGTH;
   }
 
-  int index_init(uint index, bool sorted) override;
+  int index_init(uint idx, bool sorted) override;
   int index_end() override;
   int index_read(uchar *buf, const uchar *key, uint key_len,
                  enum ha_rkey_function find_flag) override;
   int index_next(uchar *buf) override;
   int index_next_same(uchar *buf, const uchar *key, uint keylen) override;
 
-  ha_rows estimate_rows_upper_bound(void) override { return HA_POS_ERROR; }
+  ha_rows estimate_rows_upper_bound() override { return HA_POS_ERROR; }
 
-  double scan_time(void) override { return 1.0; }
+  double scan_time() override { return 1.0; }
 
   /**
     Open a performance schema table.
@@ -146,7 +146,7 @@ class ha_perfschema : public handler {
     Close a table handle.
     @sa open.
   */
-  int close(void) override;
+  int close() override;
 
   /**
     Write a row.
@@ -178,7 +178,7 @@ class ha_perfschema : public handler {
     Scan end.
     @sa rnd_init.
   */
-  int rnd_end(void) override;
+  int rnd_end() override;
 
   /**
     Iterator, fetch the next row.
@@ -203,7 +203,7 @@ class ha_perfschema : public handler {
 
   int info(uint) override;
 
-  int delete_all_rows(void) override;
+  int delete_all_rows() override;
 
   int truncate(dd::Table *table_def) override;
 
@@ -213,7 +213,7 @@ class ha_perfschema : public handler {
                    const dd::Table *from_table_def,
                    dd::Table *to_table_def) override;
 
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+  int create(const char *name, TABLE *table_arg, HA_CREATE_INFO *create_info,
              dd::Table *table_def) override;
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,

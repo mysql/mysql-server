@@ -95,7 +95,7 @@ INSERT INTO t_system VALUES (1), (2);
 
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression(".*you need .at least one of. the SUPER.* SYSTEM_VARIABLES_ADMIN.*");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 
 # 2) Grant `REPLICATION_APPLIER`, `CREATE`, `DROP` and `INSERT` to the
 #    `PRIVILEGE_CHECKS_USER` user.

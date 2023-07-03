@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -149,12 +149,6 @@ int pre_process_incoming_ping(site_def const *site, pax_msg const *pm,
 #define APP ep->client_msg->p->a
 
 #define FIND_MAX (MIN_LENGTH / 10)
-
-/* Set type and object pointer */
-#define PLP msg->payload.manager_message_payload_u
-#define SET_REP_TYPE(quark, ptr) \
-  q = (quark);                   \
-  object = PLP.ptr
 
 #define x_actions                                                              \
   X(x_fsm_wait)                                                                \

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -129,24 +129,24 @@ PFS_engine_table *table_esms_by_digest::create(PFS_engine_table_share *) {
   return new table_esms_by_digest();
 }
 
-int table_esms_by_digest::delete_all_rows(void) {
+int table_esms_by_digest::delete_all_rows() {
   reset_esms_by_digest();
   return 0;
 }
 
-ha_rows table_esms_by_digest::get_row_count(void) { return digest_max; }
+ha_rows table_esms_by_digest::get_row_count() { return digest_max; }
 
 table_esms_by_digest::table_esms_by_digest()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {
   m_normalizer = time_normalizer::get_statement();
 }
 
-void table_esms_by_digest::reset_position(void) {
+void table_esms_by_digest::reset_position() {
   m_pos = 0;
   m_next_pos = 0;
 }
 
-int table_esms_by_digest::rnd_next(void) {
+int table_esms_by_digest::rnd_next() {
   PFS_statements_digest_stat *digest_stat;
 
   if (statements_digest_stat_array == nullptr) {
@@ -194,7 +194,7 @@ int table_esms_by_digest::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_esms_by_digest::index_next(void) {
+int table_esms_by_digest::index_next() {
   PFS_statements_digest_stat *digest_stat;
 
   if (statements_digest_stat_array == nullptr) {
@@ -240,9 +240,9 @@ int table_esms_by_digest::make_row(PFS_statements_digest_stat *digest_stat) {
     m_row.m_p99 = 0;
     m_row.m_p999 = 0;
   } else {
-    ulonglong count_95 = ((count_star * 95) + 99) / 100;
-    ulonglong count_99 = ((count_star * 99) + 99) / 100;
-    ulonglong count_999 = ((count_star * 999) + 999) / 1000;
+    const ulonglong count_95 = ((count_star * 95) + 99) / 100;
+    const ulonglong count_99 = ((count_star * 99) + 99) / 100;
+    const ulonglong count_999 = ((count_star * 999) + 999) / 1000;
 
     assert(count_95 != 0);
     assert(count_95 <= count_star);

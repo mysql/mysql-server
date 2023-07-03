@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -711,7 +711,8 @@ static int parse_input_file(const char *file_name, struct errors ***last_error,
                             struct languages **top_lang, int base_error_code,
                             PFS_error_stat error_stat) {
   FILE *file;
-  char *str, buff[1000];
+  char *str, buff[2000];  // temporary fix for compilation failure of Wl14191 at
+                          // few platforms
   const char *fail = nullptr;
   struct errors *current_error = nullptr, **tail_error = *last_error;
   struct message current_message {};

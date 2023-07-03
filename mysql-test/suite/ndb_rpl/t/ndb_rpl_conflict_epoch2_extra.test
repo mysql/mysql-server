@@ -26,8 +26,8 @@ select @primary_server_port:=(variable_value+0)
 let $PRIMARY_SERVER_PORT= query_get_value('select @primary_server_port as v', v,1);
 
 # Suppress warnings sometimes seen
-call mtr.add_suppression("Master is configured to log replication events with checksum");
-call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("Source is configured to log replication events with checksum");
+call mtr.add_suppression("Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
 # Gather port + serverid
@@ -41,8 +41,8 @@ select @secondary_server_port:=(variable_value+0)
 let $SECONDARY_SERVER_PORT= query_get_value('select @secondary_server_port as v', v,1);
 
 # Suppress warnings sometimes seen
-call mtr.add_suppression("Master is configured to log replication events with checksum");
-call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("Source is configured to log replication events with checksum");
+call mtr.add_suppression("Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 
 # Now set it up
 # Stop Slave @ Secondary

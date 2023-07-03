@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -661,7 +661,9 @@ class Unix_socket {
       return MYSQL_INVALID_SOCKET;
     }
 
-    if (create_lockfile()) {
+    if (create_lockfile() ||
+        DBUG_EVALUATE_IF("simulate_create_socket_lockfile_error", true,
+                         false)) {
       LogErr(ERROR_LEVEL, ER_CONN_UNIX_LOCK_FILE_FAIL);
       return MYSQL_INVALID_SOCKET;
     }

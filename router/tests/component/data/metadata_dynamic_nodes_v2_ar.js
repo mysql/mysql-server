@@ -9,18 +9,17 @@
  */
 
 var common_stmts = require("common_statements");
-var gr_memberships = require("gr_memberships");
 
 if (mysqld.global.gr_node_host === undefined) {
   mysqld.global.gr_node_host = "127.0.0.1";
 }
 
 if (mysqld.global.gr_id === undefined) {
-  mysqld.global.gr_id = "00-000";
+  mysqld.global.gr_id = "uuid";
 }
 
-if (mysqld.global.gr_nodes === undefined) {
-  mysqld.global.gr_nodes = [];
+if (mysqld.global.cluster_nodes === undefined) {
+  mysqld.global.cluster_nodes = [];
 }
 
 if (mysqld.global.md_query_count === undefined) {
@@ -43,6 +42,9 @@ if (mysqld.global.error_on_md_query === undefined) {
   mysqld.global.error_on_md_query = 0;
 }
 
+if (mysqld.global.cluster_name === undefined) {
+  mysqld.global.cluster_name = "test";
+}
 
 if (mysqld.global.cluster_type === undefined) {
   mysqld.global.cluster_type = "ar";
@@ -52,30 +54,24 @@ var nodes = function(host, port_and_state) {
   return port_and_state.map(function(current_value) {
     return [
       current_value[0], host, current_value[0], current_value[1],
-      current_value[2], current_value[3]
+      current_value[2]
     ];
   });
 };
 
-var group_replication_membership_online = nodes(
-    mysqld.global.gr_node_host, mysqld.global.gr_nodes, mysqld.global.gr_id);
+var cluster_nodes_online =
+    nodes(mysqld.global.gr_node_host, mysqld.global.cluster_nodes);
 
 var options = {
-  group_replication_membership: group_replication_membership_online,
+  innodb_cluster_instances: cluster_nodes_online,
   cluster_id: mysqld.global.gr_id,
   view_id: mysqld.global.view_id,
   primary_port: (mysqld.global.primary_id >= 0) ?
-      group_replication_membership_online[mysqld.global.primary_id][2] :
+      cluster_nodes_online[mysqld.global.primary_id][2] :
       mysqld.global.primary_id,
   cluster_type: mysqld.global.cluster_type,
-  innodb_cluster_name: "test",
+  innodb_cluster_name: mysqld.global.cluster_name,
 };
-
-// first node is PRIMARY
-if (mysqld.global.primary_id >= 0) {
-  options.group_replication_primary_member =
-      options.group_replication_membership[mysqld.global.primary_id][0];
-}
 
 var select_port = common_stmts.get("select_port", options);
 

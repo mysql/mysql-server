@@ -23,7 +23,7 @@ EXPLAIN
     -> Stream results  (cost=3.67 rows=7)
         -> Nested loop left join  (cost=3.67 rows=7)
             -> Table scan on t1  (cost=1.22 rows=7)
-            -> Single-row index lookup on t2 using PRIMARY (a=t1.a)  (cost=0.26 rows=1)
+            -> Single-row index lookup on t2 using PRIMARY (a=t1.a)  (cost=0.264 rows=1)
 
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 grp	a	c	id	a	c	d
@@ -405,10 +405,10 @@ NULL	NULL	NULL	2
 Thimble Smith	Happy	3	3
 explain format=tree select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 EXPLAIN
--> Nested loop left join  (cost=2.20 rows=9)
+-> Nested loop left join  (cost=2.2 rows=9)
     -> Index scan on t3 using PRIMARY  (cost=0.55 rows=3)
     -> Nested loop inner join  (cost=1.33 rows=3)
-        -> Single-row index lookup on t1 using PRIMARY (id=t3.id)  (cost=0.28 rows=1)
+        -> Single-row index lookup on t1 using PRIMARY (id=t3.id)  (cost=0.283 rows=1)
         -> Filter: (t2.`owner` = t3.id)  (cost=0.35 rows=3)
             -> Table scan on t2  (cost=0.35 rows=3)
 
@@ -436,7 +436,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where (`test`.`t1`.`str` is null)
 explain format=tree select * from t1 where str is null;
 EXPLAIN
--> Index lookup on t1 using str (str=NULL), with index condition: (t1.str is null)  (cost=0.70 rows=2)
+-> Index lookup on t1 using str (str=NULL), with index condition: (t1.str is null)  (cost=0.7 rows=2)
 
 drop table t1;
 CREATE TABLE t1 (
@@ -1948,13 +1948,13 @@ ON t2.col_varchar_10 = t3.col_varchar_10
 ON t2.col_int = t1.pk
 WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 EXPLAIN
--> Filter: <if>(found_match(t3..t4), ((t1.col_int_key is null) or (t4.pk < t3.col_int)), true)  (cost=0.70 rows=1)
-    -> Nested loop left join  (cost=0.70 rows=1)
+-> Filter: <if>(found_match(t3..t4), ((t1.col_int_key is null) or (t4.pk < t3.col_int)), true)  (cost=0.7 rows=1)
+    -> Nested loop left join  (cost=0.7 rows=1)
         -> Table scan on t1  (cost=0.35 rows=1)
-        -> Nested loop left join  (cost=0.70 rows=1)
+        -> Nested loop left join  (cost=0.7 rows=1)
             -> Filter: (t2.col_int = t1.pk)  (cost=0.35 rows=1)
                 -> Table scan on t2  (cost=0.35 rows=1)
-            -> Nested loop inner join  (cost=0.70 rows=1)
+            -> Nested loop inner join  (cost=0.7 rows=1)
                 -> Filter: (t3.col_varchar_10 = t2.col_varchar_10)  (cost=0.35 rows=1)
                     -> Table scan on t3  (cost=0.35 rows=1)
                 -> Single-row covering index lookup on t4 using PRIMARY (pk=t3.col_int)  (cost=0.35 rows=1)
@@ -3641,8 +3641,8 @@ EXPLAIN
         -> Nested loop inner join  (cost=1.15 rows=2)
             -> Filter: (t1.pk < 5)  (cost=0.45 rows=2)
                 -> Table scan on t1  (cost=0.45 rows=2)
-            -> Single-row covering index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.30 rows=1)
-    -> Multi-range index lookup on t3 using k2 (f2=t1.pk)  (cost=0.38 rows=1)
+            -> Single-row covering index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.3 rows=1)
+    -> Multi-range index lookup on t3 using k2 (f2=t1.pk)  (cost=0.375 rows=1.25)
 
 SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
 pk	pk	f1	f2
@@ -3688,8 +3688,8 @@ EXPLAIN
     -> Table scan on t1  (cost=1.05 rows=8)
     -> Batched key access left join
         -> Batch input rows
-            -> Index lookup on t2 using key_b (b=t1.b)  (cost=0.26 rows=1)
-        -> Multi-range index lookup on t3 using key_a (a=t2.a)  (cost=0.53 rows=3)
+            -> Index lookup on t2 using key_b (b=t1.b)  (cost=0.263 rows=1)
+        -> Multi-range index lookup on t3 using key_a (a=t2.a)  (cost=0.533 rows=2.67)
 
 SELECT t1.col_int as t1_ci, t1.a as t1_a, t1.b as t1_b, t2.a as t2_a, t2.b as t2_b, t3.col_int as t3_ci, t3.a as t3_a, t3.b as t3_b
 FROM t1
@@ -3718,9 +3718,7 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=2;
 EXPLAIN
--> Nested loop left join  (cost=4.50 rows=25)
-    -> Table scan on t1  (cost=0.75 rows=5)
-    -> Zero rows (Impossible filter)  (cost=0.07..0.35 rows=5)
+-> Table scan on t1  (cost=0.75 rows=5)
 
 DROP TABLE t1, t2;
 set optimizer_switch='block_nested_loop=on';
@@ -3762,4 +3760,134 @@ SELECT 1 FROM t1 LEFT JOIN subq ON t1.x = subq.x ORDER BY subq.x;
 1
 1
 DROP TABLE t1, t2;
+#
+# Bug#34668756: impossible on not optimized in 8.x like 5.6
+#
+CREATE TABLE t1 (f1 INT, f2 INT);
+CREATE TABLE t2 (f1 INT, f2 INT);
+CREATE TABLE t3 (f1 INT, f2 INT);
+INSERT INTO t1 VALUES(1, 10), (2, 20), (3, 30), (4, 40);
+INSERT INTO t2 VALUES(1, 10), (2, 20), (5, 30), (6, 40);
+INSERT INTO t3 VALUES(1, 20), (3, 30), (7, 40), (8, 50);
+EXPLAIN
+SELECT t1.f1
+FROM t1 JOIN t2 ON t1.f1 = t2.f2 AND 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` join `test`.`t2` where false
+EXPLAIN
+SELECT t1.f1
+FROM t1 JOIN t2 ON t1.f1 = t2.f2
+WHERE 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` join `test`.`t2` where false
+EXPLAIN
+SELECT t1.f1
+FROM t1 JOIN t2 ON t1.f1 = t2.f2 AND 1=2 JOIN t3 ON t2.f1=t3.f1 AND 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` join `test`.`t2` join `test`.`t3` where false
+EXPLAIN
+SELECT t1.f1
+FROM t1 JOIN t2 ON t1.f1 = t2.f2 JOIN t3 ON t2.f1=t3.f1
+WHERE 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` join `test`.`t2` join `test`.`t3` where false
+EXPLAIN
+SELECT t1.f1,t2.f1
+FROM t1 LEFT JOIN t2 ON t1.f1=t2.f1 AND t1.f2=t2.f2 AND 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	const	NULL	NULL	NULL	NULL	1	100.00	Impossible ON condition
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on(false) where true
+EXPLAIN
+SELECT t1.f1,t2.f1
+FROM t1 LEFT JOIN t2 ON t1.f1=t2.f1 AND t1.f2=t2.f2
+WHERE 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on((multiple equal(`test`.`t1`.`f1`, `test`.`t2`.`f1`) and multiple equal(`test`.`t1`.`f2`, `test`.`t2`.`f2`))) where false
+EXPLAIN
+SELECT t1.f1,t2.f1
+FROM t1 LEFT JOIN t2 ON t1.f1=t2.f1 AND 1=2 LEFT JOIN t3 ON t2.f1=t3.f1 AND 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	const	NULL	NULL	NULL	NULL	1	100.00	Impossible ON condition
+1	SIMPLE	t3	NULL	const	NULL	NULL	NULL	NULL	1	100.00	Impossible ON condition
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on(false) left join `test`.`t3` on(false) where true
+EXPLAIN
+SELECT t1.f1,t2.f1
+FROM t1 LEFT JOIN t2 ON t1.f1=t2.f1 AND 1=2 LEFT JOIN t3 ON t2.f1=t3.f1
+WHERE 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t2`.`f1` AS `f1` from `test`.`t1` left join `test`.`t2` on(false) left join `test`.`t3` on(multiple equal(`test`.`t2`.`f1`, `test`.`t3`.`f1`)) where false
+EXPLAIN
+SELECT f1,f2
+FROM t1 WHERE EXISTS (SELECT t2.f1,t2.f2 FROM t2 WHERE 1=2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where false
+EXPLAIN
+SELECT f1,f2
+FROM t1 WHERE NOT EXISTS (SELECT t2.f1,t2.f2 FROM t2 WHERE 1=2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where true
+EXPLAIN
+SELECT t2.f1,t2.f2
+FROM t1 RIGHT JOIN t2 ON t1.f1=t2.f1 AND 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	NULL	NULL	NULL	NULL	1	100.00	Impossible ON condition
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` left join `test`.`t1` on(false) where true
+EXPLAIN
+SELECT t2.f1,t2.f2
+FROM t1 RIGHT JOIN t2 ON t1.f1=t2.f1 AND 1=2
+WHERE t1.f1>NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` join `test`.`t1` where false
+EXPLAIN
+SELECT t3.f1
+FROM t1 JOIN t2 ON t1.f1=t2.f1 AND 1=2 LEFT JOIN t3 ON t1.f1=t3.f1 AND 1=2
+WHERE 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`f1` AS `f1` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on(false) where false
+EXPLAIN
+SELECT t3.f1
+FROM t1 JOIN t2 ON t1.f1=t2.f1 LEFT JOIN t3 ON t1.f1=t3.f1 AND 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	const	NULL	NULL	NULL	NULL	1	100.00	Impossible ON condition
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`f1` AS `f1` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on(false) where (`test`.`t2`.`f1` = `test`.`t1`.`f1`)
+EXPLAIN
+SELECT t2.f1
+FROM t1 RIGHT JOIN t2 ON t1.f1=t2.f1 AND 1=2 LEFT JOIN t3 ON t1.f1=t3.f1 AND 1=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	NULL	NULL	NULL	NULL	1	100.00	Impossible ON condition
+1	SIMPLE	t3	NULL	const	NULL	NULL	NULL	NULL	1	100.00	Impossible ON condition
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1` from `test`.`t2` left join `test`.`t1` on(false) left join `test`.`t3` on(false) where true
+DROP TABLES t1,t2,t3;
 set optimizer_switch=default;

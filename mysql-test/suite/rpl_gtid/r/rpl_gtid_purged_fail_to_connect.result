@@ -4,7 +4,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
 # 2) Create a table on master, sync it, stop the slave threads and dump
@@ -34,7 +34,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_io_error.inc [errno=13114 # ER_MASTER_FATAL_ERROR_READING_BINLOG]
+include/wait_for_slave_io_error.inc [errno=13114 # ER_SOURCE_FATAL_ERROR_READING_BINLOG]
 include/stop_slave_sql.inc
 [connection master]
 SET @saved_debug= @@GLOBAL.DEBUG;
@@ -43,7 +43,7 @@ SET GLOBAL DEBUG= '+d,simulate_long_missing_gtids';
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_io_error.inc [errno=13114 # ER_MASTER_FATAL_ERROR_READING_BINLOG]
+include/wait_for_slave_io_error.inc [errno=13114 # ER_SOURCE_FATAL_ERROR_READING_BINLOG]
 include/stop_slave_sql.inc
 [connection master]
 SET GLOBAL DEBUG= @saved_debug;
@@ -66,7 +66,7 @@ include/assert_grep.inc [Found warning containing lost GTIDs in the slave error 
 [connection master]
 CALL mtr.add_suppression("Cannot replicate to server.*server has purged required binary logs.*");
 [connection slave]
-CALL mtr.add_suppression("Got fatal error 1236 from master.*Replicate the missing transactions from elsewhere");
+CALL mtr.add_suppression("Got fatal error 1236 from source.*Replicate the missing transactions from elsewhere");
 #
 # 7) Cleanup.
 #

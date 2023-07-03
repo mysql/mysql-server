@@ -25,7 +25,7 @@
 --enable_query_log
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Invalid compression level found while reading master info repository. Resetting level to default.");
+call mtr.add_suppression("Invalid compression level found while reading connection metadata repository. Resetting level to default.");
 call mtr.add_suppression("Plugin group_replication reported: 'Error while creating the group replication recovery channel with donor .*");
 call mtr.add_suppression("Plugin group_replication reported: 'Error when configuring the asynchronous recovery channel connection to the donor.");
 call mtr.add_suppression("Plugin group_replication reported: 'Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");

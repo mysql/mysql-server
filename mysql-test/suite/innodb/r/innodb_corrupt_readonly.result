@@ -17,7 +17,7 @@ INSERT INTO t SELECT 0,b,c+1,z+1 FROM t;
 select count(*) from t;
 count(*)
 2
-SET GLOBAL innodb_fast_shutdown=0;
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 SET SESSION debug="+d,dict_set_index_corrupted";
 check table t;

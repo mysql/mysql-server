@@ -1,4 +1,4 @@
-Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 This is some sample application code illustrating Database Jones,
 including a pre-built jones-ndb for this version of MySQL Cluster.
 
-This jones-ndb is built using node.js, version 16.15.0
-It may not run with other versions of node.
+This jones-ndb is built using node.js version 18.12.1.
+It supports all releases of node.js version 18.x.
+
 
 For more information about Database Jones, see https://github.com/mysql/mysql-js
 

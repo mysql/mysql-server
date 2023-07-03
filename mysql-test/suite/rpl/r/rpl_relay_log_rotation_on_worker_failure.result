@@ -1,0 +1,53 @@
+
+##############################################################
+# 1. Create a table on the source and sync
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+
+##############################################################
+# 2. Add a debug point to the replica so it stops during a log rotation
+#    Also lock table t1 to insure the error only happens when the relay log is being rotated
+# Adding debug point 'wait_before_purge_applied_logs' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+[connection server_2]
+LOCK TABLES t1 WRITE;
+
+##############################################################
+# 3. Add data on the source that will cause an error on the replica
+#    Also execute a FLUSH to cause a log rotation in the replica
+[connection master]
+INSERT INTO t1 VALUES (1);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (2);
+
+##############################################################
+# 4. Wait for the debug point to be reached and unlock the table
+#    Signal the debug point to continue
+[connection server_2]
+SET DEBUG_SYNC = "now WAIT_FOR signal.rpl_before_applier_purge_logs";
+UNLOCK TABLES;
+[connection slave]
+SET DEBUG_SYNC= 'now SIGNAL signal.rpl_unblock_purge';
+# Removing debug point 'wait_before_purge_applied_logs' from @@GLOBAL.debug
+
+##############################################################
+# 5. Check no error was logged
+include/assert.inc [No error about writting to the relay log was found]
+
+##############################################################
+# 6. Cleanup
+DELETE FROM t1 WHERE c1 = 1;
+include/start_slave.inc
+include/suppress_messages.inc
+# Connection 2 suppresses message <Worker 1 failed executing transaction>.
+# Connection 2 suppresses message <The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
+# Connection 2 suppresses message <Replica worker thread has failed to apply an event.>.
+# Connection 2 suppresses message <Error writing relay log repository data while a thread is being killed>.
+[connection master]
+DROP TABLE t1;
+include/rpl_end.inc

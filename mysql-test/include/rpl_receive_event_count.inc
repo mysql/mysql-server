@@ -231,6 +231,18 @@ while ($_rrec_counted_events < $rpl_event_count)
     }
   }
 
+  # Move to the next relay log file if needed.
+  if ($_rrec_event_type == Rotate)
+  {
+    # Find name of last relay log.
+    --source include/rpl_get_end_of_relay_log.inc
+    if ($_rrec_file != $relay_log_file)
+    {
+      --let $_rrec_file= $relay_log_file
+      --let $_rrec_pos= 1
+    }
+  }
+
   # Skip header events.
   if (!$rpl_count_header_events)
   {

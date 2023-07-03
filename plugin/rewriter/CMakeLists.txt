@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@ MYSQL_ADD_PLUGIN(rewriter
   services.cc
   MODULE_ONLY
   MODULE_OUTPUT_NAME "rewriter"
+  WIN_DEF_FILE "${CMAKE_CURRENT_SOURCE_DIR}/rewriter_udf.def"
   )
 
 # MYSQL_ADD_PLUGIN may have decided not to build it.
@@ -38,16 +39,12 @@ ENDIF()
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="Rewriter")
 
+# We should use CMAKE_SHARED_LIBRARY_SUFFIX, but we do not use .dylib on Mac.
 IF(WIN32)
   SET(DYNLIB_EXTENSION "dll")
-  MY_TARGET_LINK_OPTIONS(rewriter
-    "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/rewriter_udf.def"
-    )
 ELSE()
   SET(DYNLIB_EXTENSION "so")
 ENDIF()
-
-
 
 #
 # This installs all the scripts.

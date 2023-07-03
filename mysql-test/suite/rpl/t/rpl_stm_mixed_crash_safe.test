@@ -9,7 +9,7 @@
 
 --disable_query_log
 call mtr.add_suppression('Attempting backtrace');
-call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
+call mtr.add_suppression("Recovery from source pos .* and file master-bin.000001");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("allocated tablespace .*, old maximum was .*");
 --enable_query_log

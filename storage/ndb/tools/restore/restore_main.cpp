@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,6 +101,7 @@ Vector<BaseString> g_include_databases, g_exclude_databases;
 Properties g_rewrite_databases;
 NdbRecordPrintFormat g_ndbrecord_print_format;
 unsigned int opt_no_binlog;
+static bool opt_timestamp_printouts;
 
 Ndb_cluster_connection *g_cluster_connection = NULL;
 
@@ -284,6 +285,10 @@ static struct my_option my_long_options[] =
   NdbStdOpt::connect_retry_delay,
   NdbStdOpt::connect_retries,
   NDB_STD_OPT_DEBUG
+  { "timestamp_printouts", NDB_OPT_NOSHORT,
+    "Add a timestamp to the logger messages info, error and debug",
+    (uchar**) &opt_timestamp_printouts, (uchar**) &opt_timestamp_printouts, 0,
+    GET_BOOL, NO_ARG, true, 0, 0, 0, 0, 0 },
   { "connect", 'c', "same as --connect-string",
     &opt_ndb_connectstring, nullptr, nullptr,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -759,6 +764,9 @@ readArguments(Ndb_opts & opts, char*** pargv)
       err << "Error: " << err_msg.c_str() << endl;
     }
     exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
+  }
+  if (!opt_timestamp_printouts) {
+    restoreLogger.set_print_timestamp(false);
   }
   if (ga_nodeId == 0)
   {
@@ -2062,7 +2070,6 @@ int do_restore(RestoreThreadData *thrdata)
 {
   init_progress();
 
-  char timestamp[64];
   Vector<BackupConsumer*> &g_consumers = thrdata->m_consumers;
   char threadName[15] = "";
   if (opt_show_part_id)
@@ -2086,8 +2093,7 @@ int do_restore(RestoreThreadData *thrdata)
     g_consumers[i]->error_insert(_error_insert);
   }
 #endif 
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Read meta data file header", timestamp);
+  restoreLogger.log_info("[restore_metadata] Read meta data file header");
 
   if (!metaData.readHeader())
   {
@@ -2095,53 +2101,52 @@ int do_restore(RestoreThreadData *thrdata)
     return NdbToolsProgramExitCode::FAILED;
   }
 
-  const BackupFormat::FileHeader & tmp = metaData.getFileHeader();
-  const Uint32 version = tmp.BackupVersion;
+  {
+    const BackupFormat::FileHeader & tmp = metaData.getFileHeader();
+    const Uint32 backupFileVersion = tmp.BackupVersion;
+    const Uint32 backupNdbVersion = tmp.NdbVersion;
+    const Uint32 backupMySQLVersion = tmp.MySQLVersion;
   
-  char buf[NDB_VERSION_STRING_BUF_SZ];
-  char new_buf[NDB_VERSION_STRING_BUF_SZ];
-  info.setLevel(254);
+    char buf[NDB_VERSION_STRING_BUF_SZ];
+    info.setLevel(254);
 
-  if (version >= NDBD_RAW_LCP)
-  {
-  restoreLogger.log_info("Backup version in files: %s ndb version: %s",
-           ndbGetVersionString(version, 0,
-                               ndbd_drop6(version) ? "-drop6" : 0,
-                               buf, sizeof(buf)),
-           ndbGetVersionString(tmp.NdbVersion, tmp.MySQLVersion, 0,
-                                buf, sizeof(buf)));
-  }
-  else
-  {
-    restoreLogger.log_info("Backup version in files: %s",
-           ndbGetVersionString(version, 0,
-                               ndbd_drop6(version) ? "-drop6" : 0,
-                               buf, sizeof(buf)));
-  }
+    if (backupFileVersion >= NDBD_RAW_LCP)
+    {
+      restoreLogger.log_info("Backup from version : %s file format : %x",
+                             ndbGetVersionString(backupNdbVersion, backupMySQLVersion, 0,
+                                                 buf, sizeof(buf)),
+                             backupFileVersion);
+    }
+    else
+    {
+      restoreLogger.log_info("Backup file format : %x",
+                             backupFileVersion);
+    }
 
-  /**
-   * check wheater we can restore the backup (right version).
-   */
-  // in these versions there was an error in how replica info was
-  // stored on disk
-  if (version >= MAKE_VERSION(5,1,3) && version <= MAKE_VERSION(5,1,9))
-  {
-    restoreLogger.log_error("Restore program incompatible with backup versions between %s and %s"
-        ,ndbGetVersionString(MAKE_VERSION(5,1,3), 0, 0, buf, sizeof(buf))
-        ,ndbGetVersionString(MAKE_VERSION(5,1,9), 0, 0, new_buf, sizeof(new_buf))
-       );
-    return NdbToolsProgramExitCode::FAILED;
-  }
+    /**
+     * check whether we can restore the backup (right version).
+     */
+    // in these versions there was an error in how replica info was
+    // stored on disk
+    if (backupFileVersion >= MAKE_VERSION(5,1,3) && backupFileVersion <= MAKE_VERSION(5,1,9))
+    {
+      char new_buf[NDB_VERSION_STRING_BUF_SZ];
+      restoreLogger.log_error("Restore program incompatible with backup file versions between %s and %s"
+                              ,ndbGetVersionString(MAKE_VERSION(5,1,3), 0, 0, buf, sizeof(buf))
+                              ,ndbGetVersionString(MAKE_VERSION(5,1,9), 0, 0, new_buf, sizeof(new_buf))
+                              );
+      return NdbToolsProgramExitCode::FAILED;
+    }
 
-  if (version > NDB_VERSION)
-  {
-    restoreLogger.log_error("Restore program older than backup version. Not supported. Use new restore program");
-    return NdbToolsProgramExitCode::FAILED;
+    if (backupFileVersion > NDB_VERSION)
+    {
+      restoreLogger.log_error("Restore program older than backup version. Not supported. Use new restore program");
+      return NdbToolsProgramExitCode::FAILED;
+    }
   }
 
   restoreLogger.log_debug("Load content");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Load content", timestamp);
+  restoreLogger.log_info("[restore_metadata] Load content");
 
   int res  = metaData.loadContent();
 
@@ -2154,8 +2159,7 @@ int do_restore(RestoreThreadData *thrdata)
     return NdbToolsProgramExitCode::FAILED;
   }
   restoreLogger.log_debug("Get number of Tables");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Get number of Tables", timestamp);
+  restoreLogger.log_info("[restore_metadata] Get number of Tables");
   if (metaData.getNoOfTables() == 0)
   {
     restoreLogger.log_error("The backup contains no tables");
@@ -2203,8 +2207,7 @@ int do_restore(RestoreThreadData *thrdata)
   }
 
   restoreLogger.log_debug("Validate Footer");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Validate Footer", timestamp);
+  restoreLogger.log_info("[restore_metadata] Validate Footer");
 
   if (!metaData.validateFooter())
   {
@@ -2268,8 +2271,7 @@ int do_restore(RestoreThreadData *thrdata)
     }
   }
   restoreLogger.log_debug("Restore objects (tablespaces, ..)");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Restore objects (tablespaces, ..)", timestamp);
+  restoreLogger.log_info("[restore_metadata] Restore objects (tablespaces, ..)");
   for (i = 0; i < metaData.getNoOfObjects(); i++)
   {
     for (Uint32 j = 0; j < g_consumers.size(); j++)
@@ -2302,8 +2304,7 @@ int do_restore(RestoreThreadData *thrdata)
 
   Vector<OutputStream *> table_output(metaData.getNoOfTables());
   restoreLogger.log_debug("Restoring tables");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Restoring tables", timestamp);
+  restoreLogger.log_info("[restore_metadata] Restoring tables");
 
   for(i = 0; i<metaData.getNoOfTables(); i++)
   {
@@ -2379,8 +2380,7 @@ int do_restore(RestoreThreadData *thrdata)
   }
 
   restoreLogger.log_debug("Save foreign key info");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_metadata] Save foreign key info", timestamp);
+  restoreLogger.log_info("[restore_metadata] Save foreign key info");
   for (i = 0; i < metaData.getNoOfObjects(); i++)
   {
     for (Uint32 j = 0; j < g_consumers.size(); j++)
@@ -2433,8 +2433,7 @@ int do_restore(RestoreThreadData *thrdata)
     g_consumers[i]->report_meta_data(ga_backupId, ga_nodeId);
   }
   restoreLogger.log_debug("Iterate over data");
-  Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-  restoreLogger.log_info("%s [restore_data] Start restoring table data", timestamp);
+  restoreLogger.log_info("[restore_data] Start restoring table data");
   if (ga_restore || ga_print) 
   {
     Uint32 fragmentsTotal = 0;
@@ -2504,9 +2503,8 @@ int do_restore(RestoreThreadData *thrdata)
           restoreLogger.log_error("Unable to allocate memory for RestoreDataIterator constructor");
           return NdbToolsProgramExitCode::FAILED;
       }
-      
-      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-      restoreLogger.log_info("%s [restore_data] Read data file header", timestamp);
+
+      restoreLogger.log_info("[restore_data] Read data file header");
 
       // Read data file header
       if (!dataIter.readHeader())
@@ -2515,9 +2513,8 @@ int do_restore(RestoreThreadData *thrdata)
           "Failed to read header of data file. Exiting...");
         return NdbToolsProgramExitCode::FAILED;
       }
-      
-      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-      restoreLogger.log_info("%s [restore_data] Restore fragments", timestamp);
+
+      restoreLogger.log_info("[restore_data] Restore fragments");
 
       Uint32 fragmentCount = 0;
       Uint32 fragmentId; 
@@ -2628,8 +2625,7 @@ int do_restore(RestoreThreadData *thrdata)
     {
       RestoreLogIterator logIter(metaData);
 
-      Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-      restoreLogger.log_info("%s [restore_log] Read log file header", timestamp);
+      restoreLogger.log_info("[restore_log] Read log file header");
 
       if (!logIter.readHeader())
       {
@@ -2640,7 +2636,7 @@ int do_restore(RestoreThreadData *thrdata)
       
       const LogEntry * logEntry = 0;
 
-      restoreLogger.log_info("%s [restore_log] Restore log entries", timestamp);
+      restoreLogger.log_info("[restore_log] Restore log entries");
 
       while ((logEntry = logIter.getNextLogEntry(res= 0)) != 0)
       {
@@ -2774,8 +2770,7 @@ int do_restore(RestoreThreadData *thrdata)
 
   if (ga_restore_epoch)
   {
-    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-    restoreLogger.log_info("%s [restore_epoch] Restoring epoch", timestamp);
+    restoreLogger.log_info("[restore_epoch] Restoring epoch");
     RestoreLogIterator logIter(metaData);
 
     if (!logIter.readHeader())
@@ -2823,8 +2818,7 @@ int do_restore(RestoreThreadData *thrdata)
       return NdbToolsProgramExitCode::FAILED;
     }
     restoreLogger.log_debug("Rebuilding indexes");
-    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
-    restoreLogger.log_info("%s [rebuild_indexes] Rebuilding indexes", timestamp);
+    restoreLogger.log_info("[rebuild_indexes] Rebuilding indexes");
 
     for(i = 0; i<metaData.getNoOfTables(); i++)
     {

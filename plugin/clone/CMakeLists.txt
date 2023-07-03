@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 DISABLE_MISSING_PROFILE_WARNING()
+MSVC_CPPCHECK_DISABLE()
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Clone")

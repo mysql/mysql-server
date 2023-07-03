@@ -1,15 +1,15 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #### Initialize ####
 include/suppress_messages.inc
-# Connection 1 suppresses message <Master command COM_REGISTER_SLAVE failed: failed>.
-# Connection 1 suppresses message <Master command COM_BINLOG_DUMP failed: failed>.
+# Connection 1 suppresses message <Source command COM_REGISTER_REPLICA failed: failed>.
+# Connection 1 suppresses message <Source command COM_BINLOG_DUMP failed: failed>.
 # Connection 1 suppresses message <Failed on request_dump.. for channel>.
-# Connection 2 suppresses message <Master command COM_REGISTER_SLAVE failed: failed>.
-# Connection 2 suppresses message <Master command COM_BINLOG_DUMP failed: failed>.
+# Connection 2 suppresses message <Source command COM_REGISTER_REPLICA failed: failed>.
+# Connection 2 suppresses message <Source command COM_BINLOG_DUMP failed: failed>.
 # Connection 2 suppresses message <Failed on request_dump.. for channel>.
 
 #### Testing terminology_use_previous = 0 ####

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -64,11 +64,11 @@ class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
    *
    * cerifiticate is verified against the key
    *
-   * @param cert_chain_file filename of a PEM file containing a certificate
    * @param private_key_file filename of a PEM file containing a key
+   * @param cert_chain_file filename of a PEM file containing a certificate
    */
   stdx::expected<void, std::error_code> load_key_and_cert(
-      const std::string &cert_chain_file, const std::string &private_key_file);
+      const std::string &private_key_file, const std::string &cert_chain_file);
 
   /**
    * init temporary DH parameters.
@@ -100,9 +100,37 @@ class HARNESS_TLS_EXPORT TlsServerContext : public TlsContext {
                                                std::bitset<2> tls_opts = 0);
 
   /**
+   * get the security level.
+   *
+   * | sec-level | RSA-min-key-size |
+   * +-----------+------------------+
+   * |         1 |             1024 |
+   * |         2 |             2048 |
+   * |         3 |             3072 |
+   * |         4 |             7680 |
+   * |         5 |            15360 |
+   *
+   * @see SSL_CTX_get_security_level()
+   *
+   * @returns the security level of the ssl-ctx.
+   */
+  int security_level() const;
+
+  /**
    * default ciphers.
    */
   static std::vector<std::string> default_ciphers();
+
+  /**
+   * set the session-id context for ssl-context reuse.
+   *
+   * unique identifier of the ssl-ctx.
+   *
+   * @param sid_ctx opaque string of size sid_ctx_len
+   * @param sid_ctx_len length of sid_ctx_len
+   */
+  stdx::expected<void, std::error_code> session_id_context(
+      const unsigned char *sid_ctx, unsigned int sid_ctx_len);
 };
 
 #endif

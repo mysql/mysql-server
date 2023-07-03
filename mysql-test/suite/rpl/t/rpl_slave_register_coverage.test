@@ -24,8 +24,8 @@ START SLAVE IO_THREAD;
 --let $slave_io_errno= 13120
 --source include/wait_for_slave_io_error.inc
 
-CALL mtr.add_suppression(".*Slave I/O thread couldn't register on master.*");
-CALL mtr.add_suppression(".* Master command COM_REGISTER_SLAVE failed.*");
+CALL mtr.add_suppression(".*Replica I/O thread couldn't register on source.*");
+CALL mtr.add_suppression(".* Source command COM_REGISTER_REPLICA failed.*");
 
 --echo #
 --echo # Test Case 2: IO thread is killed when registering to master

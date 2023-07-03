@@ -1,3 +1,4 @@
+--source include/elide_costs.inc
 # Innodb page size 16k required
 
 # Initialise
@@ -2820,7 +2821,7 @@ while ($i < 2) {
 INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
 --source include/turn_off_only_full_group_by.inc
 # Verify that we get streaming.
---replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
+--replace_regex $elide_costs_and_rows
 --skip_if_hypergraph   # Does not use streaming (just sorts directly).
 EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 --sorted_result
@@ -3451,3 +3452,120 @@ ANALYZE TABLE t1, t2;
 SELECT DISTINCT t1.x FROM t1, t2 WHERE t1.x = t2.pk GROUP BY t1.pk;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34891365: MySQL 8.0.29+ is slower than MySQL 8.0.28 with
+--echo #               queries using JOINS
+--echo #
+
+CREATE TABLE t1(a INT AUTO_INCREMENT PRIMARY KEY, b INT, KEY(b));
+INSERT INTO t1(b)
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<250)
+SELECT n FROM qn;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+
+CREATE TABLE t2(b INT PRIMARY KEY, c INT);
+INSERT INTO t2
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<250)
+SELECT n, n FROM qn;
+
+CREATE TABLE t3(b INT PRIMARY KEY, d INT);
+INSERT INTO t3
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<250)
+SELECT n, n FROM qn;
+
+ANALYZE TABLE t1, t2, t3;
+
+let $query =
+SELECT b, COUNT(*) FROM t1 LEFT JOIN t2 USING (b) LEFT JOIN t3 USING (b)
+GROUP BY b;
+
+--skip_if_hypergraph  # Bug#34527697.
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+
+FLUSH STATUS;
+--sorted_result
+--eval $query
+
+--echo # Expect around 500 index reads. 250 from t2 and 250 from t3.
+--echo # It used to be around 16000 index reads.
+SHOW STATUS LIKE 'Handler_read_key';
+
+DROP TABLE t1, t2, t3;
+
+# Not a reproduction for the slowdown, but a reproduction for one case
+# of wrong results seen before the fix that caused the slowdown.
+# Another case with wrong results is shown in the test case for
+# bug#33674441 above. The two cases show two different underlying
+# bugs, so we want the test suite to cover both.
+
+CREATE TABLE t1(x INT, y INT);
+CREATE TABLE t2(x INT, y INT);
+CREATE TABLE t3(id INT PRIMARY KEY, x INT, y INT);
+
+INSERT INTO t1 VALUES (1, 3), (2, 3), (3, 2), (4, 3), (5, 1), (6, 3);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (1, 3);
+INSERT INTO t3 VALUES (1, 1, 0), (2, 2, 0), (3, 3, 0),
+                      (4, 4, 0), (5, 5, 0), (6, 6, 0);
+
+ANALYZE TABLE t1, t2, t3;
+
+let $query =
+SELECT t1.x, dt.* FROM t1, LATERAL (
+  SELECT SQL_BIG_RESULT t2.y, SUM(t3.x)
+  FROM t2, t3 WHERE t2.x = t3.id AND t2.y + t3.y < t1.y
+  GROUP BY t2.y
+) AS dt;
+
+# The query plan that caused wrong results was a nested loop join
+# whose inner side contained a streaming aggregation node (not
+# "Aggregation using temporary table") on top of another nested loop
+# join whose inner side was a primary key lookup on t3.
+--skip_if_hypergraph  # Does not materialize the subquery.
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+
+# Verify that the results are correct.
+--sorted_result
+--eval $query
+
+DROP TABLE t1, t2, t3;
+
+# For extra coverage, also add a simpler reproduction of the problem
+# in bug#33674441.
+CREATE TABLE t1 (a INTEGER PRIMARY KEY, b INTEGER);
+INSERT INTO t1 VALUES  (1, 1), (2, 2), (3, 2);
+
+CREATE TABLE t2 (a INTEGER PRIMARY KEY, b INTEGER);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6);
+
+ANALYZE TABLE t1, t2;
+
+let $query =
+SELECT t1.a, MAX(t2.b) FROM t1 LEFT JOIN t2 ON t1.b = t2.a AND t1.a <> 2
+GROUP BY t1.a;
+
+# The query plan that caused wrong results was a nested loop join with
+# a primary key lookup on t2 on the inner side, and with a streaming
+# aggregation node on top (not "Aggregate using temporary table").
+--skip_if_hypergraph   # Different row estimates.
+--replace_regex $elide_costs
+--eval EXPLAIN FORMAT=TREE $query
+
+# Verify that the results are correct.
+--sorted_result
+--eval $query
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#32932749: HYPERGRAPH: FAKESINGLEROWITERATOR::SETNULLROWFLAG(BOOL):
+--echo #               ASSERTION `!IS_NULL_ROW' FAILED.
+--echo #
+
+SELECT COUNT(*) WHERE RAND() > 1;

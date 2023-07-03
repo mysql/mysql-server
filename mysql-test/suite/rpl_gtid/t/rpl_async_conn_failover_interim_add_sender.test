@@ -61,10 +61,6 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
-SET SESSION sql_log_bin= 1;
-
 --let $assert_text= 'There is one row on replica'
 --let $assert_cond= [SELECT  COUNT(*) count FROM t1, count, 1] = 1
 --source include/assert.inc
@@ -171,7 +167,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_connect_new_sender';
 # Verify that it tried connecting to server_1 two (retry_count=2) times.
 --let $assert_text= Assert that the IO thread tried two times connecting to server_1
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_select= .*error reconnecting to master 'root@127.0.0.1:$SERVER_MYPORT_1' - retry-time: 1 retries:.*
+--let $assert_select= .*Error reconnecting to source 'root@127.0.0.1:$SERVER_MYPORT_1'. This was attempt .*, with a delay of 1 seconds between attempts.*
 --let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_async_conn_failover_interim_add_sender
 --let $assert_count= 2
 --source include/assert_grep.inc

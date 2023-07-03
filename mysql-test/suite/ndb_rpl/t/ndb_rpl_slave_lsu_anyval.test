@@ -34,6 +34,13 @@
 #        It can be seen that events originating on the master are given a
 #        composite server id which is available at the slave as it is written
 #        into the binlog of the slave running with --log-replica-updates on.
+#
+#   NOTE! The main difference between this test and ndb_rpl_slave_lsu is that
+#   the output "SHOW BINLOG EVENTS" will show the actual server_id while the
+#   the output from "mysqlbinlog" will show the full anyvalue (which contains
+#   both the server_id as well as other flags transported between servers
+#   in the anyvalue).
+#
 ###############################################################################
 --source include/have_debug.inc
 --source suite/ndb_rpl/t/ndb_rpl_slave_lsu.test

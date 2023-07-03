@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ==== Step 0: Using source/replica terminology ====
 [connection master]
@@ -19,10 +19,10 @@ DROP TABLE t1;
 include/install_semisync.inc
 call mtr.add_suppression("Plugin 'rpl_semi_sync_replica' cannot be uninstalled now");
 UNINSTALL PLUGIN rpl_semi_sync_replica;
-ERROR HY000: Plugin 'rpl_semi_sync_replica' cannot be uninstalled now. Stop any active semisynchronous I/O threads on this slave first.
+ERROR HY000: Plugin 'rpl_semi_sync_replica' cannot be uninstalled now. Stop any active semisynchronous I/O threads on this replica first.
 call mtr.add_suppression("Plugin 'rpl_semi_sync_source' cannot be uninstalled now");
 UNINSTALL PLUGIN rpl_semi_sync_source;
-ERROR HY000: Plugin 'rpl_semi_sync_source' cannot be uninstalled now. Stop any active semisynchronous slaves of this master first.
+ERROR HY000: Plugin 'rpl_semi_sync_source' cannot be uninstalled now. Stop any active semisynchronous replicas of this source first.
 CREATE TABLE t1(i int);
 INSERT INTO t1 values (2);
 DROP TABLE t1;
@@ -34,7 +34,7 @@ include/assert.inc [semi sync master clients should be 1.]
 SET GLOBAL rpl_semi_sync_source_enabled = OFF;
 include/assert.inc [semi sync master clients should be 1.]
 UNINSTALL PLUGIN rpl_semi_sync_source;
-ERROR HY000: Plugin 'rpl_semi_sync_source' cannot be uninstalled now. Stop any active semisynchronous slaves of this master first.
+ERROR HY000: Plugin 'rpl_semi_sync_source' cannot be uninstalled now. Stop any active semisynchronous replicas of this source first.
 # Case 4: Uninstallation of semi sync plugin should be allowed when it is not
 # in use. Same as Case 1 but this case is to check the case after enabling and
 # disabling semi sync replication.
@@ -70,10 +70,10 @@ Warnings:
 Note	1287	'rpl_semi_sync_slave' is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead
 call mtr.add_suppression("Plugin 'rpl_semi_sync_slave' cannot be uninstalled now");
 UNINSTALL PLUGIN rpl_semi_sync_slave;
-ERROR HY000: Plugin 'rpl_semi_sync_slave' cannot be uninstalled now. Stop any active semisynchronous I/O threads on this slave first.
+ERROR HY000: Plugin 'rpl_semi_sync_slave' cannot be uninstalled now. Stop any active semisynchronous I/O threads on this replica first.
 call mtr.add_suppression("Plugin 'rpl_semi_sync_master' cannot be uninstalled now");
 UNINSTALL PLUGIN rpl_semi_sync_master;
-ERROR HY000: Plugin 'rpl_semi_sync_master' cannot be uninstalled now. Stop any active semisynchronous slaves of this master first.
+ERROR HY000: Plugin 'rpl_semi_sync_master' cannot be uninstalled now. Stop any active semisynchronous replicas of this source first.
 CREATE TABLE t1(i int);
 INSERT INTO t1 values (2);
 DROP TABLE t1;
@@ -85,7 +85,7 @@ include/assert.inc [semi sync master clients should be 1.]
 SET GLOBAL rpl_semi_sync_master_enabled = OFF;
 include/assert.inc [semi sync master clients should be 1.]
 UNINSTALL PLUGIN rpl_semi_sync_master;
-ERROR HY000: Plugin 'rpl_semi_sync_master' cannot be uninstalled now. Stop any active semisynchronous slaves of this master first.
+ERROR HY000: Plugin 'rpl_semi_sync_master' cannot be uninstalled now. Stop any active semisynchronous replicas of this source first.
 # Case 4: Uninstallation of semi sync plugin should be allowed when it is not
 # in use. Same as Case 1 but this case is to check the case after enabling and
 # disabling semi sync replication.

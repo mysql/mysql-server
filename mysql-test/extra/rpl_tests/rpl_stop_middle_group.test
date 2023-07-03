@@ -27,9 +27,9 @@ insert into tm set a=null; # to simulate killed status on the slave
 commit;
 
 connection slave;
-call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
-call mtr.add_suppression("Slave SQL.*Slave SQL Thread stopped with incomplete event group having non-transactional changes");
-call mtr.add_suppression("Slave SQL.*The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("Replica SQL.*Replica SQL Thread stopped with incomplete event group having non-transactional changes");
+call mtr.add_suppression("Replica SQL.*The replica coordinator and worker threads are stopped.*");
 
 # slave will catch the killed status but won't shut down immediately
 # only after the whole group has done (commit)
@@ -92,7 +92,7 @@ connection slave;
 # slave will catch the killed status, won't shut down immediately
 # but does it eventually having the whole group unfinished (not committed)
 
-let $slave_sql_errno= 13117,1756; # ER_SLAVE_FATAL_ERROR, ER_MTS_INCONSISTENT_DATA
+let $slave_sql_errno= 13117,1756; # ER_REPLICA_FATAL_ERROR, ER_MTA_INCONSISTENT_DATA
 --let $show_slave_sql_error= 0
 --source include/wait_for_slave_sql_error.inc
 
@@ -140,7 +140,7 @@ connection slave;
 #
 
 # checking: the error and group unfinished
-let $slave_sql_errno= 13117,1756; # ER_SLAVE_FATAL_ERROR, ER_MTS_INCONSISTENT_DATA
+let $slave_sql_errno= 13117,1756; # ER_REPLICA_FATAL_ERROR, ER_MTA_INCONSISTENT_DATA
 --let $show_slave_sql_error= 0
 --source include/wait_for_slave_sql_error.inc
 

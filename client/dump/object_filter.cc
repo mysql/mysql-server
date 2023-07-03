@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "client/dump/stored_procedure.h"
 #include "client/dump/table.h"
 #include "client/dump/trigger.h"
+#include "client/dump/view.h"
 #endif
 #include <stddef.h>
 #include <boost/algorithm/string.hpp>
@@ -215,7 +216,8 @@ bool Object_filter::is_object_included_in_dump(Abstract_data_object *object) {
   std::vector<std::pair<std::string, std::string>> *exclude_list;
   bool *dump_switch = nullptr;
 
-  if (dynamic_cast<Table *>(object) != nullptr) {
+  if (dynamic_cast<Table *>(object) != nullptr ||
+      dynamic_cast<View *>(object) != nullptr) {
     include_list = &m_tables_included;
     exclude_list = &m_tables_excluded;
   } else if (dynamic_cast<Database *>(object) != nullptr) {

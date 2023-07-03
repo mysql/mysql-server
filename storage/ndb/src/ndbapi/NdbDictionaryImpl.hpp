@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -482,7 +482,6 @@ public:
   NdbEventImpl(NdbDictionary::Event &);
   ~NdbEventImpl() override;
 
-  void init();
   int setName(const char * name);
   const char * getName() const;
   int setTable(const NdbDictionary::Table& table);
@@ -492,10 +491,8 @@ public:
   const char * getTableName() const;
   void addTableEvent(const NdbDictionary::Event::TableEvent t);
   bool getTableEvent(const NdbDictionary::Event::TableEvent t) const;
-  void setDurability(NdbDictionary::Event::EventDurability d);
-  NdbDictionary::Event::EventDurability  getDurability() const;
-  void setReport(NdbDictionary::Event::EventReport r);
-  NdbDictionary::Event::EventReport  getReport() const;
+  void setReport(Uint32 report_options);
+  Uint32 getReport() const;
   int getNoOfEventColumns() const;
   const NdbDictionary::Column * getEventColumn(unsigned no) const;
 
@@ -503,16 +500,15 @@ public:
     g_eventLogger->info("NdbEventImpl: id=%d, key=%d", m_eventId, m_eventKey);
   }
 
-  Uint32 m_eventId;
-  Uint32 m_eventKey;
+  Uint32 m_eventId{RNIL};
+  Uint32 m_eventKey{RNIL};
   AttributeMask m_attrListBitmask;
   Uint32 m_table_id;
   Uint32 m_table_version;
   BaseString m_name;
-  Uint32 mi_type;
-  NdbDictionary::Event::EventDurability m_dur;
-  NdbDictionary::Event::EventReport m_rep;
-  bool m_mergeEvents;
+  Uint32 mi_type{0};
+  Uint32 m_rep{ER_UPDATED};
+  bool m_mergeEvents{false};
 
   BaseString m_tableName;
   Vector<NdbColumnImpl *> m_columns;
@@ -522,7 +518,7 @@ public:
   static NdbEventImpl & getImpl(const NdbDictionary::Event & t);
   NdbDictionary::Event * const m_facade;
 private:
-  NdbTableImpl *m_tableImpl;
+  NdbTableImpl *m_tableImpl{nullptr};
   void setTable(NdbTableImpl *tableImpl);
 };
 

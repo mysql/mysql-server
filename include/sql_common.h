@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -279,8 +279,10 @@ unsigned long cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok,
                                     bool *is_data_packet);
 void net_clear_error(NET *net);
 void set_stmt_errmsg(MYSQL_STMT *stmt, NET *net);
-void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,
-                    const char *err);
+void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate);
+void set_stmt_extended_error(MYSQL_STMT *stmt, int errcode,
+                             const char *sqlstate, const char *format, ...)
+    MY_ATTRIBUTE((format(printf, 4, 5)));
 void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);
 void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
                               const char *format, ...)

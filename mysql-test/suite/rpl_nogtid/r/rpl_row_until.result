@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
@@ -17,7 +17,7 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=master_pos_drop_t1;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -53,15 +53,15 @@ include/wait_for_slave_param.inc [Until_Log_Pos]
 include/wait_for_slave_sql_to_stop.inc
 include/check_slave_param.inc [Exec_Master_Log_Pos]
 START SLAVE UNTIL SOURCE_LOG_FILE='master-bin', SOURCE_LOG_POS=SOURCE_LOG_POS;
-ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS, RELAY_LOG_POS=RELAY_LOG_POS;
-ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001';
-ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000009';
-ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', SOURCE_LOG_POS=SOURCE_LOG_POS;
-ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+ERROR HY000: Incorrect parameter or combination of parameters for START REPLICA UNTIL
 START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SOURCE_LOG_POS;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

@@ -1,6 +1,6 @@
 
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
   for (argument = arguments + 1; *argument; argument++)
     if (!my_getopt_is_args_separator(*argument)) /* skip arguments separator */
     {
-      if (!(show_passwords) && strncmp(*argument, "--password", 10) == 0)
+      if (!(show_passwords) && strncmp(*argument, "--password=", 11) == 0)
         puts("--password=*****");
       else
         puts(*argument);

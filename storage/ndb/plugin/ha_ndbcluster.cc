@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+﻿/* Copyright (c) 2004, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,6 @@
 
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "mysql/psi/mysql_thread.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD
@@ -64,12 +63,12 @@
 #include "storage/ndb/plugin/ha_ndbcluster_connection.h"
 #include "storage/ndb/plugin/ha_ndbcluster_push.h"
 #include "storage/ndb/plugin/ndb_anyvalue.h"
-#include "storage/ndb/plugin/ndb_apply_status_table.h"
 #include "storage/ndb/plugin/ndb_binlog_client.h"
 #include "storage/ndb/plugin/ndb_binlog_extra_row_info.h"
 #include "storage/ndb/plugin/ndb_binlog_thread.h"
 #include "storage/ndb/plugin/ndb_bitmap.h"
 #include "storage/ndb/plugin/ndb_conflict.h"
+#include "storage/ndb/plugin/ndb_conflict_trans.h"  // DependencyTracker
 #include "storage/ndb/plugin/ndb_create_helper.h"
 #include "storage/ndb/plugin/ndb_dd.h"
 #include "storage/ndb/plugin/ndb_dd_client.h"
@@ -87,12 +86,12 @@
 #include "storage/ndb/plugin/ndb_metadata.h"
 #include "storage/ndb/plugin/ndb_metadata_change_monitor.h"
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
-#include "storage/ndb/plugin/ndb_mi.h"
 #include "storage/ndb/plugin/ndb_modifiers.h"
 #include "storage/ndb/plugin/ndb_mysql_services.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
 #include "storage/ndb/plugin/ndb_ndbapi_errors.h"
 #include "storage/ndb/plugin/ndb_pfs_init.h"
+#include "storage/ndb/plugin/ndb_replica.h"
 #include "storage/ndb/plugin/ndb_require.h"
 #include "storage/ndb/plugin/ndb_schema_dist.h"
 #include "storage/ndb/plugin/ndb_schema_trans_guard.h"
@@ -226,6 +225,26 @@ static MYSQL_THDVAR_BOOL(
     nullptr, /* update func. */
     1        /* default */
 );
+
+/**
+   @brief Determine if copying alter table is allowed for current query
+
+   @param thd Pointer to current THD
+   @return true if allowed
+ */
+static bool is_copying_alter_table_allowed(THD *thd) {
+  if (THDVAR(thd, allow_copying_alter_table)) {
+    //  Copying alter table is allowed
+    return true;
+  }
+  if (thd->lex->alter_info->requested_algorithm ==
+      Alter_info::ALTER_TABLE_ALGORITHM_COPY) {
+    // User have specified ALGORITHM=COPY, thus overriding the fact that
+    // --ndb-allow-copying-alter-table is OFF
+    return true;
+  }
+  return false;
+}
 
 static MYSQL_THDVAR_UINT(optimized_node_selection, /* name */
                          PLUGIN_VAR_OPCMDARG,
@@ -458,179 +477,7 @@ struct st_ndb_status {
 /* Status variables shown with 'show status like 'Ndb%' */
 static st_ndb_status g_ndb_status;
 
-static long long g_slave_api_client_stats[Ndb::NumClientStatistics];
-
 static long long g_server_api_client_stats[Ndb::NumClientStatistics];
-
-/**
-  @brief Copy the slave threads Ndb statistics to global
-         variables, thus allowing the statistics to be read
-         from other threads when those display status variables. This
-         copy out need to happen with regular intervals and as
-         such the slave thread will call it at convenient times.
-  @note This differs from other threads who will copy statistics
-        from their own Ndb object before showing the values.
-  @param thd_ndb Pointer to Thd_ndb object
-*/
-void update_slave_api_stats(const Thd_ndb *thd_ndb) {
-  // Should only be called by the slave (applier) thread
-  assert(thd_ndb->is_slave_thread());
-
-  const Ndb *ndb = thd_ndb->ndb;
-  for (Uint32 i = 0; i < Ndb::NumClientStatistics; i++) {
-    g_slave_api_client_stats[i] = ndb->getClientStat(i);
-  }
-}
-
-st_ndb_slave_state g_ndb_slave_state;
-
-static int check_slave_config() {
-  DBUG_TRACE;
-
-  if (ndb_get_number_of_channels() > 1) {
-    // Ideally NDB should not impose any limit on the number of non-NDB sources.
-    ndb_log_error(
-        "NDB Replica: Configuration with number of replication "
-        "sources = %u is not supported when applying to NDB",
-        ndb_get_number_of_channels());
-    return HA_ERR_UNSUPPORTED;
-  }
-  // NDB does not yet support replica worker
-  if (ndb_mi_get_replica_parallel_workers() > 0) {
-    ndb_log_error(
-        "NDB Replica: Configuration 'replica_parallel_workers = %lu' is "
-        "not supported when applying to NDB, use 'replica_parallel_workers=0'.",
-        ndb_mi_get_replica_parallel_workers());
-    return HA_ERR_UNSUPPORTED;
-  }
-
-  return 0;
-}
-
-static int check_slave_state(THD *thd) {
-  DBUG_TRACE;
-
-  if (!thd->slave_thread) return 0;
-
-  if (g_ndb_slave_state.applier_sql_thread_start) {
-    DBUG_PRINT("info", ("We have detected Slave start/restart"));
-    /*
-     * Check that the slave configuration is supported
-     */
-    int error = check_slave_config();
-    if (unlikely(error)) return error;
-
-    DBUG_PRINT("info",
-               ("Resetting g_ndb_slave_state.applier_sql_thread_start"));
-    g_ndb_slave_state.applier_sql_thread_start = false;
-
-    g_ndb_slave_state.atStartSlave();
-
-    /* Always try to load the Max Replicated Epoch info
-     * first.
-     * Could be made optional if it's a problem
-     */
-    {
-      /*
-         Load highest replicated epoch from a local
-         MySQLD from the cluster.
-      */
-      DBUG_PRINT("info", ("Loading applied epoch information"));
-      NdbError ndb_error;
-      Uint64 highestAppliedEpoch = 0;
-      do {
-        Ndb *ndb = check_ndb_in_thd(thd);
-        Ndb_table_guard ndbtab_g(ndb, Ndb_apply_status_table::DB_NAME.c_str(),
-                                 Ndb_apply_status_table::TABLE_NAME.c_str());
-
-        const NDBTAB *ndbtab = ndbtab_g.get_table();
-        if (unlikely(ndbtab == nullptr)) {
-          ndb_error = ndbtab_g.getNdbError();
-          break;
-        }
-
-        NdbTransaction *trans = ndb->startTransaction();
-        if (unlikely(trans == nullptr)) {
-          ndb_error = ndb->getNdbError();
-          break;
-        }
-
-        do {
-          NdbScanOperation *sop = trans->getNdbScanOperation(ndbtab);
-          if (unlikely(sop == nullptr)) {
-            ndb_error = trans->getNdbError();
-            break;
-          }
-
-          const Uint32 server_id_col_num = 0;
-          const Uint32 epoch_col_num = 1;
-          NdbRecAttr *server_id_ra = nullptr;
-          NdbRecAttr *epoch_ra = nullptr;
-
-          if (unlikely(
-                  (sop->readTuples(NdbOperation::LM_CommittedRead) != 0) ||
-                  ((server_id_ra = sop->getValue(server_id_col_num)) ==
-                   nullptr) ||
-                  ((epoch_ra = sop->getValue(epoch_col_num)) == nullptr))) {
-            ndb_error = sop->getNdbError();
-            break;
-          }
-
-          if (trans->execute(NdbTransaction::Commit)) {
-            ndb_error = trans->getNdbError();
-            break;
-          }
-
-          int rc = 0;
-          while (0 == (rc = sop->nextResult(true))) {
-            const Uint32 serverid = server_id_ra->u_32_value();
-            const Uint64 epoch = epoch_ra->u_64_value();
-
-            // Save all server_id's found in ndb_apply_status, they will later
-            // be used to avoid overwriting any epochs
-            g_ndb_slave_state.saveServerId(serverid);
-
-            if ((serverid == ::server_id) ||
-                (ndb_mi_get_ignore_server_id(serverid))) {
-              highestAppliedEpoch = std::max(epoch, highestAppliedEpoch);
-            }
-          }
-
-          if (rc != 1) {
-            ndb_error = sop->getNdbError();
-            break;
-          }
-        } while (0);
-
-        trans->close();
-      } while (0);
-
-      if (ndb_error.code != 0) {
-        ndb_log_warning(
-            "NDB Replica: Could not determine maximum replicated "
-            "epoch from '%s.%s' at Replica start, error %u %s",
-            Ndb_apply_status_table::DB_NAME.c_str(),
-            Ndb_apply_status_table::TABLE_NAME.c_str(), ndb_error.code,
-            ndb_error.message);
-      }
-
-      /*
-        Set Global status variable to the Highest Applied Epoch from
-        the Cluster DB.
-        If none was found, this will be zero.
-      */
-      g_ndb_slave_state.max_rep_epoch = highestAppliedEpoch;
-      ndb_log_info(
-          "NDB Replica: MaxReplicatedEpoch set to %llu (%u/%u) at "
-          "Replica start",
-          g_ndb_slave_state.max_rep_epoch,
-          (Uint32)(g_ndb_slave_state.max_rep_epoch >> 32),
-          (Uint32)(g_ndb_slave_state.max_rep_epoch & 0xffffffff));
-    }  // Load highest replicated epoch
-  }    // New Slave SQL thread run id
-
-  return 0;
-}
 
 static int update_status_variables(Thd_ndb *thd_ndb, st_ndb_status *ns,
                                    Ndb_cluster_connection *c) {
@@ -787,13 +634,80 @@ static SHOW_VAR ndb_status_vars_dynamic[] = {
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
-static SHOW_VAR ndb_status_vars_slave[] = {
-    NDBAPI_COUNTERS("_slave", &g_slave_api_client_stats),
-    NDBAPI_COUNTERS("_replica", &g_slave_api_client_stats),
-    {"slave_max_replicated_epoch", (char *)&g_ndb_slave_state.max_rep_epoch,
+// Global instance of stats for the default replication channel, populated
+// from Ndb_replica when the channel state changes
+static Ndb_replica::Channel_stats g_default_channel_stats;
+// List of status variables for the default replication channel
+static SHOW_VAR ndb_status_vars_replica[] = {
+    NDBAPI_COUNTERS("_slave", &g_default_channel_stats.api_stats),
+    NDBAPI_COUNTERS("_replica", &g_default_channel_stats.api_stats),
+    {"slave_max_replicated_epoch",
+     (char *)&g_default_channel_stats.max_rep_epoch, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"replica_max_replicated_epoch",
+     (char *)&g_default_channel_stats.max_rep_epoch, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"conflict_fn_max",
+     (char *)&g_default_channel_stats.violation_count[CFT_NDB_MAX],
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"replica_max_replicated_epoch", (char *)&g_ndb_slave_state.max_rep_epoch,
+    {"conflict_fn_old",
+     (char *)&g_default_channel_stats.violation_count[CFT_NDB_OLD],
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"conflict_fn_max_del_win",
+     (char *)&g_default_channel_stats.violation_count[CFT_NDB_MAX_DEL_WIN],
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"conflict_fn_max_ins",
+     (char *)&g_default_channel_stats.violation_count[CFT_NDB_MAX_INS],
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"conflict_fn_max_del_win_ins",
+     (char *)&g_default_channel_stats.violation_count[CFT_NDB_MAX_DEL_WIN_INS],
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"conflict_fn_epoch",
+     (char *)&g_default_channel_stats.violation_count[CFT_NDB_EPOCH],
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"conflict_fn_epoch_trans",
+     (char *)&g_default_channel_stats.violation_count[CFT_NDB_EPOCH_TRANS],
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"conflict_fn_epoch2",
+     (char *)&g_default_channel_stats.violation_count[CFT_NDB_EPOCH2],
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"conflict_fn_epoch2_trans",
+     (char *)&g_default_channel_stats.violation_count[CFT_NDB_EPOCH2_TRANS],
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"conflict_trans_row_conflict_count",
+     (char *)&g_default_channel_stats.trans_row_conflict_count, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"conflict_trans_row_reject_count",
+     (char *)&g_default_channel_stats.trans_row_reject_count, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"conflict_trans_reject_count",
+     (char *)&g_default_channel_stats.trans_in_conflict_count, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"conflict_trans_detect_iter_count",
+     (char *)&g_default_channel_stats.trans_detect_iter_count, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"conflict_trans_conflict_commit_count",
+     (char *)&g_default_channel_stats.trans_conflict_commit_count,
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"conflict_epoch_delete_delete_count",
+     (char *)&g_default_channel_stats.delete_delete_count, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"conflict_reflected_op_prepare_count",
+     (char *)&g_default_channel_stats.reflect_op_prepare_count, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"conflict_reflected_op_discard_count",
+     (char *)&g_default_channel_stats.reflect_op_discard_count, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"conflict_refresh_op_count",
+     (char *)&g_default_channel_stats.refresh_op_count, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"conflict_last_conflict_epoch",
+     (char *)&g_default_channel_stats.last_conflicted_epoch, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"conflict_last_stable_epoch",
+     (char *)&g_default_channel_stats.last_stable_epoch, SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
 static SHOW_VAR ndb_status_vars_server_api[] = {
@@ -881,7 +795,8 @@ int ndb_to_mysql_error(const NdbError *ndberr) {
 ulong opt_ndb_slave_conflict_role;
 ulong opt_ndb_applier_conflict_role;
 
-static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
+static int handle_conflict_op_error(Ndb_applier *const applier,
+                                    NdbTransaction *trans, const NdbError &err,
                                     const NdbOperation *op);
 
 static bool ndbcluster_notify_alter_table(THD *, const MDL_key *,
@@ -891,8 +806,8 @@ static bool ndbcluster_notify_exclusive_mdl(THD *, const MDL_key *,
                                             ha_notification_type, bool *);
 
 static int handle_row_conflict(
-    NDB_CONFLICT_FN_SHARE *cfn_share, const char *tab_name,
-    const char *handling_type, const NdbRecord *key_rec,
+    Ndb_applier *const applier, NDB_CONFLICT_FN_SHARE *cfn_share,
+    const char *tab_name, const char *handling_type, const NdbRecord *key_rec,
     const NdbRecord *data_rec, const uchar *old_row, const uchar *new_row,
     enum_conflicting_op_type op_type, enum_conflict_cause conflict_cause,
     const NdbError &conflict_error, NdbTransaction *conflict_trans,
@@ -937,8 +852,11 @@ static inline int check_completed_operations_pre_commit(
        */
 
       if (err.classification != NdbError::NoError) {
-        int res = handle_conflict_op_error(trans, err, first);
-        if (res != 0) return res;
+        const int res =
+            handle_conflict_op_error(thd_ndb->get_applier(), trans, err, first);
+        if (res != 0) {
+          return res;
+        }
       }
     }  // if (!op_has_conflict_detection)
     if (err.classification != NdbError::NoError) ignores++;
@@ -1067,8 +985,11 @@ static inline int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                                                ignore_count);
   } while (0);
 
-  if (unlikely(thd_ndb->is_slave_thread() && rc != 0)) {
-    g_ndb_slave_state.atTransactionAbort();
+  if (unlikely(rc != 0)) {
+    Ndb_applier *const applier = thd_ndb->get_applier();
+    if (applier) {
+      applier->atTransactionAbort();
+    }
   }
 
   DBUG_PRINT("info", ("execute_no_commit rc is %d", rc));
@@ -1120,13 +1041,13 @@ static inline int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
     }
   }
 
-  if (thd_ndb->is_slave_thread()) {
+  Ndb_applier *const applier = thd_ndb->get_applier();
+  if (applier) {
     if (likely(rc == 0)) {
       /* Success */
-      g_ndb_slave_state.atTransactionCommit(
-          thd_ndb->m_last_commit_epoch_session);
+      applier->atTransactionCommit(thd_ndb->m_last_commit_epoch_session);
     } else {
-      g_ndb_slave_state.atTransactionAbort();
+      applier->atTransactionAbort();
     }
   }
 
@@ -1152,7 +1073,6 @@ static inline int execute_no_commit_ie(Thd_ndb *thd_ndb,
 
 Thd_ndb::Thd_ndb(THD *thd)
     : m_thd(thd),
-      m_slave_thread(thd->slave_thread),
       options(0),
       trans_options(0),
       m_ddl_ctx(nullptr),
@@ -1184,6 +1104,10 @@ Thd_ndb::Thd_ndb(THD *thd)
 Thd_ndb::~Thd_ndb() {
   assert(global_schema_lock_count == 0);
   assert(m_ddl_ctx == nullptr);
+
+  // The applier uses the Ndb object when removing its NdbApi table from dict
+  // cache, release applier first
+  m_applier.reset();
 
   delete ndb;
 
@@ -2845,12 +2769,9 @@ int ha_ndbcluster::pk_read(const uchar *key, uchar *buf, uint32 *part_id) {
   Update primary key or part id by doing delete insert.
 */
 
-int ha_ndbcluster::ndb_pk_update_row(THD *thd, const uchar *old_data,
-                                     uchar *new_data) {
-  NdbTransaction *trans = m_thd_ndb->trans;
+int ha_ndbcluster::ndb_pk_update_row(const uchar *old_data, uchar *new_data) {
   int error;
   DBUG_TRACE;
-  assert(trans);
 
   DBUG_PRINT("info", ("primary key update or partition change, "
                       "doing delete+insert"));
@@ -2905,13 +2826,16 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd, const uchar *old_data,
 
   if (error) {
     DBUG_PRINT("info", ("insert failed"));
-    if (trans->commitStatus() == NdbConnection::Started) {
-      if (thd->slave_thread) g_ndb_slave_state.atTransactionAbort();
+    if (m_thd_ndb->trans->commitStatus() == NdbConnection::Started) {
+      Ndb_applier *const applier = m_thd_ndb->get_applier();
+      if (applier) {
+        applier->atTransactionAbort();
+      }
       m_thd_ndb->m_unsent_bytes = 0;
       m_thd_ndb->m_unsent_blob_ops = false;
       m_thd_ndb->m_execute_count++;
       DBUG_PRINT("info", ("execute_count: %u", m_thd_ndb->m_execute_count));
-      trans->execute(NdbTransaction::Rollback);
+      m_thd_ndb->trans->execute(NdbTransaction::Rollback);
     }
     return error;
   }
@@ -3480,7 +3404,7 @@ inline int ha_ndbcluster::next_result(uchar *buf) {
 
 int ha_ndbcluster::log_exclusive_read(const NdbRecord *key_rec,
                                       const uchar *key, uchar *buf,
-                                      Uint32 *ppartition_id) {
+                                      Uint32 *ppartition_id) const {
   DBUG_TRACE;
   NdbOperation::OperationOptions opts;
   opts.optionsPresent = NdbOperation::OperationOptions::OO_ABORTOPTION |
@@ -3526,7 +3450,7 @@ int ha_ndbcluster::log_exclusive_read(const NdbRecord *key_rec,
 }
 
 int ha_ndbcluster::scan_log_exclusive_read(NdbScanOperation *cursor,
-                                           NdbTransaction *trans) {
+                                           NdbTransaction *trans) const {
   DBUG_TRACE;
   NdbOperation::OperationOptions opts;
   opts.optionsPresent = NdbOperation::OperationOptions::OO_ANYVALUE;
@@ -4222,7 +4146,7 @@ void ha_ndbcluster::get_hidden_fields_scan(
 static inline void eventSetAnyValue(Thd_ndb *thd_ndb,
                                     NdbOperation::OperationOptions *options) {
   options->anyValue = 0;
-  if (thd_ndb->is_slave_thread()) {
+  if (thd_ndb->get_applier()) {
     /*
       Applier thread is applying a replicated event.
       Set the server_id to the value received from the log which may be a
@@ -4290,9 +4214,6 @@ int ha_ndbcluster::prepare_conflict_detection(
     NdbOperation::OperationOptions *options, bool &conflict_handled,
     bool &avoid_ndbapi_write) {
   DBUG_TRACE;
-  THD *thd = table->in_use;
-  int res = 0;
-  assert(thd->slave_thread);
 
   conflict_handled = false;
 
@@ -4300,6 +4221,9 @@ int ha_ndbcluster::prepare_conflict_detection(
     // The ndb_apply_status table should not have any conflict detection
     return 0;
   }
+
+  Ndb_applier *const applier = m_thd_ndb->get_applier();
+  assert(applier);
 
   /*
      Check transaction id first, as in transactional conflict detection,
@@ -4317,6 +4241,7 @@ int ha_ndbcluster::prepare_conflict_detection(
   // Only used for sanity check and debug printout
   bool op_is_marked_as_refresh [[maybe_unused]] = false;
 
+  THD *thd = table->in_use;
   if (thd->binlog_row_event_extra_data) {
     Ndb_binlog_extra_row_info extra_row_info;
     if (extra_row_info.loadFromBuffer(thd->binlog_row_event_extra_data) != 0) {
@@ -4324,7 +4249,7 @@ int ha_ndbcluster::prepare_conflict_detection(
           "NDB Replica: Malformed event received on table %s "
           "cannot parse. Stopping SQL thread.",
           m_share->key_string());
-      return ER_SLAVE_CORRUPT_EVENT;
+      return ER_REPLICA_CORRUPT_EVENT;
     }
 
     if (extra_row_info.getFlags() &
@@ -4339,12 +4264,12 @@ int ha_ndbcluster::prepare_conflict_detection(
 
       if (conflict_flags & NDB_ERIF_CFT_REFLECT_OP) {
         op_is_marked_as_reflected = true;
-        g_ndb_slave_state.current_reflect_op_prepare_count++;
+        applier->increment_reflect_op_prepare_count();
       }
 
       if (conflict_flags & NDB_ERIF_CFT_REFRESH_OP) {
         op_is_marked_as_refresh = true;
-        g_ndb_slave_state.current_refresh_op_count++;
+        applier->increment_refresh_op_count();
       }
 
       if (conflict_flags & NDB_ERIF_CFT_READ_OP) {
@@ -4372,7 +4297,7 @@ int ha_ndbcluster::prepare_conflict_detection(
               "table %s requires ndb_applier_conflict_role variable "
               "to be set. Stopping SQL thread.",
               conflict_fn->name, m_share->key_string());
-          return ER_SLAVE_CONFIGURATION;
+          return ER_REPLICA_CONFIGURATION;
         }
         case SCR_PASS: {
           pass_mode = true;
@@ -4387,9 +4312,11 @@ int ha_ndbcluster::prepare_conflict_detection(
   {
     bool handle_conflict_now = false;
     const uchar *row_data = (op_type == WRITE_ROW ? new_data : old_data);
-    int res = g_ndb_slave_state.atPrepareConflictDetection(
+    int res = applier->atPrepareConflictDetection(
         m_table, key_rec, row_data, transaction_id, handle_conflict_now);
-    if (res) return res;
+    if (res) {
+      return res;
+    }
 
     if (handle_conflict_now) {
       DBUG_PRINT("info", ("Conflict handling for row occurring now"));
@@ -4405,13 +4332,16 @@ int ha_ndbcluster::prepare_conflict_detection(
          Directly handle the conflict here - e.g refresh/ write to
          exceptions table etc.
       */
-      res = handle_row_conflict(
-          m_share->m_cfn_share, m_share->table_name, "Transaction", key_rec,
-          data_rec, old_data, new_data, conflicting_op, TRANS_IN_CONFLICT,
-          noRealConflictError, trans, write_set, transaction_id);
-      if (unlikely(res)) return res;
+      res = handle_row_conflict(applier, m_share->m_cfn_share,
+                                m_share->table_name, "Transaction", key_rec,
+                                data_rec, old_data, new_data, conflicting_op,
+                                TRANS_IN_CONFLICT, noRealConflictError, trans,
+                                write_set, transaction_id);
+      if (unlikely(res)) {
+        return res;
+      }
 
-      g_ndb_slave_state.conflict_flags |= SCS_OPS_DEFINED;
+      applier->set_flag(Ndb_applier::OPS_DEFINED);
 
       /*
         Indicate that there (may be) some more operations to
@@ -4448,7 +4378,7 @@ int ha_ndbcluster::prepare_conflict_detection(
         "upstream Cluster.",
         m_share->key_string());
     /* This is a user error, but we want them to notice, so treat seriously */
-    return ER_SLAVE_CORRUPT_EVENT;
+    return ER_REPLICA_CORRUPT_EVENT;
   }
 
   bool prepare_interpreted_program = false;
@@ -4528,11 +4458,11 @@ int ha_ndbcluster::prepare_conflict_detection(
      Prepare interpreted code for operation according to algorithm used
   */
   if (prepare_interpreted_program) {
-    res = conflict_fn->prep_func(m_share->m_cfn_share, op_type, m_ndb_record,
-                                 old_data, new_data,
-                                 table->read_set,   // Before image
-                                 table->write_set,  // After image
-                                 code);
+    const int res = conflict_fn->prep_func(m_share->m_cfn_share, op_type,
+                                           m_ndb_record, old_data, new_data,
+                                           table->read_set,   // Before image
+                                           table->write_set,  // After image
+                                           code, applier->get_max_rep_epoch());
 
     if (res == 0) {
       if (code->getWordsUsed() > 0) {
@@ -4547,11 +4477,11 @@ int ha_ndbcluster::prepare_conflict_detection(
           "info necessary for conflict detection.  "
           "Check binlog format options on upstream cluster.",
           m_share->key_string());
-      return ER_SLAVE_CORRUPT_EVENT;
+      return ER_REPLICA_CORRUPT_EVENT;
     }
   }
 
-  g_ndb_slave_state.conflict_flags |= SCS_OPS_DEFINED;
+  applier->set_flag(Ndb_applier::OPS_DEFINED);
 
   /* Now save data for potential insert to exceptions table... */
   Ndb_exceptions_data ex_data;
@@ -4624,7 +4554,8 @@ int ha_ndbcluster::prepare_conflict_detection(
    refreshing the row and inserting an entry into the exceptions table
 */
 
-static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
+static int handle_conflict_op_error(Ndb_applier *const applier,
+                                    NdbTransaction *trans, const NdbError &err,
                                     const NdbOperation *op) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("ndb error: %d", err.code));
@@ -4730,8 +4661,7 @@ static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
              err.classification == NdbError::ConstraintViolation ||
              err.classification == NdbError::NoDataFound);
 
-      g_ndb_slave_state.current_reflect_op_discard_count++;
-
+      applier->increment_reflect_op_discard_count();
       return 0;
     }
 
@@ -4776,20 +4706,22 @@ static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
 
       if (!is_del_del_cft || fn_treats_del_del_as_cft) {
         /* Perform special transactional conflict-detected handling */
-        int res = g_ndb_slave_state.atTransConflictDetected(ex_data.trans_id);
-        if (res) return res;
+        const int res = applier->atTransConflictDetected(ex_data.trans_id);
+        if (res) {
+          return res;
+        }
       }
     }
 
     if (cfn_share) {
       /* Now handle the conflict on this row */
       enum_conflict_fn_type cft = cfn_share->m_conflict_fn->type;
-
-      g_ndb_slave_state.current_violation_count[cft]++;
+      applier->increment_violation_count(cft);
 
       int res = handle_row_conflict(
-          cfn_share, share->table_name, "Row", key_rec, data_rec, old_row,
-          new_row, causing_op_type, conflict_cause, err, trans, write_set,
+          applier, cfn_share, share->table_name, "Row", key_rec, data_rec,
+          old_row, new_row, causing_op_type, conflict_cause, err, trans,
+          write_set,
           /*
             ORIG_TRANSID not available for
             non-transactional conflict detection.
@@ -4810,39 +4742,29 @@ static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
   return 0;  // Reachable?
 }
 
-/*
-  is_serverid_local
-*/
-static bool is_serverid_local(Uint32 serverid) {
-  /*
-     If it's not our serverid, check the
-     IGNORE_SERVER_IDS setting to check if
-     it's local.
-  */
-  return ((serverid == ::server_id) || ndb_mi_get_ignore_server_id(serverid));
-}
-
 int ha_ndbcluster::write_row(uchar *record) {
   DBUG_TRACE;
 
-  if (m_share->is_apply_status_table() && m_thd_ndb->is_slave_thread()) {
-    // The applier thread is writing to ndb_apply_status table
-    const uint32 master_server_id = ndb_mi_get_master_server_id();
-    uint32 row_server_id;
-    memcpy(&row_server_id,
-           table->field[0]->field_ptr() + (record - table->record[0]),
-           sizeof(row_server_id));
-    uint64 row_epoch;
-    memcpy(&row_epoch,
-           table->field[1]->field_ptr() + (record - table->record[0]),
-           sizeof(row_epoch));
+  Ndb_applier *const applier = m_thd_ndb->get_applier();
+  if (applier && m_share->is_apply_status_table()) {
+    // Applier is writing to ndb_apply_status table
 
-    const int rc = g_ndb_slave_state.atApplyStatusWrite(
-        master_server_id, row_server_id, row_epoch,
-        is_serverid_local(row_server_id));
-    if (rc != 0) {
-      /* Stop applier */
-      return rc;
+    // Extract server_id and epoch from the written row
+    assert(record == table->record[0]);
+    const Uint32 row_server_id = table->field[0]->val_int();
+    const Uint64 row_epoch = table->field[1]->val_int();
+
+    bool skip_write = false;
+    const int result =
+        applier->atApplyStatusWrite(row_server_id, row_epoch, skip_write);
+    if (result != 0) {
+      // Stop applier
+      return result;
+    }
+
+    if (skip_write) {
+      // The applier has handled this write by deferring it until commit time
+      return 0;
     }
   }
 
@@ -4867,9 +4789,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
   NdbOperation::SetValueSpec sets[3];
   Uint32 num_sets = 0;
   DBUG_TRACE;
-
-  error = check_slave_state(thd);
-  if (unlikely(error)) return error;
 
   has_auto_increment = (table->next_number_field && record == table->record[0]);
 
@@ -4986,7 +4905,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
   const bool need_flush =
       thd_ndb->add_row_check_if_batch_full(m_bytes_per_write);
 
-  if ((thd->slave_thread) && (m_table->getExtraRowAuthorBits())) {
+  if (thd_ndb->get_applier() && m_table->getExtraRowAuthorBits()) {
     /* Set author to indicate slave updated last */
     sets[num_sets].column = NdbDictionary::Column::ROW_AUTHOR;
     sets[num_sets].value = &authorValue;
@@ -5002,7 +4921,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
     options.extraSetValues = sets;
     options.numExtraSetValues = num_sets;
   }
-  if (thd->slave_thread || THDVAR(thd, deferred_constraints)) {
+  if (thd_ndb->get_applier() || THDVAR(thd, deferred_constraints)) {
     options.optionsPresent |=
         NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
   }
@@ -5022,8 +4941,9 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
   Uint32 buffer[MAX_CONFLICT_INTERPRETED_PROG_SIZE];
   NdbInterpretedCode code(m_table, buffer, sizeof(buffer) / sizeof(buffer[0]));
 
-  /* Conflict resolution in slave thread */
-  if (thd->slave_thread) {
+  /* Conflict resolution in applier */
+  const Ndb_applier *const applier = m_thd_ndb->get_applier();
+  if (applier) {
     bool conflict_handled = false;
     if (unlikely((error = prepare_conflict_detection(
                       WRITE_ROW, key_rec, m_ndb_record, nullptr, /* old_data */
@@ -5197,8 +5117,8 @@ static Ndb_exceptions_data StaticRefreshExceptionsData = {
     nullptr, nullptr, REFRESH_ROW, false,   0};
 
 static int handle_row_conflict(
-    NDB_CONFLICT_FN_SHARE *cfn_share, const char *table_name,
-    const char *handling_type, const NdbRecord *key_rec,
+    Ndb_applier *const applier, NDB_CONFLICT_FN_SHARE *cfn_share,
+    const char *table_name, const char *handling_type, const NdbRecord *key_rec,
     const NdbRecord *data_rec, const uchar *old_row, const uchar *new_row,
     enum_conflicting_op_type op_type, enum_conflict_cause conflict_cause,
     const NdbError &conflict_error, NdbTransaction *conflict_trans,
@@ -5298,7 +5218,7 @@ static int handle_row_conflict(
        *
        */
       if ((op_type == DELETE_ROW) && (conflict_cause == ROW_DOES_NOT_EXIST)) {
-        g_ndb_slave_state.current_delete_delete_count++;
+        applier->increment_delete_delete_count();
         DBUG_PRINT("info", ("Delete vs Delete detected, NOT refreshing"));
         break;
       }
@@ -5386,11 +5306,12 @@ static int handle_row_conflict(
        (cfn_share && cfn_share->m_ex_tab_writer.hasTable()) ? "" : " not"));
   if (cfn_share && cfn_share->m_ex_tab_writer.hasTable()) {
     NdbError err;
+    const auto current_state = applier->get_current_epoch_state();
     if (cfn_share->m_ex_tab_writer.writeRow(
-            conflict_trans, key_rec, data_rec, ::server_id,
-            ndb_mi_get_master_server_id(),
-            g_ndb_slave_state.current_master_server_epoch, old_row, new_row,
-            op_type, conflict_cause, transaction_id, write_set, err) != 0) {
+            conflict_trans, key_rec, data_rec, current_state.own_server_id,
+            current_state.source_server_id, current_state.epoch_value, old_row,
+            new_row, op_type, conflict_cause, transaction_id, write_set,
+            err) != 0) {
       if (err.code != 0) {
         if (err.status == NdbError::TemporaryError) {
           /* Slave will roll back and retry entire transaction. */
@@ -5604,9 +5525,6 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   NdbTransaction *trans = m_thd_ndb->trans;
   assert(trans);
 
-  error = check_slave_state(thd);
-  if (unlikely(error)) return error;
-
   /*
    * If IGNORE the ignore constraint violations on primary and unique keys,
    * but check that it is not part of INSERT ... ON DUPLICATE KEY UPDATE
@@ -5656,7 +5574,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
    * for special handling
    */
   if (pk_update || old_part_id != new_part_id) {
-    return ndb_pk_update_row(thd, old_data, new_data);
+    return ndb_pk_update_row(old_data, new_data);
   }
   /*
     If we are updating a unique key with auto_increment
@@ -5706,7 +5624,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       thd_ndb->add_row_check_if_batch_full(m_bytes_per_write);
 
   const Uint32 authorValue = 1;
-  if ((thd->slave_thread) && (m_table->getExtraRowAuthorBits())) {
+  if (thd_ndb->get_applier() && m_table->getExtraRowAuthorBits()) {
     /* Set author to indicate slave updated last */
     sets[num_sets].column = NdbDictionary::Column::ROW_AUTHOR;
     sets[num_sets].value = &authorValue;
@@ -5719,7 +5637,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     options.numExtraSetValues = num_sets;
   }
 
-  if (thd->slave_thread || THDVAR(thd, deferred_constraints)) {
+  if (thd_ndb->get_applier() || THDVAR(thd, deferred_constraints)) {
     options.optionsPresent |=
         NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
   }
@@ -5760,7 +5678,9 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     NdbInterpretedCode code(m_table, buffer,
                             sizeof(buffer) / sizeof(buffer[0]));
 
-    if (thd->slave_thread) {
+    /* Conflict resolution in Applier */
+    const Ndb_applier *const applier = m_thd_ndb->get_applier();
+    if (applier) {
       bool conflict_handled = false;
       /* Conflict resolution in slave thread. */
       DBUG_PRINT("info", ("Slave thread, preparing conflict resolution for "
@@ -5950,9 +5870,6 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   NdbTransaction *trans = m_thd_ndb->trans;
   assert(trans);
 
-  error = check_slave_state(thd);
-  if (unlikely(error)) return error;
-
   ha_statistic_increment(&System_status_var::ha_delete_count);
 
   bool skip_partition_for_unique_index = false;
@@ -5989,7 +5906,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   const uint delete_size = 12 + (m_bytes_per_write >> 2);
   const bool need_flush = thd_ndb->add_row_check_if_batch_full(delete_size);
 
-  if (thd->slave_thread || THDVAR(thd, deferred_constraints)) {
+  if (thd_ndb->get_applier() || THDVAR(thd, deferred_constraints)) {
     options.optionsPresent |=
         NdbOperation::OperationOptions::OO_DEFERRED_CONSTAINTS;
   }
@@ -6043,7 +5960,9 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     Uint32 buffer[MAX_CONFLICT_INTERPRETED_PROG_SIZE];
     NdbInterpretedCode code(m_table, buffer,
                             sizeof(buffer) / sizeof(buffer[0]));
-    if (thd->slave_thread) {
+    /* Conflict resolution in Applier */
+    const Ndb_applier *const applier = m_thd_ndb->get_applier();
+    if (applier) {
       bool conflict_handled = false;
       bool dummy_delete_does_not_care = false;
 
@@ -6289,7 +6208,7 @@ int ha_ndbcluster::index_init(uint index, bool sorted) {
   if (index < MAX_KEY && m_index[index].type == UNDEFINED_INDEX)
     return fail_index_offline(table, index);
 
-  if (m_thd_ndb->is_slave_thread()) {
+  if (m_thd_ndb->get_applier()) {
     if (table_share->primary_key == MAX_KEY &&  // hidden pk
         m_thd_ndb->m_unsent_bytes) {
       // Applier starting read from table with hidden pk when there are already
@@ -7419,64 +7338,6 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd, THR_LOCK_DATA **to,
   return to;
 }
 
-static int ndbcluster_update_apply_status(THD *thd, int do_update) {
-  Thd_ndb *thd_ndb = get_thd_ndb(thd);
-
-  Ndb_table_guard ndbtab_g(thd_ndb->ndb,
-                           Ndb_apply_status_table::DB_NAME.c_str(),
-                           Ndb_apply_status_table::TABLE_NAME.c_str());
-  const NDBTAB *ndbtab = ndbtab_g.get_table();
-  if (!ndbtab) {
-    return -1;
-  }
-  NdbTransaction *trans = thd_ndb->trans;
-  NdbOperation *op = nullptr;
-  int r [[maybe_unused]] = 0;
-  r |= (op = trans->getNdbOperation(ndbtab)) == nullptr;
-  assert(r == 0);
-
-  if (!do_update) {
-    // Don't overwrite when already seen epochs from this server_id
-    if (g_ndb_slave_state.seenServerId(thd->server_id)) {
-      do_update = true;
-    }
-  }
-
-  if (do_update)
-    r |= op->updateTuple();
-  else
-    r |= op->writeTuple();
-  assert(r == 0);
-  // server_id
-  r |= op->equal(0u, (Uint32)thd->server_id);
-  assert(r == 0);
-  if (!do_update) {
-    // epoch
-    r |= op->setValue(1u, (Uint64)0);
-    assert(r == 0);
-  }
-  const char *group_master_log_name = ndb_mi_get_group_master_log_name();
-  const Uint64 group_master_log_pos = ndb_mi_get_group_master_log_pos();
-  const Uint64 future_event_relay_log_pos =
-      ndb_mi_get_future_event_relay_log_pos();
-  const Uint64 group_relay_log_pos = ndb_mi_get_group_relay_log_pos();
-
-  // log_name
-  char tmp_buf[FN_REFLEN];
-  ndb_pack_varchar(ndbtab, 2u, tmp_buf, group_master_log_name,
-                   strlen(group_master_log_name));
-  r |= op->setValue(2u, tmp_buf);
-  assert(r == 0);
-  // start_pos
-  r |= op->setValue(3u, group_master_log_pos);
-  assert(r == 0);
-  // end_pos
-  r |= op->setValue(4u, group_master_log_pos +
-                            (future_event_relay_log_pos - group_relay_log_pos));
-  assert(r == 0);
-  return 0;
-}
-
 void Thd_ndb::transaction_checks() {
   THD *thd = m_thd;
 
@@ -7487,11 +7348,12 @@ void Thd_ndb::transaction_checks() {
   }
 
   m_force_send = THDVAR(thd, force_send);
-  if (!m_slave_thread) {
+  if (get_applier() == nullptr) {
+    // Normal user thread
     m_batch_size = THDVAR(thd, batch_size);
     m_blob_write_batch_size = THDVAR(thd, blob_write_batch_bytes);
   } else {
-    // Replicas benefit from higher batch size, thus use the maximum
+    // Applier benefit from higher batch size, thus use the maximum
     // between the default and the global batch_size if
     // replica_batch_size is unset
     m_batch_size =
@@ -7564,10 +7426,6 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
   m_autoincrement_prefetch = THDVAR(thd, autoincrement_prefetch_sz);
 
   release_blobs_buffer();
-
-  if (m_share->is_apply_status_table() && m_thd_ndb->is_slave_thread()) {
-    m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
-  }
 
   // Register table stats for transaction
   m_trans_table_stats = m_thd_ndb->trans_tables.register_stats(m_share);
@@ -7902,6 +7760,9 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
     DBUG_PRINT("info", ("trans == NULL"));
     return 0;
   }
+
+  Ndb_applier *const applier = thd_ndb->get_applier();
+
   if (!all && thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
     /*
       An odditity in the handler interface is that commit on handlerton
@@ -7915,32 +7776,56 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
     */
     thd_ndb->save_point_count++;
     DBUG_PRINT("info", ("Commit before start or end-of-statement only"));
-    return 0;
+
+    // To achieve parallelism when using more than one worker, any defined
+    // operations should be prepared in NDB before entering the serial commit
+    // phase. The last part of parallel phase is normally when the worker thread
+    // has completed the current binlog group and commits the statement.
+    if (applier && applier->get_num_workers() > 1) {
+      if (thd_ndb->m_unsent_bytes) {
+        DBUG_PRINT("info", ("Applier preparing defined operations"));
+        res = execute_no_commit(thd_ndb, trans, true);
+        if (res != 0) {
+          // Fatal transaction error occured
+          const NdbError &trans_error = trans->getNdbError();
+          if (trans_error.code == 4350) {  // Transaction already aborted
+            thd_ndb->push_ndb_error_warning(trans_error);
+            res = HA_ERR_ROLLED_BACK;
+          } else {
+            res = ndbcluster_print_error(trans, thd_ndb->m_handler);
+          }
+        }
+      }
+    }
+
+    return res;
   }
   thd_ndb->save_point_count = 0;
 
-  if (thd_ndb->is_slave_thread()) {
-    // Append update of the ndb_apply_status table to current transaction
-    ndbcluster_update_apply_status(
-        thd, thd_ndb->check_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS));
+  if (applier) {
+    // Define operations for transaction to change the ndb_apply_status table
+    if (!applier->define_apply_status_operations()) {
+      // Failed to define ndb_apply_status operations, catch in debug only
+      assert(false);
+    }
 
     /* If this slave transaction has included conflict detecting ops
      * and some defined operations are not yet sent, then perform
      * an execute(NoCommit) before committing, as conflict op handling
      * is done by execute(NoCommit)
      */
-    /* TODO : Add as function */
-    if (g_ndb_slave_state.conflict_flags & SCS_OPS_DEFINED) {
-      if (thd_ndb->m_unsent_bytes)
-        res = execute_no_commit(thd_ndb, trans, true);
+    if (applier->check_flag(Ndb_applier::OPS_DEFINED) &&
+        thd_ndb->m_unsent_bytes) {
+      res = execute_no_commit(thd_ndb, trans, true);
     }
 
-    if (likely(res == 0))
-      res = g_ndb_slave_state.atConflictPreCommit(retry_slave_trans);
+    if (likely(res == 0)) {
+      res = applier->atConflictPreCommit(retry_slave_trans);
+    }
 
-    if (likely(res == 0)) res = execute_commit(thd_ndb, trans, 1, true);
-
-    update_slave_api_stats(thd_ndb);
+    if (likely(res == 0)) {
+      res = execute_commit(thd_ndb, trans, 1, true);
+    }
   } else {
     if (thd_ndb->m_handler &&
         thd_ndb->m_handler->m_read_before_write_removal_possible) {
@@ -7976,33 +7861,12 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
   if (res != 0) {
     const NdbError &trans_error = trans->getNdbError();
     if (retry_slave_trans) {
-      if (st_ndb_slave_state::MAX_RETRY_TRANS_COUNT >
-          g_ndb_slave_state.retry_trans_count++) {
+      if (!applier->check_retry_trans()) {
         /*
-           Warning is necessary to cause retry from slave.cc
-           exec_relay_log_event()
-        */
-        push_warning(thd, Sql_condition::SL_WARNING,
-                     ER_SLAVE_SILENT_RETRY_TRANSACTION,
-                     "Replica transaction rollback requested");
-        /*
-          Set retry count to zero to:
-          1) Avoid consuming slave-temp-error retry attempts
-          2) Ensure no inter-attempt sleep
-
-          Better fix : Save + restore retry count around transactional
-          conflict handling
-        */
-        ndb_mi_set_relay_log_trans_retries(0);
-      } else {
-        /*
-           Too many retries, print error and exit - normal
-           too many retries mechanism will cause exit
+           Applier retried transaction too many times, print error and exit -
+           normal too many retries mechanism will cause exit
          */
-        ndb_log_error(
-            "Ndb replica retried transaction %u time(s) in vain.  "
-            "Giving up.",
-            st_ndb_slave_state::MAX_RETRY_TRANS_COUNT);
+        ndb_log_error("NDB Replica: retried transaction in vain. Giving up.");
       }
       res = ER_GET_TEMPORARY_ERRMSG;
     } else if (trans_error.code == 4350) {  // Transaction already aborted
@@ -8078,9 +7942,7 @@ static int ndbcluster_rollback(handlerton *, THD *thd, bool all) {
     return 0;
   }
   thd_ndb->save_point_count = 0;
-  if (thd_ndb->is_slave_thread()) {
-    g_ndb_slave_state.atTransactionAbort();
-  }
+
   thd_ndb->m_unsent_bytes = 0;
   thd_ndb->m_unsent_blob_ops = false;
   thd_ndb->m_execute_count++;
@@ -8092,8 +7954,9 @@ static int ndbcluster_rollback(handlerton *, THD *thd, bool all) {
   thd_ndb->trans = nullptr;
   thd_ndb->m_handler = nullptr;
 
-  if (thd_ndb->is_slave_thread()) {
-    update_slave_api_stats(thd_ndb);
+  Ndb_applier *const applier = thd_ndb->get_applier();
+  if (applier) {
+    applier->atTransactionAbort();
   }
 
   // Rollback any DDL changes made as a part of this transaction
@@ -9503,12 +9366,7 @@ int ha_ndbcluster::create(const char *path [[maybe_unused]],
     // Check that the table name is a temporary name
     assert(ndb_name_is_temp(tabname));
 
-    if (!THDVAR(thd, allow_copying_alter_table) &&
-        (thd->lex->alter_info->requested_algorithm ==
-         Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)) {
-      // Copying alter table is not allowed and user
-      // have not specified ALGORITHM=COPY
-
+    if (!is_copying_alter_table_allowed(thd)) {
       DBUG_PRINT("info", ("Refusing implicit copying alter table"));
       my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
                "Implicit copying alter", "ndb_allow_copying_alter_table=0",
@@ -12467,24 +12325,6 @@ static int ndb_dd_upgrade_hook(void *) {
   return 0;
 }
 
-/*
-  Function installed as server hook to be called before the applier thread
-  starts. Wait --ndb-wait-setup= seconds for ndbcluster connect to NDB
-  and complete setup.
-*/
-
-static int ndb_wait_setup_replication_applier(void *) {
-  DBUG_TRACE;
-  g_ndb_slave_state.applier_sql_thread_start = true;
-  if (wait_setup_completed(opt_ndb_wait_setup) == false) {
-    ndb_log_error(
-        "NDB Replica: Tables not available after %lu seconds. Consider "
-        "increasing --ndb-wait-setup value",
-        opt_ndb_wait_setup);
-  }
-  return 0;  // NOTE! could return error to fail applier
-}
-
 static Ndb_server_hooks ndb_server_hooks;
 
 /**
@@ -12669,6 +12509,7 @@ static int ndbcluster_init_abort(const char *error) {
   // Release resources which will not be released in other ways
   // (since ndbcluster_end() will not be called)
   ndb_server_hooks.unregister_all();
+  Ndb_replica::deinit();
 
   // Use server service to ask for server shutdown
   Ndb_mysql_services services;
@@ -12704,8 +12545,8 @@ static int ndbcluster_init(void *handlerton_ptr) {
   }
 
   /* Check const alignment */
-  assert(DependencyTracker::InvalidTransactionId ==
-         Ndb_binlog_extra_row_info::InvalidTransactionId);
+  static_assert(DependencyTracker::InvalidTransactionId ==
+                Ndb_binlog_extra_row_info::InvalidTransactionId);
 
   if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT) {
     /* Set global to mixed - note that this is not the default,
@@ -12716,15 +12557,19 @@ static int ndbcluster_init(void *handlerton_ptr) {
         "Changed global value of binlog_format from STATEMENT to MIXED");
   }
 
-  // NDB should probably not be changing the value of global settings, but
-  // the data structures used to maintain replica state are not thread-safe,
-  // so this is necessary until that is fixed in wl#14885.
-  const ulong max_replica_workers = 0;
-  if (opt_mts_replica_parallel_workers > max_replica_workers) {
-    ndb_log_info(
-        "Changed global value of --replica-parallel-workers from %lu to %lu",
-        opt_mts_replica_parallel_workers, max_replica_workers);
-    opt_mts_replica_parallel_workers = max_replica_workers;
+  std::function<bool()> start_channel_func = []() -> bool {
+    if (!wait_setup_completed(opt_ndb_wait_setup)) {
+      ndb_log_error(
+          "NDB Replica: Connection to NDB not ready after %lu seconds. "
+          "Consider increasing --ndb-wait-setup value",
+          opt_ndb_wait_setup);
+      return false;
+    }
+    return true;
+  };
+
+  if (Ndb_replica::init(start_channel_func, &g_default_channel_stats)) {
+    return ndbcluster_init_abort("Failed to initialize NDB Replica");
   }
 
   if (ndb_index_stat_thread.init() ||
@@ -12792,11 +12637,6 @@ static int ndbcluster_init(void *handlerton_ptr) {
     return ndbcluster_init_abort("Failed to register server start hook");
   }
 
-  if (!ndb_server_hooks.register_applier_start(
-          ndb_wait_setup_replication_applier)) {
-    return ndbcluster_init_abort("Failed to register applier start hook");
-  }
-
   // Initialize NDB_SHARE factory
   NDB_SHARE::initialize(table_alias_charset);
 
@@ -12838,8 +12678,6 @@ static int ndbcluster_init(void *handlerton_ptr) {
     return ndbcluster_init_abort("Failed to start NDB Metadata Change Monitor");
   }
 
-  memset(&g_slave_api_client_stats, 0, sizeof(g_slave_api_client_stats));
-
   if (ndb_pfs_init()) {
     return ndbcluster_init_abort("Failed to init pfs");
   }
@@ -12875,6 +12713,7 @@ static int ndbcluster_end(handlerton *, ha_panic_function) {
 
   // Unregister all server hooks
   ndb_server_hooks.unregister_all();
+  Ndb_replica::deinit();
 
   if (!ndbcluster_inited) return 0;
   ndbcluster_inited = 0;
@@ -13555,7 +13394,6 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
                                          void *seq_init_param, uint n_ranges,
                                          uint mode, HANDLER_BUFFER *buffer) {
   DBUG_TRACE;
-  assert(!m_thd_ndb->is_slave_thread());  // mrr not used by applier
 
   /*
     If supplied buffer is smaller than needed for just one range, we cannot do
@@ -15194,6 +15032,16 @@ static inline enum_alter_inplace_result inplace_unsupported(
   DBUG_TRACE;
   DBUG_PRINT("info", ("%s", reason));
   alter_info->unsupported_reason = reason;
+
+  THD *const thd = current_thd;
+  if (!is_copying_alter_table_allowed(thd)) {
+    // Query will return an error since copying alter table is not allowed, push
+    // the reason as warning in order to allow user to see it with SHOW WARNINGS
+    Thd_ndb *const thd_ndb = get_thd_ndb(thd);
+    thd_ndb->push_warning(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON,
+                          "Reason: '%s'", reason);
+  }
+
   return HA_ALTER_INPLACE_NOT_SUPPORTED;
 }
 
@@ -17655,10 +17503,8 @@ static int show_ndb_status(THD *thd, SHOW_VAR *var, char *) {
 
 static SHOW_VAR ndb_status_vars[] = {
     {"Ndb", (char *)&show_ndb_status, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Ndb_conflict", (char *)&show_ndb_status_conflict, SHOW_FUNC,
-     SHOW_SCOPE_GLOBAL},
     {"Ndb", (char *)&show_ndb_status_injector, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Ndb", (char *)&ndb_status_vars_slave, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
+    {"Ndb", (char *)&ndb_status_vars_replica, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
     {"Ndb", (char *)&show_ndb_status_server_api, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ndb_index_stat", (char *)&show_ndb_status_index_stat, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
@@ -18283,6 +18129,17 @@ static MYSQL_SYSVAR_BOOL(log_fail_terminate,         /* name */
                          0        /* default */
 );
 
+bool opt_ndb_log_trans_dependency;
+static MYSQL_SYSVAR_BOOL(log_transaction_dependency,   /* name */
+                         opt_ndb_log_trans_dependency, /* var */
+                         PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+                         "Enable transaction dependency extraction for NDB "
+                         "changes written to the binlog.",
+                         nullptr, /* check func. */
+                         nullptr, /* update func. */
+                         0        /* default */
+);
+
 static MYSQL_SYSVAR_STR(mgmd_host,             /* name */
                         opt_ndb_connectstring, /* var */
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -18305,6 +18162,64 @@ static MYSQL_SYSVAR_UINT(
     MAX_NODES_ID, /* max */
     0             /* block */
 );
+
+static bool checkSlaveConflictRoleChange(enum_slave_conflict_role old_role,
+                                         enum_slave_conflict_role new_role,
+                                         const char **failure_cause) {
+  if (old_role == new_role) return true;
+
+  /**
+   * Initial role is SCR_NONE
+   * Allowed transitions :
+   *   SCR_NONE -> SCR_PASS
+   *   SCR_NONE -> SCR_PRIMARY
+   *   SCR_NONE -> SCR_SECONDARY
+   *   SCR_PRIMARY -> SCR_NONE
+   *   SCR_PRIMARY -> SCR_SECONDARY
+   *   SCR_SECONDARY -> SCR_NONE
+   *   SCR_SECONDARY -> SCR_PRIMARY
+   *   SCR_PASS -> SCR_NONE
+   *
+   * Disallowed transitions
+   *   SCR_PASS -> SCR_PRIMARY
+   *   SCR_PASS -> SCR_SECONDARY
+   *   SCR_PRIMARY -> SCR_PASS
+   *   SCR_SECONDARY -> SCR_PASS
+   */
+  bool bad_transition = false;
+  *failure_cause = "Internal error";
+
+  switch (old_role) {
+    case SCR_NONE:
+      break;
+    case SCR_PRIMARY:
+    case SCR_SECONDARY:
+      bad_transition = (new_role == SCR_PASS);
+      break;
+    case SCR_PASS:
+      bad_transition =
+          ((new_role == SCR_PRIMARY) || (new_role == SCR_SECONDARY));
+      break;
+    default:
+      assert(false);
+      return false;
+  }
+
+  if (bad_transition) {
+    *failure_cause = "Invalid role change.";
+    return false;
+  }
+
+  /* Don't allow changing role while any Ndb_replica channel is started */
+  if (ndb_replica->num_started_channels() > 0) {
+    *failure_cause =
+        "Cannot change role while Replica SQL "
+        "thread is running.  Use STOP REPLICA first.";
+    return false;
+  }
+
+  return true;
+}
 
 static const char *slave_conflict_role_names[] = {"NONE", "SECONDARY",
                                                   "PRIMARY", "PASS", NullS};
@@ -18343,7 +18258,7 @@ static int slave_conflict_role_check_func(THD *thd, SYS_VAR *, void *save,
     }
 
     const char *failure_cause_str = nullptr;
-    if (!st_ndb_slave_state::checkSlaveConflictRoleChange(
+    if (!checkSlaveConflictRoleChange(
             (enum_slave_conflict_role)opt_ndb_slave_conflict_role,
             (enum_slave_conflict_role)result, &failure_cause_str)) {
       char msgbuf[256];
@@ -18395,7 +18310,7 @@ static int applier_conflict_role_check_func(THD *thd, SYS_VAR *, void *save,
   }
 
   const char *failure_cause_str = nullptr;
-  if (!st_ndb_slave_state::checkSlaveConflictRoleChange(
+  if (!checkSlaveConflictRoleChange(
           (enum_slave_conflict_role)opt_ndb_applier_conflict_role,
           (enum_slave_conflict_role)result, &failure_cause_str)) {
     char msgbuf[256];
@@ -18535,6 +18450,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(log_transaction_compression),
     MYSQL_SYSVAR(log_transaction_compression_level_zstd),
     MYSQL_SYSVAR(log_fail_terminate),
+    MYSQL_SYSVAR(log_transaction_dependency),
     MYSQL_SYSVAR(clear_apply_status),
     MYSQL_SYSVAR(schema_dist_upgrade_allowed),
     MYSQL_SYSVAR(schema_dist_timeout),

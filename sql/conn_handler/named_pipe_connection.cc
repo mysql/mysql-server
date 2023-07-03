@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class Channel_info_named_pipe : public Channel_info {
   HANDLE m_handle;
 
  protected:
-  virtual Vio *create_and_init_vio() const {
+  Vio *create_and_init_vio() const override {
     return vio_new_win32pipe(m_handle);
   }
 
@@ -62,7 +62,7 @@ class Channel_info_named_pipe : public Channel_info {
   */
   Channel_info_named_pipe(HANDLE handle) : m_handle(handle) {}
 
-  virtual THD *create_thd() {
+  THD *create_thd() override {
     THD *thd = Channel_info::create_thd();
 
     if (thd != NULL) {
@@ -72,8 +72,8 @@ class Channel_info_named_pipe : public Channel_info {
     return thd;
   }
 
-  virtual void send_error_and_close_channel(uint errorcode, int error,
-                                            bool senderror) {
+  void send_error_and_close_channel(uint errorcode, int error,
+                                    bool senderror) override {
     Channel_info::send_error_and_close_channel(errorcode, error, senderror);
 
     DisconnectNamedPipe(m_handle);

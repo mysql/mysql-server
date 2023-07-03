@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -49,9 +49,13 @@ IF(MSVC)
     )
 ENDIF()
 
+ADD_STATIC_LIBRARY(xpl_test_src ${XPL_TEST_SRC}
+  DEPENDENCIES mysqlx
+  LINK_LIBRARIES ext::zlib ext::lz4 ext::zstd extra::rapidjson ext::icu)
+
 MYSQL_ADD_EXECUTABLE(${XPL_UNIT_TESTS}
   ../test_main.cc
-  ${XPL_TEST_SRC}
+  LINK_LIBRARIES xpl_test_src
   ADD_TEST xplugin
 )
 SET_TESTS_PROPERTIES(xplugin PROPERTIES TIMEOUT 180)

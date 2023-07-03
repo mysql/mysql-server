@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1039,10 +1039,10 @@ bool Item_func_period_add::resolve_type(THD *thd) {
 longlong Item_func_period_add::val_int() {
   assert(fixed == 1);
   longlong period = args[0]->val_int();
+  if ((null_value = args[0]->null_value)) return 0;
   longlong months = args[1]->val_int();
+  if ((null_value = args[1]->null_value)) return 0;
 
-  if ((null_value = args[0]->null_value || args[1]->null_value))
-    return 0; /* purecov: inspected */
   if (!valid_period(period)) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_int();
@@ -1057,10 +1057,10 @@ bool Item_func_period_diff::resolve_type(THD *thd) {
 longlong Item_func_period_diff::val_int() {
   assert(fixed == 1);
   longlong period1 = args[0]->val_int();
+  if ((null_value = args[0]->null_value)) return 0;
   longlong period2 = args[1]->val_int();
+  if ((null_value = args[1]->null_value)) return 0;
 
-  if ((null_value = args[0]->null_value || args[1]->null_value))
-    return 0; /* purecov: inspected */
   if (!valid_period(period1) || !valid_period(period2)) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_int();
@@ -2153,8 +2153,10 @@ bool Item_func_sysdate_local::resolve_type(THD *) {
 
 bool Item_func_sec_to_time::get_time(MYSQL_TIME *ltime) {
   my_decimal tmp, *val = args[0]->val_decimal(&tmp);
-  lldiv_t seconds;
+  if (val == nullptr) return (null_value = true);
   if ((null_value = args[0]->null_value)) return true;
+
+  lldiv_t seconds;
   if (my_decimal2lldiv_t(0, val, &seconds)) {
     set_max_time(ltime, val->sign());
     return make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
@@ -2968,17 +2970,19 @@ bool Item_typecast_date::get_date(MYSQL_TIME *ltime,
 
 bool Item_func_makedate::get_date(MYSQL_TIME *ltime, my_time_flags_t) {
   assert(fixed == 1);
-  long daynr = (long)args[1]->val_int();
-  long year = (long)args[0]->val_int();
-  long days;
+  longlong daynr = args[1]->val_int();
+  if ((null_value = args[1]->null_value)) return true;
+  longlong year = args[0]->val_int();
+  if ((null_value = args[0]->null_value)) return true;
 
-  if (args[0]->null_value || args[1]->null_value || year < 0 || year > 9999 ||
-      daynr <= 0 || daynr > MAX_DAY_NUMBER)
-    goto err;
+  if (year < 0 || year > 9999 || daynr <= 0 || daynr > MAX_DAY_NUMBER) {
+    null_value = true;
+    return true;
+  }
 
   if (year < 100) year = year_2000_handling(year);
 
-  days = calc_daynr(year, 1, 1) + daynr - 1;
+  long days = calc_daynr(year, 1, 1) + daynr - 1;
   /* Day number from year 0 to 9999-12-31 */
   if (days >= 0 && days <= MAX_DAY_NUMBER) {
     null_value = false;
@@ -2989,7 +2993,6 @@ bool Item_func_makedate::get_date(MYSQL_TIME *ltime, my_time_flags_t) {
     return false;
   }
 
-err:
   null_value = true;
   return true;
 }
@@ -3194,15 +3197,19 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime) {
   assert(fixed == 1);
   bool overflow = false;
   longlong hour = args[0]->val_int();
-  longlong minute = args[1]->val_int();
-  my_decimal tmp, *sec = args[2]->val_decimal(&tmp);
-  lldiv_t second;
+  if ((null_value = args[0]->null_value)) return true;
 
-  if ((null_value =
-           (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
-            my_decimal2lldiv_t(E_DEC_FATAL_ERROR, sec, &second) || minute < 0 ||
-            minute > 59 || second.quot < 0 || second.quot > 59 ||
-            second.rem < 0)))
+  longlong minute = args[1]->val_int();
+  if ((null_value = args[1]->null_value)) return true;
+
+  my_decimal tmp, *sec = args[2]->val_decimal(&tmp);
+  if (sec == nullptr) return (null_value = true);
+  if ((null_value = args[2]->null_value)) return true;
+
+  lldiv_t second;
+  if ((null_value = (my_decimal2lldiv_t(E_DEC_FATAL_ERROR, sec, &second) ||
+                     minute < 0 || minute > 59 || second.quot < 0 ||
+                     second.quot > 59 || second.rem < 0)))
     return true;
 
   set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);

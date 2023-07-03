@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,10 @@
 #include "sql/log_event.h"  // Incident_log_event
 #include "sql/mdl.h"
 #include "sql/psi_memory_key.h"
-#include "sql/sql_base.h"     // close_thread_tables
-#include "sql/sql_class.h"    // THD
-#include "sql/transaction.h"  // trans_begin
+#include "sql/rpl_write_set_handler.h"  // add_pke
+#include "sql/sql_base.h"               // close_thread_tables
+#include "sql/sql_class.h"              // THD
+#include "sql/transaction.h"            // trans_begin
 
 /*
   injector::transaction - member definitions
@@ -148,6 +149,19 @@ int injector::transaction::rollback() {
   return 0;
 }
 
+// Utility class for changing THD::server_id in a limited scope
+class Change_server_id_scope {
+  THD *const m_thd;
+  const uint32 m_save_id;
+
+ public:
+  Change_server_id_scope(THD *thd, int32 new_server_id)
+      : m_thd(thd), m_save_id(thd->server_id) {
+    m_thd->set_server_id(new_server_id);
+  }
+  ~Change_server_id_scope() { m_thd->set_server_id(m_save_id); }
+};
+
 int injector::transaction::use_table(server_id_type sid, table tbl) {
   DBUG_TRACE;
 
@@ -155,12 +169,9 @@ int injector::transaction::use_table(server_id_type sid, table tbl) {
 
   if ((error = check_state(TABLE_STATE))) return error;
 
-  server_id_type save_id = m_thd->server_id;
-  m_thd->set_server_id(sid);
-  error = m_thd->binlog_write_table_map(tbl.get_table(), tbl.is_transactional(),
-                                        false);
-  m_thd->set_server_id(save_id);
-  return error;
+  Change_server_id_scope save_id(m_thd, sid);
+  return m_thd->binlog_write_table_map(tbl.get_table(), tbl.is_transactional(),
+                                       false);
 }
 
 int injector::transaction::write_row(server_id_type sid, table tbl,
@@ -171,14 +182,22 @@ int injector::transaction::write_row(server_id_type sid, table tbl,
   int error = check_state(ROW_STATE);
   if (error) return error;
 
-  server_id_type save_id = m_thd->server_id;
-  m_thd->set_server_id(sid);
+  Change_server_id_scope save_id(m_thd, sid);
   table::save_sets saveset(tbl, cols, cols);
 
-  error = m_thd->binlog_write_row(tbl.get_table(), tbl.is_transactional(),
-                                  record, extra_row_info);
-  m_thd->set_server_id(save_id);
-  return error;
+  if (m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
+      !tbl.skip_hash()) {
+    try {
+      if (add_pke(tbl.get_table(), m_thd, record)) {
+        return HA_ERR_RBR_LOGGING_FAILED;
+      }
+    } catch (const std::bad_alloc &) {
+      return HA_ERR_RBR_LOGGING_FAILED;
+    }
+  }
+
+  return m_thd->binlog_write_row(tbl.get_table(), tbl.is_transactional(),
+                                 record, extra_row_info);
 }
 
 int injector::transaction::write_row(server_id_type sid, table tbl,
@@ -195,13 +214,22 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
   int error = check_state(ROW_STATE);
   if (error) return error;
 
-  server_id_type save_id = m_thd->server_id;
-  m_thd->set_server_id(sid);
+  Change_server_id_scope save_id(m_thd, sid);
   table::save_sets saveset(tbl, cols, cols);
-  error = m_thd->binlog_delete_row(tbl.get_table(), tbl.is_transactional(),
-                                   record, extra_row_info);
-  m_thd->set_server_id(save_id);
-  return error;
+
+  if (m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
+      !tbl.skip_hash()) {
+    try {
+      if (add_pke(tbl.get_table(), m_thd, record)) {
+        return HA_ERR_RBR_LOGGING_FAILED;
+      }
+    } catch (const std::bad_alloc &) {
+      return HA_ERR_RBR_LOGGING_FAILED;
+    }
+  }
+
+  return m_thd->binlog_delete_row(tbl.get_table(), tbl.is_transactional(),
+                                  record, extra_row_info);
 }
 
 int injector::transaction::delete_row(server_id_type sid, table tbl,
@@ -220,15 +248,25 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
   int error = check_state(ROW_STATE);
   if (error) return error;
 
-  server_id_type save_id = m_thd->server_id;
-  m_thd->set_server_id(sid);
-  // The read- and write sets with autorestore (in the destructor)
+  Change_server_id_scope save_id(m_thd, sid);
   table::save_sets saveset(tbl, before_cols, after_cols);
 
-  error = m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(),
-                                   before, after, extra_row_info);
-  m_thd->set_server_id(save_id);
-  return error;
+  if (m_thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF &&
+      !tbl.skip_hash()) {
+    try {
+      if (add_pke(tbl.get_table(), m_thd, before)) {
+        return HA_ERR_RBR_LOGGING_FAILED;
+      }
+      if (add_pke(tbl.get_table(), m_thd, after)) {
+        return HA_ERR_RBR_LOGGING_FAILED;
+      }
+    } catch (const std::bad_alloc &) {
+      return HA_ERR_RBR_LOGGING_FAILED;
+    }
+  }
+
+  return m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(),
+                                  before, after, extra_row_info);
 }
 
 int injector::transaction::update_row(server_id_type sid, table tbl,

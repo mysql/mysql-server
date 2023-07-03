@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,6 +212,13 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, Table_ref *tl) {
 
   tl->table = t;
   t->pos_in_table_list = tl;
+
+  // If initial CTE table has a hash key, set up a hash key for
+  // all clones too.
+  if (first->hash_field) {
+    t->hash_field = t->field[0];
+  }
+  t->hidden_field_count = first->hidden_field_count;
 
   t->set_not_started();
 
@@ -576,7 +583,7 @@ static Item *parse_expression(THD *thd, Item *item, Query_block *query_block) {
   // Also do not write a cloned stored procedure variable to query logs.
   thd->lex->reparse_derived_table_condition = true;
   // Get the printout of the expression
-  StringBuffer<1024> str;
+  StringBuffer<1024> str(thd->charset());
   // For printing parameters we need to specify the flag QT_NO_DATA_EXPANSION
   // because for a case when statement gets reprepared during execution, we
   // still need Item_param::print() to print the '?' rather than the actual data
@@ -751,6 +758,11 @@ Item *Query_block::clone_expression(THD *thd, Item *item) {
   // original expression. Assign it to the corresponding field in the cloned
   // expression.
   if (copy_field_info(thd, item, cloned_item)) return nullptr;
+  // A boolean expression to be cloned comes from a WHERE condition,
+  // which treats UNKNOWN the same as FALSE, thus the cloned expression
+  // should have the same property. apply_is_true() is ignored for
+  // non-boolean expressions
+  cloned_item->apply_is_true();
   return resolve_expression(thd, cloned_item, this);
 }
 
@@ -1166,7 +1178,13 @@ Item *Condition_pushdown::extract_cond_for_table(Item *cond) {
   // Perform checks
   if (m_checking_purpose == CHECK_FOR_DERIVED) {
     Derived_table_info dti(m_derived_table, m_query_block);
-
+    // Check if the condition's used_tables() match that of the
+    // derived table's. A constant expression is an exception.
+    if ((cond->used_tables() & ~PSEUDO_TABLE_BITS) != m_derived_table->map() &&
+        !cond->const_for_execution())
+      return nullptr;
+    // Examine the condition closely to see if it could be
+    // pushed down to the derived table.
     if (cond->walk(&Item::is_valid_for_pushdown, enum_walk::POSTFIX,
                    pointer_cast<uchar *>(&dti)))
       return nullptr;
@@ -1615,15 +1633,14 @@ bool Table_ref::create_materialized_table(THD *thd) {
        (query_block->join->const_table_map & map())))  // 2
   {
     /*
-      At this point, JT_CONST derived tables should be null rows. Otherwise
-      they would have been materialized already.
+      At this point, a const table should have null rows.
+      Exception being a shared CTE.
     */
 #ifndef NDEBUG
-    if (table != nullptr) {
-      QEP_TAB *tab = table->reginfo.qep_tab;
-      assert(tab == nullptr || tab->type() != JT_CONST ||
-             table->has_null_row());
-    }
+    QEP_TAB *tab = table->reginfo.qep_tab;
+    assert((common_table_expr() != nullptr &&
+            common_table_expr()->references.size() > 1) ||
+           tab == nullptr || tab->type() != JT_CONST || table->has_null_row());
 #endif
     return false;
   }

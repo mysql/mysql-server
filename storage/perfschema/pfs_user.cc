@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ int init_user(const PFS_global_param *param) {
 }
 
 /** Cleanup all the user buffers. */
-void cleanup_user(void) { global_user_container.cleanup(); }
+void cleanup_user() { global_user_container.cleanup(); }
 
 static const uchar *user_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_user *const *typed_entry;
@@ -129,7 +129,7 @@ int init_user_hash(const PFS_global_param *param) {
 }
 
 /** Cleanup the user hash. */
-void cleanup_user_hash(void) {
+void cleanup_user_hash() {
   if (user_hash_inited) {
     lf_hash_destroy(&user_hash);
     user_hash_inited = false;
@@ -359,7 +359,7 @@ class Proc_purge_user : public PFS_buffer_processor<PFS_user> {
 };
 
 /** Purge non connected users, reset stats of connected users. */
-void purge_all_user(void) {
+void purge_all_user() {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == nullptr)) {
     return;

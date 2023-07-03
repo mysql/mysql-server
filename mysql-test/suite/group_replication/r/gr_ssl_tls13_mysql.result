@@ -1,7 +1,7 @@
 include/group_replication.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 ############################################################
@@ -10,12 +10,16 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET @tls_version_save= @@GLOBAL.tls_version;
 SET @tls_ciphersuites_save= @@GLOBAL.tls_ciphersuites;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET @tls_version_recovery_save= @@GLOBAL.group_replication_recovery_tls_version;
+SET @tls_ciphersuites_recovery_save= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
 SET @@GLOBAL.group_replication_ssl_mode= REQUIRED;
 [connection server2]
 SET @tls_version_save= @@GLOBAL.tls_version;
 SET @tls_ciphersuites_save= @@GLOBAL.tls_ciphersuites;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 SET @@GLOBAL.group_replication_ssl_mode= REQUIRED;
+SET @tls_version_recovery_save= @@GLOBAL.group_replication_recovery_tls_version;
+SET @tls_ciphersuites_recovery_save= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
 call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
@@ -145,14 +149,14 @@ ERROR HY000: The server is not configured properly to be an active member of the
 SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
-SET @@GLOBAL.group_replication_recovery_tls_version= $tls_version_recovery_save_s1;
-SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= $tls_ciphersuites_recovery_save_s1;
+SET @@GLOBAL.group_replication_recovery_tls_version= @tls_version_recovery_save;
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @tls_ciphersuites_recovery_save;
 ALTER INSTANCE RELOAD TLS;
 [connection server2]
 SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
-SET @@GLOBAL.group_replication_recovery_tls_version= $tls_version_recovery_save_s2;
-SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= $tls_ciphersuites_recovery_save_s2;
+SET @@GLOBAL.group_replication_recovery_tls_version= @tls_version_recovery_save;
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @tls_ciphersuites_recovery_save;
 ALTER INSTANCE RELOAD TLS;
 include/group_replication_end.inc

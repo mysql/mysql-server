@@ -54,11 +54,11 @@ RESET MASTER TO 2000000000;
 --source suite/binlog/include/binlog_reset_master_to_option.inc
 
 # Checking with 2000000001
---error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+--error ER_RESET_SOURCE_TO_VALUE_OUT_OF_RANGE
 RESET MASTER TO 2000000001;
 
 # Checking with a value > 32 bit
---error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+--error ER_RESET_SOURCE_TO_VALUE_OUT_OF_RANGE
 RESET MASTER TO 5000000000;
 
 # Checking with a value > 64 bit
@@ -66,7 +66,7 @@ RESET MASTER TO 5000000000;
 RESET MASTER TO 20000000000000000000;
 
 # 4) Test with 0
---error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+--error ER_RESET_SOURCE_TO_VALUE_OUT_OF_RANGE
 RESET MASTER TO 0;
 
 # 5) Test with Character
@@ -104,14 +104,14 @@ RESET MASTER TO 0xF;
 --let $binlog_number= 000015
 --source suite/binlog/include/binlog_reset_master_to_option.inc
 
--- error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+-- error ER_RESET_SOURCE_TO_VALUE_OUT_OF_RANGE
 RESET MASTER TO 0x0;
 
 RESET MASTER TO 0xFFFF;
 --let $binlog_number= 065535
 --source suite/binlog/include/binlog_reset_master_to_option.inc
 
--- error ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
+-- error ER_RESET_SOURCE_TO_VALUE_OUT_OF_RANGE
 RESET MASTER TO 0x7FFFFFFF;
 
 # 9) Check with function

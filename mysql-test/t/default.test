@@ -179,3 +179,124 @@ CREATE TABLE ints(a INT DEFAULT TIMESTAMP'2019-10-01 01:02:03');
 CREATE TABLE t(t TIME DEFAULT TIME'01:02:03');
 --error ER_INVALID_DEFAULT
 CREATE TABLE d(d DATE DEFAULT DATE'2019-10-01');
+
+
+
+--echo # Bug#33322551: hex-blob not respected in DDL during mysqldump
+--echo #
+
+# For this test, keep in mind that we have two similar-but-distinct tools,
+# mysqldump and the newer mysqlpump. Both will be tested here.
+
+--echo
+--echo # Create a table with a binary default that is not valid UTF-8.
+# There's no guarantee such a default is valid in a target character-set
+# like UTF-8, which means that if we just print the value as part of a
+# SHOW CREATE TABLE statement (of which we promised the client we'd send
+# it in UTF-8), the total of the SHOW CREATE TABLE statement may be an
+# invalid string. This is bad at the best of times, but really not what
+# we want in a database dump, i.e. any form of backup.
+CREATE TABLE t1 (f1 BINARY(6)  NOT NULL DEFAULT 0x414243FAFA00,
+                 f2 VARCHAR(6) CHARACTER SET ujis DEFAULT 0xA4A2,
+                 f3 BIT(4) DEFAULT b'1101');
+
+--echo
+--echo # Let's see what SHOW CREATE TABLE makes of it.
+--echo # Should look like 'ABC' followed by binary garbage on unpatched server.
+--echo # On a patched server, it should show the same value prefixed by its
+--echo # charset ('_binary' in this case), or show a hex-value.
+SHOW CREATE TABLE t1;
+
+--echo
+--echo # Show that we do not erraneously print the character set designator
+--echo # ("_binary", etc.) when printing the default as a field (rather than
+--echo # as part of a statement).
+SELECT data_type,character_set_name,
+       column_default
+  FROM information_schema.columns
+ WHERE table_name='t1'
+   AND column_name='f1';
+
+# This is an interesting one.
+# We get a field 'column_default' with that contains the default value,
+# a character that when represented in ujis has the value 0xA4A2.
+# Since for our convenience, the field is then converted to the
+# character-set we're actually using (UTF-8, this is confirmed by
+# the third column in our select giving a UTF-8 readable character),
+# just taking HEX(column_default) would give an unexpted value
+# (namely, the hex-representation of the UTF-8 encoded character,
+# not the hex-representation of the ujis encoded character).
+# To get the hex-representation of the ujis-encoded character
+# (i.e. the same hex-value as in the CREATE-statement), we must
+# therefore convert the character-set *back* to ujis:
+#   HEX(CONVERT(column_default USING ujis))
+# Thus, the default is _ujis 0xA4A2, this is converted to utf-8
+# for our "convenience", and we converted it right back. :-/
+SELECT data_type,
+       character_set_name,HEX(CONVERT(column_default USING ujis)),
+       column_default
+  FROM information_schema.columns
+ WHERE table_name='t1'
+   AND column_name='f2';
+
+SELECT data_type,
+       character_set_name,
+       column_default
+  FROM information_schema.columns
+ WHERE table_name='t1'
+   AND column_name='f3';
+
+
+--echo
+--echo # INSERT the defined DEFAULT into the table, then retrieve it.
+--echo # When we hexify the result, the value should be the same as
+--echo # in the original CREATE TABLE statement.
+INSERT INTO t1 VALUES(DEFAULT,DEFAULT,DEFAULT);
+SELECT "--base--";
+SELECT HEX(f1),HEX(f2),HEX(f3) FROM t1;
+
+--echo
+--echo # mysqldump the table. In the unpatched server, this will dump a
+--echo # CREATE TABLE statement with a broken default value.
+--exec $MYSQL_DUMP --skip-comments test > $MYSQLTEST_VARDIR/tmp/bindfltdump.sql
+
+--echo
+--echo # Drop the table,
+DROP TABLE t1;
+--echo # then recreate it from the dumped file.
+--exec $MYSQL --show-warnings test < $MYSQLTEST_VARDIR/tmp/bindfltdump.sql
+
+--echo
+--echo # Add another row with the DEFAULT, then retrieve both rows.
+--echo # If their hex values are not the same, we broke the DEFAULT
+--echo # in mysqldump (on account of SHOW CREATE TABLE printing the
+--echo # DEFAULT clause wrong).
+INSERT INTO t1 VALUES(DEFAULT,DEFAULT,DEFAULT);
+SELECT "--base,dump--";
+SELECT HEX(f1),HEX(f2),HEX(f3) FROM t1;
+
+--echo
+--echo # Now dump the table using mysqlpump.
+--exec $MYSQL_PUMP --databases test > $MYSQLTEST_VARDIR/tmp/bindfltpump.sql
+
+--echo
+--echo # Drop the table,
+DROP TABLE t1;
+--echo # then recreate it from the pumped file.
+--exec $MYSQL --show-warnings test < $MYSQLTEST_VARDIR/tmp/bindfltpump.sql
+
+--echo
+--echo # Add another row with the DEFAULT, then retrieve three rows.
+--echo # If their hex values are not the same, we broke the DEFAULT
+--echo # in mysqlpump (on account of SHOW CREATE TABLE printing the
+--echo # DEFAULT clause wrong).
+INSERT INTO t1 VALUES(DEFAULT,DEFAULT,DEFAULT);
+SELECT "--base,dump,pump--";
+SELECT HEX(f1),HEX(f2),HEX(f3) FROM t1;
+
+--echo
+--echo # Clean up.
+
+DROP TABLE t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/bindfltdump.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bindfltpump.sql

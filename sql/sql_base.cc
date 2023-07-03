@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7087,7 +7087,6 @@ bool lock_dictionary_tables(THD *thd, Table_ref *tables, uint count,
 void close_tables_for_reopen(THD *thd, Table_ref **tables,
                              const MDL_savepoint &start_of_statement_svp) {
   Table_ref *first_not_own_table = thd->lex->first_not_own_table();
-  Table_ref *tmp;
 
   /*
     If table list consists only from tables from prelocking set, table list
@@ -7096,11 +7095,12 @@ void close_tables_for_reopen(THD *thd, Table_ref **tables,
   if (first_not_own_table == *tables) *tables = nullptr;
   thd->lex->chop_off_not_own_tables();
   sp_remove_not_own_routines(thd->lex);
-  for (tmp = *tables; tmp; tmp = tmp->next_global) {
-    tmp->table = nullptr;
-    tmp->mdl_request.ticket = nullptr;
-    /* We have to cleanup translation tables of views. */
-    tmp->cleanup_items();
+  for (Table_ref *tr = *tables; tr != nullptr; tr = tr->next_global) {
+    if (tr->is_derived() || tr->is_table_function() ||
+        tr->is_recursive_reference())
+      continue;
+    if (!tr->is_view()) tr->table = nullptr;
+    tr->mdl_request.ticket = nullptr;
   }
   /*
     No need to commit/rollback the statement transaction: it's

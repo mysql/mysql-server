@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,9 +160,9 @@
 #include "thr_lock.h"
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle slave_ignored_err_throttle(
-    window_size, INFORMATION_LEVEL, ER_SERVER_SLAVE_IGNORED_TABLE, "Repl",
+    window_size, INFORMATION_LEVEL, ER_SERVER_REPLICA_IGNORED_TABLE, "Repl",
     "Error log throttle: %lu time(s) Error_code: 1237"
-    " \"Slave SQL thread ignored the query because of"
+    " \"Replica SQL thread ignored the query because of"
     " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_SERVER */
 
@@ -388,7 +388,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                   : ER_UNKNOWN_ERROR,
                   "Could not execute %s event on table %s.%s;"
                   "%s handler error %s; "
-                  "the event's master log %s, end_log_pos %lu",
+                  "the event's source log %s, end_log_pos %lu",
                   type, table->s->db.str, table->s->table_name.str, buff,
                   handler_error == nullptr ? "<unknown>" : handler_error,
                   log_name, pos);
@@ -397,7 +397,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                   thd->is_error() ? thd->get_stmt_da()->mysql_errno()
                                   : ER_UNKNOWN_ERROR,
                   "Could not execute %s event on table %s.%s;"
-                  "%s the event's master log %s, end_log_pos %lu",
+                  "%s the event's source log %s, end_log_pos %lu",
                   type, table->s->db.str, table->s->table_name.str, buff,
                   log_name, pos);
     }
@@ -579,7 +579,7 @@ inline int idempotent_error_code(int err_code) {
 */
 
 int ignored_error_code(int err_code) {
-  return ((err_code == ER_SLAVE_IGNORED_TABLE) ||
+  return ((err_code == ER_REPLICA_IGNORED_TABLE) ||
           (use_slave_mask && bitmap_is_set(&slave_error_mask, err_code)));
 }
 
@@ -1073,7 +1073,7 @@ Log_event::enum_skip_reason Log_event::do_shall_skip(Relay_log_info *rli) {
   */
   DBUG_PRINT("info", ("ev->server_id=%lu, ::server_id=%lu,"
                       " rli->replicate_same_server_id=%d,"
-                      " rli->slave_skip_counter=%d",
+                      " rli->replica_skip_counter=%d",
                       (ulong)server_id, (ulong)::server_id,
                       rli->replicate_same_server_id, rli->slave_skip_counter));
   if ((server_id == ::server_id && !rli->replicate_same_server_id) ||
@@ -1385,8 +1385,8 @@ void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
     if (print_event_info->common_header_len == LOG_EVENT_MINIMAL_HEADER_LEN) {
       char emit_buf[256];  // Enough for storing one line
       my_b_printf(file,
-                  "# Position  Timestamp   Type   Master ID        "
-                  "Size      Master Pos    Flags \n");
+                  "# Position  Timestamp   Type   Source ID        "
+                  "Size      Source Pos    Flags \n");
       size_t const bytes_written = snprintf(
           emit_buf, sizeof(emit_buf),
           "# %8.8lx %02x %02x %02x %02x   %02x   "
@@ -2532,13 +2532,13 @@ static bool schedule_next_event(Log_event *ev, Relay_log_info *rli) {
   error = rli->current_mts_submode->schedule_next_event(rli, ev);
   switch (error) {
     char llbuff[22];
-    case ER_MTS_CANT_PARALLEL:
+    case ER_MTA_CANT_PARALLEL:
       llstr(rli->get_event_relay_log_pos(), llbuff);
-      my_error(ER_MTS_CANT_PARALLEL, MYF(0), ev->get_type_str(),
+      my_error(ER_MTA_CANT_PARALLEL, MYF(0), ev->get_type_str(),
                rli->get_event_relay_log_name(), llbuff,
-               "The master event is logically timestamped incorrectly.");
+               "The source event is logically timestamped incorrectly.");
       return true;
-    case ER_MTS_INCONSISTENT_DATA:
+    case ER_MTA_INCONSISTENT_DATA:
       llstr(rli->get_event_relay_log_pos(), llbuff);
       {
         char errfmt[] =
@@ -2546,7 +2546,7 @@ static bool schedule_next_event(Log_event *ev, Relay_log_info *rli) {
             "an event at relay-log name %s position %s.";
         char errbuf[sizeof(errfmt) + FN_REFLEN + sizeof(llbuff)];
         sprintf(errbuf, errfmt, rli->get_event_relay_log_name(), llbuff);
-        my_error(ER_MTS_INCONSISTENT_DATA, MYF(0), errbuf);
+        my_error(ER_MTA_INCONSISTENT_DATA, MYF(0), errbuf);
         return true;
       }
       /* Don't have to do anything. */
@@ -2818,7 +2818,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
                 */
                 true, ret_worker))) {
         llstr(rli->get_event_relay_log_pos(), llbuff);
-        my_error(ER_MTS_CANT_PARALLEL, MYF(0), get_type_str(),
+        my_error(ER_MTA_CANT_PARALLEL, MYF(0), get_type_str(),
                  rli->get_event_relay_log_name(), llbuff,
                  "could not distribute the event to a Worker");
         return ret_worker;
@@ -2859,7 +2859,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
         assert(!ret_worker);
 
         llstr(rli->get_event_relay_log_pos(), llbuff);
-        my_error(ER_MTS_CANT_PARALLEL, MYF(0), get_type_str(),
+        my_error(ER_MTA_CANT_PARALLEL, MYF(0), get_type_str(),
                  rli->get_event_relay_log_name(), llbuff,
                  "the event is a part of a group that is unsupported in "
                  "the parallel execution mode");
@@ -3126,9 +3126,9 @@ int Log_event::apply_event(Relay_log_info *rli) {
              mode.
           */
           llstr(rli->get_event_relay_log_pos(), llbuff);
-          my_error(ER_MTS_CANT_PARALLEL, MYF(0), get_type_str(),
+          my_error(ER_MTA_CANT_PARALLEL, MYF(0), get_type_str(),
                    rli->get_event_relay_log_name(), llbuff,
-                   "possible malformed group of events from an old master");
+                   "possible malformed group of events from an old source");
 
           /* Coordinator can't continue, it marks MTS group status accordingly
            */
@@ -3161,10 +3161,11 @@ int Log_event::apply_event(Relay_log_info *rli) {
         */
         if (rli->current_mts_submode->wait_for_workers_to_finish(rli) == -1) {
           // handle synchronization error
-          rli->report(WARNING_LEVEL, 0,
-                      "Slave worker thread has failed to apply an event. As a "
-                      "consequence, the coordinator thread is stopping "
-                      "execution.");
+          rli->report(
+              WARNING_LEVEL, 0,
+              "Replica worker thread has failed to apply an event. As a "
+              "consequence, the coordinator thread is stopping "
+              "execution.");
           return -1;
         }
         /*
@@ -3259,7 +3260,7 @@ int Log_event::apply_event(Relay_log_info *rli) {
 
 #ifndef NDEBUG
   if (rli->last_assigned_worker)
-    DBUG_PRINT("mts",
+    DBUG_PRINT("mta",
                ("Assigning job to worker %lu", rli->last_assigned_worker->id));
 #endif
 
@@ -4409,7 +4410,7 @@ static bool is_silent_error(THD *thd) {
     DBUG_PRINT("info", ("has condition %d %s", err->mysql_errno(),
                         err->message_text()));
     switch (err->mysql_errno()) {
-      case ER_SLAVE_SILENT_RETRY_TRANSACTION: {
+      case ER_REPLICA_SILENT_RETRY_TRANSACTION: {
         return true;
       }
       default:
@@ -4426,8 +4427,8 @@ static bool is_silent_error(THD *thd) {
   @code
      if ((uint32) affected_in_event != (uint32) affected_on_slave)
      {
-     sql_print_error("Slave: did not get the expected number of affected "
-     "rows running query from master - expected %d, got %d (this numbers "
+     sql_print_error("Replica: did not get the expected number of affected "
+     "rows running query from source - expected %d, got %d (this numbers "
      "should have matched modulo 4294967296).", 0, ...);
      thd->query_error = 1;
      }
@@ -4471,8 +4472,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                        len_error ? "true" : "false"));
 
   if (is_invalid_db_name || len_error) {
-    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+    rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                ER_THD(thd, ER_REPLICA_FATAL_ERROR),
                 "Invalid database name in Query event.");
     thd->is_slave_error = true;
     goto end;
@@ -4638,8 +4639,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             without state_maps (parser internal data).
           */
           if (!thd->variables.character_set_client->state_maps) {
-            rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                        ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+            rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                        ER_THD(thd, ER_REPLICA_FATAL_ERROR),
                         "character_set cannot be parsed");
             thd->is_slave_error = true;
             goto end;
@@ -4826,8 +4827,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
               "Query: '");
           message.append(thd->query().str);
           message.append("'");
-          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                      ER_THD(thd, ER_SLAVE_FATAL_ERROR), message.c_ptr());
+          rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                      ER_THD(thd, ER_REPLICA_FATAL_ERROR), message.c_ptr());
           thd->is_slave_error = true;
           goto end;
         }
@@ -4874,8 +4875,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         clear_all_errors(
             thd, const_cast<Relay_log_info *>(rli)); /* Can ignore query */
       else {
-        rli->report(ERROR_LEVEL, ER_ERROR_ON_MASTER,
-                    ER_THD(thd, ER_ERROR_ON_MASTER), expected_error,
+        rli->report(ERROR_LEVEL, ER_ERROR_ON_SOURCE,
+                    ER_THD(thd, ER_ERROR_ON_SOURCE), expected_error,
                     thd->query().str);
         thd->is_slave_error = true;
       }
@@ -4883,7 +4884,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     }
     /* If the query was not ignored, it is printed to the general log */
     if (!thd->is_error() ||
-        thd->get_stmt_da()->mysql_errno() != ER_SLAVE_IGNORED_TABLE) {
+        thd->get_stmt_da()->mysql_errno() != ER_REPLICA_IGNORED_TABLE) {
       /*
         Log the rewritten query if the query was rewritten
         and the option to log raw was not set.
@@ -4940,8 +4941,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           is_atomic_ddl(thd, true))  // The DDL is atomic for the local server
       {
         thd->get_stmt_da()->reset_diagnostics_area();
-        my_error(ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL, MYF(0), 0);
-        actual_error = ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL;
+        my_error(ER_REPLICA_POSSIBLY_DIVERGED_AFTER_DDL, MYF(0), 0);
+        actual_error = ER_REPLICA_POSSIBLY_DIVERGED_AFTER_DDL;
       }
     }
 
@@ -4966,7 +4967,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       } else {
         rli->report(
             INFORMATION_LEVEL, actual_error,
-            "The actual error and expected error on slave are"
+            "The actual error and expected error on replica are"
             " different that will result in ER_INCONSISTENT_ERROR but"
             " that is passed as an argument to replica_skip_errors so no"
             " error is thrown. "
@@ -4986,7 +4987,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
              ignored_error_code(actual_error)) {
       DBUG_PRINT("info", ("error ignored"));
       if (actual_error && ignored_error_code(actual_error)) {
-        if (actual_error == ER_SLAVE_IGNORED_TABLE) {
+        if (actual_error == ER_REPLICA_IGNORED_TABLE) {
           if (!slave_ignored_err_throttle.log())
             rli->report(INFORMATION_LEVEL, actual_error,
                         "Could not execute %s event. Detailed error: %s;"
@@ -5022,8 +5023,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       like:
       if ((uint32) affected_in_event != (uint32) affected_on_slave)
       {
-      sql_print_error("Slave: did not get the expected number of affected "
-      "rows running query from master - expected %d, got %d (this numbers "
+      sql_print_error("Replica: did not get the expected number of affected "
+      "rows running query from source - expected %d, got %d (this numbers "
       "should have matched modulo 4294967296).", 0, ...);
       thd->is_slave_error = 1;
       }
@@ -5281,7 +5282,7 @@ void Format_description_log_event::print(
   if (is_relay_log_event()) {
     my_b_printf(head,
                 "# This Format_description_event appears in a relay log "
-                "and was generated by the slave thread.\n");
+                "and was generated by the replica thread.\n");
     return;
   }
 
@@ -5442,7 +5443,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli) {
     rli->report(INFORMATION_LEVEL, 0,
                 "Rolling back unfinished transaction (no COMMIT "
                 "or ROLLBACK in relay log). A probable cause is that "
-                "the master died while writing the transaction to "
+                "the source died while writing the transaction to "
                 "its binary log, thus rolled back too.");
     const_cast<Relay_log_info *>(rli)->cleanup_context(thd, true);
   }
@@ -5679,8 +5680,8 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
     }
 
     mysql_mutex_lock(&rli->data_lock);
-    DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
-                        "old group_master_log_pos: %lu",
+    DBUG_PRINT("info", ("old group_source_log_name: '%s'  "
+                        "old group_source_log_pos: %lu",
                         rli->get_group_master_log_name(),
                         (ulong)rli->get_group_master_log_pos()));
 
@@ -5702,8 +5703,8 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
       goto err;
     }
 
-    DBUG_PRINT("info", ("new group_master_log_name: '%s'  "
-                        "new group_master_log_pos: %lu",
+    DBUG_PRINT("info", ("new group_source_log_name: '%s'  "
+                        "new group_source_log_pos: %lu",
                         rli->get_group_master_log_name(),
                         (ulong)rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
@@ -6105,8 +6106,8 @@ int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w) {
                                  "COMMIT /* implicit, from Xid_log_event */");
 
   DBUG_PRINT(
-      "mts",
-      ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
+      "mta",
+      ("do_apply group source %s %llu  group relay %s %llu event %s %llu.",
        w->get_group_master_log_name(), w->get_group_master_log_pos(),
        w->get_group_relay_log_name(), w->get_group_relay_log_pos(),
        w->get_event_relay_log_name(), w->get_event_relay_log_pos()));
@@ -6137,8 +6138,8 @@ int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w) {
   }
 
   DBUG_PRINT(
-      "mts",
-      ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
+      "mta",
+      ("do_apply group source %s %llu  group relay %s %llu event %s %llu.",
        w->get_group_master_log_name(), w->get_group_master_log_pos(),
        w->get_group_relay_log_name(), w->get_group_relay_log_pos(),
        w->get_event_relay_log_name(), w->get_event_relay_log_pos()));
@@ -6209,7 +6210,7 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
 
   DBUG_PRINT(
       "info",
-      ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
+      ("do_apply group source %s %llu  group relay %s %llu event %s %llu\n",
        rli_ptr->get_group_master_log_name(),
        rli_ptr->get_group_master_log_pos(), rli_ptr->get_group_relay_log_name(),
        rli_ptr->get_group_relay_log_pos(), rli_ptr->get_event_relay_log_name(),
@@ -6244,7 +6245,7 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
 
   DBUG_PRINT(
       "info",
-      ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
+      ("do_apply group source %s %llu  group relay %s %llu event %s %llu\n",
        rli_ptr->get_group_master_log_name(),
        rli_ptr->get_group_master_log_pos(), rli_ptr->get_group_relay_log_name(),
        rli_ptr->get_group_relay_log_pos(), rli_ptr->get_event_relay_log_name(),
@@ -6285,7 +6286,7 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
   rli_ptr->set_group_relay_log_name(saved_group_relay_log_name);
   rli_ptr->set_group_relay_log_pos(saved_group_relay_log_pos);
 
-  DBUG_PRINT("info", ("Rolling back to group master %s %llu  group relay %s"
+  DBUG_PRINT("info", ("Rolling back to group source %s %llu  group relay %s"
                       " %llu\n",
                       rli_ptr->get_group_master_log_name(),
                       rli_ptr->get_group_master_log_pos(),
@@ -6311,7 +6312,7 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli) {
     rli_ptr->set_group_relay_log_name(new_group_relay_log_name);
     rli_ptr->set_group_relay_log_pos(new_group_relay_log_pos);
 
-    DBUG_PRINT("info", ("Updating positions on succesful commit to group master"
+    DBUG_PRINT("info", ("Updating positions on succesful commit to group source"
                         " %s %llu  group relay %s %llu\n",
                         rli_ptr->get_group_master_log_name(),
                         rli_ptr->get_group_master_log_pos(),
@@ -6750,8 +6751,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
   }
 
   if (!(charset = get_charset(charset_number, MYF(MY_WME)))) {
-    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+    rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                ER_THD(thd, ER_REPLICA_FATAL_ERROR),
                 "Invalid character set for User var event");
     return 1;
   }
@@ -6770,8 +6771,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
     switch (type) {
       case REAL_RESULT:
         if (val_len != 8) {
-          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                      ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+          rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                      ER_THD(thd, ER_REPLICA_FATAL_ERROR),
                       "Invalid variable length at User var event");
           return 1;
         }
@@ -6782,8 +6783,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
         break;
       case INT_RESULT:
         if (val_len != 8) {
-          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                      ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+          rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                      ER_THD(thd, ER_REPLICA_FATAL_ERROR),
                       "Invalid variable length at User var event");
           return 1;
         }
@@ -6794,8 +6795,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
         break;
       case DECIMAL_RESULT: {
         if (val_len < 3) {
-          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                      ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+          rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                      ER_THD(thd, ER_REPLICA_FATAL_ERROR),
                       "Invalid variable length at User var event");
           return 1;
         }
@@ -7431,8 +7432,8 @@ int Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli) {
 
   /* Replace filename and LOCAL keyword in query before executing it */
   if (buf == nullptr) {
-    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                ER_THD(thd, ER_SLAVE_FATAL_ERROR), "Not enough memory");
+    rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                ER_THD(thd, ER_REPLICA_FATAL_ERROR), "Not enough memory");
     return 1;
   }
 
@@ -7974,12 +7975,12 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
               updatable_columns_view.get_included_fields_bitmap())) {
         return thd->get_stmt_da()->mysql_errno(); /* purecov: deadcode */
       }
-    }
-    if (is_after_image &&
-        !bitmap_is_clear_all(&this->m_table->fields_for_functional_indexes)) {
-      if (this->update_generated_columns(
-              this->m_table->fields_for_functional_indexes))
-        return thd->get_stmt_da()->mysql_errno(); /* purecov: deadcode */
+      if (is_after_image &&
+          !bitmap_is_clear_all(&this->m_table->fields_for_functional_indexes)) {
+        if (this->update_generated_columns(
+                this->m_table->fields_for_functional_indexes))
+          return thd->get_stmt_da()->mysql_errno(); /* purecov: deadcode */
+      }
     }
   }
 
@@ -9687,7 +9688,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
                                              const_cast<Relay_log_info *>(rli),
                                              ptr->table, &conv_table)) {
           DBUG_PRINT("debug",
-                     ("Table: %s.%s is not compatible with master",
+                     ("Table: %s.%s is not compatible with source",
                       ptr->table->s->db.str, ptr->table->s->table_name.str));
           if (thd->is_slave_error) {
             const_cast<Relay_log_info *>(rli)->slave_close_thread_tables(thd);
@@ -9699,7 +9700,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
             goto end;
           }
         }
-        DBUG_PRINT("debug", ("Table: %s.%s is compatible with master"
+        DBUG_PRINT("debug", ("Table: %s.%s is compatible with source"
                              " - conv_table: %p",
                              ptr->table->s->db.str,
                              ptr->table->s->table_name.str, conv_table));
@@ -10925,8 +10926,8 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli) {
                table_list->table_id.id());
 
       if (thd->slave_thread)
-        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                    ER_THD(thd, ER_SLAVE_FATAL_ERROR), buf);
+        rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                    ER_THD(thd, ER_REPLICA_FATAL_ERROR), buf);
       else
         /*
           For the cases in which a 'BINLOG' statement is set to
@@ -12092,8 +12093,8 @@ int Write_rows_log_event::write_row(const Relay_log_info *const rli,
                        m_curr_row_end));
   if (m_curr_row == m_curr_row_end &&
       !((m_rows_buf == m_rows_cur) && (m_rows_cur == m_rows_end))) {
-    my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
-    return ER_SLAVE_CORRUPT_EVENT;
+    my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
+    return ER_REPLICA_CORRUPT_EVENT;
   }
 
   // Invoke check constraints on the unpacked row.
@@ -12634,9 +12635,9 @@ int Incident_log_event::do_apply_event(Relay_log_info const *rli) {
 
   /*
     It is not necessary to do GTID related check if the error
-    'ER_SLAVE_INCIDENT' is ignored.
+    'ER_REPLICA_INCIDENT' is ignored.
   */
-  if (ignored_error_code(ER_SLAVE_INCIDENT)) {
+  if (ignored_error_code(ER_REPLICA_INCIDENT)) {
     DBUG_PRINT("info", ("Ignoring Incident"));
     mysql_bin_log.gtid_end_transaction(thd);
     return 0;
@@ -12663,8 +12664,9 @@ int Incident_log_event::do_apply_event(Relay_log_info const *rli) {
     return 0;
   }
 
-  rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT, ER_THD(thd, ER_SLAVE_INCIDENT),
-              description(), message_length > 0 ? message : "<none>");
+  rli->report(ERROR_LEVEL, ER_REPLICA_INCIDENT,
+              ER_THD(thd, ER_REPLICA_INCIDENT), description(),
+              message_length > 0 ? message : "<none>");
   return 1;
 }
 
@@ -13855,8 +13857,8 @@ int View_change_log_event::do_apply_event(Relay_log_info const *rli) {
   if (original_ev_data_written)
     common_header->data_written = original_ev_data_written;
   if (error)
-    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+    rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                ER_THD(thd, ER_REPLICA_FATAL_ERROR),
                 "Could not write the VIEW CHANGE event in the binary log.");
 
   return (error);

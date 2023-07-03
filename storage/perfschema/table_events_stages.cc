@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -198,7 +198,7 @@ table_events_stages_common::table_events_stages_common(
 int table_events_stages_common::make_row(PFS_events_stages *stage) {
   ulonglong timer_end;
 
-  PFS_stage_class *unsafe = (PFS_stage_class *)stage->m_class;
+  auto *unsafe = (PFS_stage_class *)stage->m_class;
   PFS_stage_class *klass = sanitize_stage_class(unsafe);
   if (unlikely(klass == nullptr)) {
     return HA_ERR_RECORD_DELETED;
@@ -334,14 +334,14 @@ PFS_engine_table *table_events_stages_current::create(
 table_events_stages_current::table_events_stages_current()
     : table_events_stages_common(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-void table_events_stages_current::reset_position(void) {
+void table_events_stages_current::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
 int table_events_stages_current::rnd_init(bool) { return 0; }
 
-int table_events_stages_current::rnd_next(void) {
+int table_events_stages_current::rnd_next() {
   PFS_thread *pfs_thread;
   PFS_events_stages *stage;
 
@@ -381,7 +381,7 @@ int table_events_stages_current::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_events_stages_current::index_next(void) {
+int table_events_stages_current::index_next() {
   PFS_thread *pfs_thread;
   PFS_events_stages *stage;
 
@@ -406,12 +406,12 @@ int table_events_stages_current::index_next(void) {
   return HA_ERR_END_OF_FILE;
 }
 
-int table_events_stages_current::delete_all_rows(void) {
+int table_events_stages_current::delete_all_rows() {
   reset_events_stages_current();
   return 0;
 }
 
-ha_rows table_events_stages_current::get_row_count(void) {
+ha_rows table_events_stages_current::get_row_count() {
   return global_thread_container.get_row_count();
 }
 
@@ -423,14 +423,14 @@ PFS_engine_table *table_events_stages_history::create(
 table_events_stages_history::table_events_stages_history()
     : table_events_stages_common(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
-void table_events_stages_history::reset_position(void) {
+void table_events_stages_history::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
 
 int table_events_stages_history::rnd_init(bool) { return 0; }
 
-int table_events_stages_history::rnd_next(void) {
+int table_events_stages_history::rnd_next() {
   PFS_thread *pfs_thread;
   PFS_events_stages *stage;
   bool has_more_thread = true;
@@ -501,7 +501,7 @@ int table_events_stages_history::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_events_stages_history::index_next(void) {
+int table_events_stages_history::index_next() {
   PFS_thread *pfs_thread;
   PFS_events_stages *stage;
   bool has_more_thread = true;
@@ -543,12 +543,12 @@ int table_events_stages_history::index_next(void) {
   return HA_ERR_END_OF_FILE;
 }
 
-int table_events_stages_history::delete_all_rows(void) {
+int table_events_stages_history::delete_all_rows() {
   reset_events_stages_history();
   return 0;
 }
 
-ha_rows table_events_stages_history::get_row_count(void) {
+ha_rows table_events_stages_history::get_row_count() {
   return events_stages_history_per_thread *
          global_thread_container.get_row_count();
 }
@@ -561,14 +561,14 @@ PFS_engine_table *table_events_stages_history_long::create(
 table_events_stages_history_long::table_events_stages_history_long()
     : table_events_stages_common(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-void table_events_stages_history_long::reset_position(void) {
+void table_events_stages_history_long::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
 int table_events_stages_history_long::rnd_init(bool) { return 0; }
 
-int table_events_stages_history_long::rnd_next(void) {
+int table_events_stages_history_long::rnd_next() {
   PFS_events_stages *stage;
   uint limit;
 
@@ -624,11 +624,11 @@ int table_events_stages_history_long::rnd_pos(const void *pos) {
   return make_row(stage);
 }
 
-int table_events_stages_history_long::delete_all_rows(void) {
+int table_events_stages_history_long::delete_all_rows() {
   reset_events_stages_history_long();
   return 0;
 }
 
-ha_rows table_events_stages_history_long::get_row_count(void) {
+ha_rows table_events_stages_history_long::get_row_count() {
   return events_stages_history_long_size;
 }

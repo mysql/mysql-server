@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1935,21 +1935,6 @@ static bool ConditionIsAlwaysTrue(Item *item) {
   return item->const_item() && item->val_bool();
 }
 
-// Returns true if the item refers to only one side of the join. This is used to
-// determine whether an equi-join conditions need to be attached as an "extra"
-// condition (pure join conditions must refer to both sides of the join).
-static bool ItemRefersToOneSideOnly(Item *item, table_map left_side,
-                                    table_map right_side) {
-  item->update_used_tables();
-  const table_map item_used_tables = item->used_tables();
-
-  if ((left_side & item_used_tables) == 0 ||
-      (right_side & item_used_tables) == 0) {
-    return true;
-  }
-  return false;
-}
-
 // Create a hash join iterator with the given build and probe input. We will
 // move conditions from the argument "join_conditions" into two separate lists;
 // one list for equi-join conditions that will be used as normal join conditions
@@ -2006,20 +1991,10 @@ static AccessPath *CreateHashJoinAccessPath(
                   left_table_map, right_table_map, /*replace=*/true, &found);
         }
 
-        if (func_item->contains_only_equi_join_condition() &&
-            !ItemRefersToOneSideOnly(func_item, left_table_map,
-                                     right_table_map)) {
+        if (func_item->contains_only_equi_join_condition()) {
           Item_eq_base *join_condition = down_cast<Item_eq_base *>(func_item);
-          // Join conditions with items that returns row values (subqueries or
-          // row value expression) are set up with multiple child comparators,
-          // one for each column in the row. As long as the row contains only
-          // one column, use it as a join condition. If it has more than one
-          // column, attach it as an extra condition. Note that join conditions
-          // that does not return row values are not set up with any child
-          // comparators, meaning that get_child_comparator_count() will return
-          // 0.
-          if (join_condition->get_comparator()->get_child_comparator_count() <
-              2) {
+          if (IsHashEquijoinCondition(join_condition, left_table_map,
+                                      right_table_map)) {
             // Make a hash join condition for this equality comparison.
             // This may entail allocating type cast nodes; see the comments
             // on HashJoinCondition for more details.
@@ -2981,26 +2956,6 @@ void JOIN::create_access_paths() {
   m_root_access_path = path;
 }
 
-// Disable eq_ref caching. This is done for streaming aggregation because
-// EQRefIterator's cache assumes table->record[0] is unmodified between two
-// calls to Read(), but AggregateIterator may have changed it in the meantime
-// when switching between groups.
-//
-// TODO(khatlen): Caching could be left enabled if a STREAM access path is added
-// just below the AGGREGATE access path. The hypergraph optimizer does that, but
-// adding intermediate temporary tables is harder to do with the old optimizer,
-// so we just disable caching for now.
-static void DisableEqRefCache(AccessPath *path) {
-  WalkAccessPaths(path, /*join=*/nullptr,
-                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
-                  [](AccessPath *subpath, const JOIN *) {
-                    if (subpath->type == AccessPath::EQ_REF) {
-                      subpath->eq_ref().ref->disable_cache = true;
-                    }
-                    return false;
-                  });
-}
-
 AccessPath *JOIN::create_root_access_path_for_join() {
   if (select_count) {
     return NewUnqualifiedCountAccessPath(thd);
@@ -3087,7 +3042,6 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       // (We can also aggregate as we go after the materialization step;
       // see below. We won't be aggregating twice, though.)
       if (!qep_tab->tmp_table_param->precomputed_group_by) {
-        DisableEqRefCache(path);
         path = NewAggregateAccessPath(thd, path,
                                       rollup_state != RollupState::NONE);
         EstimateAggregateCost(path, query_block);
@@ -3333,7 +3287,6 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     }
 #endif
     if (!tmp_table_param.precomputed_group_by) {
-      DisableEqRefCache(path);
       path =
           NewAggregateAccessPath(thd, path, rollup_state != RollupState::NONE);
       EstimateAggregateCost(path, query_block);
@@ -4365,6 +4318,18 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
   return false;
 }
 
+static Item_rollup_group_item *find_rollup_item_in_group_list(
+    Item *item, Query_block *query_block) {
+  for (ORDER *group = query_block->group_list.first; group;
+       group = group->next) {
+    Item_rollup_group_item *rollup_item = group->rollup_item;
+    if (item->eq(rollup_item, /*binary_cmp=*/false)) {
+      return rollup_item;
+    }
+  }
+  return nullptr;
+}
+
 /**
   For each rollup wrapper below the given item, replace its argument with a
   temporary field, e.g.
@@ -4386,14 +4351,12 @@ bool replace_contents_of_rollup_wrappers_with_tmp_fields(THD *thd,
         Item_rollup_group_item *rollup_item =
             down_cast<Item_rollup_group_item *>(item);
 
-        Item *real_item = item;
-        while (is_rollup_group_wrapper(real_item)) {
-          real_item = unwrap_rollup_group(real_item)->real_item();
-        }
-        ORDER *order = select->find_in_group_list(real_item, nullptr);
+        Item_rollup_group_item *group_rollup_item =
+            find_rollup_item_in_group_list(rollup_item, select);
+        assert(group_rollup_item != nullptr);
         Item_rollup_group_item *new_item = new Item_rollup_group_item(
             rollup_item->min_rollup_level(),
-            order->rollup_item->inner_item()->get_tmp_table_item(thd));
+            group_rollup_item->inner_item()->get_tmp_table_item(thd));
         if (new_item == nullptr ||
             select->join->rollup_group_items.push_back(new_item)) {
           return {ReplaceResult::ERROR, nullptr};
@@ -4521,9 +4484,10 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
       rollup_item->inner_item()->set_result_field(item->get_result_field());
       new_item = rollup_item->inner_item()->get_tmp_table_item(thd);
 
-      ORDER *order =
-          select->find_in_group_list(rollup_item->inner_item(), nullptr);
-      order->rollup_item->inner_item()->set_result_field(
+      Item_rollup_group_item *group_rollup_item =
+          find_rollup_item_in_group_list(rollup_item, select);
+      assert(group_rollup_item != nullptr);
+      group_rollup_item->inner_item()->set_result_field(
           item->get_result_field());
 
       new_item =
@@ -4614,11 +4578,13 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
 */
 
 bool JOIN::clear_fields(table_map *save_nullinfo) {
-  for (uint tableno = 0; tableno < primary_tables; tableno++) {
-    QEP_TAB *const tab = qep_tab + tableno;
-    TABLE *const table = tab->table_ref->table;
+  assert(*save_nullinfo == 0);
+
+  for (Table_ref *table_ref = tables_list; table_ref != nullptr;
+       table_ref = table_ref->next_leaf) {
+    TABLE *const table = table_ref->table;
     if (!table->has_null_row()) {
-      *save_nullinfo |= tab->table_ref->map();
+      *save_nullinfo |= table_ref->map();
       if (table->const_table) table->save_null_flags();
       table->set_null_row();  // All fields are NULL
     }
@@ -4637,10 +4603,10 @@ bool JOIN::clear_fields(table_map *save_nullinfo) {
 void JOIN::restore_fields(table_map save_nullinfo) {
   assert(save_nullinfo);
 
-  for (uint tableno = 0; tableno < primary_tables; tableno++) {
-    QEP_TAB *const tab = qep_tab + tableno;
-    if (save_nullinfo & tab->table_ref->map()) {
-      TABLE *const table = tab->table_ref->table;
+  for (Table_ref *table_ref = tables_list; table_ref != nullptr;
+       table_ref = table_ref->next_leaf) {
+    if (save_nullinfo & table_ref->map()) {
+      TABLE *const table = table_ref->table;
       if (table->const_table) table->restore_null_flags();
       table->reset_null_row();
     }

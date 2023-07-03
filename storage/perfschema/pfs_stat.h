@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ struct PFS_single_stat {
     m_max = 0;
   }
 
-  inline void reset(void) {
+  inline void reset() {
     m_count = 0;
     m_sum = 0;
     m_min = ULLONG_MAX;
@@ -166,7 +166,7 @@ struct PFS_byte_stat : public PFS_single_stat {
 
   PFS_byte_stat() { reset(); }
 
-  inline void reset(void) {
+  inline void reset() {
     PFS_single_stat::reset();
     m_bytes = 0;
   }
@@ -191,7 +191,7 @@ struct PFS_mutex_stat {
 #endif
   }
 
-  inline void reset(void) {
+  inline void reset() {
     m_wait_stat.reset();
 #ifdef PFS_LATER
     m_lock_stat.reset();
@@ -224,7 +224,7 @@ struct PFS_rwlock_stat {
 #endif
   }
 
-  inline void reset(void) {
+  inline void reset() {
     m_wait_stat.reset();
 #ifdef PFS_LATER
     m_read_lock_stat.reset();
@@ -258,7 +258,7 @@ struct PFS_cond_stat {
 #endif
   }
 
-  inline void reset(void) {
+  inline void reset() {
     m_wait_stat.reset();
 #ifdef PFS_LATER
     m_signal_count = 0;
@@ -276,7 +276,7 @@ struct PFS_file_io_stat {
   /** Miscellaneous statistics */
   PFS_byte_stat m_misc;
 
-  inline void reset(void) {
+  inline void reset() {
     m_read.reset();
     m_write.reset();
     m_misc.reset();
@@ -315,14 +315,14 @@ struct PFS_file_stat {
   }
 
   /** Reset file statistics. */
-  inline void reset(void) { m_io_stat.reset(); }
+  inline void reset() { m_io_stat.reset(); }
 };
 
 /** Statistics for stage usage. */
 struct PFS_stage_stat {
   PFS_single_stat m_timer1_stat;
 
-  inline void reset(void) { m_timer1_stat.reset(); }
+  inline void reset() { m_timer1_stat.reset(); }
 
   inline void aggregate_counted() { m_timer1_stat.aggregate_counted(); }
 
@@ -339,7 +339,7 @@ struct PFS_stage_stat {
 struct PFS_sp_stat {
   PFS_single_stat m_timer1_stat;
 
-  inline void reset(void) { m_timer1_stat.reset(); }
+  inline void reset() { m_timer1_stat.reset(); }
 
   inline void aggregate_counted() { m_timer1_stat.aggregate_counted(); }
 
@@ -356,7 +356,7 @@ struct PFS_sp_stat {
 struct PFS_prepared_stmt_stat {
   PFS_single_stat m_timer1_stat;
 
-  inline void reset(void) { m_timer1_stat.reset(); }
+  inline void reset() { m_timer1_stat.reset(); }
 
   inline void aggregate_counted() { m_timer1_stat.aggregate_counted(); }
 
@@ -469,11 +469,11 @@ struct PFS_transaction_stat {
     m_release_savepoint_count = 0;
   }
 
-  ulonglong count(void) {
+  ulonglong count() const {
     return (m_read_write_stat.m_count + m_read_only_stat.m_count);
   }
 
-  inline void reset(void) {
+  inline void reset() {
     m_read_write_stat.reset();
     m_read_only_stat.reset();
     m_savepoint_count = 0;
@@ -505,7 +505,7 @@ struct PFS_error_single_stat {
     m_last_seen = 0;
   }
 
-  ulonglong count(void) { return m_count; }
+  ulonglong count() const { return m_count; }
 
   inline void reset() {
     m_count = 0;
@@ -564,7 +564,7 @@ struct PFS_error_stat {
     return &m_stat[error_index];
   }
 
-  ulonglong count(void) {
+  ulonglong count() const {
     ulonglong total = 0;
     for (uint i = 0; i < m_max_errors; i++) {
       total += m_stat[i].count();
@@ -572,7 +572,9 @@ struct PFS_error_stat {
     return total;
   }
 
-  ulonglong count(uint error_index) { return m_stat[error_index].count(); }
+  ulonglong count(uint error_index) const {
+    return m_stat[error_index].count();
+  }
 
   inline void init(PFS_builtin_memory_class *memory_class, size_t max_errors) {
     if (max_errors == 0) {
@@ -634,7 +636,7 @@ struct PFS_error_stat {
       Sizes can be different, for example when aggregating
       per session statistics into global statistics.
     */
-    size_t common_max = std::min(m_max_errors, stat->m_max_errors);
+    const size_t common_max = std::min(m_max_errors, stat->m_max_errors);
     for (uint i = 0; i < common_max; i++) {
       m_stat[i].aggregate(&stat->m_stat[i]);
     }
@@ -655,7 +657,7 @@ struct PFS_table_io_stat {
 
   PFS_table_io_stat() { m_has_data = false; }
 
-  inline void reset(void) {
+  inline void reset() {
     m_has_data = false;
     m_fetch.reset();
     m_insert.reset();
@@ -707,7 +709,7 @@ enum PFS_TL_LOCK_TYPE {
 struct PFS_table_lock_stat {
   PFS_single_stat m_stat[COUNT_PFS_TL_LOCK_TYPE];
 
-  inline void reset(void) {
+  inline void reset() {
     PFS_single_stat *pfs = &m_stat[0];
     PFS_single_stat *pfs_last = &m_stat[COUNT_PFS_TL_LOCK_TYPE];
     for (; pfs < pfs_last; pfs++) {
@@ -748,7 +750,7 @@ struct PFS_table_stat {
   PFS_table_lock_stat m_lock_stat;
 
   /** Reset table I/O statistic. */
-  inline void reset_io(void) {
+  inline void reset_io() {
     PFS_table_io_stat *stat = &m_index_stat[0];
     PFS_table_io_stat *stat_last = &m_index_stat[MAX_INDEXES + 1];
     for (; stat < stat_last; stat++) {
@@ -757,25 +759,23 @@ struct PFS_table_stat {
   }
 
   /** Reset table lock statistic. */
-  inline void reset_lock(void) { m_lock_stat.reset(); }
+  inline void reset_lock() { m_lock_stat.reset(); }
 
   /** Reset table statistic. */
-  inline void reset(void) {
+  inline void reset() {
     reset_io();
     reset_lock();
   }
 
-  inline void fast_reset_io(void) {
+  inline void fast_reset_io() {
     memcpy(&m_index_stat, &g_reset_template.m_index_stat, sizeof(m_index_stat));
   }
 
-  inline void fast_reset_lock(void) {
+  inline void fast_reset_lock() {
     memcpy(&m_lock_stat, &g_reset_template.m_lock_stat, sizeof(m_lock_stat));
   }
 
-  inline void fast_reset(void) {
-    memcpy(this, &g_reset_template, sizeof(*this));
-  }
+  inline void fast_reset() { memcpy(this, &g_reset_template, sizeof(*this)); }
 
   inline void aggregate_io(const PFS_table_stat *stat, uint key_count) {
     PFS_table_io_stat *to_stat;
@@ -843,7 +843,7 @@ struct PFS_socket_io_stat {
   /** Miscellaneous statistics */
   PFS_byte_stat m_misc;
 
-  inline void reset(void) {
+  inline void reset() {
     m_read.reset();
     m_write.reset();
     m_misc.reset();
@@ -876,7 +876,7 @@ struct PFS_socket_stat {
   PFS_socket_io_stat m_io_stat;
 
   /** Reset socket statistics. */
-  inline void reset(void) { m_io_stat.reset(); }
+  inline void reset() { m_io_stat.reset(); }
 };
 
 struct PFS_memory_stat_alloc_delta {
@@ -922,9 +922,9 @@ struct PFS_memory_safe_stat {
   size_t m_alloc_size_capacity;
   size_t m_free_size_capacity;
 
-  void reset(void);
+  void reset();
 
-  void rebase(void);
+  void rebase();
 
   PFS_memory_stat_alloc_delta *count_alloc(size_t size,
                                            PFS_memory_stat_alloc_delta *delta);
@@ -1006,7 +1006,7 @@ struct PFS_memory_monitoring_stat {
   ssize_t m_low_size_used;
   ssize_t m_high_size_used;
 
-  void reset(void);
+  void reset();
 
   void normalize(bool global);
 };

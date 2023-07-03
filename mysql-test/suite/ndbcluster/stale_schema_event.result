@@ -4,6 +4,7 @@ Dropping table ndb_schema_result...OK
 NDBT_ProgramExit: 0 - OK
 
 call mtr.add_suppression("Schema dist client detected timeout");
+call mtr.add_suppression("Distribution of '.*' - client timeout");
 set GLOBAL debug="-d,ndb_bi_sleep_before_gsl";
 DROP TABLE t1;
 include/assert_grep.inc [Verify if Coordinator recived the stale event.]

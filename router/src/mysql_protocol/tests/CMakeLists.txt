@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,4 +40,59 @@ IF(WIN32)
   ADD_COMPILE_FLAGS(
     test_classic_protocol_message.cc
     COMPILE_FLAGS "/bigobj")
+ENDIF()
+
+FOREACH(test_file
+    test_microbench.cc
+  )
+  ADD_GOOGLETEST_FILE(${test_file}
+    EXTRA_SOURCES ${CMAKE_SOURCE_DIR}/unittest/gunit/benchmark.cc
+    MODULE ${TEST_MODULE}
+    SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS}
+    INCLUDE_DIRS ../include/
+    LIB_DEPENDS harness_stdx)
+ENDFOREACH()
+
+IF(LIBFUZZER_COMPILE_FLAGS)
+  FOREACH(CMD client_greeting
+      quit
+      init_schema
+      query
+      list_fields
+      # create_db
+      # drop_db
+      reload
+      # shutdown
+      statistics
+      # processinfo
+      # connect
+      # debug
+      ping
+      # time
+      # delayedinsert
+      change_user
+      binlog_dump
+      # table_dump
+      # connect_out
+      register_replica
+      stmt_prepare
+      stmt_execute
+      stmt_param_append_data
+      stmt_close
+      stmt_reset
+      set_option
+      stmt_fetch
+      # daemon
+      binlog_dump_gtid
+      reset_connection
+      clone)
+    MYSQL_ADD_EXECUTABLE(routertest_fuzz_mysql_protocol_${CMD}
+      fuzz_${CMD}.cc
+      COMPONENT Router
+      LINK_LIBRARIES mysql_protocol
+      SKIP_INSTALL
+      )
+    LIBFUZZER_ADD_TEST(routertest_fuzz_mysql_protocol_${CMD}
+      INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/${CMD})
+  ENDFOREACH()
 ENDIF()

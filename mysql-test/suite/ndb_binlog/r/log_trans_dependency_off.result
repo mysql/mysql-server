@@ -1,0 +1,53 @@
+#
+# Check default behaviour of logical clock timestamps in binlog generated
+# by ndb_binlog thread. The timestamps will indicate that each epoch
+# transaction depends on the previous.
+#
+# Test requires that transaction dependency calculations are turned off
+# for the ndb_binlog thread
+select @@global.ndb_log_transaction_dependency;
+@@global.ndb_log_transaction_dependency
+0
+# Test assumes that COMMIT_ORDER is used for dependency tracking (this
+# is the default setting for MySQL Server)
+select @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+COMMIT_ORDER
+CREATE TABLE t1 (
+a INT PRIMARY KEY
+) engine=ndb;
+include/include/assert_logical_timestamps.inc [0 1]
+INSERT INTO t1 VALUES (1);
+# Wait for changes to be injected, then check timestamps
+# Wait for ndb_binlog thread...
+include/include/assert_logical_timestamps.inc [1 2]
+INSERT INTO t1 VALUES (2);
+# Wait for changes to be injected, then check timestamps
+# Wait for ndb_binlog thread...
+include/include/assert_logical_timestamps.inc [2 3]
+CREATE TABLE t2 (
+a INT PRIMARY KEY
+) engine=ndb;
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO t2 VALUES (23);
+COMMIT;
+# Wait for changes to be injected, then check timestamps
+# Wait for ndb_binlog thread...
+include/include/assert_logical_timestamps.inc [4 5]
+# Create new binlog, timestamps will start over
+FLUSH LOGS;
+INSERT INTO t1 VALUES (4);
+# Wait for changes to be injected, then check timestamps
+# Wait for ndb_binlog thread...
+include/include/assert_logical_timestamps.inc [0 1]
+BEGIN;
+INSERT INTO t1 VALUES (5);
+INSERT INTO t2 VALUES (25);
+COMMIT;
+# Wait for changes to be injected, then check timestamps
+# Wait for ndb_binlog thread...
+include/include/assert_logical_timestamps.inc [1 2]
+# Cleanup
+DROP TABLE t1;
+DROP TABLE t2;

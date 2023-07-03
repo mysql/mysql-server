@@ -35,7 +35,7 @@
 # Suppress the expected errors
 set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
 set session sql_log_bin=1;
 
 
@@ -120,7 +120,7 @@ SET GLOBAL group_replication_recovery_retry_count= 2;
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_iterate_list_incremental
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_iterate_list_incremental.2.err
 --let $assert_count = 1
---let $assert_select = .*error connecting to master 'rpl_user@127.0.0.1:$server1_admin_port'.*
+--let $assert_select = .*Error connecting to source 'rpl_user@127.0.0.1:$server1_admin_port'.*
 --let $assert_text = incremental recovery failed to connect to the first advertised endpoint
 --source include/assert_grep.inc
 
@@ -138,7 +138,7 @@ SET GLOBAL group_replication_recovery_retry_count= 2;
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_iterate_list_incremental
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_iterate_list_incremental.2.err
 --let $assert_count = 1
---let $assert_select = .*connected to master 'rpl_user@127.0.0.1:$server1_port',replication started.*
+--let $assert_select = .*connected to source 'rpl_user@127.0.0.1:$server1_port'.*
 --let $assert_text = incremental recovery used the second advertised enpoint
 --source include/assert_grep.inc
 

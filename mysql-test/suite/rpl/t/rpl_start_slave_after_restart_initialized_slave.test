@@ -41,7 +41,7 @@
 
 CALL mtr.add_suppression("Error during --relay-log-recovery*");
 CALL mtr.add_suppression("Server was not able to find a rotate event*");
-CALL mtr.add_suppression("Recovery from master pos*");
+CALL mtr.add_suppression("Recovery from source pos*");
 
 # 2. Verify that START SLAVE doesn't throw any error when
 #

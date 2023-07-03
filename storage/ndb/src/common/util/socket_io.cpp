@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,6 @@ poll_socket(ndb_socket_t socket, bool read, bool write,
 }
 
 
-extern "C"
 int
 read_socket(ndb_socket_t socket, int timeout_millis,
 	    char * buf, int buflen){
@@ -70,7 +69,6 @@ read_socket(ndb_socket_t socket, int timeout_millis,
   return (int)ndb_recv(socket, &buf[0], buflen, 0);
 }
 
-extern "C"
 int
 readln_socket(ndb_socket_t socket, int timeout_millis, int *time,
 	      char * buf, int buflen, NdbMutex *mutex){
@@ -162,7 +160,6 @@ readln_socket(ndb_socket_t socket, int timeout_millis, int *time,
   return -1;
 }
 
-extern "C"
 int
 write_socket(ndb_socket_t socket, int timeout_millis, int *time,
 	     const char buf[], int len){

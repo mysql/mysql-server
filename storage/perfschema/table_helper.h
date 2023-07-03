@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -633,7 +633,7 @@ struct PFS_column_row {
   size_t m_column_name_length;
 
   /** Build a row from a memory buffer. */
-  int make_row(const MDL_key *pfs);
+  int make_row(const MDL_key *mdl);
   /** Set a table field from the row. */
   void set_nullable_field(uint index, Field *f);
 };
@@ -1371,10 +1371,9 @@ class PFS_key_pstring : public PFS_engine_key {
     if (reader.get_key_type() == HA_KEYTYPE_TEXT) {
       return (reader.read_text_utf8(find_flag, is_null, key_value,
                                     key_value_length, key_value_max_length));
-    } else {
-      return (reader.read_varchar_utf8(find_flag, is_null, key_value,
-                                       key_value_length, key_value_max_length));
     }
+    return (reader.read_varchar_utf8(find_flag, is_null, key_value,
+                                     key_value_length, key_value_max_length));
   }
 
   static bool stateless_match(bool record_null, const char *record_string,
@@ -1410,8 +1409,8 @@ class PFS_key_string : public PFS_key_pstring {
                            m_key_value, m_key_value_length, m_is_null,
                            m_find_flag);
   }
-  bool do_match_prefix(bool record_null, const char *record_value,
-                       size_t record_value_length);
+  bool do_match_prefix(bool record_null, const char *record_string,
+                       size_t record_string_length);
 
  private:
   char m_key_value[SIZE * FILENAME_CHARSET_MBMAXLEN];
@@ -1434,7 +1433,7 @@ class PFS_key_event_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> {
 
   ~PFS_key_event_name() override = default;
 
-  bool match(const PFS_instr_class *klass);
+  bool match(const PFS_instr_class *pfs);
   bool match(const PFS_mutex *pfs);
   bool match(const PFS_rwlock *pfs);
   bool match(const PFS_cond *pfs);
@@ -1465,7 +1464,7 @@ class PFS_key_host : public PFS_key_string<HOSTNAME_LENGTH> {
   bool match(const PFS_host *pfs);
   bool match(const PFS_account *pfs);
   bool match(const PFS_setup_actor *pfs);
-  bool match(const char *host, size_t host_length);
+  bool match(const char *host, size_t hostname_length);
 };
 
 class PFS_key_role : public PFS_key_string<ROLENAME_LENGTH> {
@@ -1598,7 +1597,7 @@ class PFS_key_object_schema : public PFS_key_string<NAME_CHAR_LEN> {
 
   ~PFS_key_object_schema() override = default;
 
-  bool match(const PFS_table_share *pfs);
+  bool match(const PFS_table_share *share);
   bool match(const PFS_program *pfs);
   bool match(const PFS_prepared_stmt *pfs);
   bool match(const PFS_object_row *pfs);
@@ -1613,14 +1612,14 @@ class PFS_key_object_name : public PFS_key_string<NAME_CHAR_LEN> {
 
   ~PFS_key_object_name() override = default;
 
-  bool match(const PFS_table_share *pfs);
+  bool match(const PFS_table_share *share);
   bool match(const PFS_program *pfs);
   bool match(const PFS_prepared_stmt *pfs);
   bool match(const PFS_object_row *pfs);
   bool match(const PFS_column_row *pfs);
   bool match(const PFS_index_row *pfs);
   bool match(const PFS_setup_object *pfs);
-  bool match(const char *schema_name, size_t schema_name_length);
+  bool match(const char *object_name, size_t object_name_length);
 };
 
 class PFS_key_column_name : public PFS_key_string<NAME_CHAR_LEN> {
@@ -1647,7 +1646,7 @@ class PFS_key_object_type : public PFS_engine_key {
   bool match(const PFS_program *pfs);
 
  private:
-  bool do_match(bool record_null, enum_object_type object_type);
+  bool do_match(bool record_null, enum_object_type record_value);
   enum_object_type m_object_type;
 };
 
@@ -1666,7 +1665,7 @@ class PFS_key_object_type_enum : public PFS_engine_key {
   bool match(const PFS_program *pfs);
 
  private:
-  bool do_match(bool record_null, enum_object_type object_type);
+  bool do_match(bool record_null, enum_object_type record_value);
   enum_object_type m_object_type;
 };
 

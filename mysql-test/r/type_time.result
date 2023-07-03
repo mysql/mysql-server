@@ -2858,3 +2858,27 @@ t
 02:00:00
 02:00:00
 DROP TABLE t, dt;
+#
+# Bug#35080094: MySQL server crash -
+#               Assertion CompatibleTypesForIndexLookup failed
+#
+CREATE TABLE t(a VARCHAR(100), KEY(a));
+INSERT INTO t VALUES ('1:2:3'), ('01:02:03');
+SELECT * FROM t WHERE a = TIME'01:02:03';
+a
+01:02:03
+DROP TABLE t;
+#
+# Bug#35115909: Wrong join result when one of the join columns
+#               is compared to a temporal literal
+#
+CREATE TABLE t (a VARCHAR(10), b VARCHAR(10));
+INSERT INTO t VALUES
+('01:02:03', '01:02:03'),
+('01:02:03', '1:2:3'),
+('1:2:3',    '01:02:03'),
+('1:2:3',    '1:2:3');
+SELECT * FROM t WHERE a = b and b = TIME'01:02:03';
+a	b
+01:02:03	01:02:03
+DROP TABLE t;

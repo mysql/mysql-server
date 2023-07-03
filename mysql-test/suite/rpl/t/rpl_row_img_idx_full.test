@@ -24,7 +24,7 @@
 # each of the three servers.
 #
 
-CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Deadlock found when trying to get lock.*");
+CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at source log .*, end_log_pos.*Deadlock found when trying to get lock.*");
 
 -- let $row_img_set=server_1:FULL:N,server_2:FULL:Y,server_3:FULL:Y
 -- source include/rpl_row_img_set.inc

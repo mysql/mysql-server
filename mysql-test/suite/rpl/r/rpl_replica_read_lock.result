@@ -4,13 +4,13 @@ include/only_with_option.inc [GLOBAL.replica_transaction_retries > 2]
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 SET GLOBAL innodb_lock_wait_timeout = 2;
 SET GLOBAL slave_rows_search_algorithms = 'INDEX_SCAN,HASH_SCAN';
-CALL mtr.add_suppression("Slave SQL for channel.*Consider raising the value of the replica_transaction_retries variable.*");
-CALL mtr.add_suppression("Slave SQL for channel.*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression("Replica SQL for channel.*Consider raising the value of the replica_transaction_retries variable.*");
+CALL mtr.add_suppression("Replica SQL for channel.*The replica coordinator and worker threads are stopped.*");
 # 2. For each slave_rows_search_algorithms[INDEX_SCAN, HASH_SCAN(with
 #    index), HASH_SCAN(with two non-unique index), HASH_SCAN(with out
 #    index), TABLE_SCAN]

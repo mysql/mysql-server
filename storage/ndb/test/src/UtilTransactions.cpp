@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,19 +30,16 @@
 
 UtilTransactions::UtilTransactions(const NdbDictionary::Table& _tab,
 				   const NdbDictionary::Index* _idx):
-  tab(_tab), idx(_idx), pTrans(0)
+  tab(_tab), idx(_idx)
 {
-  m_defaultClearMethod = 3;
 }
 
 UtilTransactions::UtilTransactions(Ndb* ndb, 
 				   const char * name,
 				   const char * index) :
   tab(* ndb->getDictionary()->getTable(name)),
-  idx(index ? ndb->getDictionary()->getIndex(index, name) : 0),
-  pTrans(0)
+  idx(index ? ndb->getDictionary()->getIndex(index, name) : 0)
 {
-  m_defaultClearMethod = 3;
 }
 
 #define RESTART_SCAN 99
@@ -284,17 +281,18 @@ UtilTransactions::copyTableData(Ndb* pNdb,
 	  return NDBT_FAILED;
 	}
       } while((eof = pOp->nextResult(false)) == 0);
+
+      if (eof == -1) break;
       
       check = pTrans->execute(Commit, AbortOnError);   
-      if (check != -1)
-        pTrans->getGCI(&m_util_latest_gci);
-      pTrans->restart();
       if( check == -1 ) {
-	const NdbError err = pTrans->getNdbError();    
-	NDB_ERR(err);
-	closeTransaction(pNdb);
-	return NDBT_FAILED;
+        const NdbError err = pTrans->getNdbError();
+        NDB_ERR(err);
+        closeTransaction(pNdb);
+        return NDBT_FAILED;
       }
+      pTrans->getGCI(&m_util_latest_gci);
+      pTrans->restart();
     }  
     if (eof == -1) {
       const NdbError err = pTrans->getNdbError();
@@ -1114,7 +1112,6 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
   NDBT_ResultRow       pkRow(tab);
   NDBT_ResultRow       indexRow(tab);
 
-  int res;
   parallelism = 1;
   
   while (true){
@@ -1266,7 +1263,7 @@ UtilTransactions::verifyOrderedIndex(Ndb* pNdb,
         const BaseString scanRowString = scanRow.c_str();
         while (true)
         {
-          if ((res= iop->nextResult()) != 0){
+          if (iop->nextResult() != 0){
             g_err << "Failed to find row using index: "
                   << destIndex->getName() << endl;
             g_err << " source index : " << (sourceIndex?sourceIndex->getName():"Table") << endl;
@@ -1368,18 +1365,192 @@ UtilTransactions::verifyTableReplicas(Ndb* pNdb, bool allSources)
   return result;
 }
 
+int
+UtilTransactions::verifyTableReplicasPkCompareRow(Ndb* pNdb, Uint32 nodeId,
+                                               const NDBT_ResultRow& scanRow) {
+  NDBT_ResultRow       pkRow(tab);
+
+  NdbTransaction* nodeTrans = pNdb->startTransaction(nodeId, 0);
+  if (nodeTrans->getConnectedNodeId() != nodeId)
+  {
+    g_err << "Tried to start transaction on node " << nodeId
+          << " but started on node " << nodeTrans->getConnectedNodeId() << endl;
+    nodeTrans->close();
+    return NDBT_FAILED;
+  }
+
+  // Do pk lookup using simpleRead
+  NdbOperation * pk = nodeTrans->getNdbOperation(tab.getName());
+  if(!pk || pk->simpleRead()) {
+    NDB_ERR(nodeTrans->getNdbError());
+    nodeTrans->close();
+    return NDBT_FAILED;
+  }
+
+  if(equal(&tab, pk, scanRow) || get_values(pk, pkRow)){
+    NDB_ERR(nodeTrans->getNdbError());
+    nodeTrans->close();
+    return NDBT_FAILED;
+  }
+
+  if (nodeTrans->execute(Commit, AbortOnError) != 0){
+    const NdbError err = nodeTrans->getNdbError();
+    NDB_ERR(err);
+    nodeTrans->close();
+    if (err.status == NdbError::TemporaryError)
+      return NDBT_TEMPORARY;
+    return NDBT_FAILED;
+  }
+
+  if(scanRow.c_str() != pkRow.c_str()){
+    g_err << "Error when comparing records" << endl;
+    g_err << " scanRow (from node  "
+          << pTrans->getConnectedNodeId()
+          << ") : \n" << scanRow.c_str().c_str() << endl;
+    g_err << " pkRow from node " << nodeId << " : \n"
+          << pkRow.c_str().c_str() << endl;
+    return -1;
+  }
+  else
+  {
+     //g_err << "Pk ok" << endl;
+  }
+
+  nodeTrans->close();
+  return NDBT_OK;
+}
+
+
+int
+UtilTransactions::verifyTableReplicasScanAndCompareNodes(Ndb* pNdb,
+                                                         Uint32 sourceNodeId,
+                                                         Uint32 numDataNodes,
+                                                         Uint32 dataNodes[256])
+{
+  pTrans = pNdb->startTransaction(sourceNodeId, 0);
+  if (pTrans == NULL) {
+    const NdbError err = pNdb->getNdbError();
+    NDB_ERR(err);
+    if (err.status == NdbError::TemporaryError)
+      return NDBT_TEMPORARY;
+    return NDBT_FAILED;
+  }
+  if (sourceNodeId && pTrans->getConnectedNodeId() != sourceNodeId)
+  {
+    g_err << "Transaction requested on node " << sourceNodeId
+          << " but running on node " << pTrans->getConnectedNodeId()
+          << ", failing..." << endl;
+    return NDBT_FAILED;
+  }
+
+  /* Scan table */
+  NdbScanOperation      *pScan = pTrans->getNdbScanOperation(tab.getName());
+
+  if (pScan == NULL) {
+    const NdbError err = pNdb->getNdbError();
+    NDB_ERR(err);
+    if (err.status == NdbError::TemporaryError)
+      return NDBT_TEMPORARY;
+    return NDBT_FAILED;
+  }
+
+  if( pScan->readTuples(NdbScanOperation::LM_Read) ) {
+    const NdbError err = pNdb->getNdbError();
+    NDB_ERR(err);
+    if (err.status == NdbError::TemporaryError)
+      return NDBT_TEMPORARY;
+    return NDBT_FAILED;
+  }
+
+  NDBT_ResultRow       scanRow(tab);
+  if(get_values(pScan, scanRow) != 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  if( pTrans->execute(NoCommit, AbortOnError) != 0) {
+    const NdbError err = pTrans->getNdbError();
+    NDB_ERR(err);
+    if (err.status == NdbError::TemporaryError){
+      return NDBT_TEMPORARY;
+    }
+    return NDBT_FAILED;
+  }
+
+  int eof;
+  int rows = 0;
+  int checks = 0;
+  int mismatchRows = 0;
+  int mismatchReplicas = 0;
+  while((eof = pScan->nextResult()) == 0){
+    rows++;
+
+    int mismatches = 0;
+    for (Uint32 n=0; n < numDataNodes; n++)
+    {
+      const int result = verifyTableReplicasPkCompareRow(pNdb,
+                                                         dataNodes[n],
+                                                         scanRow);
+      if (result == NDBT_OK)
+        continue;
+
+      if (result == -1) {
+        // pk read detected mismatch
+        mismatches++;
+        continue;
+      }
+
+      // Error when reading row by pk
+      pScan->close();
+      return result;
+    }
+
+    checks += numDataNodes;
+    mismatchReplicas += mismatches;
+    if (mismatches)
+      mismatchRows++;
+  }
+
+  pScan->close();
+
+  // Check scan failure
+  if (eof == -1) {
+    const NdbError err = pTrans->getNdbError();
+    NDB_ERR(err);
+    if (err.status == NdbError::TemporaryError){
+      return NDBT_TEMPORARY;
+    }
+    return NDBT_FAILED;
+  }
+
+  if (mismatchRows)
+  {
+    g_err << "|- Checked "
+          << rows << " rows with "
+          << checks << " checks across "
+          << numDataNodes << " data nodes." << endl;
+    g_err << "  Found "
+          << mismatchReplicas << " mismatches in "
+          << mismatchRows << " rows" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (m_verbosity > 0)
+  {
+    ndbout << "|- Checked "
+           << rows
+           << " rows with " << checks
+           << " checks, no mismatches found." << endl;
+  }
+
+  return NDBT_OK;
+}
 
 int
 UtilTransactions::verifyTableReplicasWithSource(Ndb* pNdb, Uint32 sourceNodeId)
 {
   int                  retryAttempt = 0;
   const int            retryMax = 100;
-  int                  check;
-  NdbScanOperation      *pOp = NULL;
-  NdbIndexScanOperation *iop = NULL;
-
-  NDBT_ResultRow       scanRow(tab);
-  NDBT_ResultRow       pkRow(tab);
 
   Uint32 numDataNodes = 0;
   Uint32 dataNodes[256];
@@ -1407,181 +1578,25 @@ UtilTransactions::verifyTableReplicasWithSource(Ndb* pNdb, Uint32 sourceNodeId)
 
   while (true){
 
-    if (retryAttempt >= retryMax){
-      g_err << "ERROR: has retried this operation " << retryAttempt
-	     << " times, failing!, line: " << __LINE__ << endl;
-      return NDBT_FAILED;
-    }
-    pTrans = pNdb->startTransaction(sourceNodeId, 0);
-    if (pTrans == NULL) {
-      const NdbError err = pNdb->getNdbError();
-
-      if (err.status == NdbError::TemporaryError){
-	NDB_ERR(err);
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
-      }
-      NDB_ERR(err);
-      return NDBT_FAILED;
-    }
-    if (sourceNodeId && pTrans->getConnectedNodeId() != sourceNodeId)
-    {
-      g_err << "Transaction requested on node " << sourceNodeId
-            << " but running on node " << pTrans->getConnectedNodeId()
-            << " continuing..." << endl;
-    }
-
-    /* Scan table */
-    pOp = pTrans->getNdbScanOperation(tab.getName());
-
-    if (pOp == NULL) {
-      NDB_ERR(pTrans->getNdbError());
-      closeTransaction(pNdb);
-      return NDBT_FAILED;
-    }
-
-    if( pOp->readTuples(NdbScanOperation::LM_Read) ) {
-      NDB_ERR(pTrans->getNdbError());
-      closeTransaction(pNdb);
-      return NDBT_FAILED;
-    }
-
-    if(get_values(pOp, scanRow))
-    {
-      abort();
-    }
-
-    check = pTrans->execute(NoCommit, AbortOnError);
-    if( check == -1 ) {
-      const NdbError err = pTrans->getNdbError();
-
-      if (err.status == NdbError::TemporaryError){
-	NDB_ERR(err);
-	closeTransaction(pNdb);
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
-      }
-      NDB_ERR(err);
-      closeTransaction(pNdb);
-      return NDBT_FAILED;
-    }
-
-    int eof;
-    int rows = 0;
-    int checks = 0;
-    int mismatchRows = 0;
-    int mismatchReplicas = 0;
-    while(check == 0 && (eof = pOp->nextResult()) == 0){
-      rows++;
-      NdbTransaction* nodeTrans = NULL;
-
-      int mismatches = 0;
-      for (Uint32 n=0; n < numDataNodes; n++)
-      {
-        nodeTrans = pNdb->startTransaction(dataNodes[n], 0);
-        if (nodeTrans->getConnectedNodeId() != dataNodes[n])
-        {
-          g_err << "Tried to start transaction on node " << dataNodes[n]
-                << " but started on node " << nodeTrans->getConnectedNodeId() << endl;
-          closeTransaction(pNdb);
-          return NDBT_FAILED;
-        }
-
-        // Do pk lookup using simpleRead
-        NdbOperation * pk = nodeTrans->getNdbOperation(tab.getName());
-        if(!pk || pk->simpleRead())
-          goto lookuperror;
-        if(equal(&tab, pk, scanRow) || get_values(pk, pkRow))
-          goto lookuperror;
-
-        check = nodeTrans->execute(Commit, AbortOnError);
-        if(check)
-        {
-          goto lookuperror;
-        }
-
-        if(scanRow.c_str() != pkRow.c_str()){
-          g_err << "Error when comparing records" << endl;
-          g_err << " scanRow (from node  "
-                << pTrans->getConnectedNodeId()
-                << ") : \n" << scanRow.c_str().c_str() << endl;
-          g_err << " pkRow from node " << dataNodes[n] << " : \n"
-                << pkRow.c_str().c_str() << endl;
-          mismatches++;
-        }
-        else
-        {
-          //g_err << "Pk ok" << endl;
-        }
-
-        nodeTrans->close();
-        continue;
-    lookuperror:
-        const NdbError err = nodeTrans->getNdbError();
-        if (err.status == NdbError::TemporaryError){
-          NDB_ERR(err);
-          nodeTrans->close();
-          NdbSleep_MilliSleep(50);
-          retryAttempt++;
-          continue;
-        }
-        NDB_ERR(err);
-        nodeTrans->close();
-        closeTransaction(pNdb);
-        return NDBT_FAILED;
-      }
-
-      checks += numDataNodes;
-      mismatchReplicas += mismatches;
-      if (mismatches)
-        mismatchRows++;
-    } // while 'pOp->nextResult()'
-
-    pOp->close();
-    pOp = NULL;
-    if (eof == -1 || check == -1) {
-      const NdbError err = pTrans->getNdbError();
-
-      if (err.status == NdbError::TemporaryError){
-	NDB_ERR(err);
-	iop = 0;
-	closeTransaction(pNdb);
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	rows--;
-	continue;
-      }
-      NDB_ERR(err);
-      closeTransaction(pNdb);
-      return NDBT_FAILED;
-    }
-
+    const int result = verifyTableReplicasScanAndCompareNodes(pNdb,
+                                                              sourceNodeId,
+                                                              numDataNodes,
+                                                              dataNodes);
     closeTransaction(pNdb);
 
-    if (mismatchRows)
-    {
-      g_err << "|- Checked "
-            << rows << " rows with "
-            << checks << " checks across "
-            << numDataNodes << " data nodes." << endl;
-      g_err << "  Found "
-            << mismatchReplicas << " mismatches in "
-            << mismatchRows << " rows" << endl;
+    if (result != NDBT_TEMPORARY) {
+      return result;
+    }
+
+    retryAttempt++;
+    if (retryAttempt >= retryMax) {
+      g_err << "ERROR: has retried this operation " << retryAttempt
+            << " times, failing!, line: " << __LINE__ << endl;
       return NDBT_FAILED;
     }
-
-    if (m_verbosity > 0)
-    {
-      ndbout << "|- Checked "
-             << rows
-             << " rows with " << checks
-             << " checks, no mismatches found." << endl;
-    }
-
-    return NDBT_OK;
+    NdbSleep_MilliSleep(50);
   }
+
   abort(); /* Should never happen */
   return NDBT_FAILED;
 
@@ -1701,6 +1716,12 @@ UtilTransactions::verifyOrderedIndexViews(Ndb* pNdb,
       node_id = ncc->get_next_alive_node(node_iter);
     }
     //ndbout_c("Found %u data nodes", numDataNodes);
+  }
+
+  if (numDataNodes == 0)
+  {
+    /* No alive nodes */
+    return NDBT_FAILED;
   }
 
   if (numDataNodes == 1)
@@ -2160,6 +2181,8 @@ loop:
 	  retryAttempt= 0;
 	  cmp.closeTransaction(pNdb);
 	} while((eof = pOp->nextResult(false)) == 0);
+
+        if (eof == -1) break;
       }
       if (eof == -1) 
       {

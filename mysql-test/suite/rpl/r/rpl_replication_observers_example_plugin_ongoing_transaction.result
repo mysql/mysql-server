@@ -9,35 +9,36 @@ CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 # 2. Lock a table so one query will block, this one is not counted
 [connection con2]
 LOCK TABLE t1 WRITE;
-
-# 3. Leave a transaction open without commit (counted)
 [connection con3]
 INSERT INTO t1 VALUES (2);;
 
-# 4. Leave a transaction stuck on commit
+# 3. Leave a transaction open without commit (counted)
 [connection con4]
 BEGIN;
 INSERT INTO t2 VALUES(1);
 
-# 5. Execute a DML query. A hook will count the transactions
+# 4. Leave a transaction stuck on after commit
 [connection con5]
-SET @@GLOBAL.DEBUG='+d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG='+d,bgc_after_after_commit_stage';
 INSERT INTO t2 VALUES (3);;
 [connection con1]
-SET @@GLOBAL.DEBUG='-d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG='-d,bgc_after_after_commit_stage';
 #
-# 6. Execute a query that on a server hook will count the number of
+# 5. Execute a query that on a server hook will count the number of
 #    queries
 SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_counts_transactions';
-INSERT INTO t2 VALUES (10);
+INSERT INTO t2 VALUES (10);;
+[connection con6]
+SET @@GLOBAL.DEBUG= '-d,validate_replication_observers_plugin_counts_transactions';
 #
-# 7. Clean up
+# 6. Clean up
 [connection con2]
 UNLOCK TABLES;
-[connection con3]
 [connection con4]
-COMMIT;
 SET DEBUG_SYNC='now SIGNAL continue_commit';
+COMMIT;
+[connection con3]
+[connection con1]
 [connection con5]
 [connection con1]
 DROP TABLE t1;

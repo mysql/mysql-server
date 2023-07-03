@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -809,6 +809,17 @@ class Master_info : public Rpl_info {
     receiver position related information might be outdated.
   */
   bool m_is_receiver_position_info_invalid;
+
+ public:
+  /*
+    Hostname of the server where master_uuid was last read.
+  */
+  std::string m_uuid_from_host{};
+
+  /*
+    Port of the server where master_uuid was last read.
+  */
+  uint m_uuid_from_port{0};
 };
 
 #endif /* RPL_MI_H */

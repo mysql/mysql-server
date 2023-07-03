@@ -1,13 +1,13 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #### Initialize ####
 CREATE TABLE t1 (a INT);
 include/sync_slave_sql_with_master.inc
 CALL mtr.add_suppression('QUERY.*COMMIT or ROLLBACK.* or XID_LOG_EVENT is not expected in an event stream outside a transaction');
-CALL mtr.add_suppression('An unexpected event sequence was detected by the IO thread while queuing the event received from master');
+CALL mtr.add_suppression('An unexpected event sequence was detected by the IO thread while queuing the event received from source');
 #### 1. Check basic properties of GTID_NEXT = NOT_YET_DETERMINED ####
 ---- 1.1. Format_description_log_event sets NOT_YET_DETERMINED ----
 BINLOG 'C9BAVQ8BAAAAdwAAAHsAAAABAAQANS43LjgtcmMtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA

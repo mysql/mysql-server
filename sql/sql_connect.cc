@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -817,6 +817,11 @@ static void prepare_new_connection_state(THD *thd) {
     if (sctx->password_expired()) {
       LogErr(WARNING_LEVEL, ER_CONN_INIT_CONNECT_IGNORED, sctx->priv_user().str,
              sctx->priv_host().str);
+      return;
+    }
+    if (sctx->is_in_registration_sandbox_mode()) {
+      LogErr(WARNING_LEVEL, ER_CONN_INIT_CONNECT_IGNORED_MFA,
+             sctx->priv_user().str, sctx->priv_host().str);
       return;
     }
     // Do not print OOM error to error log.

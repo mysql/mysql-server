@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,8 +121,6 @@ class Item_func : public Item_result_field {
 
  public:
   uint arg_count;  ///< How many arguments in 'args'
-  /// Changes argument and maintains any necessary invariants.
-  virtual void set_arg_resolve(THD *, uint i, Item *arg) { args[i] = arg; }
   virtual uint argument_count() const { return arg_count; }
   inline Item **arguments() const {
     return (argument_count() > 0) ? args : nullptr;
@@ -1634,6 +1632,10 @@ class Item_rollup_group_item final : public Item_func {
                ? (args[0]->used_tables() | RAND_TABLE_BIT)
                : args[0]->used_tables();
   }
+  void update_used_tables() override {
+    Item_func::update_used_tables();
+    set_rollup_expr();
+  }
   Item_result result_type() const override { return args[0]->result_type(); }
   bool resolve_type(THD *) override {
     // needn't handle dynamic parameter as its const_item() is false.
@@ -2012,6 +2014,11 @@ class Item_func_last_insert_id final : public Item_int_func {
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "last_insert_id"; }
+
+  table_map get_initial_pseudo_tables() const override {
+    return INNER_TABLE_BIT;
+  }
+
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
     unsigned_flag = true;
@@ -2110,54 +2117,10 @@ class Item_udf_func : public Item_func {
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return udf.name(); }
   enum Functype functype() const override { return UDF_FUNC; }
-  bool fix_fields(THD *thd, Item **ref) override;
-  void update_used_tables() override {
-    /*
-      TODO: Make a member in UDF_INIT and return if a UDF is deterministic or
-      not.
-      Currently UDF_INIT has a member (const_item) that is an in/out
-      parameter to the init() call.
-      The code in udf_handler::fix_fields also duplicates the arguments
-      handling code in Item_func::fix_fields().
-
-      The lack of information if a UDF is deterministic makes writing
-      a correct update_used_tables() for UDFs impossible.
-      One solution to this would be :
-       - Add a is_deterministic member of UDF_INIT
-       - (optionally) deprecate the const_item member of UDF_INIT
-       - Take away the duplicate code from udf_handler::fix_fields() and
-         make Item_udf_func call Item_func::fix_fields() to process its
-         arguments as for any other function.
-       - Store the deterministic flag returned by <udf>_init into the
-       udf_handler.
-       - Don't implement Item_udf_func::fix_fields, implement
-       Item_udf_func::resolve_type() instead (similar to non-UDF functions).
-       - Override Item_func::update_used_tables to call
-       Item_func::update_used_tables() and add a RAND_TABLE_BIT to the
-       result of Item_func::update_used_tables() if the UDF is
-       non-deterministic.
-       - (optionally) rename RAND_TABLE_BIT to NONDETERMINISTIC_BIT to
-       better describe its usage.
-
-      The above would require a change of the UDF API.
-      Until that change is done here's how the current code works:
-      We call Item_func::update_used_tables() only when we know that
-      the function depends on real non-const tables and is deterministic.
-      This can be done only because we know that the optimizer will
-      call update_used_tables() only when there's possibly a new const
-      table. So update_used_tables() can only make a Item_func more
-      constant than it is currently.
-      That's why we don't need to do anything if a function is guaranteed
-      to return non-constant (it's non-deterministic) or is already a
-      const.
-    */
-    if ((used_tables_cache & ~PSEUDO_TABLE_BITS) &&
-        !(used_tables_cache & RAND_TABLE_BIT))
-      Item_func::update_used_tables();
-
-    not_null_tables_cache = 0;
-    assert(!null_on_null);  // no need to update not_null_tables_cache
+  table_map get_initial_pseudo_tables() const override {
+    return m_non_deterministic ? RAND_TABLE_BIT : 0;
   }
+  bool fix_fields(THD *thd, Item **ref) override;
   void cleanup() override;
   Item_result result_type() const override { return udf.result_type(); }
   bool is_expensive() override { return true; }
@@ -2174,6 +2137,13 @@ class Item_udf_func : public Item_func {
 
  protected:
   bool may_have_named_parameters() const override { return true; }
+
+ private:
+  /**
+    This member is set during resolving and is used by update_used_tables() and
+    fix_after_pullout() to preserve the non-deterministic property.
+  */
+  bool m_non_deterministic{false};
 };
 
 class Item_func_udf_float final : public Item_udf_func {
@@ -3908,6 +3878,10 @@ class Item_func_uuid_short final : public Item_int_func {
     func_arg->banned_function_name = func_name();
     return ((func_arg->source == VGS_GENERATED_COLUMN) ||
             (func_arg->source == VGS_CHECK_CONSTRAINT));
+  }
+  // This function is random, see uuid_short_init().
+  table_map get_initial_pseudo_tables() const override {
+    return RAND_TABLE_BIT;
   }
 };
 

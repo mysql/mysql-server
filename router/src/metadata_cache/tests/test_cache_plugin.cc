@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -76,8 +76,7 @@ class MetadataCachePluginTest : public ::testing::Test {
         &mock_metadata_factory_get_instance);
 
     metadata_cache::MetadataCacheAPI::instance()->cache_init(
-        mysqlrouter::ClusterType::GR_V1, kRouterId, replication_group_id, "",
-        metadata_server_vector,
+        mysqlrouter::ClusterType::GR_V1, kRouterId, "", metadata_server_vector,
         {kDefaultMetadataTTL, kDefaultAuthCacheTTL,
          kDefaultAuthCacheRefreshInterval},
         mysqlrouter::SSLOptions(),

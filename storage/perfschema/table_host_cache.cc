@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ bool PFS_index_host_cache_by_host::match(const row_host_cache *row) {
 }
 
 PFS_engine_table *table_host_cache::create(PFS_engine_table_share *) {
-  table_host_cache *t = new table_host_cache();
+  auto *t = new table_host_cache();
   if (t != nullptr) {
     THD *thd = current_thd;
     assert(thd != nullptr);
@@ -124,7 +124,7 @@ PFS_engine_table *table_host_cache::create(PFS_engine_table_share *) {
   return t;
 }
 
-int table_host_cache::delete_all_rows(void) {
+int table_host_cache::delete_all_rows() {
   /*
     TRUNCATE TABLE performance_schema.host_cache
     is an alternate syntax for
@@ -134,7 +134,7 @@ int table_host_cache::delete_all_rows(void) {
   return 0;
 }
 
-ha_rows table_host_cache::get_row_count(void) {
+ha_rows table_host_cache::get_row_count() {
   ha_rows count;
   hostname_cache_lock();
   count = hostname_cache_size();
@@ -241,12 +241,12 @@ int table_host_cache::make_row(Host_entry *entry, row_host_cache *row) {
   return 0;
 }
 
-void table_host_cache::reset_position(void) {
+void table_host_cache::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_host_cache::rnd_next(void) {
+int table_host_cache::rnd_next() {
   int result;
 
   m_pos.set_at(&m_next_pos);
@@ -290,7 +290,7 @@ int table_host_cache::index_init(uint idx, bool) {
   return 0;
 }
 
-int table_host_cache::index_next(void) {
+int table_host_cache::index_next() {
   int result;
 
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_row_count; m_pos.next()) {

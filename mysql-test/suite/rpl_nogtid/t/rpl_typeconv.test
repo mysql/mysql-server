@@ -83,8 +83,8 @@ SELECT RPAD(Source, 15, ' ') AS Source_Type,
 enable_query_log;
 DROP TABLE type_conversions;
 
-call mtr.add_suppression("Slave SQL.*Column 1 of table .test.t1. cannot be converted from type.* Error_code: MY-013146");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*Column 1 of table .test.t1. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 connection master;
 DROP TABLE t1;

@@ -1,0 +1,124 @@
+#########
+# SETUP #
+#########
+INSTALL COMPONENT 'file://component_query_attributes';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+##############
+# Operations #
+##############
+# send different COM_... commands, expect them being processed by telemetry
+###########
+# CLEANUP #
+###########
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+UNINSTALL COMPONENT 'file://component_query_attributes';
+Component logs:
+test_server_telemetry_traces_component_init init:
+ - System variables registered.
+ - Status variables registered.
+ - Telemetry per-session data slot registered.
+ - Telemetry session callbacks registered.
+ - Telemetry statement callbacks registered.
+End of init
+ tm_session_connect: client session started (user=root)
+ tm_session_create: telemetry session started, increase refcount by user=root to 1
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='set autocommit=1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE DATABASE IF NOT EXISTS client_test_db')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='USE client_test_db')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=client_test_db, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') AS `TRUE` FROM information_schema.engines WHERE engine = 'innodb'')
+ tm_session_connect: client session started (user=root)
+ tm_session_create: telemetry session started, increase refcount by user=root to 2
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+ tm_session_disconnect: client session ended (user=root)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+ tm_session_connect: client session started (user=root)
+ tm_session_create: telemetry session started, increase refcount by user=root to 2
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+ tm_session_disconnect: client session ended (user=root)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+ tm_session_connect: client session started (user=root)
+ tm_session_create: telemetry session started, increase refcount by user=root to 2
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+ tm_session_disconnect: client session ended (user=root)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+ tm_session_connect: client session started (user=root)
+ tm_session_create: telemetry session started, increase refcount by user=root to 2
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+ tm_session_disconnect: client session ended (user=root)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+ tm_session_connect: client session started (user=root)
+ tm_session_create: telemetry session started, increase refcount by user=root to 2
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+ tm_session_disconnect: client session ended (user=root)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+ tm_session_connect: client session started (user=root)
+ tm_session_create: telemetry session started, increase refcount by user=root to 2
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+ tm_session_disconnect: client session ended (user=root)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+ tm_session_connect: client session started (user=root)
+ tm_session_create: telemetry session started, increase refcount by user=root to 2
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+ tm_session_disconnect: client session ended (user=root)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+ tm_session_connect: client session started (user=root)
+ tm_session_create: telemetry session started, increase refcount by user=root to 2
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+ tm_session_disconnect: client session ended (user=root)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=client_test_db, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP DATABASE IF EXISTS client_test_db')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+ tm_session_disconnect: client session ended (user=root)
+ tm_session_destroy: telemetry session ended, decrease refcount to 0
+ tm_session_destroy: failed to get current THD
+ tm_session_create: telemetry session started, increase refcount by user=root to 1
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces'')
+test_server_telemetry_traces_component_deinit:
+ - Telemetry statement callbacks unregistered.
+ tm_session_destroy: telemetry session ended, decrease refcount to 0
+ - Current session aborted.
+ - Done waiting for telemetry sessions to finish (refcount = 0).
+ - Telemetry session callbacks unregistered.
+ - Telemetry per-session data slot unregistered.
+ - Status variables unregistered.
+ - System variables unregistered.
+End of deinit

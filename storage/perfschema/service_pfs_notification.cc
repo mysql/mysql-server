@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -128,9 +128,9 @@ struct PFS_notification_registry {
   PFS_notification_registry() : m_head(nullptr), m_count(0) {}
 
   ~PFS_notification_registry() {
-    auto node = m_head.load();
+    auto *node = m_head.load();
     while (node != nullptr) {
-      auto next = node->m_next.load();
+      auto *next = node->m_next.load();
       delete node;
       node = next;
     }
@@ -154,7 +154,7 @@ struct PFS_notification_registry {
 
     new_node->m_handle = ++m_count; /* atomic */
     new_node->m_use_ref_count = use_ref_count;
-    auto local_head = m_head.load();
+    auto *local_head = m_head.load();
 
     /* New node becomes the head of the list. */
     if (local_head == nullptr)
@@ -180,7 +180,7 @@ struct PFS_notification_registry {
   int disable(int handle) {
     const int max_attempts = 8;
     const time_t timeout = 250000; /* .25s */
-    auto node = m_head.load();
+    auto *node = m_head.load();
 
     while (node != nullptr) {
       if (node->m_handle == handle) {
@@ -219,7 +219,7 @@ struct PFS_notification_registry {
     @return callback registration or nullptr
   */
   PFS_notification_node *get_first(int event_type) {
-    auto node = m_head.load();
+    auto *node = m_head.load();
 
     while (node != nullptr) {
       /* Is a callback registered for this event? */
@@ -257,7 +257,7 @@ struct PFS_notification_registry {
     assert(current != nullptr);
 
     /* Get the next node, decrement ref count for the current node. */
-    auto next = current->m_next.load();
+    auto *next = current->m_next.load();
 
     if (current->m_use_ref_count) {
       current->m_refs.fetch_add(-1);
@@ -335,7 +335,7 @@ int pfs_unregister_notification(int handle) {
   @sa pfs_notify_thread_create
 */
 void pfs_notify_thread_create(PSI_thread *thread [[maybe_unused]]) {
-  auto node = pfs_notification_registry.get_first(EVENT_THREAD_CREATE);
+  auto *node = pfs_notification_registry.get_first(EVENT_THREAD_CREATE);
   if (node == nullptr) {
     return;
   }
@@ -362,7 +362,7 @@ void pfs_notify_thread_create(PSI_thread *thread [[maybe_unused]]) {
   @sa pfs_notify_thread_destroy
 */
 void pfs_notify_thread_destroy(PSI_thread *thread [[maybe_unused]]) {
-  auto node = pfs_notification_registry.get_first(EVENT_THREAD_DESTROY);
+  auto *node = pfs_notification_registry.get_first(EVENT_THREAD_DESTROY);
   if (node == nullptr) {
     return;
   }
@@ -388,7 +388,7 @@ void pfs_notify_thread_destroy(PSI_thread *thread [[maybe_unused]]) {
   @sa PSI_v1::notify_session_connect
 */
 void pfs_notify_session_connect(PSI_thread *thread [[maybe_unused]]) {
-  auto node = pfs_notification_registry.get_first(EVENT_SESSION_CONNECT);
+  auto *node = pfs_notification_registry.get_first(EVENT_SESSION_CONNECT);
   if (node == nullptr) {
     return;
   }
@@ -414,7 +414,7 @@ void pfs_notify_session_connect(PSI_thread *thread [[maybe_unused]]) {
   @sa PSI_v1::notify_session_disconnect
 */
 void pfs_notify_session_disconnect(PSI_thread *thread [[maybe_unused]]) {
-  auto node = pfs_notification_registry.get_first(EVENT_SESSION_DISCONNECT);
+  auto *node = pfs_notification_registry.get_first(EVENT_SESSION_DISCONNECT);
   if (node == nullptr) {
     return;
   }
@@ -440,7 +440,7 @@ void pfs_notify_session_disconnect(PSI_thread *thread [[maybe_unused]]) {
   @sa PSI_v1::notify_session_change_user
 */
 void pfs_notify_session_change_user(PSI_thread *thread [[maybe_unused]]) {
-  auto node = pfs_notification_registry.get_first(EVENT_SESSION_CHANGE_USER);
+  auto *node = pfs_notification_registry.get_first(EVENT_SESSION_CHANGE_USER);
   if (node == nullptr) {
     return;
   }
@@ -489,8 +489,8 @@ int register_pfs_notification_service() {
     return 1;
   }
 
-  my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
-                                                      r);
+  const my_service<SERVICE_TYPE(registry_registration)> reg(
+      "registry_registration", r);
 
   if (reg->register_service(
           "pfs_notification_v3.mysql_server",
@@ -517,8 +517,8 @@ int unregister_pfs_notification_service() {
     return 1;
   }
 
-  my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
-                                                      r);
+  const my_service<SERVICE_TYPE(registry_registration)> reg(
+      "registry_registration", r);
 
   if (reg->unregister("pfs_notification_v3.mysql_server")) {
     result = 1;

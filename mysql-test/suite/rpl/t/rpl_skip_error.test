@@ -102,7 +102,7 @@ SET SQL_LOG_BIN=1;
 
 connection slave;
 
-call mtr.add_suppression("Slave SQL.*Could not execute .*te_rows event on table test.t.; Duplicate entry.* Error_code: 1062");
+call mtr.add_suppression("Replica SQL.*Could not execute .*te_rows event on table test.t.; Duplicate entry.* Error_code: 1062");
 
 CREATE TABLE t1(id INT NOT NULL PRIMARY KEY, data INT) Engine=InnoDB;
 SHOW CREATE TABLE t1;

@@ -1,0 +1,68 @@
+##########################################################################
+# Test script to test index_log_version for table having INSTANT ADD/DROP
+# columns.
+#
+# This test is to be run in debug mode only and with debug flag
+##########################################################################
+
+--source include/have_debug.inc
+
+--echo # --------
+--echo # Startup
+--echo # --------
+
+--let MYSQLD_DATADIR=`select @@datadir`
+
+CREATE TABLE t1 (C1 CHAR(10), C2 CHAR(10));
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+ALTER TABLE t1 ADD COLUMN C3 CHAR(10) FIRST, ALGORITHM=INSTANT;
+
+# Slow shutdown and restart to make sure ibuf merge is finished
+SET GLOBAL innodb_fast_shutdown = 0;
+--source include/shutdown_mysqld.inc
+
+--echo # Take backup of original datadir
+--let BACKUP=$MYSQL_TMP_DIR/datadir_backup
+--mkdir $BACKUP
+--force-cpdir $MYSQLD_DATADIR $BACKUP
+
+--let SEARCH_FILE=$BACKUP/my_restart.err
+
+--echo # restart mysqld on backup datadir
+--let $restart_parameters = restart: --datadir=$BACKUP/data --log-error=$SEARCH_FILE
+--replace_result $BACKUP BACKUP
+--source include/start_mysqld.inc
+
+# Make sure pages are not flushed and checkpoint is not moved so that REDOs are
+# applied at restart
+--source ../include/log_disable_page_cleaners.inc
+
+# Let the wrong version be written when index is being logged
+SET SESSION debug="+d,invalid_index_log_version";
+
+# DML to have some REDOs with index logged
+UPDATE t1 SET C2 = "r1c22";
+
+--source include/kill_mysqld.inc
+
+--echo # start mysqld. It should crash with error
+--replace_result $BACKUP BACKUP
+--error 2,42,-2147483645
+--exec $MYSQLD_CMD $MYSQLD_ARGS --datadir=$BACKUP/data --log-error=$SEARCH_FILE
+
+--let SEARCH_PATTERN=Index log version [0-9]+ did not match. Max index version is [0-9]+. Recovery can't continue. Please make sure server is not starting up with the datadir generated in future version.
+--echo # Expect found
+--source include/search_pattern.inc
+--remove_file $SEARCH_FILE
+
+--echo # restart mysqld normally
+--let $restart_parameters = restart:
+--source include/start_mysqld_no_echo.inc
+
+SELECT * FROM t1;
+
+--echo # --------
+--echo # Cleanup
+--echo # --------
+DROP TABLE t1;
+--force-rmdir $BACKUP

@@ -1,7 +1,7 @@
 include/group_replication.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 #
 # Start a group with 2 members and some data but no replication user
@@ -21,9 +21,9 @@ include/start_group_replication.inc
 #
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
-call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
-call mtr.add_suppression("Slave I/O thread couldn't register on master*");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Source command COM_REGISTER_REPLICA failed*");
+call mtr.add_suppression("Replica I/O thread couldn't register on source*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
 SET SESSION sql_log_bin= 1;
 SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -190,6 +190,8 @@ usr/lib/mysql/plugin/debug/component_test_mysql_system_variable_set.so
 usr/lib/mysql/plugin/debug/component_test_table_access.so
 usr/lib/mysql/plugin/debug/component_test_sensitive_system_variables.so
 usr/lib/mysql/plugin/debug/component_test_status_var_reader.so
+usr/lib/mysql/plugin/debug/component_test_server_telemetry_traces.so
+usr/lib/mysql/plugin/debug/component_test_mysql_thd_store_service.so
 ")
 
 IF (DEB_PRODUCT STREQUAL "commercial")
@@ -213,6 +215,8 @@ usr/lib/mysql/plugin/debug/authentication_fido.so
 usr/lib/mysql/plugin/debug/component_keyring_encrypted_file.so
 usr/lib/mysql/plugin/debug/component_keyring_oci.so
 usr/lib/mysql/plugin/debug/component_enterprise_encryption.so
+usr/lib/mysql/plugin/debug/component_masking.so
+usr/lib/mysql/plugin/debug/component_masking_functions.so
 ")
   ENDIF()
   IF (DEB_AWS_SDK)

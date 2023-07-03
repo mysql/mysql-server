@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4710,18 +4710,6 @@ bool Table_ref::prepare_replace_filter(THD *thd) {
 }
 
 /**
-  Cleanup items belonged to view fields translation table
-*/
-
-void Table_ref::cleanup_items() {
-  if (!field_translation) return;
-
-  for (Field_translator *transl = field_translation;
-       transl < field_translation_end; transl++)
-    transl->item->walk(&Item::cleanup_processor, enum_walk::POSTFIX, nullptr);
-}
-
-/**
   Check CHECK OPTION condition
 
   @param thd       thread handler
@@ -6530,16 +6518,20 @@ uint Table_ref::leaf_tables_count() const {
   to a materialized derived table/view, then the estimated number of rows of
   the derived table/view is used instead.
 
+  @param fallback_estimate A fallback row estimate to use if the storage engine
+  doesn't provide one for us. The old optimizer uses
+  PLACEHOLDER_TABLE_ROW_ESTIMATE, which is 2. The hypergraph optimizer uses a
+  more pessimistic estimate of 1000 rows.
+
   @return 0          ok
   @return non zero   error
 */
 
-int Table_ref::fetch_number_of_rows() {
-  int error = 0;
+int Table_ref::fetch_number_of_rows(ha_rows fallback_estimate) {
   if (is_table_function()) {
     // FIXME: open question - there's no estimate for table function.
     // return arbitrary, non-zero number;
-    table->file->stats.records = PLACEHOLDER_TABLE_ROW_ESTIMATE;
+    table->file->stats.records = fallback_estimate;
   } else if (uses_materialization()) {
     /*
       @todo: CostModel: This updates the stats.record value to the
@@ -6561,10 +6553,24 @@ int Table_ref::fetch_number_of_rows() {
                      ->query_result()
                      ->estimated_rowcount,
                  // Recursive reference is never a const table
-                 (ha_rows)PLACEHOLDER_TABLE_ROW_ESTIMATE);
-  } else
-    error = table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
-  return error;
+                 fallback_estimate);
+  } else {
+    if (const int error =
+            table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+        error) {
+      return error;
+    }
+
+    // Some information schema tables have zero as estimate, which can lead
+    // to completely wild plans. Add a placeholder to make sure we have
+    // _something_ to work with.
+    if (schema_table != nullptr && schema_table->fill_table != nullptr &&
+        table->file->stats.records == 0) {
+      table->file->stats.records = fallback_estimate;
+    }
+  }
+
+  return 0;
 }
 
 /**
@@ -7330,8 +7336,8 @@ LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
   return LEX_USER::init(ret, thd, user_arg, host_arg);
 }
 
-LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd, LEX_STRING *user_arg,
-                         LEX_STRING *host_arg) {
+LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd [[maybe_unused]],
+                         LEX_STRING *user_arg, LEX_STRING *host_arg) {
   ret->init();
   /*
     Trim whitespace as the values will go to a CHAR field

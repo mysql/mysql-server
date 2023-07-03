@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,6 @@ read_and_execute(Ndb_mgmclient* com, const char * prompt, int _try_reconnect)
 /* Global variables */
 bool g_StopServer= false;
 bool g_RestartServer= false;
-bool g_StopLogging= false;
 static MgmtSrvr* mgm;
 static MgmtSrvr::MgmtOpts opts;
 static const char* opt_logname = "MgmtSrvr";
@@ -204,7 +203,12 @@ static void mgmd_exit(int result)
 static void mgmd_sigterm_handler(int signum)
 {
   g_eventLogger->info("Received SIGTERM. Performing stop.");
-  mgmd_exit(0);
+  fprintf(stderr, "\n*** Received SIGTERM. Performing stop. ***\n");
+  if (opts.interactive) {
+    // Force read_and_execute call to return without delay
+    fclose(stdin);
+  }
+  g_StopServer = 1;
 }
 #endif
 
@@ -230,7 +234,7 @@ void* async_local_log_func(void* args)
   size_t bytes;
   int part_bytes = 0, bytes_printed = 0;
 
-  while(!g_StopLogging)
+  while (!logBuf->is_stopped())
   {
     part_bytes = 0;
     bytes_printed = 0;
@@ -324,7 +328,7 @@ static void mgmd_run()
    * node logs should be available until complete shutdown.
    */
   void* dummy_return_status;
-  g_StopLogging = true;
+  logBufLocalLog->stop();
   NdbThread_WaitFor(locallog_threadvar, &dummy_return_status);
   delete ndbouts_bufferedoutputstream;
   NdbThread_Destroy(&locallog_threadvar);

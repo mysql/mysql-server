@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 SET GLOBAL GTID_PURGED= "master_uuid:1";
 SET GLOBAL GTID_PURGED= "+master_uuid:2";
@@ -13,7 +13,7 @@ START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13114]
-Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate because the master purged required binary logs. Replicate the missing transactions from elsewhere, or provision a new slave from backup. Consider increasing the master's binary log expiration period. The GTID set sent by the slave is 'MASTER_UUID:1', and the missing transactions are 'MASTER_UUID:2'''
+Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'Cannot replicate because the source purged required binary logs. Replicate the missing transactions from elsewhere, or provision a new replica from backup. Consider increasing the source's binary log expiration period. The GTID set sent by the replica is 'MASTER_UUID:1', and the missing transactions are 'MASTER_UUID:2'''
 SET GLOBAL GTID_PURGED= "master_uuid:1-2";
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
@@ -32,8 +32,8 @@ START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13114]
-Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Slave has more GTIDs than the master has, using the master's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The master may or may not have rolled back transactions that were already replicated to the slave. Suggest to replicate any transactions that master has rolled back from slave to master, and/or commit empty transactions on master to account for transactions that have been''
-call mtr.add_suppression(".*Slave has more GTIDs than the master has.*");
+Last_IO_Error = 'Got fatal error 1236 from source when reading data from binary log: 'Replica has more GTIDs than the source has, using the source's SERVER_UUID. This may indicate that the the last binary log file was truncated or lost, e.g., after a power failure when sync_binlog != 1. The source may have rolled back transactions that were already replicated to the replica. Replicate any transactions that source has rolled back from replica to source, and/or commit empty transactions on source to account for transactions that have been committed on source but are not included in GTID_EXECU''
+call mtr.add_suppression(".*Replica has more GTIDs than the source has.*");
 SET GLOBAL GTID_PURGED= "master_uuid:1-2";
 include/start_slave.inc
 include/rpl_end.inc

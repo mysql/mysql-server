@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,11 +36,18 @@
 class Mock_HANDLER : public Base_mock_HANDLER {
  public:
   // Declare the members we actually want to test.
-  MOCK_METHOD2(print_error, void(int error, myf errflag));
-  MOCK_CONST_METHOD0(primary_key_is_clustered, bool());
+  MOCK_METHOD(void, print_error, (int error, myf errflag), (override));
+  MOCK_METHOD(bool, primary_key_is_clustered, (), (const override));
+  MOCK_METHOD(ha_rows, records_in_range,
+              (unsigned index, key_range *min_key, key_range *max_key),
+              (override));
 
   Mock_HANDLER(handlerton *ht_arg, TABLE_SHARE *share_arg)
-      : Base_mock_HANDLER(ht_arg, share_arg) {}
+      : Base_mock_HANDLER(ht_arg, share_arg) {
+    // By default, estimate all ranges to have 10 records, just like the default
+    // implementation in handler.
+    ON_CALL(*this, records_in_range).WillByDefault(testing::Return(10));
+  }
 
   void set_ha_table_flags(Table_flags flags) { cached_table_flags = flags; }
 };

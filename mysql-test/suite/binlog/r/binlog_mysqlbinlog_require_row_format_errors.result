@@ -59,7 +59,7 @@ RESET MASTER;
 # 4. Log a transaction with a RAND event (T2)
 INSERT INTO t1 VALUES (Rand());
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 DROP TABLE t1;
 FLUSH LOGS;
 #

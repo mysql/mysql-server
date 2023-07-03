@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -166,6 +166,7 @@ class Commit_stage_manager {
     BINLOG_FLUSH_STAGE,
     SYNC_STAGE,
     COMMIT_STAGE,
+    AFTER_COMMIT_STAGE,
     COMMIT_ORDER_FLUSH_STAGE,
     STAGE_COUNTER
   };
@@ -188,6 +189,7 @@ class Commit_stage_manager {
     @param key_LOCK_flush_queue mutex instrumentation key
     @param key_LOCK_sync_queue mutex instrumentation key
     @param key_LOCK_commit_queue mutex instrumentation key
+    @param key_LOCK_after_commit_queue mutex instrumentation key
     @param key_LOCK_done mutex instrumentation key
     @param key_LOCK_wait_for_group_turn mutex instrumentation key
     @param key_COND_done cond instrumentation key
@@ -196,7 +198,9 @@ class Commit_stage_manager {
   */
   void init(PSI_mutex_key key_LOCK_flush_queue,
             PSI_mutex_key key_LOCK_sync_queue,
-            PSI_mutex_key key_LOCK_commit_queue, PSI_mutex_key key_LOCK_done,
+            PSI_mutex_key key_LOCK_commit_queue,
+            PSI_mutex_key key_LOCK_after_commit_queue,
+            PSI_mutex_key key_LOCK_done,
             PSI_mutex_key key_LOCK_wait_for_group_turn,
             PSI_cond_key key_COND_done, PSI_cond_key key_COND_flush_queue,
             PSI_cond_key key_COND_wait_for_group_turn);
@@ -407,7 +411,7 @@ class Commit_stage_manager {
   /**
      Queues for sessions.
 
-     We need four queues:
+     We need five queues:
      - Binlog flush queue: transactions that are going to be flushed to the
                            engine and written to the binary log.
      - Commit order flush queue: transactions that are not going to write the
@@ -417,6 +421,8 @@ class Commit_stage_manager {
      - Sync queue: transactions that are going to be synced to disk
      - Commit queue: transactions that are going to to be committed
                      (when binlog_order_commit=1).
+     - After commit queue: transactions for which after commit hook is to be
+                           executed.
   */
   Mutex_queue m_queue[STAGE_COUNTER];
 

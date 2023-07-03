@@ -226,21 +226,21 @@ if (!$have_xcom_stack){
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_msr_2groups_failover
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.7.err
---let $assert_select=Slave I/O thread for channel 'ch1': connected to master 'root@127.0.0.1:$SERVER_MYPORT_4'.*
+--let $assert_select=Replica I/O thread for channel 'ch1': connected to source 'root@127.0.0.1:$SERVER_MYPORT_4'.*
 --let $assert_count= 0
 --let $assert_text= ch1 did not reconnect to server4
 --source include/assert_grep.inc
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_msr_2groups_failover
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.7.err
---let $assert_select=Slave I/O thread for channel 'ch1': connected to master 'root@127.0.0.1:$SERVER_MYPORT_5'.*
+--let $assert_select=Replica I/O thread for channel 'ch1': connected to source 'root@127.0.0.1:$SERVER_MYPORT_5'.*
 --let $assert_count= 0
 --let $assert_text= ch1 did not reconnect to server5
 --source include/assert_grep.inc
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_msr_2groups_failover
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.7.err
---let $assert_select=Slave I/O thread for channel 'ch1': connected to master 'root@127.0.0.1:$SERVER_MYPORT_6'.*
+--let $assert_select=Replica I/O thread for channel 'ch1': connected to source 'root@127.0.0.1:$SERVER_MYPORT_6'.*
 --let $assert_count= 0
 --let $assert_text= ch1 did not reconnect to server6
 --source include/assert_grep.inc
@@ -254,21 +254,21 @@ if (!$have_xcom_stack){
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_msr_2groups_failover
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.7.err
---let $assert_select=Slave I/O thread for channel 'ch2': connected to master 'root@127.0.0.1:$SERVER_MYPORT_1'.*
+--let $assert_select=Replica I/O thread for channel 'ch2': connected to source 'root@127.0.0.1:$SERVER_MYPORT_1'.*
 --let $assert_count= 0
 --let $assert_text= ch2 did not reconnect to server1
 --source include/assert_grep.inc
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_msr_2groups_failover
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.7.err
---let $assert_select=Slave I/O thread for channel 'ch2': connected to master 'root@127.0.0.1:$SERVER_MYPORT_2'.*
+--let $assert_select=Replica I/O thread for channel 'ch2': connected to source 'root@127.0.0.1:$SERVER_MYPORT_2'.*
 --let $assert_count= 0
 --let $assert_text= ch2 did not reconnect to server2
 --source include/assert_grep.inc
 
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_msr_2groups_failover
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.7.err
---let $assert_select=Slave I/O thread for channel 'ch2': connected to master 'root@127.0.0.1:$SERVER_MYPORT_3'.*
+--let $assert_select=Replica I/O thread for channel 'ch2': connected to source 'root@127.0.0.1:$SERVER_MYPORT_3'.*
 --let $assert_count= 0
 --let $assert_text= ch2 did not reconnect to server3
 --source include/assert_grep.inc
@@ -283,7 +283,6 @@ if (!$have_xcom_stack){
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
 call mtr.add_suppression("The Monitor IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_channel_name='ch1'

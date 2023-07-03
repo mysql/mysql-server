@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ namespace binary_log_debug {
 extern bool debug_checksum_test;
 extern bool debug_query_mts_corrupt_db_names;
 extern bool debug_simulate_invalid_address;
-extern bool debug_pretend_version_50034_in_binlog;
+
 // TODO(WL#7546):Add variables here as we move methods into libbinlogevent
 // from the server while implementing the WL#7546(Moving binlog event
 // encoding into a separate package)

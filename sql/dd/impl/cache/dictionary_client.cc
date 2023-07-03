@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <memory>
+#include <string_view>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -590,6 +591,8 @@ class MDL_checker {
   }
 };
 
+constexpr const auto innodb_engine_name =
+    std::string_view(STRING_WITH_LEN("InnoDB"));
 using SPI_missing_status = std::bitset<2>;
 enum class SPI_missing_type { TABLES, PARTITIONS };
 using SPI_order = std::vector<dd::Object_id>;
@@ -1556,11 +1559,13 @@ bool Dictionary_client::acquire_for_modification(
 bool Dictionary_client::acquire_uncached_table_by_se_private_id(
     const String_type &engine, Object_id se_private_id, Table **table,
     bool skip_spi_cache) {
+  skip_spi_cache = (skip_spi_cache || (engine != innodb_engine_name));
   assert(table);
   *table = nullptr;
   bool no_table = false;
 
   if (!skip_spi_cache) {
+    assert(engine == innodb_engine_name);
     no_table =
         is_cached(m_no_table_spids, se_private_id, SPI_missing_type::TABLES);
 
@@ -1585,6 +1590,7 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
   // If object was not found.
   if (stored_object == nullptr) {
     if (!skip_spi_cache) {
+      assert(engine == innodb_engine_name);
       m_no_table_spids->insert(se_private_id, SPI_missing_type::TABLES);
     }
     return false;

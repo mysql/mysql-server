@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,8 @@
 #include <string>
 #include <thread>
 
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+
 #include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 
@@ -36,6 +38,7 @@
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "mysqlrouter/mysql_session.h"
@@ -43,6 +46,7 @@
 #include "router_component_test.h"
 #include "router_component_testutils.h"
 #include "router_test_helpers.h"
+#include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
@@ -455,21 +459,20 @@ TEST_F(RouterRoutingTest, XProtoHandshakeEmpty) {
   net::ip::tcp::endpoint router_ep{net::ip::address_v4::loopback(),
                                    router_port};
 
-  const auto connect_res = router_sock.connect(router_ep);
-  EXPECT_THAT(connect_res,
-              ::testing::Truly([](auto res) { return bool(res); }));
-  const auto write_res =
-      router_sock.write_some(net::buffer("\x00\x00\x00\x00"));
-  EXPECT_THAT(write_res, ::testing::Truly([](auto res) { return bool(res); }));
+  EXPECT_NO_ERROR(router_sock.connect(router_ep));
+  EXPECT_NO_ERROR(router_sock.write_some(net::buffer("\x00\x00\x00\x00")));
 
-  if (false) {
+  // shutdown the send side to signal a TCP-FIN.
+  EXPECT_NO_ERROR(router_sock.shutdown(net::socket_base::shutdown_send));
+
+  // wait for the server side close to ensure the it received the empty packet.
+  {
     // a notify.
     std::vector<uint8_t> recv_buf;
     auto read_res = net::read(router_sock, net::dynamic_buffer(recv_buf));
     if (read_res) {
       // may return a Notice
-      ASSERT_THAT(read_res,
-                  ::testing::Truly([](auto res) { return bool(res); }));
+      ASSERT_NO_ERROR(read_res);
       EXPECT_THAT(recv_buf, ::testing::SizeIs(
                                 ::testing::Ge(4 + 7)));  // notify (+ error-msg)
 
@@ -1825,6 +1828,84 @@ INSTANTIATE_TEST_SUITE_P(
             "REQUIRED", "AS_CLIENT", {0x2, 0x3, 0x4, 0x5, 0x11, 0x22}},
         InvalidInitMessageParam{
             "PASSTHROUGH", "AS_CLIENT", {0x2, 0x3, 0x4, 0x5, 0x11, 0x22}}));
+
+static size_t message_byte_size(const google::protobuf::MessageLite &msg) {
+#if (defined(GOOGLE_PROTOBUF_VERSION) && GOOGLE_PROTOBUF_VERSION > 3000000)
+  return msg.ByteSizeLong();
+#else
+  return msg.ByteSize();
+#endif
+}
+
+template <class T>
+static size_t xproto_frame_encode(const T &msg, uint8_t msg_type,
+                                  std::vector<uint8_t> &out_buf) {
+  using google::protobuf::io::ArrayOutputStream;
+  using google::protobuf::io::CodedOutputStream;
+
+  const auto out_payload_size = message_byte_size(msg);
+  out_buf.resize(5 + out_payload_size);
+  ArrayOutputStream outs(out_buf.data(), out_buf.size());
+  CodedOutputStream codecouts(&outs);
+
+  codecouts.WriteLittleEndian32(out_payload_size + 1);
+  codecouts.WriteRaw(&msg_type, 1);
+  return msg.SerializeToCodedStream(&codecouts);
+}
+
+/**
+ * @test Check that if the x protocol client sends CONCLOSE message the Router
+ * replies with OK{bye!} message.
+ */
+TEST_F(RouterRoutingTest, CloseConnection) {
+  const auto server_classic_port = port_pool_.get_next_available();
+  const auto server_x_port = port_pool_.get_next_available();
+  const auto router_x_rw_port = port_pool_.get_next_available();
+
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
+
+  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
+                           /*http_port*/ 0, server_x_port);
+
+  const std::string routing_x_section =
+      get_static_routing_section("x", router_x_rw_port, server_x_port, "x");
+
+  TempDirectory conf_dir("conf");
+  std::string conf_file = create_config_file(conf_dir.name(), routing_x_section,
+                                             nullptr, "mysqlrouter.conf");
+
+  // launch the router with the created configuration
+  launch_router({"-c", conf_file});
+
+  // make x connection to the Router
+  const auto x_con_sock = connect_to_port("127.0.0.1", router_x_rw_port);
+  ASSERT_NE(net::impl::socket::kInvalidSocket, x_con_sock);
+  std::shared_ptr<void> exit_close_socket(
+      nullptr, [&](void *) { shut_and_close_socket(x_con_sock); });
+
+  // send the CON_CLOSE message
+  Mysqlx::Connection::Close close_msg;
+  std::vector<uint8_t> out_buf;
+  xproto_frame_encode(close_msg, Mysqlx::ClientMessages::CON_CLOSE, out_buf);
+  const auto write_res =
+      net::impl::socket::write(x_con_sock, out_buf.data(), out_buf.size());
+  ASSERT_TRUE(write_res);
+
+  // read the reply from the Router
+  std::vector<uint8_t> read_buf(128);
+  const auto read_res =
+      net::impl::socket::read(x_con_sock, read_buf.data(), read_buf.size());
+  ASSERT_TRUE(read_res);
+  read_buf.resize(read_res.value());
+
+  // it should be OK{bye!} message
+  Mysqlx::Ok ok_bye_msg;
+  ok_bye_msg.set_msg("bye!");
+  std::vector<uint8_t> ok_bye_msg_buf;
+  xproto_frame_encode(ok_bye_msg, Mysqlx::ServerMessages::OK, ok_bye_msg_buf);
+
+  EXPECT_THAT(read_buf, ::testing::ContainerEq(ok_bye_msg_buf));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

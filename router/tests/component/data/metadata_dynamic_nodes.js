@@ -16,11 +16,15 @@ if (mysqld.global.gr_node_host === undefined) {
 }
 
 if (mysqld.global.gr_id === undefined) {
-  mysqld.global.gr_id = "00-000";
+  mysqld.global.gr_id = "uuid";
 }
 
 if (mysqld.global.gr_nodes === undefined) {
   mysqld.global.gr_nodes = [];
+}
+
+if (mysqld.global.cluster_nodes === undefined) {
+  mysqld.global.cluster_nodes = [];
 }
 
 if (mysqld.global.notices === undefined) {
@@ -47,37 +51,52 @@ if (mysqld.global.transaction_count === undefined) {
   mysqld.global.transaction_count = 0;
 }
 
-var nodes = function(host, port_and_state) {
-  return port_and_state.map(function(current_value) {
-    return [
-      current_value[0], host, current_value[0], current_value[1],
-      current_value[2]
-    ];
-  });
-};
+if (mysqld.global.cluster_name === undefined) {
+  mysqld.global.cluster_name = "test";
+}
 
-var group_replication_membership_online =
-    nodes(mysqld.global.gr_node_host, mysqld.global.gr_nodes);
+if (mysqld.global.gr_pos === undefined) {
+  mysqld.global.gr_pos = 0;
+}
+
+var members = gr_memberships.gr_members(
+    mysqld.global.gr_node_host, mysqld.global.gr_nodes);
+
+const online_gr_nodes = members
+                            .filter(function(memb, indx) {
+                              return (memb[3] === "ONLINE");
+                            })
+                            .length;
+
+const member_state = members[mysqld.global.gr_pos] ?
+    members[mysqld.global.gr_pos][3] :
+    undefined;
 
 var options = {
   metadata_schema_version: [1, 0, 2],
-  group_replication_membership: group_replication_membership_online,
-  gr_id: mysqld.global.gr_id
+  group_replication_members: members,
+  gr_member_state: member_state,
+  gr_members_all: members.length,
+  gr_members_online: online_gr_nodes,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
+  gr_id: mysqld.global.gr_id,
+  innodb_cluster_name: mysqld.global.cluster_name,
 };
 
 var router_start_transaction =
     common_stmts.get("router_start_transaction", options);
 
-// first node is PRIMARY
 options.group_replication_primary_member =
-    options.group_replication_membership.length === 0 ?
+    options.group_replication_members.length === 0 ?
     "" :
-    options.group_replication_membership[mysqld.global.primary_id][0];
+    options.group_replication_members[mysqld.global.primary_id][0];
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
     [
       "select_port", "router_commit", "router_select_schema_version",
+      "router_check_member_state", "router_select_members_count",
       "router_select_group_replication_primary_member",
       "router_select_group_membership_with_primary_mode",
       "router_set_gr_consistency_level", "router_set_session_options"

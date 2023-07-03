@@ -11,12 +11,12 @@ if ($mts_spco_gd_innodb_wait_timeout == '')
 --source include/stop_slave_sql.inc
 
 set session sql_log_bin=0;
-CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Deadlock found when trying to get lock.*");
-CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Can not lock user management caches for processing.*");
-CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Replica worker has stopped after at least one previous worker.*");
+CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at source log .*, end_log_pos.*Deadlock found when trying to get lock.*");
+CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at source log .*, end_log_pos.*Can not lock user management caches for processing.*");
+CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at source log .*, end_log_pos.*Replica worker has stopped after at least one previous worker.*");
 CALL mtr.add_suppression(".*worker thread retried transaction.*time.*in vain, giving up.*");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
-CALL mtr.add_suppression(".*Slave worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*Replica worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled.*");
 set session sql_log_bin=1;
 
 --let $saved_replica_parallel_type = `SELECT @@GLOBAL.replica_parallel_type`

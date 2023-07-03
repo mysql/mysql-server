@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -83,6 +83,11 @@ typedef std::map<trx_t *, table_id_set, std::less<trx_t *>,
 
 /** Map of resurrected transactions to affected table_id */
 static trx_table_map resurrected_trx_tables;
+
+/* std::vector to store the trx id & table id of tables that needs to be
+ * rollbacked. We take SHARED MDL on these tables inside
+ * trx_recovery_rollback_thread before letting server accept connections */
+std::vector<std::pair<trx_id_t, table_id_t>> to_rollback_trx_tables;
 
 /** Dummy session used currently in MySQL interface */
 sess_t *trx_dummy_sess = nullptr;
@@ -704,6 +709,17 @@ static void trx_resurrect_table_ids(trx_t *trx, const trx_undo_ptr_t *undo_ptr,
                                 undo->page_size, &mtr);
 
   undo_rec = undo_page + undo->top_offset;
+  ulong n_undo_recs = 0;
+  ulong n_undo_pages = 0;
+  ulong n_tables = 0;
+
+  auto last_progress_log_time = std::chrono::steady_clock::now();
+  using namespace std::chrono_literals;
+  // Since resurrecting a transaction can take a long time, progress is logged
+  // at regular intervals to the error log. The debug value is provided for
+  // testing
+  auto const progress_log_interval =
+      DBUG_EVALUATE_IF("resurrect_logs", 1s, 30s);
 
   do {
     ulint type;
@@ -712,21 +728,36 @@ static void trx_resurrect_table_ids(trx_t *trx, const trx_undo_ptr_t *undo_ptr,
     ulint cmpl_info;
     bool updated_extern;
     type_cmpl_t type_cmpl;
-
     page_t *undo_rec_page = page_align(undo_rec);
 
     if (undo_rec_page != undo_page) {
+      n_undo_pages++;
       mtr.release_page(undo_page, MTR_MEMO_PAGE_X_FIX);
       undo_page = undo_rec_page;
     }
 
     trx_undo_rec_get_pars(undo_rec, &type, &cmpl_info, &updated_extern,
                           &undo_no, &table_id, type_cmpl);
-    tables.insert(table_id);
+    if (tables.insert(table_id).second == true) {
+      n_tables++;
+      ib::info(ER_IB_RESURRECT_IDENTIFY_TABLE_TO_LOCK, ulong(table_id));
+    }
 
     undo_rec = trx_undo_get_prev_rec(undo_rec, undo->hdr_page_no,
                                      undo->hdr_offset, false, &mtr);
+    n_undo_recs++;
+
+    auto now = std::chrono::steady_clock::now();
+    auto time_diff = now - last_progress_log_time;
+
+    if (time_diff >= progress_log_interval) {
+      ib::info(ER_IB_RESURRECT_RECORD_PROGRESS, n_undo_recs, n_undo_pages);
+      last_progress_log_time = now;
+    }
   } while (undo_rec);
+
+  ib::info(ER_IB_RESURRECT_RECORD_COMPLETE, n_undo_recs, n_undo_pages,
+           n_tables);
 
   mtr_commit(&mtr);
 }
@@ -743,8 +774,8 @@ void trx_resurrect_locks(bool all) {
 
     const table_id_set &tables = element.second;
 
-    for (auto id : tables) {
-      auto table = dd_table_open_on_id(id, nullptr, nullptr, false, true);
+    for (auto table_id : tables) {
+      auto table = dd_table_open_on_id(table_id, nullptr, nullptr, false, true);
 
       if (table == nullptr) {
         continue;
@@ -760,13 +791,24 @@ void trx_resurrect_locks(bool all) {
         continue;
       }
 
+      bool is_XA = false;
+
       if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED &&
           !dict_table_is_sdi(table->id)) {
         trx->mod_tables.insert(table);
+        is_XA = true;
       }
       DICT_TF2_FLAG_SET(table, DICT_TF2_RESURRECT_PREPARED);
 
-      lock_table_ix_resurrect(table, trx);
+      /* We don't rollback DDL or XA prepared transaction in background */
+      if (!all || is_XA) {
+        lock_table_ix_resurrect(table, trx);
+        ib::info(ER_IB_RESURRECT_ACQUIRE_TABLE_LOCK, ulong(table->id),
+                 table->name.m_name);
+      } else {
+        /* MDL & IX_LOCK is taken inside trx_recovery_rollback_thread */
+        to_rollback_trx_tables.push_back(std::make_pair(trx->id, table_id));
+      }
 
       DBUG_PRINT("ib_trx", ("resurrect" TRX_ID_FMT "  table '%s' IX lock",
                             trx_get_id_for_print(trx), table->name.m_name));
@@ -968,14 +1010,18 @@ the time of a crash, they need to be undone.
 @param[in]      rseg    rollback segment */
 static void trx_resurrect(trx_rseg_t *rseg) {
   ut_ad(rseg != nullptr);
-
+  ulong ins_trx_count = 0;
+  ulong upd_trx_count = 0;
   /* Resurrect transactions that were doing inserts. */
   for (auto undo : rseg->insert_undo_list) {
     auto trx = trx_resurrect_insert(undo, rseg);
-
+    ins_trx_count++;
+    ib::info(ER_IB_RESURRECT_TRX_INSERT, ulong(trx->id));
     trx_resurrect_table_ids(trx, &trx->rsegs.m_redo, undo);
   }
-
+  if (ins_trx_count > 0) {
+    ib::info(ER_IB_RESURRECT_TRX_INSERT_COMPLETE, ins_trx_count);
+  }
   /* Ressurrect transactions that were doing updates. */
   for (auto undo : rseg->update_undo_list) {
     /* Check the active_rw_trxs.by_id first. */
@@ -991,8 +1037,12 @@ static void trx_resurrect(trx_rseg_t *rseg) {
     }
 
     trx_resurrect_update(trx, undo, rseg);
-
+    upd_trx_count++;
+    ib::info(ER_IB_RESURRECT_TRX_UPDATE, ulong(trx->id));
     trx_resurrect_table_ids(trx, &trx->rsegs.m_redo, undo);
+  }
+  if (upd_trx_count > 0) {
+    ib::info(ER_IB_RESURRECT_TRX_UPDATE_COMPLETE, upd_trx_count);
   }
 }
 

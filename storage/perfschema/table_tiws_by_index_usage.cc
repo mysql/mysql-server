@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -163,13 +163,13 @@ PFS_engine_table *table_tiws_by_index_usage::create(PFS_engine_table_share *) {
   return new table_tiws_by_index_usage();
 }
 
-int table_tiws_by_index_usage::delete_all_rows(void) {
+int table_tiws_by_index_usage::delete_all_rows() {
   reset_table_io_waits_by_table_handle();
   reset_table_io_waits_by_table();
   return 0;
 }
 
-ha_rows table_tiws_by_index_usage::get_row_count(void) {
+ha_rows table_tiws_by_index_usage::get_row_count() {
   return global_table_share_index_container.get_row_count();
 }
 
@@ -178,14 +178,14 @@ table_tiws_by_index_usage::table_tiws_by_index_usage()
   m_normalizer = time_normalizer::get_wait();
 }
 
-void table_tiws_by_index_usage::reset_position(void) {
+void table_tiws_by_index_usage::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
 
 int table_tiws_by_index_usage::rnd_init(bool) { return 0; }
 
-int table_tiws_by_index_usage::rnd_next(void) {
+int table_tiws_by_index_usage::rnd_next() {
   PFS_table_share *table_share;
   bool has_more_table = true;
 
@@ -193,7 +193,8 @@ int table_tiws_by_index_usage::rnd_next(void) {
     table_share =
         global_table_share_container.get(m_pos.m_index_1, &has_more_table);
     if (table_share != nullptr) {
-      uint safe_key_count = sanitize_index_count(table_share->m_key_count);
+      const uint safe_key_count =
+          sanitize_index_count(table_share->m_key_count);
       if (m_pos.m_index_2 < safe_key_count) {
         m_next_pos.set_after(&m_pos);
         return make_row(table_share, m_pos.m_index_2);
@@ -217,7 +218,7 @@ int table_tiws_by_index_usage::rnd_pos(const void *pos) {
 
   table_share = global_table_share_container.get(m_pos.m_index_1);
   if (table_share != nullptr) {
-    uint safe_key_count = sanitize_index_count(table_share->m_key_count);
+    const uint safe_key_count = sanitize_index_count(table_share->m_key_count);
     if (m_pos.m_index_2 < safe_key_count) {
       return make_row(table_share, m_pos.m_index_2);
     }
@@ -238,7 +239,7 @@ int table_tiws_by_index_usage::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_tiws_by_index_usage::index_next(void) {
+int table_tiws_by_index_usage::index_next() {
   PFS_table_share *table_share;
   bool has_more_table = true;
 
@@ -247,7 +248,8 @@ int table_tiws_by_index_usage::index_next(void) {
         global_table_share_container.get(m_pos.m_index_1, &has_more_table);
     if (table_share != nullptr) {
       if (m_opened_index->match(table_share)) {
-        uint safe_key_count = sanitize_index_count(table_share->m_key_count);
+        const uint safe_key_count =
+            sanitize_index_count(table_share->m_key_count);
         for (; m_pos.m_index_2 <= MAX_INDEXES; m_pos.m_index_2++) {
           if (m_opened_index->match(table_share, m_pos.m_index_2)) {
             if (m_pos.m_index_2 < safe_key_count) {

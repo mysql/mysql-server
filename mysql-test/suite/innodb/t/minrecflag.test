@@ -1,0 +1,32 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug #34819343 Assertion failure: btr0btr.cc:731:ib::fatal triggered
+--echo # thread 140005531973376
+--echo #
+
+CREATE TABLE t1
+(f1 int primary key,
+ f2 char(255),
+ f3 char(255),
+ f4 char(255));
+
+let $i = 0;
+
+begin;
+--disable_query_log
+while ($i < 10000) {
+   eval INSERT INTO t1 (f1, f2, f3, f4) VALUES ($i, repeat('a', 255),
+        repeat('b', 255), repeat('c', 255));
+   inc $i;
+}
+--enable_query_log
+commit;
+
+SHOW CREATE TABLE t1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+ALTER TABLE t1 ADD INDEX k1(f2);
+--source include/kill_and_restart_mysqld.inc
+CHECK TABLE t1;
+DROP TABLE t1;

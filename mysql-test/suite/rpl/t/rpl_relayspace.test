@@ -7,7 +7,7 @@ source include/master-slave.inc;
 connection slave;
 --source include/stop_slave.inc
 connection master;
-CALL mtr.add_suppression("Slave I.O thread aborted while waiting for relay log");
+CALL mtr.add_suppression("Replica I.O thread aborted while waiting for relay log");
 # This will generate a master's binlog > 10 bytes
 create table t1 (a int);
 drop table t1;

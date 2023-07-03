@@ -1,6 +1,6 @@
 // Boost.Geometry - gis-projections (based on PROJ4)
 
-// Copyright (c) 2022, Oracle and/or its affiliates.
+// Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
 // Contributed and/or modified by Vissarion Fysikopoulos, on behalf of Oracle.
 

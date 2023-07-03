@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,9 +35,12 @@
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_server.h"
 #include "storage/perfschema/terminology_use_previous.cc"
+#include "storage/perfschema/unittest/stub_digest.h"
 #include "storage/perfschema/unittest/stub_pfs_defaults.h"
 #include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
+#include "storage/perfschema/unittest/stub_pfs_tls_channel.h"
 #include "storage/perfschema/unittest/stub_print_error.h"
+#include "storage/perfschema/unittest/stub_server_telemetry.h"
 #include "unittest/mytap/tap.h"
 
 /* test helpers, to simulate the setup */
@@ -145,6 +148,22 @@ static void test_bootstrap() {
   param.m_max_digest_length = 0;
   param.m_max_sql_text_length = 0;
   param.m_error_sizing = 0;
+  param.m_consumer_events_stages_current_enabled = false;
+  param.m_consumer_events_stages_history_enabled = false;
+  param.m_consumer_events_stages_history_long_enabled = false;
+  param.m_consumer_events_statements_cpu_enabled = false;
+  param.m_consumer_events_statements_current_enabled = false;
+  param.m_consumer_events_statements_history_enabled = false;
+  param.m_consumer_events_statements_history_long_enabled = false;
+  param.m_consumer_events_transactions_current_enabled = false;
+  param.m_consumer_events_transactions_history_enabled = false;
+  param.m_consumer_events_transactions_history_long_enabled = false;
+  param.m_consumer_events_waits_current_enabled = false;
+  param.m_consumer_events_waits_history_enabled = false;
+  param.m_consumer_events_waits_history_long_enabled = false;
+  param.m_consumer_global_instrumentation_enabled = false;
+  param.m_consumer_thread_instrumentation_enabled = false;
+  param.m_consumer_statement_digest_enabled = false;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache = 100;
@@ -259,7 +278,9 @@ static void test_bootstrap() {
   psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_3);
   ok(psi == nullptr, "no statement version 3");
   psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_4);
-  ok(psi != nullptr, "statement version 4");
+  ok(psi == nullptr, "no statement version 4");
+  psi = statement_boot->get_interface(PSI_STATEMENT_VERSION_5);
+  ok(psi != nullptr, "statement version 5");
 
   psi = transaction_boot->get_interface(0);
   ok(psi == nullptr, "no transaction version 0");
@@ -368,6 +389,22 @@ static void load_perfschema(
   param.m_max_digest_length = 0;
   param.m_max_sql_text_length = 1000;
   param.m_error_sizing = 0;
+  param.m_consumer_events_stages_current_enabled = false;
+  param.m_consumer_events_stages_history_enabled = false;
+  param.m_consumer_events_stages_history_long_enabled = false;
+  param.m_consumer_events_statements_cpu_enabled = false;
+  param.m_consumer_events_statements_current_enabled = false;
+  param.m_consumer_events_statements_history_enabled = false;
+  param.m_consumer_events_statements_history_long_enabled = false;
+  param.m_consumer_events_transactions_current_enabled = false;
+  param.m_consumer_events_transactions_history_enabled = false;
+  param.m_consumer_events_transactions_history_long_enabled = false;
+  param.m_consumer_events_waits_current_enabled = false;
+  param.m_consumer_events_waits_history_enabled = false;
+  param.m_consumer_events_waits_history_long_enabled = false;
+  param.m_consumer_global_instrumentation_enabled = false;
+  param.m_consumer_thread_instrumentation_enabled = false;
+  param.m_consumer_statement_digest_enabled = false;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache = 100;
@@ -451,7 +488,6 @@ static void test_bad_registration() {
                   &statement_service, &transaction_service, &memory_service,
                   &error_service, &data_lock_service, &system_service,
                   &tls_channel_service);
-
   /*
     Test that length('wait/synch/mutex/' (17) + category + '/' (1)) < 32
     --> category can be up to 13 chars for a mutex.
@@ -535,7 +571,7 @@ static void test_bad_registration() {
   ok(dummy_rwlock_key == 0, "zero key");
   dummy_rwlock_key = 9999;
   rwlock_service->register_rwlock("123456789012", bad_rwlock_1, 1);
-  ok(dummy_rwlock_key == 2, "assigned key");
+  ok(dummy_rwlock_key == 1, "assigned key");
 
   /*
     Test that length('wait/synch/rwlock/' (18) + category + '/' (1) + name) <=
@@ -580,7 +616,7 @@ static void test_bad_registration() {
   ok(dummy_rwlock_key == 0, "zero key");
 
   rwlock_service->register_rwlock("X", bad_rwlock_3, 1);
-  ok(dummy_rwlock_key == 3, "assigned key");
+  ok(dummy_rwlock_key == 2, "assigned key");
 
   dummy_rwlock_key = 9999;
   PSI_rwlock_info bad_rwlock_3_sx[] = {
@@ -595,7 +631,7 @@ static void test_bad_registration() {
   ok(dummy_rwlock_key == 0, "zero key SX");
 
   rwlock_service->register_rwlock("Y", bad_rwlock_3_sx, 1);
-  ok(dummy_rwlock_key == 4, "assigned key SX");
+  ok(dummy_rwlock_key == 3, "assigned key SX");
 
   /*
     Test that length('wait/synch/cond/' (16) + category + '/' (1)) < 32
@@ -1859,6 +1895,22 @@ static void test_event_name_index() {
   param.m_max_digest_length = 0;
   param.m_max_sql_text_length = 1000;
   param.m_error_sizing = 0;
+  param.m_consumer_events_stages_current_enabled = false;
+  param.m_consumer_events_stages_history_enabled = false;
+  param.m_consumer_events_stages_history_long_enabled = false;
+  param.m_consumer_events_statements_cpu_enabled = false;
+  param.m_consumer_events_statements_current_enabled = false;
+  param.m_consumer_events_statements_history_enabled = false;
+  param.m_consumer_events_statements_history_long_enabled = false;
+  param.m_consumer_events_transactions_current_enabled = false;
+  param.m_consumer_events_transactions_history_enabled = false;
+  param.m_consumer_events_transactions_history_long_enabled = false;
+  param.m_consumer_events_waits_current_enabled = false;
+  param.m_consumer_events_waits_history_enabled = false;
+  param.m_consumer_events_waits_history_long_enabled = false;
+  param.m_consumer_global_instrumentation_enabled = false;
+  param.m_consumer_thread_instrumentation_enabled = false;
+  param.m_consumer_statement_digest_enabled = false;
 
   param.m_mutex_sizing = 0;
   param.m_rwlock_sizing = 0;
@@ -1976,10 +2028,10 @@ static void test_event_name_index() {
   rwlock_service->register_rwlock("X", dummy_rwlocks, 2);
   rwlock_class = find_rwlock_class(dummy_rwlock_key_1);
   ok(rwlock_class != nullptr, "rwlock class 1");
-  ok(rwlock_class->m_event_name_index == 15, "index 15");
+  ok(rwlock_class->m_event_name_index == 14, "index 14");
   rwlock_class = find_rwlock_class(dummy_rwlock_key_2);
   ok(rwlock_class != nullptr, "rwlock class 2");
-  ok(rwlock_class->m_event_name_index == 16, "index 16");
+  ok(rwlock_class->m_event_name_index == 15, "index 15");
 
   PFS_cond_class *cond_class;
   PSI_cond_key dummy_cond_key_1;
@@ -2191,6 +2243,22 @@ static void test_leaks() {
   param.m_max_digest_length = 1000;
   param.m_max_sql_text_length = 1000;
   param.m_error_sizing = 1000;
+  param.m_consumer_events_stages_current_enabled = false;
+  param.m_consumer_events_stages_history_enabled = false;
+  param.m_consumer_events_stages_history_long_enabled = false;
+  param.m_consumer_events_statements_cpu_enabled = false;
+  param.m_consumer_events_statements_current_enabled = false;
+  param.m_consumer_events_statements_history_enabled = false;
+  param.m_consumer_events_statements_history_long_enabled = false;
+  param.m_consumer_events_transactions_current_enabled = false;
+  param.m_consumer_events_transactions_history_enabled = false;
+  param.m_consumer_events_transactions_history_long_enabled = false;
+  param.m_consumer_events_waits_current_enabled = false;
+  param.m_consumer_events_waits_history_enabled = false;
+  param.m_consumer_events_waits_history_long_enabled = false;
+  param.m_consumer_global_instrumentation_enabled = false;
+  param.m_consumer_thread_instrumentation_enabled = false;
+  param.m_consumer_statement_digest_enabled = false;
 
   param.m_hints.m_table_definition_cache = 100;
   param.m_hints.m_table_open_cache = 100;
@@ -2585,7 +2653,7 @@ static void do_all_tests() {
 }
 
 int main(int, char **) {
-  plan(416);
+  plan(417);
 
   MY_INIT("pfs-t");
   do_all_tests();

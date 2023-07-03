@@ -12,6 +12,8 @@ if (!$require_case_insensitive_file_system)
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+--source include/elide_costs.inc
+
 set @orig_sql_mode= @@sql_mode;
 
 # Test for information_schema.schemata &
@@ -1171,7 +1173,7 @@ select * from information_schema.engines WHERE ENGINE="MyISAM";
 
 # Tests printing of MaterializeInformationSchemaTableIterator with nontrivial
 # table iterators.
---replace_regex / *\(cost=(\d+\.\d+\.\.)?\d+\.\d+\ rows=\d+\)//
+--replace_regex $elide_metrics
 explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
 
 #

@@ -1,10 +1,7 @@
 var common_stmts = require("common_statements");
+var gr_memberships = require("gr_memberships");
 
 var gr_node_host = "127.0.0.1";
-
-if (mysqld.global.gr_id === undefined) {
-  mysqld.global.gr_id = "00-000";
-}
 
 if (mysqld.global.gr_nodes === undefined) {
   mysqld.global.gr_nodes = [];
@@ -40,24 +37,24 @@ var nodes = function(host, port_and_state) {
 };
 
 
-var group_replication_membership_online =
+var group_replication_members_online =
     nodes(gr_node_host, mysqld.global.gr_nodes, mysqld.global.gr_id);
 
 var options = {
   metadata_schema_version: mysqld.global.metadata_version,
-  group_replication_membership: group_replication_membership_online,
+  group_replication_members: group_replication_members_online,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   gr_id: mysqld.global.gr_id,
   view_id: mysqld.global.view_id,
-  primary_port:
-      group_replication_membership_online[mysqld.global.primary_id][2],
+  primary_port: group_replication_members_online[mysqld.global.primary_id][2],
   cluster_type: "gr",
   innodb_cluster_name: "test",
   rest_user_credentials: mysqld.global.rest_user_credentials
 };
 
-// first node is PRIMARY
 options.group_replication_primary_member =
-    options.group_replication_membership[mysqld.global.primary_id][0];
+    options.group_replication_members[mysqld.global.primary_id][0];
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
@@ -71,6 +68,8 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_metadata",
       "router_select_schema_version",
       "router_select_cluster_type_v2",
+      "router_check_member_state",
+      "router_select_members_count",
       "router_select_group_replication_primary_member",
       "router_select_group_membership_with_primary_mode",
       "router_select_metadata_v2_gr",
@@ -78,8 +77,8 @@ var common_responses = common_stmts.prepare_statement_responses(
     ],
     options);
 
-var router_select_rest_accounts_credentials =
-    common_stmts.get("router_select_rest_accounts_credentials", options);
+var router_select_rest_accounts_credentials_gr_by_uuid = common_stmts.get(
+    "router_select_rest_accounts_credentials_gr_by_uuid", options);
 
 var common_responses_regex = common_stmts.prepare_statement_responses_regex(
     [
@@ -95,7 +94,8 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
         (res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !==
         undefined) {
       return res;
-    } else if (stmt === router_select_rest_accounts_credentials.stmt) {
+    } else if (
+        stmt === router_select_rest_accounts_credentials_gr_by_uuid.stmt) {
       mysqld.global.rest_auth_query_count++;
       if (mysqld.global.error_on_md_query === 1) {
         return {
@@ -106,7 +106,7 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
           }
         }
       } else
-        return router_select_rest_accounts_credentials;
+        return router_select_rest_accounts_credentials_gr_by_uuid;
     } else {
       return common_stmts.unknown_statement_response(stmt);
     }

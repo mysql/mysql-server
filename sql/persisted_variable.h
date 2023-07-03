@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -146,10 +146,9 @@ class Persisted_variables_cache final {
     Search for persisted config file and if found read persistent options
   */
   bool load_persist_file();
-  /**
-    Set persisted options
-  */
-  bool set_persisted_options(bool plugin_options);
+  bool set_persisted_options(bool plugin_options,
+                             const char *target_var_name = nullptr,
+                             int target_var_name_length = 0);
   /**
     Reset persisted options
   */
@@ -187,7 +186,8 @@ class Persisted_variables_cache final {
   */
   bool append_read_only_variables(int *argc, char ***argv,
                                   bool arg_separator_added = false,
-                                  bool plugin_options = false);
+                                  bool plugin_options = false,
+                                  MEM_ROOT *root_to_use = nullptr);
 
   /**
     append PARSE EARLY read only persisted variables to command

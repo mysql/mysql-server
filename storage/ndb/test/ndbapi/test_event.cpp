@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+ Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -5731,6 +5731,102 @@ int clearErrorInsertEBUsage(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static
+int
+runCreateDropConsume(NDBT_Context* ctx, NDBT_Step* step)
+{
+  constexpr Uint32 NumOperations = 10;
+  NdbEventOperation* ops[NumOperations];
+  Ndb* ndb = GETNDB(step);
+
+  g_err << "Creating " << NumOperations << " eventOperations." << endl;
+  for (Uint32 i=0; i< NumOperations; i++)
+  {
+    g_err << "Creating EventOperation " << i << endl;
+
+    if ((ops[i] = createEventOperation(ndb, *ctx->getTab())) == nullptr)
+    {
+      g_err << "runCreateDropConsume failed to create eventOperation " << endl;
+      return NDBT_FAILED;
+    }
+    ops[i]->setCustomData((void*) Uint64(i));
+  }
+
+  g_err << "Dropping all but one (" << NumOperations - 1 << ") "
+    "eventOperations with a delay." << endl;
+
+  for (Uint32 i=1; i< NumOperations; i++)
+  {
+    g_err << "Dropping EventOperation " << i << endl;
+    int res = ndb->dropEventOperation(ops[i]);
+    if (res != 0)
+    {
+      g_err << "Drop failed " << ndb->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    /* Give time for some epochs to complete between each drop */
+    NdbSleep_MilliSleep(1000);
+  }
+
+  g_err << "Now consuming events..." << endl;
+
+  Uint64 latest_epoch = 0;
+  Uint32 observedEpochs = 0;
+  int res = NDBT_OK;
+  while (ndb->pollEvents(1000) > 0)
+  {
+    NdbEventOperation* op;
+    while ((op = ndb->nextEvent()) != nullptr)
+    {
+      Uint64 epoch = op->getEpoch();
+      if (op != ops[0])
+      {
+        fprintf(stderr,
+                "Error : epoch data contains dropped EventOperation"
+                "%p %llu\n", op, (Uint64) op->getCustomData());
+        res = NDBT_FAILED;
+      }
+      if (epoch != latest_epoch)
+      {
+        observedEpochs++;
+        latest_epoch = epoch;
+        fprintf(stderr, "Epoch boundary : %llu\n", latest_epoch);
+        /* Iterate over gci ops */
+        const NdbEventOperation* gciOp=NULL;
+        Uint32 iter = 0;
+        Uint32 et = 0;
+        while((gciOp = ndb->getGCIEventOperations(&iter, &et)) 
+               != nullptr)
+        {
+          fprintf(stderr,
+                  "Epoch %llu EventOperations contains op %p (%p)\n",
+                  latest_epoch,
+                  gciOp,
+                  gciOp->getCustomData());
+          if (gciOp != ops[0])
+          {
+            fprintf(stderr,
+                    "Error : epoch EventOperations contains dropped"
+                    "EventOperation %p %llu\n",
+                    gciOp,
+                    (Uint64) gciOp->getCustomData());
+            res = NDBT_FAILED;
+          }
+        }
+        /* Stop accumulating changes after a while */
+        if (observedEpochs == 40)
+        {
+          ndb->dropEventOperation(ops[0]);
+        }
+      }
+    }
+  }
+
+  ctx->stopTest();
+  return res;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -6169,6 +6265,15 @@ TESTCASE("ExhaustedSafeCounterPool",
   FINALIZER(runDropShadowTable);
 }
 
+TESTCASE("DelayedEventDrop",
+        "Create and Drop events with load, having multiple events droppable"
+         "at once")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runCreateDropConsume);
+  STEP(runInsertDeleteUntilStopped);
+  FINALIZER(runDropEvent);
+}
 #if 0
 TESTCASE("BackwardCompatiblePollCOverflowEB",
          "Check whether backward compatibility of pollEvents  manually"

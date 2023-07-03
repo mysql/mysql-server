@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -374,6 +374,24 @@ typedef int (*delete_row_values_t)(PSI_table_handle *handle);
 /**
   API to Open a table handle in plugin/component code and reset position
   pointer when a new table handle in opened in Performance Schema.
+
+  @note The pos argument is a pointer to a pointer which references a
+  buffer which identifies the current position (row) in the table.
+  The value assigned to *pos by the open_table_t function is stored in
+  table_plugin_table::m_pos and also the inherited
+  PFS_engine_table::m_pos_ptr. In PFS_engine_table::get_position(void *ref)
+  and PFS_engine_table::set_position(const void *ref),
+  PFS_engine_table_share::m_ref_length bytes are copied (using memcpy) to/from
+  this buffer to save/restore the current position in the table.
+
+  For this reason, any class/struct object used to hold the current table
+  position and whose address gets assigned to *pos needs to be trivially
+  copyable (std::trivially_copyable<T>::value must be true where T is the
+  type of the object pointed to by *pos), and the
+  PFS_engine_table_share_proxy::m_ref_length member variable (inherited from
+  PFS_engine_table_share) must be set to the correct size for the class/struct
+  used.
+
   @param pos pos pointer to be updated.
 
   @return initialized table handle.

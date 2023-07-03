@@ -1,4 +1,4 @@
-call mtr.add_suppression("Invalid .* username when attempting to connect to the master server");
+call mtr.add_suppression("Invalid .* username when attempting to connect to the source server");
 SET GLOBAL master_info_repository='TABLE';
 Warnings:
 Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
@@ -30,5 +30,5 @@ include/stop_slave.inc
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET @@global.master_info_repository='SAVE_MI_REPO_TYPE';
-SET @@global.relay_log_info_repository='SAVE_RLI_REPO_TYPE';
+SET @@global.master_info_repository='SAVE_CM_REPO_TYPE';
+SET @@global.relay_log_info_repository='SAVE_AM_REPO_TYPE';

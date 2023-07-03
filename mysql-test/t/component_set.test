@@ -1,0 +1,250 @@
+--echo #
+--echo # WL#10916: Allow setting component option values at INSTALL COMPONENT
+--echo #
+
+# UBSAN compile removes -fvisibility=hidden from components.
+# This causes failures in instrumented components
+--source include/not_ubsan.inc
+
+call mtr.add_suppression("Effective value of validate_password_length is changed. New value is");
+call mtr.add_suppression("option '[^']*': signed value [^ ]* adjusted");
+call mtr.add_suppression("Unknown suffix '[^']' used for variable '[^']*'");
+call mtr.add_suppression("Parsing options for variable '[^;]*' failed");
+call mtr.add_suppression("Error while setting value '[^']*' to '[^']*'");
+call mtr.add_suppression("variable registration failed");
+call mtr.add_suppression("boolean value '[^']*' was not recognized. Set to OFF");
+
+--echo # FR1: check the syntax
+
+--error ER_PARSE_ERROR
+INSTALL COMPONENT "file://component_validate_password" SET;
+
+--error ER_PARSE_ERROR
+INSTALL COMPONENT "file://component_validate_password" SET SESSION foo = 16;
+
+--error ER_PARSE_ERROR
+INSTALL COMPONENT "file://component_validate_password" SET PERSIST_ONLY bar = 16;
+
+--error ER_PARSE_ERROR
+INSTALL COMPONENT "file://component_validate_password" SET @@bar = 16;
+
+--error ER_PARSE_ERROR
+INSTALL COMPONENT "file://component_validate_password" SET @@bar = DEFAULT;
+
+--error ER_PARSE_ERROR
+INSTALL COMPONENT "file://component_validate_password" SET @@bar = xxx;
+
+--error ER_INSTALL_COMPONENT_SET_NULL_VALUE
+INSTALL COMPONENT "file://component_validate_password" SET length = NULL;
+
+INSTALL COMPONENT "file://component_validate_password" SET length = 8 + 8;
+--echo # Should be 16
+SELECT @@global.validate_password.length;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1),(2);
+--error ER_SET_CONSTANTS_ONLY
+INSTALL COMPONENT "file://component_validate_password" SET length = (SELECT a FROM t1);
+DROP TABLE t1;
+
+SET @gizmo = 32;
+INSTALL COMPONENT "file://component_validate_password" SET length = @gizmo;
+--echo # Should be 32
+SELECT @@global.validate_password.length;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+INSTALL COMPONENT "file://component_validate_password" SET length = @@global.max_connections;
+--echo # Should be 1
+SELECT @@global.validate_password.length = @@global.max_connections;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+INSTALL COMPONENT "file://component_validate_password" SET length = DAYOFMONTH('1972-07-29');
+--echo # Should be 29
+SELECT @@global.validate_password.length;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # Should pass
+INSTALL COMPONENT "file://component_validate_password" SET length = CAST(RAND() * 10 AS SIGNED);
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # Should fail
+--error ER_SET_CONSTANTS_ONLY
+INSTALL COMPONENT "file://component_validate_password" SET length = SUM(100);
+
+--echo # Should pass
+INSTALL COMPONENT "file://component_validate_password" SET length = 1024 * 1024 * 1024 * 1024;
+SELECT @@global.validate_password.length;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # Should fail
+--error ER_DATA_OUT_OF_RANGE
+INSTALL COMPONENT "file://component_validate_password" SET length = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024;
+
+--echo # Should return 4: adjusted
+INSTALL COMPONENT "file://component_validate_password" SET length = -100;
+SELECT @@global.validate_password.length;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT "file://component_validate_password" SET length = 3.14159;
+--error ER_COMPONENTS_LOAD_CANT_INITIALIZE
+INSTALL COMPONENT "file://component_validate_password" SET length = 3.000000000000;
+--error ER_WRONG_TYPE_FOR_VAR
+INSTALL COMPONENT "file://component_validate_password" SET length = 1e2;
+--error ER_DATA_OUT_OF_RANGE
+INSTALL COMPONENT "file://component_validate_password" SET length = 1e308 * 100;
+--error ER_WRONG_TYPE_FOR_VAR
+INSTALL COMPONENT "file://component_validate_password" SET length = '100';
+
+
+CREATE FUNCTION test_func () RETURNS INT DETERMINISTIC
+  RETURN 12 + 3;
+--error ER_SET_CONSTANTS_ONLY
+INSTALL COMPONENT "file://component_validate_password" SET length = testfunc();
+DROP FUNCTION test_func;
+
+--echo # FR1.1: setting a non-related value. should fail
+--error ER_INSTALL_COMPONENT_SET_UNUSED_VALUE
+INSTALL COMPONENT "file://component_validate_password" SET init_connect = "SELECT 1";
+
+--echo # A boolean variable set to ON. Should pass
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = ON;
+SELECT @@global.validate_password.check_user_name;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # A boolean variable set to "ON". Should pass
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = "ON";
+SELECT @@global.validate_password.check_user_name;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # A boolean variable set to OFF. Should pass
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = OFF;
+SELECT @@global.validate_password.check_user_name;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # A boolean variable set to "OFF". Should pass
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = "OFF";
+SELECT @@global.validate_password.check_user_name;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # A boolean variable set to gizmo. Should pass and return 0
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = gizmo;
+SELECT @@global.validate_password.check_user_name;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # A boolean variable set to gizmo.off. Should fail
+--error ER_WRONG_TYPE_FOR_VAR
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = gizmo.off;
+
+--echo # A boolean variable set to 1. Should pass
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = 1;
+SELECT @@global.validate_password.check_user_name;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # A boolean variable set to 11. Should pass and return 1
+INSTALL COMPONENT "file://component_validate_password" SET check_user_name = 11;
+SELECT @@global.validate_password.check_user_name;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # FR1.4.1: test failed sysvar cleanup: should load
+INSTALL COMPONENT "file://component_validate_password";
+UNINSTALL COMPONENT "file://component_validate_password";
+
+INSTALL COMPONENT "file://component_validate_password"
+  SET GLOBAL validate_password.length = 16;
+
+--echo # FR6: precedence over command line: Should be 16 and not 100
+SELECT @@global.validate_password.length;
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables
+  WHERE VARIABLE_NAME='validate_password.length';
+
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # FR1.2: no class means GLOBAL
+INSTALL COMPONENT "file://component_validate_password"
+  SET validate_password.length = 16, PERSIST validate_password.number_count = 13;
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables
+  WHERE VARIABLE_NAME LIKE 'validate_password.%' ORDER BY 1;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # FR5: UNINSTALL doesn't unpersist
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables
+  WHERE VARIABLE_NAME LIKE 'validate_password.%' ORDER BY 1;
+
+--echo # FR6: INSTALL still picks up persisted variable values: should be 13
+INSTALL COMPONENT "file://component_validate_password"
+  SET validate_password.length = 16;
+SELECT @@global.validate_password.number_count;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+INSTALL COMPONENT "file://component_validate_password"
+  SET GLOBAL validate_password.length = 60, validate_password.number_count = 50;
+
+--echo # FR6: precedence over persist: should be 50
+SELECT @@global.validate_password.number_count;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+
+RESET PERSIST;
+
+--echo FR4: No extra privs required for INSTALL SET
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+CREATE USER wl10916@localhost;
+GRANT INSERT,DELETE,UPDATE ON mysql.component TO wl10916@localhost;
+connect(wl10916_con,localhost, wl10916, ,);
+INSTALL COMPONENT "file://component_validate_password"
+  SET GLOBAL validate_password.length = 16;
+UNINSTALL COMPONENT "file://component_validate_password";
+connection default;
+disconnect wl10916_con;
+DROP USER wl10916@localhost;
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+
+--error ER_WRONG_TYPE_FOR_VAR
+INSTALL COMPONENT "file://component_validate_password" SET GLOBAL validate_password.length = 'gizmo';
+
+--error ER_WRONG_TYPE_FOR_VAR
+INSTALL COMPONENT "file://component_validate_password" SET PERSIST validate_password.length = 'gizmo';
+
+--echo #FR7: check if non-prefixed variable names can be used
+
+INSTALL COMPONENT "file://component_validate_password" SET length = 12;
+SELECT @@global.validate_password.length;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--error ER_INSTALL_COMPONENT_SET_UNUSED_VALUE
+INSTALL COMPONENT "file://component_validate_password", "file://component_example_component1" SET length = 12;
+
+--error ER_INSTALL_COMPONENT_SET_UNUSED_VALUE
+INSTALL COMPONENT "file://component_validate_password" SET foo = 1;
+--error ER_INSTALL_COMPONENT_SET_UNUSED_VALUE
+INSTALL COMPONENT "file://component_validate_password" SET foo = 1, bar = 2;
+--error ER_INSTALL_COMPONENT_SET_UNUSED_VALUE
+INSTALL COMPONENT "file://component_validate_password" SET foo = 1, bar = 2, baz = 3;
+
+--echo # test if all components are unloaded on error
+--error ER_WRONG_TYPE_FOR_VAR
+INSTALL COMPONENT "file://component_validate_password", "file://component_example_component1"
+  SET PERSIST validate_password.number_count = 13, GLOBAL validate_password.length = 'gizmo';
+
+--echo # should be empty
+SELECT VARIABLE_VALUE FROM performance_schema.persisted_variables
+  WHERE VARIABLE_NAME LIKE 'validate_password.%' ORDER BY 1;
+
+--echo # the 4 below should pass
+INSTALL COMPONENT "file://component_example_component1";
+INSTALL COMPONENT "file://component_validate_password";
+UNINSTALL COMPONENT "file://component_example_component1";
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # Cleanup
+RESET PERSIST;
+--let $MYSQLD_DATADIR= `select @@datadir`
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+
+--echo # End of 8.0 tests

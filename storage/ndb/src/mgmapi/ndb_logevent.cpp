@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -551,7 +551,8 @@ int ndb_logevent_get_next2(const NdbLogEventHandle h,
     return res;
   }
 
-  SocketInputStream in(h->socket, timeout_in_milliseconds);
+  NdbSocket s(h->socket, NdbSocket::From::Existing);
+  SecureSocketInputStream in(s, timeout_in_milliseconds);
 
   /*
     Read log event header until header received

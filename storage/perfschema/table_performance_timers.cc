@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -76,9 +76,7 @@ PFS_engine_table *table_performance_timers::create(PFS_engine_table_share *) {
   return new table_performance_timers();
 }
 
-ha_rows table_performance_timers::get_row_count(void) {
-  return COUNT_TIMER_NAME;
-}
+ha_rows table_performance_timers::get_row_count() { return COUNT_TIMER_NAME; }
 
 table_performance_timers::table_performance_timers()
     : PFS_engine_table(&m_share, &m_pos),
@@ -108,12 +106,12 @@ table_performance_timers::table_performance_timers()
   m_data[index].m_info = pfs_timer_info.thread_cpu;
 }
 
-void table_performance_timers::reset_position(void) {
+void table_performance_timers::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_performance_timers::rnd_next(void) {
+int table_performance_timers::rnd_next() {
   int result;
 
   m_pos.set_at(&m_next_pos);

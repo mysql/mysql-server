@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,10 +132,10 @@ int register_replica(THD *thd, uchar *packet, size_t packet_length) {
 
   thd->server_id = si->server_id = uint4korr(p);
   p += 4;
-  get_object(p, si->host, "Failed to register slave: too long 'report-host'");
-  get_object(p, si->user, "Failed to register slave: too long 'report-user'");
+  get_object(p, si->host, "Failed to register replica: too long 'report-host'");
+  get_object(p, si->user, "Failed to register replica: too long 'report-user'");
   get_object(p, si->password,
-             "Failed to register slave; too long 'report-password'");
+             "Failed to register replica; too long 'report-password'");
   if (p + 10 > p_end) goto err;
   si->port = uint2korr(p);
   p += 2;
@@ -593,7 +593,7 @@ bool show_replicas(THD *thd) {
     <td>2</td></tr>
   <tr><td>0x09</td><td>@ref sect_protocol_replication_event_query_09 "Q_TABLE_MAP_FOR_UPDATE_CODE"</td>
     <td>8</td></tr>
-  <tr><td>0x0a</td><td>@ref sect_protocol_replication_event_query_0a "Q_MASTER_DATA_WRITTEN_CODE"</td>
+  <tr><td>0x0a</td><td>@ref sect_protocol_replication_event_query_0a "Q_SOURCE_DATA_WRITTEN_CODE"</td>
     <td>4</td></tr>
   <tr><td>0x0b</td><td>@ref sect_protocol_replication_event_query_0b "Q_INVOKERS"</td>
     <td>1 + n + 1 + n</td></tr>
@@ -969,10 +969,10 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
       RETURN_STATUS_OK)
     return true;
   slave_gtid_executed.to_string(&gtid_string);
-  DBUG_PRINT("info",
-             ("Slave %d requested to read %s at position %" PRIu64 " gtid set "
-              "'%s'.",
-              thd->server_id, name, pos, gtid_string));
+  DBUG_PRINT("info", ("Replica %d requested to read %s at position %" PRIu64
+                      " gtid set "
+                      "'%s'.",
+                      thd->server_id, name, pos, gtid_string));
 
   kill_zombie_dump_threads(thd);
   query_logger.general_log_print(thd, thd->get_command(),
@@ -1150,7 +1150,7 @@ bool reset_master(THD *thd, bool unlock_global_read_lock) {
     unless executed during a clone operation as part of the process.
   */
   if (is_group_replication_running() && !is_group_replication_cloning()) {
-    my_error(ER_CANT_RESET_MASTER, MYF(0), "Group Replication is running");
+    my_error(ER_CANT_RESET_SOURCE, MYF(0), "Group Replication is running");
     ret = true;
     goto end;
   }

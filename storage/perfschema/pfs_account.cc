@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ int init_account(const PFS_global_param *param) {
 }
 
 /** Cleanup all the account buffers. */
-void cleanup_account(void) { global_account_container.cleanup(); }
+void cleanup_account() { global_account_container.cleanup(); }
 
 static const uchar *account_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_account *const *typed_entry;
@@ -138,7 +138,7 @@ int init_account_hash(const PFS_global_param *param) {
 }
 
 /** Cleanup the user hash. */
-void cleanup_account_hash(void) {
+void cleanup_account_hash() {
   if (account_hash_inited) {
     lf_hash_destroy(&account_hash);
     account_hash_inited = false;
@@ -295,7 +295,6 @@ void PFS_account::aggregate_waits(PFS_user *safe_user, PFS_host *safe_host) {
 
   /* Orphan account, no parent to aggregate to. */
   reset_waits_stats();
-  return;
 }
 
 void PFS_account::aggregate_stages(PFS_user *safe_user, PFS_host *safe_host) {
@@ -345,7 +344,6 @@ void PFS_account::aggregate_stages(PFS_user *safe_user, PFS_host *safe_host) {
   */
   aggregate_all_stages(write_instr_class_stages_stats(),
                        global_instr_class_stages_array);
-  return;
 }
 
 void PFS_account::aggregate_statements(PFS_user *safe_user,
@@ -396,7 +394,6 @@ void PFS_account::aggregate_statements(PFS_user *safe_user,
   */
   aggregate_all_statements(write_instr_class_statements_stats(),
                            global_instr_class_statements_array);
-  return;
 }
 
 void PFS_account::aggregate_transactions(PFS_user *safe_user,
@@ -450,7 +447,6 @@ void PFS_account::aggregate_transactions(PFS_user *safe_user,
   */
   aggregate_all_transactions(write_instr_class_transactions_stats(),
                              &global_transaction_stat);
-  return;
 }
 
 void PFS_account::aggregate_errors(PFS_user *safe_user, PFS_host *safe_host) {
@@ -499,7 +495,6 @@ void PFS_account::aggregate_errors(PFS_user *safe_user, PFS_host *safe_host) {
     -  EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR
   */
   aggregate_all_errors(write_instr_class_errors_stats(), &global_error_stat);
-  return;
 }
 
 void PFS_account::aggregate_memory(bool alive, PFS_user *safe_user,
@@ -550,7 +545,6 @@ void PFS_account::aggregate_memory(bool alive, PFS_user *safe_user,
   */
   aggregate_all_memory(alive, write_instr_class_memory_stats(),
                        global_instr_class_memory_array);
-  return;
 }
 
 void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host) {
@@ -576,7 +570,6 @@ void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host) {
   }
 
   m_status_stats.reset();
-  return;
 }
 
 void PFS_account::aggregate_stats(PFS_user *safe_user, PFS_host *safe_host) {
@@ -723,7 +716,7 @@ class Proc_purge_account : public PFS_buffer_processor<PFS_account> {
 };
 
 /** Purge non connected accounts, reset stats of connected account. */
-void purge_all_account(void) {
+void purge_all_account() {
   PFS_thread *thread = PFS_thread::get_current_thread();
   if (unlikely(thread == nullptr)) {
     return;

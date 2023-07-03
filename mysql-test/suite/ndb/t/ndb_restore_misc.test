@@ -441,7 +441,7 @@ drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 CREATE TEMPORARY TABLE ndb_restore_output (output_line VARCHAR(512)) ENGINE = HEAP;
 let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_restore_misc_output.txt;
 --error 1
---exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
+--exec $NDB_RESTORE -b $the_backup_id --timestamp_printouts=false -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id > $dump_file 2>&1
 eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_restore_output;
 UPDATE ndb_restore_output SET output_line = REPLACE(output_line, '\r', '');
 --remove_file $dump_file

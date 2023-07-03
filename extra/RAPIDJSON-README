@@ -1,4 +1,4 @@
-Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 The rapidjson library included in this directory is based on
 https://github.com/Tencent/rapidjson/,
-commit 418331e99f859f00bdc8306f69eba67e8693c55e
+commit 06d58b9e848c650114556a23294d0b6440078c61
 
 We only include the contents of the folder "include/" so that we don't include
 any code licensed under the JSON License.

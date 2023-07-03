@@ -9,7 +9,7 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 
-call mtr.add_suppression("An incident event has been written to the binary log which will stop the slaves");
+call mtr.add_suppression("An incident event has been written to the binary log which will stop the replicas");
 
 --let $show_rpl_debug_info = 0
 

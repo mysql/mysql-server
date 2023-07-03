@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -139,7 +139,7 @@ bool PFS_index_error_log_by_thread_id::match(log_sink_pfs_event *row) {
 
 /// Match function / comparator for the key on the PRIO column
 bool PFS_key_error_log_prio::match(const log_sink_pfs_event *row) {
-  enum enum_prio record_value = (enum_prio)(row->m_prio + 1);
+  const auto record_value = (enum_prio)(row->m_prio + 1);
   int cmp = 0;
 
   if (m_is_null) {
@@ -266,7 +266,8 @@ int table_error_log::index_init(uint idx, bool sorted [[maybe_unused]]) {
 int table_error_log::make_row(log_sink_pfs_event *e) {
   memcpy(&m_header, e, sizeof(log_sink_pfs_event));
   /* Max message length should be the same for both, but let's play it safe. */
-  size_t len = std::min<size_t>(e->m_message_length, sizeof(m_message) - 1);
+  const size_t len =
+      std::min<size_t>(e->m_message_length, sizeof(m_message) - 1);
   m_message[len] = '\0';
   memcpy(m_message, ((const char *)e) + sizeof(log_sink_pfs_event), len);
 

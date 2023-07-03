@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -661,13 +661,19 @@ int plugin_group_replication_start(char **error_message) {
     goto err;  // leave the decision for later
   }
 
-  return initialize_plugin_and_join(PSESSION_DEDICATED_THREAD, nullptr);
+  error = initialize_plugin_and_join(PSESSION_DEDICATED_THREAD, nullptr);
+  if (!error) {
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_HAS_STARTED);
+  }
+  return error;
 
 err:
 
   if (error) {
     // end wait for thread waiting for server to start
     terminate_wait_on_start_process();
+  } else {
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_HAS_STARTED);
   }
 
   return error;
@@ -1216,7 +1222,7 @@ int plugin_group_replication_stop(char **error_message) {
   lv.plugin_is_stopping = true;
 
   shared_plugin_stop_lock->grab_write_lock();
-  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_IS_STOPPING);
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_IS_STOPPING);
 
   lv.plugin_is_waiting_to_set_server_read_mode = true;
 
@@ -1259,7 +1265,6 @@ int plugin_group_replication_stop(char **error_message) {
                   { unregister_listener_service_gr_example(); });
 
   shared_plugin_stop_lock->release_write_lock();
-  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_IS_STOPPED);
 
   // Enable super_read_only.
   if (!lv.server_shutdown_status && !lv.plugin_is_being_uninstalled &&
@@ -1295,6 +1300,7 @@ int plugin_group_replication_stop(char **error_message) {
   if (!error && lv.recovery_timeout_issue_on_stop)
     error = GROUP_REPLICATION_STOP_WITH_RECOVERY_TIMEOUT;
 
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_IS_STOPPED);
   return error;
 }
 
@@ -2818,13 +2824,14 @@ static int check_if_server_properly_configured() {
 
   if (startup_pre_reqs.mi_repository_type != 1)  // INFO_REPOSITORY_TABLE
   {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MASTER_INFO_REPO_MUST_BE_TABLE);
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_CONNECTION_METADATA_REPO_MUST_BE_TABLE);
     return 1;
   }
 
   if (startup_pre_reqs.rli_repository_type != 1)  // INFO_REPOSITORY_TABLE
   {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_RELAY_LOG_INFO_REPO_MUST_BE_TABLE);
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_METADATA_REPO_MUST_BE_TABLE);
     return 1;
   }
 

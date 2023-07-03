@@ -238,7 +238,7 @@ START REPLICA;
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
---error ER_SLAVE_RLI_INIT_REPOSITORY
+--error ER_REPLICA_AM_INIT_REPOSITORY
 START REPLICA;
 
 # 3. File to Table upgrades
@@ -398,7 +398,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_TABLE_PRIMARY_KEY_
 
 SET @@GLOBAL.DEBUG = '+d,rpl_rli_clear_info_error';
 
---error ER_MASTER_INFO
+--error ER_CONNECTION_METADATA
 RESET REPLICA;
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'OFF'`
@@ -415,11 +415,11 @@ RESET REPLICA ALL;
 --remove_file $MYSQL_TMP_DIR/check_require_table_primary_key_check_in_file_repo.inc
 
 CALL mtr.add_suppression("Error reading relay log configuration.");
-CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel ''; its record may still be present in 'mysql.slave_master_info' table*");
+CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel ''; its record may still be present in the applier metadata repository*");
 CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
-CALL mtr.add_suppression("Slave SQL for channel '': Slave failed to initialize relay log info structure from the repository,*");
+CALL mtr.add_suppression("Replica SQL for channel '': Replica failed to initialize applier metadata structure from the repository,*");
 CALL mtr.add_suppression("Replication configuration appears to be corrupted. On Group Replication channel 'group_replication_recovery'*");
-CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel 'group_replication_recovery'*");
+CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel 'group_replication_recovery'*");  
 
 --disable_warnings
 --disable_query_log

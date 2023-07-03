@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,7 @@
 
 #include "ft_global.h"
 #include "libbinlogevents/include/binlog_event.h"
+#include "libbinlogevents/include/compression/zstd_comp.h"  // DEFAULT_COMPRESSION_LEVEL
 #include "m_string.h"
 #include "my_aes.h"  // my_aes_opmode_names
 #include "my_command.h"
@@ -1496,7 +1497,6 @@ static Sys_var_bool Sys_binlog_trx_compression(
     SESSION_VAR(binlog_trx_compression), CMD_LINE(OPT_ARG), DEFAULT(false),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_binlog_trx_compression));
 
-#include "libbinlogevents/include/compression/zstd.h"
 static Sys_var_uint Sys_binlog_transaction_compression_level_zstd(
     "binlog_transaction_compression_level_zstd",
     "Specifies the transaction compression level for ZSTD "
@@ -1657,7 +1657,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var,
       }
     } else {
       ret = true;
-      my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
+      my_error(ER_REPLICA_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
     }
     unlock_slave_threads(mi);
     mi->channel_unlock();
@@ -4142,7 +4142,7 @@ static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var) {
     if (mi) {
       mysql_mutex_lock(&mi->rli->run_lock);
       if (mi->rli->slave_running) {
-        my_error(ER_SLAVE_SQL_THREAD_MUST_STOP, MYF(0));
+        my_error(ER_REPLICA_SQL_THREAD_MUST_STOP, MYF(0));
         result = true;
       }
       mysql_mutex_unlock(&mi->rli->run_lock);
@@ -4516,7 +4516,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
         snprintf(buf, sizeof(buf),
                  "replication channel '%.192s' is configured "
                  "in AUTO_POSITION mode. Execute "
-                 "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 "
+                 "CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 "
                  "FOR CHANNEL '%.192s' before you set "
                  "@@GLOBAL.GTID_MODE = OFF.",
                  mi->get_channel(), mi->get_channel());
@@ -4547,7 +4547,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
                  "replication channel '%.192s' is configured "
                  "with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS set to LOCAL or "
                  "to a UUID. "
-                 "Execute CHANGE MASTER TO "
+                 "Execute CHANGE REPLICATION SOURCE TO "
                  "ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF "
                  "FOR CHANNEL '%.192s' before you set "
                  "@@GLOBAL.GTID_MODE = '%s'",
@@ -4620,7 +4620,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
              "SHOW STATUS LIKE 'ANONYMOUS_TRANSACTION_COUNT' "
              "shows zero on all servers. Then wait for all "
              "existing, anonymous transactions to replicate to "
-             "all slaves, and then execute "
+             "all replicas, and then execute "
              "SET @@GLOBAL.GTID_MODE = ON on all servers. "
              "See the Manual for details");
     goto err;
@@ -5750,6 +5750,11 @@ static Sys_var_session_special Sys_error_count(
 static ulonglong read_warning_count(THD *thd) {
   return thd->get_stmt_da()->warn_count(thd);
 }
+
+static ulonglong read_statement_id(THD *thd) {
+  return (ulonglong)thd->query_id;
+}
+
 // this really belongs to the SHOW STATUS
 static Sys_var_session_special Sys_warning_count(
     "warning_count",
@@ -6249,8 +6254,8 @@ static bool fix_replica_net_timeout(sys_var *, THD *thd, enum_var_type) {
                 replica_net_timeout, (mi ? mi->heartbeat_period : 0.0)));
     if (mi != nullptr && replica_net_timeout < mi->heartbeat_period)
       push_warning(thd, Sql_condition::SL_WARNING,
-                   ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                   ER_THD(thd, ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+                   ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                   ER_THD(thd, ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   }
 
   channel_map.unlock();
@@ -6573,7 +6578,7 @@ static bool check_pseudo_replica_mode(sys_var *self, THD *thd, set_var *var) {
       goto ineffective;
     else if (previous_val && !val)
       push_warning(thd, Sql_condition::SL_WARNING, ER_WRONG_VALUE_FOR_VAR,
-                   "Slave applier execution mode not active, "
+                   "Replica applier execution mode not active, "
                    "statement ineffective.");
   }
   goto end;
@@ -6902,9 +6907,7 @@ static bool handle_offline_mode(sys_var *, THD *thd, enum_var_type) {
   @retval true failure
   @retval false success
 
-  @param self the system variable to set value for
   @param thd the session context
-  @param setv the SET operations metadata
 */
 static bool check_offline_mode(sys_var * /*self*/, THD *thd,
                                set_var * /*setv*/) {
@@ -7214,6 +7217,17 @@ static Sys_var_enum Sys_use_secondary_engine(
     HINT_UPDATEABLE SESSION_ONLY(use_secondary_engine), NO_CMD_LINE,
     use_secondary_engine_values, DEFAULT(SECONDARY_ENGINE_ON), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_session_special Sys_statement_id(
+    "statement_id",
+    "statement_id: represents the id of the query "
+    "When this option is enabled it returns the statement id to the client, "
+    "the client can find more data about this query from the performance schema"
+    "(such as: events_statements_history table, rpd_query_stats table etc)  by "
+    "searching for a specific statement_id value.",
+    READ_ONLY sys_var::ONLY_SESSION, NO_CMD_LINE, VALID_RANGE(0, INT_MAX64),
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr), ON_READ(read_statement_id));
 
 /**
   Cost threshold for executing queries in a secondary storage engine. Only

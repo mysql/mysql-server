@@ -52,8 +52,8 @@ SET GLOBAL debug= '-d,after_mysql_insert';
 source include/restart_slave_sql.inc;
 
 connection slave;
-call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 connection master;
 
 --source include/rpl_connection_master.inc

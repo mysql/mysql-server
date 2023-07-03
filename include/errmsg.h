@@ -1,7 +1,7 @@
 #ifndef ERRMSG_INCLUDED
 #define ERRMSG_INCLUDED
 
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,10 +77,10 @@ extern const char *client_errors[]; /* Error messages */
 #define CR_CANT_READ_CHARSET 2019
 #define CR_NET_PACKET_TOO_LARGE 2020
 #define CR_EMBEDDED_CONNECTION 2021
-#define CR_PROBE_SLAVE_STATUS 2022
-#define CR_PROBE_SLAVE_HOSTS 2023
-#define CR_PROBE_SLAVE_CONNECT 2024
-#define CR_PROBE_MASTER_CONNECT 2025
+#define CR_PROBE_REPLICA_STATUS 2022
+#define CR_PROBE_REPLICA_HOSTS 2023
+#define CR_PROBE_REPLICA_CONNECT 2024
+#define CR_PROBE_SOURCE_CONNECT 2025
 #define CR_SSL_CONNECTION_ERROR 2026
 #define CR_MALFORMED_PACKET 2027
 #define CR_WRONG_LICENSE 2028
@@ -132,7 +132,8 @@ extern const char *client_errors[]; /* Error messages */
 #define CR_MANDATORY_TRACKER_NOT_FOUND 2071
 #define CR_INVALID_FACTOR_NO 2072
 #define CR_CANT_GET_SESSION_DATA 2073
-#define CR_ERROR_LAST /*Copy last error nr:*/ 2073
+#define CR_INVALID_CLIENT_CHARSET 2074
+#define CR_ERROR_LAST /*Copy last error nr:*/ 2074
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
 
 /* Visual Studio requires '__inline' for C code */

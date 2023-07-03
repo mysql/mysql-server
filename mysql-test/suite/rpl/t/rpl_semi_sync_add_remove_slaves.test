@@ -51,12 +51,12 @@ while ($i < 10)
   if ( $i == 1)
   {
     --connect(server1_1, localhost,root,,,$MASTER_MYPORT)
-    CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+    CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
     --source include/install_semisync_source.inc
   }
   if ( $i != 1 )
   {
-    CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+    CALL mtr.add_suppression("Semi-sync replica net_flush.*");
     --source include/install_semisync_replica.inc
   }
   --inc $i

@@ -1039,7 +1039,7 @@ EXPLAIN
     -> Filter: (count(0) > 1)
         -> Table scan on <temporary>
             -> Aggregate using temporary table
-                -> Table scan on t1  (cost=154.85 rows=1536)
+                -> Table scan on t1  (cost=155 rows=1536)
 
 SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
 c2
@@ -1164,9 +1164,9 @@ LEFT JOIN t2 ON false
 LEFT JOIN t3 ON t2.b = t3.b
 LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	const	NULL	NULL	NULL	NULL	1	100.00	Impossible ON condition
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	NULL
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `t3_date` from `test`.`t1` left join `test`.`t2` on(false) left join `test`.`t3` on((`test`.`t3`.`b` = `test`.`t2`.`b`)) where true limit 1
 SELECT DISTINCT t3.a AS t3_date
@@ -1244,12 +1244,12 @@ pk
 EXPLAIN FORMAT=tree SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS table2 ON table1.f2=table2.f3 WHERE table2.f1 IS NULL;
 EXPLAIN
 -> Table scan on <temporary>  (cost=3.95..5.64 rows=3)
-    -> Temporary table with deduplication  (cost=3.10..3.10 rows=3)
-        -> Filter: (table2.f1 is null)  (cost=2.80 rows=3)
-            -> Nested loop left join  (cost=2.80 rows=3)
+    -> Temporary table with deduplication  (cost=3.1..3.1 rows=3)
+        -> Filter: (table2.f1 is null)  (cost=2.8 rows=3)
+            -> Nested loop left join  (cost=2.8 rows=3)
                 -> Table scan on table1  (cost=0.55 rows=3)
-                -> Filter: (table1.f2 = table2.f3)  (cost=0.48 rows=1)
-                    -> Table scan on table2  (cost=0.48 rows=3)
+                -> Filter: (table1.f2 = table2.f3)  (cost=0.483 rows=1)
+                    -> Table scan on table2  (cost=0.483 rows=3)
 
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -1281,7 +1281,7 @@ EXPLAIN
 -> Table scan on <temporary>  (cost=3.76..3.76 rows=1)
     -> Temporary table with deduplication  (cost=1.25..1.25 rows=1)
         -> Nested loop inner join  (cost=1.15 rows=1)
-            -> Nested loop inner join  (cost=0.80 rows=1)
+            -> Nested loop inner join  (cost=0.8 rows=1)
                 -> Table scan on t2  (cost=0.35 rows=1)
                 -> Filter: ((t3.f3 = t2.f1) and (t3.pk <> t2.pk))  (cost=0.35 rows=1)
                     -> Table scan on t3  (cost=0.35 rows=2)
@@ -1313,7 +1313,7 @@ EXPLAIN
     -> Filter: (num = 1)
         -> Table scan on <temporary>
             -> Aggregate using temporary table
-                -> Table scan on t1  (cost=726.40 rows=7224)
+                -> Table scan on t1  (cost=726 rows=7224)
 
 SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
 num
@@ -1342,8 +1342,8 @@ EXPLAIN FORMAT=tree SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER 
 EXPLAIN
 -> Sort: t1.a DESC, t1.b
     -> Sort with duplicate removal: t1.a DESC
-        -> Stream results  (cost=0.85 rows=2)
-            -> Group (no aggregates)  (cost=0.85 rows=2)
+        -> Stream results  (cost=0.85 rows=1.73)
+            -> Group (no aggregates)  (cost=0.85 rows=1.73)
                 -> Sort: t1.a DESC, t1.b  (cost=0.55 rows=3)
                     -> Table scan on t1  (cost=0.55 rows=3)
 

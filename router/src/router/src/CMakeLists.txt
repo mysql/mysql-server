@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,11 @@ TARGET_LINK_LIBRARIES(router_lib
   ${CMAKE_DL_LIBS}
   harness-library
   harness_stdx
+  harness_tls
   mysqlclient
   ${SSL_LIBRARIES}
   io_component
+  extra::rapidjson
   )
 TARGET_INCLUDE_DIRECTORIES(router_lib
   PUBLIC

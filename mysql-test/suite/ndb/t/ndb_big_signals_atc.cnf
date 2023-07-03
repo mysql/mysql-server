@@ -1,3 +1,11 @@
 !include ../my.cnf
 [cluster_config.1]
 AutomaticThreadConfig=1
+# Each block thread cache ~256 section segments (256 bytes each) from long
+# message buffer memory.  With automatic thread config and many cpus (>~64)
+# about 4MB of long message buffer memory will be used. In the mtr defaults
+# that long message buffer memory has been reduced from the default 64MB to
+# 4MB and as a consequence data nodes will fail to start due to out of long
+# message buffer memory.  The number of cpus are reduced to 16 to allow data
+# node to start with reduced long message buffer memory.
+NumCPUs=16

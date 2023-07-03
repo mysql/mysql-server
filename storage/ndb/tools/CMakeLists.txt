@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,8 @@ ADD_LIBRARY(ndbtools STATIC
   NdbImportCsv.cpp
   NdbImportCsvGram.cpp
   NdbImportUtil.cpp)
+
+ADD_DEPENDENCIES(clang_tidy_prerequisites ndbtools)
 
 IF(MY_COMPILER_IS_GNU_OR_CLANG)
   # Suppress warnings for undefined identifiers in bison output

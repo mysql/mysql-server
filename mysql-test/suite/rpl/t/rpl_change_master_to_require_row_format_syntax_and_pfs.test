@@ -192,7 +192,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 # 8. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
 #    slave and expect an error.
 --let $expected_event_format = 1
---let $expected_error = ER_SLAVE_CHANNEL_MUST_STOP
+--let $expected_error = ER_REPLICA_CHANNEL_MUST_STOP
 --let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/change_master_without_stop_slave.inc
 --let $include_silent = 1
 --source include/rpl_for_each_connection.inc
@@ -201,7 +201,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 # 9. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
 #    slave SQL thread and expect an error.
 --let $expected_event_format = 1
---let $expected_error = ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP
+--let $expected_error = ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP
 --let $stop_slave_thread = IO_THREAD
 --let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/change_master_without_stop_slave.inc
 --let $include_silent = 1
@@ -211,7 +211,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 # 10. Execute `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` without stoppping the
 #    slave IO thread and expect an error.
 --let $expected_event_format = 1
---let $expected_error = ER_SLAVE_CHANNEL_IO_THREAD_MUST_STOP
+--let $expected_error = ER_REPLICA_CHANNEL_IO_THREAD_MUST_STOP
 --let $stop_slave_thread = SQL_THREAD
 --let $rpl_source_file = $MYSQLTEST_VARDIR/tmp/change_master_without_stop_slave.inc
 --let $include_silent = 1

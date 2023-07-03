@@ -1583,3 +1583,113 @@ f1	f2	f3	FIRST_VALUE	LAG	NTH_VALUE
 3	1	300	20	20	NULL
 4	1	4000	300	300	NULL
 DROP TABLE t1;
+#
+# Bug#34099408: Result mismatch seen with DENSE_RANK window
+#               function
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (1,1),(1,2),(2,1),(2,2);
+SELECT f1, f2, DENSE_RANK() OVER (ORDER BY f1), RANK() OVER (ORDER BY f1)
+FROM t1 GROUP BY f1,f2 WITH ROLLUP;
+f1	f2	DENSE_RANK() OVER (ORDER BY f1)	RANK() OVER (ORDER BY f1)
+NULL	NULL	1	1
+1	1	2	2
+1	2	2	2
+1	NULL	2	2
+2	1	3	5
+2	2	3	5
+2	NULL	3	5
+SELECT f1, f2, DENSE_RANK() OVER (ORDER BY f1), RANK() OVER (ORDER BY f1)
+FROM t1 GROUP BY f1,f2;
+f1	f2	DENSE_RANK() OVER (ORDER BY f1)	RANK() OVER (ORDER BY f1)
+1	1	1	1
+1	2	1	1
+2	1	2	3
+2	2	2	3
+DROP TABLE t1;
+#
+# Bug#35013880: Wrong result for AVG() OVER(ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING)
+#
+CREATE TABLE t (n INTEGER, r FLOAT);
+INSERT INTO t VALUES (1, 1.0), (2, 2.0), (3, 3.0), (4, 4.0);
+# No high precision for floating point, lest we don't use inversion.
+# With no inversion we do not see the error.
+SET SESSION windowing_use_high_precision=FALSE;
+SELECT n
+, SUM(n)   OVER w AS "sum(n)"
+     , COUNT(*) OVER w AS "count(n)"
+     , AVG(n)   OVER w AS "avg(n)"
+     , SUM(n)   OVER w / COUNT(*) OVER w AS "sum(n)/count(n)",
+r
+, SUM(r)   OVER w AS "sum(r)"
+     , COUNT(*) OVER w AS "count(r)"
+     , AVG(r)   OVER w AS "avg(r)"
+     , SUM(r)   OVER w / COUNT(*) OVER w AS "sum(r)/count(r)"
+FROM t WINDOW w AS (ORDER BY n ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING)
+ORDER BY n;
+n	sum(n)	count(n)	avg(n)	sum(n)/count(n)	r	sum(r)	count(r)	avg(r)	sum(r)/count(r)
+1	9	3	3.0000	3.0000	1	9	3	3	3
+2	7	2	3.5000	3.5000	2	7	2	3.5	3.5
+3	4	1	4.0000	4.0000	3	4	1	4	4
+4	NULL	0	NULL	NULL	4	NULL	0	NULL	NULL
+SET SESSION windowing_use_high_precision=default;
+# Was correct even before, because AVG(r) changes the code path even
+# for AVG(n): only with inversion did we see the error.
+SELECT n
+, SUM(n)   OVER w AS "sum(n)"
+     , COUNT(*) OVER w AS "count(n)"
+     , AVG(n)   OVER w AS "avg(n)"
+     , SUM(n)   OVER w / COUNT(*) OVER w AS "sum(n)/count(n)",
+r
+, SUM(r)   OVER w AS "sum(r)"
+     , COUNT(*) OVER w AS "count(r)"
+     , AVG(r)   OVER w AS "avg(r)"
+     , SUM(r)   OVER w / COUNT(*) OVER w AS "sum(r)/count(r)"
+FROM t WINDOW w AS (ORDER BY n ROWS BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING)
+ORDER BY n;
+n	sum(n)	count(n)	avg(n)	sum(n)/count(n)	r	sum(r)	count(r)	avg(r)	sum(r)/count(r)
+1	9	3	3.0000	3.0000	1	9	3	3	3
+2	7	2	3.5000	3.5000	2	7	2	3.5	3.5
+3	4	1	4.0000	4.0000	3	4	1	4	4
+4	NULL	0	NULL	NULL	4	NULL	0	NULL	NULL
+DROP TABLE t;
+#
+# Bug#33064174 PERCENT_RANK() RETURNS WRONG RESULT
+#
+CREATE TABLE t1 ( a TIME );
+INSERT INTO t1 VALUES ('02:00:00');
+INSERT INTO t1 VALUES (NULL);
+SELECT a, PERCENT_RANK() OVER (ORDER BY a) FROM t1;
+a	PERCENT_RANK() OVER (ORDER BY a)
+NULL	0
+02:00:00	1
+DROP TABLE t1;
+#
+# Bug#33069747 ASSERTION `M_COUNT >= M_FRAME_NULL_COUNT && M_FRAME_NULL_COUNT > 0' FAILED
+#
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (0,NULL);
+INSERT INTO t1 VALUES (NULL,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT 1 FROM t1
+ORDER BY BIT_OR(a) OVER (ORDER BY b ROWS CURRENT ROW);
+1
+1
+1
+SELECT SUM(a) OVER w
+FROM t1
+WINDOW w AS (ORDER BY b ROWS CURRENT ROW)
+ORDER BY SUM(b) OVER w;
+SUM(a) OVER w
+0
+NULL
+SELECT a, b, SUM(a) OVER w, SUM(b) OVER w
+FROM t1
+WINDOW w AS (ORDER BY b ROWS CURRENT ROW)
+ORDER BY SUM(b) OVER w;
+a	b	SUM(a) OVER w	SUM(b) OVER w
+0	NULL	0	NULL
+NULL	1	NULL	1
+DROP TABLE t1;

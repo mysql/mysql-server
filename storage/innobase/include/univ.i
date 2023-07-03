@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -177,10 +177,8 @@ for all cases. This is used by ut0lst.h related code. */
 
 /* When this macro is defined then additional test functions will be
 compiled. These functions live at the end of each relevant source file
-and have "test_" prefix. These functions can be called from the end of
-innobase_init() or they can be called from gdb after
-innobase_start_or_create_for_mysql() has executed using the call
-command. */
+and have "test_" prefix. These functions can be called from gdb after
+srv_start() has executed using the call command. */
 /*
 #define UNIV_COMPILE_TEST_FUNCS
 #define UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR

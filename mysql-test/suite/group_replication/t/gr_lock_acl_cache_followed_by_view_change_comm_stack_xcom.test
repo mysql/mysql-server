@@ -77,7 +77,7 @@ SET GLOBAL DEBUG= @debug_save;
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials.*");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
 SET SESSION sql_log_bin = 1;
 
 # ACL_CACHE lock hold on server1 is also also acquired by dump thread, which

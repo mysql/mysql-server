@@ -2,10 +2,7 @@ var common_stmts = require("common_statements");
 
 var options = {
   cluster_type: "ar",
-
   innodb_cluster_name: "mycluster",
-  innodb_cluster_instances:
-      [["localhost", 5500], ["localhost", 5510], ["localhost", 5520]],
 };
 
 var common_responses = common_stmts.prepare_statement_responses(
@@ -18,10 +15,11 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_cluster_id_v2_ar",
       "router_count_clusters_v2_ar",
       "router_show_cipher_status",
-      "router_select_cluster_instances_v2",
+      "router_select_cluster_instances_v2_ar",
       "router_select_cluster_instance_addresses_v2",
       "router_start_transaction",
       "router_commit",
+      "router_select_metadata_v2_ar_account_verification",
     ],
     options);
 

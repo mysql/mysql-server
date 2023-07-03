@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,12 @@ std::ostream &operator<<(std::ostream &os, const std::pair<int, int> &v) {
 class TestSetupTcpService : public ::testing::Test {
  public:
   TestSetupTcpService() {
+    routing_conf_.routing_strategy = routing::RoutingStrategy::kFirstAvailable;
+    routing_conf_.bind_address = mysql_harness::TCPAddress{"0.0.0.0", 7001};
+    routing_conf_.protocol = Protocol::Type::kXProtocol;
+    routing_conf_.connect_timeout = 1;
+    routing_conf_.max_connections = 10;
+
     std::unique_ptr<net::impl::socket::SocketServiceBase> socket_service =
         std::make_unique<::testing::StrictMock<MockSocketService>>();
     std::unique_ptr<net::IoServiceBase> io_service =
@@ -103,18 +109,14 @@ class TestSetupTcpService : public ::testing::Test {
   }
 
  protected:
+  RoutingConfig routing_conf_;
   std::unique_ptr<net::io_context> io_ctx_;
   MockSocketService *sock_ops_;
   MockIoService *io_ops_;
 };
 
 TEST_F(TestSetupTcpService, single_addr_ok) {
-  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
-                 Protocol::Type::kClassicProtocol,
-                 routing::AccessMode::kReadWrite, "127.0.0.1",
-                 mysql_harness::Path(), "routing-name", 1,
-                 std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength);
+  MySQLRouting r(routing_conf_, *io_ctx_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(1))));
@@ -135,12 +137,7 @@ TEST_F(TestSetupTcpService, single_addr_ok) {
 }
 
 TEST_F(TestSetupTcpService, getaddrinfo_fails) {
-  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
-                 Protocol::Type::kClassicProtocol,
-                 routing::AccessMode::kReadWrite, "127.0.0.1",
-                 mysql_harness::Path(), "routing-name", 1,
-                 std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength);
+  MySQLRouting r(routing_conf_, *io_ctx_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(stdx::make_unexpected(
@@ -152,12 +149,7 @@ TEST_F(TestSetupTcpService, getaddrinfo_fails) {
 }
 
 TEST_F(TestSetupTcpService, socket_fails_for_all_addr) {
-  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
-                 Protocol::Type::kClassicProtocol,
-                 routing::AccessMode::kReadWrite, "127.0.0.1",
-                 mysql_harness::Path(), "routing-name", 1,
-                 std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength);
+  MySQLRouting r(routing_conf_, *io_ctx_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -175,12 +167,7 @@ TEST_F(TestSetupTcpService, socket_fails_for_all_addr) {
 }
 
 TEST_F(TestSetupTcpService, socket_fails) {
-  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
-                 Protocol::Type::kClassicProtocol,
-                 routing::AccessMode::kReadWrite, "127.0.0.1",
-                 mysql_harness::Path(), "routing-name", 1,
-                 std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength);
+  MySQLRouting r(routing_conf_, *io_ctx_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -207,12 +194,7 @@ TEST_F(TestSetupTcpService, socket_fails) {
 
 #ifndef _WIN32
 TEST_F(TestSetupTcpService, setsockopt_fails) {
-  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
-                 Protocol::Type::kClassicProtocol,
-                 routing::AccessMode::kReadWrite, "127.0.0.1",
-                 mysql_harness::Path(), "routing-name", 1,
-                 std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength);
+  MySQLRouting r(routing_conf_, *io_ctx_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -241,12 +223,7 @@ TEST_F(TestSetupTcpService, setsockopt_fails) {
 #endif
 
 TEST_F(TestSetupTcpService, bind_fails) {
-  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
-                 Protocol::Type::kClassicProtocol,
-                 routing::AccessMode::kReadWrite, "127.0.0.1",
-                 mysql_harness::Path(), "routing-name", 1,
-                 std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength);
+  MySQLRouting r(routing_conf_, *io_ctx_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));
@@ -275,12 +252,7 @@ TEST_F(TestSetupTcpService, bind_fails) {
 }
 
 TEST_F(TestSetupTcpService, listen_fails) {
-  MySQLRouting r(*io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
-                 Protocol::Type::kClassicProtocol,
-                 routing::AccessMode::kReadWrite, "127.0.0.1",
-                 mysql_harness::Path(), "routing-name", 1,
-                 std::chrono::seconds(1), 1, std::chrono::seconds(1),
-                 routing::kDefaultNetBufferLength);
+  MySQLRouting r(routing_conf_, *io_ctx_);
 
   EXPECT_CALL(*sock_ops_, getaddrinfo(_, _, _))
       .WillOnce(Return(ByMove(get_test_addresses_list(2))));

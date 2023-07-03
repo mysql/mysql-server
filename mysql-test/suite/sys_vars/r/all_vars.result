@@ -160,6 +160,7 @@ sql_require_primary_key
 sql_require_primary_key
 sql_slave_skip_counter
 sql_slave_skip_counter
+statement_id
 sync_master_info
 sync_master_info
 temptable_max_mmap

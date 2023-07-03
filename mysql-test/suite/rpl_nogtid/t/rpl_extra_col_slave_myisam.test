@@ -3,7 +3,7 @@
 -- source include/master-slave.inc
 -- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
-CALL mtr.add_suppression("Slave: .*Duplicate column name");
+CALL mtr.add_suppression("Replica: .*Duplicate column name");
 
 let $engine_type = 'MyISAM';
 -- source extra/rpl_tests/rpl_extra_col_slave.test

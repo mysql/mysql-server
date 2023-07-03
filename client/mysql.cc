@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -233,6 +233,7 @@ static const CHARSET_INFO *charset_info = &my_charset_latin1;
 
 static char *opt_fido_register_factor = nullptr;
 static char *opt_oci_config_file = nullptr;
+static char *opt_authentication_oci_client_config_profile = nullptr;
 
 #include "authentication_kerberos_clientopt-vars.h"
 #include "caching_sha2_passwordopt-vars.h"
@@ -1221,7 +1222,7 @@ inline int get_command_index(char cmd_char) {
     All client-specific commands are in the first part of commands array
     and have a function to implement it.
   */
-  for (uint i = 0; *commands[i].func != nullptr; i++)
+  for (uint i = 0; commands[i].func != nullptr; i++)
     if (commands[i].cmd_char == cmd_char) return i;
   return -1;
 }
@@ -1954,6 +1955,12 @@ static struct my_option my_long_options[] = {
      "Specifies authentication factor, for which registration needs to be "
      "done.",
      &opt_fido_register_factor, &opt_fido_register_factor, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"authentication-oci-client-config-profile", 0,
+     "Specifies the configuration profile whose configuration options are to "
+     "be read from the OCI configuration file. Default is DEFAULT.",
+     &opt_authentication_oci_client_config_profile,
+     &opt_authentication_oci_client_config_profile, nullptr, GET_STR,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"oci-config-file", 0,
      "Specifies the location of the OCI configuration file. Default for Linux "
@@ -4724,7 +4731,7 @@ static bool init_connection_options(MYSQL *mysql) {
     mysql_options(mysql, MYSQL_INIT_COMMAND, init_command);
   }
 
-  mysql_set_character_set(mysql, default_charset);
+  if (mysql_set_character_set(mysql, default_charset)) return true;
 
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
@@ -4758,20 +4765,37 @@ static bool init_connection_options(MYSQL *mysql) {
 
   set_password_options(mysql);
 
-  if (opt_oci_config_file != nullptr) {
-    /* set OCI config file option if required */
-    struct st_mysql_client_plugin *oci_iam_plugin = mysql_client_find_plugin(
-        mysql, "authentication_oci_client", MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
+  struct st_mysql_client_plugin *oci_iam_plugin = mysql_client_find_plugin(
+      mysql, "authentication_oci_client", MYSQL_CLIENT_AUTHENTICATION_PLUGIN);
+
+  /* set authentication_oci_client config profile option if required */
+  if (opt_authentication_oci_client_config_profile != nullptr) {
     if (!oci_iam_plugin) {
       put_info("Cannot load the authentication_oci_client plugin.", INFO_ERROR);
-      return 1;
+      return true;
+    }
+    if (mysql_plugin_options(oci_iam_plugin,
+                             "authentication-oci-client-config-profile",
+                             opt_authentication_oci_client_config_profile)) {
+      put_info(
+          "Failed to set config profile for authentication_oci_client "
+          "plugin.",
+          INFO_ERROR);
+      return true;
+    }
+  }
+  /* set OCI config file option if required */
+  if (opt_oci_config_file != nullptr) {
+    if (!oci_iam_plugin) {
+      put_info("Cannot load the authentication_oci_client plugin.", INFO_ERROR);
+      return true;
     }
     if (mysql_plugin_options(oci_iam_plugin, "oci-config-file",
                              opt_oci_config_file)) {
       put_info(
           "Failed to set config file for authentication_oci_client plugin.",
           INFO_ERROR);
-      return 1;
+      return true;
     }
   }
 

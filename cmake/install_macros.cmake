@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -784,5 +784,66 @@ FUNCTION(COPY_CUSTOM_SHARED_LIBRARY library_full_filename subdir
     GROUP_READ GROUP_EXECUTE
     WORLD_READ WORLD_EXECUTE
     )
+ENDFUNCTION(COPY_CUSTOM_SHARED_LIBRARY)
 
-ENDFUNCTION()
+
+# For 3rd party .dlls on Windows.
+# Adds a target which copies the .dll to runtime_output_directory.
+# Adds INSTALL(FILES ....) rule to install the .dll to ${INSTALL_BINDIR}.
+# Looks for matching .pdb file, and installs it if found.
+# Sets ${OUTPUT_TARGET_NAME} to the name of a target which will do the copying.
+FUNCTION(COPY_CUSTOM_DLL library_full_filename OUTPUT_TARGET_NAME)
+  IF(NOT WIN32)
+    RETURN()
+  ENDIF()
+  GET_FILENAME_COMPONENT(library_directory "${library_full_filename}" DIRECTORY)
+  GET_FILENAME_COMPONENT(library_name "${library_full_filename}" NAME)
+  GET_FILENAME_COMPONENT(library_name_we "${library_full_filename}" NAME_WE)
+
+  SET(RUNTIME_DIR "${CMAKE_BINARY_DIR}/runtime_output_directory")
+  SET(COPIED_LIBRARY_NAME "${RUNTIME_DIR}/${CMAKE_CFG_INTDIR}/${library_name}")
+  SET(COPY_TARGET_NAME "copy_${library_name_we}_dll")
+
+  ADD_CUSTOM_COMMAND(
+    OUTPUT "${COPIED_LIBRARY_NAME}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${library_full_filename}" "${COPIED_LIBRARY_NAME}"
+    )
+  MY_ADD_CUSTOM_TARGET(${COPY_TARGET_NAME} ALL
+    DEPENDS "${COPIED_LIBRARY_NAME}"
+    )
+
+  # Install the original file, to avoid referring to CMAKE_CFG_INTDIR.
+  MESSAGE(STATUS "INSTALL ${library_full_filename} to ${INSTALL_BINDIR}")
+  INSTALL(FILES "${library_full_filename}"
+    DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries
+    )
+
+  SET(${OUTPUT_TARGET_NAME} "${COPY_TARGET_NAME}" PARENT_SCOPE)
+
+  FIND_FILE(HAVE_${library_name_we}_PDB
+    NAMES "${library_name_we}.pdb"
+    PATHS "${library_directory}"
+    NO_DEFAULT_PATH
+    )
+  IF(HAVE_${library_name_we}_PDB)
+    SET(COPIED_PDB_NAME
+      "${RUNTIME_DIR}/${CMAKE_CFG_INTDIR}/${library_name_we}.pdb")
+    SET(COPY_TARGET_PDB_NAME "copy_${library_name_we}_pdb")
+
+    ADD_CUSTOM_COMMAND(
+      OUTPUT "${COPIED_PDB_NAME}"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${HAVE_${library_name_we}_PDB}" "${COPIED_PDB_NAME}"
+      )
+    MY_ADD_CUSTOM_TARGET(${COPY_TARGET_PDB_NAME} ALL
+      DEPENDS "${COPIED_PDB_NAME}"
+      )
+
+    MESSAGE(STATUS
+      "INSTALL ${HAVE_${library_name_we}_PDB} to ${INSTALL_BINDIR}")
+    INSTALL(FILES "${HAVE_${library_name_we}_PDB}"
+      DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries
+      )
+  ENDIF()
+ENDFUNCTION(COPY_CUSTOM_DLL)

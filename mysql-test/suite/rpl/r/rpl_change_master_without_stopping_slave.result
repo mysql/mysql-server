@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 
 Create a replication user to use in change master tests.
@@ -17,7 +17,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warning	####	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 CHANGE REPLICATION SOURCE TO RELAY_LOG_POS= RELAY_LOG_POS;
@@ -31,24 +31,24 @@ message.
 include/start_slave_sql.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warning	####	'CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' (when @@GLOBAL.GTID_MODE = ON)' is deprecated and will be removed in a future release.
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
-ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
-ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO RELAY_LOG_POS= RELAY_LOG_POS;
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 10;
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 1, RELAY_LOG_FILE= 'RELAY_LOG_FILE';
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 1, RELAY_LOG_POS= RELAY_LOG_POS;
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 1, SOURCE_DELAY=10;
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL '' first.
 
 With applier stopped and receiver running, we should be able to change
 applier options. Setting receiver options should throw the correct error
@@ -60,51 +60,51 @@ CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 CHANGE REPLICATION SOURCE TO RELAY_LOG_POS= RELAY_LOG_POS;
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 10;
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
-ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'replssl';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO  SOURCE_PASSWORD= '';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY= 20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD= 20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_SSL= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_SSL_VERIFY_SERVER_CERT= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY=10, SOURCE_HOST= 'localhost';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY=10, SOURCE_USER= 'replssl';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY=10, SOURCE_PASSWORD= '';
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY=10, SOURCE_CONNECT_RETRY= 20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY=10, SOURCE_RETRY_COUNT= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 10, SOURCE_HEARTBEAT_PERIOD= 20;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY=10, SOURCE_SSL=1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 10, SOURCE_SSL_VERIFY_SERVER_CERT= 1;
-ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
+ERROR HY000: This operation cannot be performed with a running replica io thread; run STOP REPLICA IO_THREAD FOR CHANNEL '' first.
 include/stop_slave.inc
 
 cleanup
@@ -121,7 +121,7 @@ SOURCE_SSL_KEY= '',
 SOURCE_SSL_VERIFY_SERVER_CERT= 0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= SAVE_AUTOPOSITION;
 include/start_slave.inc
 DROP USER replssl@localhost;

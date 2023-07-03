@@ -1,0 +1,841 @@
+#########
+# SETUP #
+#########
+SET @mem_limit_orig= @@GLOBAL.connection_memory_limit;
+UPDATE performance_schema.setup_instruments SET ENABLED = 'NO', TIMED = 'NO' WHERE NAME LIKE 'statement/%';
+UPDATE performance_schema.setup_consumers SET ENABLED = 'NO' WHERE NAME LIKE '%statements%';
+INSTALL COMPONENT 'file://component_query_attributes';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+CREATE USER internal@localhost IDENTIFIED BY 'internal';
+CREATE USER api@localhost IDENTIFIED BY 'api';
+CREATE USER normal@localhost IDENTIFIED BY 'normal';
+SHOW VARIABLES LIKE 'test_server_telemetry_traces.%';
+Variable_name	Value
+test_server_telemetry_traces.application_context_keys	
+test_server_telemetry_traces.callsite_context_keys	
+test_server_telemetry_traces.trace_key	trace
+##############
+# Operations #
+##############
+# check initial telemetry session refcount (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+1
+# similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+count(*)
+1
+# no query attributes attached, should not be traced
+SELECT 1;
+1
+1
+# "trace" query attribute missing, should not be traced
+SELECT 2;
+2
+2
+# "trace" query attribute present but off, should not be traced
+SELECT 3;
+3
+3
+# "trace" query attribute present and on, should be traced
+SELECT 4;
+4
+4
+# "internal" user requests are never traced
+SELECT 5;
+5
+5
+# check telemetry session refcount with new session (should be 2)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+2
+# similar refcount check using PS.threads table (no permissions for user 'internal')
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+ERROR 42000: SELECT command denied to user 'internal'@'localhost' for table 'threads'
+# check telemetry session refcount with new session closed (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+1
+# similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+count(*)
+1
+# "api" user requests are traced (in force mode)
+SELECT 6;
+6
+6
+# check telemetry session refcount with 'api' session created (should be 2)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+2
+# similar refcount check using PS.threads table (no permissions for user 'api')
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+ERROR 42000: SELECT command denied to user 'api'@'localhost' for table 'threads'
+# check telemetry session refcount with 'api' session destroyed (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+1
+# similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+count(*)
+1
+# requests by users other than "api"/"root" are not forced
+SELECT 7;
+7
+7
+# check telemetry session refcount with 'normal' session created (should be 2)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+2
+# similar refcount check using PS.threads table (no permissions for user 'normal')
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+ERROR 42000: SELECT command denied to user 'normal'@'localhost' for table 'threads'
+# check telemetry session refcount with 'normal' session destroyed (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+1
+# similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+count(*)
+1
+# modify tracing activation key name
+SET GLOBAL test_server_telemetry_traces.trace_key='activate';
+# - do not trace statement using old key
+SELECT 8;
+8
+8
+# - do trace statement using new key
+SELECT 9;
+9
+9
+# define application and call-site contexts
+SET GLOBAL test_server_telemetry_traces.application_context_keys='client_id;root_id;parent_id;id';
+SET GLOBAL test_server_telemetry_traces.callsite_context_keys=';source_file;source_line;;';
+# trace statement with rich context data
+SELECT 10;
+10
+10
+# trace nested query
+SELECT 11, (SELECT COUNT(*) FROM DUAL);
+11	(SELECT COUNT(*) FROM DUAL)
+11	1
+# trace substatements
+CREATE PROCEDURE proc1()
+BEGIN
+SELECT "proc1 stmt#1";
+SELECT "proc1 stmt#2";
+END|
+CREATE PROCEDURE proc2()
+BEGIN
+CALL proc1();
+CALL proc1();
+END|
+CALL proc2();
+proc1 stmt#1
+proc1 stmt#1
+proc1 stmt#2
+proc1 stmt#2
+proc1 stmt#1
+proc1 stmt#1
+proc1 stmt#2
+proc1 stmt#2
+SELECT 12;
+12
+12
+# no trace if root statement without query attributes
+CALL proc2();
+proc1 stmt#1
+proc1 stmt#1
+proc1 stmt#2
+proc1 stmt#2
+proc1 stmt#1
+proc1 stmt#1
+proc1 stmt#2
+proc1 stmt#2
+# trace substatements using function
+CREATE FUNCTION SayHi( name VARCHAR(20) )
+RETURNS VARCHAR(30)
+DETERMINISTIC
+BEGIN
+DECLARE greeting VARCHAR(20);
+SET greeting = CONCAT('Hi ', name);
+RETURN greeting;
+END|
+SELECT SayHi('Marc');
+SayHi('Marc')
+Hi Marc
+# prepared statement without qa, should not be traced
+PREPARE stmt1 FROM 'SELECT SQRT(?) AS square_root';
+SET @a = 4;
+EXECUTE stmt1 USING @a;
+square_root
+2
+DEALLOCATE PREPARE stmt1;
+# statements within transaction, should be traced
+CREATE TABLE t1 (s1 INT) ENGINE=InnoDB;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1),(2);
+ROLLBACK;
+# cursor handling statements without qa, should not be traced
+INSERT INTO t1 VALUES (1),(2);
+CREATE PROCEDURE curdemo()
+BEGIN
+DECLARE done INT DEFAULT FALSE;
+DECLARE a INT;
+DECLARE t1_cursor CURSOR FOR SELECT s1 FROM t1;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+OPEN t1_cursor;
+read_loop: LOOP
+FETCH t1_cursor INTO a;
+IF done THEN
+LEAVE read_loop;
+END IF;
+END LOOP;
+CLOSE t1_cursor;
+END|
+CALL curdemo();
+# statement within trigger without qa, should not be traced
+CREATE TRIGGER valcheck BEFORE INSERT ON t1 FOR EACH ROW IF NEW.s1 < 0 THEN SET NEW.s1 = 0; END IF; |
+INSERT INTO t1 VALUES (1),(-2);
+DROP TRIGGER valcheck;
+# statement within view without qa, should not be traced
+CREATE DEFINER=root@localhost VIEW big_nums AS SELECT s1 FROM t1 WHERE s1 > 1;
+SELECT count(*) FROM big_nums;
+count(*)
+1
+# statement within event without qa, should not be traced
+CREATE EVENT new_item ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t1 VALUES(100);
+# statement with runtime error without qa, should not be traced
+SELECT wrong FROM t1;
+ERROR 42S22: Unknown column 'wrong' in 'field list'
+# statement with syntax error with qa, should be traced
+SEEELECT s1 FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SEEELECT s1 FROM t1' at line 1
+# EXPLAIN statement without qa, should not be traced
+EXPLAIN SELECT s1 FROM t1;
+# utility statement without qa, should not be traced
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+s1	int	YES		NULL	
+DROP TABLE t1;
+# SHOW PROCESSLIST statement without qa, should not be traced
+SHOW PROCESSLIST;
+# substatement of SET type without qa, should not be traced
+CREATE PROCEDURE SetMemLimit( amount INT )
+BEGIN
+SET @@GLOBAL.connection_memory_limit=amount;
+END|
+CALL SetMemLimit(33333333);
+# statement run through mysql_command_query service, should not be traced
+INSTALL COMPONENT "file://component_test_mysql_command_services";
+SELECT test_mysql_command_services_udf("SELECT 1+1");
+test_mysql_command_services_udf("SELECT 1+1")
+2
+# statement run through mysql_command_query service, should be traced
+SELECT test_mysql_command_services_udf("SELECT 2+2");
+test_mysql_command_services_udf("SELECT 2+2")
+4
+UNINSTALL COMPONENT "file://component_test_mysql_command_services";
+# statement using Memory engine, should be traced
+CREATE TABLE t2 (s1 INT) ENGINE=MEMORY;
+INSERT INTO t2 VALUES (1),(2);
+DROP TABLE t2;
+# statements working with sensitive data which should be obfuscated
+CREATE PROCEDURE obfuscate_this_2(a DECIMAL(4,2))
+SET PASSWORD FOR internal@localhost='CmdrShepard';|
+CALL obfuscate_this_2(1);
+SET PASSWORD FOR internal@localhost='internal';
+# statements in non-default character set should be logged correctly by telemetry
+SET CHARACTER SET cp1250_latin2;
+SELECT '£¥ª¯';
+£¥ª¯
+£¥ª¯
+SET CHARACTER SET default;
+# COM_QUIT command should be processed by telemetry (appear in the log)
+# check telemetry session refcount with 'api' session created (should be 2)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+2
+# similar refcount check using PS.threads table (no permissions for user 'api')
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+ERROR 42000: SELECT command denied to user 'api'@'localhost' for table 'threads'
+# similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+count(*)
+2
+# COM_CHANGE_USER command should be processed by telemetry (appear in the log)
+# check telemetry session refcount with 'api' session destroyed (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+1
+# similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+count(*)
+1
+# COM_INIT_DB command should be processed by telemetry (appear in the log)
+USE mysql;
+USE test;
+# COM_PING command should be processed by telemetry (appear in the log)
+# COM_RESET_CONNECTION command should be processed by telemetry (appear in the log)
+SET @@GLOBAL.connection_memory_limit= @mem_limit_orig;
+# Telemetry component reinstall works OK, new statement processed
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+SELECT 13;
+13
+13
+# Test LOAD DATA being processed by telemetry
+SET @orig_infile= @@GLOBAL.local_infile;
+SET GLOBAL local_infile = 1;
+CREATE TABLE tload (c1 TEXT);
+LOAD DATA LOCAL INFILE 'tmp1.txt' INTO TABLE tload;;
+DROP TABLE tload;
+SET GLOBAL local_infile = @orig_infile;
+# Test interaction between validate_password component and telemetry
+INSTALL COMPONENT "file://component_validate_password";
+# password policy LOW (which only checks for password length)
+# default case: password length should be minimum 8
+SET @@global.validate_password.policy=LOW;
+CREATE USER 'user'@'localhost' IDENTIFIED BY '';
+ERROR HY000: Your password does not satisfy the current policy requirements
+UNINSTALL COMPONENT "file://component_validate_password";
+# Test multiqueries with telemetry
+select 14; select 15; select 16;|
+14
+14
+15
+15
+16
+16
+# Test comments
+CREATE TABLE t3 (s1 INT COMMENT 'field') COMMENT='table' ENGINE=MEMORY;
+INSERT INTO t3 VALUES (7),(8);
+# Test mysqldump
+# Test nested statements
+SELECT (SELECT 1) UNION SELECT (SELECT 2);
+(SELECT 1)
+1
+2
+SELECT (SELECT (SELECT 0 UNION SELECT 0));
+(SELECT (SELECT 0 UNION SELECT 0))
+0
+SELECT (SELECT MIN(s1) FROM t3) UNION (SELECT MAX(s1) FROM t3);
+(SELECT MIN(s1) FROM t3)
+7
+8
+DROP TABLE t3;
+###########
+# CLEANUP #
+###########
+DROP PROCEDURE proc2;
+DROP PROCEDURE proc1;
+DROP FUNCTION SayHi;
+DROP PROCEDURE SetMemLimit;
+DROP PROCEDURE curdemo;
+DROP VIEW big_nums;
+DROP PROCEDURE obfuscate_this_2;
+DROP USER internal@localhost;
+DROP USER api@localhost;
+DROP USER normal@localhost;
+# check telemetry session refcount before unloading component (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+1
+# similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+count(*)
+1
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+UNINSTALL COMPONENT 'file://component_query_attributes';
+# check telemetry session refcount after unloading component (status variable should not exist)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+# similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+count(*)
+0
+UPDATE performance_schema.setup_instruments SET ENABLED = 'YES', TIMED = 'YES' WHERE NAME LIKE 'statement/%';
+UPDATE performance_schema.setup_consumers SET ENABLED = 'YES' WHERE NAME LIKE '%statements%';
+Component logs:
+test_server_telemetry_traces_component_init init:
+ - System variables registered.
+ - Status variables registered.
+ - Telemetry per-session data slot registered.
+ - Telemetry session callbacks registered.
+ - Telemetry statement callbacks registered.
+End of init
+ tm_session_create: telemetry session started, increase refcount by user=root to 1
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE USER internal@localhost IDENTIFIED BY 'internal'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE USER api@localhost IDENTIFIED BY 'api'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE USER normal@localhost IDENTIFIED BY 'normal'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW VARIABLES LIKE 'test_server_telemetry_traces.%'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions"')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT 1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ query_attr_read: failed to find query attribute 'trace'
+ > tm_stmt_notify_qa: skip tracing, no attribute 'trace' (depth=1, with_qa=1, user=root, query='SELECT 2')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, attribute 'trace'='off' (depth=1, with_qa=1, user=root, query='SELECT 3')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT 4', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT 4', digest='SELECT ?', app[], call[])
+ tm_session_connect: client session started (user=internal)
+ tm_session_create: telemetry session started, increase refcount by user=internal to 2
+> tm_stmt_start: skip tracing from user 'internal'
+> tm_stmt_start: skip tracing from user 'internal'
+> tm_stmt_start: skip tracing from user 'internal'
+> tm_stmt_start: skip tracing from user 'internal'
+ tm_session_disconnect: client session ended (user=internal)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions"')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES'')
+ tm_session_connect: client session started (user=api)
+ tm_session_create: telemetry session started, increase refcount by user=api to 2
+> tm_stmt_start: proceed further (depth=1, user=api, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=api, query='SELECT 6', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=api, query='', query1='SELECT 6', digest='SELECT ?', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=api, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=api, query='SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions"')
+> tm_stmt_start: proceed further (depth=1, user=api, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=api, query='SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES'')
+> tm_stmt_start: proceed further (depth=1, user=api, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=api, query='')
+ tm_session_disconnect: client session ended (user=api)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions"')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES'')
+ tm_session_connect: client session started (user=normal)
+ tm_session_create: telemetry session started, increase refcount by user=normal to 2
+> tm_stmt_start: discard statement (user=normal, host=localhost, db=test, query=''), statement will not be forced
+> tm_stmt_start: discard statement (user=normal, host=localhost, db=test, query=''), statement will not be forced
+> tm_stmt_start: discard statement (user=normal, host=localhost, db=test, query=''), statement will not be forced
+> tm_stmt_start: discard statement (user=normal, host=localhost, db=test, query=''), statement will not be forced
+ tm_session_disconnect: client session ended (user=normal)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions"')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET GLOBAL test_server_telemetry_traces.trace_key='activate'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ query_attr_read: failed to find query attribute 'activate'
+ > tm_stmt_notify_qa: skip tracing, no attribute 'activate' (depth=1, with_qa=1, user=root, query='SELECT 8')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT 9', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT 9', digest='SELECT ?', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET GLOBAL test_server_telemetry_traces.application_context_keys='client_id;root_id;parent_id;id'')
+> sysvar 'application_context_keys' updated to 'client_id;root_id;parent_id;id'
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET GLOBAL test_server_telemetry_traces.callsite_context_keys=';source_file;source_line;;'')
+> sysvar 'callsite_context_keys' updated to ';source_file;source_line;;'
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT 10', app[{"client_id": "10", "root_id": "1", "parent_id": "2", "id": "99"}], call[{"source_file": "main.cc", "source_line": "998"}])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT 10', digest='SELECT ?', app[{"client_id": "10", "root_id": "1", "parent_id": "2", "id": "99"}], call[{"source_file": "main.cc", "source_line": "998"}])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT 11, (SELECT COUNT(*) FROM DUAL)', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT 11, (SELECT COUNT(*) FROM DUAL)', digest='SELECT ? , ( SELECT COUNT ( * ) FROM DUAL )', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE PROCEDURE proc1()
+BEGIN
+SELECT "proc1 stmt#1";
+SELECT "proc1 stmt#2";
+END')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE PROCEDURE proc2()
+BEGIN
+CALL proc1();
+CALL proc1();
+END')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='CALL proc2()', app[], call[])
+> tm_stmt_start: proceed further (depth=2, user=root, host=localhost, db=test, query='CALL proc2()')
+> tm_stmt_start: proceed further (depth=3, user=root, host=localhost, db=test, query='CALL proc1()')
+> tm_stmt_end: trace statement (depth=3, user=root, query='CALL proc1()', query1='SELECT "proc1 stmt#1"', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=3, user=root, host=localhost, db=test, query='CALL proc1()')
+> tm_stmt_end: trace statement (depth=3, user=root, query='CALL proc1()', query1='SELECT "proc1 stmt#2"', digest='(null)', app[], call[])
+> tm_stmt_end: trace statement (depth=2, user=root, query='CALL proc2()', query1='CALL proc1()', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=2, user=root, host=localhost, db=test, query='CALL proc2()')
+> tm_stmt_start: proceed further (depth=3, user=root, host=localhost, db=test, query='CALL proc1()')
+> tm_stmt_end: trace statement (depth=3, user=root, query='CALL proc1()', query1='SELECT "proc1 stmt#1"', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=3, user=root, host=localhost, db=test, query='CALL proc1()')
+> tm_stmt_end: trace statement (depth=3, user=root, query='CALL proc1()', query1='SELECT "proc1 stmt#2"', digest='(null)', app[], call[])
+> tm_stmt_end: trace statement (depth=2, user=root, query='CALL proc2()', query1='CALL proc1()', digest='(null)', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='CALL proc2()', digest='CALL `proc2` ( )', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT 12')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CALL proc2()')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL proc2()')
+> tm_stmt_start: discard substatement (user=root, host=localhost, db=test, query='CALL proc1()'), its root statement will be filtered out
+> tm_stmt_start: discard substatement (user=root, host=localhost, db=test, query='CALL proc1()'), its root statement will be filtered out
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL proc2()', query1='CALL proc1()', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL proc2()')
+> tm_stmt_start: discard substatement (user=root, host=localhost, db=test, query='CALL proc1()'), its root statement will be filtered out
+> tm_stmt_start: discard substatement (user=root, host=localhost, db=test, query='CALL proc1()'), its root statement will be filtered out
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL proc2()', query1='CALL proc1()', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE FUNCTION SayHi( name VARCHAR(20) )
+RETURNS VARCHAR(30)
+DETERMINISTIC
+BEGIN
+DECLARE greeting VARCHAR(20);
+SET greeting = CONCAT('Hi ', name);
+RETURN greeting;
+END')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT SayHi('Marc')', app[], call[])
+> tm_stmt_start: proceed further (depth=2, user=root, host=localhost, db=test, query='SELECT SayHi('Marc')')
+> tm_stmt_end: trace statement (depth=2, user=root, query='SELECT SayHi('Marc')', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=2, user=root, host=localhost, db=test, query='SELECT SayHi('Marc')')
+> tm_stmt_end: trace statement (depth=2, user=root, query='SELECT SayHi('Marc')', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=2, user=root, host=localhost, db=test, query='SELECT SayHi('Marc')')
+> tm_stmt_end: trace statement (depth=2, user=root, query='SELECT SayHi('Marc')', query1='', digest='(null)', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT SayHi('Marc')', digest='SELECT `SayHi` (?)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='PREPARE stmt1 FROM 'SELECT SQRT(?) AS square_root'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET @a = 4')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='EXECUTE stmt1 USING @a')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DEALLOCATE PREPARE stmt1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE TABLE t1 (s1 INT) ENGINE=InnoDB')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='START TRANSACTION')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='INSERT INTO t1 VALUES (1),(2)', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='INSERT INTO t1 VALUES (1),(2)', digest='INSERT INTO `t1` VALUES (?) /* , ... */', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='ROLLBACK')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='INSERT INTO t1 VALUES (1),(2)')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE PROCEDURE curdemo()
+BEGIN
+DECLARE done INT DEFAULT FALSE;
+DECLARE a INT;
+DECLARE t1_cursor CURSOR FOR SELECT s1 FROM t1;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+OPEN t1_cursor;
+read_loop: LOOP
+FETCH t1_cursor INTO a;
+IF done THEN
+LEAVE read_loop;
+END IF;
+END LOOP;
+CLOSE t1_cursor;
+END')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CALL curdemo()')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL curdemo()')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL curdemo()', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE TRIGGER valcheck BEFORE INSERT ON t1 FOR EACH ROW IF NEW.s1 < 0 THEN SET NEW.s1 = 0; END IF')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='INSERT INTO t1 VALUES (1),(-2)')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='INSERT INTO t1 VALUES (1),(-2)')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='INSERT INTO t1 VALUES (1),(-2)', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='INSERT INTO t1 VALUES (1),(-2)')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='INSERT INTO t1 VALUES (1),(-2)', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='INSERT INTO t1 VALUES (1),(-2)')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='INSERT INTO t1 VALUES (1),(-2)', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='INSERT INTO t1 VALUES (1),(-2)')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='INSERT INTO t1 VALUES (1),(-2)', query1='', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP TRIGGER valcheck')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE DEFINER=root@localhost VIEW big_nums AS SELECT s1 FROM t1 WHERE s1 > 1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT count(*) FROM big_nums')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE EVENT new_item ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t1 VALUES(100)')
+ tm_session_create: telemetry session started, increase refcount by user=event_scheduler to 2
+> tm_stmt_start: discard statement (user=event_scheduler, host=localhost, db=, query=''), statement will not be forced
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CREATE PROCEDURE `new_item`() SQL SECURITY INVOKER INSERT INTO t1 VALUES(100)')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CREATE PROCEDURE `new_item`() SQL SECURITY INVOKER INSERT INTO t1 VALUES(100)', query1='INSERT INTO t1 VALUES(100)', digest='(null)', app[], call[])
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT wrong FROM t1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SEEELECT s1 FROM t1', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SEEELECT s1 FROM t1', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='EXPLAIN SELECT s1 FROM t1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DESCRIBE t1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP TABLE t1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW PROCESSLIST')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE PROCEDURE SetMemLimit( amount INT )
+BEGIN
+SET @@GLOBAL.connection_memory_limit=amount;
+END')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CALL SetMemLimit(33333333)')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='CALL SetMemLimit(33333333)')
+> tm_stmt_end: discard substatement, root discarded (depth=1, user=root, query='CALL SetMemLimit(33333333)', query1='SET @@GLOBAL.connection_memory_limit=amount', digest='(null)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='INSTALL COMPONENT "file://component_test_mysql_command_services"')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT test_mysql_command_services_udf("SELECT 1+1")')
+> tm_stmt_start: discard statement (user=mysql.session, host=localhost, db=, query=''), statement will not be forced
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT test_mysql_command_services_udf("SELECT 2+2")', app[], call[])
+> tm_stmt_start: discard statement (user=mysql.session, host=localhost, db=, query=''), statement will not be forced
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT test_mysql_command_services_udf("SELECT 2+2")', digest='SELECT `test_mysql_command_services_udf` (?)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='UNINSTALL COMPONENT "file://component_test_mysql_command_services"')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE TABLE t2 (s1 INT) ENGINE=MEMORY')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='INSERT INTO t2 VALUES (1),(2)', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='INSERT INTO t2 VALUES (1),(2)', digest='INSERT INTO `t2` VALUES (?) /* , ... */', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP TABLE t2')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='CREATE PROCEDURE obfuscate_this_2(a DECIMAL(4,2))
+SET PASSWORD FOR internal@localhost='CmdrShepard'', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='CREATE PROCEDURE obfuscate_this_2(a DECIMAL(4,2))
+SET PASSWORD FOR internal@localhost='CmdrShepard'', digest='CREATE PROCEDURE `obfuscate_this_2` ( `a` DECIMAL (...) ) SET PASSWORD FOR `internal` @? = ?', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='CALL obfuscate_this_2(1)', app[], call[])
+> tm_stmt_start: proceed further (depth=2, user=root, host=localhost, db=test, query='CALL obfuscate_this_2(1)')
+> tm_stmt_end: trace statement (depth=2, user=root, query='CALL obfuscate_this_2(1)', query1='SET PASSWORD FOR `internal`@`localhost`=<secret>', digest='(null)', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='CALL obfuscate_this_2(1)', digest='CALL `obfuscate_this_2` (?)', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SET PASSWORD FOR internal@localhost='internal'', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SET PASSWORD FOR `internal`@`localhost`=<secret>', digest='SET PASSWORD FOR `internal` @? = ?', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET CHARACTER SET cp1250_latin2')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT 'Â£Â¥ÂªÂ¯'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET CHARACTER SET default')
+ tm_session_connect: client session started (user=api)
+ tm_session_create: telemetry session started, increase refcount by user=api to 2
+> tm_stmt_start: proceed further (depth=1, user=api, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=api, query='SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions"')
+> tm_stmt_start: proceed further (depth=1, user=api, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=api, query='SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES'')
+> tm_stmt_start: proceed further (depth=1, user=api, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=api, query='')
+> tm_stmt_start: skip tracing from user 'internal'
+ tm_session_disconnect: client session ended (user=internal)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions"')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='USE mysql')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=mysql, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='USE test')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET @@GLOBAL.connection_memory_limit= @mem_limit_orig')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces'')
+test_server_telemetry_traces_component_deinit:
+ - Telemetry statement callbacks unregistered.
+ tm_session_destroy: telemetry session ended, decrease refcount to 0
+ - Current session aborted.
+ - Done waiting for telemetry sessions to finish (refcount = 0).
+ - Telemetry session callbacks unregistered.
+ - Telemetry per-session data slot unregistered.
+ - Status variables unregistered.
+ - System variables unregistered.
+End of deinit
+test_server_telemetry_traces_component_init init:
+ - System variables registered.
+ - Status variables registered.
+ - Telemetry per-session data slot registered.
+ - Telemetry session callbacks registered.
+ - Telemetry statement callbacks registered.
+End of init
+ tm_session_create: telemetry session started, increase refcount by user=root to 1
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT 13', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT 13', digest='SELECT ?', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET @orig_infile= @@GLOBAL.local_infile')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET GLOBAL local_infile = 1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='CREATE TABLE tload (c1 TEXT)')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='LOAD DATA LOCAL INFILE 'tmp1.txt' INTO TABLE tload', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='LOAD DATA LOCAL INFILE 'tmp1.txt' INTO TABLE tload', digest='LOAD DATA LOCAL INFILE ? INTO TABLE `tload`', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP TABLE tload')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET GLOBAL local_infile = @orig_infile')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='INSTALL COMPONENT "file://component_validate_password"')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET @@global.validate_password.policy=LOW')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='CREATE USER 'user'@'localhost' IDENTIFIED BY ''', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='CREATE USER 'user'@'localhost' IDENTIFIED BY <secret>', digest='CREATE SYSTEM_USER ? @? IDENTIFIED BY ?', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='UNINSTALL COMPONENT "file://component_validate_password"')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='select 14', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='select 14', query1='select 14', digest='SELECT ?', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='select 14')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='select 15', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='select 15', query1='select 15', digest='SELECT ?', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='select 15')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='select 16', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='select 16', digest='SELECT ?', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='CREATE TABLE t3 (s1 INT COMMENT 'field') COMMENT='table' ENGINE=MEMORY', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='CREATE TABLE t3 (s1 INT COMMENT 'field') COMMENT='table' ENGINE=MEMORY', digest='CREATE TABLE `t3` ( `s1` INTEGER COMMENT ? ) COMMENT = ? ENGINE = MEMORY', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='INSERT INTO t3 VALUES (7),(8)')
+ tm_session_connect: client session started (user=root)
+ tm_session_create: telemetry session started, increase refcount by user=root to 2
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='/*!40100 SET @@SQL_MODE='' */')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='/*!80000 SET SESSION information_schema_stats_expiry=0 */')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW VARIABLES LIKE 'gtid_mode'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW VARIABLES LIKE 'ndbinfo\_version'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW TABLES LIKE 't3'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='show table status like 't3'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET SQL_QUOTE_SHOW_CREATE=1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET SESSION character_set_results = 'binary'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='show create table `t3`')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET SESSION character_set_results = 'utf8mb4'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='show fields from `t3`')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='show fields from `t3`')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT /*!40001 SQL_NO_CACHE */ * FROM `t3`')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET SESSION character_set_results = 'binary'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT COLUMN_NAME,                       JSON_EXTRACT(HISTOGRAM, '$."number-of-buckets-specified"')                FROM information_schema.COLUMN_STATISTICS                WHERE SCHEMA_NAME = 'test' AND TABLE_NAME = 't3'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SET SESSION character_set_results = 'utf8mb4'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='')
+ tm_session_disconnect: client session ended (user=root)
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ tm_session_destroy: failed to get current THD
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT (SELECT 1) UNION SELECT (SELECT 2)', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT (SELECT 1) UNION SELECT (SELECT 2)', digest='SELECT ( SELECT ? ) UNION SELECT ( SELECT ? )', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT (SELECT (SELECT 0 UNION SELECT 0))', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT (SELECT (SELECT 0 UNION SELECT 0))', digest='SELECT ( SELECT ( SELECT ? UNION SELECT ? ) )', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+> tm_stmt_notify_qa: proceed further (depth=1, with_qa=1, user=root, query='SELECT (SELECT MIN(s1) FROM t3) UNION (SELECT MAX(s1) FROM t3)', app[], call[])
+> tm_stmt_end: trace statement (depth=1, user=root, query='', query1='SELECT (SELECT MIN(s1) FROM t3) UNION (SELECT MAX(s1) FROM t3)', digest='SELECT ( SELECT MIN ( `s1` ) FROM `t3` ) UNION ( SELECT MAX ( `s1` ) FROM `t3` )', app[], call[])
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP TABLE t3')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP PROCEDURE proc2')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP PROCEDURE proc1')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP FUNCTION SayHi')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP PROCEDURE SetMemLimit')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP PROCEDURE curdemo')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP VIEW big_nums')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP PROCEDURE obfuscate_this_2')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP USER internal@localhost')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP USER api@localhost')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='DROP USER normal@localhost')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions"')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces'')
+test_server_telemetry_traces_component_deinit:
+ - Telemetry statement callbacks unregistered.
+ tm_session_destroy: telemetry session ended, decrease refcount to 0
+ - Current session aborted.
+ - Done waiting for telemetry sessions to finish (refcount = 0).
+ - Telemetry session callbacks unregistered.
+ - Telemetry per-session data slot unregistered.
+ - Status variables unregistered.
+ - System variables unregistered.
+End of deinit

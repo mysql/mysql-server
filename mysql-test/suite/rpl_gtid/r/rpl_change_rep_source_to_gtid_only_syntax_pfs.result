@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0, SOURCE_AUTO_POSITION=0, GTID_ONLY=0;
@@ -54,12 +54,12 @@ ERROR HY000: SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE is not allowed because repli
 CHANGE REPLICATION SOURCE TO GTID_ONLY = 0;
 START REPLICA IO_THREAD;
 CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
-ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
 include/assert.inc ['GTID_ONLY is disabled']
 STOP REPLICA;
 START REPLICA SQL_THREAD;
 CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
-ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
 include/assert.inc ['GTID_ONLY is disabled']
 STOP REPLICA;
 CHANGE REPLICATION SOURCE TO GTID_ONLY = 1;
@@ -106,7 +106,7 @@ include/assert.inc ['GTID_ONLY is disabled']
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=SOURCE_PORT, SOURCE_USER='root', REQUIRE_ROW_FORMAT = 1, SOURCE_AUTO_POSITION=1, GTID_ONLY = 1;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl_restart_server.inc [server_number=2 parameters: --gtid-mode=on_permissive]
 include/assert_grep.inc [Replication channel '' could not be started as GTID_MODE was not ON.]
 include/check_slave_param.inc [Slave_IO_Running FOR CHANNEL '']

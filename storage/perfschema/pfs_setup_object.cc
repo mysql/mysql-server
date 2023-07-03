@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ int init_setup_object(const PFS_global_param *param) {
 }
 
 /** Cleanup all the setup object buffers. */
-void cleanup_setup_object(void) { global_setup_object_container.cleanup(); }
+void cleanup_setup_object() { global_setup_object_container.cleanup(); }
 
 static const uchar *setup_object_hash_get_key(const uchar *entry,
                                               size_t *length) {
@@ -78,11 +78,8 @@ static const uchar *setup_object_hash_get_key(const uchar *entry,
 }
 
 static bool is_table(enum_object_type object_type) {
-  if ((object_type == OBJECT_TYPE_TABLE) ||
-      (object_type == OBJECT_TYPE_TEMPORARY_TABLE)) {
-    return true;
-  }
-  return false;
+  return ((object_type == OBJECT_TYPE_TABLE) ||
+          (object_type == OBJECT_TYPE_TEMPORARY_TABLE));
 }
 
 static uint setup_object_hash_func(const LF_HASH *, const uchar *key,
@@ -166,7 +163,7 @@ int init_setup_object_hash(const PFS_global_param *param) {
 }
 
 /** Cleanup the setup objects hash. */
-void cleanup_setup_object_hash(void) {
+void cleanup_setup_object_hash() {
   if (setup_object_hash_inited) {
     lf_hash_destroy(&setup_object_hash);
     setup_object_hash_inited = false;
@@ -374,7 +371,6 @@ static void lookup_setup_object(PFS_thread *thread,
   }
   *enabled = false;
   *timed = false;
-  return;
 }
 
 void lookup_setup_object_table(PFS_thread *thread, enum_object_type object_type,

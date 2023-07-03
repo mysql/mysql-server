@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/stdx/ranges.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/rest_client.h"
@@ -151,13 +152,19 @@ class AsyncReplicasetTest : public RouterComponentTest {
     return router;
   }
 
-  void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
-                         const std::vector<uint16_t> &gr_node_ports,
+  void set_mock_metadata(uint16_t http_port, const std::string &cluster_id,
+                         const std::vector<uint16_t> &cluster_node_ports,
                          unsigned primary_id = 0, uint64_t view_id = 0,
                          bool error_on_md_query = false,
-                         bool empty_result_from_cluster_type_query = false) {
-    auto json_doc = mock_GR_metadata_as_json(gr_id, gr_node_ports, primary_id,
-                                             view_id, error_on_md_query);
+                         bool empty_result_from_cluster_type_query = false,
+                         bool is_gr_cluster = false, unsigned gr_pos = 0) {
+    const auto gr_nodes = is_gr_cluster
+                              ? classic_ports_to_gr_nodes(cluster_nodes_ports)
+                              : std::vector<GRNode>{};
+    auto json_doc = mock_GR_metadata_as_json(
+        cluster_id, gr_nodes, gr_pos,
+        classic_ports_to_cluster_nodes(cluster_node_ports), primary_id, view_id,
+        error_on_md_query);
 
     // we can't allow this counter become undefined as that breaks the
     // wait_for_transaction_count_increase logic
@@ -850,8 +857,12 @@ TEST_F(AsyncReplicasetTest, MultipleChangesInTheCluster) {
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[2], 2));
 
   SCOPED_TRACE("// Check that the state file caught up with all those changes");
+  // since the node 2 became a new PRIMARY it should be first metadata server on
+  // the list now
+  std::vector<uint16_t> md_servers_expected{
+      cluster_nodes_ports[2], cluster_nodes_ports[0], cluster_nodes_ports[3]};
   check_state_file(state_file, ClusterType::RS_V2, cluster_id,
-                   new_cluster_members, view_id + 1);
+                   md_servers_expected, view_id + 1);
 }
 
 /**
@@ -1005,12 +1016,14 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
   auto client_ro =
       make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
 
-  SCOPED_TRACE("// Now let's remove old primary and add a new one");
+  SCOPED_TRACE(
+      "// Now let's remove old primary and promote a first secondary to become "
+      "one");
   std::vector<uint16_t> new_cluster_members{cluster_nodes_ports[1],
                                             cluster_nodes_ports[2]};
   for (size_t i = 1; i <= 2; i++) {
     set_mock_metadata(cluster_http_ports[i], cluster_id, new_cluster_members,
-                      /*primary_id=*/1, view_id + 1);
+                      /*primary_id=*/0, view_id + 1);
   }
 
   SCOPED_TRACE("// Wait untill the router sees this change");
@@ -1027,7 +1040,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
   /*auto client_rw2 =*/make_new_connection_ok(router_port_rw,
-                                              cluster_nodes_ports[2]);
+                                              cluster_nodes_ports[1]);
 }
 
 /**
@@ -1178,8 +1191,12 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE("// Check that the state file is as expected");
-  check_state_file(state_file, ClusterType::RS_V2, cluster_id,
-                   cluster_nodes_ports, view_id + 1);
+  // since the primary has changed we expect that change reflected in the
+  // metadata-servers order too
+  check_state_file(
+      state_file, ClusterType::RS_V2, cluster_id,
+      {cluster_nodes_ports[1], cluster_nodes_ports[0], cluster_nodes_ports[2]},
+      view_id + 1);
 
   SCOPED_TRACE("// Check that both RW and RO connections are down");
   EXPECT_TRUE(wait_connection_dropped(*client_rw.get()));
@@ -1526,6 +1543,8 @@ class ClusterTypeMismatchTest
  */
 TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
   const unsigned CLUSTER_NODES = 2;
+  const bool is_gr_cluster =
+      GetParam().tracefile == "metadata_dynamic_nodes_v2_gr.js";
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
     cluster_nodes_ports.push_back(port_pool_.get_next_available());
     cluster_http_ports.push_back(port_pool_.get_next_available());
@@ -1541,7 +1560,7 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
 
     SCOPED_TRACE("// Let us start with 2 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
-                      /*primary_id=*/0, view_id);
+                      /*primary_id=*/0, view_id, false, false, is_gr_cluster);
   }
 
   const std::string state_file = create_state_file(
@@ -1599,6 +1618,7 @@ class UnexpectedResultFromMDRefreshTest
  */
 TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
   const unsigned CLUSTER_NODES = 2;
+  const bool is_gr_cluster = GetParam().cluster_type_str == "gr";
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
     cluster_nodes_ports.push_back(port_pool_.get_next_available());
     cluster_http_ports.push_back(port_pool_.get_next_available());
@@ -1615,7 +1635,7 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
         "// Make our metadata server to return both nodes as a cluster "
         "members");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports, 0,
-                      view_id);
+                      view_id, false, false, is_gr_cluster, i);
   }
 
   SCOPED_TRACE("// Create a router state file containing both members");
@@ -1655,10 +1675,11 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
       "// Make all members to start returning invalid data when queried for "
       "cluster type (empty resultset)");
 
-  for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
-    set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports, 0,
-                      view_id, /*error_on_md_query=*/false,
-                      /*empty_result_from_cluster_type_query=*/true);
+  for (auto [i, http_port] : stdx::views::enumerate(cluster_http_ports)) {
+    set_mock_metadata(http_port, cluster_id, cluster_nodes_ports, 0, view_id,
+                      /*error_on_md_query=*/false,
+                      /*empty_result_from_cluster_type_query=*/true,
+                      is_gr_cluster, i);
   }
 
   SCOPED_TRACE("// Both connections should get dropped");

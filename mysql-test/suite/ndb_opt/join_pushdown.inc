@@ -5859,6 +5859,144 @@ from t10
 
 drop table t10,t100,t1000;
 
+
+--echo ##################
+--echo #
+--echo # Bug#34782276:
+--echo #   Improve SPJ-internal execution plan, evaluate inner-joins first
+--echo #
+--echo ##################
+#
+# The SPJ block will build its own query plan where it will evaluate
+# inner-joins first. Even in a star-join plan the joins will be evaluated
+# in sequence and found matches noted in the common ancestor. Later joins
+# will be skipped if some of the previously evaluated joins didn't find
+# a match. (It is a property of the inner-join that matches are required
+# for all tables in the same inner join 'nest').
+# This will reduce the work needed to be performed by the data nodes
+# in later table REQuests.
+#
+# Test case is the query tree:       t1
+#                                   /   \
+#                                  t2   t3
+#
+# There are matches for all rows in the join(t1,t3). However only 3 of the 9
+# rows will match in join(t1,t2). The SPJ block will create its own execution
+# Plan where:
+#   1) join(t1,t2), Annotate t1 rows where matches are found.
+#   2) Generate t3 requests from buffered t1 rows having matches.
+# -> There should only be 3 keys in the REQuest sent to t3
+
+create table t (
+  k int,
+  a int,
+  key ix1(k),
+  key ix2(a)
+) engine = ndb;
+
+insert into t values
+  (0,0), (1,1), (2,2),
+  (3,0), (4,1), (5,2),
+  (6,0), (7,1), (8,2);
+
+let $old_val = query_get_value(select sum(val) as Value from ndbinfo.counters where block_name='DBSPJ' and counter_name = 'SCAN_ROWS_RETURNED', Value, 1);
+
+# This test case is just for reference - Worked as expected even before bug fix.
+let $query=
+select straight_join *
+from t as t1
+  inner join t as t2 on t2.a = t1.k
+  inner join t as t3 on t3.k = t1.k;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+
+let $old_val = query_get_value(select sum(val) as Value from ndbinfo.counters where block_name='DBSPJ' and counter_name = 'SCAN_ROWS_RETURNED', Value, 1);
+
+--disable_result_log
+eval $query;
+--enable_result_log
+
+--echo ############
+--echo # Verify the expect 21 rows were returned from SPJ:
+--echo # - 2 x 9 rows from t1 inner join t2
+--echo # - 3 rows from t1 join t3
+--echo # -> 21 rows (0 *SPJ* rows when not join-pushed (BKA))
+--echo #
+--disable_query_log
+--eval select sum(val) - $old_val as SPJ_rows_returned from ndbinfo.counters where block_name="DBSPJ" and counter_name = "SCAN_ROWS_RETURNED"
+--enable_query_log
+
+
+##### Same test case with outer join:
+#
+# Should stil evaluate t1 join t2 first.
+# A non-match on t2 will eliminate the inner joined t1 rows.
+# Thus, t1 left join t3 may be skipped for t1 rows not having t2 matches
+#
+let $query=
+select straight_join *
+from t as t1
+  inner join t as t2 on t2.a = t1.k
+  left join t as t3 on t3.k = t1.k;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+
+let $old_val = query_get_value(select sum(val) as Value from ndbinfo.counters where block_name='DBSPJ' and counter_name = 'SCAN_ROWS_RETURNED', Value, 1);
+
+--disable_result_log
+eval $query;
+--enable_result_log
+
+--echo ############
+--echo # As above, t1 inner join t2 is evaluated first
+--echo # - 2 x 9 rows from join(t1,t2)
+--echo # - Only the 3 matching t1 rows are requested from t3!
+--echo # -> still 21 rows (and still 0 *SPJ* rows when not join-pushed (BKA))
+--echo #
+--disable_query_log
+--eval select sum(val) - $old_val as SPJ_rows_returned from ndbinfo.counters where block_name="DBSPJ" and counter_name = "SCAN_ROWS_RETURNED";
+--enable_query_log
+
+
+##### Same test case with outer join evaluated before inner join:
+#
+# There is a legacy limitation in the SPJ API protocol, where scans need
+# to be evaluated in the same order as specified in the optimizer table order.
+# Test case verify that we do *not* skip t3 rows in these cases.
+# (As t1 left join t2 will not eliminate non matching t1 rows and we cant evaluate
+#  t1 inner join t3 first due to legacy limitation.)
+#
+let $query=
+select straight_join *
+from t as t1
+  left join t as t2 on t2.a = t1.k
+  inner join t as t3 on t3.k = t1.k;
+
+--replace_regex /  \(cost=.*//
+eval explain format=tree $query;
+
+let $old_val = query_get_value(select sum(val) as Value from ndbinfo.counters where block_name='DBSPJ' and counter_name = 'SCAN_ROWS_RETURNED', Value, 1);
+
+--disable_result_log
+eval $query;
+--enable_result_log
+
+--echo ############
+--echo # Verify that all 3 x 9 rows were returned from SPJ:
+--echo # - 2 x 9 rows from t1 outer join t2
+--echo #   (No t1-match elimination in an outer-join)
+--echo # - 9 rows from t1 inner join t3
+--echo # -> 27 rows
+--echo #
+--disable_query_log
+--eval select sum(val) - $old_val as SPJ_rows_returned from ndbinfo.counters where block_name="DBSPJ" and counter_name = "SCAN_ROWS_RETURNED"
+--enable_query_log
+
+drop table t;
+
+
 ########################################
 # Verify counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'

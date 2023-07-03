@@ -39,8 +39,8 @@
 ## Initialization
 ##
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
-call mtr.add_suppression("Slave worker thread has failed to apply an event");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
+call mtr.add_suppression("Replica worker thread has failed to apply an event");
 call mtr.add_suppression("Error writing relay log configuration");
 
 --source include/rpl_connection_master.inc

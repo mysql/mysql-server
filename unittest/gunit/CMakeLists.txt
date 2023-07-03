@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 IF(NOT WITH_UNIT_TESTS)
   RETURN()
 ENDIF()
+
+MSVC_CPPCHECK_DISABLE()
 
 IF(WITH_LTO OR CMAKE_COMPILER_FLAG_WITH_LTO)
   # We get ODR violations because of multiple bison parsers.
@@ -66,8 +68,6 @@ IF(LINUX OR FREEBSD)
     CACHE INTERNAL "")
 ENDIF()
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
-
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
   benchmark.cc
@@ -82,11 +82,12 @@ SET_TARGET_PROPERTIES(gunit_small
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
 
-ADD_LIBRARY(gunit_large STATIC
+ADD_STATIC_LIBRARY(gunit_large
   benchmark.cc
   gunit_test_main_server.cc
   test_utils.cc
   thread_utils.cc
+  LINK_LIBRARIES ext::icu ext::zlib
 )
 
 # Add a library for enable_win_jemalloc.cc
@@ -100,9 +101,9 @@ ENDIF()
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
 TARGET_LINK_LIBRARIES(gunit_small
-  mysys strings ${GTEST_LIBRARIES} ${UNITTEST_JEMALLOC_LIB})
+  mysys strings ${GTEST_LIBRARIES} ${UNITTEST_JEMALLOC_LIB} extra::rapidjson)
 TARGET_LINK_LIBRARIES(gunit_large
-  mysys strings ${GTEST_LIBRARIES} ${UNITTEST_JEMALLOC_LIB})
+  mysys strings ${GTEST_LIBRARIES} ${UNITTEST_JEMALLOC_LIB} extra::rapidjson)
 
 IF(WIN32)
   ## Create an object library of nt_servc.cc, so we don't have to
@@ -353,7 +354,7 @@ MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
   ADD_TEST merge_small_tests
   COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
   ENABLE_EXPORTS
-  LINK_LIBRARIES sqlgunitlib gunit_small
+  LINK_LIBRARIES sqlgunitlib gunit_small extra::rapidjson
   )
 
 IF(WIN32)

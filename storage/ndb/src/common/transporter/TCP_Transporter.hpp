@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,9 +109,9 @@ protected:
    * A client connects to the remote server
    * A server accepts any new connections
    */
-  bool connect_server_impl(ndb_socket_t sockfd) override;
-  bool connect_client_impl(ndb_socket_t sockfd) override;
-  bool connect_common(ndb_socket_t sockfd);
+  bool connect_server_impl(NdbSocket & sockfd) override;
+  bool connect_client_impl(NdbSocket & sockfd) override;
+  bool connect_common(NdbSocket & sockfd);
   
   /**
    * Disconnects a TCP/IP node, possibly blocking.

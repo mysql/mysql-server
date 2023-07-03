@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -102,12 +102,12 @@ struct row_events_stages {
 struct pos_events_stages_history : public PFS_double_index {
   pos_events_stages_history() : PFS_double_index(0, 0) {}
 
-  inline void reset(void) {
+  inline void reset() {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void next_thread(void) {
+  inline void next_thread() {
     m_index_1++;
     m_index_2 = 0;
   }
@@ -141,7 +141,7 @@ class table_events_stages_current : public table_events_stages_common {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_init(bool scan) override;
   int rnd_next() override;
@@ -182,7 +182,7 @@ class table_events_stages_history : public table_events_stages_common {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_init(bool scan) override;
   int rnd_next() override;
@@ -223,7 +223,7 @@ class table_events_stages_history_long : public table_events_stages_common {
   int rnd_init(bool scan) override;
   int rnd_next() override;
   int rnd_pos(const void *pos) override;
-  void reset_position(void) override;
+  void reset_position() override;
 
  protected:
   table_events_stages_history_long();

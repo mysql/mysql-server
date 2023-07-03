@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ int ReplSemiSyncSlave::slaveReadSyncHeader(const char *header,
     *payload = header + 2;
 
     if (trace_level_ & kTraceDetail)
-      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SLAVE_REPLY, kWho, *need_reply);
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_REPLICA_REPLY, kWho, *need_reply);
   } else {
     LogErr(ERROR_LEVEL, ER_SEMISYNC_MISSING_MAGIC_NO_FOR_SEMISYNC_PKT,
            total_len);
@@ -80,7 +80,7 @@ int ReplSemiSyncSlave::slaveReadSyncHeader(const char *header,
 int ReplSemiSyncSlave::slaveStart(Binlog_relay_IO_param *param) {
   bool semi_sync = getSlaveEnabled();
 
-  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SLAVE_START,
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_REPLICA_START,
          semi_sync ? "semi-sync" : "asynchronous", param->user, param->host,
          param->port,
          param->master_log_name[0] ? param->master_log_name : "FIRST",
@@ -122,7 +122,7 @@ int ReplSemiSyncSlave::slaveReply(MYSQL *mysql, const char *binlog_filename,
          name_len + 1 /* including trailing '\0' */);
 
   if (trace_level_ & kTraceDetail)
-    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SLAVE_REPLY_WITH_BINLOG_INFO, kWho,
+    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_REPLICA_REPLY_WITH_BINLOG_INFO, kWho,
            binlog_filename, (ulong)binlog_filepos);
 
   net_clear(net, false);
@@ -132,9 +132,9 @@ int ReplSemiSyncSlave::slaveReply(MYSQL *mysql, const char *binlog_filename,
   if (!reply_res) {
     reply_res = net_flush(net);
     if (reply_res)
-      LogErr(ERROR_LEVEL, ER_SEMISYNC_SLAVE_NET_FLUSH_REPLY_FAILED);
+      LogErr(ERROR_LEVEL, ER_SEMISYNC_REPLICA_NET_FLUSH_REPLY_FAILED);
   } else {
-    LogErr(ERROR_LEVEL, ER_SEMISYNC_SLAVE_SEND_REPLY_FAILED, net->last_error,
+    LogErr(ERROR_LEVEL, ER_SEMISYNC_REPLICA_SEND_REPLY_FAILED, net->last_error,
            net->last_errno);
   }
 

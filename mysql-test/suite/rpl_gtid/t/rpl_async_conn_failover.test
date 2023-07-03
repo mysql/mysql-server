@@ -75,10 +75,6 @@ INSERT INTO t1 VALUES (1);
 SET @old_debug= @@GLOBAL.DEBUG;
 SET GLOBAL debug = '+d,async_conn_failover_disable_weight_check';
 
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
-SET SESSION sql_log_bin= 1;
-
 --let $assert_text= 'There is one row on replica'
 --let $assert_cond= [SELECT  COUNT(*) count FROM t1, count, 1] = 1
 --source include/assert.inc
@@ -140,7 +136,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURC
 
 --let $assert_text= Assert that the IO thread tried two times connecting to server_3
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.4.err
---let $assert_select= .*error reconnecting to master 'root@127.0.0.1:$SERVER_MYPORT_3' - retry-time: 1 retries:.*
+--let $assert_select= .*Error reconnecting to source 'root@127.0.0.1:$SERVER_MYPORT_3'. This was attempt .*, with a delay of 1 seconds between attempts.*
 --let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_async_conn_failover
 --let $assert_count= 2
 --source include/assert_grep.inc
@@ -182,7 +178,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURC
 # Verify that it tried connecting to server_3 two (retry_count=2) times.
 --let $assert_text= Assert that the IO thread tried two times connecting to server_3
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.4.err
---let $assert_select= .*error connecting to master 'root@127.0.0.1:$SERVER_MYPORT_3' - retry-time: 1 retries:.*
+--let $assert_select= .*Error connecting to source 'root@127.0.0.1:$SERVER_MYPORT_3'. This was attempt .*, with a delay of 1 seconds between attempts.*
 --let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_async_conn_failover
 --let $assert_count= 4
 --source include/assert_grep.inc
@@ -228,7 +224,7 @@ INSERT INTO t1 VALUES (2);
 # Verify that it tried connecting to server_2 two (retry_count=2) times.
 --let $assert_text= Assert that the IO thread tried two times connecting to server_2
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.4.err
---let $assert_select= .*error reconnecting to master 'root@127.0.0.1:$SERVER_MYPORT_2' - retry-time: 1 retries:.*
+--let $assert_select= .*Error reconnecting to source 'root@127.0.0.1:$SERVER_MYPORT_2'. This was attempt .*, with a delay of 1 seconds between attempts.*
 --let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_async_conn_failover
 --let $assert_count= 2
 --source include/assert_grep.inc

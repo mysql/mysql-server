@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,10 @@ SET(REPLICATION_SOURCES
   compression/base.cpp
   compression/factory.cpp
   compression/iterator.cpp
-  compression/none.cpp
-  compression/zstd.cpp
+  compression/none_comp.cpp
+  compression/none_dec.cpp
+  compression/zstd_comp.cpp
+  compression/zstd_dec.cpp
 
   control_events.cpp
   event_reader.cpp
@@ -58,9 +60,9 @@ ENDIF()
 ADD_LIBRARY(binlogevents_static STATIC ${REPLICATION_SOURCES})
 
 IF(STANDALONE_BINLOG)
-  TARGET_LINK_LIBRARIES(binlogevents_static ${ZSTD_LIBRARY})
+  TARGET_LINK_LIBRARIES(binlogevents_static ext::zstd)
 ELSE()
-  TARGET_LINK_LIBRARIES(binlogevents_static ${ZSTD_LIBRARY} mysys)
+  TARGET_LINK_LIBRARIES(binlogevents_static ext::zstd mysys)
   ADD_DEPENDENCIES(binlogevents_static GenError)
 ENDIF()
 

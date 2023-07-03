@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,14 +46,15 @@ Table::Table(TABLE *table) : table(table), columns(PSI_NOT_INSTRUMENTED) {
   }
 }
 
-// Take a set of tables involed in a hash join and extract the columns that are
-// needed to satisfy the SQL query. Note that we might very well include a table
-// with no columns, like t2 in the following query:
+// Take a set of tables involved in a hash join, BKA or aggregation and extract
+// the columns that are needed to satisfy the SQL query. Note that we might very
+// well include a table with no columns, like t2 in the following query:
 //
 //   SELECT t1.col1 FROM t1, t2;  # t2 will be included without any columns.
-TableCollection::TableCollection(const Prealloced_array<TABLE *, 4> &tables,
-                                 bool store_rowids,
-                                 table_map tables_to_get_rowid_for)
+TableCollection::TableCollection(
+    const Prealloced_array<TABLE *, 4> &tables, bool store_rowids,
+    table_map tables_to_get_rowid_for,
+    table_map tables_to_store_contents_of_null_rows_for)
     : m_tables_bitmap(0),
       m_store_rowids(store_rowids),
       m_tables_to_get_rowid_for(tables_to_get_rowid_for) {
@@ -61,14 +62,17 @@ TableCollection::TableCollection(const Prealloced_array<TABLE *, 4> &tables,
     assert(m_tables_to_get_rowid_for == table_map{0});
   }
   for (TABLE *table : tables) {
-    AddTable(table);
-    if (table->pos_in_table_list != nullptr) {
-      m_tables_bitmap |= table->pos_in_table_list->map();
+    const Table_ref *ref = table->pos_in_table_list;
+    AddTable(table, ref != nullptr &&
+                        Overlaps(ref->map(),
+                                 tables_to_store_contents_of_null_rows_for));
+    if (ref != nullptr) {
+      m_tables_bitmap |= ref->map();
     }
   }
 }
 
-void TableCollection::AddTable(TABLE *tab) {
+void TableCollection::AddTable(TABLE *tab, bool store_contents_of_null_rows) {
   // When constructing the iterator tree, we might end up adding a
   // WeedoutIterator _after_ a HashJoinIterator has been constructed.
   // When adding the WeedoutIterator, QEP_TAB::rowid_status will be changed
@@ -81,8 +85,9 @@ void TableCollection::AddTable(TABLE *tab) {
   // issue.
   m_ref_and_null_bytes_size += tab->file->ref_length;
 
+  // Reserve one byte for the null_row flag, if the table is nullable.
   if (tab->is_nullable()) {
-    m_ref_and_null_bytes_size += sizeof(tab->null_row);
+    ++m_ref_and_null_bytes_size;
   }
 
   Table table(tab);
@@ -110,7 +115,9 @@ void TableCollection::AddTable(TABLE *tab) {
     m_ref_and_null_bytes_size += tab->s->null_bytes;
   }
 
-  m_tables.push_back(table);
+  table.store_contents_of_null_rows = store_contents_of_null_rows;
+
+  m_tables.push_back(std::move(table));
 }
 
 // Calculate how many bytes the data in the column uses. We don't bother
@@ -230,6 +237,13 @@ const uchar *LoadIntoTableBuffers(const TableCollection &tables,
   for (const Table &tbl : tables.tables()) {
     TABLE *table = tbl.table;
 
+    const NullRowFlag null_row_flag = table->is_nullable()
+                                          ? static_cast<NullRowFlag>(*ptr++)
+                                          : NullRowFlag::kNotNull;
+    assert(null_row_flag == NullRowFlag::kNotNull ||
+           null_row_flag == NullRowFlag::kNullWithoutData ||
+           null_row_flag == NullRowFlag::kNullWithData);
+
     // If the NULL row flag is set, it may override the NULL flags for the
     // columns. This may in turn cause columns not to be restored when they
     // should, so clear the NULL row flag when restoring the row.
@@ -240,21 +254,22 @@ const uchar *LoadIntoTableBuffers(const TableCollection &tables,
       ptr += table->s->null_bytes;
     }
 
-    if (tbl.table->is_nullable()) {
-      const size_t null_row_size = sizeof(tbl.table->null_row);
-      memcpy(pointer_cast<uchar *>(&tbl.table->null_row), ptr, null_row_size);
-      ptr += null_row_size;
+    // Load all non-null column values.
+    if (null_row_flag != NullRowFlag::kNullWithoutData) {
+      for (const Column &column : tbl.columns) {
+        if (!column.field->is_null()) {
+          ptr = column.field->unpack(ptr);
+        }
+      }
     }
 
-    if (tables.store_rowids() && ShouldCopyRowId(tbl.table)) {
+    if (null_row_flag != NullRowFlag::kNotNull) {
+      table->set_null_row();
+    }
+
+    if (tables.store_rowids() && ShouldCopyRowId(table)) {
       memcpy(table->file->ref, ptr, table->file->ref_length);
       ptr += table->file->ref_length;
-    }
-
-    for (const Column &column : tbl.columns) {
-      if (!column.field->is_null()) {
-        ptr = column.field->unpack(ptr);
-      }
     }
   }
   return ptr;

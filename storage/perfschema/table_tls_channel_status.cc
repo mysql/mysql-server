@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ void table_tls_channel_status::materialize() {
             tls_channel->get_tls_property == nullptr ||
             tls_channel->next_tls_property == nullptr)
           return;
-        if (tls_channel->init_tls_property_iterator(&iterator) == false) return;
+        if (!tls_channel->init_tls_property_iterator(&iterator)) return;
         TLS_channel_property one_property;
         for (;;) {
           /* Reset */
@@ -102,8 +102,7 @@ void table_tls_channel_status::materialize() {
                  sizeof(one_property.property_value));
 
           /* Fetch property */
-          if (tls_channel->get_tls_property(iterator, &one_property) == false)
-            break;
+          if (!tls_channel->get_tls_property(iterator, &one_property)) break;
 
           /* Store property */
           row_tls_channel_status one_row;
@@ -113,7 +112,7 @@ void table_tls_channel_status::materialize() {
           m_row_tls_channel_status.push_back(one_row);
 
           /* next */
-          if (tls_channel->next_tls_property(iterator) == false) break;
+          if (!tls_channel->next_tls_property(iterator)) break;
         }
         tls_channel->deinit_tls_property_iterator(iterator);
       };
@@ -123,20 +122,20 @@ void table_tls_channel_status::materialize() {
     In order to minimize the duration of the lock, we store all
     properties locally. ::read_row_values will use the local buffer.
   */
-  mysql_rwlock_rdlock(&LOCK_pfs_tls_channels);
-  for (tls_channels::const_iterator it = g_instrumented_tls_channels.cbegin();
-       it != g_instrumented_tls_channels.cend(); ++it) {
-    process_one_channel(*it);
+  pfs_tls_channels_lock_for_read();
+  const tls_channels &channels = pfs_get_instrumented_tls_channels();
+  for (auto *channel : channels) {
+    process_one_channel(channel);
   }
-  mysql_rwlock_unlock(&LOCK_pfs_tls_channels);
+  pfs_tls_channels_unlock();
 }
 
-ha_rows table_tls_channel_status::get_row_count(void) {
+ha_rows table_tls_channel_status::get_row_count() {
   /* A hint for optimizer - number bytes not number entries */
   return sizeof(row_tls_channel_status);
 }
 
-void table_tls_channel_status::reset_position(void) {
+void table_tls_channel_status::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
@@ -148,16 +147,15 @@ int table_tls_channel_status::rnd_pos(const void *pos) {
   return 0;
 }
 
-int table_tls_channel_status::rnd_next(void) {
+int table_tls_channel_status::rnd_next() {
   m_pos.set_at(&m_next_pos);
   if (m_pos.m_index < m_row_tls_channel_status.size()) {
     m_row = &m_row_tls_channel_status[m_pos.m_index];
     m_next_pos.set_after(&m_pos);
     return 0;
-  } else {
-    m_row = nullptr;
-    return HA_ERR_END_OF_FILE;
   }
+  m_row = nullptr;
+  return HA_ERR_END_OF_FILE;
 }
 
 int table_tls_channel_status::read_row_values(TABLE *table, unsigned char *buf,

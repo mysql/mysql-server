@@ -59,10 +59,6 @@
 --let $rpl_server_count= 5
 --source include/group_replication.inc
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
-SET SESSION sql_log_bin = 1;
-
 # Get address and UUID of all servers
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 

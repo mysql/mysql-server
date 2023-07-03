@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -395,7 +395,7 @@ public:
     args.add("-c");
     args.add(connect_string.c_str());
     args.add("--ndb-nodeid=", m_nodeid);
-    args.add("--nodaemon");
+    args.add("--foreground");
     return Mgmd::start(working_dir, args);
   }
 

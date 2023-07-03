@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,9 +38,12 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/mysqld.h"                      // srv_registry
 #include "sql/resourcegroups/resource_group_mgr.h"  // Resource_group_mgr
+#include "sql/server_component/persistent_dynamic_loader_imp.h"
+#include "sql/server_component/set_variables_helper.h"
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_plugin.h"       // end_transaction
+#include "sql/sql_plugin_var.h"   // convert_underscore_to_dash
 #include "sql/thd_raii.h"
 
 #include "sql/sql_component.h"
@@ -48,9 +51,9 @@
 using manifest::Manifest_reader;
 
 bool Sql_cmd_install_component::execute(THD *thd) {
-  my_service<SERVICE_TYPE(persistent_dynamic_loader)> service_dynamic_loader(
+  my_service<SERVICE_TYPE(persistent_dynamic_loader)> persisted_loader(
       "persistent_dynamic_loader", srv_registry);
-  if (service_dynamic_loader) {
+  if (persisted_loader) {
     my_error(ER_COMPONENTS_CANT_ACQUIRE_SERVICE_IMPLEMENTATION, MYF(0),
              "persistent_dynamic_loader");
     return true;
@@ -69,11 +72,101 @@ bool Sql_cmd_install_component::execute(THD *thd) {
           ->disable_pfs_notification();
   });
 
+  m_arg_list_size = m_set_exprs->size() * 2 + 1;
+  m_arg_list = thd->mem_root->ArrayAlloc<char *>(m_arg_list_size + 1);
+  m_arg_list[m_arg_list_size] = nullptr;
+  char **arg = m_arg_list;
+
+  *arg++ = nullptr;  // no program name
+
+  for (auto &set : *m_set_exprs) {
+    if (!set.expr->fixed && set.expr->fix_fields(thd, &set.expr)) return true;
+
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    String value(buff, sizeof(buff), system_charset_info), *val;
+    val = set.expr->val_str(&value);
+
+    if (!val || set.expr->is_null()) {
+      String x;
+      if (set.name.prefix.length > 0) {
+        x.append(set.name.prefix);
+        x.append('.');
+      }
+      x.append(set.name.name);
+      my_error(ER_INSTALL_COMPONENT_SET_NULL_VALUE, MYF(0), x.c_ptr());
+      return true;
+    }
+
+    String argument(STRING_WITH_LEN("--"), system_charset_info);
+    if (set.name.prefix.length > 0) {
+      argument.append(set.name.prefix);
+      argument.append('.');
+    }
+    argument.append(set.name.name);
+    char *arg_name = thd->strmake(argument.c_ptr(), argument.length());
+    convert_underscore_to_dash(arg_name, argument.length());
+
+    *arg++ = arg_name;
+    *arg++ = thd->strmake(val->c_ptr_safe(), val->length());
+  }
+
   std::vector<const char *> urns(m_urns.size());
   for (size_t i = 0; i < m_urns.size(); ++i) {
     urns[i] = m_urns[i].str;
   }
-  if (service_dynamic_loader->load(thd, urns.data(), m_urns.size())) {
+  if (persisted_loader->load(thd, urns.data(), m_urns.size())) {
+    return (end_transaction(thd, true));
+  }
+
+  bool set_var_failed = false;
+
+  if (m_arg_list_size > 1) {
+    std::stringstream str;
+    str << m_arg_list[1] + 2;
+    for (int idx = 3; idx < m_arg_list_size; idx += 2)
+      str << ((idx + 2 < m_arg_list_size) ? ", " : " and ")
+          << (m_arg_list[idx] + 2);
+    my_error(ER_INSTALL_COMPONENT_SET_UNUSED_VALUE, MYF(0), str.str().c_str());
+    set_var_failed = true;
+  }
+  /* persist the values that need persisting */
+  if (!set_var_failed && m_set_exprs->elements > 0) {
+    Set_variables_helper hlp(thd);
+    for (auto &set_var : *m_set_exprs) {
+      enum_var_type type = set_var.type;
+      /* we already did the SET GLOBAL part, convert to PERSIST */
+      if (type == enum_var_type::OPT_PERSIST)
+        type = enum_var_type::OPT_PERSIST_ONLY;
+
+      if (type == enum_var_type::OPT_PERSIST ||
+          type == enum_var_type::OPT_PERSIST_ONLY) {
+        if (hlp.add_variable(set_var.name.prefix.str,
+                             set_var.name.prefix.length, set_var.name.name.str,
+                             set_var.name.name.length, set_var.expr, type)) {
+          set_var_failed = true;
+          break;
+        }
+      } else if (hlp.check_variable_update_type(
+                     set_var.name.prefix.str, set_var.name.prefix.length,
+                     set_var.name.name.str, set_var.name.name.length,
+                     set_var.expr)) {
+        set_var_failed = true;
+        break;
+      }
+    }
+    if (set_var_failed || hlp.execute()) {
+      set_var_failed = true;
+    }
+  }
+  if (set_var_failed) {
+    if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout) ||
+        acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout))
+      return true;
+    if (dynamic_loader_srv->unload(urns.data(), m_urns.size()) ||
+        mysql_persistent_dynamic_loader_imp::remove_from_cache(
+            urns.data(), urns.size()) != (int)urns.size()) {
+      assert(0);
+    }
     return (end_transaction(thd, true));
   }
 
@@ -233,6 +326,12 @@ bool Deployed_components::load() {
     }
     loaded_ = true;
     free_memory();
+  }
+  if (components_.find("keyring") != components_.rfind("keyring")) {
+    /* Multiple keyring component URNs present in manifest file */
+    LogErr(WARNING_LEVEL,
+           ER_WARN_COMPONENTS_INFRASTRUCTURE_MANIFEST_MULTIPLE_KEYRING,
+           components_.c_str(), current_reader->manifest_file().c_str());
   }
   return true;
 }

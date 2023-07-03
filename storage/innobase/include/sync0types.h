@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -427,7 +427,6 @@ enum latch_id_t {
   LATCH_ID_ZIP_PAD_MUTEX,
   LATCH_ID_OS_AIO_READ_MUTEX,
   LATCH_ID_OS_AIO_WRITE_MUTEX,
-  LATCH_ID_OS_AIO_LOG_MUTEX,
   LATCH_ID_OS_AIO_IBUF_MUTEX,
   LATCH_ID_ROW_DROP_LIST,
   LATCH_ID_INDEX_ONLINE_LOG,

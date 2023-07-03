@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,12 +51,18 @@ class LazyConnector : public Processor {
    * @param conn a connection handle
    * @param in_handshake if true, the client connection is in Greeting or
    * ChangeUser right now.
+   * @param on_error function that's called if an error happened.
    *
    * If "in_handshake" the LazyConnector may ask the client for a
    * "auth-method-switch" or a "plaintext-password".
    */
-  LazyConnector(MysqlRoutingClassicConnection *conn, bool in_handshake)
-      : Processor(conn), in_handshake_{in_handshake} {}
+  LazyConnector(
+      MysqlRoutingClassicConnectionBase *conn, bool in_handshake,
+      std::function<void(const classic_protocol::message::server::Error &err)>
+          on_error)
+      : Processor(conn),
+        in_handshake_{in_handshake},
+        on_error_(std::move(on_error)) {}
 
   enum class Stage {
     Connect,
@@ -83,6 +89,9 @@ class LazyConnector : public Processor {
   Stage stage_{Stage::Connect};
 
   bool in_handshake_;
+
+  std::function<void(const classic_protocol::message::server::Error &err)>
+      on_error_;
 };
 
 #endif

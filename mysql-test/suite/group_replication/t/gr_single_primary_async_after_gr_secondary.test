@@ -70,16 +70,16 @@ INSERT INTO test.t2 VALUES (1);
 # variables for wait_for_slave_io_error.inc and wait_for_slave_sql_error.inc
 --let $rpl_channel_name='ch3_2'
 
---let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_io_error= 0
 --let $slave_io_error_replace= / at [0-9]*/ at XXX/
 
---let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_sql_error= 0
 --let $slave_sql_error_replace= / at [0-9]*/ at XXX/
 
 --echo
---echo # 4.1 start slave and verify for error ER_SLAVE_FATAL_ERROR
+--echo # 4.1 start slave and verify for error ER_REPLICA_FATAL_ERROR
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
@@ -88,12 +88,12 @@ START SLAVE FOR CHANNEL 'ch3_2';
 --source include/wait_for_slave_sql_error.inc
 
 --echo
---echo # 4.2 start slave io and verify for error ER_SLAVE_FATAL_ERROR
+--echo # 4.2 start slave io and verify for error ER_REPLICA_FATAL_ERROR
 START SLAVE IO_THREAD FOR CHANNEL 'ch3_2';
 --source include/wait_for_slave_io_error.inc
 
 --echo
---echo # 4.3 start slave sql and verify for error ER_SLAVE_FATAL_ERROR
+--echo # 4.3 start slave sql and verify for error ER_REPLICA_FATAL_ERROR
 START SLAVE SQL_THREAD FOR CHANNEL 'ch3_2';
 --source include/wait_for_slave_sql_error.inc
 
@@ -104,12 +104,12 @@ START SLAVE SQL_THREAD FOR CHANNEL 'ch3_2';
 --replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/
 
 --let $grep_file= $MYSQLTEST_VARDIR/tmp/gr_secondary_scenario2.err
---let $grep_pattern= Can't start slave IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.
+--let $grep_pattern= Can't start replica IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 
 --let $grep_file= $MYSQLTEST_VARDIR/tmp/gr_secondary_scenario2.err
---let $grep_pattern= Can't start slave SQL THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.
+--let $grep_pattern= Can't start replica SQL THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 

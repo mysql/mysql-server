@@ -86,7 +86,7 @@ SET GLOBAL innodb_lock_wait_timeout = 300;
 --echo # 2.5 Add error suppressions.
 --echo #
 call mtr.add_suppression("Worker .* failed executing transaction");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 
 --echo #
 --echo # 2.6 An extra connection needed on Slave.

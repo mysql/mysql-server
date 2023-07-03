@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -329,7 +329,7 @@ static int get_options(int *argc, char ***argv) {
 static int write_to_table(char *filename, MYSQL *mysql) {
   char tablename[FN_REFLEN], hard_path[FN_REFLEN],
       escaped_name[FN_REFLEN * 2 + 1], sql_statement[FN_REFLEN * 16 + 256],
-      *end, *pos;
+      escaped_tablename[FN_REFLEN * 2 + 1], *end;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("filename: %s", filename));
 
@@ -339,10 +339,14 @@ static int write_to_table(char *filename, MYSQL *mysql) {
   else
     my_load_path(hard_path, filename, nullptr); /* filename includes the path */
 
+  mysql_real_escape_string_quote(mysql, escaped_tablename, tablename,
+                                 (unsigned long)strlen(tablename), '`');
+
   if (opt_delete) {
     if (verbose)
       fprintf(stdout, "Deleting the old data from table %s\n", tablename);
-    snprintf(sql_statement, FN_REFLEN * 16 + 256, "DELETE FROM %s", tablename);
+    snprintf(sql_statement, FN_REFLEN * 16 + 256, "DELETE FROM `%s`",
+             escaped_tablename);
     if (mysql_query(mysql, sql_statement))
       return db_error_with_table(mysql, tablename);
   }
@@ -366,11 +370,7 @@ static int write_to_table(char *filename, MYSQL *mysql) {
   if (replace) end = my_stpcpy(end, " REPLACE");
   if (ignore) end = my_stpcpy(end, " IGNORE");
   end = my_stpcpy(end, " INTO TABLE `");
-  /* Turn any ` into `` in table name. */
-  for (pos = tablename; *pos; pos++) {
-    if (*pos == '`') *end++ = '`';
-    *end++ = *pos;
-  }
+  end = my_stpcpy(end, escaped_tablename);
   end = my_stpcpy(end, "`");
 
   if (fields_terminated || enclosed || opt_enclosed || escaped)

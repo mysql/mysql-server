@@ -4256,14 +4256,14 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` semi joi
 explain format=tree select * from t3 where a in
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 EXPLAIN
--> Nested loop inner join  (cost=45.95 rows=102)
-    -> Filter: ((t3.a < 20) and (t3.a is not null))  (cost=10.25 rows=100)
-        -> Table scan on t3  (cost=10.25 rows=100)
-    -> Limit: 1 row(s)  (cost=25.86 rows=1)
-        -> Nested loop inner join  (cost=25.86 rows=1)
-            -> Filter: (t1.c is not null)  (cost=0.26 rows=1)
-                -> Index lookup on t1 using kp1 (kp1=t3.a)  (cost=0.26 rows=1)
-            -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.26 rows=1)
+-> Nested loop inner join  (cost=45.9 rows=102)
+    -> Filter: ((t3.a < 20) and (t3.a is not null))  (cost=10.2 rows=100)
+        -> Table scan on t3  (cost=10.2 rows=100)
+    -> Limit: 1 row(s)  (cost=25.9 rows=1.02)
+        -> Nested loop inner join  (cost=25.9 rows=1.02)
+            -> Filter: (t1.c is not null)  (cost=0.256 rows=1.02)
+                -> Index lookup on t1 using kp1 (kp1=t3.a)  (cost=0.256 rows=1.02)
+            -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.256 rows=1)
 
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
@@ -5866,20 +5866,20 @@ EXPLAIN FORMAT=tree SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
 LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
 EXPLAIN
--> Remove duplicate (ot1, ot2, ot3) rows using temporary table (weedout)  (cost=87.82 rows=864)
-    -> Left hash join (ot3.a = ot2.a), (it3.a = ot2.a)  (cost=87.82 rows=864)
-        -> Left hash join (it3.a = ot1.a), (ot2.a = ot1.a)  (cost=11.51 rows=96)
+-> Remove duplicate (ot1, ot2, ot3) rows using temporary table (weedout)  (cost=87.8 rows=864)
+    -> Left hash join (ot3.a = ot2.a), (it3.a = ot2.a)  (cost=87.8 rows=864)
+        -> Left hash join (it3.a = ot1.a), (ot2.a = ot1.a)  (cost=11.5 rows=96)
             -> Table scan on ot1  (cost=1.05 rows=8)
             -> Hash
                 -> Inner hash join (no condition)  (cost=1.66 rows=12)
-                    -> Table scan on ot2  (cost=0.08 rows=4)
+                    -> Table scan on ot2  (cost=0.0813 rows=4)
                     -> Hash
-                        -> Table scan on it3  (cost=0.21 rows=3)
+                        -> Table scan on it3  (cost=0.206 rows=3)
         -> Hash
             -> Inner hash join (no condition)  (cost=1.17 rows=9)
-                -> Table scan on it3  (cost=0.02 rows=3)
+                -> Table scan on it3  (cost=0.0173 rows=3)
                 -> Hash
-                    -> Table scan on ot3  (cost=0.02 rows=3)
+                    -> Table scan on ot3  (cost=0.0172 rows=3)
 
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
@@ -13089,18 +13089,18 @@ WHERE t3.col_int IS NULL
 ORDER BY col_int_key
 ;
 EXPLAIN
--> Nested loop inner join (rows=7)
-    -> Sort: t4.col_int_key (rows=6)
-        -> Filter: (t4.col_int_key is not null) (rows=6)
-            -> Table scan on t4 (rows=6)
-    -> Limit: 1 row(s) (rows=1)
-        -> Filter: (t3.col_int is null) (rows=1)
-            -> Nested loop left join (rows=1)
-                -> Covering index lookup on t1 using col_int_key (col_int_key=t4.col_int_key) (rows=1)
-                -> Nested loop inner join (rows=1)
-                    -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk) (rows=1)
-                    -> Filter: (t3.col_int_key = t2.col_int) (rows=1)
-                        -> Table scan on t3 (rows=4)
+-> Nested loop inner join  (rows=7)
+    -> Sort: t4.col_int_key  (rows=6)
+        -> Filter: (t4.col_int_key is not null)  (rows=6)
+            -> Table scan on t4  (rows=6)
+    -> Limit: 1 row(s)  (rows=1.17)
+        -> Filter: (t3.col_int is null)  (rows=1.17)
+            -> Nested loop left join  (rows=1.17)
+                -> Covering index lookup on t1 using col_int_key (col_int_key=t4.col_int_key)  (rows=1.17)
+                -> Nested loop inner join  (rows=1)
+                    -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (rows=1)
+                    -> Filter: (t3.col_int_key = t2.col_int)  (rows=1)
+                        -> Table scan on t3  (rows=4)
 
 SELECT *
 FROM t4
@@ -13428,15 +13428,15 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
--> Remove duplicate t1 rows using temporary table (weedout)  (cost=6.20 rows=54)
-    -> Left hash join (no condition)  (cost=6.20 rows=54)
+-> Remove duplicate t1 rows using temporary table (weedout)  (cost=6.2 rows=54)
+    -> Left hash join (no condition)  (cost=6.2 rows=54)
         -> Left hash join (no condition)  (cost=2.14 rows=18)
-            -> Inner hash join (no condition)  (cost=1.30 rows=6)
-                -> Table scan on t1  (cost=0.28 rows=3)
+            -> Inner hash join (no condition)  (cost=1.3 rows=6)
+                -> Table scan on t1  (cost=0.275 rows=3)
                 -> Hash
                     -> Table scan on t2  (cost=0.45 rows=2)
             -> Hash
-                -> Table scan on t1  (cost=0.09 rows=3)
+                -> Table scan on t1  (cost=0.0917 rows=3)
         -> Hash
             -> Table scan on alias1  (cost=0.55 rows=3)
 

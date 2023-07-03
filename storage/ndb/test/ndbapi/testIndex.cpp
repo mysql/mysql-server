@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,6 +212,7 @@ int create_index(NDBT_Context* ctx, int indxNum,
 		 Ndb* pNdb, Attrib* attr, bool logged){
   bool orderedIndex = ctx->getProperty("OrderedIndex", (unsigned)0);
   bool notOnlyPkId = ctx->getProperty("NotOnlyPkId", (unsigned)0);
+  bool notIncludingUpdates = ctx->getProperty("NotIncludingUpdates", (unsigned) 0);
   int result  = NDBT_OK;
 
   HugoCalculator calc(*pTab);
@@ -255,6 +256,11 @@ int create_index(NDBT_Context* ctx, int indxNum,
     if (col->getStorageType() == NDB_STORAGETYPE_DISK)
     {
       ndbout << col->getName() << " - disk based )" << endl;
+      return SKIP_INDEX;
+    }
+    if (calc.isUpdateCol(attrNo) && notIncludingUpdates)
+    {
+      ndbout << col->getName() << " - updates col, not including" << endl;
       return SKIP_INDEX;
     }
 
@@ -3291,6 +3297,182 @@ runDeferredError(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runChunkyUpdatesUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Run 'chunky' UPDATES
+   */
+  /* Updates run on defined records
+   * Some percentage of the defined records are updated in
+   * one transaction.
+   */
+  const Uint32 numRecords= ctx->getNumRecords();
+  const Uint32 pctChunk = ctx->getProperty("ChunkPercent", 50);
+
+  Uint32 chunkSize = (numRecords * pctChunk) / 100;
+  if (chunkSize == 0)
+  {
+    chunkSize = 1;
+  };
+
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+
+  g_err << "Running updates of chunk pct "
+        << pctChunk
+        << " size " << chunkSize
+        << " rows until stopped." << endl;
+
+  Uint32 pos = 0;
+  Uint32 i = 0;
+  while (!ctx->isTestStopped())
+  {
+    CHECKRET(hugoOps.startTransaction(pNdb) == 0);
+    for (Uint32 op=0; op < chunkSize; op++)
+    {
+      CHECKRET(hugoOps.pkUpdateRecord(pNdb, pos, 1, (i * numRecords)) == 0);
+      pos = (pos+1) % numRecords;
+    }
+    CHECKRET(hugoOps.execute_Commit(pNdb) == 0);
+    CHECKRET(hugoOps.closeTransaction(pNdb) == 0);
+    i++;
+  }
+
+  return NDBT_OK;
+}
+
+int
+runChunkyInsertDeletesUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Run 'chunky' INSERT+DELETE
+   */
+  /* Run on undefined part of row space
+   */
+  const Uint32 numRecords= ctx->getNumRecords();
+  const Uint32 pctChunk = ctx->getProperty("ChunkPercent", 50);
+
+  Uint32 chunkSize = (numRecords * pctChunk) / 100;
+  if (chunkSize == 0)
+  {
+    chunkSize = 1;
+  };
+
+  g_err << "Running insert/deletes of chunk pct "
+        << pctChunk << " size " << chunkSize
+        << " rows until stopped." << endl;
+
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+
+  Uint32 i = 0;
+  Uint32 pos = 0;
+  bool insert = true;
+  while (!ctx->isTestStopped())
+  {
+    CHECKRET(hugoOps.startTransaction(pNdb) == 0);
+    for (Uint32 op=0; op < chunkSize; op++)
+    {
+      if (insert)
+      {
+        CHECKRET(hugoOps.pkInsertRecord(pNdb, numRecords + pos, 1, (i * numRecords)) == 0);
+      }
+      else
+      {
+        CHECKRET(hugoOps.pkDeleteRecord(pNdb, numRecords + pos) == 0);
+      }
+      pos++;
+      if (pos == numRecords)
+      {
+        insert = !insert;
+        pos = 0;
+      }
+    }
+    CHECKRET(hugoOps.execute_Commit(pNdb) == 0);
+    CHECKRET(hugoOps.closeTransaction(pNdb) == 0);
+    i++;
+  }
+
+  return NDBT_OK;
+}
+
+int
+runRandomIndexScan(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Run a series of CommittedRead scans using the
+   * randomly created index.
+   * No attention is paid to the results returned.
+   * Batchsize is user defined.
+   */
+  const Uint32 idx = ctx->getProperty("createRandomIndex");
+  char iName[20];
+  BaseString::snprintf(iName, 20, "IDC%d", idx);
+
+  const Uint32 scanBatchSize = ctx->getProperty("scanBatchSize", Uint32(0));
+
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Index* pRandomIndex =
+    pNdb->getDictionary()->getIndex(iName, ctx->getTab()->getName());
+  CHECKRET(pRandomIndex != nullptr);
+
+  const Uint32 iterations = ctx->getNumLoops() * 10;
+
+  g_err << "Step "
+        << step->getStepTypeNo()
+        << " of "
+        << step->getStepTypeCount()
+        << " running " << iterations
+        << " scans using index "
+        << iName
+        << " and batchsize "
+        << scanBatchSize
+        << endl;
+
+  for (Uint32 i=0; i < iterations; i++)
+  {
+    //g_err << "Step " << step << " iteration " << i << endl;
+
+    NdbTransaction* trans = pNdb->startTransaction();
+    CHECKRET(trans != nullptr);
+
+    NdbIndexScanOperation* pOp =
+      trans->getNdbIndexScanOperation(iName, ctx->getTab()->getName());
+    CHECKRET(pOp != nullptr);
+
+    CHECKRET(pOp->readTuples(NdbScanOperation::LM_CommittedRead,
+                             Uint32(0), /* scan_flags */
+                             Uint32(0), /* parallel */
+                             scanBatchSize) /* batch */
+             == 0);
+    for (int a=0; a < ctx->getTab()->getNoOfColumns(); a++)
+    {
+      CHECKRET(pOp->getValue(a) != nullptr);
+    }
+
+    CHECKRET(trans->execute(ExecType::NoCommit) == 0);
+
+    Uint32 rows = 0;
+    int rc = 0;
+    while ((rc = pOp->nextResult()) == 0)
+    {
+      rows++;
+    };
+
+    CHECKRET(rc == 1); // No more tuples;
+
+    trans->close();
+
+    //g_err << "Found " << rows << " rows" << endl;
+  }
+
+  ctx->stopTest();
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testIndex);
 TESTCASE("CreateAll", 
 	 "Test that we can create all various indexes on each table\n"
@@ -3794,6 +3976,30 @@ TESTCASE("RefreshWithOrderedIndex",
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
+TESTCASE("ScanOrderedIndexWithChurn",
+         "Concurrent scans while modifications are occurring")
+{
+  TC_PROPERTY("OrderedIndex", 1);
+  TC_PROPERTY("LoggedIndexes", Uint32(0));
+  /**
+   * Don't include updates column in index as we scan
+   * slowly, so ascending result set can be large
+   */
+  TC_PROPERTY("NotIncludingUpdates", Uint32(1));
+  /**
+   * Small scan batchsize, to increase chance of scans
+   * being in-progress during DML commit
+   */
+  TC_PROPERTY("ScanBatchSize", Uint32(3));
+  INITIALIZER(createRandomIndex);
+  INITIALIZER(runLoadTable);
+  STEP(runChunkyUpdatesUntilStopped);
+  STEP(runChunkyInsertDeletesUntilStopped);
+  STEPS(runRandomIndexScan, 10);
+  FINALIZER(runClearTable);
+  FINALIZER(createRandomIndex_Drop);
+}
+
 NDBT_TESTSUITE_END(testIndex)
 
 int main(int argc, const char** argv){

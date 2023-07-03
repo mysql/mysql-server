@@ -26,7 +26,7 @@ select count(*) from t1;
 # which will occur on slave when master is restarted while
 # slave is running
 --disable_query_log
-call mtr.add_suppression("Slave.*: The incident LOST_EVENTS occurred on the master");
+call mtr.add_suppression("Replica.*: The incident LOST_EVENTS occurred on the source");
 --enable_query_log
 
 --connection master
@@ -67,7 +67,7 @@ drop table if exists t1;
 start slave;
 --enable_result_log
 
-let $slave_sql_errno= 13119; # ER_SLAVE_INCIDENT
+let $slave_sql_errno= 13119; # ER_REPLICA_INCIDENT
 let $show_slave_sql_error=1;
 -- source include/wait_for_slave_sql_error.inc
 

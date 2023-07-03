@@ -1,3 +1,4 @@
+!include include/default_mysqld.cnf
 !include include/default_ndbd.cnf
 
 [cluster_config.1]
@@ -21,18 +22,14 @@ mysqld=,,
 
 
 [mysqld]
-open-files-limit=           1024
-local-infile
-character-set-server=      latin1
-connect-timeout=            60
-log-bin-trust-function-creators=1
-key_buffer_size=            1M
-sort_buffer=                256K
-max_heap_table_size=        1M
-loose-innodb_data_file_path=      ibdata1:10M:autoextend
-replica-net-timeout=120
+# Make all mysqlds use cluster
 ndbcluster
-ndb-wait-setup=60
+ndb-wait-connected=30
+ndb-wait-setup=120
+# Default log-replica-updates to off and turn it on
+# only selectively for some of the servers in config
+log-replica-updates=0
+
 
 [cluster_config.mysqld.1.1]
 NodeId=49
@@ -59,6 +56,7 @@ binlog_format=row
 ndb-nodeid=16
 server-id= 2
 # Note no binary log
+skip-log-bin
 
 
 
@@ -86,12 +84,9 @@ Dedicated=1
 [mysqld.1.slave]
 ndb-nodeid=49
 # Note no binlog on this slave
+skip-log-bin
 server-id= 4
 skip-replica-start
-loose-skip-innodb
-replica-load-tmpdir= ../../../tmp
-ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
-
 
 
 [mysqld.2.slave]
@@ -99,9 +94,6 @@ ndb-nodeid=16
 # Note binlog on this slave, but not logging slave updates
 server-id= 5
 skip-replica-start
-loose-skip-innodb
-replica-load-tmpdir= ../../../tmp
-ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
 log-bin= slave-master-bin
 binlog_format=row
 ndb-log-bin=1
@@ -112,9 +104,6 @@ ndb-nodeid=32
 # Note binlog on this slave, with slave updates logged
 server-id= 6
 skip-replica-start
-loose-skip-innodb
-replica-load-tmpdir= ../../../tmp
-ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
 log-bin= slave-master-bin
 binlog_format=row
 log-replica-updates

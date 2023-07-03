@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,10 @@ class DestRoundRobin : public RouteDestination {
   ~DestRoundRobin() override = default;
 
   Destinations destinations() override;
+
+  routing::RoutingStrategy get_strategy() override {
+    return routing::RoutingStrategy::kRoundRobin;
+  }
 
  protected:
   // MUST take the RouteDestination Mutex

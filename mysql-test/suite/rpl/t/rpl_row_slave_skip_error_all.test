@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Check that replica-skip-errors skips following errors like
-# ER_SLAVE_CONVERSION_FAILED and ER_NO_SUCH_TABLE.
+# ER_REPLICA_CONVERSION_FAILED and ER_NO_SUCH_TABLE.
 #
 # ==== Implementation ====
 # On slave, set replica_skip_errors=all, so that slave skips all the errors that
@@ -9,7 +9,7 @@
 #
 # On master, create a table t with a varchar filed of length 25. On slave
 # increase the varchar field width to 255, so that updates that are received
-# from master will fail on slave with error ER_SLAVE_CONVERSION_FAILED.
+# from master will fail on slave with error ER_REPLICA_CONVERSION_FAILED.
 #
 # Secondly drop the table t on slave and try to the update the table from
 # master. The updates will fail on slave with an error ER_NO_SUCH_TABLE.
@@ -29,16 +29,16 @@ CREATE TABLE t (name VARCHAR(25) DEFAULT NULL) ENGINE=InnoDB;
 --source include/sync_slave_sql_with_master.inc
 
 # On slave alter the name field length to varchar(255).
-call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
-call mtr.add_suppression("Slave SQL.*Column 0 of table .test.t. cannot be converted from type.* Error_code: MY-013146");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146");
+call mtr.add_suppression("Replica SQL.*Column 0 of table .test.t. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 call mtr.add_suppression("Got error 149 - .Lock deadlock; Retry transaction. during COMMIT");
 ALTER TABLE t CHANGE name name VARCHAR(255);
 
 --source include/rpl_connection_master.inc
 INSERT INTO t VALUE ('Amy');
 --echo # Sync should be successful. Slave should not stop with an error
---echo # ER_SLAVE_CONVERSION_FAILED. It should be up and running in spite
+--echo # ER_REPLICA_CONVERSION_FAILED. It should be up and running in spite
 --echo # of errors as we have set slave_skip_error=all.
 --source include/sync_slave_sql_with_master.inc
 
@@ -72,7 +72,7 @@ UPDATE t SET name='Old';
 # in the error log of slave.
 --let $assert_text = Found 2 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_select = Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146
+--let $assert_select = Replica SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146
 --let $assert_count = 2
 --source include/assert_grep.inc
 

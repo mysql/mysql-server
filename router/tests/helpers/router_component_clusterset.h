@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -92,11 +92,20 @@ class RouterComponentClusterSetTest : public RestApiComponentTest {
 
     auto get_all_nodes_classic_ports() const {
       std::vector<uint16_t> result;
+      std::vector<uint16_t> secondary_clusters_nodes;
       for (const auto &cluster : clusters) {
         for (const auto &node : cluster.nodes) {
-          result.push_back(node.classic_port);
+          // PRIMARY cluster nodes first to match the metadata-servers order
+          // expectation
+          if (cluster.role == "PRIMARY")
+            result.push_back(node.classic_port);
+          else
+            secondary_clusters_nodes.push_back(node.classic_port);
         }
       }
+      result.insert(result.end(), secondary_clusters_nodes.begin(),
+                    secondary_clusters_nodes.end());
+
       return result;
     }
 

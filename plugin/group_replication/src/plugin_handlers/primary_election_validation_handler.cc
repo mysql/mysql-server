@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,7 @@ Primary_election_validation_handler::validate_election(std::string &uuid,
           !member_info.second->member_left() &&
           member_info.second->has_channels()) {
         error_msg.assign(
-            "There is a slave channel running in the group's"
+            "There is a replica channel running in the group's"
             " current primary member.");
         return Primary_election_validation_handler::INVALID_PRIMARY;
       }
@@ -217,11 +217,11 @@ Primary_election_validation_handler::validate_election(std::string &uuid,
           if (Primary_election_validation_handler::INVALID_PRIMARY == result)
             error_msg.assign(
                 "There is a member of a major version that"
-                " has running slave channels"); /* purecov: inspected */
-          return result;                        /* purecov: inspected */
+                " has running replica channels"); /* purecov: inspected */
+          return result;                          /* purecov: inspected */
         } else {
           error_msg.assign(
-              "The requested primary is not valid as a slave channel"
+              "The requested primary is not valid as a replica channel"
               " is running on member " +
               valid_uuid);
           return INVALID_PRIMARY;
@@ -233,7 +233,7 @@ Primary_election_validation_handler::validate_election(std::string &uuid,
       if (Primary_election_validation_handler::INVALID_PRIMARY == result)
         error_msg.assign(
             "There is more than a member in the group with"
-            " running slave channels so no primary can be"
+            " running replica channels so no primary can be"
             " elected.");
       return result;
     }

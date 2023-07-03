@@ -1,0 +1,33 @@
+# --------
+# Startup
+# --------
+CREATE TABLE t1 (C1 CHAR(10), C2 CHAR(10));
+INSERT INTO t1 VALUES ("r1c1", "r1c2");
+ALTER TABLE t1 ADD COLUMN C3 CHAR(10) FIRST, ALGORITHM=INSTANT;
+SET GLOBAL innodb_fast_shutdown = 0;
+# Take backup of original datadir
+# restart mysqld on backup datadir
+# restart: --datadir=BACKUP/data --log-error=BACKUP/my_restart.err
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+SET GLOBAL debug = "+d,disable_se_persists_gtid";
+FLUSH ENGINE LOGS;
+SET GLOBAL debug = "+d,gtid_persist_flush_disable";
+SET GLOBAL innodb_log_checkpoint_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_purge_stop_now = 1;
+SET SESSION debug="+d,invalid_index_log_version";
+UPDATE t1 SET C2 = "r1c22";
+# Kill the server
+# start mysqld. It should crash with error
+# Expect found
+Pattern "Index log version [0-9]+ did not match. Max index version is [0-9]+. Recovery can't continue. Please make sure server is not starting up with the datadir generated in future version." found
+# restart mysqld normally
+SELECT * FROM t1;
+C3	C1	C2
+NULL	r1c1	r1c2
+# --------
+# Cleanup
+# --------
+DROP TABLE t1;

@@ -1,0 +1,47 @@
+# Test if cloned statements are being processed by telemetry
+# Based on local_stage.test:
+# Test clone with debug sync point to ensure concurrent operation and data in each stages
+
+--source include/have_server_telemetry_traces.inc
+--source include/no_valgrind_without_big.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+--source include/not_parallel.inc
+--source include/no_ps_protocol.inc
+
+## Install plugin
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+## Create test schema
+--source ../include/create_schema.inc
+
+# Insert few rows
+call execute_dml(0, 0, 1, 2, 1, 0);
+
+select count(*) from t1;
+select count(*) from t2;
+
+# Install required components.
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+
+--echo # In connection default - Cloning database
+--source ../include/clone_command_send.inc
+--reap
+
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+
+#Cleanup
+--source ../include/drop_schema.inc
+
+UNINSTALL PLUGIN clone;
+
+--source include/wait_until_count_sessions.inc
+--force-rmdir $CLONE_DATADIR
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo Component logs:
+--replace_regex /\'.*data_new\.*\'/'CLONE LOCAL DATA DIRECTORY = CLONE_DATADIR/
+cat_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+remove_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;

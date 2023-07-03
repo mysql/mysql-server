@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include <string>
 #include <vector>
 
+#include "connection.h"
 #include "mysql/harness/config_parser.h"
 #include "tcp_address.h"
 
@@ -121,6 +122,8 @@ class ROUTING_EXPORT MySQLRoutingComponent {
 
   uint64_t current_total_connections();
   uint64_t max_total_connections() const { return max_total_connections_; }
+
+  MySQLRoutingConnectionBase *get_connection(const std::string &ep);
 
   std::vector<std::string> route_names() const;
 

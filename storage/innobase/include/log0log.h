@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -222,6 +222,8 @@ call is finished. The proper order of calls looks like this:
 and this sequence is executed inside srv_start() in srv0start.cc (interleaved
 with remaining logic of the srv_start())
 
+@note Note this function also verifies that REDO logs are in known format.
+
 @param[in]    expect_no_files   true means we should return DB_ERROR if log
                                 files are present in the directory before
                                 proceeding any further
@@ -246,13 +248,9 @@ must be set for that block before log_start is called.
 @param[in,out]  log                redo log
 @param[in]      checkpoint_lsn     checkpoint lsn
 @param[in]      start_lsn          current lsn to start at
-@param[in]      first_block        data block (with start_lsn)
-                                   to copy into the log buffer;
-                                   nullptr if no reason to copy
 @param[in]      allow_checkpoints  true iff allows writing newer checkpoints
 @return DB_SUCCESS or error */
 dberr_t log_start(log_t &log, lsn_t checkpoint_lsn, lsn_t start_lsn,
-                  byte first_block[OS_FILE_LOG_BLOCK_SIZE],
                   bool allow_checkpoints = true);
 
 /** Close the log system and free all the related memory. */

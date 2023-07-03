@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,6 @@
 #include "sql/handler.h"
 #include "sql/item.h"            // Name_resolution_context
 #include "sql/item_subselect.h"  // Subquery_strategy
-#include "sql/iterators/composite_iterators.h"
 #include "sql/iterators/row_iterator.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/key_spec.h"  // KEY_CREATE_INFO
@@ -992,9 +991,12 @@ class Query_expression {
     constructor. Such blocks are not included in the list starting in
     Query_Expression::first_query_block, and Query_block::next_query_block().
     They blocks are accessed via Query_term::query_block().
+
+    @param term the term on behalf of which we are making a post processing
+                block
     @returns a query block
    */
-  Query_block *create_post_processing_block();
+  Query_block *create_post_processing_block(Query_term_set_op *term);
 
   bool prepare_query_term(THD *thd, Query_term *qts,
                           Query_result *common_result, ulonglong added_options,
@@ -1251,8 +1253,11 @@ class Query_block : public Query_term {
 
   void mark_as_dependent(Query_block *last, bool aggregate);
 
+  /// @returns true if query block references any tables
+  bool has_tables() const { return m_table_list.elements != 0; }
+
   /// @return true if query block is explicitly grouped (non-empty GROUP BY)
-  bool is_explicitly_grouped() const { return group_list.elements > 0; }
+  bool is_explicitly_grouped() const { return group_list.elements != 0; }
 
   /**
     @return true if this query block is implicitly grouped, ie it is not
@@ -2259,6 +2264,9 @@ class Query_block : public Query_term {
   bool transform_scalar_subqueries_to_join_with_derived(THD *thd);
   bool supported_correlated_scalar_subquery(THD *thd, Item::Css_info *subquery,
                                             Item **lifted_where);
+  bool replace_item_in_expression(Item **expr, bool was_hidden,
+                                  Item::Item_replacement *info,
+                                  Item_transformer transformer);
   bool transform_grouped_to_derived(THD *thd, bool *break_off);
   bool replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
                                 Table_ref *tr, Item **expr);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,9 +196,9 @@ static long process_tls_version(const char *tls_version) {
 
   if (!tls_version || !xcom_strcasecmp(tls_version, ctx_flag_default)) return 0;
 
-  if (strlen(tls_version) - 1 > sizeof(tls_version_option)) return -1;
+  if (strlen(tls_version) + 1 > sizeof(tls_version_option)) return -1;
 
-  strncpy(tls_version_option, tls_version, sizeof(tls_version_option));
+  snprintf(tls_version_option, sizeof(tls_version_option), "%s", tls_version);
   token = xcom_strtok(tls_version_option, separator, &saved_ctx);
   while (token) {
     for (index = 0; index < tls_versions_count; index++) {

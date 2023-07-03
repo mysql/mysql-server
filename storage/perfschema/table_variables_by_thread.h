@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,16 +71,16 @@ struct row_variables_by_thread {
 struct pos_variables_by_thread : public PFS_double_index {
   pos_variables_by_thread() : PFS_double_index(0, 0) {}
 
-  inline void reset(void) {
+  inline void reset() {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline bool has_more_thread(void) {
+  inline bool has_more_thread() {
     return (m_index_1 < global_thread_container.get_row_count());
   }
 
-  inline void next_thread(void) {
+  inline void next_thread() {
     m_index_1++;
     m_index_2 = 0;
   }
@@ -113,7 +113,7 @@ class table_variables_by_thread : public PFS_engine_table {
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_init(bool scan) override;
   int rnd_next() override;

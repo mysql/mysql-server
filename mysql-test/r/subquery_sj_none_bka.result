@@ -4261,14 +4261,14 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <i
 explain format=tree select * from t3 where a in
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 EXPLAIN
--> Filter: <in_optimizer>(t3.a,<exists>(select #2))  (cost=10.25 rows=100)
-    -> Table scan on t3  (cost=10.25 rows=100)
+-> Filter: <in_optimizer>(t3.a,<exists>(select #2))  (cost=10.2 rows=100)
+    -> Table scan on t3  (cost=10.2 rows=100)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)  (cost=0.71 rows=1)
-            -> Nested loop inner join  (cost=0.71 rows=1)
-                -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=0.36 rows=1)
-                    -> Index lookup on t1 using kp1 (kp1=<cache>(t3.a))  (cost=0.36 rows=1)
-                -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.35 rows=1)
+        -> Limit: 1 row(s)  (cost=0.714 rows=1)
+            -> Nested loop inner join  (cost=0.714 rows=1.02)
+                -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=0.357 rows=1.02)
+                    -> Index lookup on t1 using kp1 (kp1=<cache>(t3.a))  (cost=0.357 rows=1.02)
+                -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.348 rows=1)
 
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
@@ -5875,9 +5875,9 @@ EXPLAIN
     -> Left hash join (ot2.a = ot1.a), extra conditions: <in_optimizer>(ot1.a,<exists>(select #2))  (cost=3.53 rows=32)
         -> Table scan on ot1  (cost=1.05 rows=8)
         -> Hash
-            -> Table scan on ot2  (cost=0.08 rows=4)
+            -> Table scan on ot2  (cost=0.0813 rows=4)
     -> Hash
-        -> Table scan on ot3  (cost=0.02 rows=3)
+        -> Table scan on ot3  (cost=0.0172 rows=3)
 
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
@@ -13119,17 +13119,17 @@ WHERE t3.col_int IS NULL
 ORDER BY col_int_key
 ;
 EXPLAIN
--> Sort: t4.col_int_key (rows=6)
-    -> Filter: <in_optimizer>(t4.col_int_key,<exists>(select #2)) (rows=6)
-        -> Table scan on t4 (rows=6)
+-> Sort: t4.col_int_key  (rows=6)
+    -> Filter: <in_optimizer>(t4.col_int_key,<exists>(select #2))  (rows=6)
+        -> Table scan on t4  (rows=6)
         -> Select #2 (subquery in condition; dependent)
-            -> Limit: 1 row(s) (rows=1)
-                -> Filter: (t3.col_int is null) (rows=1)
-                    -> Nested loop left join (rows=1)
-                        -> Covering index lookup on t1 using col_int_key (col_int_key=<cache>(t4.col_int_key)) (rows=1)
-                        -> Nested loop inner join (rows=1)
-                            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk) (rows=1)
-                            -> Index lookup on t3 using col_int_key (col_int_key=t2.col_int) (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Filter: (t3.col_int is null)  (rows=1.17)
+                    -> Nested loop left join  (rows=1.17)
+                        -> Covering index lookup on t1 using col_int_key (col_int_key=<cache>(t4.col_int_key))  (rows=1.17)
+                        -> Nested loop inner join  (rows=1)
+                            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (rows=1)
+                            -> Index lookup on t3 using col_int_key (col_int_key=t2.col_int)  (rows=1)
 
 SELECT *
 FROM t4

@@ -1,14 +1,14 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-call mtr.add_suppression("Slave: failed in copying the global filters to its own per-channel filters on configuration for channel 'ch1'");
+call mtr.add_suppression("Replica: failed in copying the global filters to its own per-channel filters on configuration for channel 'ch1'");
 call mtr.add_suppression("Failed to add a replication filter into filter map for channel 'ch1'");
-call mtr.add_suppression("Slave: failed in creating filter for channel 'ch1'");
-call mtr.add_suppression(".*Failed to allocate memory for master info repositories..*");
-call mtr.add_suppression(".*Failed to allocate memory for the relay log info structure.*");
+call mtr.add_suppression("Replica: failed in creating filter for channel 'ch1'");
+call mtr.add_suppression(".*Failed to allocate memory for connection metadata repositories..*");
+call mtr.add_suppression(".*Failed to allocate memory for the applier metadata structure.*");
 STOP SLAVE SQL_THREAD FOR CHANNEL '';
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
@@ -74,7 +74,7 @@ SET GLOBAL debug='+d,simulate_out_of_memory_on_create_filter';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 ERROR HY001: Out of memory; restart server and try again (needed 0 bytes)
 RESET SLAVE ALL FOR CHANNEL 'ch1';
-ERROR HY000: Slave channel 'ch1' does not exist.
+ERROR HY000: Replica channel 'ch1' does not exist.
 #
 # 3. Simulate an error on executing CHANGE REPLICATION FILTER
 #    with no FOR CHANNEL clause.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5102,12 +5102,12 @@ MgmtSrvr::getConnectionDbParameter(int node1, int node2,
 bool
 MgmtSrvr::transporter_connect(ndb_socket_t sockfd,
                               BaseString& msg,
-                              bool& close_with_reset)
+                              bool& close_with_reset,
+                              bool& log_failure)
 {
   DBUG_ENTER("MgmtSrvr::transporter_connect");
   TransporterRegistry* tr= theFacade->get_registry();
-  bool dummy_log_failure = false;
-  if (!tr->connect_server(sockfd, msg, close_with_reset, dummy_log_failure))
+  if (!tr->connect_server(sockfd, msg, close_with_reset, log_failure))
     DBUG_RETURN(false);
 
   /**

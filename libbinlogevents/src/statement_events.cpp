@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -271,7 +271,7 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         }
 
         if (mts_accessed_dbs == 0)
-          READER_THROW("Invalid MTS accessed databases");
+          READER_THROW("Invalid MTA accessed databases");
 
         for (i = 0;
              i < mts_accessed_dbs && READER_CALL(position) < end_variable_part;
@@ -292,7 +292,7 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
           }
 #endif
           if (READER_CALL(position) >= end_variable_part)
-            READER_THROW("Error reading MTS accessed databases");
+            READER_THROW("Error reading MTA accessed databases");
 
           remaining = end_variable_part - READER_CALL(position);
           READER_TRY_CALL(strncpyz, mts_accessed_db_names[i],

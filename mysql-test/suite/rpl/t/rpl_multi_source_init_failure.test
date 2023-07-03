@@ -11,10 +11,10 @@
 #
 
 # The default channel and channel 'ch_a' will connect to the same master
-CALL mtr.add_suppression("A slave with the same server_uuid/server_id as this slave has connected to the master");
+CALL mtr.add_suppression("A replica with the same server_uuid/server_id as this replica has connected to the source");
 CALL mtr.add_suppression("Error during --relay-log-recovery.*");
-CALL mtr.add_suppression("Server was not able to find a rotate event from master server.*");
-CALL mtr.add_suppression("Recovery from master pos.* and file");
+CALL mtr.add_suppression("Server was not able to find a rotate event from source server.*");
+CALL mtr.add_suppression("Recovery from source pos.* and file");
 
 --source include/stop_slave.inc
 

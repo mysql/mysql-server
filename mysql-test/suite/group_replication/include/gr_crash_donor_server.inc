@@ -96,8 +96,8 @@ LOCK TABLES t1 READ;
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
-call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again.*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Source command COM_REGISTER_REPLICA failed: failed registering on source, reconnecting to try again.*");
 SET SESSION sql_log_bin= 1;
 
 --let $group_replication_start_member_state= RECOVERING
@@ -158,7 +158,7 @@ UNLOCK TABLES;
 --source include/rpl_connection.inc
 
 SET sql_log_bin=0;
-call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
+call mtr.add_suppression(".*Replica SQL for channel 'group_replication_applier': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
 SET sql_log_bin=1;
 
 # kill donor server

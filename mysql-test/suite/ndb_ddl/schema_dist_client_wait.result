@@ -24,6 +24,7 @@ call mtr.add_suppression("Failed to distribute");
 # Execute any DDL on table t1
 ALTER TABLE t1 ADD b INT;
 Warnings:
+Warning	1296	Node 49: 'Client detected timeout'
 Warning	1296	Schema distribution failed
 # Reset coordinator to handle all schema operations
 set global debug="-d,ndb_schema_op_start_timeout";
@@ -35,12 +36,14 @@ include/assert_grep.inc [Verify if ndb_schema_dist_timeout triggered by schema d
 #
 set global debug="+d,ndb_stale_event_with_schema_obj";
 call mtr.add_suppression("Schema dist client detected timeout");
+call mtr.add_suppression("Distribution of '.*' - client timeout");
 call mtr.add_suppression("Failed to distribute");
 # Execute any DDL on table t1
 ALTER TABLE t1 ADD i INT;
 Warnings:
+Warning	1296	Node 49: 'Client detected timeout'
 Warning	1296	Schema distribution failed
 set global debug="-d,ndb_stale_event_with_schema_obj";
-include/assert_grep.inc [Verify if ndb_schema_dist_timeout triggered by schema distribution client.]
-include/assert_grep.inc [Verify if Coordinator detects the stale event and return without processing.]
+include/assert_grep.inc [Verify that schema distribution client detected timeout]
+include/assert_grep.inc [Verify that coordinator received event after client timeout]
 DROP TABLE t1;

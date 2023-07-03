@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,18 +141,117 @@
 
 #include "my_table_map.h"
 #include "sql/join_optimizer/interesting_orders_defs.h"
+#include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_array.h"
 
 #include <bitset>
 #include <string>
 
-// Represents a (potentially interesting) ordering or grouping;
-// OrderElement::direction will signify which one. Immutable,
-// and usually lives on the MEM_ROOT.
-using Ordering = Bounds_checked_array<OrderElement>;
-
+class LogicalOrderings;
 class Window;
+
+/**
+   Represents a (potentially interesting) ordering, rollup or (non-rollup)
+   grouping.
+*/
+class Ordering final {
+  friend bool operator==(const Ordering &a, const Ordering &b);
+
+ public:
+  /// This type hold the individual elements of the ordering.
+  using Elements = Bounds_checked_array<OrderElement>;
+
+  /// The kind of ordering that an Ordering instance may represent.
+  enum class Kind : char {
+    /// An ordering with no elements. Such an ordering is not useful in itself,
+    /// but may appear as an intermediate result.
+    kEmpty,
+
+    /// Specific sequence of m_elements, and specific direction of each element.
+    /// Needed for e.g. ORDER BY.
+    kOrder,
+
+    ///  Specific sequence of m_elements, but each element may be ordered in any
+    /// direction. Needed for ROLLUP:
+    kRollup,
+
+    /// Elements may appear in any sequence and may be ordered in any direction.
+    /// Needed for GROUP BY (with out ROLLUP), DISCTINCT, semi-join etc.
+    kGroup
+  };
+
+  Ordering() : m_kind{Kind::kEmpty} {}
+
+  Ordering(Elements elements, Kind kind) : m_elements{elements}, m_kind{kind} {
+    assert(Valid());
+  }
+
+  /// Copy constructor. Only defined explicitly to check Valid().
+  Ordering(const Ordering &other)
+      : m_elements{other.m_elements}, m_kind{other.m_kind} {
+    assert(Valid());
+  }
+
+  /// Assignment operator. Only defined explicitly to check Valid().
+  Ordering &operator=(const Ordering &other) {
+    assert(Valid());
+    m_kind = other.m_kind;
+    m_elements = other.m_elements;
+    return *this;
+  }
+
+  /// Make a copy of *this. Allocate new memory for m_elements from mem_root.
+  Ordering Clone(MEM_ROOT *mem_root) const {
+    assert(Valid());
+    return Ordering(m_elements.Clone(mem_root), GetKind());
+  }
+
+  Kind GetKind() const {
+    assert(Valid());
+    return m_kind;
+  }
+
+  const Elements &GetElements() const {
+    assert(Valid());
+    return m_elements;
+  }
+
+  Elements &GetElements() {
+    assert(Valid());
+    return m_elements;
+  }
+
+  size_t size() const { return m_elements.size(); }
+
+  /**
+     Remove duplicate entries, in-place.
+  */
+  void Deduplicate();
+
+ private:
+  /// The ordering terms.
+  Elements m_elements;
+
+  /// The kind of this ordering.
+  Kind m_kind;
+
+  /// @returns true iff *this passes a consistency check.
+  bool Valid() const;
+};
+
+/// Check if 'a' and 'b' has the same kind and contains the same elements.
+inline bool operator==(const Ordering &a, const Ordering &b) {
+  assert(a.Valid());
+  assert(b.Valid());
+  return a.m_kind == b.m_kind &&
+         std::equal(a.m_elements.cbegin(), a.m_elements.cend(),
+                    b.m_elements.cbegin(), b.m_elements.cend());
+}
+
+inline bool operator!=(const Ordering &a, const Ordering &b) {
+  return !(a == b);
+}
 
 struct FunctionalDependency {
   enum {
@@ -212,6 +311,8 @@ struct FunctionalDependency {
 };
 
 class LogicalOrderings {
+  friend class OrderingElementsGuard;
+
  public:
   explicit LogicalOrderings(THD *thd);
 
@@ -255,12 +356,12 @@ class LogicalOrderings {
   // NOTE: Will include the empty ordering.
   int num_orderings() const { return m_orderings.size(); }
 
-  Ordering ordering(int ordering_idx) const {
+  const Ordering &ordering(int ordering_idx) const {
     return m_orderings[ordering_idx].ordering;
   }
 
   bool ordering_is_relevant_for_sortahead(int ordering_idx) const {
-    return !m_orderings[ordering_idx].ordering.empty() &&
+    return !m_orderings[ordering_idx].ordering.GetElements().empty() &&
            m_orderings[ordering_idx].type != OrderingWithInfo::UNINTERESTING;
   }
 
@@ -405,9 +506,12 @@ class LogicalOrderings {
 
   // See comment in .cc file.
   Ordering ReduceOrdering(Ordering ordering, bool all_fds,
-                          OrderElement *tmpbuf) const;
+                          Ordering::Elements tmp) const;
 
  private:
+  struct NFSMState;
+  class OrderWithElementInserted;
+
   bool m_built = false;
 
   struct ItemInfo {
@@ -454,9 +558,31 @@ class LogicalOrderings {
   // SetRollup().
   bool m_rollup = false;
 
+  struct NFSMEdge {
+    // Which FD is required to follow this edge. Index into m_fd, with one
+    // exception; from the initial state (0), we have constructor edges for
+    // setting a specific order without following an FD. Such edges have
+    // required_fd_idx = INT_MIN + order_idx, ie., they are negative.
+    int required_fd_idx;
+
+    // Destination state (index into m_states).
+    int state_idx;
+
+    const FunctionalDependency *required_fd(
+        const LogicalOrderings *orderings) const {
+      return &orderings->m_fds[required_fd_idx];
+    }
+    const NFSMState *state(const LogicalOrderings *orderings) const {
+      return &orderings->m_states[state_idx];
+    }
+  };
+
+  friend bool operator==(const NFSMEdge &a, const NFSMEdge &b);
+  friend bool operator!=(const NFSMEdge &a, const NFSMEdge &b);
+
   struct NFSMState {
     enum { INTERESTING, ARTIFICIAL, DELETED } type;
-    Mem_root_array<int> outgoing_edges;
+    Mem_root_array<NFSMEdge> outgoing_edges;
     Ordering satisfied_ordering;
     int satisfied_ordering_idx;  // Only for type == INTERESTING.
 
@@ -495,24 +621,6 @@ class LogicalOrderings {
     FunctionalDependencySet can_use_fd{0};
   };
 
-  struct NFSMEdge {
-    // Which FD is required to follow this edge. Index into m_fd, with one
-    // exception; from the initial state (0), we have constructor edges for
-    // setting a specific order without following an FD. Such edges have
-    // required_fd_idx = INT_MIN + order_idx, ie., they are negative.
-    int required_fd_idx;
-
-    // Destination state (index into m_states).
-    int state_idx;
-
-    const FunctionalDependency *required_fd(
-        const LogicalOrderings *orderings) const {
-      return &orderings->m_fds[required_fd_idx];
-    }
-    const NFSMState *state(const LogicalOrderings *orderings) const {
-      return &orderings->m_states[state_idx];
-    }
-  };
   struct DFSMEdge {
     int required_fd_idx;
     int state_idx;
@@ -578,7 +686,6 @@ class LogicalOrderings {
 
   // NFSM. 0 is the initial state, all others are found by following edges.
   Mem_root_array<NFSMState> m_states;
-  Mem_root_array<NFSMEdge> m_edges;
 
   // DFSM. 0 is the initial state, all others are found by following edges.
   Mem_root_array<DFSMState> m_dfsm_states;
@@ -591,6 +698,11 @@ class LogicalOrderings {
   // After PruneFDs() has run, maps from the old indexes to the new indexes.
   Bounds_checked_array<int> m_optimized_fd_mapping;
 
+  /// We may potentially use a lot of Ordering::Elements objects, with short and
+  /// non-overlapping life times. Therefore we have a pool
+  /// to allow reuse and avoid allocating from MEM_ROOT each time.
+  Mem_root_array<OrderElement *> m_elements_pool;
+
   // The canonical order for two items in a grouping
   // (after BuildEquivalenceClasses() has run; enforced by
   // RecanonicalizeGroupings()). The reason why we sort by
@@ -599,13 +711,14 @@ class LogicalOrderings {
   // functional dependency) does not change the order of the
   // elements in the grouing, which could give false negatives
   // in CouldBecomeInterestingOrdering().
-  inline bool ItemHandleBeforeInGroup(ItemHandle a, ItemHandle b) {
+  inline bool ItemHandleBeforeInGroup(ItemHandle a, ItemHandle b) const {
     if (m_items[a].canonical_item != m_items[b].canonical_item)
       return m_items[a].canonical_item < m_items[b].canonical_item;
     return a < b;
   }
 
-  inline bool ItemBeforeInGroup(const OrderElement &a, const OrderElement &b) {
+  inline bool ItemBeforeInGroup(const OrderElement &a,
+                                const OrderElement &b) const {
     return ItemHandleBeforeInGroup(a.item, b.item);
   }
 
@@ -620,7 +733,7 @@ class LogicalOrderings {
   void PruneFDs(THD *thd);
 
   // See comment in .cc file.
-  bool ImpliedByEarlierElements(ItemHandle item, Ordering prefix,
+  bool ImpliedByEarlierElements(ItemHandle item, Ordering::Elements prefix,
                                 bool all_fds) const;
 
   // Populates ItemInfo::canonical_item.
@@ -647,24 +760,30 @@ class LogicalOrderings {
 
   void PreReduceOrderings(THD *thd);
   void CreateOrderingsFromGroupings(THD *thd);
+  void CreateOrderingsFromRollups(THD *thd);
   void CreateHomogenizedOrderings(THD *thd);
   void AddHomogenizedOrderingIfPossible(
-      THD *thd, Ordering reduced_ordering, bool used_at_end, int table_idx,
-      Bounds_checked_array<std::pair<ItemHandle, ItemHandle>> reverse_canonical,
-      OrderElement *tmpbuf);
+      THD *thd, const Ordering &reduced_ordering, bool used_at_end,
+      int table_idx,
+      Bounds_checked_array<std::pair<ItemHandle, ItemHandle>>
+          reverse_canonical);
+
+  /// Sort the elements so that a will appear before b if
+  /// ItemBeforeInGroup(a,b)==true.
+  void SortElements(Ordering::Elements elements) const;
 
   // See comment in .cc file.
-  bool CouldBecomeInterestingOrdering(Ordering ordering) const;
+  bool CouldBecomeInterestingOrdering(const Ordering &ordering) const;
 
   void BuildNFSM(THD *thd);
-  void AddGroupingFromOrdering(THD *thd, int state_idx, Ordering ordering,
-                               OrderElement *tmpbuf);
+  void AddRollupFromOrder(THD *thd, int state_idx, const Ordering &ordering);
+  void AddGroupingFromOrder(THD *thd, int state_idx, const Ordering &ordering);
+  void AddGroupingFromRollup(THD *thd, int state_idx, const Ordering &ordering);
   void TryAddingOrderWithElementInserted(THD *thd, int state_idx, int fd_idx,
                                          Ordering old_ordering,
                                          size_t start_point,
                                          ItemHandle item_to_add,
-                                         enum_order direction,
-                                         OrderElement *tmpbuf);
+                                         enum_order direction);
   void PruneNFSM(THD *thd);
   bool AlwaysActiveFD(int fd_idx);
   void FinalizeDFSMState(THD *thd, int state_idx);
@@ -678,12 +797,13 @@ class LogicalOrderings {
   // If a state with the given ordering already exists (artificial or not),
   // returns its index. Otherwise, adds an artificial state with the given
   // order and returns its index.
-  int AddArtificialState(THD *thd, Ordering ordering);
+  int AddArtificialState(THD *thd, const Ordering &ordering);
 
   // Add an edge from state_idx to an state with the given ordering; if there is
   // no such state, adds an artificial state with it (taking a copy, so does not
   // need to take ownership).
-  void AddEdge(THD *thd, int state_idx, int required_fd_idx, Ordering ordering);
+  void AddEdge(THD *thd, int state_idx, int required_fd_idx,
+               const Ordering &ordering);
 
   // Returns true if the given (non-DECAY) functional dependency applies to the
   // given ordering, and the index of the element from which the FD is active
@@ -691,12 +811,37 @@ class LogicalOrderings {
   // the tail element at any point _after_ this index; if it is an EQUIVALENCE
   // FD, one can instead choose to replace the element at start_point entirely.
   bool FunctionalDependencyApplies(const FunctionalDependency &fd,
-                                   const Ordering ordering,
+                                   const Ordering &ordering,
                                    int *start_point) const;
 
+  /**
+     Fetch an Ordering::Elements object with size()==m_longest_ordering.
+     Get it from m_elements_pool if that is non-empty, otherwise allocate
+     from mem_root.
+   */
+  Ordering::Elements RetrieveElements(MEM_ROOT *mem_root) {
+    if (m_elements_pool.empty()) {
+      return Ordering::Elements::Alloc(mem_root, m_longest_ordering);
+    } else {
+      OrderElement *buffer = m_elements_pool.back();
+      m_elements_pool.pop_back();
+      return Ordering::Elements(buffer, m_longest_ordering);
+    }
+  }
+
+  /**
+     Return an Ordering::Elements object with size()==m_longest_ordering
+     to m_elements_pool.
+   */
+  void ReturnElements(Ordering::Elements elements) {
+    // Overwrite the array with garbage, so that we have a better chance
+    // of detecting it if we by mistake access it afterwards.
+    TRASH(elements.data(), m_longest_ordering * sizeof(elements.data()[0]));
+    m_elements_pool.push_back(elements.data());
+  }
   // Used for optimizer trace.
 
-  std::string PrintOrdering(Ordering ordering) const;
+  std::string PrintOrdering(const Ordering &ordering) const;
   std::string PrintFunctionalDependency(const FunctionalDependency &fd,
                                         bool html) const;
   void PrintFunctionalDependencies(std::string *trace);
@@ -704,5 +849,15 @@ class LogicalOrderings {
   void PrintNFSMDottyGraph(std::string *trace) const;
   void PrintDFSMDottyGraph(std::string *trace) const;
 };
+
+inline bool operator==(const LogicalOrderings::NFSMEdge &a,
+                       const LogicalOrderings::NFSMEdge &b) {
+  return a.required_fd_idx == b.required_fd_idx && a.state_idx == b.state_idx;
+}
+
+inline bool operator!=(const LogicalOrderings::NFSMEdge &a,
+                       const LogicalOrderings::NFSMEdge &b) {
+  return !(a == b);
+}
 
 #endif  // SQL_JOIN_OPTIMIZER_INTERESTING_ORDERS_H

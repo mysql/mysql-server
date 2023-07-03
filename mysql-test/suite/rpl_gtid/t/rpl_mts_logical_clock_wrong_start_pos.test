@@ -20,7 +20,7 @@
 # Restart slave threads and observe the SQL applier has processed events.
 
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("Either event.*is from an old master");
+call mtr.add_suppression("Either event.*is from an old source");
 # The transaction boundary parser will log the following two warning messages:
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("QUERY.* is not expected in an event stream");

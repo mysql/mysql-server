@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,26 +23,11 @@
 #include "my_config.h"
 
 /*
-  In case of Kerberos authentication we need to fill user name as Kerberos user
-  name if it is empty. We need to fill user name inside mysql->user, clients
-  uses my_strdup directly to create new string. To use MySQL alloc functions we
-  need to include "/mysql/service_mysql_alloc.h". Inside service_mysql_alloc.h
-  there is #define which forces all dynamic plugins to use MySQL malloc function
-  via services. Client side plugin cannot use any services as of now.   Code
-  check in service_mysql_alloc.h #ifdef MYSQL_DYNAMIC_PLUGIN #define my_strdup
-  mysql_malloc_service->my_strdup #else extern char *my_strdup(PSI_memory_key
-  key, const char *from, myf_t flags); #endif Client authentication plugin
-  defines MYSQL_DYNAMIC_PLUGIN. And this forces to use always my_strdup via
-  services. To use native direct my_strdup, we need to undefine
-  MYSQL_DYNAMIC_PLUGIN. And again define MYSQL_DYNAMIC_PLUGIN once correct
-  my_strdup are declared. service_mysql_alloc.h should provide proper fix like
-  Instead of #ifdef MYSQL_DYNAMIC_PLUGIN
-  #ifdef  MYSQL_DYNAMIC_PLUGIN  &&   ! MYSQL_CLIENT_PLUGIN
+  This is a CLIENT_ONLY plugin, so allocation functions are my_malloc,
+  my_free etc.
 */
 #if defined(KERBEROS_LIB_CONFIGURED)
-#undef MYSQL_DYNAMIC_PLUGIN
 #include <mysql/service_mysql_alloc.h>
-#define MYSQL_DYNAMIC_PLUGIN
 #endif
 
 #include <stdio.h>

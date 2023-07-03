@@ -1336,8 +1336,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	p2	NULL	index	NULL	col_varchar_key	46	NULL	5	100.00	Using where; Using index
 1	SIMPLE	c2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; FirstMatch(gp2)
 Warnings:
-Note	1276	Field or reference 'test.gp1.col_varchar_key' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.gp1.col_int' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.gp1.col_varchar_key' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.gp1.col_varchar' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`gp1`.`col_varchar` AS `g1` from `test`.`b` `gp1` left join `test`.`bb` `gp2` on((`test`.`gp2`.`col_varchar_key` = `test`.`gp1`.`col_varchar_key`)) semi join (`test`.`bb` `p1` left join `test`.`bb` `p2` on((`test`.`p1`.`col_int` >= `test`.`p2`.`col_int_key`)) join `test`.`b` `c1` left join `test`.`bb` `c2` on((`test`.`c1`.`col_varchar` = `test`.`c2`.`col_varchar`))) where ((`test`.`c1`.`col_int` = `test`.`gp1`.`col_int`) and (`test`.`p1`.`col_int` = `test`.`gp1`.`col_int`) and (`test`.`gp1`.`col_varchar_key` <> 'y') and (`test`.`gp1`.`col_varchar` < 'e') and (`test`.`gp1`.`col_varchar_key` >= 'n')) order by `test`.`gp1`.`col_varchar_key` limit 4
 SELECT  gp1 . col_varchar AS g1 

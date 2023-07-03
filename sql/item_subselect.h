@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,34 +125,35 @@ class Item_subselect : public Item_result_field {
   virtual AccessPath *root_access_path() const { return nullptr; }
 
  protected:
-  /*
+  /**
     We need this method, because some compilers do not allow 'this'
     pointer in constructor initialization list, but we need to pass a pointer
     to subselect Item class to Query_result_interceptor's constructor.
   */
   void init(Query_block *select, Query_result_subquery *result);
 
-  // The inner part of the subquery.
+  /// The inner part of the subquery.
   unique_ptr_destroy_only<SubqueryWithResult> subquery;
 
-  // Only relevant for Item_in_subselect; optimized structure used for
-  // execution in place of running the entire subquery.
+  /// Only relevant for Item_in_subselect; optimized structure used for
+  /// execution in place of running the entire subquery.
   subselect_indexsubquery_engine *indexsubquery_engine = nullptr;
 
-  /* cache of used external tables */
+  /// cache of used tables
   table_map used_tables_cache;
-  /* allowed number of columns (1 for single value subqueries) */
+  /// allowed number of columns (1 for scalar subqueries)
   uint max_columns;
-  /* where subquery is placed */
+  /// where subquery is placed
   enum_parsing_context parsing_place;
-  /* work with 'substitution' */
+  /// work with 'substitution'
   bool have_to_be_excluded;
 
  public:
-  /* subquery is transformed */
+  /// cache of used tables, used to identify tables added for IN subquery
+  table_map m_subquery_used_tables{0};
+  /// subquery is transformed
   bool changed;
 
-  enum trans_res { RES_OK, RES_REDUCE, RES_ERROR };
   enum subs_type {
     UNKNOWN_SUBS,
     SINGLEROW_SUBS,
@@ -180,13 +181,14 @@ class Item_subselect : public Item_result_field {
   /// Accumulate used tables
   void accumulate_used_tables(table_map add_tables) {
     used_tables_cache |= add_tables;
+    m_subquery_used_tables |= add_tables;
   }
 
   virtual subs_type substype() const { return UNKNOWN_SUBS; }
 
   void cleanup() override;
   virtual void reset() { null_value = true; }
-  virtual trans_res select_transformer(THD *thd, Query_block *select) = 0;
+  virtual bool select_transformer(THD *thd, Query_block *select) = 0;
   bool assigned() const { return value_assigned; }
   void assigned(bool a) { value_assigned = a; }
   enum Type type() const override;
@@ -286,7 +288,7 @@ class Item_singlerow_subselect : public Item_subselect {
   subs_type substype() const override { return SINGLEROW_SUBS; }
 
   void reset() override;
-  trans_res select_transformer(THD *thd, Query_block *select) override;
+  bool select_transformer(THD *thd, Query_block *select) override;
   void store(uint i, Item *item);
   double val_real() override;
   longlong val_int() override;
@@ -451,9 +453,9 @@ class Item_exists_subselect : public Item_subselect {
 
   void notify_removal() override { strategy = Subquery_strategy::DELETED; }
 
-  trans_res select_transformer(THD *, Query_block *) override {
+  bool select_transformer(THD *, Query_block *) override {
     strategy = Subquery_strategy::SUBQ_EXISTS;
-    return RES_OK;
+    return false;
   }
   subs_type substype() const override { return EXISTS_SUBS; }
   bool is_bool_func() const override { return true; }
@@ -653,19 +655,22 @@ class Item_in_subselect : public Item_exists_subselect {
     null_value = false;
     was_null = false;
   }
-  trans_res select_transformer(THD *thd, Query_block *select) override;
-  trans_res select_in_like_transformer(THD *thd, Query_block *select,
-                                       Comp_creator *func);
-  trans_res single_value_transformer(THD *thd, Query_block *select,
-                                     Comp_creator *func);
-  trans_res row_value_transformer(THD *thd, Query_block *select);
-  trans_res single_value_in_to_exists_transformer(THD *thd, Query_block *select,
-                                                  Comp_creator *func);
-  trans_res row_value_in_to_exists_transformer(THD *thd, Query_block *select);
+  bool select_transformer(THD *thd, Query_block *select) override;
+  bool select_in_like_transformer(THD *thd, Query_block *select,
+                                  Comp_creator *func);
+  bool single_value_transformer(THD *thd, Query_block *select,
+                                Comp_creator *func);
+  bool row_value_transformer(THD *thd, Query_block *select);
+  bool single_value_in_to_exists_transformer(THD *thd, Query_block *select,
+                                             Comp_creator *func);
+  bool row_value_in_to_exists_transformer(THD *thd, Query_block *select);
   bool subquery_allows_materialization(THD *thd, Query_block *query_block,
                                        const Query_block *outer);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   Item *transform(Item_transformer transformer, uchar *arg) override;
+  Item *compile(Item_analyzer analyzer, uchar **arg_p,
+                Item_transformer transformer, uchar *arg_t) override;
+
   bool exec(THD *thd) override;
   longlong val_int() override;
   double val_real() override;
@@ -678,6 +683,7 @@ class Item_in_subselect : public Item_exists_subselect {
   bool fix_fields(THD *thd, Item **ref) override;
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;
+  void update_used_tables() override;
   bool init_left_expr_cache(THD *thd);
 
   /**
@@ -716,7 +722,7 @@ class Item_allany_subselect final : public Item_in_subselect {
 
   // only ALL subquery has upper not
   subs_type substype() const override { return all ? ALL_SUBS : ANY_SUBS; }
-  trans_res select_transformer(THD *thd, Query_block *select) override;
+  bool select_transformer(THD *thd, Query_block *select) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
 };
@@ -923,13 +929,10 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   pointer. If it returns a new Item, the old Item is left alone, so it
   can be reused in other settings.
 
-  @param thd    Thread handle.
   @param conds  Condition; may be nullptr.
-  @param copy   true if a copy of the new condition needs to be returned
-                (used in case of hypergraph optimizer).
   @returns      new condition
  */
-Item *remove_in2exists_conds(THD *thd, Item *conds, bool copy);
+Item *remove_in2exists_conds(Item *conds);
 
 /// Returns whether the Item is an IN-subselect.
 bool IsItemInSubSelect(Item *item);

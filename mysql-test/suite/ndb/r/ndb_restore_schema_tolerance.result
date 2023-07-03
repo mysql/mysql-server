@@ -207,10 +207,10 @@ Test ndb_restore of backup containing unique index, should warn since indexes ar
 row
 # restore data : should warn since indexes aren't disabled in the previous step
 row
-WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
-WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
-WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
-WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
+XXXX-XX-XX XX:XX:XX WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
+XXXX-XX-XX XX:XX:XX WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
+XXXX-XX-XX XX:XX:XX WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
+XXXX-XX-XX XX:XX:XX WARNING: Table t1 contains unique indexes. This can cause ndb_restore failures with duplicate key errors while restoring data. To avoid duplicate key errors, use --disable-indexes before restoring data and --rebuild-indexes after data is restored.
 drop table test.t1;
 Restore table with largest possible descriptor
 create table grp_hssesmusersstoredbytenant(t1 bigint primary key,

@@ -12,9 +12,9 @@
 #          should stop the slave.               #
 #################################################
 
-call mtr.add_suppression("Slave: Unknown table 'test.t6' Error_code: 1051");
-call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: MY-013146");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica: Unknown table 'test.t6' Error_code: 1051");
+call mtr.add_suppression("Replica SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --echo **** Diff Table Def Start ****
 
@@ -93,7 +93,7 @@ INSERT INTO t2 () VALUES(1,2,'Kyle, TEX'),(2,1,'JOE AUSTIN'),(3,4,'QA TESTING');
 SELECT * FROM t2 ORDER BY a;
 
 connection slave;
---let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error.inc
 STOP SLAVE;
 
@@ -139,11 +139,11 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TESTING');
 
 --echo ******************************************************************
---echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo *** Drop t3  ***
@@ -181,11 +181,11 @@ INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
                         (30000.22,4,'QA TESTING');
 
 --echo ******************************************************************
---echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 
@@ -224,11 +224,11 @@ INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
                         (2,'JOE',300.01,0,'b2b2',1.0000009);
 
 --echo ******************************************************************
---echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 
@@ -268,10 +268,10 @@ INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
                         (2,'JOE',300.01,0);
 
 --echo ******************************************************************
---echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 --echo ******************************************************************
 connection slave;
---let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 
@@ -493,11 +493,11 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 
 --echo ******************************************************************
---echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 
@@ -535,11 +535,11 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 
 --echo ******************************************************************
---echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 
@@ -791,7 +791,7 @@ connection slave;
 
 call mtr.add_suppression("Error .Unknown table .t6.. on query.* Error_code: 1051");
 call mtr.add_suppression("Error .Duplicate column name .c6.. on query.* Error_code: MY-001060");
-call mtr.add_suppression("Table definition on master and slave does not match: Column . ...e mismatch.* Error_code: 1535");
+call mtr.add_suppression("Table definition on source and replica does not match: Column . ...e mismatch.* Error_code: 1535");
 
 --echo *** Master Data Insert ***
 connection master;
@@ -925,11 +925,11 @@ connection master;
 INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 
 --echo ******************************************************************
---echo *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+--echo *** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 --echo ******************************************************************
 connection slave;
 --let $slave_skip_counter= 2
---let $slave_sql_errno= convert_error(ER_SERVER_SLAVE_CONVERSION_FAILED)
+--let $slave_sql_errno= convert_error(ER_SERVER_REPLICA_CONVERSION_FAILED)
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --echo ** DROP table t17 ***

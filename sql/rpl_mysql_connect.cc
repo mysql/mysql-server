@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -39,8 +39,8 @@ Mysql_connection::Mysql_connection(THD *thd, Master_info *mi, std::string host,
       m_network_namespace(network_namespace),
       m_is_io_thread(is_io_thread) {
   if (!(m_conn = mysql_init(nullptr))) {
-    mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-               ER_THD(thd, ER_SLAVE_FATAL_ERROR), "error in mysql_init()");
+    mi->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+               ER_THD(thd, ER_REPLICA_FATAL_ERROR), "error in mysql_init()");
     return;
   }
   m_init = true;

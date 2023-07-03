@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,9 +68,9 @@ struct PFS_ALIGNED PFS_setup_object {
 };
 
 int init_setup_object(const PFS_global_param *param);
-void cleanup_setup_object(void);
+void cleanup_setup_object();
 int init_setup_object_hash(const PFS_global_param *param);
-void cleanup_setup_object_hash(void);
+void cleanup_setup_object_hash();
 
 int insert_setup_object(enum_object_type object_type,
                         const PFS_schema_name *schema,
@@ -79,8 +79,8 @@ int insert_setup_object(enum_object_type object_type,
 int delete_setup_object(enum_object_type object_type,
                         const PFS_schema_name *schema,
                         const PFS_object_name *object);
-int reset_setup_object(void);
-long setup_object_count(void);
+int reset_setup_object();
+long setup_object_count();
 
 void lookup_setup_object_table(PFS_thread *thread, enum_object_type object_type,
                                const PFS_schema_name *schema_name,
@@ -90,8 +90,8 @@ void lookup_setup_object_table(PFS_thread *thread, enum_object_type object_type,
 void lookup_setup_object_routine(PFS_thread *thread,
                                  enum_object_type object_type,
                                  const PFS_schema_name *schema,
-                                 const PFS_routine_name *object, bool *enabled,
-                                 bool *timed);
+                                 const PFS_routine_name *routine_name,
+                                 bool *enabled, bool *timed);
 
 /* For show status. */
 

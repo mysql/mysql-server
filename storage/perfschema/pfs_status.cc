@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ void PFS_status_stats::aggregate(const PFS_status_stats *from) {
 }
 
 void PFS_status_stats::aggregate_from(const System_status_var *from) {
-  const ulonglong *from_var = pointer_cast<const ulonglong *>(from);
+  const auto *from_var = pointer_cast<const ulonglong *>(from);
 
   m_has_stats = true;
   for (int i = 0; i < COUNT_GLOBAL_STATUS_VARS; i++, from_var++) {
@@ -67,7 +67,7 @@ void PFS_status_stats::aggregate_from(const System_status_var *from) {
 
 void PFS_status_stats::aggregate_to(System_status_var *to) {
   if (m_has_stats) {
-    ulonglong *to_var = (ulonglong *)to;
+    auto *to_var = (ulonglong *)to;
 
     for (int i = 0; i < COUNT_GLOBAL_STATUS_VARS; i++, to_var++) {
       *to_var += m_stats[i];

@@ -1,0 +1,229 @@
+# === Purpose ===
+#
+# Check errors returned by MYSQL_BIN_LOG::open_binlog
+#
+# ==== Requirements ====
+#
+# R1. When the binary log file is opened during recovery,
+# the following error conditions and boundary conditions should be handled:
+#  * If the file is truncated just after the magic header,
+#    it should report an error and start ha_recover().
+#  * If the file is missing a format_description_log_event,
+#    recovery should report an error and start ha_recover().
+#  * If the Format_description_log_event exists but
+#    does not have LOG_EVENT_BINLOG_IN_USE_F set,
+#    it should report a warning and start ha_recover().
+#
+# === Implementation ====
+#
+# 1. Start server so that binary log is created
+# 2. Prepare binary log with header only
+# 3. Check error ER_READ_LOG_EVENT_FAILED is reported 
+#      "Error in Log_event::read_log_event()"
+# 4. Perpare binary log without Format_desc event
+# 5. Check error ER_BINLOG_CRASH_RECOVERY_MALFORMED_LOG is reported 
+#      "Found invalid event sequence while recovering from binary log file."
+# 6. Set debug points binlog_crash_between_close_and_open so that server is crashed
+#    after binary log LOG_EVENT_BINLOG_IN_USE_F is set to false
+# 7. Check error ER_BINLOG_CANT_OPEN_CRASHED_BINLOG is reported 
+#      "Failed to open the crashed binlog file when source server is recovering it."
+#
+# === References ===
+# 
+# BUG #33658850 Binlog recovery not reporting all error states
+#
+--source include/have_debug.inc
+--source include/have_binlog_format_mixed.inc
+
+RESET MASTER;
+
+--let $MYSQLD_DATADIR = `SELECT @@DATADIR`
+--let $binlog = query_get_value(SHOW MASTER STATUS, File, 1)
+--let $event_following_format_desc_start = query_get_value(SHOW BINLOG EVENTS IN '$binlog', Pos, 2)
+--let $event_following_format_desc_stop = query_get_value(SHOW BINLOG EVENTS IN '$binlog', End_log_pos, 2)
+
+--file_exists $MYSQLD_DATADIR/$binlog
+
+#
+# Use save_error_log_position.inc before the first call to assert_error_log.inc.
+# The error log may contain errors from earlier test runs.
+#
+--source include/save_error_log_position.inc
+
+#
+# Shutdown server
+#
+--source include/shutdown_mysqld.inc
+
+#
+# Prepare binary log with header only
+#
+--echo Prepare binary log with header only
+
+--let $in_filename = $MYSQLD_DATADIR/$binlog
+--let $out_filename = $MYSQLD_DATADIR/$binlog.header
+--let $file_start_pos = 0
+--let $file_stop_pos = 4
+--source extra/binlog_tests/copy_file_segment.inc
+
+#
+# Prepare binary log with truncated Format_desc event
+#
+--echo Prepare binary log without Format_desc event
+
+--let $in_filename = $MYSQLD_DATADIR/$binlog
+--let $out_filename = $MYSQLD_DATADIR/$binlog.truncformat
+--let $file_start_pos = 0
+--let $file_stop_pos = $event_following_format_desc_start
+--dec $file_stop_pos
+--source extra/binlog_tests/copy_file_segment.inc
+
+#
+# Prepare binary log without Format_desc event
+#
+--echo Prepare binary log without Format_desc event
+
+--let $in_filename = $MYSQLD_DATADIR/$binlog
+--let $out_filename = $MYSQLD_DATADIR/$binlog.formatless
+--let $file_start_pos = 0
+--let $file_stop_pos = 4
+--source extra/binlog_tests/copy_file_segment.inc
+--let $file_start_pos = $event_following_format_desc_start
+--let $file_stop_pos = $event_following_format_desc_stop
+--source extra/binlog_tests/copy_file_segment.inc
+
+#
+# Backup binlog file
+#
+--echo Backup binlog file
+
+--copy_file $MYSQLD_DATADIR/$binlog $MYSQLD_DATADIR/$binlog.backup
+
+--echo
+--echo # 1. Test Error in Log_event::read_log_event() #
+--echo ################################################
+
+#
+# Swap header only event
+#
+--remove_file $MYSQLD_DATADIR/$binlog
+--copy_file $MYSQLD_DATADIR/$binlog.header $MYSQLD_DATADIR/$binlog
+
+#
+# Start server
+#
+--source include/start_mysqld.inc
+
+RESET MASTER;
+
+#
+# Search for error message : 'arrived the end of the file'
+#
+--let $error_pattern = Error in Log_event::read_log_event().*
+--source include/assert_error_log.inc
+
+#
+# Shutdown server
+#
+--source include/shutdown_mysqld.inc
+
+--echo
+--echo # 2. Truncated binary log
+--echo ##############################################################################
+
+#
+# Swap header only event
+#
+--remove_file $MYSQLD_DATADIR/$binlog
+--copy_file $MYSQLD_DATADIR/$binlog.truncformat $MYSQLD_DATADIR/$binlog
+
+#
+# Start server
+#
+--source include/start_mysqld.inc
+
+RESET MASTER;
+
+#
+# Search for error message : 'binlog truncated in the middle of event; consider out of disk space'
+#
+let $error_pattern = Error in Log_event::read_log_event().*
+  Error reading GTIDs from binary log.*
+;
+--source include/assert_error_log.inc
+
+#
+# Shutdown server
+#
+--source include/shutdown_mysqld.inc
+
+--echo
+--echo # 3. Test Found invalid event sequence while recovering from binary log file #
+--echo ##############################################################################
+
+#
+# Swap format less binary log
+#
+--remove_file $MYSQLD_DATADIR/$binlog
+--copy_file $MYSQLD_DATADIR/$binlog.formatless $MYSQLD_DATADIR/$binlog
+
+#
+# Start server
+#
+--source include/start_mysqld.inc
+
+RESET MASTER;
+
+#
+# Search for error message
+#
+--let $error_pattern = Found invalid event sequence while recovering from binary log file.*
+--source include/assert_error_log.inc
+
+#
+# Shutdown server
+#
+--source include/shutdown_mysqld.inc
+
+#
+# Restore binary log file
+#
+--remove_file $MYSQLD_DATADIR/$binlog
+--copy_file $MYSQLD_DATADIR/$binlog.backup $MYSQLD_DATADIR/$binlog
+
+#
+# Now the server should start
+#
+--source include/start_mysqld.inc
+
+--echo
+--echo # 4. Test check !(ev->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F) #
+--echo #########################################################################
+
+--let $debug_point = binlog_crash_between_close_and_open
+--source include/add_debug_point.inc
+
+--source include/expect_crash.inc
+--error CR_SERVER_LOST
+FLUSH BINARY LOGS;
+
+#
+# Start server
+#
+--source include/start_mysqld.inc
+
+#
+# Search for note message
+#
+--let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN = \[Note\] \[[^]]*\] \[[^]]*\] Failed to open the crashed binlog file when source server is recovering it\.
+--echo # Check for the "Failed to open the crashed binlog file when source server is recovering it\."
+--source include/search_pattern.inc
+
+#
+# Cleanup
+#
+--remove_file $MYSQLD_DATADIR/$binlog.backup
+--remove_file $MYSQLD_DATADIR/$binlog.header
+--remove_file $MYSQLD_DATADIR/$binlog.truncformat
+--remove_file $MYSQLD_DATADIR/$binlog.formatless

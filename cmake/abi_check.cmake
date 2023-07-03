@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -58,8 +58,7 @@ SET(API_PREPROCESSOR_HEADER
   ${CMAKE_SOURCE_DIR}/include/mysql/plugin_keyring.h
 )
 IF(NOT WITHOUT_SERVER)
-  SET(API_PREPROCESSOR_HEADER
-    ${API_PREPROCESSOR_HEADER}
+  LIST(APPEND API_PREPROCESSOR_HEADER
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_thread_v1.h
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_mutex_v1.h
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_rwlock_v1.h
@@ -89,25 +88,25 @@ IF(MY_COMPILER_IS_GNU)
 ENDIF()
 
 IF(RUN_ABI_CHECK)
-  ADD_CUSTOM_TARGET(abi_check ALL
-  COMMAND ${CMAKE_COMMAND}
+  UNSET(API_PP_FILES)
+  FOREACH(file ${API_PREPROCESSOR_HEADER})
+    LIST(APPEND API_PP_FILES ${file}.pp)
+  ENDFOREACH()
+
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_BINARY_DIR}/abi_check.out
+    COMMAND ${CMAKE_COMMAND}
     -DCOMPILER=${COMPILER}
     -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
     -DBINARY_DIR=${CMAKE_BINARY_DIR}
     -DWSL_EXECUTABLE=${WSL_EXECUTABLE}
     "-DABI_HEADERS=${API_PREPROCESSOR_HEADER}"
     -P ${CMAKE_SOURCE_DIR}/cmake/do_abi_check.cmake
+    DEPENDS ${API_PREPROCESSOR_HEADER} ${API_PP_FILES}
     VERBATIM
   )
 
-  ADD_CUSTOM_TARGET(abi_check_all
-  COMMAND ${CMAKE_COMMAND}
-    -DCOMPILER=${COMPILER}
-    -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
-    -DBINARY_DIR=${CMAKE_BINARY_DIR}
-    -DWSL_EXECUTABLE=${WSL_EXECUTABLE}
-    "-DABI_HEADERS=${API_PREPROCESSOR_HEADER}"
-    -P ${CMAKE_SOURCE_DIR}/cmake/do_abi_check.cmake
-    VERBATIM
-  )
+  ADD_CUSTOM_TARGET(abi_check ALL
+    DEPENDS ${CMAKE_BINARY_DIR}/abi_check.out
+    )
 ENDIF()

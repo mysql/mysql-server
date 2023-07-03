@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,6 +105,8 @@ struct MEM_ROOT;
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
+
+constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
 
 /**
    @file sql_authentication.cc
@@ -1078,6 +1080,37 @@ plugin_ref Cached_authentication_plugins::get_cached_plugin_ref(
     }
   }
   return cached_plugin;
+}
+
+/*
+  Fetch the SSL security level
+*/
+int security_level(void) {
+  int current_sec_level = 2;
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+  /*
+    create a temporary SSL_CTX, we're going to use it to fetch
+    the current OpenSSL security level. So that we can generate
+    keys accordingly.
+  */
+  SSL_CTX *temp_ssl_ctx = SSL_CTX_new(TLS_server_method());
+
+  /* get the current security level */
+  current_sec_level = SSL_CTX_get_security_level(temp_ssl_ctx);
+
+  assert(current_sec_level <= 5);
+
+  /* current range for security level is [1,5] */
+  if (current_sec_level > 5)
+    current_sec_level = 5;
+  else if (current_sec_level <= 1)
+    current_sec_level = 2;
+
+  /* get rid of temp_ssl_ctx, we're done with it */
+  SSL_CTX_free(temp_ssl_ctx);
+#endif
+  DBUG_EXECUTE_IF("crypto_policy_3", current_sec_level = 3;);
+  return current_sec_level;
 }
 
 Cached_authentication_plugins *g_cached_authentication_plugins = nullptr;
@@ -3800,6 +3833,12 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   static_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH, "");
   assert(command == COM_CONNECT || command == COM_CHANGE_USER);
 
+  DBUG_EXECUTE_IF("acl_authenticate_begin", {
+    const char act[] =
+        "now SIGNAL conn2_in_acl_auth WAIT_FOR conn1_reached_kill";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   server_mpvio_initialize(thd, &mpvio, &charset_adapter);
   /*
     Clear thd->db as it points to something, that will be freed when
@@ -5166,7 +5205,7 @@ class File_creator {
 */
 class RSA_gen {
  public:
-  RSA_gen(uint32_t key_size = 2048, uint32_t exponent = RSA_F4)
+  RSA_gen(uint32_t key_size, uint32_t exponent = RSA_F4)
       : m_key_size(key_size), m_exponent(exponent) {}
 
   ~RSA_gen() = default;
@@ -5812,6 +5851,8 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
       If any of the SSL option was specified.
     */
 
+    int sec_level = security_level();
+
     if (auto_detection_status == SSL_ARTIFACTS_VIA_OPTIONS) {
       LogErr(INFORMATION_LEVEL, ER_AUTH_SSL_CONF_PREVENTS_CERT_GENERATION);
       return true;
@@ -5821,8 +5862,10 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
       return true;
     } else {
       assert(auto_detection_status == SSL_ARTIFACTS_NOT_FOUND);
+
       /* Initialize the key pair generator. It can also be used stand alone */
-      RSA_gen rsa_gen;
+      RSA_gen rsa_gen(rsa_key_sizes[sec_level]);
+
       /*
          Initialize the file creator.
        */
@@ -5897,6 +5940,7 @@ static bool generate_rsa_keys(bool auto_generate, const char *priv_key_path,
   DBUG_TRACE;
   if (auto_generate) {
     MY_STAT priv_stat, pub_stat;
+    int sec_level = security_level();
     if (strcmp(priv_key_path, AUTH_DEFAULT_RSA_PRIVATE_KEY) ||
         strcmp(pub_key_path, AUTH_DEFAULT_RSA_PUBLIC_KEY)) {
       LogErr(INFORMATION_LEVEL, ER_AUTH_RSA_CONF_PREVENTS_KEY_GENERATION,
@@ -5909,7 +5953,8 @@ static bool generate_rsa_keys(bool auto_generate, const char *priv_key_path,
       return true;
     } else {
       /* Initialize the key pair generator. */
-      RSA_gen rsa_gen;
+      RSA_gen rsa_gen(rsa_key_sizes[sec_level]);
+
       /* Initialize the file creator. */
       File_creator fcr;
 

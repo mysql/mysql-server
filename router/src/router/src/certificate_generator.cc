@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,14 @@
 
 #include "certificate_generator.h"
 
+#include <array>
 #include <stdexcept>
 
 #include <openssl/evp.h>
 
 #include "harness_assert.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_server_context.h"
 #include "openssl_version.h"
 #include "scope_guard.h"
 
@@ -39,6 +41,9 @@
 #endif
 
 namespace {
+
+// RSA key-sizes per sec-level
+constexpr const std::array rsa_key_sizes{2048, 2048, 2048, 3072, 7680, 15360};
 
 template <class T>
 struct OsslDeleter;
@@ -147,7 +152,14 @@ std::string write_custom_pem_to_string(F &&pem_to_bio_func, Args &&... args) {
 
 stdx::expected<EvpPkey, std::error_code>
 CertificateGenerator::generate_evp_pkey() {
-  const unsigned int key_size = 2048;
+  const int sec_level = TlsServerContext().security_level();
+  const unsigned int default_rsa_key_size = 2048;
+
+  const unsigned int key_size =
+      sec_level >= 0 && sec_level < static_cast<int>(rsa_key_sizes.size())
+          ? rsa_key_sizes[sec_level]
+          : default_rsa_key_size;
+
 #if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(3, 0, 0)
   const unsigned int exponent = RSA_F4;
 

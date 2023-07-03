@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 # Bug#15942 (RBR ignores --binlog_ignore_db and tries to map to table
 # on slave for writes)
@@ -75,7 +75,7 @@ DROP TABLE t1;
 ================ Test for BUG#17620 ================
 include/rpl_reset.inc
 **** On Slave **** 
-call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.t1.* Error_code: 1032");
+call mtr.add_suppression("Replica SQL.*Could not execute Update_rows event on table test.t1.* Error_code: 1032");
 **** On Master **** 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);

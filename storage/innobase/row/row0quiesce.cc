@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -763,20 +763,19 @@ of dict_col_t default value part if exists.
 }
 
 /** Write the transfer key to CFP file.
-@param[in]      table           write the data for this table
+@param[in]      encryption_metadata  the encryption key and iv to store in file
 @param[in]      file            file to write to
 @param[in]      thd             session
 @return DB_SUCCESS or error code. */
 [[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
-    row_quiesce_write_transfer_key(const dict_table_t *table, FILE *file,
-                                   THD *thd) {
+    row_quiesce_write_transfer_key(
+        const Encryption_metadata &encryption_metadata, FILE *file, THD *thd) {
   byte key_size[sizeof(uint32_t)];
   byte row[Encryption::KEY_LEN * 3];
   byte *ptr = row;
   byte *transfer_key = ptr;
   lint elen;
-
-  ut_ad(table->encryption_key != nullptr && table->encryption_iv != nullptr);
+  ut_a(encryption_metadata.can_encrypt());
 
   /* Write the encryption key size. */
   mach_write_to_4(key_size, Encryption::KEY_LEN);
@@ -801,10 +800,9 @@ of dict_col_t default value part if exists.
   ptr += Encryption::KEY_LEN;
 
   /* Encrypt tablespace key. */
-  elen = my_aes_encrypt(
-      reinterpret_cast<unsigned char *>(table->encryption_key),
-      Encryption::KEY_LEN, ptr, reinterpret_cast<unsigned char *>(transfer_key),
-      Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
+  elen = my_aes_encrypt(encryption_metadata.m_key, Encryption::KEY_LEN, ptr,
+                        transfer_key, Encryption::KEY_LEN, my_aes_256_ecb,
+                        nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
@@ -822,10 +820,9 @@ of dict_col_t default value part if exists.
   ptr += Encryption::KEY_LEN;
 
   /* Encrypt tablespace iv. */
-  elen = my_aes_encrypt(reinterpret_cast<unsigned char *>(table->encryption_iv),
-                        Encryption::KEY_LEN, ptr,
-                        reinterpret_cast<unsigned char *>(transfer_key),
-                        Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
+  elen = my_aes_encrypt(encryption_metadata.m_iv, Encryption::KEY_LEN, ptr,
+                        transfer_key, Encryption::KEY_LEN, my_aes_256_ecb,
+                        nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
@@ -863,26 +860,9 @@ of dict_col_t default value part if exists.
   we need to save the encryption information into table, otherwise,
   this information will be lost in fil_discard_tablespace along
   with fil_space_free(). */
-  if (table->encryption_key == nullptr) {
-    lint old_size = mem_heap_get_size(table->heap);
 
-    table->encryption_key =
-        static_cast<byte *>(mem_heap_alloc(table->heap, Encryption::KEY_LEN));
-
-    table->encryption_iv =
-        static_cast<byte *>(mem_heap_alloc(table->heap, Encryption::KEY_LEN));
-
-    lint new_size = mem_heap_get_size(table->heap);
-    dict_sys->size += new_size - old_size;
-
-    fil_space_t *space = fil_space_get(table->space);
-    ut_ad(space != nullptr && FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-    memcpy(table->encryption_key, space->m_encryption_metadata.m_key,
-           Encryption::KEY_LEN);
-    memcpy(table->encryption_iv, space->m_encryption_metadata.m_iv,
-           Encryption::KEY_LEN);
-  }
+  fil_space_t *space = fil_space_get(table->space);
+  ut_ad(space != nullptr && FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
   srv_get_encryption_data_filename(table, name, sizeof(name));
 
@@ -897,7 +877,8 @@ of dict_col_t default value part if exists.
 
     err = DB_IO_ERROR;
   } else {
-    err = row_quiesce_write_transfer_key(table, file, thd);
+    err =
+        row_quiesce_write_transfer_key(space->m_encryption_metadata, file, thd);
 
     if (fflush(file) != 0) {
       char msg[BUFSIZ];
@@ -920,10 +901,6 @@ of dict_col_t default value part if exists.
       err = DB_IO_ERROR;
     }
   }
-
-  /* Clean the encryption information */
-  table->encryption_key = nullptr;
-  table->encryption_iv = nullptr;
 
   return (err);
 }

@@ -1,59 +1,52 @@
-# Testing unsupported slave multi source configuration
-
+#
+# Check that multi source replication can't be used when replicating to NDB
+#
 --source include/have_ndb.inc
 
+# Configure multi soure replication, don't start replication
+--let $rpl_skip_start_slave= 1
 --let $rpl_topology= 1->2,3->2
 --let $rpl_multi_source= 1
 --source include/rpl_init.inc
 
-disable_query_log;
-call mtr.add_suppression("handler error HA_ERR_UNSUPPORTED");
-call mtr.add_suppression("NDB Replica: Configuration with number of replication sources = .* is not supported when applying to Ndb");
-call mtr.add_suppression(".*Worker 1 failed executing transaction.*");
-call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
-enable_query_log;
-
-# create connections to first mysqld in each cluster
---let $rpl_connection_name= cluster1
---let $rpl_server_number= 1
---source include/rpl_connect.inc
-
+# Connect to mysqld in second cluster and start replication
 --let $rpl_connection_name= cluster2
 --let $rpl_server_number= 2
 --source include/rpl_connect.inc
 
---let $rpl_connection_name= cluster3
---let $rpl_server_number= 3
---source include/rpl_connect.inc
-
---let $rpl_connection_name= cluster1
---source include/rpl_connection.inc
-create table t1 (a int) engine=ndb;
-insert into t1 values(1);
-
-# Check that replication fails to start since
-# it detect the unsupported multi source setup
-# and returns error ER_UNSUPPORTED_EXTENSION(1112)
---let $slave_sql_errno= 1112
---let $show_sql_error= 1
---let $rpl_channel_name= 'channel_1'
 --let $rpl_connection_name= cluster2
 --source include/rpl_connection.inc
+
+--disable_query_log
+# Supress error messages written when ndbcluster plugin refuses
+# to start the multi source channel 'channel_1'
+call mtr.add_suppression("NDB Replica: Multi source replication is not supported.*");
+call mtr.add_suppression(".*Run function 'applier_start' in plugin.*");
+call mtr.add_suppression(".*Failed to run 'applier_start' hook.*");
+call mtr.add_suppression(".*Failed to remove channel 'channel_1'.*");
+call mtr.add_suppression(".*Run function 'applier_stop' in plugin.*");
+--enable_query_log
+
+# Start replication for one configured channel
+START REPLICA FOR CHANNEL 'channel_1';
+
+# Use this to check status after failure to start replica
+#--sleep 2
+#query_vertical SHOW REPLICA STATUS FOR CHANNEL 'channel_1';
+
+# Check that replication fails to start with
+# error "ER_SLAVE_FATAL_ERROR 13117" since
+# multi source replication to NDB is not supported.
+--let $slave_sql_errno= 13117
+--let $show_sql_error= 1
+--let $rpl_channel_name= 'channel_1'
 --let $not_switch_connection= true
---source include/wait_for_slave_sql_error_and_skip.inc
+--source include/wait_for_slave_sql_error.inc
 
-
-#
-# clean up
-#
-
-# drop the table from cluster1, it does not exist anywhere else
---let $rpl_connection_name= cluster1
---source include/rpl_connection.inc
-drop table t1;
+# Stop IO thread and reset
+--source include/stop_slave_io.inc
+RESET REPLICA;
 
 # tear down replication
---let $rpl_skip_sync= 1
---source include/rpl_reset.inc
 --let $rpl_skip_sync= 1
 --source include/rpl_end.inc

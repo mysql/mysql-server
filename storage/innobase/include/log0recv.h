@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2022, Oracle and/or its affiliates.
+Copyright (c) 1997, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -203,6 +203,13 @@ bool recv_page_is_brand_new(buf_block_t *block);
 [[nodiscard]] dberr_t recv_recovery_from_checkpoint_start(log_t &log,
                                                           lsn_t flush_lsn);
 
+/** Determine if a redo log from a version before MySQL 8.0.30 is clean.
+@param[in,out]  log             redo log
+@return error code
+@retval DB_SUCCESS  if the redo log is clean
+@retval DB_ERROR    if the redo log is corrupted or dirty */
+dberr_t recv_verify_log_is_clean_pre_8_0_30(log_t &log);
+
 /** Complete the recovery from the latest checkpoint.
 @param[in]      aborting        true if the server has to abort due to an error
 @return recovered persistent metadata or nullptr if aborting*/
@@ -348,10 +355,6 @@ class MetadataRecover {
   @retval ptr to next redo log record, nullptr if this log record
   was truncated */
   byte *parseMetadataLog(table_id_t id, uint64_t version, byte *ptr, byte *end);
-
-  /** Apply the collected persistent dynamic metadata to in-memory
-  table objects */
-  void apply();
 
   /** Store the collected persistent dynamic metadata to
   mysql.innodb_dynamic_metadata */
@@ -547,9 +550,6 @@ struct recv_sys_t {
   /** This is true when a log rec application batch is running */
   bool apply_batch_on;
 
-  /** Possible incomplete last recovered log block */
-  byte *last_block;
-
   /** Buffer for parsing log records */
   byte *buf;
 
@@ -591,7 +591,7 @@ struct recv_sys_t {
   /** Tracks what should be the proper value of first_rec_group field in the
   header of the block to which recovered_lsn belongs. It might be also zero,
   in which case it means we do not know. */
-  uint32_t last_block_first_rec_group;
+  lsn_t last_block_first_mtr_boundary{};
 
   /** Set when finding a corrupt log block or record, or there
   is a log parsing buffer overflow */

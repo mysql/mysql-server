@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -37,9 +37,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/column.h"
 #include "univ.i"
-#ifdef UNIV_HOTBACKUP
+#if defined UNIV_COMPILE_TEST_FUNCS || defined UNIV_HOTBACKUP
 #include "sql/dd/types/spatial_reference_system.h"
-#endif /* UNIV_HOTBACKUP */
+#endif /* UNIV_COMPILE_TEST_FUNCS || UNIV_HOTBACKUP */
 #include "btr0types.h"
 #include "data0type.h"
 #include "dict0types.h"
@@ -2429,12 +2429,6 @@ detect this and will eventually quit sooner. */
   /** mysql_row_templ_t for base columns used for compute the virtual
   columns */
   dict_vcol_templ_t *vc_templ;
-
-  /** encryption key, it's only for export/import */
-  byte *encryption_key;
-
-  /** encryption iv, it's only for export/import */
-  byte *encryption_iv;
 
   /** remove the dict_table_t from cache after DDL operation */
   bool discard_after_ddl;

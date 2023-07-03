@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -878,14 +878,12 @@ then this function does nothing.
 Sets the io_fix flag to BUF_IO_READ and sets a non-recursive exclusive lock
 on the buffer frame. The io-handler must take care that the flag is cleared
 and the lock released later.
-@param[out]     err                     DB_SUCCESS or DB_TABLESPACE_DELETED
 @param[in]      mode                    BUF_READ_IBUF_PAGES_ONLY, ...
 @param[in]      page_id                 page id
 @param[in]      page_size               page size
 @param[in]      unzip                   true=request uncompressed page
 @return pointer to the block or NULL */
-buf_page_t *buf_page_init_for_read(dberr_t *err, ulint mode,
-                                   const page_id_t &page_id,
+buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
                                    const page_size_t &page_size, bool unzip);
 
 /** Completes an asynchronous read or write request of a file page to or from

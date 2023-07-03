@@ -53,7 +53,7 @@
 --source include/master-slave.inc
 --source include/have_binlog_format_row.inc
 CALL mtr.add_suppression("Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS implies limitations on the replication topology");
-CALL mtr.add_suppression("Slave I/O for channel '': The replication receiver thread cannot start");
+CALL mtr.add_suppression("Replica I/O for channel '': The replication receiver thread cannot start");
 CALL mtr.add_suppression("If you intend to use GTID_MODE = ON everywhere, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF");
 
 --echo  TC1. Test with assign_gtids_to_anonymous_transactions = OFF.
@@ -71,7 +71,7 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
 START SLAVE IO_THREAD;
 
 # Replica will complain about having different gtid value on source.
---let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_io_error = 1
 --source include/wait_for_slave_io_error.inc
 RESET SLAVE;
@@ -134,7 +134,7 @@ eval CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL
 --let $rpl_start_with_gtids= 0
 --source include/rpl_restart_server.inc
 
---let $assert_text = When assign_gtids_to_anonymous_transactions is set to LOCAL|UUID attempt to restart the slave with gtid-mode= off to get ER_SLAVE_RENAME_TXN_IS_LOCAL_OR_UUID_AND_GTID_MODE_OFF
+--let $assert_text = When assign_gtids_to_anonymous_transactions is set to LOCAL|UUID attempt to restart the slave with gtid-mode= off to get ER_REPLICA_RENAME_TXN_IS_LOCAL_OR_UUID_AND_GTID_MODE_OFF
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select = If you intend to use GTID_MODE = ON everywhere, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF
 --let $assert_count = 1
@@ -184,11 +184,11 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, SOU
 # 7) Test that Both receiver and applier needs to be stopped to set the assign_gtids_to_anonymous_transactions
 
 --source include/start_slave_io.inc
---error ER_SLAVE_CHANNEL_MUST_STOP
+--error ER_REPLICA_CHANNEL_MUST_STOP
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
 --source include/start_slave_sql.inc
---error ER_SLAVE_CHANNEL_MUST_STOP
+--error ER_REPLICA_CHANNEL_MUST_STOP
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
 
 # 8) Test assign_gtids_to_anonymous_transactions with sql_replica_skip_counter and verify that

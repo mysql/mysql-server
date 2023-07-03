@@ -1,0 +1,64 @@
+--echo # WL #15387: Innodb: Log progress information while resurrecting transaction during recovery.
+--echo # Check whether the different resurrection logs are printed when a server crashes with an uncommitted transaction.
+
+# This test takes long time, so only run it with the --big-test mtr-flag.
+--source include/big_test.inc
+--source include/have_debug.inc
+
+CREATE TABLE IF NOT EXISTS t1 (col1 VARCHAR(60), col2 VARCHAR(60), col3 VARCHAR(60));
+
+DELIMITER $$;
+CREATE PROCEDURE bulk_ins()
+BEGIN
+DECLARE x INT;
+SET x = 1;
+lab: LOOP
+IF x > 50000 THEN
+LEAVE lab;
+END IF;
+INSERT INTO t1 VALUES (REPEAT('a', 60), REPEAT('b',60), REPEAT('c',60));
+SET x = x + 1;
+END LOOP;
+END$$
+
+CREATE PROCEDURE bulk_upd(n INTEGER)
+BEGIN
+DECLARE x INT;
+SET x = 1;
+lab: LOOP
+UPDATE t1 SET col1=REPEAT('b',60), col2=repeat('c',60), col3=repeat('a',60);
+UPDATE t1 SET col1=REPEAT('a',60), col2=repeat('b',60), col3=repeat('c',60);
+IF x > n THEN
+LEAVE lab;
+END IF;
+SET x = x + 1;
+END LOOP;
+END$$
+DELIMITER ;$$
+
+BEGIN;
+CALL bulk_ins();
+CALL bulk_upd(10);
+
+let $restart_parameters = restart: --log-error-verbosity=3 --debug=+d,resurrect_logs;
+--source include/kill_and_restart_mysqld.inc
+
+--let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN = Transaction ID:.* found for resurrecting inserts
+--source include/search_pattern.inc
+--let SEARCH_PATTERN= Records read:.* - Pages read:.*
+--source include/search_pattern.inc
+--let SEARCH_PATTERN= Transaction ID:.* found for resurrecting updates
+--source include/search_pattern.inc
+--let SEARCH_PATTERN= Identified table ID:.* to acquire lock
+--source include/search_pattern.inc
+--let SEARCH_PATTERN= Resurrected .* transaction.* doing inserts.
+--source include/search_pattern.inc
+--let SEARCH_PATTERN= Resurrected .* transaction.* doing updates.
+--source include/search_pattern.inc
+--let SEARCH_PATTERN= Acquired lock on table ID:.*, name:.*
+--source include/search_pattern.inc
+--let SEARCH_PATTERN= Total records resurrected:.* - Total pages read:.* - Total tables acquired:.*
+--source include/search_pattern.inc
+
+DROP TABLE t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ table_plugin_table::table_plugin_table(PFS_engine_table_share *share)
   m_pos_ptr = m_pos;
 }
 
-void table_plugin_table::reset_position(void) {
+void table_plugin_table::reset_position() {
   if (unlikely(m_st_table->reset_position == nullptr)) {
     return;
   }
@@ -92,7 +92,7 @@ int table_plugin_table::rnd_init(bool scan) {
   return m_st_table->rnd_init(this->plugin_table_handle, scan);
 }
 
-int table_plugin_table::rnd_next(void) {
+int table_plugin_table::rnd_next() {
   if (unlikely(m_st_table->rnd_next == nullptr)) {
     return HA_ERR_END_OF_FILE;
   }
@@ -121,7 +121,7 @@ int table_plugin_table::index_init(uint idx, bool sorted) {
   return ret;
 }
 
-int table_plugin_table::index_next(void) {
+int table_plugin_table::index_next() {
   return m_opened_index->index_next(this->plugin_table_handle);
 }
 
@@ -153,7 +153,7 @@ int table_plugin_table::read_row_values(TABLE *table, unsigned char *buf,
   return result;
 }
 
-int table_plugin_table::delete_all_rows(void) {
+int table_plugin_table::delete_all_rows() {
   if (unlikely(m_share->m_delete_all_rows == nullptr)) {
     return HA_ERR_WRONG_COMMAND;
   }

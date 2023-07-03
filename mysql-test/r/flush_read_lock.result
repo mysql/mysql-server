@@ -413,7 +413,7 @@ Success: Was able to run 'execute stmt1' under FTWRL.
 Success: Was able to run 'execute stmt1' with FTWRL active in another connection.
 Success: Was able to run FTWRL while 'execute stmt1' was active in another connection.
 deallocate prepare stmt1;
-call mtr.add_suppression("Slave SQL.*Can.t execute the query because you have a conflicting read lock., Error_code: MY-001223");
+call mtr.add_suppression("Replica SQL.*Can.t execute the query because you have a conflicting read lock., Error_code: MY-001223");
 #
 # 9.2.b) EXECUTE for statement which is incompatible with FTWRL
 #        should be also incompatible.

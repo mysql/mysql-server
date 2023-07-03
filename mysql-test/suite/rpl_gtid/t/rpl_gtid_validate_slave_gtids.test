@@ -42,7 +42,7 @@ START SLAVE IO_THREAD;
 
 # Step-4)since Master has already purged binary logs  containing GTID 1 and 2,
 # it should throw error and I/O thread should not be started.
-#013114 = ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+#013114 = ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG
 --let $slave_io_errno= 13114
 --let $show_slave_io_error= 1
 --let $slave_io_error_replace= /$master_uuid/MASTER_UUID/
@@ -124,10 +124,10 @@ START SLAVE IO_THREAD;
 
 # Step-6) Make sure I/O thread gets error and informs the situation to the Slave.
 --let $slave_io_errno=13114
-#convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+#convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
-call mtr.add_suppression(".*Slave has more GTIDs than the master has.*");
+call mtr.add_suppression(".*Replica has more GTIDs than the source has.*");
 
 # Step-7) Verify that situation is recovered back normal after setting GTID_PURGED
 #          value to those purged gtids.

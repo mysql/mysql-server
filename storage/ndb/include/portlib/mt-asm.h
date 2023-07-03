@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,10 +107,8 @@ xcng(volatile unsigned * addr, int val)
   asm volatile("membar #StoreLoad | #StoreStore");
   return ret;
 }
-#define cpu_pause()
 #define NDB_HAVE_XCNG
 #else
-#define cpu_pause()
 /* link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG) */
 extern  int xcng(volatile unsigned * addr, int val);
 #endif
@@ -150,6 +148,7 @@ xcng(volatile unsigned * addr, int val)
 #define NDB_HAVE_RMB
 #define NDB_HAVE_WMB
 //#define NDB_HAVE_XCNG
+#define NDB_HAVE_CPU_PAUSE
 
 #define mb() std::atomic_thread_fence(std::memory_order_seq_cst)
 #define rmb() std::atomic_thread_fence(std::memory_order_seq_cst)
@@ -161,88 +160,6 @@ xcng(volatile unsigned * addr, int val)
 #define NDB_NO_ASM "Unsupported architecture (gcc)"
 #endif
 
-#elif defined(__sun)
-/********************
- * SUN STUDIO
- *******************/
-
-/**
- * TODO check that asm ("") implies a compiler barrier
- *      i.e that it clobbers memory
- */
-#if defined(__x86_64) || defined (__i386) /* 64 or 32 bit x86 */
-#define NDB_HAVE_MB
-#define NDB_HAVE_RMB
-#define NDB_HAVE_WMB
-
-#define mb()    asm ("mfence")
-/* According to Intel docs, it does not reorder loads. */
-/* #define rmb() asm ("lfence") */
-#define rmb()   asm ("")
-#define wmb()   asm ("")
-
-#elif defined(__sparc)
-#define NDB_HAVE_MB
-#define NDB_HAVE_RMB
-#define NDB_HAVE_WMB
-
-#define mb() asm ("membar #LoadLoad | #LoadStore | #StoreLoad | #StoreStore")
-#define rmb() asm ("membar #LoadLoad")
-#define wmb() asm ("membar #StoreStore")
-#else
-#define NDB_NO_ASM "Unsupported architecture (sun studio)"
-#error "Unsupported architecture (sun studio)"
-#endif
-
-#if defined(__x86_64) || defined (__i386) || defined(__sparc)
-/**
- * we should probably use assembler for x86 as well...
- *   but i'm not really sure how you do this in sun-studio :-(
- */
-#ifdef HAVE_ATOMIC_H
-#include <atomic.h>
-#endif
-
-#ifdef HAVE_ATOMIC_SWAP_32
-#define NDB_HAVE_XCNG
-#if defined(__sparc)
-static inline
-int
-xcng(volatile unsigned * addr, int val)
-{
-  asm ("membar #StoreLoad | #LoadLoad");
-  int ret = atomic_swap_32(addr, val);
-  asm ("membar #StoreLoad | #StoreStore");
-  return ret;
-}
-#define cpu_pause()
-#elif defined(__x86_64) || defined (__i386)
-#define NDB_HAVE_CPU_PAUSE
-static inline
-int
-xcng(volatile unsigned * addr, int val)
-{
-  /**
-   * TODO check that atomic_swap_32 on x86-64 with sun-studio implies
-   *  proper barriers
-   */
-  int ret = atomic_swap_32(addr, val);
-  return ret;
-}
-static
-inline
-void
-cpu_pause()
-{
-  asm volatile ("rep;nop");
-}
-#endif
-#else
-#define cpu_pause()
-/* link error if used incorrectly (i.e wo/ having NDB_HAVE_XCNG) */
-extern  int xcng(volatile unsigned * addr, int val);
-#endif
-#endif
 #elif defined (_MSC_VER)
 
 #define NDB_HAVE_MB

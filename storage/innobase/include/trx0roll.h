@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -42,6 +42,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifdef UNIV_HOTBACKUP
 #include "que0que.h"
 #endif /* UNIV_HOTBACKUP */
+
+extern os_event_t recovery_lock_taken;
 
 /** Determines if this transaction is rolling back an incomplete transaction
  in crash recovery.

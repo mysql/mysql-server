@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,9 @@ SET(LIBS_TO_MERGE
 SET(LIBS_TO_LINK)
 
 IF(WITH_ZLIB STREQUAL "bundled")
-  LIST(APPEND LIBS_TO_MERGE ${ZLIB_LIBRARY})
+  LIST(APPEND LIBS_TO_MERGE zlib)
 ELSE()
-  LIST(APPEND LIBS_TO_LINK ${ZLIB_LIBRARY})
+  LIST(APPEND LIBS_TO_LINK ext::zlib)
 ENDIF()
 
 

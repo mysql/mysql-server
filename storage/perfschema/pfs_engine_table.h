@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ class PFS_engine_table {
   virtual int rnd_init(bool scan [[maybe_unused]]) { return 0; }
 
   /** Fetch the next row in this cursor. */
-  virtual int rnd_next(void) = 0;
+  virtual int rnd_next() = 0;
 
   virtual int index_init(uint idx [[maybe_unused]],
                          bool sorted [[maybe_unused]]) {
@@ -124,7 +124,7 @@ class PFS_engine_table {
   void get_position(void *ref);
   void set_position(const void *ref);
   /** Reset the cursor position to the beginning of the table. */
-  virtual void reset_position(void) = 0;
+  virtual void reset_position() = 0;
 
   /** Destructor. */
   virtual ~PFS_engine_table() = default;
@@ -185,9 +185,9 @@ typedef PFS_engine_table *(*pfs_open_table_t)(PFS_engine_table_share *);
 typedef int (*pfs_write_row_t)(PFS_engine_table *pfs_table, TABLE *table,
                                unsigned char *buf, Field **fields);
 /** Callback to delete all rows. */
-typedef int (*pfs_delete_all_rows_t)(void);
+typedef int (*pfs_delete_all_rows_t)();
 /** Callback to get a row count. */
-typedef ha_rows (*pfs_get_row_count_t)(void);
+typedef ha_rows (*pfs_get_row_count_t)();
 
 /**
   PFS_key_reader: Convert key into internal format.
@@ -247,7 +247,7 @@ struct PFS_key_reader {
                                        uint *buffer_length,
                                        uint buffer_capacity);
 
-  ha_base_keytype get_key_type(void) {
+  ha_base_keytype get_key_type() {
     return (enum ha_base_keytype)m_remaining_key_part_info->type;
   }
 
@@ -282,7 +282,7 @@ class PFS_engine_key {
 
 class PFS_engine_index_abstract {
  public:
-  PFS_engine_index_abstract() : m_fields(0), m_key_info(nullptr) {}
+  PFS_engine_index_abstract() = default;
 
   virtual ~PFS_engine_index_abstract() = default;
 
@@ -292,8 +292,8 @@ class PFS_engine_index_abstract {
                         enum ha_rkey_function find_flag) = 0;
 
  public:
-  uint m_fields;
-  KEY *m_key_info;
+  uint m_fields{0};
+  KEY *m_key_info{nullptr};
 };
 
 class PFS_engine_index : public PFS_engine_index_abstract {
@@ -356,11 +356,11 @@ class PFS_engine_index : public PFS_engine_index_abstract {
 */
 struct PFS_engine_table_share {
   static void get_all_tables(List<const Plugin_table> *tables);
-  static void init_all_locks(void);
-  static void delete_all_locks(void);
+  static void init_all_locks();
+  static void delete_all_locks();
 
   /** Get the row count. */
-  ha_rows get_row_count(void) const;
+  ha_rows get_row_count() const;
   /** Write a row. */
   int write_row(PFS_engine_table *pfs_table, TABLE *table, unsigned char *buf,
                 Field **fields) const;
@@ -410,7 +410,6 @@ class PFS_dynamic_table_shares {
   void add_share(PFS_engine_table_share *share) {
     mysql_mutex_assert_owner(&LOCK_pfs_share_list);
     shares_vector.push_back(share);
-    return;
   }
 
   PFS_engine_table_share *find_share(const char *table_name, bool is_dead_too);
@@ -435,7 +434,7 @@ class PFS_readonly_acl : public ACL_internal_table_access {
 
   ~PFS_readonly_acl() override = default;
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+  ACL_internal_access_result check(ulong want_access, ulong *granted_access,
                                    bool any_combination_will_do) const override;
 };
 
@@ -452,7 +451,7 @@ class PFS_truncatable_acl : public ACL_internal_table_access {
 
   ~PFS_truncatable_acl() override = default;
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+  ACL_internal_access_result check(ulong want_access, ulong *granted_access,
                                    bool any_combination_will_do) const override;
 };
 
@@ -469,7 +468,7 @@ class PFS_updatable_acl : public ACL_internal_table_access {
 
   ~PFS_updatable_acl() override = default;
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+  ACL_internal_access_result check(ulong want_access, ulong *granted_access,
                                    bool any_combination_will_do) const override;
 };
 
@@ -486,7 +485,7 @@ class PFS_editable_acl : public ACL_internal_table_access {
 
   ~PFS_editable_acl() override = default;
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+  ACL_internal_access_result check(ulong want_access, ulong *granted_access,
                                    bool any_combination_will_do) const override;
 };
 
@@ -502,7 +501,7 @@ class PFS_unknown_acl : public ACL_internal_table_access {
 
   ~PFS_unknown_acl() override = default;
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv,
+  ACL_internal_access_result check(ulong want_access, ulong *granted_access,
                                    bool any_combination_will_do) const override;
 };
 
@@ -586,7 +585,7 @@ struct PFS_simple_index {
   }
 
   /** Set this index to the next record. */
-  void next(void) { m_index++; }
+  void next() { m_index++; }
 };
 
 /** Position of a double cursor, for iterations using 2 nested loops. */

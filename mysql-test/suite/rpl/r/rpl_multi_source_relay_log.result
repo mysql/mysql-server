@@ -39,7 +39,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 #
@@ -183,9 +183,9 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 # channels.
 #
 RESET SLAVE ALL FOR CHANNEL 'ch1';
-ERROR HY000: Slave channel 'ch1' does not exist.
+ERROR HY000: Replica channel 'ch1' does not exist.
 SHOW SLAVE STATUS FOR CHANNEL 'ch1';
-ERROR HY000: Slave channel 'ch1' does not exist.
+ERROR HY000: Replica channel 'ch1' does not exist.
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 COUNT(*)
 4
@@ -255,9 +255,9 @@ RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SHOW SLAVE STATUS FOR CHANNEL 'ch1';
-ERROR HY000: Slave channel 'ch1' does not exist.
+ERROR HY000: Replica channel 'ch1' does not exist.
 SHOW SLAVE STATUS FOR CHANNEL 'ch2';
-ERROR HY000: Slave channel 'ch2' does not exist.
+ERROR HY000: Replica channel 'ch2' does not exist.
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 COUNT(*)
 0

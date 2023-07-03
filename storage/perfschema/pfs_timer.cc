@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,8 +58,8 @@ static struct time_normalizer
         {0, 0, {0}}, /* millisec */
 };
 
-void init_timers(void) {
-  double pico_frequency = 1.0e12;
+void init_timers() {
+  const double pico_frequency = 1.0e12;
 
   my_timer_init(&pfs_timer_info);
 
@@ -129,7 +129,7 @@ void init_timers(void) {
   for (timer_index = FIRST_TIMER_NAME; timer_index <= LAST_TIMER_NAME;
        timer_index++) {
     time_normalizer *normalizer = &to_pico_data[timer_index];
-    ulonglong to_pico = normalizer->m_factor;
+    const ulonglong to_pico = normalizer->m_factor;
     ulonglong bucket_index;
 
     if (to_pico != 0) {
@@ -169,7 +169,7 @@ time_normalizer *time_normalizer::get_transaction() {
 
 void time_normalizer::to_pico(ulonglong start, ulonglong end,
                               ulonglong *pico_start, ulonglong *pico_end,
-                              ulonglong *pico_wait) {
+                              ulonglong *pico_wait) const {
   if (start == 0) {
     *pico_start = 0;
     *pico_end = 0;

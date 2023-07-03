@@ -223,3 +223,5 @@ RESET MASTER;
 # they where when test started
 --let $rpl_topology= none
 --source include/rpl_change_topology.inc
+
+--source include/rpl_end.inc

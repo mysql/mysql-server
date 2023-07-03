@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,10 +39,9 @@ using std::string;
 namespace services {
 
 string print_digest(const unsigned char *digest) {
-  const size_t string_size = PARSER_SERVICE_DIGEST_LENGTH * 2;
-  char digest_str[string_size + sizeof('\0')];
+  char digest_str[2 * PARSER_SERVICE_DIGEST_LENGTH + 1];
   for (int i = 0; i < PARSER_SERVICE_DIGEST_LENGTH; ++i)
-    snprintf(digest_str + i * 2, string_size, "%02x", digest[i]);
+    sprintf(digest_str + i * 2, "%02x", digest[i]);
   return digest_str;
 }
 

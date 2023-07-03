@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -224,8 +224,9 @@ class DukHeap {
     duk_module_shim_init(context(), module_prefixes);
   }
 
-  void prepare(std::string filename,
-               const std::map<std::string, std::string> &session_data) {
+  void prepare(
+      std::string filename,
+      std::map<std::string, std::function<std::string()>> &session_data) {
     auto ctx = context();
     duk_push_global_stash(ctx);
     if (nullptr == shared_.get()) {
@@ -290,7 +291,7 @@ class DukHeap {
   }
 
   void prepare_mysqld_object(
-      const std::map<std::string, std::string> &session_data) {
+      const std::map<std::string, std::function<std::string()>> &session_data) {
     auto ctx = context();
     // mysqld = {
     //   session: {
@@ -303,8 +304,9 @@ class DukHeap {
     duk_push_object(ctx);
 
     // map of string and json-string
-    for (auto &el : session_data) {
-      duk_push_lstring(ctx, el.second.data(), el.second.size());
+    for (const auto &el : session_data) {
+      const std::string val = el.second();
+      duk_push_lstring(ctx, val.data(), val.size());
       duk_json_decode(ctx, -1);
       duk_put_prop_lstring(ctx, -2, el.first.data(), el.first.size());
     }
@@ -404,7 +406,7 @@ class DukHeapPool {
 
   std::unique_ptr<DukHeap> get(
       const std::string &filename, std::vector<std::string> module_prefixes,
-      std::map<std::string, std::string> session_data,
+      std::map<std::string, std::function<std::string()>> session_data,
       std::shared_ptr<MockServerGlobalScope> shared_globals) {
     {
       std::lock_guard<std::mutex> lock(pool_mtx_);
@@ -779,7 +781,7 @@ static void check_handshake_section(duk_context *ctx) {
 
 DuktapeStatementReader::DuktapeStatementReader(
     std::string filename, std::vector<std::string> module_prefixes,
-    std::map<std::string, std::string> session_data,
+    std::map<std::string, std::function<std::string()>> session_data,
     std::shared_ptr<MockServerGlobalScope> shared_globals)
     : pimpl_{std::make_unique<Pimpl>(DukHeapPool::instance()->get(
           std::move(filename), std::move(module_prefixes), session_data,

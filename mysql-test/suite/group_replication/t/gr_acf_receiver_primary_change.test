@@ -66,23 +66,10 @@ if (!$have_xcom_stack) {
   --let $group_b_group_seeds= "localhost:$SERVER_MYPORT_3,localhost:$SERVER_MYPORT_4"
 }
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
-SET SESSION sql_log_bin = 1;
-
---let $rpl_connection_name= server2
---source include/rpl_connection.inc
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
-SET SESSION sql_log_bin = 1;
-
-
 --echo
 --echo # 1. Create a replication channel to replicate from server4 to
 --echo #    to server1 on both server1 and 2.
 --echo
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
 --replace_result $SERVER_MYPORT_4 SERVER_4_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_4, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1'
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,22 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
         *((bool *)inout_pvalue) = t->is_server_upgrade_thread();
       } else if (!strcmp(name, "is_init_file_thread")) {
         *((bool *)inout_pvalue) = t->is_init_file_system_thread();
+      } else if (!strcmp(name, "sql_text")) {
+        String *res = new String[1];
+        res->append(t->query().str, t->query().length);
+        *((my_h_string *)inout_pvalue) = (my_h_string)res;
+      } else if (!strcmp(name, "host_or_ip")) {
+        Security_context *ctx = t->security_context();
+        const char *host = (ctx != nullptr && ctx->host_or_ip().length)
+                               ? ctx->host_or_ip().str
+                               : "";
+        String *res = new String[1];
+        res->append(host, strlen(host));
+        *((my_h_string *)inout_pvalue) = (my_h_string)res;
+      } else if (!strcmp(name, "schema")) {
+        String *res = new String[1];
+        res->append(t->db().str, t->db().length);
+        *((my_h_string *)inout_pvalue) = (my_h_string)res;
       } else
         return true; /* invalid option */
     }

@@ -188,7 +188,6 @@ if (!$have_xcom_stack){
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The source .* for channel 'ch1' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.");
 call mtr.add_suppression("The source .* for channel 'ch1' has left the group .*, and so removed its entry from replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");

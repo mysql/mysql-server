@@ -23,11 +23,11 @@ source include/have_binlog_format_mixed.inc;
 
 connection slave;
 
-call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
-call mtr.add_suppression("Slave I/O: .* failed with error: Lost connection to MySQL server at 'reading initial communication packet'");
-call mtr.add_suppression("Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; .*");
-call mtr.add_suppression("Slave I/O thread .* register on master");
-call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on master");
+call mtr.add_suppression("Replica I/O: Source command COM_REGISTER_REPLICA failed: .*");
+call mtr.add_suppression("Replica I/O: .* failed with error: Lost connection to MySQL server at 'reading initial communication packet'");
+call mtr.add_suppression("Fatal error: The replica I/O thread stops because source and replica have equal MySQL server ids; .*");
+call mtr.add_suppression("Replica I/O thread .* register on source");
+call mtr.add_suppression("Unknown system variable 'SERVER_UUID' on source");
 
 #Test case 1: Try to get the value of the UNIX_TIMESTAMP from master under network disconnection
 

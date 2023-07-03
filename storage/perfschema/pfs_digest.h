@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -97,8 +97,8 @@ struct PFS_ALIGNED PFS_statements_digest_stat {
   void reset_index(PFS_thread *thread);
 
   /** Get the age in micro seconds of the last query sample. */
-  ulonglong get_sample_age() {
-    ulonglong age = m_last_seen - m_query_sample_seen;
+  ulonglong get_sample_age() const {
+    const ulonglong age = m_last_seen - m_query_sample_seen;
     return age;
   }
 
@@ -127,7 +127,7 @@ int init_digest(const PFS_global_param *param);
 void cleanup_digest();
 
 int init_digest_hash(const PFS_global_param *param);
-void cleanup_digest_hash(void);
+void cleanup_digest_hash();
 PFS_statements_digest_stat *find_or_create_digest(
     PFS_thread *thread, const sql_digest_storage *digest_storage,
     const char *schema_name, uint schema_name_length);

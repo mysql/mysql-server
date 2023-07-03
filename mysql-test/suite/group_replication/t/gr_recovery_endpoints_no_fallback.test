@@ -125,7 +125,7 @@ SET GLOBAL group_replication_clone_threshold= 1;
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_no_fallback
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_no_fallback.2.err
 --let $assert_count = 2
---let $assert_select = .*error connecting to master 'root@127.0.0.1:$server1_admin_port'.*
+--let $assert_select = .*Error connecting to source 'root@127.0.0.1:$server1_admin_port'.*
 --let $assert_text = recovery channel used recovery endpoints configuration
 --source include/assert_grep.inc
 
@@ -165,7 +165,7 @@ DROP TABLE test.t1;
 
 set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Maximum number of retries when*");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication.*");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");

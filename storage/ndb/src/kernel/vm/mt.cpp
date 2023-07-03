@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3361,8 +3361,23 @@ check_yield(thr_data *selfptr,
             Uint32 *spin_time_in_us,
             NDB_TICKS start_spin_ticks)
 {
+#ifndef NDB_HAVE_CPU_PAUSE
+  /**
+   * If cpu_pause() was not implemented, 'min_spin_timer == 0' is enforced,
+   * and spin-before-yield is never attempted.
+   */
+  assert(false);
+  return true;  // -> yield immediately
+
+#else
   NDB_TICKS now;
   bool cont_flag = true;
+  /**
+   * If not NdbSpin_is_supported(), it will force 'min_spin_timer==0'.
+   * -> We should never attempt to spin in this function before yielding.
+   */
+  assert(NdbSpin_is_supported());
+  assert(min_spin_timer > 0);
   do
   {
     for (Uint32 i = 0; i < 50; i++)
@@ -3380,9 +3395,6 @@ check_yield(thr_data *selfptr,
         now = NdbTick_getCurrentTicks();
         break;
       }
-      /* Check if we have done enough spinning once per 3 us */
-      if ((i & 3) == 3)
-        continue;
       now = NdbTick_getCurrentTicks();
       Uint64 spin_micros = NdbTick_Elapsed(start_spin_ticks, now).microSec();
       if (spin_micros > min_spin_timer)
@@ -3432,6 +3444,7 @@ check_yield(thr_data *selfptr,
   selfptr->m_micros_sleep += spin_micros;
   wait_time_tracking(selfptr, spin_micros);
   return false;
+#endif
 }
 
 /**
@@ -3446,8 +3459,23 @@ check_recv_yield(thr_data *selfptr,
                  Uint32 *spin_time_in_us,
                  NDB_TICKS start_spin_ticks)
 {
+#ifndef NDB_HAVE_CPU_PAUSE
+  /**
+   * If cpu_pause() was not implemented, 'min_spin_timer == 0' is enforced,
+   * and spin-before-yield is never attempted.
+   */
+  assert(false);
+  return true;  // -> yield immediately
+
+#else
   NDB_TICKS now;
   bool cont_flag = true;
+  /**
+   * If not NdbSpin_is_supported(), it will force 'min_spin_timer==0'.
+   * -> We should never attempt to spin in this function before yielding.
+   */
+  assert(NdbSpin_is_supported());
+  assert(min_spin_timer > 0);
   do
   {
     for (Uint32 i = 0; i < 60; i++)
@@ -3467,9 +3495,6 @@ check_recv_yield(thr_data *selfptr,
         now = NdbTick_getCurrentTicks();
         break;
       }
-      /* Check if we have done enough spinning once per 3 us */
-      if ((i & 3) == 3)
-        continue;
       /* Check if we have done enough spinning */
       now = NdbTick_getCurrentTicks();
       Uint64 spin_micros = NdbTick_Elapsed(start_spin_ticks, now).microSec();
@@ -3517,6 +3542,7 @@ check_recv_yield(thr_data *selfptr,
   selfptr->m_micros_sleep += spin_micros;
   wait_time_tracking(selfptr, spin_micros);
   return false;
+#endif
 }
 
 /**
@@ -6598,8 +6624,7 @@ read_all_jbb_state(thr_data *selfptr, bool check_before_sleep)
    * Prefetching all m_write_index instances gives a small but visible
    * improvement.
    */
-#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR > 10) || \
-    defined(USE_SUN_PREFETCH) || defined(USE_SPARC_PREFETCH)
+#if defined(__GNUC__)
   for (Uint32 jbb_instance = 0;
        jbb_instance < glob_num_job_buffers_per_thread;
        jbb_instance++)
@@ -7795,6 +7820,15 @@ init_thread(thr_data *selfptr)
                                              selfptr->m_instance_count);
   selfptr->m_conf_spintime = conf.do_get_spintime(selfptr->m_instance_list,
                                                   selfptr->m_instance_count);
+
+#ifndef NDB_HAVE_CPU_PAUSE
+  /**
+   * We require NDB_HAVE_CPU_PAUSE in order to support NdbSpin().
+   * Note that we may still not support it, even if NDB_HAVE_CPU_PAUSE.
+   * In such cases 'spintime==0' will be forced.
+   */
+  require(!NdbSpin_is_supported());
+#endif
 
   /* spintime always 0 on platforms not supporting spin */
   if (!NdbSpin_is_supported())
@@ -10370,6 +10404,18 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
   g_eventLogger->info("Number of spin loops is %llu to pause %llu nanoseconds",
                       NdbSpin_get_num_spin_loops(),
                       NdbSpin_get_current_spin_nanos());
+
+#ifdef DBG_NDB_HAVE_CPU_PAUSE  // Intentionally not defined
+  for (Uint32 i = 0; i < 5; i++)
+  {
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
+    NdbSpin();
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    const Uint64 nanos_passed = NdbTick_Elapsed(start, now).nanoSec();
+    g_eventLogger->info("::ipControlLoop, NdbSpin() took %llu ns, loops:%llu\n",
+                         nanos_passed, NdbSpin_get_num_spin_loops());
+  }
+#endif
 
   if (globalData.ndbMtSendThreads)
   {

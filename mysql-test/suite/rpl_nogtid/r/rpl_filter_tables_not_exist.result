@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (id int, a int);
 CREATE TABLE t2 (id int, b int);
@@ -47,8 +47,8 @@ UPDATE t4 LEFT JOIN (t1, t6, t7) ON (t4.id=t1.id and t4.id=t6.id and t4.id=t7.id
 UPDATE t7 LEFT JOIN (t4, t1, t2) ON (t7.id=t4.id and t7.id=t1.id and t7.id=t2.id) SET a=0, b=0, d=0, g=0 where t7.id=1;
 UPDATE t7 LEFT JOIN (t8, t4, t1) ON (t7.id=t8.id and t7.id=t4.id and t7.id=t1.id) SET a=0, d=0, g=0, h=0 where t7.id=1;
 include/sync_slave_sql_with_master.inc
-call mtr.add_suppression("Slave SQL.*Error .Table .test.t[47]. doesn.t exist. on query.* Error_code: MY-001146");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*Error .Table .test.t[47]. doesn.t exist. on query.* Error_code: MY-001146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 UPDATE t1 LEFT JOIN t4 ON (t1.id=t4.id) SET a=0 where t1.id=1;
 include/wait_for_slave_sql_error_and_skip.inc [errno=1146]
 UPDATE t1 LEFT JOIN (t4, t7) ON (t1.id=t4.id and t1.id=t7.id) SET a=0 where t1.id=1;
@@ -120,7 +120,7 @@ SET @c=2;
 SET @@rand_seed1=10000000, @@rand_seed2=1000000;
 INSERT INTO t5 VALUES (NULL, RAND(), @c);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 SELECT b into @b FROM test.t5;
 UPDATE test.t1 SET a=2;
 include/sync_slave_sql_with_master.inc

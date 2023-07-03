@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -52,16 +52,28 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /*
   Version 4.
   Introduced in MySQL 8.0.31
-  Status: active
+  Obsoleted in MySQL 8.0.33
+  Status: Obsolete, use version 5 instead.
   Changes compared to version 3:
   - get_thread_statement_locker_v4_t,
     the state structure is bigger.
 */
-BEGIN_SERVICE_DEFINITION(psi_statement_v4)
+
+/*
+  Version 5.
+  Introduced in MySQL 8.0.33
+  Status: active.
+  Changes compared to version 4:
+  - get_thread_statement_locker_v5_t
+    (the state structure is bigger),
+    notify_statement_query_attributes_v5_t,
+    statement_abort_telemetry_v5_t.
+*/
+BEGIN_SERVICE_DEFINITION(psi_statement_v5)
 /** @sa register_statement_v1_t. */
 register_statement_v1_t register_statement;
 /** @sa get_thread_statement_locker_v1_t. */
-get_thread_statement_locker_v4_t get_thread_statement_locker;
+get_thread_statement_locker_v5_t get_thread_statement_locker;
 /** @sa refine_statement_v1_t. */
 refine_statement_v1_t refine_statement;
 /** @sa start_statement_v1_t. */
@@ -135,6 +147,9 @@ start_sp_v1_t start_sp;
 end_sp_v1_t end_sp;
 /** @sa drop_sp_v1_t. */
 drop_sp_v1_t drop_sp;
-END_SERVICE_DEFINITION(psi_statement_v4)
+
+notify_statement_query_attributes_v5_t notify_statement_query_attributes;
+statement_abort_telemetry_v5_t statement_abort_telemetry;
+END_SERVICE_DEFINITION(psi_statement_v5)
 
 #endif /* COMPONENTS_SERVICES_PSI_STATEMENT_SERVICE_H */

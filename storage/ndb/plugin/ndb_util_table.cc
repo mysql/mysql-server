@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -146,6 +146,11 @@ const NdbDictionary::Table *Ndb_util_table::get_table() const {
 const NdbDictionary::Column *Ndb_util_table::get_column(
     const char *name) const {
   return get_table()->getColumn(name);
+}
+
+const NdbDictionary::Column *Ndb_util_table::get_column_by_number(
+    Uint32 number) const {
+  return get_table()->getColumn(number);
 }
 
 bool Ndb_util_table::check_column_exist(const char *name) const {
@@ -382,6 +387,21 @@ bool Ndb_util_table::create(bool is_upgrade) {
   return true;
 }
 
+bool Ndb_util_table::create_in_DD() {
+  Ndb_local_connection mysqld(const_cast<THD *>(get_thd()));
+  if (mysqld.create_util_table(define_table_dd())) {
+    return false;
+  }
+
+  if (!post_install_in_DD()) {
+    ndb_log_verbose(1, "Failed to finalize table definition for '%s.%s' in DD",
+                    m_db_name.c_str(), m_table_name.c_str());
+    return false;
+  }
+
+  return true;
+}
+
 // Upgrade table
 bool Ndb_util_table::upgrade() {
   const NdbDictionary::Table *old_table = get_table();
@@ -434,6 +454,25 @@ std::string Ndb_util_table::unpack_varbinary(const char *column_name,
                      &unpacked_str_length, packed_str);
 
   return std::string(unpacked_str, unpacked_str_length);
+}
+
+void Ndb_util_table::pack_varchar(const char *column_name, std::string_view src,
+                                  char *dst) const {
+  // The table has to be loaded before this function is called
+  assert(get_table() != nullptr);
+  // The type of column should be VARCHAR
+  assert(check_column_varchar(get_column(column_name)->getName()));
+  ndb_pack_varchar(get_column(column_name), 0, src.data(), src.size(), dst);
+}
+
+void Ndb_util_table::pack_varchar(Uint32 column_number, std::string_view src,
+                                  char *dst) const {
+  // The table has to be loaded before this function is called
+  assert(get_table() != nullptr);
+  // The type of column should be VARCHAR
+  assert(check_column_varchar(get_column_by_number(column_number)->getName()));
+  ndb_pack_varchar(get_column_by_number(column_number), 0, src.data(),
+                   src.size(), dst);
 }
 
 bool Ndb_util_table::unpack_blob_not_null(NdbBlob *ndb_blob_handle,
@@ -547,6 +586,10 @@ bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
 }
 
 bool Util_table_creator::install_in_DD(bool reinstall) {
+  DBUG_TRACE;
+
+  ndb_log_verbose(50, "Checking '%s' table in Data Dictionary", m_name.c_str());
+
   Ndb_dd_client dd_client(m_thd);
 
   if (!dd_client.mdl_locks_acquire_exclusive(db_name(), table_name())) {
@@ -554,15 +597,27 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
     return false;
   }
 
+  // There may exist a stale DD definition, occupying the NDB table id
+  // or the pair schema.table. Check these and remove.
+  const NdbDictionary::Table *ndbtab = m_util_table.get_table();
   const dd::Table *existing;
+
+  const Ndb_dd_handle ndb_handle{ndbtab->getObjectId(),
+                                 ndbtab->getObjectVersion()};
+  if (!ndb_handle.valid()) {
+    ndb_log_error("Invalid id from '%s' table", m_name.c_str());
+    assert(false);
+  }
+  ndb_log_verbose(50, "Handle NDB %s", ndb_handle.to_string().c_str());
+
   if (!dd_client.get_table(db_name(), table_name(), &existing)) {
     ndb_log_error("Failed to get '%s' table from DD", m_name.c_str());
     return false;
   }
 
-  // Table definition exists
   if (existing) {
-    Ndb_dd_handle dd_handle = ndb_dd_table_get_spi_and_version(existing);
+    const Ndb_dd_handle dd_handle = ndb_dd_table_get_spi_and_version(existing);
+    ndb_log_verbose(50, "Handle DD %s", dd_handle.to_string().c_str());
     if (!dd_handle.valid()) {
       ndb_log_error("Failed to extract id and version from '%s' table",
                     m_name.c_str());
@@ -578,10 +633,7 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
     }
 
     // Check if table definition in DD is outdated
-    const NdbDictionary::Table *ndbtab = m_util_table.get_table();
-    Ndb_dd_handle curr_handle{ndbtab->getObjectId(),
-                              ndbtab->getObjectVersion()};
-    if (!reinstall && curr_handle == dd_handle) {
+    if (!reinstall && ndb_handle == dd_handle) {
       // Existed, didn't need reinstall and version matched
       return true;
     }
@@ -591,11 +643,18 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
       ndb_log_info("Failed to remove '%s' from DD", m_name.c_str());
       return false;
     }
+    // Pointer to table not valid after remove
+    existing = nullptr;
 
-    dd_client.commit();
+    // Check if DD table is to be installed with a different id than
+    // previously, removing the stale definition if necessary.
+    if (dd_handle.spi != ndb_handle.spi &&
+        !dd_client.remove_table(ndb_handle.spi)) {
+      ndb_log_info("Failed to remove ndbcluster-%llu from DD", ndb_handle.spi);
+    }
 
     /*
-      The table existed in and was deleted from DD. It's possible
+      The table existed and was deleted from DD. It's possible
       that someone has tried to use it and thus it might have been
       inserted in the table definition cache. Close the table
       in the table definition cache(tdc).
@@ -603,7 +662,15 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
     ndb_log_verbose(1, "Removing '%s' from table definition cache",
                     m_name.c_str());
     ndb_tdc_close_cached_table(m_thd, db_name(), table_name());
+  } else {
+    // Remove any stale DD table that may be occupying this
+    // ndbcluster-<id> place
+    if (!dd_client.remove_table(ndb_handle.spi)) {
+      ndb_log_info("Failed to remove ndbcluster-%llu from DD", ndb_handle.spi);
+    }
   }
+
+  dd_client.commit();
 
   // Create DD table definition
   Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
@@ -613,8 +680,7 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
   if (m_util_table.is_hidden())
     thd_ndb_options.set(Thd_ndb::CREATE_UTIL_TABLE_HIDDEN);
 
-  Ndb_local_connection mysqld(m_thd);
-  if (mysqld.create_util_table(m_util_table.define_table_dd())) {
+  if (!m_util_table.create_in_DD()) {
     ndb_log_error("Failed to create table definition for '%s' in DD",
                   m_name.c_str());
     return false;

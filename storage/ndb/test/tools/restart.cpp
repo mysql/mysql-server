@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,8 +51,8 @@ int main(int argc, const char** argv){
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
   char desc[] = 
-    "hostname:port\n"\
-    "This program will connect to the mgmsrv of a NDB cluster\n"\
+    "hostname:port\n"
+    "This program will connect to the management server of an NDB cluster\n"
     " and restart the cluster. \n";
 
   if(getarg(args, num_args, argc, argv, &optind) || _help) {

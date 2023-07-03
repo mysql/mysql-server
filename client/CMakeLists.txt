@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -136,7 +136,7 @@ ADD_SHARED_LIBRARY(json_binlog
   COMPILE_DEFINITIONS DISABLE_PSI_MUTEX EXPORT_JSON_FUNCTIONS
   DEPENDENCIES GenError
   ${INSTALL_JSON_BINLOG_LIBRARY}
-  LINK_LIBRARIES mysys
+  LINK_LIBRARIES mysys extra::rapidjson ext::zlib
   LINUX_VERSION_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/json_binlog.ver"
   VERSION "${json_binlog_VERSION}"
   NO_UNDEFINED
@@ -149,7 +149,12 @@ ADD_CONVENIENCE_LIBRARY(json_client_library
   ${CMAKE_SOURCE_DIR}/sql-common/json_syntax_check.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
 
-  COMPILE_DEFINITIONS DISABLE_PSI_MUTEX
+  LINK_LIBRARIES ext::zlib
+  COMPILE_DEFINITIONS
+    DISABLE_PSI_MUTEX
+    $<TARGET_PROPERTY:extra::rapidjson,INTERFACE_COMPILE_DEFINITIONS>
+  SYSTEM_INCLUDE_DIRECTORIES
+    $<TARGET_PROPERTY:extra::rapidjson,INTERFACE_INCLUDE_DIRECTORIES>
   DEPENDENCIES GenError
   )
 

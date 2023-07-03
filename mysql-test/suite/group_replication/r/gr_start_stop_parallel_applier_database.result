@@ -1,7 +1,7 @@
 include/group_replication.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 include/assert.inc [Default slave parallel type must be LOGICAL_CLOCK]
 include/assert.inc [Default slave parallel workers must be 4]
@@ -24,7 +24,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 Note	3084	Replication thread(s) for channel 'group_replication_applier' are already stopped.
 SET GLOBAL REPLICA_PARALLEL_WORKERS=4;
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-ERROR HY000: START SLAVE SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 and REPLICA_PARALLEL_TYPE != LOGICAL_CLOCK or REPLICA_PRESERVE_COMMIT_ORDER != ON cannot be performed on channel 'group_replication_applier'.
+ERROR HY000: START REPLICA SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 and REPLICA_PARALLEL_TYPE != LOGICAL_CLOCK or REPLICA_PRESERVE_COMMIT_ORDER != ON cannot be performed on channel 'group_replication_applier'.
 
 ############################################################
 # 2. Test with REPLICA_PARALLEL_TYPE set to DATABASE and
@@ -38,7 +38,7 @@ Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-ERROR HY000: START SLAVE SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 and REPLICA_PARALLEL_TYPE != LOGICAL_CLOCK or REPLICA_PRESERVE_COMMIT_ORDER != ON cannot be performed on channel 'group_replication_applier'.
+ERROR HY000: START REPLICA SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 and REPLICA_PARALLEL_TYPE != LOGICAL_CLOCK or REPLICA_PRESERVE_COMMIT_ORDER != ON cannot be performed on channel 'group_replication_applier'.
 
 ############################################################
 # 3. Test with REPLICA_PARALLEL_TYPE set to LOGICAL_CLOCK and
@@ -52,7 +52,7 @@ Warnings:
 Warning	1287	'@@replica_parallel_type' is deprecated and will be removed in a future release.
 SET GLOBAL REPLICA_PARALLEL_WORKERS= 4;
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-ERROR HY000: START SLAVE SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 and REPLICA_PARALLEL_TYPE != LOGICAL_CLOCK or REPLICA_PRESERVE_COMMIT_ORDER != ON cannot be performed on channel 'group_replication_applier'.
+ERROR HY000: START REPLICA SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 and REPLICA_PARALLEL_TYPE != LOGICAL_CLOCK or REPLICA_PRESERVE_COMMIT_ORDER != ON cannot be performed on channel 'group_replication_applier'.
 
 ############################################################
 # 4. Test with REPLICA_PARALLEL_TYPE set to LOGICAL_CLOCK,

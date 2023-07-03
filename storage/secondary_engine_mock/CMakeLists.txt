@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,17 @@
 DISABLE_MISSING_PROFILE_WARNING()
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
-SET(MOCK_SOURCES
-  ha_mock.cc)
-
-IF(WITH_MOCK_SECONDARY_STORAGE_ENGINE AND NOT WITHOUT_MOCK_SECONDARY_STORAGE_ENGINE)
-  MYSQL_ADD_PLUGIN(mock ${MOCK_SOURCES} STORAGE_ENGINE DEFAULT)
+IF(WITH_MOCK_SECONDARY_STORAGE_ENGINE AND
+    NOT WITHOUT_MOCK_SECONDARY_STORAGE_ENGINE)
+  MYSQL_ADD_PLUGIN(mock ha_mock.cc
+    STORAGE_ENGINE
+    DEFAULT
+    LINK_LIBRARIES extra::rapidjson ext::zlib
+    )
 ELSEIF(NOT WITHOUT_MOCK_SECONDARY_STORAGE_ENGINE)
-  MYSQL_ADD_PLUGIN(mock ${MOCK_SOURCES} STORAGE_ENGINE MODULE_ONLY)
+  MYSQL_ADD_PLUGIN(mock ha_mock.cc
+    STORAGE_ENGINE
+    MODULE_ONLY
+    LINK_LIBRARIES extra::rapidjson ext::zlib
+    )
 ENDIF()

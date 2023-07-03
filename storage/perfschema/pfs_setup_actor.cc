@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ int init_setup_actor(const PFS_global_param *param) {
 }
 
 /** Cleanup all the setup actor buffers. */
-void cleanup_setup_actor(void) { global_setup_actor_container.cleanup(); }
+void cleanup_setup_actor() { global_setup_actor_container.cleanup(); }
 
 static const uchar *setup_actor_hash_get_key(const uchar *entry,
                                              size_t *length) {
@@ -140,7 +140,7 @@ int init_setup_actor_hash(const PFS_global_param *param) {
 }
 
 /** Cleanup the setup actor hash. */
-void cleanup_setup_actor_hash(void) {
+void cleanup_setup_actor_hash() {
   if (setup_actor_hash_inited) {
     lf_hash_destroy(&setup_actor_hash);
     setup_actor_hash_inited = false;
@@ -334,7 +334,6 @@ void lookup_setup_actor(PFS_thread *thread, const PFS_user_name *user,
   }
   *enabled = false;
   *history = false;
-  return;
 }
 
 int update_setup_actors_derived_flags() {

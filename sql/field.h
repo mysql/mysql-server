@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2743,6 +2743,7 @@ class Field_temporal : public Field {
   {
     return (double)val_int();
   }
+  [[nodiscard]] uint8 get_dec() const { return dec; }
   my_decimal *val_decimal(
       my_decimal *decimal_value) const override;  // FSP types redefine it
 };
@@ -4251,7 +4252,7 @@ class Field_typed_array final : public Field_json {
   }
   void sql_type(String &str) const final;
   void make_send_field(Send_field *field) const final;
-  void set_field_index(uint16 f_index) final override;
+  void set_field_index(uint16 f_index) final;
   Field *get_conv_field();
 };
 

@@ -1,0 +1,45 @@
+--source include/big_test.inc
+--source include/have_innodb_16k.inc
+
+--let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data
+# This is a file created by mysql-8.0.28 on Windows using following steps:
+#   mysqld --initialize-insecure --lower-case-table-names=1 --innodb-log-file-size=4194304
+#   start the server
+#   CREATE DATABASE test;
+#   use test;
+#   CREATE TABLE t(id INT PRIMARY KEY);
+#   INSERT INTO t VALUES (42);
+#   wait for empty redo
+#   fast shutdown
+#   manually edit binlog.index to replace .\ with ./ so it is portable
+# The idea is that the flushed_lsn is much smaller than checkpoint_lsn, but the log is empty.
+--let $ZIP_FILE= $MYSQLTEST_VARDIR/std_data/upgrade/data_80028_empty_log_fast_shutdown.zip
+--let $MYSQLD_LOG = $MYSQLD_DATADIR1/mysqld.err
+--let SEARCH_FILE= $MYSQLD_LOG
+let $args=--datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG --log-error-verbosity=3 --lower-case-table-names=1;
+
+# Stop current instance
+--source include/kill_mysqld.inc
+# Unpack the zipped datadir:
+--exec unzip -qo $ZIP_FILE -d $MYSQL_TMP_DIR
+--list_files $MYSQLD_DATADIR1 ib_logfile*
+# Now, perform the upgrade:
+
+--let $restart_parameters = restart: $args
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--source include/start_mysqld.inc
+SHOW TABLES FROM test;
+# We should be able to see 42.
+# Also there should be no assertion failures complaining about a "page from future" (>flushed_lsn)
+SELECT * FROM t;
+
+--source include/kill_mysqld.inc
+
+--echo # Expect found
+let SEARCH_PATTERN= Upgrading redo log: .* LSN=[0-9]+;
+--source include/search_pattern.inc
+--force-rmdir $MYSQLD_DATADIR1
+
+# Start the server with original settings
+let $restart_parameters = restart:;
+--source include/start_mysqld.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,20 +31,12 @@
 
 #include "portlib/NdbMutex.h"
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
+int read_socket(ndb_socket_t, int timeout_msec, char * buf, int len);
 
-  int read_socket(ndb_socket_t, int timeout_msec, char * buf, int len);
+int readln_socket(ndb_socket_t, int timeout_msec, int * time,
+                  char * buf, int len, NdbMutex *mutex);
 
-  int readln_socket(ndb_socket_t, int timeout_msec, int * time,
-                    char * buf, int len, NdbMutex *mutex);
-
-  int write_socket(ndb_socket_t, int timeout_msec, int * time,
-                   const char[], int len);
-
-#ifdef  __cplusplus
-}
-#endif
+int write_socket(ndb_socket_t, int timeout_msec, int * time,
+                 const char[], int len);
 
 #endif

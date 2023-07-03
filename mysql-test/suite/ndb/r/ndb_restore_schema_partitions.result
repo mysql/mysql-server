@@ -470,8 +470,8 @@ count(*)
 3
 drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 NOTE! Support for --ndb-nodegroup-map=<string> has been removed
-Create table `test/def/t2_c` failed: 721: Schema object with given name already exists
-Restore: Failed to restore table: `test/def/t2_c` ... Exiting 
+XXXX-XX-XX XX:XX:XX Create table `test/def/t2_c` failed: 721: Schema object with given name already exists
+XXXX-XX-XX XX:XX:XX Restore: Failed to restore table: `test/def/t2_c` ... Exiting 
 drop table t2_c;
 drop table t1,t2,t3,t4,t5,t6,t7,t8,t9;
 520093696,<the_backup_id>

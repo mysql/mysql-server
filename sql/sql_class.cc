@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,9 +82,9 @@
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_result.h"
-#include "sql/rpl_replica.h"  // rpl_master_erroneous_autoinc
-#include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/rpl_rli.h"  // Relay_log_info
 #include "sql/rpl_transaction_write_set_ctx.h"
+#include "sql/server_component/mysql_thd_store_imp.h"
 #include "sql/sp_cache.h"         // sp_cache_clear
 #include "sql/sp_head.h"          // sp_head
 #include "sql/sql_audit.h"        // mysql_audit_free_thd
@@ -712,7 +712,8 @@ THD::THD(bool enable_plugins)
       m_is_plugin_fake_ddl(false),
       m_inside_system_variable_global_update(false),
       bind_parameter_values(nullptr),
-      bind_parameter_values_count(0) {
+      bind_parameter_values_count(0),
+      external_store_() {
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
@@ -738,7 +739,6 @@ THD::THD(bool enable_plugins)
   lex->thd = nullptr;
   lex->set_current_query_block(nullptr);
   m_lock_usec = 0L;
-  current_linfo = nullptr;
   slave_thread = false;
   memset(&variables, 0, sizeof(variables));
   m_thread_id = Global_THD_manager::reserved_thread_id;
@@ -1357,6 +1357,8 @@ void THD::release_resources() {
   mysql_mutex_lock(&LOCK_thd_query);
   mysql_mutex_unlock(&LOCK_thd_query);
 
+  mysql_audit_free_thd(this);
+
   stmt_map.reset(); /* close all prepared statements */
   if (!is_cleanup_done()) cleanup();
 
@@ -1383,7 +1385,10 @@ void THD::release_resources() {
     delete rli_fake;
     rli_fake = nullptr;
   }
-  mysql_audit_free_thd(this);
+
+  /* See if any component stored data. If so, try to free it */
+  if (!external_store_.empty())
+    (void)free_thd_store_resource(this, external_store_);
 
   if (current_thd == this) restore_globals();
 
@@ -2240,15 +2245,6 @@ void THD::begin_attachable_rw_transaction() {
 
 void THD::reset_sub_statement_state(Sub_statement_state *backup,
                                     uint new_state) {
-  /* BUG#33029, if we are replicating from a buggy master, reset
-     auto_inc_intervals_forced to prevent substatement
-     (triggers/functions) from using erroneous INSERT_ID value
-   */
-  if (rpl_master_erroneous_autoinc(this)) {
-    assert(backup->auto_inc_intervals_forced.nb_elements() == 0);
-    auto_inc_intervals_forced.swap(&backup->auto_inc_intervals_forced);
-  }
-
   backup->option_bits = variables.option_bits;
   backup->check_for_truncated_fields = check_for_truncated_fields;
   backup->in_sub_stmt = in_sub_stmt;
@@ -2292,14 +2288,6 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup) {
   DBUG_TRACE;
-  /* BUG#33029, if we are replicating from a buggy master, restore
-     auto_inc_intervals_forced so that the top statement can use the
-     INSERT_ID value set before this statement.
-   */
-  if (rpl_master_erroneous_autoinc(this)) {
-    backup->auto_inc_intervals_forced.swap(&auto_inc_intervals_forced);
-    assert(backup->auto_inc_intervals_forced.nb_elements() == 0);
-  }
 
   /*
     To save resources we want to release savepoints which were created
@@ -3216,6 +3204,18 @@ void THD::inc_lock_usec(ulonglong lock_usec) {
 void THD::update_slow_query_status() {
   if (my_micro_time() > start_utime + variables.long_query_time)
     server_status |= SERVER_QUERY_WAS_SLOW;
+}
+
+bool THD::add_external(unsigned int slot, void *data) {
+  if (!data)
+    external_store_.erase(slot);
+  else
+    external_store_[slot] = data;
+  return false;
+}
+
+void *THD::fetch_external(unsigned int slot) {
+  return external_store_.at(slot) ? external_store_.at(slot) : nullptr;
 }
 
 /**

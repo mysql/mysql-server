@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,8 +48,7 @@
 */
 static void set_channel_name(void *const context, const char &value,
                              size_t length) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   const size_t max = CHANNEL_NAME_LENGTH;
   length = std::min(length, max);
 
@@ -58,8 +57,7 @@ static void set_channel_name(void *const context, const char &value,
 }
 
 static void set_view_id(void *const context, const char &value, size_t length) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   const size_t max = HOSTNAME_LENGTH;
   length = std::min(length, max);
 
@@ -69,8 +67,7 @@ static void set_view_id(void *const context, const char &value, size_t length) {
 
 static void set_member_id(void *const context, const char &value,
                           size_t length) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   const size_t max = UUID_LENGTH;
   length = std::min(length, max);
 
@@ -80,8 +77,7 @@ static void set_member_id(void *const context, const char &value,
 
 static void set_transactions_committed(void *const context, const char &value,
                                        size_t length) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
 
   if (row->trx_committed != nullptr) {
     my_free(row->trx_committed);
@@ -95,8 +91,7 @@ static void set_transactions_committed(void *const context, const char &value,
 static void set_last_conflict_free_transaction(void *const context,
                                                const char &value,
                                                size_t length) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   const size_t max = Gtid::MAX_TEXT_LENGTH + 1;
   length = std::min(length, max);
 
@@ -106,57 +101,49 @@ static void set_last_conflict_free_transaction(void *const context,
 
 static void set_transactions_in_queue(void *const context,
                                       unsigned long long int value) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   row->trx_in_queue = value;
 }
 
 static void set_transactions_certified(void *const context,
                                        unsigned long long int value) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   row->trx_checked = value;
 }
 
 static void set_transactions_conflicts_detected(void *const context,
                                                 unsigned long long int value) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   row->trx_conflicts = value;
 }
 
 static void set_transactions_rows_in_validation(void *const context,
                                                 unsigned long long int value) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   row->trx_rows_validating = value;
 }
 
 static void set_transactions_remote_applier_queue(
     void *const context, unsigned long long int value) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   row->trx_remote_applier_queue = value;
 }
 
 static void set_transactions_remote_applied(void *const context,
                                             unsigned long long int value) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   row->trx_remote_applied = value;
 }
 
 static void set_transactions_local_proposed(void *const context,
                                             unsigned long long int value) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   row->trx_local_proposed = value;
 }
 
 static void set_transactions_local_rollback(void *const context,
                                             unsigned long long int value) {
-  struct st_row_group_member_stats *row =
-      static_cast<struct st_row_group_member_stats *>(context);
+  auto *row = static_cast<struct st_row_group_member_stats *>(context);
   row->trx_local_rollback = value;
 }
 
@@ -218,7 +205,7 @@ table_replication_group_member_stats::~table_replication_group_member_stats() {
   }
 }
 
-void table_replication_group_member_stats::reset_position(void) {
+void table_replication_group_member_stats::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
@@ -227,7 +214,7 @@ ha_rows table_replication_group_member_stats::get_row_count() {
   return get_group_replication_members_number_info();
 }
 
-int table_replication_group_member_stats::rnd_next(void) {
+int table_replication_group_member_stats::rnd_next() {
   if (!is_group_replication_plugin_loaded()) {
     return HA_ERR_END_OF_FILE;
   }

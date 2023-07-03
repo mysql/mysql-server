@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ bool validate_compression_attributes(std::string algorithm_names,
   if (!total_names) {
 #ifdef MYSQL_SERVER
     if (!ignore_errors) {
-      my_error(ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
+      my_error(ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
                algorithm_names.c_str(), channel_name.c_str());
     }
 #endif
@@ -123,7 +123,7 @@ bool validate_compression_attributes(std::string algorithm_names,
   if (total_names > COMPRESSION_ALGORITHM_COUNT_MAX) {
 #ifdef MYSQL_SERVER
     if (!ignore_errors) {
-      my_error(ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_LIST_CLIENT, MYF(0),
+      my_error(ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_LIST_CLIENT, MYF(0),
                algorithm_names.c_str(), channel_name.c_str());
     }
 #endif
@@ -139,7 +139,7 @@ bool validate_compression_attributes(std::string algorithm_names,
     if (method == enum_compression_algorithm::MYSQL_INVALID) {
 #ifdef MYSQL_SERVER
       if (!ignore_errors) {
-        my_error(ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
+        my_error(ER_CHANGE_SOURCE_WRONG_COMPRESSION_ALGORITHM_CLIENT, MYF(0),
                  algorithm_name.c_str(), channel_name.c_str());
       }
 #endif

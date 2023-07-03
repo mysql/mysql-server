@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -111,6 +111,11 @@ void pfs_inc_statement_sort_scan_vc(PSI_statement_locker *locker, ulong count);
 void pfs_set_statement_no_index_used_vc(PSI_statement_locker *locker);
 
 void pfs_set_statement_no_good_index_used_vc(PSI_statement_locker *locker);
+
+void pfs_notify_statement_query_attributes_vc(PSI_statement_locker *locker,
+                                              bool with_query_attributes);
+
+void pfs_statement_abort_telemetry_vc(PSI_statement_locker *locker);
 
 void pfs_set_statement_secondary_engine_vc(PSI_statement_locker *locker,
                                            bool secondary);

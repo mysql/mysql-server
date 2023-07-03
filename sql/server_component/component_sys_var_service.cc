@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/persisted_variable.h"  // Persisted_variables_cache
 #include "sql/set_var.h"
 #include "sql/sql_class.h"  // THD
-#include "sql/sql_lex.h"    // LEX
+#include "sql/sql_component.h"
+#include "sql/sql_lex.h"  // LEX
 #include "sql/sql_plugin_var.h"
 #include "sql/sql_show.h"
 #include "sql/sys_vars_shared.h"
@@ -122,7 +123,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
   try {
     struct sys_var_chain chain = {nullptr, nullptr};
     sys_var *sysvar [[maybe_unused]];
-    char *com_sys_var_name, *optname;
+    char *com_sys_var_name, *optname, *com_sys_var_name_copy;
     int com_sys_var_len;
     SYS_VAR *opt = nullptr;
     my_option *opts = nullptr;
@@ -132,13 +133,14 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     char ***argv;
     int argc_copy;
     char **argv_copy;
-    char **to_free = nullptr;
     void *mem;
     get_opt_arg_source *opts_arg_source;
+    THD *thd = current_thd;
+    bool option_value_found_in_install = false;
+    MEM_ROOT local_root{key_memory_comp_sys_var, 512};
 
     com_sys_var_len = strlen(component_name) + strlen(var_name) + 2;
-    com_sys_var_name =
-        (char *)my_malloc(key_memory_comp_sys_var, com_sys_var_len, MYF(0));
+    com_sys_var_name = new (&local_root) char[com_sys_var_len];
     strxmov(com_sys_var_name, component_name, ".", var_name, NullS);
     my_casedn_str(&my_charset_latin1, com_sys_var_name);
 
@@ -161,6 +163,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     opts->arg_source = opts_arg_source;
     opts->arg_source->m_path_name[0] = 0;
     opts->arg_source->m_source = enum_variable_source::COMPILED;
+    std::unique_ptr<SYS_VAR, decltype(&my_free)> unique_opt(nullptr, &my_free);
 
     switch (flags & PLUGIN_VAR_WITH_SIGN_TYPEMASK) {
       case PLUGIN_VAR_BOOL:
@@ -296,10 +299,39 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
                component_name);
         goto end;
     }
+    unique_opt.reset(opt);
 
     plugin_opt_set_limits(opts, opt);
     opts->value = opts->u_max_value = *(uchar ***)(opt + 1);
 
+    /*
+      If this is executed by a SQL executing thread that is executing
+      INSTALL COMPONENT
+    */
+    if (thd && thd->lex && thd->lex->m_sql_cmd &&
+        thd->lex->m_sql_cmd->sql_command_code() == SQLCOM_INSTALL_COMPONENT) {
+      Sql_cmd_install_component *c =
+          down_cast<Sql_cmd_install_component *>(thd->lex->m_sql_cmd);
+      /* and has a SET list */
+      if (c->m_arg_list && c->m_arg_list_size > 1) {
+        int saved_opt_count = c->m_arg_list_size;
+        argv = &c->m_arg_list;
+        argc = &c->m_arg_list_size;
+        opt_error =
+            my_handle_options2(argc, argv, opts, nullptr, nullptr, false, true);
+        /* Add back the program name handle_options removes */
+        (*argc)++;
+        (*argv)--;
+        if (opt_error) {
+          LogErr(ERROR_LEVEL,
+                 ER_SYS_VAR_COMPONENT_FAILED_TO_PARSE_VARIABLE_OPTIONS,
+                 var_name);
+          if (opts) my_cleanup_options(opts);
+          goto end;
+        }
+        option_value_found_in_install = (saved_opt_count > *argc);
+      }
+    }
     /*
       This does what plugins do:
       before the server is officially "started" the options are read
@@ -314,37 +346,55 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
       This is approximately what mysql_install_plugin() does.
       TODO: clean up the options processing code so all this is not needed.
     */
-    if (mysqld_server_started) {
-      argc_copy = orig_argc;
-      to_free = argv_copy = (char **)my_malloc(
-          key_memory_comp_sys_var, (argc_copy + 1) * sizeof(char *), MYF(0));
-      memcpy(argv_copy, orig_argv, argc_copy * sizeof(char *));
-      argv_copy[argc_copy] = nullptr;
-      argc = &argc_copy;
-      argv = &argv_copy;
-    } else {
-      argc = get_remaining_argc();
-      argv = get_remaining_argv();
-    }
-    opt_error = handle_options(argc, argv, opts, nullptr);
-    /* Add back the program name handle_options removes */
-    (*argc)++;
-    (*argv)--;
+    if (!option_value_found_in_install) {
+      if (mysqld_server_started) {
+        Persisted_variables_cache *pv =
+            Persisted_variables_cache::get_instance();
+        argc_copy = orig_argc;
+        argv_copy = new (&local_root) char *[argc_copy + 1];
+        memcpy(argv_copy, orig_argv, argc_copy * sizeof(char *));
+        argv_copy[argc_copy] = nullptr;
+        argc = &argc_copy;
+        argv = &argv_copy;
+        if (pv && pv->append_read_only_variables(argc, argv, true, true,
+                                                 &local_root)) {
+          LogErr(ERROR_LEVEL,
+                 ER_SYS_VAR_COMPONENT_FAILED_TO_PARSE_VARIABLE_OPTIONS,
+                 var_name);
+          if (opts) my_cleanup_options(opts);
+          goto end;
+        }
+      } else {
+        argc = get_remaining_argc();
+        argv = get_remaining_argv();
+      }
+      opt_error = handle_options(argc, argv, opts, nullptr);
+      /* Add back the program name handle_options removes */
+      (*argc)++;
+      (*argv)--;
 
-    if (opt_error) {
-      LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_FAILED_TO_PARSE_VARIABLE_OPTIONS,
-             var_name);
-      if (opts) my_cleanup_options(opts);
+      if (opt_error) {
+        LogErr(ERROR_LEVEL,
+               ER_SYS_VAR_COMPONENT_FAILED_TO_PARSE_VARIABLE_OPTIONS, var_name);
+        if (opts) my_cleanup_options(opts);
+        goto end;
+      }
+    }
+
+    com_sys_var_name_copy =
+        my_strdup(key_memory_comp_sys_var, com_sys_var_name, MYF(0));
+    if (com_sys_var_name_copy == nullptr) {
+      LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_OOM, var_name);
       goto end;
     }
-
     sysvar = reinterpret_cast<sys_var *>(
-        new sys_var_pluginvar(&chain, com_sys_var_name, opt));
+        new sys_var_pluginvar(&chain, com_sys_var_name_copy, opt));
 
     if (sysvar == nullptr) {
       LogErr(ERROR_LEVEL, ER_SYS_VAR_COMPONENT_OOM, var_name);
       goto end;
-    }
+    } else
+      unique_opt.release();
 
     sysvar->set_arg_source(opts->arg_source);
     sysvar->set_is_plugin(false);
@@ -356,12 +406,12 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
 
     /*
       Once server is started and if there are few persisted plugin variables
-      which needs to be handled, we do it here.
+      which needs to be handled, we do it here. But only if it wasn't set by
+      INSTALL COMPONENT
     */
-    if (mysqld_server_started) {
+    if (mysqld_server_started && !option_value_found_in_install) {
       Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
       if (pv != nullptr) {
-        THD *thd = current_thd;
         assert(thd != nullptr);
 
         mysql_rwlock_wrlock(&LOCK_system_variables_hash);
@@ -378,7 +428,8 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
           }
         } err_to_warning;
         thd->push_internal_handler(&err_to_warning);
-        bool error = pv->set_persisted_options(true);
+        bool error =
+            pv->set_persisted_options(true, com_sys_var_name, com_sys_var_len);
         thd->pop_internal_handler();
         mysql_mutex_unlock(&LOCK_plugin);
         mysql_rwlock_unlock(&LOCK_system_variables_hash);
@@ -392,7 +443,6 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
 
   end:
     my_free(mem);
-    if (to_free) my_free(to_free);
 
     return ret;
   } catch (...) {
@@ -541,7 +591,11 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
       char *var_value = **(
           char ***)(reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var +
                     1);
-      if (var_value) my_free(var_value);
+      if (var_value) {
+        my_free(var_value);
+        **(char ***)(reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var +
+                     1) = nullptr;
+      }
     }
 
     FREE_RECORD(sysvar)

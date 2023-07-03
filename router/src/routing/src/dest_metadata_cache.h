@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -112,6 +112,8 @@ class DestMetadataCacheGroup final
   void handle_sockets_acceptors() override {
     cache_api()->handle_sockets_acceptors_on_md_refresh();
   }
+
+  routing::RoutingStrategy get_strategy() override { return routing_strategy_; }
 
  private:
   /** @brief The Metadata Cache to use

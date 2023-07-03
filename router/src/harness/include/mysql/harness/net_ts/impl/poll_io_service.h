@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -368,25 +368,31 @@ class poll_io_service : public IoServiceBase {
 
         // If the caller wants (ev.events) only:
         //
-        // - POLLIN
+        // - POLLIN|POLLOUT
         //
         // but poll() returns:
         //
         // - POLLHUP
         //
-        // then return POLLIN.
+        // then return POLLIN|POLLOUT.
         //
         // This handles the connection close cases which is signaled as:
         //
         // - POLLIN|POLLHUP on the Unixes
         // - POLLHUP on Windows.
         //
-        // As the caller is only interested in POLLIN, the POLLHUP would be
-        // unhandled and be reported on the next call of poll() again.
-        const auto revents = ((ev.events & POLLIN) &&  //
-                              (ev.revents & POLLHUP) && !(ev.revents & POLLIN))
-                                 ? ev.events
-                                 : ev.revents;
+        // and the connect() failure case:
+        //
+        // - POLLHUP on FreeBSD/MacOSX
+        // - POLLOUT on Linux
+        //
+        // As the caller is only interested in POLLIN|POLLOUT, the POLLHUP would
+        // be unhandled and be reported on the next call of poll() again.
+        const auto revents =
+            ((ev.events & (POLLIN | POLLOUT)) &&  //
+             ((ev.revents & (POLLIN | POLLOUT | POLLHUP)) == POLLHUP))
+                ? ev.revents | (ev.events & (POLLIN | POLLOUT))
+                : ev.revents;
 
         triggered_events_.emplace_back(ev.fd, revents);
         if (ev.fd != wakeup_fds_.first) {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -97,18 +97,26 @@ bool RestMetadataCacheConfig::on_handle_request(
           allocator);
     }
 
+    const std::string cluster_name =
+        md_api->target_cluster().target_type() ==
+                mysqlrouter::TargetCluster::TargetType::ByName
+            ? md_api->target_cluster().to_string()
+            : "";
+
+    const std::string uuid =
+        md_api->target_cluster().target_type() ==
+                mysqlrouter::TargetCluster::TargetType::ByUUID
+            ? md_api->target_cluster().to_string()
+            : "";
+
     json_doc.SetObject()
         .AddMember("clusterName",
-                   json_value_from_string(md_api->target_cluster().to_string(),
-                                          allocator),
-                   allocator)
+                   json_value_from_string(cluster_name, allocator), allocator)
         .AddMember<uint64_t>("timeRefreshInMs",
                              static_cast<uint64_t>(md_api->ttl().count()),
                              allocator)
         .AddMember("groupReplicationId",
-                   json_value_from_string(md_api->cluster_type_specific_id(),
-                                          allocator),
-                   allocator)
+                   json_value_from_string(uuid, allocator), allocator)
         .AddMember("nodes", members, allocator)
         //
         ;

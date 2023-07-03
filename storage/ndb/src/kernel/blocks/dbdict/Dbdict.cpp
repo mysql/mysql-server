@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -408,6 +408,13 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
         c_attributeRecordPool.getUsedHi(),
         { CFG_DB_NO_ATTRIBUTES,0,0,0 },
         0},
+      { "Foreign Key Record",
+        c_fk_pool.getUsed(),
+        c_fk_pool.getSize(),
+        c_fk_pool.getEntrySize(),
+        c_fk_pool.getUsedHi(),
+        { 0,0,0,0 },
+        RT_DBDICT_FILE},
       { "Table Record",
         c_tableRecordPool_.getUsed(),
         c_noOfMetaTables,
@@ -17130,7 +17137,7 @@ Dbdict::indexStatBg_process(Signal* signal)
     TxHandlePtr tx_ptr;
     if (!seizeTxHandle(tx_ptr)) {
       jam();
-      return; // wait for one
+      break; // wait for one
     }
     Callback c = {
       safe_cast(&Dbdict::indexStatBg_fromBeginTrans),
@@ -19070,6 +19077,7 @@ void Dbdict::createEvent_sendReply(Signal* signal,
     evntConf->setAttrListBitmask(evntRecPtr.p->m_request.getAttrListBitmask());
     evntConf->setEventType(evntRecPtr.p->m_request.getEventType());
     evntConf->setRequestType(evntRecPtr.p->m_request.getRequestType());
+    evntConf->setReportFlags(evntRecPtr.p->m_request.getReportFlags());
 
     signalLength = CreateEvntConf::SignalLength;
 #ifdef EVENT_PH2_DEBUG
@@ -27118,7 +27126,8 @@ Dbdict::createFK_parse(Signal* signal, bool master,
       return;
     }
 
-    if (fk.ParentIndexVersion != parentIndexEntry->m_tableVersion)
+    if (table_version_major(fk.ParentIndexVersion) !=
+        table_version_major(parentIndexEntry->m_tableVersion))
     {
       jam();
       setError(error, CreateFKRef::InvalidParentIndexVersion, __LINE__);
@@ -27176,7 +27185,8 @@ Dbdict::createFK_parse(Signal* signal, bool master,
       return;
     }
 
-    if (fk.ChildIndexVersion != childIndexEntry->m_tableVersion)
+    if (table_version_major(fk.ChildIndexVersion) !=
+        table_version_major(childIndexEntry->m_tableVersion))
     {
       jam();
       setError(error, CreateFKRef::InvalidChildIndexVersion, __LINE__);
@@ -27567,6 +27577,7 @@ Dbdict::createFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
     ndbrequire(find_object(fk_ptr, impl_req->fkId));
 
     release_object(fk_ptr.p->m_obj_ptr_i);
+    c_fk_pool.release(fk_ptr);
   }
 
   sendTransConf(signal, op_ptr);
@@ -28859,6 +28870,7 @@ Dbdict::dropFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
     ndbrequire(find_object(fk_ptr, impl_req->fkId));
 
     release_object(fk_ptr.p->m_obj_ptr_i);
+    c_fk_pool.release(fk_ptr);
 
     sendTransConf(signal, op_ptr);
   } else {

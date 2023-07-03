@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,10 +55,10 @@ const char *client_errors[] = {
     "Can't initialize character set %-.32s (path: %-.100s)",
     "Got packet bigger than 'max_allowed_packet' bytes",
     "Embedded server",
-    "Error on SHOW SLAVE STATUS:",
-    "Error on SHOW SLAVE HOSTS:",
-    "Error connecting to slave:",
-    "Error connecting to master:",
+    "Error on SHOW REPLICA STATUS:",
+    "Error on SHOW REPLICA HOSTS:",
+    "Error connecting to replica:",
+    "Error connecting to source:",
     "SSL connection error: %-.100s",
     "Malformed packet",
     "This client library is licensed only for use with MySQL servers having "
@@ -119,6 +119,9 @@ const char *client_errors[] = {
     "Invalid first argument for MYSQL_OPT_USER_PASSWORD option. Valid value "
     "should be between 1 and 3 inclusive.",
     "Can't get session data: %s",
+    "'%-.32s' character set is having more than 1 byte minimum character "
+    "length, which cannot be used as a client character set. Please use any "
+    "of the single byte minimum ones, e.g. utf8mb4, latin1 etc.",
     ""};
 
 static const char *get_client_errmsg(int nr) {

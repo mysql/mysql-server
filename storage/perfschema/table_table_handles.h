@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@ class PFS_index_table_handles_by_object : public PFS_index_table_handles {
 
   ~PFS_index_table_handles_by_object() override = default;
 
-  bool match(PFS_table *table) override;
+  bool match(PFS_table *pfs) override;
 
  private:
   PFS_key_object_type m_key_1;
@@ -108,7 +108,7 @@ class PFS_index_table_handles_by_instance : public PFS_index_table_handles {
 
   ~PFS_index_table_handles_by_instance() override = default;
 
-  bool match(PFS_table *table) override;
+  bool match(PFS_table *pfs) override;
 
  private:
   PFS_key_object_instance m_key;
@@ -123,7 +123,7 @@ class PFS_index_table_handles_by_owner : public PFS_index_table_handles {
 
   ~PFS_index_table_handles_by_owner() override = default;
 
-  bool match(PFS_table *table) override;
+  bool match(PFS_table *pfs) override;
 
  private:
   PFS_key_thread_id m_key_1;
@@ -138,7 +138,7 @@ class table_table_handles : public PFS_engine_table {
   static PFS_engine_table *create(PFS_engine_table_share *);
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_init(bool scan) override;
   int rnd_next() override;

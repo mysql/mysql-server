@@ -135,7 +135,7 @@ while ($event_counter <= $expected_amount_of_events)
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 # Show entries only after the last occurrence of the following pattern
---let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] Shutting down slave threads
+--let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] Shutting down replica threads
 # Each test will log only one warning line
 --let $assert_count= 1
 

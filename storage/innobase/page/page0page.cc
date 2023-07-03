@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -2122,13 +2122,7 @@ bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index) {
   return (dict_index_is_spatial(index) && !page_is_leaf(page_align(rec)));
 }
 
-/** This function checks the consistency of an index page.
- @return true if ok */
-bool page_validate(
-    const page_t *page,  /*!< in: index page */
-    dict_index_t *index) /*!< in: data dictionary index containing
-                         the page record type definition */
-{
+bool page_validate(const page_t *page, dict_index_t *index) {
   const page_dir_slot_t *slot;
   mem_heap_t *heap;
   byte *buf;
@@ -2145,10 +2139,12 @@ bool page_validate(
   ulint i;
   ulint *offsets = nullptr;
   ulint *old_offsets = nullptr;
+  const page_no_t page_no = page_get_page_no(page);
+  bool is_first_non_leaf_page = false;
 
 #ifdef UNIV_GIS_DEBUG
   if (dict_index_is_spatial(index)) {
-    fprintf(stderr, "Page no: %lu\n", page_get_page_no(page));
+    fprintf(stderr, "Page no: %lu\n", page_no);
   }
 #endif /* UNIV_DEBUG */
 
@@ -2204,8 +2200,8 @@ bool page_validate(
                       page_dir_get_nth_slot(page, n_slots - 1)))) {
     ib::warn(ER_IB_MSG_899)
         << "Record heap and dir overlap on space " << page_get_space_id(page)
-        << " page " << page_get_page_no(page) << " index " << index->name
-        << ", " << page_header_get_ptr(page, PAGE_HEAP_TOP) << ", "
+        << " page " << page_no << " index " << index->name << ", "
+        << page_header_get_ptr(page, PAGE_HEAP_TOP) << ", "
         << page_dir_get_nth_slot(page, n_slots - 1);
 
     goto func_exit;
@@ -2218,6 +2214,8 @@ bool page_validate(
   own_count = 1;
   slot_no = 0;
   slot = page_dir_get_nth_slot(page, slot_no);
+  is_first_non_leaf_page =
+      !page_is_leaf(page) && btr_is_first_page_on_level(page);
 
   rec = page_get_infimum_rec(page);
 
@@ -2233,6 +2231,61 @@ bool page_validate(
 
     if (UNIV_UNLIKELY(!page_rec_validate(rec, offsets))) {
       goto func_exit;
+    }
+
+    DBUG_EXECUTE_IF(
+        "check_table_set_wrong_min_bit",
+        if (page_rec_is_user_rec(rec) &&
+            !(is_first_non_leaf_page && page_rec_is_first(rec, page))) {
+          ut_ad(!rec_is_min_rec_flag_set(rec, page_is_comp(page)));
+          ut_ad(page_is_comp(page));
+          rec_set_info_bits_new(
+              const_cast<rec_t *>(rec),
+              rec_get_info_bits(rec, true) | REC_INFO_MIN_REC_FLAG);
+          ib::info() << "Setting wrong min bit to " << count << "nd record";
+        });
+
+    DBUG_EXECUTE_IF(
+        "check_table_reset_correct_min_bit",
+        if (page_rec_is_user_rec(rec) &&
+            (is_first_non_leaf_page && page_rec_is_first(rec, page))) {
+          ut_ad(rec_is_min_rec_flag_set(rec, page_is_comp(page)));
+          ut_ad(page_is_comp(page));
+          rec_set_info_bits_new(
+              const_cast<rec_t *>(rec),
+              rec_get_info_bits(rec, true) & ~REC_INFO_MIN_REC_FLAG);
+          ib::info() << "Resetting correct min bit to " << count << "st record";
+        });
+
+    /* REC_INFO_MIN_REC_FLAG must be set only for first record on first non-leaf
+    page on a level. */
+    if (rec_is_min_rec_flag_set(rec, page_is_comp(page))) {
+      if (!page_rec_is_user_rec(rec) ||
+          !(is_first_non_leaf_page && page_rec_is_first(rec, page))) {
+        ib::error(ER_CHECK_TABLE_MIN_REC_FLAG_SET, (unsigned long int)page_no,
+                  (unsigned long int)btr_page_get_level(page), index->name(),
+                  index->table_name);
+        DBUG_EXECUTE_IF(
+            "check_table_set_wrong_min_bit", ut_ad(page_is_comp(page));
+            rec_set_info_bits_new(
+                const_cast<rec_t *>(rec),
+                rec_get_info_bits(rec, true) & ~REC_INFO_MIN_REC_FLAG););
+        goto func_exit;
+      }
+    } else {
+      if (is_first_non_leaf_page && page_rec_is_user_rec(rec) &&
+          page_rec_is_first(rec, page)) {
+        ib::error(ER_CHECK_TABLE_MIN_REC_FLAG_NOT_SET,
+                  (unsigned long int)page_no,
+                  (unsigned long int)btr_page_get_level(page), index->name(),
+                  index->table_name);
+        DBUG_EXECUTE_IF(
+            "check_table_reset_correct_min_bit", ut_ad(page_is_comp(page));
+            rec_set_info_bits_new(
+                const_cast<rec_t *>(rec),
+                rec_get_info_bits(rec, true) | REC_INFO_MIN_REC_FLAG););
+        goto func_exit;
+      }
     }
 
 #ifndef UNIV_HOTBACKUP
@@ -2266,11 +2319,10 @@ bool page_validate(
 
       if (ret <= 0 && !rtr_equal_nodeptrs && !multi_equal_nodeptrs &&
           !multi_value_on_ibuf) {
-        ib::error(ER_IB_MSG_901)
-            << "Records in wrong order on"
-               " space "
-            << page_get_space_id(page) << " page " << page_get_page_no(page)
-            << " index " << index->name;
+        ib::error(ER_IB_MSG_901) << "Records in wrong order on"
+                                    " space "
+                                 << page_get_space_id(page) << " page "
+                                 << page_no << " index " << index->name;
 
         fputs("\nInnoDB: previous record ", stderr);
         /* For spatial index, print the mbr info.*/
@@ -2452,7 +2504,7 @@ func_exit:
   func_exit2:
     ib::error(ER_IB_MSG_913)
         << "Apparent corruption in space " << page_get_space_id(page)
-        << " page " << page_get_page_no(page) << " index " << index->name;
+        << " page " << page_no << " index " << index->name;
   }
 
   return (ret);

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -730,7 +730,6 @@ TEST_P(UnknownClusterSetTargetClusterTest, UnknownClusterSetTargetCluster) {
       "metadata_clusterset.js",
       /*router_options*/ R"({"target_cluster" : ")" + target_cluster + "\" }");
 
-  SCOPED_TRACE("// Prepare the dynamic state file for the Router");
   auto &router = launch_router(EXIT_SUCCESS, -1s);
 
   EXPECT_TRUE(wait_log_contains(router, GetParam().expected_error, 20s));
@@ -795,7 +794,6 @@ TEST_F(ClusterSetTest, TargetClusterEmptyInMetadata) {
                     "metadata_clusterset.js",
                     /*router_options*/ R"({"target_cluster" : "" })");
 
-  SCOPED_TRACE("// Prepare the dynamic state file for the Router");
   auto &router = launch_router(EXIT_SUCCESS, -1s);
 
   EXPECT_TRUE(wait_log_contains(router,
@@ -1537,6 +1535,7 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersLowerViewId) {
 
   SCOPED_TRACE("// Check that the state file did not change");
 
+  change_clusterset_primary(clusterset_data_, kPrimaryClusterId);
   check_state_file(router_state_file, mysqlrouter::ClusterType::GR_CS,
                    clusterset_data_.uuid,
                    clusterset_data_.get_all_nodes_classic_ports(), view_id);
@@ -1553,7 +1552,7 @@ TEST_F(ClusterSetTest, TwoPrimaryClustersLowerViewId) {
                           .nodes[kRWNodeId]
                           .classic_port);
 
-  // +1 as we round-dobin and this is already a second connection
+  // +1 as we round-robin and this is already a second connection
   auto ro_con2 = make_new_connection_ok(
       router_port_ro, clusterset_data_.clusters[kPrimaryClusterId]
                           .nodes[kRONodeId + 1]

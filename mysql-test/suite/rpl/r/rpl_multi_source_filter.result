@@ -5,19 +5,19 @@
 include/rpl_init.inc [topology=1->2,3->2,4->2,5->2,6->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server_2]
 call mtr.add_suppression("There are per-channel replication filter.s. configured for channel '' which does not exist. The filter.s. have been discarded.");
 #
@@ -43,9 +43,9 @@ channel_4	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
 channel_5	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
 channel_6	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbx);
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL 'channel_1' first.
+ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL 'channel_1' first.
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbx) FOR CHANNEL 'channel_1';
-ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL 'channel_1' first.
+ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL 'channel_1' first.
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
 channel_1	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
@@ -254,7 +254,7 @@ include/rpl_stop_slaves.inc
 # the channel does not exist.
 #
 SHOW SLAVE STATUS FOR CHANNEL 'channel_2';
-ERROR HY000: Slave channel 'channel_2' does not exist.
+ERROR HY000: Replica channel 'channel_2' does not exist.
 #
 # 9.1 SHOW SLAVE STATUS FOR CHANNEL 'channel_1' displays replication
 # filters set by the following commands:
@@ -456,17 +456,17 @@ REPLICATE_IGNORE_DB	dbD	CHANGE_REPLICATION_FILTER
 REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS
 #
 # 16. Verify that CHANGE REPLICATION FILTER filter [, filter...] FOR
-# CHANNEL <channel_name> throws an error 'ER_SLAVE_CONFIGURATION'
+# CHANNEL <channel_name> throws an error 'ER_REPLICA_CONFIGURATION'
 # if the specified channel is not configured.
 #
 CHANGE REPLICATION FILTER REPLICATE_DO_DB=(dbA) FOR CHANNEL '';
-ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
+ERROR HY000: Replica is not configured or failed to initialize properly. You must at least set --server-id to enable either a source or a replica. Additional error messages can be found in the MySQL error log.
 #
 # 17. Verify that "RESET SLAVE FOR CHANNEL '<channel_name>'" throws an
-# error 'ER_SLAVE_CHANNEL_DOES_NOT_EXIST' if the channel does not exist.
+# error 'ER_REPLICA_CHANNEL_DOES_NOT_EXIST' if the channel does not exist.
 #
 RESET SLAVE FOR CHANNEL 'channel_2';
-ERROR HY000: Slave channel 'channel_2' does not exist.
+ERROR HY000: Replica channel 'channel_2' does not exist.
 include/rpl_start_slaves.inc
 connection_server_1
 DROP DATABASE db1;

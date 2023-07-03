@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ cursor_by_error_log::cursor_by_error_log(const PFS_engine_table_share *share)
     : PFS_engine_table(share, &m_pos), m_pos(), m_next_pos() {}
 
 /// Get row-count (by getting the number of events in the ring-buffer)
-ha_rows cursor_by_error_log::get_row_count(void) {
+ha_rows cursor_by_error_log::get_row_count() {
   return (ha_rows)log_sink_pfs_event_count();
 }
 
@@ -58,7 +58,7 @@ ha_rows cursor_by_error_log::get_row_count(void) {
   to the next entry, either of which will imply
   log_sink_pfs_event_first() at some point).
 */
-void cursor_by_error_log::reset_position(void) {
+void cursor_by_error_log::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
@@ -71,7 +71,7 @@ void cursor_by_error_log::reset_position(void) {
   @retval HA_ERR_END_OF_FILE  failed to locate data, or to create a row from it
   @retval 0                   success
 */
-int cursor_by_error_log::rnd_next(void) {
+int cursor_by_error_log::rnd_next() {
   log_sink_pfs_event *row;
   int ret = HA_ERR_END_OF_FILE;
 

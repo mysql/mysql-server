@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,8 @@ error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0,
 
 #ifdef WITH_LOG_PARSER
 #include "my_rapidjson_size_t.h"
-#include "rapidjson/document.h"
+
+#include <rapidjson/document.h>
 #endif
 
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);

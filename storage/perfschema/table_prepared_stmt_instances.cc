@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -191,12 +191,12 @@ PFS_engine_table *table_prepared_stmt_instances::create(
   return new table_prepared_stmt_instances();
 }
 
-int table_prepared_stmt_instances::delete_all_rows(void) {
+int table_prepared_stmt_instances::delete_all_rows() {
   reset_prepared_stmt_instances();
   return 0;
 }
 
-ha_rows table_prepared_stmt_instances::get_row_count(void) {
+ha_rows table_prepared_stmt_instances::get_row_count() {
   return global_prepared_stmt_container.get_row_count();
 }
 
@@ -205,12 +205,12 @@ table_prepared_stmt_instances::table_prepared_stmt_instances()
   m_normalizer = time_normalizer::get_statement();
 }
 
-void table_prepared_stmt_instances::reset_position(void) {
+void table_prepared_stmt_instances::reset_position() {
   m_pos = 0;
   m_next_pos = 0;
 }
 
-int table_prepared_stmt_instances::rnd_next(void) {
+int table_prepared_stmt_instances::rnd_next() {
   PFS_prepared_stmt *pfs;
 
   m_pos.set_at(&m_next_pos);
@@ -267,7 +267,7 @@ int table_prepared_stmt_instances::index_init(uint idx, bool) {
   return 0;
 }
 
-int table_prepared_stmt_instances::index_next(void) {
+int table_prepared_stmt_instances::index_next() {
   PFS_prepared_stmt *pfs;
   bool has_more = true;
 

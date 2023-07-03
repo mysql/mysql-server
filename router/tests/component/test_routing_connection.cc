@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -335,7 +335,8 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
                 nodes_ports.begin());
 
     EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-    set_mock_metadata(http_port, "", nodes_ports);
+    set_mock_metadata(http_port, "", classic_ports_to_gr_nodes(nodes_ports), 0,
+                      classic_ports_to_cluster_nodes(nodes_ports));
     return cluster_node;
   }
 
@@ -399,7 +400,9 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
 
   void set_additional_globals(uint16_t http_port,
                               const server_globals &globals) {
-    auto json_doc = mock_GR_metadata_as_json("", cluster_nodes_ports_);
+    auto json_doc = mock_GR_metadata_as_json(
+        "", classic_ports_to_gr_nodes(cluster_nodes_ports_), 0,
+        classic_ports_to_cluster_nodes(cluster_nodes_ports_));
     JsonAllocator allocator;
     json_doc.AddMember("primary_removed", globals.primary_removed, allocator);
     json_doc.AddMember("primary_failover", globals.primary_failover, allocator);

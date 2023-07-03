@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,7 @@ INCLUDE(CheckFunctionExists)
 INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCSourceRuns)
 
-IF(LZ4_LIBRARY)
-  ADD_DEFINITIONS(-DHAVE_LZ4=1)
-ENDIF()
+ADD_DEFINITIONS(-DHAVE_LZ4=1)
 
 #ADD_DEFINITIONS("-O0")
 

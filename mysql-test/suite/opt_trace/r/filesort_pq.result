@@ -6058,13 +6058,13 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
 }	0	0
 EXPLAIN FORMAT=tree SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30;
 EXPLAIN
--> Limit: 30 row(s)  (cost=89.58..89.58 rows=30)
-    -> Sort: v1.f2, v1.f0, limit input to 30 row(s) per chunk  (cost=89.58..89.58 rows=30)
-        -> Table scan on v1  (cost=61.15..64.86 rows=100)
-            -> Materialize  (cost=61.11..61.11 rows=100)
-                -> Limit: 100 row(s)  (cost=51.11 rows=100)
-                    -> Sort: t1.f1, t1.f0, limit input to 100 row(s) per chunk  (cost=51.11 rows=500)
-                        -> Table scan on t1  (cost=51.11 rows=500)
+-> Limit: 30 row(s)  (cost=89.6..89.6 rows=30)
+    -> Sort: v1.f2, v1.f0, limit input to 30 row(s) per chunk  (cost=89.6..89.6 rows=30)
+        -> Table scan on v1  (cost=61.1..64.9 rows=100)
+            -> Materialize  (cost=61.1..61.1 rows=100)
+                -> Limit: 100 row(s)  (cost=51.1 rows=100)
+                    -> Sort: t1.f1, t1.f0, limit input to 100 row(s) per chunk  (cost=51.1 rows=500)
+                        -> Table scan on t1  (cost=51.1 rows=500)
 
 CREATE VIEW v2 as SELECT * FROM t1 ORDER BY f2, f0 LIMIT 100;
 SELECT * FROM v1 JOIN v2 on v1.f1=v2.f1 ORDER BY v1.f2,v1.f0,v2.f0

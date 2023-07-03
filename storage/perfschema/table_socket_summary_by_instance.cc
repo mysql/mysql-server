@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -127,21 +127,21 @@ table_socket_summary_by_instance::table_socket_summary_by_instance()
   m_normalizer = time_normalizer::get_wait();
 }
 
-int table_socket_summary_by_instance::delete_all_rows(void) {
+int table_socket_summary_by_instance::delete_all_rows() {
   reset_socket_instance_io();
   return 0;
 }
 
-ha_rows table_socket_summary_by_instance::get_row_count(void) {
+ha_rows table_socket_summary_by_instance::get_row_count() {
   return global_socket_container.get_row_count();
 }
 
-void table_socket_summary_by_instance::reset_position(void) {
+void table_socket_summary_by_instance::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_socket_summary_by_instance::rnd_next(void) {
+int table_socket_summary_by_instance::rnd_next() {
   PFS_socket *pfs;
 
   m_pos.set_at(&m_next_pos);
@@ -188,7 +188,7 @@ int table_socket_summary_by_instance::index_init(uint idx, bool) {
   return 0;
 }
 
-int table_socket_summary_by_instance::index_next(void) {
+int table_socket_summary_by_instance::index_next() {
   PFS_socket *pfs;
 
   m_pos.set_at(&m_next_pos);

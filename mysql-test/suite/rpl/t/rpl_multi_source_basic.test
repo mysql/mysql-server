@@ -304,10 +304,10 @@ INSERT INTO dbcommon.t101 values (1729);
 --source include/rpl_connection.inc
 
 #suppress warnings and errors due to conflicts in MTS and non MTS mode
-call mtr.add_suppression("Slave SQL.*:.* 'Duplicate entry '1729' for key 't101.PRIMARY'' on query.*");
-call mtr.add_suppression("Slave SQL.*: Could not execute Write_rows event on table dbcommon.t101; Duplicate entry '1729' for key 't101.PRIMARY'*");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-call mtr.add_suppression("Slave SQL.*:.* Duplicate entry '1729' for key 't101.PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY.*");
+call mtr.add_suppression("Replica SQL.*:.* 'Duplicate entry '1729' for key 't101.PRIMARY'' on query.*");
+call mtr.add_suppression("Replica SQL.*: Could not execute Write_rows event on table dbcommon.t101; Duplicate entry '1729' for key 't101.PRIMARY'*");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*:.* Duplicate entry '1729' for key 't101.PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY.*");
 
 # sync the slave with server_3
 --let $rpl_channel_name= 'channel_3'

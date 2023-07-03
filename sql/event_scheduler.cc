@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -260,6 +260,8 @@ static void *event_scheduler_thread(void *arg) {
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /* Update the thread instrumentation. */
+  PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
+  thd_set_psi(thd, psi);
   PSI_THREAD_CALL(set_thread_account)
   (thd->security_context()->user().str, thd->security_context()->user().length,
    thd->security_context()->host_or_ip().str,
@@ -314,6 +316,8 @@ static void *event_worker_thread(void *arg) {
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /* Update the thread instrumentation. */
+  PSI_thread *psi = PSI_THREAD_CALL(get_thread)();
+  thd_set_psi(thd, psi);
   PSI_THREAD_CALL(set_thread_account)
   (thd->security_context()->user().str, thd->security_context()->user().length,
    thd->security_context()->host_or_ip().str,
@@ -363,6 +367,11 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
   mysql_thread_set_secondary_engine(false);
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
+  PSI_thread *thread = thd_get_psi(thd);
+  if (thread != nullptr) {
+    PSI_THREAD_CALL(detect_telemetry)(thread);
+  }
+
   PSI_statement_locker_state state;
   assert(thd->m_statement_psi == nullptr);
   thd->m_statement_psi = MYSQL_START_STATEMENT(

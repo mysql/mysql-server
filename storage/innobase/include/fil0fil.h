@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,6 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/dd/object_id.h"
 
 #include <atomic>
+#include <cstdint>
 #include <list>
 #include <vector>
 
@@ -525,16 +526,6 @@ struct fil_space_t {
   @return true if encryption can be done, false otherwise. */
   [[nodiscard]] bool can_encrypt() const noexcept {
     return m_encryption_metadata.m_type != Encryption::Type::NONE;
-  }
-
-  /** Copy the encryption info from this object to the provided
-  Encryption object.
-  @param[in]    en   Encryption object to which info is copied. */
-  void get_encryption_info(Encryption &en) noexcept {
-    en.set_type(m_encryption_metadata.m_type);
-    en.set_key(m_encryption_metadata.m_key);
-    en.set_key_length(m_encryption_metadata.m_key_len);
-    en.set_initial_vector(m_encryption_metadata.m_iv);
   }
 
  public:
@@ -1306,7 +1297,7 @@ inline bool fil_page_index_page_check(const byte *page) {
 /** @} */
 
 /** Number of pending tablespace flushes */
-extern ulint fil_n_pending_tablespace_flushes;
+extern std::atomic<std::uint64_t> fil_n_pending_tablespace_flushes;
 
 /** Number of files currently open */
 extern std::atomic_size_t fil_n_files_open;
@@ -1886,16 +1877,17 @@ struct PageCallback {
 };
 
 /** Iterate over all the pages in the tablespace.
+@param[in]  encryption_metadata the encryption metadata to use for reading
 @param[in]  table the table definition in the server
 @param[in]  n_io_buffers number of blocks to read and write together
 @param[in]  compression_type compression type if compression is enabled,
 else Compression::Type::NONE
 @param[in,out]  callback functor that will do the page updates
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t fil_tablespace_iterate(dict_table_t *table,
-                                             ulint n_io_buffers,
-                                             Compression::Type compression_type,
-                                             PageCallback &callback);
+[[nodiscard]] dberr_t fil_tablespace_iterate(
+    const Encryption_metadata &encryption_metadata, dict_table_t *table,
+    ulint n_io_buffers, Compression::Type compression_type,
+    PageCallback &callback);
 
 /** Looks for a pre-existing fil_space_t with the given tablespace ID
 and, if found, returns the name and filepath in newly allocated buffers

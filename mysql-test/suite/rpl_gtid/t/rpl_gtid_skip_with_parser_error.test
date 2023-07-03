@@ -104,5 +104,5 @@ SET GTID_NEXT=AUTOMATIC;
 # Restart applier thread that shall sync without issues.
 --source include/start_slave_sql.inc
 --source include/sync_slave_sql_with_io.inc
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
 --source include/rpl_end.inc

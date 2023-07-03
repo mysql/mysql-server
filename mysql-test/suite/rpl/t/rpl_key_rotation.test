@@ -8,9 +8,9 @@ call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Couldn't load plugin named 'ke
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key, please check the keyring is loaded.");
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("Error 'Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.");
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Slave: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Replica: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.");
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 
 --connection master
 --echo [On Master]

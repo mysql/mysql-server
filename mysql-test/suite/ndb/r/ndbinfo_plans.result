@@ -88,7 +88,7 @@ ndb$membership	2	88
 ndb$nodes	2	24
 ndb$operations	10	48
 ndb$pgman_time_track_stats	200	48
-ndb$pools	376	84
+ndb$pools	384	84
 ndb$processes	34	68
 ndb$resources	18	28
 ndb$restart_info	2	100
@@ -214,24 +214,24 @@ block_number	251
 block_name	NDBCNTR
 
 explain format=tree select * from blocks where block_number in (250,251);
-EXPLAIN	-> Filter: (ndb$blocks.block_number in (250,251))  (cost=# rows=2)
-    -> Index range scan on ndb$blocks using PRIMARY over (block_number = 250) OR (block_number = 251)  (cost=# rows=2)
+EXPLAIN	-> Filter: (ndb$blocks.block_number in (250,251))  (rows=2)
+    -> Index range scan on ndb$blocks using PRIMARY over (block_number = 250) OR (block_number = 251)  (rows=2)
 
 
 explain format=tree select * from blocks order by block_number;
-EXPLAIN	-> Index scan on ndb$blocks using PRIMARY  (cost=# rows=29)
+EXPLAIN	-> Index scan on ndb$blocks using PRIMARY  (rows=29)
 
 
 explain format=tree select * from blocks where block_number < 250;
-EXPLAIN	-> Filter: (ndb$blocks.block_number < 250)  (cost=# rows=10)
-    -> Index range scan on ndb$blocks using PRIMARY over (block_number < 250)  (cost=# rows=10)
+EXPLAIN	-> Filter: (ndb$blocks.block_number < 250)  (rows=10)
+    -> Index range scan on ndb$blocks using PRIMARY over (block_number < 250)  (rows=10)
 
 
 ## Can scan backwards:
 explain format=tree select * from blocks where block_number > 250
   order by block_number desc;
-EXPLAIN	-> Filter: (ndb$blocks.block_number > 250)  (cost=# rows=10)
-    -> Index range scan on ndb$blocks using PRIMARY over (250 < block_number) (reverse)  (cost=# rows=10)
+EXPLAIN	-> Filter: (ndb$blocks.block_number > 250)  (rows=10)
+    -> Index range scan on ndb$blocks using PRIMARY over (250 < block_number) (reverse)  (rows=10)
 
 
 select * from dict_obj_types where type_id = 6;
@@ -266,23 +266,23 @@ select param_name from ndb$config_params where param_number = 40000;
 
 ## The plan for counters
 explain format=tree select * from counters;
-EXPLAIN	-> Nested loop left join  (cost=# rows=200)
-    -> Table scan on c  (cost=# rows=200)
-    -> Single-row index lookup on b using PRIMARY (block_number=c.block_number)  (cost=# rows=1)
+EXPLAIN	-> Nested loop left join  (rows=200)
+    -> Table scan on c  (rows=200)
+    -> Single-row index lookup on b using PRIMARY (block_number=c.block_number)  (rows=1)
 
 
 ## The plan for memory_per_fragment
 explain format=tree select * from memory_per_fragment;
-EXPLAIN	-> Left hash join (parent_name.`type` = `name`.parent_obj_type), (parent_name.id = `name`.parent_obj_id)  (cost=# rows=21200)
-    -> Inner hash join (space.table_id = `name`.id)  (cost=# rows=493)
-        -> Table scan on space  (cost=# rows=344)
+EXPLAIN	-> Left hash join (parent_name.`type` = `name`.parent_obj_type), (parent_name.id = `name`.parent_obj_id)  (rows=21200)
+    -> Inner hash join (space.table_id = `name`.id)  (rows=493)
+        -> Table scan on space  (rows=344)
         -> Hash
-            -> Nested loop inner join  (cost=# rows=14)
-                -> Filter: ((`name`.`type` <= 6) and (`name`.`type` is not null))  (cost=# rows=14)
-                    -> Table scan on name  (cost=# rows=43)
-                -> Single-row index lookup on types using PRIMARY (type_id=`name`.`type`)  (cost=# rows=1)
+            -> Nested loop inner join  (rows=14.3)
+                -> Filter: ((`name`.`type` <= 6) and (`name`.`type` is not null))  (rows=14.3)
+                    -> Table scan on name  (rows=43)
+                -> Single-row index lookup on types using PRIMARY (type_id=`name`.`type`)  (rows=1)
     -> Hash
-        -> Table scan on parent_name  (cost=# rows=43)
+        -> Table scan on parent_name  (rows=43)
 
 
 ## WL#11968 tables and views
@@ -337,16 +337,16 @@ id	version	state	fq_name
 ## (now with a primary key in the MyISAM version as well)
 ## and explain the same query
 explain format=tree select * from memory_per_fragment;
-EXPLAIN	-> Inner hash join (space.table_id = `name`.id)  (cost=# rows=1150)
-    -> Table scan on space  (cost=# rows=176)
+EXPLAIN	-> Inner hash join (space.table_id = `name`.id)  (rows=1150)
+    -> Table scan on space  (rows=176)
     -> Hash
-        -> Left hash join (parent_name.`type` = `name`.parent_obj_type), (parent_name.id = `name`.parent_obj_id)  (cost=# rows=65)
-            -> Nested loop inner join  (cost=# rows=5)
-                -> Filter: ((`name`.`type` <= 6) and (`name`.`type` is not null))  (cost=# rows=5)
-                    -> Table scan on name  (cost=# rows=14)
-                -> Single-row index lookup on types using PRIMARY (type_id=`name`.`type`)  (cost=# rows=1)
+        -> Left hash join (parent_name.`type` = `name`.parent_obj_type), (parent_name.id = `name`.parent_obj_id)  (rows=65.3)
+            -> Nested loop inner join  (rows=4.67)
+                -> Filter: ((`name`.`type` <= 6) and (`name`.`type` is not null))  (rows=4.67)
+                    -> Table scan on name  (rows=14)
+                -> Single-row index lookup on types using PRIMARY (type_id=`name`.`type`)  (rows=1)
             -> Hash
-                -> Table scan on parent_name  (cost=# rows=14)
+                -> Table scan on parent_name  (rows=14)
 
 
 ## CLEANUP

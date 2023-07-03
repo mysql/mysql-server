@@ -186,7 +186,6 @@ if (!$have_xcom_stack){
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The IO thread detected that the source .* does not belong to the group majority, thence the channel 'ch2' will try to connect to another source.");
 call mtr.add_suppression("The Monitor IO thread detected that the source .* does not belong to the group majority, thence the channel 'ch2' will try to connect to another source.");
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_channel_name='ch2'

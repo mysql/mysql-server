@@ -10,7 +10,7 @@ if (mysqld.global.gr_id === undefined) {
 
 var options = {
   metadata_schema_version: [1, 0, 2],
-  group_replication_name: mysqld.global.gr_id,
+  gr_id: mysqld.global.gr_id,
   cluster_type: "gr",
   innodb_cluster_name: mysqld.global.cluster_name,
   replication_group_members: gr_members,

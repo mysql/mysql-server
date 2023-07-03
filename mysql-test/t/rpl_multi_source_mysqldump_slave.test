@@ -13,7 +13,7 @@
 # BUG#21855705 MYSQLDUMP --DUMP-SLAVE DOES NOT WORK WITH MULTI-SOURCE
 #
 
-call mtr.add_suppression("Invalid .* username when attempting to connect to the master server");
+call mtr.add_suppression("Invalid .* username when attempting to connect to the source server");
 
 # Multi source replication needs those repositories on TABLE
 --let $save_mi_repo_type=`SELECT @@GLOBAL.master_info_repository`
@@ -35,7 +35,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='binlog-ch
 --echo # Execute mysql using the dump as input
 --exec $MYSQL --force < $MYSQL_TMP_DIR/chm_1_dump.sql
 --remove_file $MYSQL_TMP_DIR/chm_1_dump.sql
---let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --source include/stop_slave.inc
 
 --echo #
@@ -57,8 +57,8 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE="binlog-de
 # Clean up
 RESET SLAVE ALL;
 --disable_warnings
---replace_result $save_mi_repo_type SAVE_MI_REPO_TYPE
+--replace_result $save_mi_repo_type SAVE_CM_REPO_TYPE
 --eval SET @@global.master_info_repository='$save_mi_repo_type'
---replace_result $save_rli_repo_type SAVE_RLI_REPO_TYPE
+--replace_result $save_rli_repo_type SAVE_AM_REPO_TYPE
 --eval SET @@global.relay_log_info_repository='$save_rli_repo_type'
 --enable_warnings

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,12 +77,12 @@ public:
    */
   Uint32 *allocRow(Uint32 noOfWords)
   {
-    assert(verifyBuffer());
+    //assert(verifyBuffer());
+    assert(checkFreeSpace() >= noOfWords+1);  // + eodMagic
     const Uint32 pos = rowIx(m_rows);  //First free
     rowIx(++m_rows) = pos + noOfWords; //Next free
 #ifndef NDEBUG
     m_buffer[pos + noOfWords] = eodMagic;
-    assert(verifyBuffer());
 #endif
     return &m_buffer[pos];
   }
@@ -96,21 +96,21 @@ public:
    */
   Uint32 *allocKey(Uint32 noOfWords)
   {
-    assert(verifyBuffer());
+    //assert(verifyBuffer());
+    assert(checkFreeSpace() >= noOfWords+1);  // + eodMagic
     const Uint32 prev = keyIx(m_keys-1);
     const Uint32 pos = prev - noOfWords;
     keyIx(m_keys) = pos;
     m_keys++;
 #ifndef NDEBUG
     m_buffer[pos-1] = eodMagic;
-    assert(verifyBuffer());
 #endif
     return &m_buffer[pos];
   }
 
   const Uint32 *getRow(Uint32 row, Uint32& noOfWords) const
   {
-    assert(verifyBuffer());
+    //assert(verifyBuffer());
     if (unlikely(row >= m_rows))
       return nullptr;
 
@@ -122,7 +122,7 @@ public:
 
   const Uint32 *getKey(Uint32 key, Uint32& noOfWords) const
   {
-    assert(verifyBuffer());
+    //assert(verifyBuffer());
     if (unlikely(key >= m_keys))
       return nullptr;
 
@@ -193,6 +193,57 @@ private:
   Uint32  keyIx(Uint32 key) const { return m_buffer[m_bufSizeWords-2-key]; }
   Uint32& keyIx(Uint32 key)       { return m_buffer[m_bufSizeWords-2-key]; }
 
+  /**
+   * Check the amount of free space in NdbReceiverBuffer. The free space
+   * is between the 'rows' allocated upwards, and keys growing downwards.
+   * Also doing some simplified verification of buffer consistency.
+   */
+  Uint32 checkFreeSpace() const
+  {
+    // No more rows/keys than we allocated for
+    assert(m_rows <= m_maxRows);
+    assert(m_keys <= m_maxRows);
+
+    /**
+     * rowIx() / keyIx() refers within m_buffer[], without
+     * referring into the rowIx() / keyIx() arrays:
+     *
+     * NOTE that 'm_keys > 0' is the only indication of there possibly
+     *      being a keyIx()-array. Until any keys arrives, we make the
+     *      assumption that there are none, and the rowIx() may
+     *      allocRow's into the array of keyIx.
+     */
+    const Uint32 keyArraySize[[maybe_unused]] = (m_keys > 0) ? m_maxRows+1 : 0;
+    const Uint32 bufIxLow[[maybe_unused]] = m_maxRows+1;
+    const Uint32 bufIxHigh[[maybe_unused]] = m_bufSizeWords - keyArraySize;
+
+    assert(rowIx(m_rows) >= bufIxLow);
+    assert(rowIx(m_rows) <= bufIxHigh);
+    assert(m_keys == 0 || keyIx(m_keys-1) >= bufIxLow);
+    assert(m_keys == 0 || keyIx(m_keys-1) <= bufIxHigh);
+
+    // Last written row/key contents not written past allocated end.
+    // Note that 'eodMagic' is not present until a row/key is allocated.
+    assert(m_rows == 0 || m_buffer[rowIx(m_rows)] == eodMagic);
+    assert(m_keys == 0 || m_buffer[keyIx(m_keys-1)-1] == eodMagic);
+
+    const Uint32 rows_end = rowIx(m_rows);  //First free row
+    const Uint32 keys_end = (m_keys > 0) ? keyIx(m_keys-1) : m_bufSizeWords;
+    assert(keys_end >= rows_end);
+    return keys_end - rows_end;
+  }
+
+  /**
+   * Verify the contents of all rows/keys inserted into NdbReceiverBuffer.
+   * It had significant impact on performance, so we prefer asserts based
+   * on the simpler checkFreeSpace() instead. We mostly keep this method
+   * in case it will be needed for later debugging of buffer issues.
+   *
+   * BEWARE that allocRow()/Key() is called from deliver_signals(),
+   * when holding the poll-right. As the poll-right effectively
+   * single-threads the signal delivery, extra care should be taken to
+   * not add extra overhead to NdbReceiverBuffer allocation.
+   */
   bool verifyBuffer() const
   {
     assert(m_rows <= m_maxRows);
@@ -254,11 +305,12 @@ NdbReceiverBuffer::NdbReceiverBuffer(
    * available key buffer area.
    *
    * NOTE: We init key_ix[] even if keyinfo not present
-   * in result set. that case it might later be overwritten
+   * in result set. In that case it might later be overwritten
    * by rows, which is ok as the keyinfo is then never used.
    */
   keyIx(-1) = m_bufSizeWords - (m_maxRows+1);
-  assert(verifyBuffer());
+  //assert(verifyBuffer());
+  assert(checkFreeSpace() == m_bufSizeWords - (m_maxRows+1));
 }
 
 

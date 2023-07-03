@@ -10,7 +10,8 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
 ALTER TABLE t1 SECONDARY_LOAD;
-ERROR 42000: Unknown storage engine 'NONEXISTENT'
+Warnings:
+Warning	1286	Unknown storage engine 'NONEXISTENT'
 DROP TABLE t1;
 #
 # Attempt to load table into an unsupported secondary storage engine.
@@ -67,7 +68,7 @@ ERROR 42000: The storage engine for the table doesn't support SECONDARY_ENGINE
 #
 CREATE TABLE t1 (a INT) ENGINE InnoDB SECONDARY_ENGINE NONEXISTENT;
 ALTER TABLE t1 ENGINE MYISAM;
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+ERROR HY000: Secondary engine operation failed. Cannot change the primary engine of a table with a defined secondary engine.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -82,33 +83,29 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT, SECONDARY_LOAD;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SECONDARY_LOAD' at line 1
 #
-# Attempt to alter a table after a secondary engine has been defined.
+# Alter a table after a secondary engine has been defined.
 #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
-ALTER TABLE t1 COMMENT="Test";
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
-ALTER TABLE t1 COMMENT="Test", ALGORITHM=INPLACE;
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
-ALTER TABLE t1 COMMENT="Test", ALGORITHM=COPY;
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+ALTER TABLE t1 COMMENT="Test1";
+ALTER TABLE t1 COMMENT="Test2", ALGORITHM=INPLACE;
+ALTER TABLE t1 COMMENT="Test3", ALGORITHM=COPY;
 ALTER TABLE t1 ADD COLUMN (b INT);
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
-ALTER TABLE t1 ADD COLUMN (b INT), ALGORITHM=INPLACE;
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
-ALTER TABLE t1 ADD COLUMN (b INT), ALGORITHM=COPY;
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+ALTER TABLE t1 ADD COLUMN (c INT), ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN (d INT), ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NONEXISTENT
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Test3' SECONDARY_ENGINE=NONEXISTENT
 DROP TABLE t1;
 #
-# Attempt to truncate a table after a secondary engine has been defined.
+# Truncate a table after a secondary engine has been defined.
 #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
 TRUNCATE TABLE t1;
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -154,12 +151,11 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NONEXISTENT
 DROP TABLE t1;
 #
-# Attempt to rename a table with a secondary engine defined.
+# Rename a table with a secondary engine defined.
 #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
 RENAME TABLE t1 TO t2;
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
-DROP TABLE t1;
+DROP TABLE t2;
 #
 # Attempt to use SECONDARY_LOAD in conjunction with another DDL.
 #
@@ -202,7 +198,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
-# It should not be possible to set or remove NOT SECONDARY on a column
+# It should be possible to set or remove NOT SECONDARY on a column
 # if the table is defined with a secondary engine.
 #
 CREATE TABLE t1 (a INT NOT SECONDARY, b INT NOT SECONDARY);
@@ -215,14 +211,12 @@ t1	CREATE TABLE `t1` (
   `b` int NOT SECONDARY DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
 ALTER TABLE t1 MODIFY b INT;
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
 ALTER TABLE t1 MODIFY a INT NOT SECONDARY;
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int DEFAULT NULL,
-  `b` int NOT SECONDARY DEFAULT NULL
+  `a` int NOT SECONDARY DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
 ALTER TABLE t1 SECONDARY_ENGINE NULL;
 ALTER TABLE t1 MODIFY b INT;

@@ -7,7 +7,7 @@ call mtr.add_suppression('.*Unsafe statement written to the binary log using sta
 SET SESSION sql_log_bin= 1;
 --source include/sync_slave_sql_with_master.inc
 CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 --let $initial_slave_rows_search = `SELECT @@global.slave_rows_search_algorithms`
 SET @@global.slave_rows_search_algorithms="TABLE_SCAN,INDEX_SCAN";
 --source include/rpl_connection_master.inc

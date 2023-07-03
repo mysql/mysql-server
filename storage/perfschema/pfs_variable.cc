@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,9 +48,6 @@
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_visitor.h"
-
-using std::map;
-using std::vector;
 
 bool Find_THD_variable::operator()(THD *thd) {
   // TODO: filter bg threads?
@@ -117,12 +114,12 @@ bool PFS_system_variable_cache::init_show_var_array(enum_var_type scope,
   Build an array of SHOW_VARs from the system variable hash.
   Filter for SESSION scope.
 */
-bool PFS_system_variable_cache::do_initialize_session(void) {
+bool PFS_system_variable_cache::do_initialize_session() {
   /* Block plugins from unloading. */
   mysql_mutex_lock(&LOCK_plugin_delete);
 
   /* Build the array. */
-  bool ret = init_show_var_array(OPT_SESSION, true);
+  const bool ret = init_show_var_array(OPT_SESSION, true);
 
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return ret;
@@ -155,7 +152,7 @@ bool PFS_system_variable_cache::match_scope(int scope) {
 /**
   Build a GLOBAL system variable cache.
 */
-int PFS_system_variable_cache::do_materialize_global(void) {
+int PFS_system_variable_cache::do_materialize_global() {
   /* Block plugins from unloading. */
   mysql_mutex_lock(&LOCK_plugin_delete);
 
@@ -175,10 +172,11 @@ int PFS_system_variable_cache::do_materialize_global(void) {
     auto f = [this](const System_variable_tracker &, sys_var *sysvar) -> void {
       /* Match the system variable scope to the target scope. */
       if (match_scope(sysvar->scope())) {
-        SHOW_VAR show_var{sysvar->name.str, pointer_cast<char *>(sysvar),
-                          SHOW_SYS, SHOW_SCOPE_UNDEF};
+        const SHOW_VAR show_var{sysvar->name.str, pointer_cast<char *>(sysvar),
+                                SHOW_SYS, SHOW_SCOPE_UNDEF};
         /* Resolve value, convert to text, add to cache. */
-        System_variable system_var(m_current_thd, &show_var, m_query_scope);
+        const System_variable system_var(m_current_thd, &show_var,
+                                         m_query_scope);
         m_cache.push_back(system_var);
       }
     };
@@ -216,7 +214,8 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd) {
 
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(unsafe_thd);
-  if ((m_safe_thd = thd_ptr.get()) != nullptr) {
+  m_safe_thd = thd_ptr.get();
+  if (m_safe_thd != nullptr) {
     DEBUG_SYNC(m_current_thd, "materialize_session_variable_array_THD_locked");
     for (const System_variable_tracker &i : m_sys_var_tracker_array) {
       auto f = [this](const System_variable_tracker &, sys_var *sysvar) {
@@ -227,7 +226,7 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd) {
         show_var.scope = SHOW_SCOPE_UNDEF; /* not used for sys vars */
 
         /* Resolve value, convert to text, add to cache. */
-        System_variable system_var(m_safe_thd, &show_var, m_query_scope);
+        const System_variable system_var(m_safe_thd, &show_var, m_query_scope);
         m_cache.push_back(system_var);
       };
       (void)i.access_system_variable(m_current_thd, f,
@@ -244,7 +243,7 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd) {
 /**
   Allocate and assign mem_root for system variable materialization.
 */
-void PFS_system_variable_cache::set_mem_root(void) {
+void PFS_system_variable_cache::set_mem_root() {
   if (m_mem_sysvar_ptr == nullptr) {
     init_sql_alloc(PSI_INSTRUMENT_ME, &m_mem_sysvar, SYSVAR_MEMROOT_BLOCK_SIZE);
     m_mem_sysvar_ptr = &m_mem_sysvar;
@@ -258,7 +257,7 @@ void PFS_system_variable_cache::set_mem_root(void) {
   Mark memory blocks in the temporary mem_root as free.
   Restore THD::mem_root.
 */
-void PFS_system_variable_cache::clear_mem_root(void) {
+void PFS_system_variable_cache::clear_mem_root() {
   if (m_mem_sysvar_ptr) {
     m_mem_sysvar.ClearForReuse();
     *m_mem_thd = m_mem_thd_save; /* restore original mem_root */
@@ -271,7 +270,7 @@ void PFS_system_variable_cache::clear_mem_root(void) {
   Free the temporary mem_root.
   Restore THD::mem_root if necessary.
 */
-void PFS_system_variable_cache::free_mem_root(void) {
+void PFS_system_variable_cache::free_mem_root() {
   if (m_mem_sysvar_ptr) {
     m_mem_sysvar.Clear();
     m_mem_sysvar_ptr = nullptr;
@@ -308,7 +307,8 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
 
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(pfs_thread);
-  if ((m_safe_thd = thd_ptr.get()) != nullptr) {
+  m_safe_thd = thd_ptr.get();
+  if (m_safe_thd != nullptr) {
     for (const System_variable_tracker &i : m_sys_var_tracker_array) {
       auto f = [this](const System_variable_tracker &, sys_var *sysvar) {
         SHOW_VAR show_var;
@@ -320,7 +320,8 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
         /* Match the system variable scope to the target scope. */
         if (match_scope(sysvar->scope())) {
           /* Resolve value, convert to text, add to cache. */
-          System_variable system_var(m_safe_thd, &show_var, m_query_scope);
+          const System_variable system_var(m_safe_thd, &show_var,
+                                           m_query_scope);
           m_cache.push_back(system_var);
         }
       };
@@ -361,7 +362,8 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread,
 
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(pfs_thread);
-  if ((m_safe_thd = thd_ptr.get()) != nullptr) {
+  m_safe_thd = thd_ptr.get();
+  if (m_safe_thd != nullptr) {
     if (index < m_sys_var_tracker_array.size()) {
       auto f = [this](const System_variable_tracker &, sys_var *sysvar) {
         /* Match the system variable scope to the target scope. */
@@ -373,7 +375,8 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread,
           show_var.scope = SHOW_SCOPE_UNDEF; /* not used for sys vars */
 
           /* Resolve value, convert to text, add to cache. */
-          System_variable system_var(m_safe_thd, &show_var, m_query_scope);
+          const System_variable system_var(m_safe_thd, &show_var,
+                                           m_query_scope);
           m_cache.push_back(system_var);
         }
       };
@@ -413,7 +416,8 @@ int PFS_system_variable_cache::do_materialize_session(THD *unsafe_thd) {
 
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(unsafe_thd);
-  if ((m_safe_thd = thd_ptr.get()) != nullptr) {
+  m_safe_thd = thd_ptr.get();
+  if (m_safe_thd != nullptr) {
     for (const System_variable_tracker &i : m_sys_var_tracker_array) {
       auto f = [this](const System_variable_tracker &, sys_var *sysvar) {
         /* Match the system variable scope to the target scope. */
@@ -425,7 +429,8 @@ int PFS_system_variable_cache::do_materialize_session(THD *unsafe_thd) {
           show_var.scope = SHOW_SCOPE_UNDEF; /* not used for sys vars */
 
           /* Resolve value, convert to text, add to cache. */
-          System_variable system_var(m_safe_thd, &show_var, m_query_scope);
+          const System_variable system_var(m_safe_thd, &show_var,
+                                           m_query_scope);
           m_cache.push_back(system_var);
         }
       };
@@ -469,7 +474,8 @@ int PFS_system_variable_info_cache::do_materialize_all(THD *unsafe_thd) {
 
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(unsafe_thd);
-  if ((m_safe_thd = thd_ptr.get()) != nullptr) {
+  m_safe_thd = thd_ptr.get();
+  if (m_safe_thd != nullptr) {
     for (const System_variable_tracker &i : m_sys_var_tracker_array) {
       auto f = [this](const System_variable_tracker &, sys_var *sysvar) {
         SHOW_VAR show_var;
@@ -479,7 +485,7 @@ int PFS_system_variable_info_cache::do_materialize_all(THD *unsafe_thd) {
         show_var.scope = SHOW_SCOPE_UNDEF; /* not used for sys vars */
 
         /* Resolve value, convert to text, add to cache. */
-        System_variable system_var(m_safe_thd, &show_var);
+        const System_variable system_var(m_safe_thd, &show_var);
         m_cache.push_back(system_var);
       };
       (void)i.access_system_variable(m_current_thd, f,
@@ -512,7 +518,8 @@ int PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd) {
 
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(unsafe_thd);
-  if ((m_safe_thd = thd_ptr.get()) != nullptr) {
+  m_safe_thd = thd_ptr.get();
+  if (m_safe_thd != nullptr) {
     Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
     if (pv) {
       pv->lock();
@@ -684,7 +691,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
     return;
   }
 
-  enum_mysql_show_type show_var_type = show_var->type;
+  const enum_mysql_show_type show_var_type = show_var->type;
   assert(show_var_type == SHOW_SYS);
   THD *current_thread = current_thd;
 
@@ -698,7 +705,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
   /* Block system variable additions or deletions. */
   mysql_mutex_lock(&LOCK_global_system_variables);
 
-  sys_var *system_var = (sys_var *)show_var->value;
+  auto *system_var = (sys_var *)show_var->value;
   assert(system_var != nullptr);
   m_charset = system_var->charset(target_thd);
   m_type = system_var->show_type();
@@ -746,7 +753,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var) {
   /* Block system variable additions or deletions. */
   mysql_mutex_lock(&LOCK_global_system_variables);
 
-  sys_var *system_var = (sys_var *)show_var->value;
+  auto *system_var = (sys_var *)show_var->value;
   assert(system_var != nullptr);
   m_charset = system_var->charset(target_thd);
   m_type = system_var->show_type();
@@ -760,18 +767,18 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var) {
 
   if (system_var->get_source()) {
     if (system_var->get_source_name()) {
-      string src_name = system_var->get_source_name();
+      const std::string src_name = system_var->get_source_name();
       m_path_length = src_name.length();
       memcpy(m_path_str, src_name.c_str(), m_path_length);
       m_path_str[m_path_length] = 0;
     }
     m_source = system_var->get_source();
   }
-  snprintf(m_min_value_str, sizeof(m_min_value_str), "%lld",
-           system_var->get_min_value());
+  (void)snprintf(m_min_value_str, sizeof(m_min_value_str), "%lld",
+                 system_var->get_min_value());
   m_min_value_length = strlen(m_min_value_str);
-  snprintf(m_max_value_str, sizeof(m_max_value_str), "%llu",
-           system_var->get_max_value());
+  (void)snprintf(m_max_value_str, sizeof(m_max_value_str), "%llu",
+                 system_var->get_max_value());
   m_max_value_length = strlen(m_max_value_str);
 
   m_set_time = system_var->get_timestamp();
@@ -1031,10 +1038,7 @@ bool PFS_status_variable_cache::init_show_var_array(enum_var_type scope,
 
   m_query_scope = scope;
 
-  for (Status_var_array::iterator show_var_iter = all_status_vars.begin();
-       show_var_iter != all_status_vars.end(); show_var_iter++) {
-    SHOW_VAR show_var = *show_var_iter;
-
+  for (auto show_var : all_status_vars) {
     /* Check if this status var should be excluded from the query. */
     if (filter_show_var(&show_var, strict)) {
       continue;
@@ -1108,7 +1112,7 @@ char *PFS_status_variable_cache::make_show_var_name(const char *prefix,
   }
 
   /* Restrict name length to remaining buffer size. */
-  size_t max_name_len = name_buf + buf_len - prefix_end;
+  const size_t max_name_len = name_buf + buf_len - prefix_end;
 
   /* Load the name into the buffer after the prefix. */
   my_stpnmov(prefix_end, name, max_name_len);
@@ -1123,7 +1127,7 @@ char *PFS_status_variable_cache::make_show_var_name(const char *prefix,
 char *PFS_status_variable_cache::make_show_var_name(const char *prefix,
                                                     const char *name) {
   char name_buf[SHOW_VAR_MAX_NAME_LEN];
-  size_t buf_len = sizeof(name_buf);
+  const size_t buf_len = sizeof(name_buf);
   make_show_var_name(prefix, name, name_buf, buf_len);
   return m_current_thd->mem_strdup(name_buf); /* freed at statement end */
 }
@@ -1131,13 +1135,13 @@ char *PFS_status_variable_cache::make_show_var_name(const char *prefix,
 /**
   Build an internal SHOW_VAR array from the external status variable array.
 */
-bool PFS_status_variable_cache::do_initialize_session(void) {
+bool PFS_status_variable_cache::do_initialize_session() {
   /* Acquire LOCK_status to guard against plugin load/unload. */
   if (m_current_thd->fill_status_recursion_level++ == 0) {
     mysql_mutex_lock(&LOCK_status);
   }
 
-  bool ret = init_show_var_array(OPT_SESSION, true);
+  const bool ret = init_show_var_array(OPT_SESSION, true);
 
   if (m_current_thd->fill_status_recursion_level-- == 1) {
     mysql_mutex_unlock(&LOCK_status);
@@ -1150,7 +1154,7 @@ bool PFS_status_variable_cache::do_initialize_session(void) {
   For the current THD, use initial_status_vars taken from before the query
   start.
 */
-System_status_var *PFS_status_variable_cache::set_status_vars(void) {
+System_status_var *PFS_status_variable_cache::set_status_vars() {
   System_status_var *status_vars;
   if (m_safe_thd == m_current_thd &&
       m_current_thd->initial_status_var != nullptr) {
@@ -1165,7 +1169,7 @@ System_status_var *PFS_status_variable_cache::set_status_vars(void) {
 /**
   Build cache for GLOBAL status variables using values totaled from all threads.
 */
-int PFS_status_variable_cache::do_materialize_global(void) {
+int PFS_status_variable_cache::do_materialize_global() {
   System_status_var status_totals;
 
   m_materialized = false;
@@ -1228,8 +1232,8 @@ int PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd) {
   /* Avoid recursive acquisition of LOCK_status. */
   std::unique_ptr<Mutex_lock> status_lock_guard;
   if (m_current_thd->fill_status_recursion_level++ == 0) {
-    status_lock_guard = std::unique_ptr<Mutex_lock>(
-        new Mutex_lock(&LOCK_status, __FILE__, __LINE__));
+    status_lock_guard =
+        std::make_unique<Mutex_lock>(&LOCK_status, __FILE__, __LINE__);
   }
 
   /*
@@ -1243,7 +1247,8 @@ int PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd) {
 
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(unsafe_thd);
-  if ((m_safe_thd = thd_ptr.get()) != nullptr) {
+  m_safe_thd = thd_ptr.get();
+  if (m_safe_thd != nullptr) {
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
@@ -1275,8 +1280,8 @@ int PFS_status_variable_cache::do_materialize_session(THD *unsafe_thd) {
   /* Avoid recursive acquisition of LOCK_status. */
   std::unique_ptr<Mutex_lock> status_lock_guard;
   if (m_current_thd->fill_status_recursion_level++ == 0) {
-    status_lock_guard = std::unique_ptr<Mutex_lock>(
-        new Mutex_lock(&LOCK_status, __FILE__, __LINE__));
+    status_lock_guard =
+        std::make_unique<Mutex_lock>(&LOCK_status, __FILE__, __LINE__);
   }
 
   /*
@@ -1290,7 +1295,8 @@ int PFS_status_variable_cache::do_materialize_session(THD *unsafe_thd) {
 
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(unsafe_thd);
-  if ((m_safe_thd = thd_ptr.get()) != nullptr) {
+  m_safe_thd = thd_ptr.get();
+  if (m_safe_thd != nullptr) {
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
@@ -1322,8 +1328,8 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
   /* Acquire LOCK_status to guard against plugin load/unload. */
   std::unique_ptr<Mutex_lock> status_lock_guard;
   if (m_current_thd->fill_status_recursion_level++ == 0) {
-    status_lock_guard = std::unique_ptr<Mutex_lock>(
-        new Mutex_lock(&LOCK_status, __FILE__, __LINE__));
+    status_lock_guard =
+        std::make_unique<Mutex_lock>(&LOCK_status, __FILE__, __LINE__);
   }
 
   /* The SHOW_VAR array must be initialized externally. */
@@ -1331,7 +1337,8 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
 
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(pfs_thread);
-  if ((m_safe_thd = thd_ptr.get()) != nullptr) {
+  m_safe_thd = thd_ptr.get();
+  if (m_safe_thd != nullptr) {
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
@@ -1454,7 +1461,7 @@ void PFS_status_variable_cache::manifest(THD *thd,
       }
 
       /* Convert status value to string format. Add to the cache. */
-      Status_variable status_var(&show_var, status_vars, m_query_scope);
+      const Status_variable status_var(&show_var, status_vars, m_query_scope);
       m_cache.push_back(status_var);
     }
   }
@@ -1466,7 +1473,8 @@ void PFS_status_variable_cache::manifest(THD *thd,
 Status_variable::Status_variable(const SHOW_VAR *show_var,
                                  System_status_var *status_vars,
                                  enum_var_type query_scope)
-    : m_name_length(0),
+    : m_name(nullptr),
+      m_name_length(0),
       m_value_length(0),
       m_type(SHOW_UNDEF),
       m_scope(SHOW_SCOPE_UNDEF),
@@ -1556,7 +1564,7 @@ void reset_pfs_status_stats() {
   Warning issued if the version of the system variable hash table changes
   during a query. This can happen when a plugin is loaded or unloaded.
 */
-void system_variable_warning(void) {
+void system_variable_warning() {
   THD *thd = current_thd;
   assert(thd != nullptr);
   push_warning(thd, ER_WARN_TOO_FEW_RECORDS);
@@ -1567,7 +1575,7 @@ void system_variable_warning(void) {
   Warning issued if the global status variable array changes during a query.
   This can happen when a plugin is loaded or unloaded.
 */
-void status_variable_warning(void) {
+void status_variable_warning() {
   THD *thd = current_thd;
   assert(thd != nullptr);
   push_warning(thd, ER_WARN_TOO_FEW_RECORDS);

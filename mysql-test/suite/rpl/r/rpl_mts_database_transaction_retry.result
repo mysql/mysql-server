@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 include/stop_slave.inc
@@ -21,10 +21,10 @@ INSERT INTO db1.t1 VALUES(1, NULL), (10, NULL), (100, NULL);
 INSERT INTO db1.t2 VALUES(1, NULL), (10, NULL), (100, NULL);
 INSERT INTO db2.t1 VALUES(1, NULL), (10, NULL), (100, NULL);
 include/sync_slave_sql_with_master.inc
-CALL mtr.add_suppression("Slave SQL for channel '':.*Lock wait timeout exceeded.*");
-CALL mtr.add_suppression("Slave SQL for channel '': Worker . failed executing transaction.*");
-CALL mtr.add_suppression("Slave SQL for channel '': .*Error_code: MY-001756");
-CALL mtr.add_suppression("Slave SQL for channel '': worker thread retried transaction.*");
+CALL mtr.add_suppression("Replica SQL for channel '':.*Lock wait timeout exceeded.*");
+CALL mtr.add_suppression("Replica SQL for channel '': Worker . failed executing transaction.*");
+CALL mtr.add_suppression("Replica SQL for channel '': .*Error_code: MY-001756");
+CALL mtr.add_suppression("Replica SQL for channel '': worker thread retried transaction.*");
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SET @saved_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
 SET @saved_replica_parallel_type = @@GLOBAL.replica_parallel_type;

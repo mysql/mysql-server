@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,6 +102,10 @@
 
 #ifdef DISABLE_PSI_TLS_CHANNEL
 #undef DISABLE_PSI_TLS_CHANNEL
+#endif
+
+#ifdef DISABLE_PSI_SERVER_TELEMETRY_TRACES
+#undef DISABLE_PSI_SERVER_TELEMETRY_TRACES
 #endif
 
 #endif /* PFS_UNIT_TEST_CONFIG_INCLUDED */

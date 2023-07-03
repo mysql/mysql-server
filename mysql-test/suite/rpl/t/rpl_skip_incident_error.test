@@ -14,7 +14,7 @@
 #
 # ==== References ====
 #
-# Bug #26266758  SKIPPING MYSQL SLAVE ERROR CODE 1590 (ER_SLAVE_INCIDENT) DOES NOT WORK
+# Bug #26266758  SKIPPING MYSQL SLAVE ERROR CODE 1590 (ER_REPLICA_INCIDENT) DOES NOT WORK
 # See mysql-test/suite/rpl/t/rpl_skip_incident_error_cross.test
 
 --source include/not_group_replication_plugin.inc
@@ -26,12 +26,8 @@
 --source include/master-slave.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occurred on the master.");
-call mtr.add_suppression("The content of the statement cache is corrupted "
-                         "while writing a rollback record of the transaction "
-                         "to the binary log. An incident event has been "
-                         "written to the binary log which will stop the "
-                         "slaves.");
+call mtr.add_suppression("Replica SQL for channel '': The incident LOST_EVENTS occurred on the source.");
+call mtr.add_suppression("The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log. An incident event has been written to the binary log which will stop the replicas.");
 
 --let $old_max_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_stmt_cache_size", Value, 1)
 --let $old_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_stmt_cache_size", Value, 1)

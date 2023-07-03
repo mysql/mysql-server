@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1774,11 +1774,11 @@ class acl_tables_setup_for_write_and_acquire_mdl_error_handler
     @param [in] msg           Message string. Unused.
   */
 
-  virtual bool handle_condition(THD *thd [[maybe_unused]], uint sql_errno,
-                                const char *sqlstate [[maybe_unused]],
-                                Sql_condition::enum_severity_level *level
-                                [[maybe_unused]],
-                                const char *msg [[maybe_unused]]) override {
+  bool handle_condition(THD *thd [[maybe_unused]], uint sql_errno,
+                        const char *sqlstate [[maybe_unused]],
+                        Sql_condition::enum_severity_level *level
+                        [[maybe_unused]],
+                        const char *msg [[maybe_unused]]) override {
     m_hit_deadlock = (sql_errno == ER_LOCK_DEADLOCK);
     return m_hit_deadlock;
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,18 @@
 #define NDB_APPLY_STATUS_TABLE_H
 
 #include <string>
+#include <string_view>
+#include <vector>
 
+#include "storage/ndb/include/ndb_types.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/plugin/ndb_util_table.h"
+
+class NdbTransaction;
+namespace dd {
+class Table;
+}
+struct NdbError;
 
 // RAII style class for working with the apply status table in NDB
 class Ndb_apply_status_table : public Ndb_util_table {
@@ -63,6 +72,68 @@ class Ndb_apply_status_table : public Ndb_util_table {
      @return true if table is the apply status table
    */
   static bool is_apply_status_table(const char *db, const char *table_name);
+
+  /**
+     @brief Scan the ndb_apply_status table and return:
+       1) MAX(epoch) WHERE server_id == own_server_id OR
+                           server_id IN (<ignore_server_id_list>)
+       2) epoch WHERE server_id == source_server_id
+       3) list with all server_id's in table
+
+     @param own_server_id               The server_id of this server
+     @param ignore_server_ids           List of additional server_ids to find
+                                        the MAX(epoch) for
+     @param source_server_id            The server_id of source server
+     @param highest_applied_epoch [out] The highest epoch value as per 1)
+     @param source_epoch [out]          The epoch value as per 2)
+     @param server_ids [out]            The list of server_id's as per 3)
+
+     @return true for success
+   */
+  bool load_state(Uint32 own_server_id,
+                  const std::vector<Uint32> &ignore_server_ids,
+                  Uint32 source_server_id, Uint64 &highest_applied_epoch,
+                  Uint64 &source_epoch, std::vector<Uint32> &server_ids) const;
+
+  /**
+     @brief Append an update of ndb_apply_status to given transaction.
+
+    This function defines an UPDATE of ndb_apply_status with new values for
+    log_name, start_pos and end_pos where server_id=<server_id>
+
+     @param trans             The NDB transaction
+     @param server_id         The server_id of row to update
+     @param log_name          The value to set for "log_name" column
+     @param start_pos         The value to set for "start_pos" column
+     @param end_pos           The value to set for "end_pos" column
+     @param any_value         The value to use as "any value" for the operation
+
+     @return nullptr for success and pointer to NdbError otherwise
+   */
+  const NdbError *define_update_row(NdbTransaction *trans, Uint32 server_id,
+                                    std::string_view log_name, Uint64 start_pos,
+                                    Uint64 end_pos, Uint32 any_value);
+
+  /**
+     @brief Append a write to ndb_apply_status to given transaction.
+
+    This function defines a WRITE of ndb_apply_status with values for
+    epoch, log_name, start_pos and end_pos where server_id=<server_id>
+
+     @param trans             The NDB transaction
+     @param server_id         The server_id of row to write
+     @param epoch             The value to set for "epoch" column
+     @param log_name          The value to set for "log_name" column
+     @param start_pos         The value to set for "start_pos" column
+     @param end_pos           The value to set for "end_pos" column
+     @param any_value         The value to use as "any value" for the operation
+
+     @return nullptr for success and pointer to NdbError otherwise
+   */
+  const NdbError *define_write_row(NdbTransaction *trans, Uint32 server_id,
+                                   Uint64 epoch, std::string_view log_name,
+                                   Uint64 start_pos, Uint64 end_pos,
+                                   Uint32 any_value);
 };
 
 #endif

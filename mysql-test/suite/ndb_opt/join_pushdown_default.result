@@ -1951,12 +1951,12 @@ group by t1.b
 order by t1.b, cnt;
 EXPLAIN
 -> Sort: t1.b, cnt
-    -> Stream results  (cost=4012.80 rows=4)
-        -> Group aggregate: count(distinct t2.b)  (cost=4012.80 rows=4)
-            -> Nested loop inner join  (cost=4011.20 rows=16)
-                -> Sort: t1.b  (cost=4001.60 rows=16)
-                    -> Table scan on t1  (cost=4001.60 rows=16)
-                -> Index lookup on t2 using PRIMARY (a=t1.c)  (cost=0.51 rows=1)
+    -> Stream results  (cost=4013 rows=4)
+        -> Group aggregate: count(distinct t2.b)  (cost=4013 rows=4)
+            -> Nested loop inner join  (cost=4011 rows=16)
+                -> Sort: t1.b  (cost=4002 rows=16)
+                    -> Table scan on t1  (cost=4002 rows=16)
+                -> Index lookup on t2 using PRIMARY (a=t1.c)  (cost=0.506 rows=1)
 
 Warnings:
 Note	1003	Can't push table 't2' as child of 't1', it is in a sorted-branch which can't be referred.
@@ -7762,6 +7762,93 @@ EXPLAIN
     -> Single-row index lookup on t100 using PRIMARY (k=t10.k), child of t10 in pushed join
 
 drop table t10,t100,t1000;
+##################
+#
+# Bug#34782276:
+#   Improve SPJ-internal execution plan, evaluate inner-joins first
+#
+##################
+create table t (
+k int,
+a int,
+key ix1(k),
+key ix2(a)
+) engine = ndb;
+insert into t values
+(0,0), (1,1), (2,2),
+(3,0), (4,1), (5,2),
+(6,0), (7,1), (8,2);
+explain format=tree select straight_join *
+from t as t1
+inner join t as t2 on t2.a = t1.k
+inner join t as t3 on t3.k = t1.k;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Table scan on t1, activating pushed join of 3 tables, with pushed condition: (t1.k is not null)
+        -> Index lookup on t2 using ix2 (a=t1.k), child of t1 in pushed join
+    -> Index lookup on t3 using ix1 (k=t1.k), child of t1 in pushed join
+
+select straight_join *
+from t as t1
+inner join t as t2 on t2.a = t1.k
+inner join t as t3 on t3.k = t1.k;
+############
+# Verify the expect 21 rows were returned from SPJ:
+# - 2 x 9 rows from t1 inner join t2
+# - 3 rows from t1 join t3
+# -> 21 rows (0 *SPJ* rows when not join-pushed (BKA))
+#
+SPJ_rows_returned
+21
+explain format=tree select straight_join *
+from t as t1
+inner join t as t2 on t2.a = t1.k
+left join t as t3 on t3.k = t1.k;
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop inner join
+        -> Table scan on t1, activating pushed join of 3 tables, with pushed condition: (t1.k is not null)
+        -> Index lookup on t2 using ix2 (a=t1.k), child of t1 in pushed join
+    -> Index lookup on t3 using ix1 (k=t1.k), child of t1 in pushed join
+
+select straight_join *
+from t as t1
+inner join t as t2 on t2.a = t1.k
+left join t as t3 on t3.k = t1.k;
+############
+# As above, t1 inner join t2 is evaluated first
+# - 2 x 9 rows from join(t1,t2)
+# - Only the 3 matching t1 rows are requested from t3!
+# -> still 21 rows (and still 0 *SPJ* rows when not join-pushed (BKA))
+#
+SPJ_rows_returned
+21
+explain format=tree select straight_join *
+from t as t1
+left join t as t2 on t2.a = t1.k
+inner join t as t3 on t3.k = t1.k;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop left join
+        -> Table scan on t1, activating pushed join of 3 tables, with pushed condition: (t1.k is not null)
+        -> Index lookup on t2 using ix2 (a=t1.k), child of t1 in pushed join
+    -> Index lookup on t3 using ix1 (k=t1.k), child of t1 in pushed join
+
+select straight_join *
+from t as t1
+left join t as t2 on t2.a = t1.k
+inner join t as t3 on t3.k = t1.k;
+############
+# Verify that all 3 x 9 rows were returned from SPJ:
+# - 2 x 9 rows from t1 outer join t2
+#   (No t1-match elimination in an outer-join)
+# - 9 rows from t1 inner join t3
+# -> 27 rows
+#
+SPJ_rows_returned
+27
+drop table t;
 select new.variable_name, new.variable_value - old.variable_value
 from server_counts_at_startup as old,
 performance_schema.global_status as new

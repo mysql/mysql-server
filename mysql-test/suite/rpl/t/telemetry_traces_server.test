@@ -1,0 +1,50 @@
+################################################################################
+# Check if a replicated statement gets processed by telemetry on replica
+################################################################################
+
+--source include/only_mts_replica_parallel_workers.inc
+--source include/have_server_telemetry_traces.inc
+# Statement replication format needed for stmt to be visible to telemetry
+--source include/have_binlog_format_statement.inc
+--source include/not_parallel.inc
+--source include/no_ps_protocol.inc
+
+--source include/master-slave.inc
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.t1 (n INT PRIMARY KEY);
+
+# Initiate telemetry on replica.
+connection slave;
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+
+# Execute statement to be replicated
+connection master;
+INSERT INTO mysqltest.t1 VALUES (1);
+--source include/rpl_sync.inc
+DROP DATABASE mysqltest;
+--source include/rpl_sync.inc
+
+# Check log
+connection slave;
+--send UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+--sleep 0.1
+connection master;
+--disable_result_log
+SHOW DATABASES;
+--enable_result_log
+--source include/rpl_sync.inc
+connection slave;
+--reap;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+# To make test deterministic, do not output entire log
+# Just validate our statement got passed to telemetry callback
+--let $assert_text= Find replicated statement in telemetry traces log
+--let $assert_select= INSERT INTO mysqltest.t1 VALUES \(1\)
+--let $assert_file= $MYSQLD_DATADIR/test_server_telemetry_traces_component.log
+--let $assert_count= 2
+--source include/assert_grep.inc
+remove_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+
+# End of test
+--source include/rpl_end.inc

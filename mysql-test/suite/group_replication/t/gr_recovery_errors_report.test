@@ -36,9 +36,9 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker [0-9] failed executing transaction .*; Error 'Table 't1' already exists' on query.*");
-call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Error 'Table 't1' already exists' on query.*");
-call mtr.add_suppression("Slave: Table 't1' already exists Error_code: MY-001050");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Worker [0-9] failed executing transaction .*; Error 'Table 't1' already exists' on query.*");
+call mtr.add_suppression("Replica SQL for channel 'group_replication_recovery': Error 'Table 't1' already exists' on query.*");
+call mtr.add_suppression("Replica: Table 't1' already exists Error_code: MY-001050");
 call mtr.add_suppression("Error while starting the group replication incremental recovery receiver/applier threads");
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);

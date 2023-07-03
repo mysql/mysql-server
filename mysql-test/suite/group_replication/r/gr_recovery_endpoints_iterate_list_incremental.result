@@ -1,12 +1,12 @@
 include/group_replication.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 [connection server2]
 set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
 set session sql_log_bin=1;
 [connection server1]
 set session sql_log_bin=0;
@@ -41,7 +41,7 @@ SET sql_log_bin = 1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER='rpl_user' FOR CHANNEL 'group_replication_recovery';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 
 # 5. Change settings on recovery to speed up failure
 SET GLOBAL group_replication_recovery_reconnect_interval= 1;
@@ -71,7 +71,7 @@ include/stop_group_replication.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SET GLOBAL group_replication_recovery_reconnect_interval= 60;
 SET GLOBAL group_replication_recovery_retry_count= 10;
 DROP USER 'rpl_user'@'%';

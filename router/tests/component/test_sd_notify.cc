@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -106,8 +106,12 @@ class NotifyTest : public RestApiComponentTest {
   }
 
   std::string create_config_file(
-      const std::vector<std::string> &config_file_sections) {
+      const std::vector<std::string> &config_file_sections,
+      const std::optional<std::string> &state_file = std::nullopt) {
     auto default_section = prepare_config_defaults();
+    if (state_file) {
+      default_section["dynamic_state"] = *state_file;
+    }
 
     const std::string config_file_content =
         mysql_harness::join(config_file_sections, "");
@@ -301,15 +305,19 @@ TEST_F(NotifyTest, NotifyReadyMetadataCache) {
                                    {
                                        {"cluster_type", "gr"},
                                        {"router_id", "1"},
-                                       {"bootstrap_server_addresses", nodes},
                                        {"user", "mysql_router1_user"},
                                        {"connect_timeout", "1"},
                                        {"metadata_cluster", "test"},
                                    }),
   };
 
-  /*auto &router =*/launch_router(create_config_file(config_sections),
-                                  /*wait_for_ready_expected_result*/ true);
+  const std::string state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", {md_server_port}, 0));
+
+  /*auto &router =*/launch_router(
+      create_config_file(config_sections, state_file),
+      /*wait_for_ready_expected_result*/ true);
 }
 
 /**
@@ -375,7 +383,6 @@ TEST_F(NotifyTest, NotifyReadyManyPlugins) {
                                    {
                                        {"cluster_type", "gr"},
                                        {"router_id", "1"},
-                                       {"bootstrap_server_addresses", nodes},
                                        {"user", "mysql_router1_user"},
                                        {"connect_timeout", "1"},
                                        {"metadata_cluster", "test"},
@@ -411,8 +418,13 @@ TEST_F(NotifyTest, NotifyReadyManyPlugins) {
                                    {{"require_realm", "somerealm"}}),
   };
 
-  /*auto &router =*/launch_router(create_config_file(config_sections),
-                                  /*wait_for_ready_expected_result*/ true);
+  const std::string state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", {md_server_port}, 0));
+
+  /*auto &router =*/launch_router(
+      create_config_file(config_sections, state_file),
+      /*wait_for_ready_expected_result*/ true);
 }
 
 /**

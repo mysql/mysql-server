@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -459,9 +459,9 @@ int ReplSemiSyncMaster::enableMaster() {
       state_ = (rpl_semi_sync_source_wait_no_replica != 0 ||
                 (rpl_semi_sync_source_clients >=
                  rpl_semi_sync_source_wait_for_replica_count));
-      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_RPL_ENABLED_ON_MASTER);
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_RPL_ENABLED_ON_SOURCE);
     } else {
-      LogErr(ERROR_LEVEL, ER_SEMISYNC_MASTER_OOM);
+      LogErr(ERROR_LEVEL, ER_SEMISYNC_SOURCE_OOM);
       result = -1;
     }
   }
@@ -493,7 +493,7 @@ int ReplSemiSyncMaster::disableMaster() {
     ack_container_.clear();
 
     set_master_enabled(false);
-    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_DISABLED_ON_MASTER);
+    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_DISABLED_ON_SOURCE);
   }
 
   unlock();
@@ -600,7 +600,7 @@ void ReplSemiSyncMaster::reportReplyBinlog(const char *log_file_name,
     reply_file_name_inited_ = true;
 
     if (trace_level_ & kTraceDetail)
-      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_MASTER_GOT_REPLY_AT_POS, kWho,
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SOURCE_GOT_REPLY_AT_POS, kWho,
              log_file_name, (unsigned long)log_file_pos);
   }
 
@@ -623,7 +623,7 @@ l_end:
 
   if (can_release_threads) {
     if (trace_level_ & kTraceDetail)
-      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_MASTER_SIGNAL_ALL_WAITING_THREADS,
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SOURCE_SIGNAL_ALL_WAITING_THREADS,
              kWho);
     active_tranxs_->signal_waiting_sessions_up_to(reply_file_name_,
                                                   reply_file_pos_);
@@ -669,7 +669,7 @@ int ReplSemiSyncMaster::commitTrx(const char *trx_wait_binlog_name,
     if (!getMasterEnabled() || !is_on()) goto l_end;
 
     if (trace_level_ & kTraceDetail) {
-      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_MASTER_TRX_WAIT_POS, kWho,
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SOURCE_TRX_WAIT_POS, kWho,
              trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos,
              (int)is_on());
     }
@@ -1108,7 +1108,7 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, const char *event_buf) {
    * instead of being buffered in the TCP/IP stack.
    */
   if (net_flush(net)) {
-    LogErr(ERROR_LEVEL, ER_SEMISYNC_MASTER_FAILED_ON_NET_FLUSH);
+    LogErr(ERROR_LEVEL, ER_SEMISYNC_SOURCE_FAILED_ON_NET_FLUSH);
     goto l_end;
   }
 

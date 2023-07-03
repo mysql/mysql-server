@@ -19,7 +19,7 @@ EXPLAIN
 -> Nested loop inner join  (cost=1.16..1.16 rows=0.3)
     -> Nested loop left join  (cost=0.91..0.91 rows=0.3)
         -> Filter: (t1.a = 5)  (cost=0.55..0.55 rows=0.3)
-            -> Table scan on t1  (cost=0.08..0.25 rows=3)
+            -> Table scan on t1  (cost=0.0833..0.25 rows=3)
         -> Filter: ((t2.a = 5) and (t1.a = 5))  (cost=0.36..0.36 rows=0.01)
             -> Table scan on t2  (cost=0.25..0.25 rows=1)
     -> Table scan on t3  (cost=0.25..0.25 rows=1)
@@ -47,13 +47,13 @@ INSERT INTO t2 VALUES (1);
 INSERT INTO t3 VALUES (1);
 EXPLAIN FORMAT=tree SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 EXPLAIN
--> Nested loop left join  (cost=0.90..0.90 rows=0.04)
-    -> Nested loop inner join  (cost=0.90..0.90 rows=0.04)
+-> Nested loop left join  (cost=0.9..0.9 rows=0.04)
+    -> Nested loop inner join  (cost=0.9..0.9 rows=0.04)
         -> Filter: (t0.a0 = 1)  (cost=0.45..0.45 rows=0.2)
-            -> Table scan on t0  (cost=0.12..0.25 rows=2)
+            -> Table scan on t0  (cost=0.125..0.25 rows=2)
         -> Filter: (t1.a1 = 1)  (cost=0.45..0.45 rows=0.2)
-            -> Table scan on t1  (cost=0.12..0.25 rows=2)
-    -> Zero rows (Join condition rejects all rows)  (cost=0.00..0.00 rows=0)
+            -> Table scan on t1  (cost=0.125..0.25 rows=2)
+    -> Zero rows (Join condition rejects all rows)  (cost=0..0 rows=0)
 
 SELECT * FROM t0, t1 LEFT JOIN (t2,t3) ON a1=5 WHERE a0=a1 AND a0=1;
 a0	a1	a2	a3
@@ -135,7 +135,7 @@ t RIGHT JOIN
 (SELECT MAX(y) AS m FROM t WHERE FALSE GROUP BY x) AS dt
 ON t.x = dt.m;
 EXPLAIN
--> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
+-> Zero rows (Impossible WHERE)  (cost=0..0 rows=0)
 
 SELECT * FROM
 t RIGHT JOIN
@@ -202,16 +202,22 @@ EXPLAIN
 
 DROP TABLE t1;
 #
-# Bug#34534373: Row estimates for joins ignores histograms.
+# Bug#34699398: Row estimates for joins ignores histograms.
 #
 CREATE TABLE num (n INT);
 INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-CREATE TABLE t1 (a INT);
-INSERT INTO t1 SELECT k%25 FROM
+CREATE TABLE t1 (a INT, ah INT, ai INT, KEY ix1(ai));
+INSERT INTO t1 SELECT k%25, k%25, K%25 FROM
 (SELECT num1.n+num2.n*10 k FROM num num1, num num2) d1;
-CREATE TABLE t2 (b INT);
-INSERT INTO t2 SELECT k%25 FROM
+CREATE TABLE t2 (b INT, bh INT, bi INT, KEY ix2(bi));
+INSERT INTO t2 SELECT k%25, k%25, k%25 FROM
 (SELECT num1.n+num2.n*10 k FROM num num1, num num2, num num3) d1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON ah;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'ah'.
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON bh;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'bh'.
 ANALYZE TABLE t1,t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -237,89 +243,67 @@ EXPLAIN
     -> Hash
         -> Table scan on x2  (rows=1000) (actual rows=1000 loops=1)
 
-CREATE INDEX ix1 ON t1(a);
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ai=b;
 EXPLAIN
 -> Nested loop inner join  (rows=4000) (actual rows=4000 loops=1)
     -> Table scan on t2  (rows=1000) (actual rows=1000 loops=1)
-    -> Index lookup on t1 using ix1 (a=t2.b)  (rows=4) (actual rows=4 loops=1000)
+    -> Index lookup on t1 using ix1 (ai=t2.b)  (rows=4) (actual rows=4 loops=1000)
 
-EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.a=x2.a;
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.ai=x2.ai;
 EXPLAIN
 -> Nested loop inner join  (rows=400) (actual rows=400 loops=1)
     -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on x1 using ix1 (a=x2.a)  (rows=4) (actual rows=4 loops=100)
+    -> Index lookup on x1 using ix1 (ai=x2.ai)  (rows=4) (actual rows=4 loops=100)
 
-CREATE INDEX ix2 ON t2(b);
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ai=bi;
 EXPLAIN
 -> Nested loop inner join  (rows=4000) (actual rows=4000 loops=1)
     -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on t2 using ix2 (b=t1.a)  (rows=40) (actual rows=40 loops=100)
+    -> Index lookup on t2 using ix2 (bi=t1.ai)  (rows=40) (actual rows=40 loops=100)
 
-DROP INDEX ix1 ON t1;
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=bi;
 EXPLAIN
 -> Nested loop inner join  (rows=4000) (actual rows=4000 loops=1)
     -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
-    -> Index lookup on t2 using ix2 (b=t1.a)  (rows=40) (actual rows=40 loops=100)
+    -> Index lookup on t2 using ix2 (bi=t1.a)  (rows=40) (actual rows=40 loops=100)
 
-EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.b=x2.b;
+EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.bi=x2.bi;
 EXPLAIN
 -> Nested loop inner join  (rows=40000) (actual rows=40000 loops=1)
     -> Table scan on x2  (rows=1000) (actual rows=1000 loops=1)
-    -> Index lookup on x1 using ix2 (b=x2.b)  (rows=40) (actual rows=40 loops=1000)
+    -> Index lookup on x1 using ix2 (bi=x2.bi)  (rows=40) (actual rows=40 loops=1000)
 
-DROP INDEX ix2 ON t2;
-ANALYZE TABLE t1 UPDATE HISTOGRAM ON a;
-Table	Op	Msg_type	Msg_text
-test.t1	histogram	status	Histogram statistics created for column 'a'.
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ah=b;
 EXPLAIN
--> Inner hash join (t1.a = t2.b)  (rows=4000) (actual rows=4000 loops=1)
+-> Inner hash join (t1.ah = t2.b)  (rows=4000) (actual rows=4000 loops=1)
     -> Table scan on t2  (rows=1000) (actual rows=1000 loops=1)
     -> Hash
         -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
 
-EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.a=x2.a;
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.ah=x2.ah;
 EXPLAIN
--> Inner hash join (x1.a = x2.a)  (rows=400) (actual rows=400 loops=1)
+-> Inner hash join (x1.ah = x2.ah)  (rows=400) (actual rows=400 loops=1)
     -> Table scan on x1  (rows=100) (actual rows=100 loops=1)
     -> Hash
         -> Table scan on x2  (rows=100) (actual rows=100 loops=1)
 
-ANALYZE TABLE t2 UPDATE HISTOGRAM ON b;
-Table	Op	Msg_type	Msg_text
-test.t2	histogram	status	Histogram statistics created for column 'b'.
-ANALYZE TABLE t2;
-Table	Op	Msg_type	Msg_text
-test.t2	analyze	status	OK
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ah=bh;
 EXPLAIN
--> Inner hash join (t1.a = t2.b)  (rows=4000) (actual rows=4000 loops=1)
+-> Inner hash join (t1.ah = t2.bh)  (rows=4000) (actual rows=4000 loops=1)
     -> Table scan on t2  (rows=1000) (actual rows=1000 loops=1)
     -> Hash
         -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
 
-ANALYZE TABLE t1 DROP HISTOGRAM ON a;
-Table	Op	Msg_type	Msg_text
-test.t1	histogram	status	Histogram statistics removed for column 'a'.
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=bh;
 EXPLAIN
--> Inner hash join (t1.a = t2.b)  (rows=4000) (actual rows=4000 loops=1)
+-> Inner hash join (t1.a = t2.bh)  (rows=4000) (actual rows=4000 loops=1)
     -> Table scan on t2  (rows=1000) (actual rows=1000 loops=1)
     -> Hash
         -> Table scan on t1  (rows=100) (actual rows=100 loops=1)
 
-EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.b=x2.b;
+EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.bh=x2.bh;
 EXPLAIN
--> Inner hash join (x1.b = x2.b)  (rows=40000) (actual rows=40000 loops=1)
+-> Inner hash join (x1.bh = x2.bh)  (rows=40000) (actual rows=40000 loops=1)
     -> Table scan on x1  (rows=1000) (actual rows=1000 loops=1)
     -> Hash
         -> Table scan on x2  (rows=1000) (actual rows=1000 loops=1)
@@ -396,3 +380,176 @@ WHERE x IN (SELECT t1.pk FROM t1, t2 AS t3 WHERE t1.x = t3.x)
 SELECT 1 FROM subq LEFT JOIN t2 AS t4 ON TRUE WHERE subq.x = t4.x;
 1
 DROP TABLE t1,t2;
+#
+# Bug#34828364: Assertion `!eq_items.is_empty()' failed
+#               in make_join_hypergraph.cc
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT 1
+FROM (SELECT * FROM t1
+WHERE f1 IN (SELECT t1.f1 FROM (t1 AS t2 JOIN t1 AS t3 ON t3.f1 = t2.f2)
+LEFT JOIN t1 AS t4 ON TRUE
+WHERE (t3.f2 <> t3.f2 OR t4.f2 = t2.f2))) AS t5 JOIN t1 AS t6
+ON TRUE;
+EXPLAIN
+-> Nested loop inner join  (rows=10e-6)
+    -> Nested loop semijoin  (rows=10e-6)
+        -> Filter: (t1.f1 = t1.f1)  (rows=0.1)
+            -> Table scan on t1  (rows=1)
+        -> Filter: (t2.f2 = t4.f2)  (rows=100e-6)
+            -> Nested loop left join  (rows=0.001)
+                -> Filter: (t3.f1 = t2.f2)  (rows=0.001)
+                    -> Nested loop inner join  (rows=0.01)
+                        -> Table scan on t2  (rows=1)
+                        -> Filter: ((t2.f2 = t3.f1) and (t3.f1 = t2.f2))  (rows=0.01)
+                            -> Table scan on t3  (rows=1)
+                -> Table scan on t4  (rows=1)
+    -> Table scan on t6  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #3 was resolved in SELECT #2
+SELECT 1
+FROM (SELECT * FROM t1
+WHERE f1 IN (SELECT t1.f1 FROM (t1 AS t2 JOIN t1 AS t3 ON t3.f1 = t2.f2)
+LEFT JOIN t1 AS t4 ON TRUE
+WHERE (t3.f2 <> t3.f2 OR t4.f2 = t2.f2))) AS t5 JOIN t1 AS t6
+ON TRUE;
+1
+DROP TABLE t1;
+#
+# Bug#34821222: Hypergraph: mysqld crash-signal 11 - IsAnd &
+#               CommonSubexpressionElimination
+#
+CREATE TABLE t1 (x INTEGER NOT NULL);
+CREATE TABLE t2 (y INTEGER, z INTEGER);
+SELECT 1 IN (
+SELECT COUNT(*) FROM t1 WHERE x NOT IN (
+SELECT 1 FROM t2 WHERE y <> y OR z <> z));
+1 IN (
+SELECT COUNT(*) FROM t1 WHERE x NOT IN (
+SELECT 1 FROM t2 WHERE y <> y OR z <> z))
+0
+DROP TABLE t1, t2;
+#
+# Bug#34854369: Customer query hits assert(m_pq.is_valid()) failure
+#
+CREATE TABLE t (table_id BIGINT UNSIGNED);
+SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ 1
+FROM t AS t1 JOIN t AS t2 USING (table_id)
+JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t3 USING (table_id)
+JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t4 USING (table_id)
+JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t5 USING (table_id)
+JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t6 USING (table_id)
+JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t7 USING (table_id)
+JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t8 USING (table_id);
+1
+DROP TABLE t;
+CREATE TABLE t0 (x INT) ENGINE = MyISAM;
+CREATE TABLE t1 (x INT) ENGINE = InnoDB;
+SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ 1
+FROM t0 AS a NATURAL JOIN
+t0 AS b NATURAL JOIN
+t0 AS c NATURAL JOIN
+t0 AS d NATURAL JOIN
+t0 AS e NATURAL JOIN
+t0 AS f NATURAL JOIN
+t1 AS g NATURAL JOIN
+t1 AS h;
+1
+DROP TABLE t0, t1;
+#
+# Bug#34861693: Assertion
+# `std::abs(1.0 - EstimateAggregateRows(child, query_block, path->aggreg
+#
+CREATE TABLE num (n INT);
+INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 SELECT n,n FROM num UNION SELECT n+10,n+10 FROM num;
+CREATE TABLE t2 (a INT, b INT);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT x1.a+0 k, COUNT(x1.b) FROM t1 x1
+LEFT JOIN t2 x2 ON x1.b=x2.a
+LEFT JOIN t1 x3 ON x2.b=x3.a GROUP BY k;
+EXPLAIN
+-> Group aggregate: count(x1.b)  (rows=4.47)
+    -> Sort: k  (rows=20)
+        -> Left hash join (x1.b = x2.a)  (rows=20)
+            -> Table scan on x1  (rows=20)
+            -> Hash
+                -> Nested loop left join  (rows=2)
+                    -> Table scan on x2  (rows=1)
+                    -> Filter: (x2.b = x3.a)  (rows=2)
+                        -> Table scan on x3  (rows=20)
+
+DROP TABLE t1,t2,num;
+#
+# Bug#35000554: assertion error in EstimateAggregateNoRollupRows()
+#
+CREATE TABLE num10 (n INT);
+INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1(a INT, b INT, c INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a, b, c;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+test.t1	histogram	status	Histogram statistics created for column 'c'.
+INSERT INTO t1 SELECT NULL, x1.n+x2.n*10, NULL FROM num10 x1, num10 x2;
+INSERT INTO t1 VALUES (NULL, 0, 0);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE SELECT b FROM t1 GROUP BY b;
+EXPLAIN
+-> Group (no aggregates)  (rows=10) (actual rows=100 loops=1)
+    -> Sort: t1.b  (rows=101) (actual rows=101 loops=1)
+        -> Table scan on t1  (rows=101) (actual rows=101 loops=1)
+
+EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
+EXPLAIN
+-> Filter: (t1.b = t1.c)  (rows=101) (actual rows=1 loops=1)
+    -> Table scan on t1  (rows=101) (actual rows=101 loops=1)
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a, b, c;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+test.t1	histogram	status	Histogram statistics created for column 'b'.
+test.t1	histogram	status	Histogram statistics created for column 'c'.
+EXPLAIN FORMAT=TREE SELECT a,b FROM t1 GROUP BY a,b;
+EXPLAIN
+-> Group (no aggregates)  (rows=63.7)
+    -> Sort: t1.a, t1.b  (rows=101)
+        -> Table scan on t1  (rows=101)
+
+EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
+EXPLAIN
+-> Filter: (t1.b = t1.c)  (rows=1.01) (actual rows=1 loops=1)
+    -> Table scan on t1  (rows=101) (actual rows=101 loops=1)
+
+EXPLAIN ANALYZE SELECT c FROM t1 GROUP BY c;
+EXPLAIN
+-> Group (no aggregates)  (rows=2) (actual rows=2 loops=1)
+    -> Sort: t1.c  (rows=101) (actual rows=101 loops=1)
+        -> Table scan on t1  (rows=101) (actual rows=101 loops=1)
+
+DROP TABLE num10, t1;
+CREATE TABLE t2(a INT, b INT);
+INSERT INTO t2 VALUES (0, 0), (0, 1), (1, 2), (NULL, 3), (NULL, 4), (NULL, 5);
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON a, b;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'a'.
+test.t2	histogram	status	Histogram statistics created for column 'b'.
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+EXPLAIN ANALYZE SELECT 1 FROM t2 WHERE a=b;
+EXPLAIN
+-> Filter: (t2.a = t2.b)  (rows=1.5) (actual rows=1 loops=1)
+    -> Table scan on t2  (rows=6) (actual rows=6 loops=1)
+
+DROP TABLE t2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -91,6 +91,10 @@ class mysql_command_services_imp {
   static DEFINE_BOOL_METHOD(autocommit, (MYSQL_H mysql_h, bool mode));
   static DEFINE_BOOL_METHOD(rollback, (MYSQL_H mysql_h));
 
+  /* mysql_command_thread service apis */
+  static DEFINE_BOOL_METHOD(init, (void));
+  static DEFINE_METHOD(void, end, (void));
+
   /* mysql_command_options service apis */
   static DEFINE_BOOL_METHOD(set, (MYSQL_H mysql, int option, const void *arg));
   static DEFINE_BOOL_METHOD(get, (MYSQL_H mysql, int option, const void *arg));
@@ -127,6 +131,10 @@ class mysql_command_services_imp {
   static DEFINE_BOOL_METHOD(sql_error, (MYSQL_H mysql_h, char **errmsg));
   static DEFINE_BOOL_METHOD(sql_state,
                             (MYSQL_H mysql_h, char **sqlstate_errmsg));
+
+  /* mysql_command_field_metadata service APIs */
+  static DEFINE_BOOL_METHOD(field_metadata_get,
+                            (MYSQL_FIELD_H field_h, int metadata, void *data));
 };
 
 /** This is a wrapper class of all the mysql_text_consumer services refs */

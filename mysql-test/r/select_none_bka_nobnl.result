@@ -2118,9 +2118,9 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;
 EXPLAIN
--> Aggregate: min(t2.fld1), max(t2.fld1), count(0)  (cost=243.55 rows=1)
-    -> Filter: (rand() > 0.5)  (cost=123.65 rows=1199)
-        -> Index scan on t2 using fld1  (cost=123.65 rows=1199)
+-> Aggregate: min(t2.fld1), max(t2.fld1), count(0)  (cost=244 rows=1)
+    -> Filter: (rand() > 0.5)  (cost=124 rows=1199)
+        -> Index scan on t2 using fld1  (cost=124 rows=1199)
 
 select min(fld1),max(fld1),count(*) from t2;
 min(fld1)	max(fld1)	count(*)
@@ -5585,10 +5585,10 @@ EXPLAIN FORMAT=tree SELECT *
 FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias1.f1 = alias2.f2
 WHERE alias2.f1 NOT BETWEEN 4 AND 12;
 EXPLAIN
--> Nested loop inner join  (cost=9.27 rows=19)
+-> Nested loop inner join  (cost=9.27 rows=19.4)
     -> Table scan on alias1  (cost=1.65 rows=14)
-    -> Filter: (alias2.f1 not between 4 and 12)  (cost=0.40 rows=1)
-        -> Index lookup on alias2 using i1 (f2=alias1.f1)  (cost=0.40 rows=2)
+    -> Filter: (alias2.f1 not between 4 and 12)  (cost=0.399 rows=1.38)
+        -> Index lookup on alias2 using i1 (f2=alias1.f1)  (cost=0.399 rows=1.56)
 
 SELECT *
 FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias1.f1 = alias2.f2

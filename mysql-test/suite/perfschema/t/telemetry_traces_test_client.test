@@ -1,0 +1,51 @@
+################################################################################
+# Test case to test telemetry tracing service functionality using test component.
+#
+# This test script:
+#    - Installs the query_attributes and test_server_telemetry components.
+#       The test_server_telemetry component implements custom telemetry tracing callback
+#       with following tracing strategy:
+#              - only trace statements with trace:on query attribute
+#              - do not trace requests from user 'internal'
+#              - force tracing requests from user 'app'
+#    - Executes mysql_test_client statements and verifies that correct tracing action happened
+#    - Statements ending with errors should also reach the telemetry engine (logs) no
+#      matter if they will be traced or not
+#    - To synchronize output of different sessons, it's using sleep instead of wait
+#       because wait loop SQL would be traced in non-deterministic way
+################################################################################
+
+--source include/have_server_telemetry_traces.inc
+--source include/not_parallel.inc
+--source include/no_ps_protocol.inc
+--source include/not_windows.inc
+# ASAN failures in legacy code reported in yet unsolved Bug#34713142
+--source include/not_asan.inc
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+# Install required components.
+INSTALL COMPONENT 'file://component_query_attributes';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+
+--echo ##############
+--echo # Operations #
+--echo ##############
+
+--echo # send different COM_... commands, expect them being processed by telemetry
+--exec $MYSQL_CLIENT_TEST test_server_telemetry_traces > /dev/null 2>&1
+--sleep 0.5
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+UNINSTALL COMPONENT 'file://component_query_attributes';
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo Component logs:
+cat_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+remove_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <memory>  // make_unique
+#include "processor.h"
 
-#include "classic_connection.h"
-#include "classic_forwarder.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
-#include "processor.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -98,7 +96,7 @@ stdx::expected<void, std::error_code> Processor::discard_current_msg(
 
   auto &current_frame = *opt_current_frame;
 
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   if (recv_buf.size() < current_frame.frame_size_) {
     // received message is incomplete.
@@ -109,7 +107,7 @@ stdx::expected<void, std::error_code> Processor::discard_current_msg(
     return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
   }
 
-  net::dynamic_buffer(recv_buf).consume(current_frame.frame_size_);
+  src_channel->consume_plain(current_frame.frame_size_);
 
   // unset current frame and also current-msg
   src_protocol->current_frame().reset();
@@ -123,20 +121,8 @@ void Processor::log_fatal_error_code(const char *msg, std::error_code ec) {
             ec.value());
 }
 
-void Processor::trace(Tracer::Event e) { return connection()->trace(e); }
-
-stdx::expected<Processor::Result, std::error_code>
-Processor::forward_server_to_client(bool noflush) {
-  connection()->push_processor(
-      std::make_unique<ServerToClientForwarder>(connection(), noflush));
-
-  return Result::Again;
+void Processor::trace(Tracer::Event event) {
+  return connection()->trace(std::move(event));
 }
 
-stdx::expected<Processor::Result, std::error_code>
-Processor::forward_client_to_server() {
-  connection()->push_processor(
-      std::make_unique<ClientToServerForwarder>(connection()));
-
-  return Result::Again;
-}
+Tracer &Processor::tracer() { return connection()->tracer(); }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,10 @@
 #include "sql/join_optimizer/graph_simplification.h"
 
 #include <assert.h>
-#include <math.h>
 #include <stdint.h>
 
 #include <algorithm>
+#include <cmath>
 #include <new>
 #include <string>
 #include <type_traits>
@@ -226,8 +226,11 @@ double GetCardinality(NodeMap tables_to_join, const JoinHypergraph &graph,
   for (int node_idx : BitsSetIn(tables_to_join)) {
     components[num_components] = NodeMap{1} << node_idx;
     in_component[node_idx] = num_components;
+    // Assume we have to read at least one row from each table, so that we don't
+    // end up with zero costs in the rudimentary cost model used by the graph
+    // simplification.
     component_cardinality[num_components] =
-        graph.nodes[node_idx].table->file->stats.records;
+        max(ha_rows{1}, graph.nodes[node_idx].table->file->stats.records);
     ++num_components;
   }
 
@@ -575,6 +578,7 @@ GraphSimplifier::GraphSimplifier(JoinHypergraph *graph, MEM_ROOT *mem_root)
 
 void GraphSimplifier::UpdatePQ(size_t edge_idx) {
   NeighborCache &cache = m_cache[edge_idx];
+  assert(!std::isnan(cache.best_step.benefit));
   if (cache.index_in_pq == -1) {
     if (cache.best_neighbor != -1) {
       // Push into the queue for the first time.
@@ -746,6 +750,14 @@ bool GraphSimplifier::EdgesAreNeighboring(
     // Not neighboring.
     return false;
   }
+
+  // Assume the costs are finite and positive. Otherwise, the ratios calculated
+  // below might not make sense and return NaN.
+  assert(std::isfinite(cost_e1_before_e2));
+  assert(std::isfinite(cost_e2_before_e1));
+  assert(cost_e1_before_e2 > 0);
+  assert(cost_e2_before_e1 > 0);
+
   if (cost_e1_before_e2 > cost_e2_before_e1) {
     *step = {cost_e1_before_e2 / cost_e2_before_e1, static_cast<int>(edge2_idx),
              static_cast<int>(edge1_idx)};

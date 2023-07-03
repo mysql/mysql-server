@@ -2,7 +2,7 @@
 # Test verifies MTS behaviour with regard to Change-Master.
 # It's made the MTS scheduler type insensitive.
 # Related bugs:
-# Bug 12995174 - MTS: UNEXPECTED RECOVERY ATTEMPT ENDS WITH ER_MASTER_INFO OR ASSERTION
+# Bug 12995174 - MTS: UNEXPECTED RECOVERY ATTEMPT ENDS WITH ER_CONNECTION_METADATA OR ASSERTION
 
 --source include/not_group_replication_plugin.inc
 # The test for bug#12995174 is not format-specific but uses sleep
@@ -11,8 +11,8 @@
 --source include/master-slave.inc
 
 --connection slave
-call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key .*");
-call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key .*");
+call mtr.add_suppression("Replica SQL for channel '': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 call mtr.add_suppression("Error writing relay log configuration.");
 --source include/stop_slave.inc
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
@@ -98,7 +98,7 @@ COMMIT;
 let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
 let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
 --replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
---error ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
+--error ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS
 eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
 
 --disable_warnings
@@ -113,8 +113,8 @@ SET @@global.replica_parallel_workers= @save.replica_parallel_workers; # cleanup
 
 --connection slave
 SELECT @@global.relay_log_recovery as 'must be ON';
-call mtr.add_suppression("MTS recovery: automatic recovery failed.*");
-call mtr.add_suppression("Failed to initialize the master info structure");
+call mtr.add_suppression("MTA recovery: automatic recovery failed.*");
+call mtr.add_suppression("Failed to initialize the connection metadata structure");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
 #
 # the following suppression applies to either restart.
@@ -147,14 +147,14 @@ DROP DATABASE d2;
 # Problem:
 # ========
 # When error occurred in MTS mode, If user first change master
-# (ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS received here), and then reset slave,
-# user can never change master (error ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
+# (ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS received here), and then reset slave,
+# user can never change master (error ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS
 # occurred again). The debug version mysqld will crash at this case.
 #
 # Test:
 # =====
 # Generate MTS gaps and execute CHANGE MASTER command so that
-# ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS error is reported. Execute RESET
+# ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS error is reported. Execute RESET
 # SLAVE command. Reexecute the CHANGE MASTER command once again it should
 # report an assert in the case of bug scenario and it should succeed after the
 # fix.
@@ -215,7 +215,7 @@ FLUSH LOGS;
 --source include/rpl_connection_slave.inc
 --replace_result $MASTER_MYPORT MASTER_PORT  $file FILE $pos POS
 --replace_column 2 ####
---error ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
+--error ER_MTA_CHANGE_SOURCE_CANT_RUN_WITH_GAPS
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= $MASTER_MYPORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = '$file', SOURCE_LOG_POS = $pos ;
 reset slave;
 --replace_result $MASTER_MYPORT MASTER_PORT  $file FILE $pos POS

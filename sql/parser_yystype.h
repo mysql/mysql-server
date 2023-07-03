@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -151,6 +151,7 @@ struct CHARSET_INFO;
 struct LEX;
 struct Sql_cmd_srs_attributes;
 struct udf_func;
+struct PT_install_component_set_element;
 
 template <class T>
 class List;
@@ -325,6 +326,12 @@ struct Value_or_default {
 struct Bipartite_name {
   LEX_CSTRING prefix;  ///< prefix is optional: prefix.str can be nullptr
   LEX_CSTRING name;
+};
+
+struct PT_install_component_set_element {
+  enum_var_type type;
+  Bipartite_name name;
+  Item *expr;
 };
 
 enum class Set_operator { UNION, EXCEPT, INTERSECT };
@@ -708,6 +715,8 @@ union YYSTYPE {
   my_thread_id query_id;
   Bipartite_name bipartite_name;
   Set_operator query_operator;
+  PT_install_component_set_element *install_component_set_element;
+  List<PT_install_component_set_element> *install_component_set_list;
 };
 
 static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");

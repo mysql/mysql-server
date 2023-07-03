@@ -266,8 +266,8 @@ explain format=tree select (with dt as (select t1.a as a from t2 limit 1) select
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Filter: (dt1.a = (select #4))  (cost=0.62..0.70 rows=2)
-        -> Covering index lookup on dt1 using <auto_key0> (a=(select #4))  (cost=0.90..1.25 rows=2)
+    -> Filter: (dt1.a = (select #4))  (cost=0.625..0.7 rows=2)
+        -> Covering index lookup on dt1 using <auto_key0> (a=(select #4))  (cost=0.9..1.25 rows=2)
             -> Materialize CTE dt if needed  (cost=0.55..0.55 rows=1)
                 -> Limit: 1 row(s)  (cost=0.45 rows=1)
                     -> Table scan on t2  (cost=0.45 rows=2)
@@ -1773,8 +1773,8 @@ explain format=tree select (with dt as (select t1.a as a from t2 limit 1) select
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Filter: (dt1.a = (select #4))  (cost=0.62..0.70 rows=2)
-        -> Covering index lookup on dt1 using <auto_key0> (a=(select #4))  (cost=0.90..1.25 rows=2)
+    -> Filter: (dt1.a = (select #4))  (cost=0.625..0.7 rows=2)
+        -> Covering index lookup on dt1 using <auto_key0> (a=(select #4))  (cost=0.9..1.25 rows=2)
             -> Materialize CTE dt if needed  (cost=0.55..0.55 rows=1)
                 -> Limit: 1 row(s)  (cost=0.45 rows=1)
                     -> Table scan on t2  (cost=0.45 rows=2)
@@ -3324,11 +3324,11 @@ CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
 CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT ( SELECT f2 FROM v1 WHERE v1.f1 = t2.f1 ) AS f3 FROM t2;
 EXPLAIN FORMAT=TREE SELECT * FROM v2 WHERE f3 = 3;
 EXPLAIN
--> Covering index lookup on v2 using <auto_key0> (f3=3)  (cost=0.80..0.80 rows=1)
+-> Covering index lookup on v2 using <auto_key0> (f3=3)  (cost=0.8..0.8 rows=1)
     -> Materialize  (cost=0.45..0.45 rows=1)
         -> Table scan on t2  (cost=0.35 rows=1)
         -> Select #3 (subquery in projection; dependent)
-            -> Index lookup on v1 using <auto_key0> (f1=t2.f1)  (cost=0.80..1.15 rows=2)
+            -> Index lookup on v1 using <auto_key0> (f1=t2.f1)  (cost=0.8..1.15 rows=2)
                 -> Materialize  (cost=0.45..0.45 rows=1)
                     -> Table scan on t1  (cost=0.35 rows=1)
 

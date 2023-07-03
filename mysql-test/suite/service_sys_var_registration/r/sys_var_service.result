@@ -59,6 +59,18 @@ SET GLOBAL test_component.str_sys_var=default;
 SELECT @@test_component.str_sys_var;
 @@test_component.str_sys_var
 NULL
+# Testing string type variable with default value
+SELECT @@test_component.str_sys_var_default;
+@@test_component.str_sys_var_default
+default
+SET GLOBAL test_component.str_sys_var_default="dictionary.txt";
+SELECT @@test_component.str_sys_var_default;
+@@test_component.str_sys_var_default
+dictionary.txt
+SET GLOBAL test_component.str_sys_var_default=something;
+SELECT @@test_component.str_sys_var_default;
+@@test_component.str_sys_var_default
+something
 # Testing unsigned integer type variable
 SELECT @@test_component.uint_sys_var;
 @@test_component.uint_sys_var

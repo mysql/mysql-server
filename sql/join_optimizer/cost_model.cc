@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -486,6 +486,7 @@ string AggregateRowEstimator::Prefix::Print() const {
 }
 
 /**
+ Estimate row count for an aggregate operation (except for any rollup rows).
  We use the following data to make a row estimate, in that priority:
 
  1. (Non-hash) indexes where the aggregation terms form some prefix of the
@@ -527,8 +528,8 @@ string AggregateRowEstimator::Prefix::Print() const {
 @param trace Append optimizer trace text to this if non-null.
 @returns The row estimate for the aggregate operation.
 */
-double EstimateAggregateRows(const TermArray &terms, double child_rows,
-                             string *trace) {
+double EstimateAggregateNoRollupRows(const TermArray &terms, double child_rows,
+                                     string *trace) {
   // Estimated number of output rows.
   double output_rows = 1.0;
   // No of individual estimates (for disjoint subsets of the aggregation terms).
@@ -564,9 +565,8 @@ double EstimateAggregateRows(const TermArray &terms, double child_rows,
           field->table->s->find_histogram(field->field_index());
 
       double distinct_values;
-      if (histogram == nullptr) {
-        // We do not have a histogram for 'field', so we make an estimate
-        // from the table row count instead.
+      if (histogram == nullptr || empty(*histogram)) {
+        // Make an estimate from the table row count.
         distinct_values = std::sqrt(field->table->file->stats.records);
 
         if (trace != nullptr) {
@@ -577,10 +577,15 @@ double EstimateAggregateRows(const TermArray &terms, double child_rows,
         }
 
       } else {
-        // If term is a field with a histogram, use that to get a row
+        // If 'term' is a field with a histogram, use that to get a row
         // estimate.
-        assert(histogram->get_num_distinct_values() >= 1);
         distinct_values = histogram->get_num_distinct_values();
+
+        if (histogram->get_null_values_fraction() > 0.0) {
+          // If there are NULL values, those will form a separate row in the
+          // aggregate.
+          ++distinct_values;
+        }
 
         if (trace != nullptr) {
           *trace += StringPrintf(
@@ -628,22 +633,133 @@ double EstimateAggregateRows(const TermArray &terms, double child_rows,
   }
 }
 
-}  // Anonymous namespace.
+/**
+   For a function f(x) such that:
+   f(x) = g(x) for x<=l
+   f(x) = h(x) for x>l
 
-void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
-                           string *trace) {
-  const AccessPath *child = path->aggregate().child;
+   tweak f(x) so that it is continuous at l even if g(l) != h(l).
+   We obtain this by doing a gradual transition between g(x) and h(x)
+   in an interval [l, l+k] for some constant k.
+   @param function_low g(x)
+   @param function_high h(x)
+   @param lower_limit l
+   @param upper_limit l+k
+   @param argument x (for f(x))
+   @returns Tweaked f(x).
+*/
+template <typename FunctionLow, typename FunctionHigh>
+double SmoothTransition(FunctionLow function_low, FunctionHigh function_high,
+                        double lower_limit, double upper_limit,
+                        double argument) {
+  assert(upper_limit > lower_limit);
+  if (argument <= lower_limit) {
+    return function_low(argument);
+
+  } else if (argument >= upper_limit) {
+    return function_high(argument);
+
+  } else {
+    // Might use std::lerp() in C++ 20.
+    const double high_fraction =
+        (argument - lower_limit) / (upper_limit - lower_limit);
+
+    return function_low(argument) * (1.0 - high_fraction) +
+           function_high(argument) * high_fraction;
+  }
+}
+
+/**
+  Do a cheap rollup row estimate for small result sets.
+  If we group on n terms and expect k rows in total (before rollup),
+  we make the simplifying assumption that each term has k^(1/n)
+  distinct values, and that all terms are uncorrelated from each other.
+  Then the number of rollup rows can be expressed as the sum of a finite
+  geometric series:
+
+  1 + m+ m^2+m^3...m^(n-1)
+
+  where m =  k^(1/n).
+
+  @param aggregate_rows Number of rows after aggregation.
+  @param grouping_expressions Number of terms that we aggregated on.
+  @return Estimated number of rollup rows.
+*/
+double EstimateRollupRowsPrimitively(double aggregate_rows,
+                                     size_t grouping_expressions) {
+  return SmoothTransition(
+      [=](double input_rows) {
+        // Prevent divide by zero in the next formula for input_rows close
+        // to 1.0.
+        return input_rows * grouping_expressions;
+      },
+      [=](double input_rows) {
+        const double multiplier =
+            std::pow(input_rows, 1.0 / grouping_expressions);
+        // Sum of infinite geometric series "1 + m+ m^2+m^3...m^(n-1)"
+        // where m is 'multiplier' and n is the size of 'terms'.
+        return (1.0 - input_rows) / (1.0 - multiplier);
+      },
+      1.01, 1.02, aggregate_rows);
+}
+
+/**
+  Do more precise rollup row estimate for larger result sets.
+  If we have ROLLUP, there will be additional rollup rows. If we group on N
+  terms T1..TN, we assume that the number of rollup rows will be:
+
+  1 + CARD(T1) + CARD(T1,T2) +...CARD(T1...T(N-1))
+
+  were CARD(T1...TX) is a row estimate for aggregating on T1..TX.
+
+  @param aggregate_rows Number of rows after aggregation.
+  @param terms The group-by terms.
+  @param trace Optimizer trace.
+  @return Estimated number of rollup rows.
+*/
+double EstimateRollupRowsAdvanced(double aggregate_rows, TermArray &&terms,
+                                  string *trace) {
+  // Make a more accurate rollup row calculation for larger sets.
+  double rollup_rows = 1.0;
+  while (terms.size() > 1) {
+    terms.resize(terms.size() - 1);
+
+    if (trace != nullptr) {
+      *trace += StringPrintf(
+          "\nEstimating row count for ROLLUP on %zu terms.\n", terms.size());
+    }
+    rollup_rows += EstimateAggregateNoRollupRows(terms, aggregate_rows, trace);
+  }
+  return rollup_rows;
+}
+
+/**
+   Estimate the row count for an aggregate operation (including ROLLUP rows
+   for GROUP BY ... WITH ROLLUP).
+   @param child The input to the aggregate path.
+   @param query_block The query block to which the aggregation belongs.
+   @param rollup True if we should add rollup rows to the estimate.
+   @param trace Optimizer trace.
+   @returns The row estimate.
+*/
+double EstimateAggregateRows(const AccessPath *child,
+                             const Query_block *query_block, bool rollup,
+                             string *trace) {
   const double child_rows = child->num_output_rows();
-  // 'path' may represent 'GROUP BY' or 'DISTINCT'. In the latter case, we fetch
-  // the aggregation terms from query_block->join->group_fields.
+  // 'path' may represent 'GROUP BY' or (if not using Hypergraph) 'DISTINCT'. In
+  // the latter case, we fetch the aggregation terms from
+  // query_block->join->group_fields.
   const bool distinct = query_block->group_list.first == nullptr;
-  bool calculate_rollup =
-      !distinct &&
-      is_rollup_group_wrapper(*query_block->group_list.first->item);
-
   const size_t term_count = distinct ? query_block->join->group_fields.size()
                                      : query_block->group_list.size();
 
+  if (trace != nullptr && !query_block->is_implicitly_grouped()) {
+    *trace += StringPrintf(
+        "\nEstimating row count for aggregation on %zu terms.\n", term_count);
+  }
+
+  // The aggregation terms.
+  TermArray terms(current_thd->mem_root);
   double output_rows;
 
   if (query_block->is_implicitly_grouped()) {
@@ -653,15 +769,7 @@ void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
   } else if (child_rows < 1.0) {
     output_rows = child_rows;
 
-  } else if (child_rows < 10.0) {
-    // Do a simple and cheap calculation for small row sets.
-    output_rows = std::sqrt(child_rows);
-
   } else {
-    // The aggregation terms.
-    Mem_root_array<const Item *> terms(current_thd->mem_root);
-
-    // Check if this is "SELECT DISTINCT...".
     if (distinct) {
       for (Cached_item &cached : query_block->join->group_fields) {
         terms.push_back(cached.get_item());
@@ -669,80 +777,57 @@ void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
     } else {
       for (ORDER *group = query_block->group_list.first; group;
            group = group->next) {
-        const Item *term =
-            calculate_rollup ?
-                             // Extract the real GROUP-BY term.
-                down_cast<const Item_rollup_group_item *>(*group->item)
-                    ->inner_item()
-                             : *group->item;
-
-        terms.push_back(term);
+        terms.push_back(unwrap_rollup_group(*group->item));
       }
     }
 
-    if (trace != nullptr) {
-      *trace += StringPrintf(
-          "\nEstimating row count for aggregation on %zu terms.\n", term_count);
-    }
+    // Do a simple but fast calculation of the row estimate if child_rows is
+    // less than this.
+    constexpr double simple_limit = 10.0;
 
-    output_rows = EstimateAggregateRows(terms, child_rows, trace);
-
-    /*
-      If we have ROLLUP, there will be additional rollup rows. If we group on N
-      terms T1..TN, we assume that the number of rollup rows will be:
-
-      1 + CARD(T1) + CARD(T1,T2) +...CARD(T1...T(N-1))
-
-      were CARD(T1...TX) is a row estimate for aggregating on T1..TX.
-    */
-    if (calculate_rollup && output_rows > 50.0) {
-      // Make a more accurate rollup row calculation for larger sets.
-      while (terms.size() > 1) {
-        terms.resize(terms.size() - 1);
-
-        if (trace != nullptr) {
-          *trace +=
-              StringPrintf("\nEstimating row count for ROLLUP on %zu terms.\n",
-                           terms.size());
-        }
-        output_rows += EstimateAggregateRows(terms, child_rows, trace);
-      }
-      output_rows++;
-      calculate_rollup = false;
-    }
+    output_rows = SmoothTransition(
+        [&](double input_rows) { return std::sqrt(input_rows); },
+        [&](double input_rows) {
+          return EstimateAggregateNoRollupRows(terms, input_rows, trace);
+        },
+        simple_limit, simple_limit * 1.1, child_rows);
   }
 
-  /*
-    Do a cheap rollup calculation for small result sets.
-    If we group on n terms and expect k rows in total (before rollup),
-    we make the simplifying assumption that each term has k^(1/n)
-    distinct values, and that all terms are uncorrelated from each other.
-    Then the number of rollup rows can be expressed as the sum of a finite
-    geometric series:
+  if (rollup) {
+    // Do a simple and cheap calculation for small result sets.
+    constexpr double simple_rollup_limit = 50.0;
 
-    1 + m+ m^2+m^3...m^(n-1)
-
-    where m =  k^(1/n).
-  */
-  if (calculate_rollup) {
-    if (output_rows < 1.1) {
-      // A simple calculation for small result sets that also prevents divide by
-      // zero in the next formula.
-      output_rows += output_rows * term_count;
-
-    } else {
-      const double multiplier = std::pow(output_rows, 1.0 / term_count);
-      // Sum of infinite geometric series "1 + m+ m^2+m^3...m^(n-1)"
-      // where m is 'multiplier' and n is the size of 'terms'.
-      const double rollup_rows = (1 - output_rows) / (1 - multiplier);
-      output_rows += rollup_rows;
-    }
+    output_rows += SmoothTransition(
+        [&](double aggregate_rows) {
+          return EstimateRollupRowsPrimitively(aggregate_rows, terms.size());
+        },
+        [&](double aggregate_rows) {
+          assert(terms.size() == term_count);
+          return EstimateRollupRowsAdvanced(aggregate_rows, std::move(terms),
+                                            trace);
+        },
+        simple_rollup_limit, simple_rollup_limit * 1.1, output_rows);
   }
 
-  path->set_num_output_rows(output_rows);
+  return output_rows;
+}
+
+}  // Anonymous namespace.
+
+void EstimateAggregateCost(AccessPath *path, const Query_block *query_block,
+                           string *trace) {
+  const AccessPath *child = path->aggregate().child;
+  if (path->num_output_rows() == kUnknownRowCount) {
+    path->set_num_output_rows(EstimateAggregateRows(
+        child, query_block, path->aggregate().rollup, trace));
+  }
+
   path->init_cost = child->init_cost;
   path->init_once_cost = child->init_once_cost;
-  path->cost = child->cost + kAggregateOneRowCost * child_rows;
+
+  path->cost = child->cost +
+               kAggregateOneRowCost * std::max(0.0, child->num_output_rows());
+
   path->num_output_rows_before_filter = path->num_output_rows();
   path->cost_before_filter = path->cost;
   path->ordering_state = child->ordering_state;

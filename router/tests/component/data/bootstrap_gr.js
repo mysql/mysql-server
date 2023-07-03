@@ -1,8 +1,10 @@
 var common_stmts = require("common_statements");
 
 if (mysqld.global.innodb_cluster_instances === undefined) {
-  mysqld.global.innodb_cluster_instances =
-      [["localhost", 5500], ["localhost", 5510], ["localhost", 5520]];
+  mysqld.global.innodb_cluster_instances = [
+    ["5500", "localhost", 5500], ["5510", "localhost", 5510],
+    ["5520", "localhost", 5520]
+  ];
 }
 
 if (mysqld.global.cluster_name == undefined) {
@@ -20,7 +22,7 @@ if (mysqld.global.gr_id === undefined) {
 var options = {
   metadata_schema_version: mysqld.global.metadata_version,
   cluster_type: "gr",
-  group_replication_name: mysqld.global.gr_id,
+  gr_id: mysqld.global.gr_id,
   clusterset_present: 0,
   innodb_cluster_name: mysqld.global.cluster_name,
   innodb_cluster_instances: mysqld.global.innodb_cluster_instances,
@@ -37,12 +39,12 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_members_count",
       "router_select_replication_group_name",
       "router_show_cipher_status",
-      "router_select_cluster_instances_v2",
+      "router_select_cluster_instances_v2_gr",
       "router_start_transaction",
       "router_commit",
 
       // account verification
-      "router_select_metadata_v2_gr",
+      "router_select_metadata_v2_gr_account_verification",
       "router_select_group_replication_primary_member",
       "router_select_group_membership_with_primary_mode",
     ],

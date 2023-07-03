@@ -1,0 +1,149 @@
+###############################################################################
+# === Purpose ===
+#
+# The pupose of this test is to accept a value for --start position in mysqlbinlog greater than
+# 4GiB when reading a file and generate error for the same when reading from remote
+# server.
+#
+# === Requirements ===
+#
+# 1. mysqlbinlog should accept a value for --start-position greater than 4 GiB
+# when reading a local file.
+# 2. mysqlbinlog should generate an error when --start-position is greater
+# than 4 GiB and it is reading from a remote server
+#
+# === Implementation ===
+#
+#  1) Prepare a sample table and insert values.
+#  2) Prepare a similar table like before created.
+#  3) Flushing logs to start a new fresh log.
+#  4) Get the name of binary log.
+#  5) Run a query to get events greater than 4GB.
+#  6) Get the start position of the 14th event.
+#  7) Verify that the position is actually bigger than 4 GiB.
+#  8) Run mysqlbinlog.
+#  9) Checking the error message that will be generated when it is connected to remote.
+#  10) Cleanup.
+#
+# === Reference ===
+#
+# Bug#21498994: mysqlbinlog is unable to read events when --start-position
+# value is greater than 4GB
+#
+###############################################################################
+
+# Bug #34847851	
+--source include/not_windows.inc 
+--source include/big_test.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # 1) Prepare a sample table and insert values.
+--echo #
+CREATE TABLE t1(f1 LONGTEXT);
+INSERT INTO t1 VALUES (REPEAT('a', 1073741824/2));
+
+--echo #
+--echo # 2) Prepare a similar table like before created.
+--echo #
+CREATE TABLE t2 LIKE t1;
+
+--echo #
+--echo # 3) Flushing logs to start a new fresh log.
+--echo #
+FLUSH LOGS;
+
+--echo #
+--echo # 4) Get the filename of the binary log.
+--echo #
+--source include/save_binlog_position.inc
+
+--echo #
+--echo # 5) Run a query to get events in mysqlbinlog greater than 4GB.
+--echo #
+INSERT INTO t2 SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT
+f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL
+SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1 UNION ALL SELECT f1 FROM t1;
+
+--echo #
+--echo # 6) Get the start position of the 14'th event.
+--echo #
+--let $event_position = query_get_value(SHOW BINLOG EVENTS IN '$binlog_file', Pos, 14)
+
+--echo #
+--echo # 7)Verify that the position is actually bigger than 4 GiB.
+--echo #
+--let $assert_text = The position of the 14th event should be bigger than 4 GiB
+--let $assert_cond = $event_position > 1 << 32
+--source include/assert.inc
+
+# Use UUID to ensure the name is unique even when running parallel tests.
+--let $uuid = `SELECT UUID()`
+--let $output_file = $MYSQLTEST_VARDIR/tmp/$uuid
+
+--echo #
+--echo # 8)Run mysqlbinlog, find only the lines beginning with '# at',
+--echo # select the last of those lines,select only the number from that line,
+--echo # and write that to the file.
+--echo #
+
+# The following perl script extracts "N" from the last line on the form
+# "# at N", where N is a number, and stores it in the output file.
+# It is equivalent to the following pipe, but more portable since "tail"
+# doesn't exist on all our platforms:
+#   $MYSQLBINLOG_PIPE
+#     | grep '^# at'
+#     | tail -n 1
+#     | sed 's/[^0-9]//g'
+#     > $output_file
+--let MYSQLBINLOG_PIPE = $MYSQL_BINLOG --force-if-open $binlog_fullpath |
+--let OUTPUT_FILE_ENV = $output_file
+perl END_OF_PERL;
+  my $output_file = $ENV{'OUTPUT_FILE_ENV'};
+  my $mysqlbinlog_pipe = $ENV{'MYSQLBINLOG_PIPE'};
+  open(MYSQLBINLOG_OUTPUT, $mysqlbinlog_pipe)
+    or die "Error $? opening '$mysqlbinlog_pipe': $!";
+  my $last_match = '';
+  for my $line (<MYSQLBINLOG_OUTPUT>) {
+    if ($line =~ /^# at (\d+)/) {
+      $last_match = $1;
+    }
+  }
+  close(MYSQLBINLOG_OUTPUT)
+    or die "Error $? closing '$mysqlbinlog_pipe': $!";
+  if ($last_match) {
+    open(RESULT, "> $output_file")
+      or die "Error $? opening '$output_file': $!";
+    print RESULT ($last_match)
+      or die "Error $? printing to '$output_file': $!";
+    close(RESULT)
+      or die "Error $? closing '$output_file': $!";
+  } else {
+    die("Not found");
+  }
+END_OF_PERL
+
+# Read the file into the variable $result.
+--let $read_from_file = $output_file
+--source include/read_file_to_var.inc
+# Check that it is greater than 4 GiB.
+--let $assert_text = The position should be greater than 4 GiB
+--let $assert_cond = $result > 1 << 32
+--source include/assert.inc
+
+
+--echo #
+--echo # 9)Checking the error message that will be generated when it is connected to remote.
+--echo #
+# Read over a connection
+--let $mysqlbinlog_parameters = --read-from-remote-source=BINLOG-DUMP-NON-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file
+# Do not fail the test when mysqlbinlog fails
+--error 1
+--exec $MYSQL_BINLOG --start-position=$event_position $mysqlbinlog_parameters 2>&1
+
+--echo #
+--echo # 10) Cleanup.
+--echo #
+DROP TABLE t2;
+DROP TABLE t1;
+--remove_file $output_file

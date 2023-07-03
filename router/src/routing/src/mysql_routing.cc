@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -110,38 +110,29 @@ static stdx::expected<size_t, std::error_code> encode_initial_error_packet(
   }
 }
 
-MySQLRouting::MySQLRouting(
-    net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
-    uint16_t port, const Protocol::Type protocol,
-    const routing::AccessMode access_mode, const std::string &bind_address,
-    const mysql_harness::Path &named_socket, const std::string &route_name,
-    int max_connections, std::chrono::milliseconds destination_connect_timeout,
-    unsigned long long max_connect_errors,
-    std::chrono::milliseconds client_connect_timeout,
-    unsigned int net_buffer_length, SslMode client_ssl_mode,
-    TlsServerContext *client_ssl_ctx, SslMode server_ssl_mode,
-    DestinationTlsContext *dest_ssl_ctx, bool connection_sharing,
-    std::chrono::milliseconds connection_sharing_delay)
-    : context_(protocol, route_name, net_buffer_length,
-               destination_connect_timeout, client_connect_timeout,
-               mysql_harness::TCPAddress(bind_address, port), named_socket,
-               max_connect_errors, client_ssl_mode, client_ssl_ctx,
-               server_ssl_mode, dest_ssl_ctx, connection_sharing,
-               connection_sharing_delay),
+MySQLRouting::MySQLRouting(const RoutingConfig &routing_config,
+                           net::io_context &io_ctx,
+                           const std::string &route_name,
+                           TlsServerContext *client_ssl_ctx,
+                           DestinationTlsContext *dest_ssl_ctx)
+    : context_(routing_config, route_name,
+
+               client_ssl_ctx, dest_ssl_ctx),
       io_ctx_{io_ctx},
-      routing_strategy_(routing_strategy),
-      access_mode_(access_mode),
-      max_connections_(set_max_connections(max_connections)),
+      routing_strategy_(routing_config.routing_strategy),
+      access_mode_(routing_config.mode),
+      max_connections_(set_max_connections(routing_config.max_connections)),
       service_tcp_(io_ctx_)
 #if !defined(_WIN32)
       ,
       service_named_socket_(io_ctx_)
 #endif
 {
-  validate_destination_connect_timeout(destination_connect_timeout);
+  validate_destination_connect_timeout(
+      std::chrono::milliseconds{routing_config.connect_timeout * 1000});
 
 #ifdef _WIN32
-  if (named_socket.is_set()) {
+  if (routing_config.named_socket.is_set()) {
     throw std::invalid_argument(
         "'socket' configuration item is not supported on Windows platform");
   }
@@ -150,10 +141,13 @@ MySQLRouting::MySQLRouting(
   // This test is only a basic assertion.  Calling code is expected to check the
   // validity of these arguments more thoroughly. At the time of writing,
   // routing_plugin.cc : init() is one such place.
-  if (!context_.get_bind_address().port() && !named_socket.is_set()) {
+  if (!context_.get_bind_address().port() &&
+      !routing_config.named_socket.is_set()) {
     throw std::invalid_argument(
         string_format("No valid address:port (%s:%d) or socket (%s) to bind to",
-                      bind_address.c_str(), port, named_socket.c_str()));
+                      routing_config.bind_address.address().c_str(),
+                      routing_config.bind_address.port(),
+                      routing_config.named_socket.c_str()));
   }
 }
 
@@ -1116,6 +1110,11 @@ std::vector<mysql_harness::TCPAddress> MySQLRouting::get_destinations() const {
 
 std::vector<MySQLRoutingAPI::ConnData> MySQLRouting::get_connections() {
   return connection_container_.get_all_connections_info();
+}
+
+MySQLRoutingConnectionBase *MySQLRouting::get_connection(
+    const std::string &client_endpoint) {
+  return connection_container_.get_connection(client_endpoint);
 }
 
 bool MySQLRouting::is_accepting_connections() const {

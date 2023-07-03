@@ -1,4 +1,4 @@
-# Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,11 @@ DISABLE_MISSING_PROFILE_WARNING()
 
 ADD_DEFINITIONS(-DSTANDALONE_BINLOG)
 
-ADD_LIBRARY(changestreams_standalone_static STATIC ${CS_LIB_SOURCES})
+ADD_STATIC_LIBRARY(changestreams_standalone_static
+  ${CS_LIB_SOURCES}
+  LINK_LIBRARIES ext::zlib
+  )
+
 IF(WITH_CS_PROTOBUF)
   SET_TARGET_PROPERTIES(changestreams_standalone_static
     PROPERTIES COMPILE_FLAGS "${CS_LIB_PB_COMPILE_FLAGS}")

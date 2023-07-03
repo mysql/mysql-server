@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -158,10 +158,15 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer,
   assert(0 != strcmp(charset_name, "utf8"));
   try {
     String *str = reinterpret_cast<String *>(in_string);
+    if (str == nullptr || length == 0) return true;
+    if (str->length() == 0) {
+      out_buffer[0] = '\0';
+      return false;
+    }
     uint error;
     CHARSET_INFO *cs =
         get_charset_by_csname(charset_name, MY_CS_PRIMARY, MYF(0));
-    if (str == nullptr || cs == nullptr || length == 0) return true;
+    if (cs == nullptr) return true;
     size_t len = my_convert(out_buffer, length - 1, cs, str->ptr(),
                             str->length(), str->charset(), &error);
     out_buffer[len] = '\0';
@@ -406,6 +411,24 @@ DEFINE_BOOL_METHOD(mysql_string_imp::append, (my_h_string s1, my_h_string s2)) {
     str1->append(*str2);
     return false;
   } catch (...) {
+    mysql_components_handle_std_exception(__func__);
+  }
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_string_imp::substr,
+                   (my_h_string in_string, uint offset, uint count,
+                    my_h_string *out_string)) {
+  String *out_str_obj = nullptr;
+  try {
+    String *in_str_obj = from_api(in_string);
+    assert(in_str_obj != nullptr);
+    out_str_obj = new String[1];
+    *out_str_obj = in_str_obj->substr(offset, count);
+    *out_string = (my_h_string)out_str_obj;
+    return false;
+  } catch (...) {
+    if (out_str_obj != nullptr) delete[] out_str_obj;
     mysql_components_handle_std_exception(__func__);
   }
   return true;

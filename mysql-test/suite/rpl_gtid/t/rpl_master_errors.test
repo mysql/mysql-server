@@ -89,7 +89,7 @@ FLUSH BINARY LOGS;
 --echo # Error: Client requests from a position less than 4
 --echo #
 --source include/rpl_connection_slave.inc
---let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
 
 --let $debug_point= request_source_log_pos_3
@@ -97,7 +97,7 @@ FLUSH BINARY LOGS;
 
 START SLAVE IO_THREAD;
 --let $slave_io_errno= 13114
-call mtr.add_suppression(".* Got fatal error 1236 from master when reading data from binary log");
+call mtr.add_suppression(".* Got fatal error 1236 from source when reading data from binary log");
 --source include/wait_for_slave_io_error.inc
 
 --let $debug_point= request_source_log_pos_3

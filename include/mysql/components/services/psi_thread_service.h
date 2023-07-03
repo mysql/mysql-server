@@ -1,5 +1,5 @@
 
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -205,7 +205,8 @@ END_SERVICE_DEFINITION(psi_thread_v5)
 /*
   Version 6.
   Introduced in MySQL 8.0.28
-  Status: active
+  Deprecated in MySQL 8.0.33
+  Status: deprecated, use version 7 instead.
   Changes compared to version 5:
   - added set_thread_secondary_engine
 */
@@ -278,5 +279,85 @@ notify_session_disconnect_v1_t notify_session_disconnect;
 /** @sa notify_session_change_user_v1_t. */
 notify_session_change_user_v1_t notify_session_change_user;
 END_SERVICE_DEFINITION(psi_thread_v6)
+
+/*
+  Version 7.
+  Introduced in MySQL 8.0.33
+  Status: active
+  Changes compared to version 6:
+  - added detect_telemetry, abort_telemetry
+*/
+
+BEGIN_SERVICE_DEFINITION(psi_thread_v7)
+/** @sa register_thread_v5_t. */
+register_thread_v5_t register_thread;
+/** @sa spawn_thread_v5_t. */
+spawn_thread_v5_t spawn_thread;
+/** @sa new_thread_v5_t. */
+new_thread_v5_t new_thread;
+/** @sa set_thread_id_v1_t. */
+set_thread_id_v1_t set_thread_id;
+/** @sa get_current_thread_internal_id_v2_t. */
+get_current_thread_internal_id_v2_t get_current_thread_internal_id;
+/** @sa get_thread_internal_id_v2_t. */
+get_thread_internal_id_v2_t get_thread_internal_id;
+/** @sa get_thread_by_id_v2_t. */
+get_thread_by_id_v2_t get_thread_by_id;
+/** @sa set_thread_THD_v1_t. */
+set_thread_THD_v1_t set_thread_THD;
+/** @sa set_thread_os_id_v1_t. */
+set_thread_os_id_v1_t set_thread_os_id;
+/** @sa get_thread_v1_t. */
+get_thread_v1_t get_thread;
+/** @sa set_thread_user_v1_t. */
+set_thread_user_v1_t set_thread_user;
+/** @sa set_thread_account_v1_t. */
+set_thread_account_v1_t set_thread_account;
+/** @sa set_thread_db_v1_t. */
+set_thread_db_v1_t set_thread_db;
+/** @sa set_thread_command_v1_t. */
+set_thread_command_v1_t set_thread_command;
+/** @sa set_connection_type_v1_t. */
+set_connection_type_v1_t set_connection_type;
+/** @sa set_thread_start_time_v1_t. */
+set_thread_start_time_v1_t set_thread_start_time;
+/** @sa set_thread_info_v1_t. */
+set_thread_info_v1_t set_thread_info;
+/** @sa set_thread_secondary_engine_v6_t. */
+set_thread_secondary_engine_v6_t set_thread_secondary_engine;
+/** @sa set_thread_v1_t. */
+set_thread_v1_t set_thread;
+/** @sa set_thread_peer_port_v4_t. */
+set_thread_peer_port_v4_t set_thread_peer_port;
+/** @sa aggregate_thread_status_v1_t. */
+aggregate_thread_status_v2_t aggregate_thread_status;
+/** @sa delete_current_thread_v1_t. */
+delete_current_thread_v1_t delete_current_thread;
+/** @sa delete_thread_v1_t. */
+delete_thread_v1_t delete_thread;
+/** @sa set_thread_connect_attrs_v1_t. */
+set_thread_connect_attrs_v1_t set_thread_connect_attrs;
+/** @sa get_current_thread_event_id_v2_t. */
+get_current_thread_event_id_v2_t get_current_thread_event_id;
+/** @sa get_thread_event_id_v2_t. */
+get_thread_event_id_v2_t get_thread_event_id;
+/** @sa get_thread_system_attrs_v3_t. */
+get_thread_system_attrs_v3_t get_thread_system_attrs;
+/** @sa get_thread_system_attrs_by_id_v3_t. */
+get_thread_system_attrs_by_id_v3_t get_thread_system_attrs_by_id;
+/** @sa register_notification_v3_t. */
+register_notification_v3_t register_notification;
+/** @sa unregister_notification_v1_t. */
+unregister_notification_v1_t unregister_notification;
+/** @sa notify_session_connect_v1_t. */
+notify_session_connect_v1_t notify_session_connect;
+/** @sa notify_session_disconnect_v1_t. */
+notify_session_disconnect_v1_t notify_session_disconnect;
+/** @sa notify_session_change_user_v1_t. */
+notify_session_change_user_v1_t notify_session_change_user;
+
+thread_detect_telemetry_v7_t detect_telemetry;
+thread_abort_telemetry_v7_t abort_telemetry;
+END_SERVICE_DEFINITION(psi_thread_v7)
 
 #endif /* COMPONENTS_SERVICES_PSI_THREAD_SERVICE_H */

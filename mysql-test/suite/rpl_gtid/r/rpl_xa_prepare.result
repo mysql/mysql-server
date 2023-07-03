@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CREATE TABLE t1 (c1 INT);
 CREATE TABLE t2 (c1 INT);
@@ -10,9 +10,7 @@ FLUSH RELAY LOGS;
 CALL mtr.add_suppression("@@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON");
 CALL mtr.add_suppression("When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK");
 CALL mtr.add_suppression("Cannot execute the current event group");
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
-CALL mtr.add_suppression("Error writing relay log configuration.*");
-CALL mtr.add_suppression("Error reading relay log event for channel.*");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
 include/stop_slave.inc
 [connection master]
 XA START 'trx1';

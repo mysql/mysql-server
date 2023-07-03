@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@ FUNCTION(FIND_MAVEN)
   IF (WIN32)
     IF (DEFINED ENV{MAVEN_HOME_WIN})
       FIND_PROGRAM(MAVEN_EXECUTABLE mvn
+        NO_DEFAULT_PATH
         PATHS "$ENV{MAVEN_HOME_WIN}/bin")
     ELSE()
       FIND_PROGRAM(MAVEN_EXECUTABLE mvn)
@@ -36,6 +37,7 @@ FUNCTION(FIND_MAVEN)
   ELSE()
     IF (DEFINED ENV{MAVEN_HOME})
       FIND_PROGRAM(MAVEN_EXECUTABLE mvn
+        NO_DEFAULT_PATH
         PATHS "$ENV{MAVEN_HOME}/bin")
     ELSE()
       FIND_PROGRAM(MAVEN_EXECUTABLE mvn

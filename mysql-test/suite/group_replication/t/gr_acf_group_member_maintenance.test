@@ -228,14 +228,13 @@ SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The source .* for channel 'ch1' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.*");
 call mtr.add_suppression("The Monitor IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.*");
 call mtr.add_suppression("The IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
 call mtr.add_suppression("The source .* for channel 'ch1' has left the group .*, and so removed its entry from replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
 call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel .*, thence it will try to connect to another source.");
-call mtr.add_suppression("Slave I/O for channel 'ch1': Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again.*");
+call mtr.add_suppression("Replica I/O for channel 'ch1': Source command COM_REGISTER_REPLICA failed: failed registering on source, reconnecting to try again.*");
 SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server3

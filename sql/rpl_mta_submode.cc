@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -614,7 +614,7 @@ bool Mts_submode_logical_clock::wait_for_last_committed_trx(
  The current being assigned group descriptor gets associated with
  the group's logical timestamp aka sequence_number.
 
- @return ER_MTS_CANT_PARALLEL, ER_MTS_INCONSISTENT_DATA
+ @return ER_MTA_CANT_PARALLEL, ER_MTA_INCONSISTENT_DATA
           0 if no error or slave has been killed gracefully
  */
 int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
@@ -662,14 +662,14 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
       /* inconsistent (buggy) timestamps */
       LogErr(ERROR_LEVEL, ER_RPL_INCONSISTENT_TIMESTAMPS_IN_TRX,
              sequence_number, last_committed);
-      return ER_MTS_CANT_PARALLEL;
+      return ER_MTA_CANT_PARALLEL;
     }
     if (unlikely(clock_leq(sequence_number, last_sequence_number) &&
                  sequence_number != SEQ_UNINIT)) {
       /* inconsistent (buggy) timestamps */
       LogErr(ERROR_LEVEL, ER_RPL_INCONSISTENT_SEQUENCE_NO_IN_TRX,
              sequence_number, last_sequence_number);
-      return ER_MTS_CANT_PARALLEL;
+      return ER_MTA_CANT_PARALLEL;
     }
     /*
       Transaction sequence as scheduled may have gaps, even in
@@ -779,7 +779,7 @@ int Mts_submode_logical_clock::schedule_next_event(Relay_log_info *rli,
         The malformed group is handled exceptionally each event is executed
         as a solitary group yet by the same (zero id) worker.
     */
-    if (-1 == wait_for_workers_to_finish(rli)) return ER_MTS_INCONSISTENT_DATA;
+    if (-1 == wait_for_workers_to_finish(rli)) return ER_MTA_INCONSISTENT_DATA;
 
     rli->mts_group_status = Relay_log_info::MTS_IN_GROUP;  // wait set it to NOT
     assert(min_waited_timestamp == SEQ_UNINIT);

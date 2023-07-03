@@ -46,7 +46,7 @@
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("Failed to initialize the master info structure");
+call mtr.add_suppression("Failed to initialize the connection metadata structure");
 call mtr.add_suppression("Error during --relay-log-recovery *");
 CREATE TABLE t1 ( n INT);
 RESET MASTER;

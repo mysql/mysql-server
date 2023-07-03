@@ -44,8 +44,8 @@
 --connection slave
 
 let $messages =
-Master command COM_REGISTER_SLAVE failed: failed
-Master command COM_BINLOG_DUMP failed: failed
+Source command COM_REGISTER_REPLICA failed: failed
+Source command COM_BINLOG_DUMP failed: failed
 Failed on request_dump.. for channel
 ;
 --source include/suppress_messages.inc

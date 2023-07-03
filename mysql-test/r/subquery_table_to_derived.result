@@ -423,3 +423,77 @@ GROUP BY pk
 );
 pk	a
 DROP TABLE t1, t2, t3;
+#
+# Bug#35014318 Exists query assertion error
+# Bug#34746261 Forced secondary engine execution assertion error
+#
+# This issue showed deficiencies with table value constructor
+# when used in a [NOT] EXISTS subquery
+CREATE TABLE t1 (c0 INT);
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT 1 FROM t1 WHERE NOT EXISTS (VALUES ROW(1),ROW(2));
+1
+SELECT c0 FROM t1 WHERE NOT EXISTS (VALUES ROW(1),ROW(2));
+c0
+SELECT 1 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2));
+1
+1
+1
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2));
+c0
+1
+2
+SELECT 1 FROM (SELECT 5) t1(c0) WHERE EXISTS (VALUES ROW(1),ROW(2));
+1
+1
+# This will do the transform in spite of the presence of
+# LIMIT/OFFSET since we can compute at prepare time whether the
+# result set will be empty or not
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 1 OFFSET 0);
+c0
+1
+2
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 1 OFFSET 1);
+c0
+1
+2
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 1 OFFSET 2);
+c0
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 0);
+c0
+SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 1);
+c0
+1
+2
+# This does not use semi-join since we can't short-circuit due
+# to dynamic parameter. Also fixed assert error due to missing
+# type for ? (not transform dependent).
+PREPARE p FROM 'SELECT c0 FROM t1
+                WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT 1 OFFSET ?)';
+SET @n=0;
+EXECUTE p USING @n;
+c0
+1
+2
+SET @n=1;
+EXECUTE p USING @n;
+c0
+1
+2
+SET @n=2;
+EXECUTE p USING @n;
+c0
+PREPARE p FROM 'SELECT c0 FROM t1 WHERE EXISTS (VALUES ROW(1),ROW(2) LIMIT ?)';
+SET @n=0;
+EXECUTE p USING @n;
+c0
+SET @n=1;
+EXECUTE p USING @n;
+c0
+1
+2
+DROP PREPARE p;
+DROP TABLE t1;

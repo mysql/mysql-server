@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,7 +174,7 @@ bool Commit_order_manager::wait(Slave_worker *worker) {
 
       DBUG_PRINT("info", ("thd has seen an error signal from old thread"));
       worker_thd->get_stmt_da()->set_overwrite_status(true);
-      my_error(ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR, MYF(0));
+      my_error(ER_REPLICA_WORKER_STOPPED_PREVIOUS_THD_ERROR, MYF(0));
     }
     /*
       Set HA_IGNORE_DURABILITY so that transaction is not flushed to the
@@ -339,7 +339,7 @@ void Commit_order_manager::check_and_report_deadlock(THD *thd_self,
   /* Check if both workers are working for the same channel */
   if (mngr != nullptr && self_w->c_rli == wait_for_w->c_rli &&
       wait_for_w->sequence_number() > self_w->sequence_number()) {
-    DBUG_PRINT("info", ("Found slave order commit deadlock"));
+    DBUG_PRINT("info", ("Found replica order commit deadlock"));
     mngr->report_deadlock(wait_for_w);
   }
 }

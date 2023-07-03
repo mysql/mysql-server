@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +70,7 @@
 #include "router_component_test.h"
 #include "router_test_helpers.h"
 #include "scope_guard.h"
+#include "shared_server.h"
 #include "stdx_expected_no_error.h"
 #include "tcp_port_pool.h"
 #include "test/temp_directory.h"
@@ -78,15 +79,11 @@ using namespace std::string_literals;
 using namespace std::chrono_literals;
 using namespace std::string_view_literals;
 
-using ::testing::AllOf;
 using ::testing::AnyOf;
-using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
-using ::testing::IsSupersetOf;
 using ::testing::Not;
 using ::testing::Pair;
-using ::testing::SizeIs;
 using ::testing::StartsWith;
 
 static constexpr const auto kIdleServerConnectionsSleepTime{10ms};
@@ -340,454 +337,6 @@ const ConnectionParam connection_params[] = {
         kRequired,
     },
 };
-
-static void copy_tree(const mysql_harness::Directory &from_dir,
-                      const mysql_harness::Directory &to_dir) {
-  for (const auto &path : from_dir) {
-    auto from = path;
-    auto to = to_dir.join(path.basename());
-
-    if (path.is_directory()) {
-      mysql_harness::mkdir(to.str(), mysql_harness::kStrictDirectoryPerm);
-      copy_tree(from, to);
-    } else {
-      mysqlrouter::copy_file(from.str(), to.str());
-    }
-  }
-}
-
-/**
- * A manager of a mysql-server.
- *
- * allows:
- *
- * - initializing a server
- * - copying data directories.
- * - stopping servers
- * - setting up accounts for testing
- * - closing all connections
- */
-class SharedServer {
- public:
-  SharedServer(TcpPortPool &port_pool) : port_pool_(port_pool) {}
-
-  ~SharedServer() {
-    // shutdown via API to get a clean exit-code on windows.
-    shutdown();
-    process_manager().wait_for_exit();
-  }
-
-  stdx::expected<void, MysqlError> shutdown() {
-    auto cli_res = admin_cli();
-    if (!cli_res) return stdx::make_unexpected(cli_res.error());
-
-    auto shutdown_res = cli_res->shutdown();
-    if (!shutdown_res) return stdx::make_unexpected(shutdown_res.error());
-
-    return {};
-  }
-
-  [[nodiscard]] std::string mysqld_init_once_dir_name() const {
-    return mysqld_init_once_dir_->name();
-  }
-
-  [[nodiscard]] std::string mysqld_dir_name() const {
-    return mysqld_dir_.name();
-  }
-
-  integration_tests::Procs &process_manager() { return procs_; }
-#ifdef _WIN32
-#define EXE_EXTENSION ".exe"
-#else
-#define EXE_EXTENSION ""
-#endif
-
-  // initialize the server
-  //
-  // initializes the server once into mysqld_init_once_dir_ and creates copies
-  // from that into mysqld_dir_
-  void initialize_server(const std::string &datadir) {
-    auto bindir = process_manager().get_origin();
-    auto mysqld = bindir.join("mysqld" EXE_EXTENSION);
-
-    if (!mysqld.exists()) {
-      mysqld_failed_to_start_ = true;
-      return;
-    }
-
-    auto &proc =
-        process_manager()
-            .spawner(mysqld.str())
-            .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
-            .spawn({
-                "--no-defaults",
-                "--initialize-insecure",
-                "--loose-skip-ndbcluster",
-                "--innodb_redo_log_capacity=8M",
-                "--innodb_autoextend_increment=1M",
-                "--datadir=" + datadir,
-                "--log-error=" + datadir +
-                    mysql_harness::Path::directory_separator +
-                    "mysqld-init.err",
-            });
-    proc.set_logging_path(datadir, "mysqld-init.err");
-    ASSERT_NO_THROW(proc.wait_for_exit(60s));
-    if (proc.exit_code() != 0) mysqld_failed_to_start_ = true;
-  }
-
-  void prepare_datadir() {
-    if (mysqld_init_once_dir_ == nullptr) {
-      mysqld_init_once_dir_ = new TempDirectory("mysqld-init-once");
-
-      initialize_server(mysqld_init_once_dir_name());
-
-      if (!mysqld_failed_to_start()) {
-        spawn_server_with_datadir(mysqld_init_once_dir_name());
-        setup_mysqld_accounts();
-
-        shutdown();
-        process_manager().wait_for_exit();
-        process_manager().clear();
-      }
-    }
-
-    // copy the init-once dir to the datadir.
-    copy_tree(mysqld_init_once_dir_name(), mysqld_dir_name());
-
-    // remove the auto.cnf to get a unique server-uuid
-    unlink(mysqld_dir_.file("auto.cnf").c_str());
-  }
-
-  void spawn_server_with_datadir(
-      const std::string &datadir,
-      const std::vector<std::string> &extra_args = {}) {
-    SCOPED_TRACE("// start server");
-
-    // parent is either:
-    //
-    // - runtime_output_directory/ or
-    // - runtime_output_directory/Debug/
-    auto bindir = process_manager().get_origin().real_path();
-
-    // if this is a multi-config-build, remember the build-type.
-    auto build_type = bindir.basename().str();
-    if (build_type == "runtime_output_directory") {
-      // no multi-config build.
-      build_type = {};
-    }
-
-    auto builddir = bindir.dirname();
-    if (!build_type.empty()) {
-      builddir = builddir.dirname();
-    }
-    auto sharedir = builddir.join("share");
-    auto plugindir = builddir.join("plugin_output_directory");
-    if (!build_type.empty()) {
-      plugindir = plugindir.join(build_type);
-    }
-    auto lc_messages_dir = sharedir;
-
-    auto lc_messages80_dir = sharedir.join("mysql-8.0");
-
-    if (lc_messages80_dir.join("english").join("errmsg.sys").exists()) {
-      lc_messages_dir = lc_messages80_dir;
-    }
-
-    std::string log_file_name = "mysqld-" + std::to_string(starts_) + ".err";
-
-    std::vector<std::string> args{
-        "--no-defaults-file",  //
-        "--lc-messages-dir=" + lc_messages_dir.str(),
-        "--datadir=" + datadir,             //
-        "--plugin_dir=" + plugindir.str(),  //
-        "--log-error=" + datadir + mysql_harness::Path::directory_separator +
-            log_file_name,
-        "--port=" + std::to_string(server_port_),
-        // defaults to {datadir}/mysql.socket
-        "--socket=" + Path(datadir).join("mysql.sock").str(),
-        "--mysqlx-port=" + std::to_string(server_mysqlx_port_),
-        // defaults to {datadir}/mysqlx.socket
-        "--mysqlx-socket=" + Path(datadir).join("mysqlx.sock").str(),
-        // disable LOAD DATA/SELECT INTO on the server
-        "--secure-file-priv=NULL",           //
-        "--innodb_redo_log_capacity=8M",     // fast startups
-        "--innodb_autoextend_increment=1M",  //
-        "--innodb_buffer_pool_size=5M",      //
-        "--gtid_mode=ON",                    // group-replication
-        "--enforce_gtid_consistency=ON",     //
-        "--relay-log=relay-log",
-    };
-
-    for (const auto &arg : extra_args) {
-      args.push_back(arg);
-    }
-
-    auto &proc =
-        process_manager()
-            .spawner(bindir.join("mysqld").str())
-#ifdef _WIN32
-            // on windows, mysqld has no notify-socket
-            .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
-#endif
-            .spawn(args);
-    proc.set_logging_path(datadir, log_file_name);
-    if (!proc.wait_for_sync_point_result()) mysqld_failed_to_start_ = true;
-
-#ifdef _WIN32
-    // on windows, wait until port is ready as there is no notify-socket.
-    if (!(wait_for_port_ready(server_port_, 10s) &&
-          wait_for_port_ready(server_mysqlx_port_, 10s))) {
-      mysqld_failed_to_start_ = true;
-    }
-#endif
-
-    ++starts_;
-  }
-
-  void spawn_server(const std::vector<std::string> &extra_args = {}) {
-    spawn_server_with_datadir(mysqld_dir_name(), extra_args);
-  }
-
-  struct Account {
-    std::string username;
-    std::string password;
-    std::string auth_method;
-  };
-
-  stdx::expected<MysqlClient, MysqlError> admin_cli() {
-    MysqlClient cli;
-
-    auto account = admin_account();
-
-    cli.username(account.username);
-    cli.password(account.password);
-
-    auto connect_res = cli.connect(server_host(), server_port());
-    if (!connect_res) return connect_res.get_unexpected();
-
-    return cli;
-  }
-
-  void create_schema(MysqlClient &cli, const std::string &schema) {
-    std::ostringstream oss;
-    oss << "CREATE SCHEMA " << std::quoted(schema, '`');
-
-    auto q = oss.str();
-
-    SCOPED_TRACE("// " + q);
-    ASSERT_NO_ERROR(cli.query(q)) << q;
-  }
-
-  void grant_access(MysqlClient &cli, const Account &account,
-                    const std::string &rights) {
-    std::ostringstream oss;
-    oss << "GRANT " << rights << " ON *.* TO "
-        << std::quoted(account.username, '`');
-
-    auto q = oss.str();
-
-    SCOPED_TRACE("// " + q);
-    ASSERT_NO_ERROR(cli.query(q)) << q;
-  }
-
-  void grant_access(MysqlClient &cli, const Account &account,
-                    const std::string &rights, const std::string &schema) {
-    std::ostringstream oss;
-    oss << "GRANT " << rights << "  ON " << std::quoted(schema, '`') << ".* TO "
-        << std::quoted(account.username, '`');
-
-    auto q = oss.str();
-
-    SCOPED_TRACE("// " + q);
-    ASSERT_NO_ERROR(cli.query(q)) << q;
-  }
-
-  void create_account(MysqlClient &cli, Account account) {
-    const std::string q = "CREATE USER " + account.username + " " +         //
-                          "IDENTIFIED WITH " + account.auth_method + " " +  //
-                          "BY '" + account.password + "'";
-
-    SCOPED_TRACE("// " + q);
-    ASSERT_NO_ERROR(cli.query(q)) << q;
-  }
-
-  void drop_account(MysqlClient &cli, Account account) {
-    const std::string q = "DROP USER " + account.username;
-
-    SCOPED_TRACE("// " + q);
-    ASSERT_NO_ERROR(cli.query(q)) << q;
-  }
-
-  void setup_mysqld_accounts() {
-    auto cli_res = admin_cli();
-    ASSERT_NO_ERROR(cli_res);
-
-    auto cli = std::move(cli_res.value());
-
-    create_schema(cli, "testing");
-
-    ASSERT_NO_ERROR(cli.query(R"(CREATE PROCEDURE testing.multiple_results()
-BEGIN
-  SELECT 1;
-  SELECT 2;
-END)"));
-
-    for (auto account : {
-             native_password_account(),
-             native_empty_password_account(),
-             caching_sha2_password_account(),
-             caching_sha2_empty_password_account(),
-             sha256_password_account(),
-             sha256_empty_password_account(),
-         }) {
-      create_account(cli, account);
-      grant_access(cli, account, "FLUSH_TABLES, BACKUP_ADMIN");
-      grant_access(cli, account, "ALL", "testing");
-      grant_access(cli, account, "SELECT", "performance_schema");
-    }
-  }
-
-  void flush_privileges() {
-    SCOPED_TRACE("// flushing privileges");
-    auto cli_res = admin_cli();
-    ASSERT_NO_ERROR(cli_res);
-
-    flush_privileges(*cli_res);
-  }
-
-  void flush_privileges(MysqlClient &cli) {
-    ASSERT_NO_ERROR(cli.query("FLUSH PRIVILEGES"));
-  }
-
-  // get all connections, but ignore internal connections and this
-  // connection.
-  static stdx::expected<std::vector<uint64_t>, MysqlError> user_connection_ids(
-      MysqlClient &cli) {
-    auto ids_res = cli.query(R"(SELECT id
- FROM performance_schema.processlist
-WHERE id != CONNECTION_ID() AND
-      Command != "Daemon")");
-    if (!ids_res) return stdx::make_unexpected(ids_res.error());
-
-    std::vector<uint64_t> ids;
-    for (const auto &res : *ids_res) {
-      for (auto row : res.rows()) {
-        ids.push_back(strtol(row[0], nullptr, 10));
-      }
-    }
-
-    return ids;
-  }
-
-  // close all connections.
-  void close_all_connections() {
-    SCOPED_TRACE("// closing all connections at the server.");
-
-    auto cli_res = admin_cli();
-    ASSERT_NO_ERROR(cli_res);
-
-    close_all_connections(*cli_res);
-  }
-
-  void close_all_connections(MysqlClient &cli) {
-    {
-      auto ids_res = user_connection_ids(cli);
-      ASSERT_NO_ERROR(ids_res);
-
-      for (auto id : *ids_res) {
-        auto kill_res = cli.kill(id);
-
-        // either it succeeds or "Unknown thread id" because it closed itself
-        // between the SELECT and this kill
-        EXPECT_TRUE(kill_res || kill_res.error().value() == 1094)
-            << kill_res.error();
-      }
-    }
-
-    SCOPED_TRACE("// checking all connections are closed now.");
-    {
-      // wait a bit until all connections are really closed.
-      using clock_type = std::chrono::steady_clock;
-      auto end = clock_type::now() + 1000ms;
-      do {
-        auto ids_res = user_connection_ids(cli);
-        ASSERT_NO_ERROR(ids_res);
-
-        if ((*ids_res).empty()) break;
-
-        ASSERT_LT(clock_type::now(), end) << ": timeout";
-
-        std::this_thread::sleep_for(10ms);
-      } while (true);
-    }
-  }
-
-  [[nodiscard]] bool mysqld_failed_to_start() const {
-    return mysqld_failed_to_start_;
-  }
-
-  [[nodiscard]] uint16_t server_port() const { return server_port_; }
-  [[nodiscard]] uint16_t server_mysqlx_port() const {
-    return server_mysqlx_port_;
-  }
-  [[nodiscard]] std::string server_host() const { return server_host_; }
-
-  static Account caching_sha2_password_account() {
-    return {"caching_sha2", "somepass", "caching_sha2_password"};
-  }
-
-  static Account caching_sha2_empty_password_account() {
-    return {"caching_sha2_empty", "", "caching_sha2_password"};
-  }
-
-  static Account caching_sha2_single_use_password_account() {
-    return {"caching_sha2_single_use", "notusedyet", "caching_sha2_password"};
-  }
-
-  static Account native_password_account() {
-    return {"native", "somepass", "mysql_native_password"};
-  }
-
-  static Account native_empty_password_account() {
-    return {"native_empty", "", "mysql_native_password"};
-  }
-
-  static Account sha256_password_account() {
-    return {"sha256_pass", "sha256pass", "sha256_password"};
-  }
-
-  static Account sha256_empty_password_account() {
-    return {"sha256_empty", "", "sha256_password"};
-  }
-
-  static Account admin_account() {
-    return {"root", "", "caching_sha2_password"};
-  }
-
-  static void destroy_statics() {
-    if (mysqld_init_once_dir_) {
-      delete mysqld_init_once_dir_;
-      mysqld_init_once_dir_ = nullptr;
-    }
-  }
-
- private:
-  static TempDirectory *mysqld_init_once_dir_;
-  TempDirectory mysqld_dir_{"mysqld"};
-
-  integration_tests::Procs procs_;
-  TcpPortPool &port_pool_;
-
-  static const constexpr char server_host_[] = "127.0.0.1";
-  uint16_t server_port_{port_pool_.get_next_available()};
-  uint16_t server_mysqlx_port_{port_pool_.get_next_available()};
-
-  bool mysqld_failed_to_start_{false};
-
-  uint32_t starts_{};
-};
-
-TempDirectory *SharedServer::mysqld_init_once_dir_ = nullptr;
 
 class SharedRouter {
  public:
@@ -2612,6 +2161,17 @@ TEST_P(ConnectionTest, classic_protocol_prepare_execute) {
   };
   ASSERT_NO_ERROR(stmt.bind_params(params));
 
+  // execute again to trigger a StmtExecute with new-params-bound = 1.
+  {
+    auto exec_res = stmt.execute();
+    ASSERT_NO_ERROR(exec_res);
+
+    for ([[maybe_unused]] auto res : *exec_res) {
+      // drain the resultsets.
+    }
+  }
+
+  // execute again to trigger a StmtExecute with new-params-bound = 0.
   {
     auto exec_res = stmt.execute();
     ASSERT_NO_ERROR(exec_res);
@@ -2625,7 +2185,7 @@ TEST_P(ConnectionTest, classic_protocol_prepare_execute) {
     auto events_res = changed_event_counters(cli);
     ASSERT_NO_ERROR(events_res);
 
-    EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Execute", 1),
+    EXPECT_THAT(*events_res, ElementsAre(Pair("statement/com/Execute", 2),
                                          Pair("statement/com/Prepare", 1)));
   }
 
@@ -2637,7 +2197,7 @@ TEST_P(ConnectionTest, classic_protocol_prepare_execute) {
     ASSERT_NO_ERROR(events_res);
 
     EXPECT_THAT(*events_res,
-                ElementsAre(Pair("statement/com/Execute", 1),
+                ElementsAre(Pair("statement/com/Execute", 2),
                             Pair("statement/com/Prepare", 1),
                             // explicit
                             Pair("statement/com/Reset Connection", 1),
@@ -4026,6 +3586,298 @@ INSTANTIATE_TEST_SUITE_P(Spec, ConnectionTest,
                          [](auto &info) {
                            return "ssl_modes_" + info.param.testname;
                          });
+
+struct BenchmarkParam {
+  std::string testname;
+
+  std::string stmt;
+};
+
+class Benchmark : public RouterComponentTest,
+                  public ::testing::WithParamInterface<BenchmarkParam> {
+ public:
+  static constexpr const size_t kNumServers = 1;
+
+  static void SetUpTestSuite() {
+    for (const auto &svr : shared_servers()) {
+      if (svr->mysqld_failed_to_start()) GTEST_SKIP();
+    }
+
+    TestWithSharedRouter::SetUpTestSuite(test_env->port_pool(),
+                                         shared_servers());
+  }
+
+  static void TearDownTestSuite() { TestWithSharedRouter::TearDownTestSuite(); }
+
+  static std::array<SharedServer *, kNumServers> shared_servers() {
+    return test_env->servers();
+  }
+
+  static SharedRouter *shared_router() {
+    return TestWithSharedRouter::router();
+  }
+
+  void SetUp() override {
+    for (auto &s : shared_servers()) {
+      // shared_server_ may be null if TestWithSharedServer::SetUpTestSuite
+      // threw?
+      if (s == nullptr || s->mysqld_failed_to_start()) {
+        GTEST_SKIP() << "failed to start mysqld";
+      } else {
+        s->flush_privileges();  // reset the auth-cache
+      }
+    }
+  }
+
+  ~Benchmark() override {
+    if (::testing::Test::HasFailure()) {
+      shared_router()->process_manager().dump_logs();
+    }
+  }
+};
+
+namespace std {
+template <class Rep, class Period>
+std::ostream &operator<<(std::ostream &os,
+                         std::chrono::duration<Rep, Period> dur) {
+  std::ostringstream oss;
+  oss.flags(os.flags());
+  oss.imbue(os.getloc());
+  oss.precision(os.precision());
+
+  if (dur < 1us) {
+    oss << std::chrono::duration_cast<std::chrono::duration<double, std::nano>>(
+               dur)
+               .count()
+        << " ns";
+  } else if (dur < 1ms) {
+    oss << std::chrono::duration_cast<
+               std::chrono::duration<double, std::micro>>(dur)
+               .count()
+        << " us";
+  } else if (dur < 1s) {
+    oss << std::chrono::duration_cast<
+               std::chrono::duration<double, std::milli>>(dur)
+               .count()
+        << " ms";
+  } else {
+    oss << std::chrono::duration_cast<
+               std::chrono::duration<double, std::ratio<1>>>(dur)
+               .count()
+        << "  s";
+  }
+
+  os << oss.str();
+
+  return os;
+}
+}  // namespace std
+
+template <class Dur>
+struct Throughput {
+  uint64_t count;
+
+  Dur duration;
+};
+
+template <class Dur>
+Throughput(uint64_t count, Dur duration) -> Throughput<Dur>;
+
+template <class Dur>
+std::ostream &operator<<(std::ostream &os, Throughput<Dur> throughput) {
+  std::ostringstream oss;
+  oss.flags(os.flags());
+  oss.imbue(os.getloc());
+  oss.precision(os.precision());
+
+  // normalize to per-second
+
+  double bytes_per_second =
+      throughput.count /
+      std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(
+          throughput.duration)
+          .count();
+  if (bytes_per_second < 1024) {
+    oss << bytes_per_second << "  B/s";
+  } else if (bytes_per_second < 1024 * 1024) {
+    oss << (bytes_per_second / 1024) << " kB/s";
+  } else if (bytes_per_second < 1024 * 1024 * 1024) {
+    oss << (bytes_per_second / (1024 * 1024)) << " MB/s";
+  } else {
+    oss << (bytes_per_second / (1024 * 1024 * 1024)) << " GB/s";
+  }
+
+  os << oss.str();
+
+  return os;
+}
+
+static void bench_stmt(MysqlClient &cli, std::string_view prefix,
+                       std::string_view stmt) {
+  using clock_type = std::chrono::steady_clock;
+
+  constexpr const auto kMaxRuntime = 100ms;
+  auto end_time = clock_type::now() + kMaxRuntime;
+
+  size_t rounds{};
+  uint64_t recved{};
+
+  clock_type::duration query_duration{};
+  clock_type::duration fetch_duration{};
+
+  do {
+    auto query_start = clock_type::now();
+    auto send_query_res = cli.send_query(stmt);
+    query_duration += clock_type::now() - query_start;
+    ASSERT_NO_ERROR(send_query_res);
+
+    recved += 4 + 10;  // Ok or Eof.
+
+    auto fetch_start = clock_type::now();
+
+    auto query_res = cli.read_query_result();
+    ASSERT_NO_ERROR(query_res);
+
+    for (const auto &result : *query_res) {
+      auto field_count = result.field_count();
+      for (const auto &row : result.rows()) {
+        for (size_t ndx = 0; ndx < field_count; ++ndx) {
+          recved += strlen(row[ndx]);
+        }
+      }
+    }
+    fetch_duration += clock_type::now() - fetch_start;
+
+    ++rounds;
+  } while (clock_type::now() < end_time);
+
+  std::ostringstream oss;
+  oss.precision(2);
+  oss << std::left << std::setw(25) << prefix << " | "  //
+      << std::right << std::setw(10) << std::fixed << (query_duration / rounds)
+      << " | "  //
+      << std::right << std::setw(10) << std::fixed << (fetch_duration / rounds)
+      << " | "  //
+      << std::right << std::setw(11) << Throughput{recved, fetch_duration}
+      << "\n";
+  std::cout << oss.str();
+}
+
+TEST_P(Benchmark, classic_protocol) {
+  {
+    std::ostringstream oss;
+    oss << std::left << std::setw(25) << "name"
+        << " | " << std::left << std::setw(7 + 3) << "query"
+        << " | " << std::left << std::setw(7 + 3) << "fetch"
+        << " | " << std::left << std::setw(7 + 4) << "throughput"
+        << "\n";
+    std::cout << oss.str();
+  }
+  {
+    std::ostringstream oss;
+    oss << std::right << std::setw(25) << std::setfill('-') << " no-ssl"
+        << " | " << std::right << std::setw(7 + 3) << std::setfill('-') << ""
+        << " | " << std::right << std::setw(7 + 3) << std::setfill('-') << ""
+        << " | " << std::right << std::setw(7 + 4) << std::setfill('-') << ""
+        << "\n";
+    std::cout << oss.str();
+  }
+
+  SCOPED_TRACE("// connecting to server directly");
+  {
+    MysqlClient cli;
+
+    auto *srv = shared_servers()[0];
+
+    auto account = srv->admin_account();
+
+    cli.username(account.username);
+    cli.password(account.password);
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
+
+    auto connect_res = cli.connect(srv->server_host(), srv->server_port());
+    ASSERT_NO_ERROR(connect_res);
+
+    bench_stmt(cli, "DIRECT_DISABLED", GetParam().stmt);
+  }
+
+  SCOPED_TRACE("// connecting to server through router");
+  for (const auto &router_endpoint : connection_params) {
+    if ((router_endpoint.client_ssl_mode != kDisabled &&
+         router_endpoint.client_ssl_mode != kPassthrough) ||
+        router_endpoint.redundant_combination()) {
+      continue;
+    }
+    MysqlClient cli;
+
+    cli.username("root");
+    cli.password("");
+    cli.set_option(MysqlClient::SslMode(SSL_MODE_DISABLED));
+
+    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                shared_router()->port(router_endpoint)));
+
+    bench_stmt(cli, router_endpoint.testname, GetParam().stmt);
+  }
+
+  {
+    std::ostringstream oss;
+    oss << std::right << std::setw(25) << std::setfill('-') << " ssl"
+        << " | " << std::right << std::setw(7 + 3) << std::setfill('-') << ""
+        << " | " << std::right << std::setw(7 + 3) << std::setfill('-') << ""
+        << " | " << std::right << std::setw(7 + 4) << std::setfill('-') << ""
+        << "\n";
+    std::cout << oss.str();
+  }
+
+  {
+    MysqlClient cli;
+
+    auto *srv = shared_servers()[0];
+
+    auto account = srv->admin_account();
+
+    cli.username(account.username);
+    cli.password(account.password);
+
+    auto connect_res = cli.connect(srv->server_host(), srv->server_port());
+    ASSERT_NO_ERROR(connect_res);
+
+    bench_stmt(cli, "DIRECT_PREFERRED", GetParam().stmt);
+  }
+
+  SCOPED_TRACE("// connecting to server through router");
+  for (const auto &router_endpoint : connection_params) {
+    if (router_endpoint.client_ssl_mode == kDisabled ||
+        router_endpoint.redundant_combination() ||
+        router_endpoint.client_ssl_mode == kRequired) {
+      // Required is the same as Preferred
+      continue;
+    }
+    MysqlClient cli;
+
+    cli.username("root");
+    cli.password("");
+
+    ASSERT_NO_ERROR(cli.connect(shared_router()->host(),
+                                shared_router()->port(router_endpoint)));
+
+    bench_stmt(cli, router_endpoint.testname, GetParam().stmt);
+  }
+}
+
+const BenchmarkParam benchmark_params[] = {
+    {"tiny", "DO 1"},
+    {"one_long_row", "SELECT REPEAT('*', 1024 * 1024)"},
+    {"many_short_rows",
+     "WITH RECURSIVE cte (n) AS ("
+     "  SELECT 1 UNION ALL "
+     "  SELECT n + 1 FROM cte LIMIT 100000) "
+     "SELECT /*+ SET_VAR(cte_max_recursion_depth = 1M) */ * FROM cte;"},
+};
+
+INSTANTIATE_TEST_SUITE_P(Spec, Benchmark, ::testing::ValuesIn(benchmark_params),
+                         [](auto &info) { return info.param.testname; });
 
 int main(int argc, char *argv[]) {
   net::impl::socket::init();

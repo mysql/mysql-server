@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -802,7 +802,9 @@ class Log_event {
   virtual bool write_data_body(Basic_ostream *) { return false; }
 #endif
 
-  Log_event_type get_type_code() const { return common_header->type_code; }
+  virtual Log_event_type get_type_code() const {
+    return common_header->type_code;
+  }
 
   /**
     Return true if the event has to be logged using SBR for DMLs.
@@ -1776,7 +1778,9 @@ class XA_prepare_log_event : public binary_log::XA_prepare_event,
     xid = nullptr;
     return;
   }
-  Log_event_type get_type_code() { return binary_log::XA_PREPARE_LOG_EVENT; }
+  Log_event_type get_type_code() const override {
+    return binary_log::XA_PREPARE_LOG_EVENT;
+  }
   size_t get_data_size() override {
     return xid_bufs_size + my_xid.gtrid_length + my_xid.bqual_length;
   }
@@ -1890,7 +1894,9 @@ class Stop_log_event : public binary_log::Stop_event, public Log_event {
   }
 
   ~Stop_log_event() override = default;
-  Log_event_type get_type_code() { return binary_log::STOP_EVENT; }
+  Log_event_type get_type_code() const override {
+    return binary_log::STOP_EVENT;
+  }
 
  private:
 #if defined(MYSQL_SERVER)
@@ -2249,7 +2255,9 @@ class Unknown_log_event : public binary_log::Unknown_event, public Log_event {
 
   ~Unknown_log_event() override = default;
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
-  Log_event_type get_type_code() { return binary_log::UNKNOWN_EVENT; }
+  Log_event_type get_type_code() const override {
+    return binary_log::UNKNOWN_EVENT;
+  }
 };
 #endif
 char *str_to_hex(char *to, const char *from, size_t len);
@@ -2661,7 +2669,6 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
 
   MY_BITMAP const *get_cols() const { return &m_cols; }
   MY_BITMAP const *get_cols_ai() const { return &m_cols_ai; }
-  size_t get_width() const { return m_width; }
   const Table_id &get_table_id() const { return m_table_id; }
 
 #if defined(MYSQL_SERVER)
@@ -2817,7 +2824,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     @retval ER_* On error, it is guaranteed that the error has been
     reported through my_error, and the corresponding ER_* code is
     returned.  Currently the error codes are: EE_OUTOFMEMORY,
-    ER_SLAVE_CORRUPT_EVENT, or various JSON errors when applying JSON
+    ER_REPLICA_CORRUPT_EVENT, or various JSON errors when applying JSON
     diffs (ER_COULD_NOT_APPLY_JSON_DIFF, ER_INVALID_JSON_BINARY_DATA,
     and maybe others).
   */
@@ -3873,7 +3880,7 @@ class Gtid_log_event : public binary_log::Gtid_event, public Log_event {
   */
   rpl_sidno get_sidno(Sid_map *sid_map) { return sid_map->add_sid(sid); }
   /// Return the GNO for this GTID.
-  rpl_gno get_gno() const { return spec.gtid.gno; }
+  rpl_gno get_gno() const override { return spec.gtid.gno; }
 
   /// string holding the text "SET @@GLOBAL.GTID_NEXT = '"
   static const char *SET_STRING_PREFIX;
@@ -4265,7 +4272,7 @@ class View_change_log_event : public binary_log::View_change_event,
   rpl_gno get_seq_number() { return seq_number; }
 };
 
-inline bool is_gtid_event(Log_event *evt) {
+inline bool is_gtid_event(const Log_event *evt) {
   return (evt->get_type_code() == binary_log::GTID_LOG_EVENT ||
           evt->get_type_code() == binary_log::ANONYMOUS_GTID_LOG_EVENT);
 }

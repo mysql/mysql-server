@@ -1,7 +1,7 @@
 #
 # Problem with range optimizer
 #
-
+--source include/elide_costs.inc
 -- disable_query_log
 -- disable_result_log
 # High values set for sampling scanning, effectively forcing full scan for
@@ -13,9 +13,6 @@ SET @@global.innodb_stats_persistent_sample_pages=5000000000;
 -- enable_result_log
 -- enable_query_log
 
---disable_warnings
-drop table if exists t1, t2, t3;
---enable_warnings
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   event_date date DEFAULT '0000-00-00' NOT NULL,
@@ -3211,6 +3208,7 @@ CREATE TABLE t1 (a SERIAL, b INT);
 INSERT INTO t1(b) VALUES (1),(2),(3),(100);
 CREATE TABLE t2 (a SERIAL, b INT, c INT, INDEX(b,c));
 INSERT INTO t2(b,c) VALUES (10,10),(100,100),(200,200);
+ANALYZE TABLE t1, t2;
 
 EXPLAIN  SELECT t1.* FROM t1 LEFT JOIN (SELECT a,b,c FROM t2 WHERE b=100 AND c<=100 AND c>=100) t ON t1.a=t.b;
 EXPLAIN  SELECT b,c FROM t2 WHERE b=100 AND c<=100 AND c>=100;
@@ -3224,3 +3222,562 @@ ANALYZE TABLE t1;
 SELECT at1.c3 FROM (t1 AS at1 LEFT JOIN (SELECT at2.* FROM (t1 AS at2 JOIN t1 AS at3 ON ((1,2) IN (SELECT c1,c1 FROM t1 as at4)))) AS at5 ON at5.c1 = at1.c1);
 
 DROP TABLE t1;
+
+--echo # Bug#34856343: Assertion 'join->best_read < DBL_MAX'
+
+# The test cases ensure that range optimizer works correctly for all
+# combinations of inner join, outer join, semi join and anti join.
+# Range optimizer should be invoked for all involved tables.
+# Table elimination due to always false predicates as determined by range
+# optimizer is performed for some specific combinations of operations.
+
+CREATE TABLE t (f1 INTEGER, f2 INTEGER, KEY(f1));
+INSERT INTO t VALUES(1, 10), (2, 20), (3, 30), (4, 40);
+
+ANALYZE TABLE t;
+
+# Inner-joined tables:
+# one table is determined empty, so whole nest is empty:
+
+let $query =
+SELECT 1 FROM t AS t1 JOIN t AS t2 ON t2.f1 < NULL;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1 FROM t AS t1 JOIN t AS t2 ON t2.f1 BETWEEN 2 AND 3;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Inner-joined tables with a derived table:
+# one table is determined empty, so whole nest is empty:
+
+let $query =
+SELECT 1 FROM t AS t1 JOIN (SELECT * FROM t WHERE f1 < NULL) AS t2 ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1 JOIN (SELECT * FROM t WHERE f1 BETWEEN 2 AND 3) AS t2 ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Outer-joined tables with a single inner table:
+# Empty table is eliminated
+
+let $query =
+SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t2.f1 < NULL;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t2.f1 BETWEEN 2 AND 3;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Outer-joined tables with a single inner table in a derived table:
+# Empty table inside derived table is not eliminated
+
+let $query =
+SELECT 1 FROM t AS t1 LEFT JOIN (SELECT * FROM t WHERE f1 < NULL) AS t2 ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN (SELECT * FROM t AS t2 WHERE f1 BETWEEN 2 AND 3) AS t2
+     ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Outer-joined tables with a single inner table and predicate on outer table:
+# Empty table is eliminated if predicate is part of WHERE
+
+let $query =
+SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t1.f1 < NULL;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON t1.f1 BETWEEN 2 AND 3;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+let $query =
+SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON TRUE WHERE t1.f1 < NULL;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1 FROM t AS t1 LEFT JOIN t AS t2 ON TRUE WHERE t1.f1 BETWEEN 2 AND 3;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Outer-joined tables as above, outer table wrapped in derived table:
+# Empty table is eliminated if predicate is part of WHERE
+
+let $query =
+SELECT 1 FROM (SELECT * FROM t WHERE f1 < NULL) AS t1 LEFT JOIN t AS t2 ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM (SELECT * FROM t WHERE f1 BETWEEN 2 AND 3) AS t1 LEFT JOIN t AS t2 ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+let $query =
+SELECT 1 FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON t1.f1 < NULL;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON t1.f1 BETWEEN 2 AND 3;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+let $query =
+SELECT 1
+FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON TRUE
+WHERE t1.f1 < NULL;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM (SELECT * FROM t) AS t1 LEFT JOIN t AS t2 ON TRUE
+WHERE t1.f1 BETWEEN 2 AND 3;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Outer-joined tables with two inner tables
+# Empty table is not eliminated
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+       t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+     ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+       t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+     ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+       t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3
+     ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+       t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+     ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Outer-joined tables with two inner tables inside a derived table
+# Empty table is not eliminated
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+     (SELECT 1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL) AS t4
+     ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+     (SELECT 1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL) AS t4
+     ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+     (SELECT 1 FROM t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3) AS t4
+     ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+     (SELECT 1 FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3) AS t4
+     ON TRUE;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Nested outer-joined tables:
+# Empty table is not eliminated
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+       t AS t2 LEFT JOIN t AS t3 ON t3.f1 < NULL
+     ON t1.f1 = t2.f1;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+       t AS t2 LEFT JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+     ON t1.f1 = t2.f1;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Nested outer-joined tables inside a derived table:
+# Empty table is not eliminated
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+     (SELECT t2.f1 FROM t AS t2 LEFT JOIN t AS t3 ON t3.f1 < NULL) AS t4
+     ON t1.f1 = t4.f1;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1 LEFT JOIN
+     (SELECT t2.f1 FROM t AS t2 LEFT JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+     ) AS t4
+     ON t1.f1 = t4.f1;
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Semi-join with single inner table
+# Empty table is eliminated (but at a later stage)
+
+let $query =
+SELECT 1 FROM t WHERE f2 IN (SELECT f1 FROM t WHERE f1 < NULL);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1 FROM t WHERE f2 IN (SELECT f1 FROM t WHERE f1 BETWEEN 2 AND 3);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Semi-join with single inner table in a derived table
+# Empty table is not eliminated
+
+let $query =
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT f1 FROM (SELECT f1 FROM t WHERE f1 < NULL) AS t2);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT f1 FROM (SELECT f1 FROM t WHERE f1 BETWEEN 2 AND 3) AS t2);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Semi-join with two inner tables
+# Empty table is sometimes eliminated
+
+let $query =
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+let $query =
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Semi-join with two inner tables inside derived table
+# Empty table is sometimes eliminated
+
+let $query =
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t4.f1
+             FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+                  ) AS t4
+            );
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t4.f1
+             FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+                  ) AS t4
+            );
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t4.f1
+             FROM (SELECT t2.f1
+                   FROM t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3
+                  ) AS t4
+            );
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+let $query =
+SELECT 1
+FROM t
+WHERE f2 IN (SELECT t4.f1
+             FROM (SELECT t2.f1
+                   FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+                  ) AS t4
+            );
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Anti-join with single inner table
+# Empty table is not eliminated
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT * FROM t AS t2 WHERE t2.f1 < NULL AND t1.f1 = t2.f1);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+                  FROM t AS t2
+                  WHERE t2.f1 BETWEEN 2 AND 3 AND t1.f1 = t2.f1);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Anti-join with single inner table inside derived table
+# Empty table is not eliminated
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+                  FROM (SELECT f1 FROM t AS t2 WHERE t2.f1 < NULL) AS t4
+                  WHERE t1.f1 = t4.f1
+                 );
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+                  FROM (SELECT f1 FROM t AS t2 WHERE t2.f1 BETWEEN 2 AND 3
+                       ) AS t4
+                  WHERE t1.f1 = t4.f1
+                 );
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Anti-join with two inner tables
+# Empty table is not eliminated
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+                  FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+                  WHERE t1.f1 = t2.f1);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+                  FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+                  WHERE t1.f1 = t3.f1);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+                  FROM t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3
+                  WHERE t1.f1 = t2.f1);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+                  FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+                  WHERE t1.f1 = t2.f1);
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+# Anti-join with two inner tables inside derived table
+# Empty table is not eliminated
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+                  FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t2.f1 < NULL
+                       ) AS t4
+                  WHERE t1.f1 = t4.f1
+                 );
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+                  FROM (SELECT t2.f1 FROM t AS t2 JOIN t AS t3 ON t3.f1 < NULL
+                       ) AS t4
+                  WHERE t1.f1 = t4.f1
+                 );
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+eval $query;
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+                  FROM (SELECT t2.f1
+                        FROM t AS t2 JOIN t AS t3 ON t2.f1 BETWEEN 2 AND 3
+                       ) AS t4
+                  WHERE t1.f1 = t4.f1
+                 );
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+let $query =
+SELECT 1
+FROM t AS t1
+WHERE NOT EXISTS (SELECT *
+                  FROM (SELECT t2.f1
+                        FROM t AS t2 JOIN t AS t3 ON t3.f1 BETWEEN 2 AND 3
+                       ) AS t4
+                  WHERE t1.f1 = t4.f1
+                 );
+--skip_if_hypergraph  # Depends on the query plan.
+--replace_regex $elide_costs
+eval explain format=tree $query;
+
+DROP TABLE t;

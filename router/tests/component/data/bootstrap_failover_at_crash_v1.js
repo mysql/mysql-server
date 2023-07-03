@@ -7,8 +7,7 @@ var options = {
   metadata_schema_version: [1, 0, 2],
   innodb_cluster_name: mysqld.global.cluster_name,
   replication_group_members: gr_members,
-  innodb_cluster_instances:
-      [["127.0.0.1", 13001], ["127.0.0.1", 13002], ["127.0.0.1", 13003]],
+  innodb_cluster_instances: gr_members,
   innodb_cluster_hosts: [[8, "dont.query.dns", null]],
 };
 

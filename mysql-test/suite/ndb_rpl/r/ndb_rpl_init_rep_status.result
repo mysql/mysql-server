@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 reset master;
 stop slave;
@@ -48,7 +48,7 @@ server_id
 2
 Ndb_slave_max_replicated_epoch: 111
 drop table test.t1;
-Check that reset slave resets Ndb_slave_max_replicated_epoch
+Check that reset slave resets Ndb_slave_max_replicated_epoch to zero
 stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead

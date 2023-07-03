@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,9 +52,9 @@ int Until_position::init(const char *log_name, my_off_t log_pos) {
       to p, no digits were found, error. If it contains '\0' it
       means  conversion went ok.
     */
-    if (p_end == p || *p_end) return ER_BAD_SLAVE_UNTIL_COND;
+    if (p_end == p || *p_end) return ER_BAD_REPLICA_UNTIL_COND;
   } else
-    return ER_BAD_SLAVE_UNTIL_COND;
+    return ER_BAD_REPLICA_UNTIL_COND;
 
   m_log_names_cmp_result = LOG_NAMES_CMP_UNKNOWN;
   return 0;
@@ -93,7 +93,7 @@ bool Until_position::check_position(const char *log_name, my_off_t log_pos) {
                 : LOG_NAMES_CMP_EQUAL;
     } else {
       /* Base names do not match, so we abort */
-      LogErr(ERROR_LEVEL, ER_SLAVE_SQL_THREAD_STOPPED_UNTIL_CONDITION_BAD,
+      LogErr(ERROR_LEVEL, ER_REPLICA_SQL_THREAD_STOPPED_UNTIL_CONDITION_BAD,
              m_until_log_name, m_until_log_pos);
       return true;
     }
@@ -104,8 +104,8 @@ bool Until_position::check_position(const char *log_name, my_off_t log_pos) {
        log_pos < m_until_log_pos))
     return false;
 
-  LogErr(INFORMATION_LEVEL, ER_SLAVE_SQL_THREAD_STOPPED_UNTIL_POSITION_REACHED,
-         m_until_log_pos);
+  LogErr(INFORMATION_LEVEL,
+         ER_REPLICA_SQL_THREAD_STOPPED_UNTIL_POSITION_REACHED, m_until_log_pos);
   return true;
 }
 
@@ -113,7 +113,7 @@ bool Until_master_position::check_at_start_slave() {
   strmake(m_current_log_name, m_rli->get_group_master_log_name(),
           sizeof(m_current_log_name) - 1);
   m_current_log_pos = m_rli->get_group_master_log_pos();
-  DBUG_PRINT("info", ("master log name is changed, %s", m_current_log_name));
+  DBUG_PRINT("info", ("source log name is changed, %s", m_current_log_name));
 
   return check_position(m_current_log_name, m_current_log_pos);
 }
@@ -128,7 +128,7 @@ bool Until_master_position::check_before_dispatching_event(
   if (!ev->is_artificial_event() && !ev->is_relay_log_event() &&
       ev->server_id != 0 && ev->common_header->log_pos != 0) {
     m_current_log_pos = ev->common_header->log_pos;
-    DBUG_PRINT("info", ("master log pos is %llu", m_current_log_pos));
+    DBUG_PRINT("info", ("source log pos is %llu", m_current_log_pos));
 
     /*
       Master's events will be ignored in the cases that
@@ -172,7 +172,7 @@ int Until_gtids::init(const char *gtid_set_str) {
   ret = m_gtids.add_gtid_text(gtid_set_str);
   global_sid_lock->unlock();
 
-  if (ret != RETURN_STATUS_OK) return ER_BAD_SLAVE_UNTIL_COND;
+  if (ret != RETURN_STATUS_OK) return ER_BAD_REPLICA_UNTIL_COND;
   return 0;
 }
 
@@ -185,7 +185,7 @@ bool Until_before_gtids::check_at_start_slave() {
     global_sid_lock->unlock();
 
     LogErr(INFORMATION_LEVEL,
-           ER_SLAVE_SQL_THREAD_STOPPED_BEFORE_GTIDS_ALREADY_APPLIED, buffer);
+           ER_REPLICA_SQL_THREAD_STOPPED_BEFORE_GTIDS_ALREADY_APPLIED, buffer);
     my_free(buffer);
     return true;
   }
@@ -204,7 +204,7 @@ bool Until_before_gtids::check_before_dispatching_event(const Log_event *ev) {
       m_gtids.to_string(&buffer);
       global_sid_lock->unlock();
       LogErr(INFORMATION_LEVEL,
-             ER_SLAVE_SQL_THREAD_STOPPED_BEFORE_GTIDS_REACHED, buffer);
+             ER_REPLICA_SQL_THREAD_STOPPED_BEFORE_GTIDS_REACHED, buffer);
       my_free(buffer);
       return true;
     }
@@ -221,7 +221,7 @@ bool Until_after_gtids::check_at_start_slave() {
     char *buffer;
     m_gtids.to_string(&buffer);
     global_sid_lock->unlock();
-    LogErr(INFORMATION_LEVEL, ER_SLAVE_SQL_THREAD_STOPPED_AFTER_GTIDS_REACHED,
+    LogErr(INFORMATION_LEVEL, ER_REPLICA_SQL_THREAD_STOPPED_AFTER_GTIDS_REACHED,
            buffer);
     my_free(buffer);
     return true;
@@ -284,7 +284,7 @@ bool Until_mts_gap::check_at_start_slave() { return false; }
 
 bool Until_mts_gap::check_before_dispatching_event(const Log_event *) {
   if (m_rli->mts_recovery_group_cnt == 0) {
-    LogErr(INFORMATION_LEVEL, ER_SLAVE_SQL_THREAD_STOPPED_GAP_TRX_PROCESSED);
+    LogErr(INFORMATION_LEVEL, ER_REPLICA_SQL_THREAD_STOPPED_GAP_TRX_PROCESSED);
     m_rli->until_condition = Relay_log_info::UNTIL_DONE;
     return true;
   }

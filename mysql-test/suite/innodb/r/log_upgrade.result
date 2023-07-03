@@ -14,31 +14,85 @@ a
 INSERT INTO t1 VALUES (123);
 SET GLOBAL innodb_log_checkpoint_now = 1;
 # Kill the server
+ib_logfile0
+ib_logfile1
 #
-# Crashing during recovery (initial phase)
+# Crashing during recovery (common logic)
 #
-# 1. Crash right before recovery starts:
+# Crash right before recovery starts:
+# Expect "found"
 Pattern "Completed space ID check" found
-# 2. Crash right before log records are applied:
+# Crash after log records applied:
+# Expect "found"
 Pattern "Starting to parse redo log at lsn = [0-9]+, whereas checkpoint_lsn = [0-9]+" found
-# 3. Crash right before recovery ends:
+# Crash right before recovery ends:
+# Expect "found"
 Pattern "Apply batch completed" found
-
+# Crash after dynamic metadata apply:
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_DATADIR1/mysqld.err
+SHOW TABLES FROM test;
+Tables_in_test
+# Kill the server
 #
-# Crashing during upgrade (next phase after recovery)
+# Crashing during upgrade itself
 #
-# 1. Crash at the beginning of upgrade:
-# 2. Crash right after flushing dirty pages:
-Pattern "Apply batch completed" found
+# Crash right after verifying clean shutdown:
+# Expect "not found"
+Pattern "Apply batch completed" not found
+# Expect "found"
 Pattern "Upgrading redo log: .* LSN=[0-9]+" found
-# 3. Crash right after flushing lsn to system tablespace:
-# 4. Crash right after deleting first log file:
-# 5. Crash right after deleting all log files:
-# 6. Crash after creating #ib_redo0_tmp:
-# 7. Crash after renaming #ib_redo0_tmp to #ib_redo0:
-# 8. Crash after creating all log files:
-# 9. Crash after writing first checkpoint:
-# 10. Crash after marking redo files as initialized:
+# Crash right after deleting first log file:
+# Expect "found"
+Pattern "innodb_force_recovery_crash=7" found
+ib_logfile1
+# Expect "found"
+Pattern "Missing ib_logfile0 in the directory" found
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_DATADIR1/mysqld.err
+SHOW TABLES FROM test;
+Tables_in_test
+# Kill the server
+# Crash right after deleting all log files:
+# Expect "found"
+Pattern "innodb_force_recovery_crash=8" found
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_DATADIR1/mysqld.err
+SHOW TABLES FROM test;
+Tables_in_test
+# Kill the server
+# Crash after creating #ib_redo0_tmp:
+# Expect "found"
+Pattern "innodb_force_recovery_crash=9" found
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_DATADIR1/mysqld.err
+SHOW TABLES FROM test;
+Tables_in_test
+# Kill the server
+# Crash after renaming #ib_redo0_tmp to #ib_redo0:
+# Expect "found"
+Pattern "innodb_force_recovery_crash=10" found
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_DATADIR1/mysqld.err
+SHOW TABLES FROM test;
+Tables_in_test
+# Kill the server
+# Crash after creating all log files:
+# Expect "found"
+Pattern "innodb_force_recovery_crash=11" found
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_DATADIR1/mysqld.err
+SHOW TABLES FROM test;
+Tables_in_test
+# Kill the server
+# Crash after writing first checkpoint:
+# Expect "found"
+Pattern "innodb_force_recovery_crash=12" found
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_DATADIR1/mysqld.err
+SHOW TABLES FROM test;
+Tables_in_test
+# Kill the server
+# Crash after marking redo files as initialized:
+# Expect "found"
+Pattern "innodb_force_recovery_crash=13" found
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_DATADIR1/mysqld.err
+SHOW TABLES FROM test;
+Tables_in_test
+# Kill the server
 
 #
 # Start MySQL after upgrade.

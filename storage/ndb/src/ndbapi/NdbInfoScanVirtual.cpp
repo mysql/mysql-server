@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1609,7 +1609,7 @@ class EventsTable : public VirtualTable {
     {
       char event_columns[column_buff_size];
       size_t s = 0;
-      Uint32 event_report = 0;
+      Uint32 reporting = 0;
       Uint32 table_event = 0;
 
       /* columns */
@@ -1619,21 +1619,17 @@ class EventsTable : public VirtualTable {
                       event->getEventColumn(i)->getName());
       }
 
-      /* reporting */
-      switch(event->getReport()) {
-        case NdbDictionary::Event::ER_UPDATED:
-          event_report = 1;
-          break;
-        case NdbDictionary::Event::ER_ALL:
-          event_report = 2;
-          break;
-        case NdbDictionary::Event::ER_SUBSCRIBE:
-          event_report = 3;
-          break;
-        case NdbDictionary::Event::ER_DDL:
-          event_report = 4;
-          break;
-      }
+      /* reporting
+         The options describing how the Event is configured to report are
+         translated into a SET
+      */
+      const Uint32 report_options = event->getReportOptions();
+      if ((report_options & NdbDictionary::Event::ER_ALL) == 0)
+        reporting |= 1;  // ER_UPDATED
+      else
+        reporting |= 2;
+      if (report_options & NdbDictionary::Event::ER_SUBSCRIBE) reporting |= 4;
+      if (report_options & NdbDictionary::Event::ER_DDL) reporting |= 8;
 
       /* table_event
          The first 13 bits are contiguous in the bitfield.
@@ -1650,7 +1646,7 @@ class EventsTable : public VirtualTable {
       w.write_number(elem->id);                             // id
       w.write_string(elem->name);                           // name
       w.write_number(event->getTable()->getObjectId());     // table_id
-      w.write_number(event_report + 1);                     // reporting
+      w.write_number(reporting);                            // reporting
       w.write_string(event_columns);                        // columns
       w.write_number(table_event);                          // table_event
     }

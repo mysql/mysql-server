@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -227,7 +227,7 @@ table_replication_applier_status_by_worker::
 table_replication_applier_status_by_worker::
     ~table_replication_applier_status_by_worker() = default;
 
-void table_replication_applier_status_by_worker::reset_position(void) {
+void table_replication_applier_status_by_worker::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
@@ -239,12 +239,12 @@ ha_rows table_replication_applier_status_by_worker::get_row_count() {
   return channel_map.get_max_channels() * 32;
 }
 
-int table_replication_applier_status_by_worker::rnd_next(void) {
+int table_replication_applier_status_by_worker::rnd_next() {
   Slave_worker *worker;
   Master_info *mi;
   size_t wc;
 
-  Rdlock_guard<Multisource_info> channel_map_guard{channel_map};
+  const Rdlock_guard<Multisource_info> channel_map_guard{channel_map};
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_channels(channel_map.get_max_channels());
@@ -296,7 +296,7 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos) {
 
   set_position(pos);
 
-  Rdlock_guard<Multisource_info> channel_map_guard{channel_map};
+  const Rdlock_guard<Multisource_info> channel_map_guard{channel_map};
 
   mi = channel_map.get_mi_at_pos(m_pos.m_index_1);
 
@@ -345,12 +345,12 @@ int table_replication_applier_status_by_worker::index_init(uint idx, bool) {
   return 0;
 }
 
-int table_replication_applier_status_by_worker::index_next(void) {
+int table_replication_applier_status_by_worker::index_next() {
   Slave_worker *worker;
   Master_info *mi;
   size_t wc;
 
-  Rdlock_guard<Multisource_info> channel_map_guard{channel_map};
+  const Rdlock_guard<Multisource_info> channel_map_guard{channel_map};
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_channels(channel_map.get_max_channels());

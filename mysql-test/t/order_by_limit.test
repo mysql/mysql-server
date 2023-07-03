@@ -401,3 +401,38 @@ CREATE TABLE t (x INTEGER PRIMARY KEY, y INTEGER);
 INSERT INTO t VALUES (1, 2), (2, 3), (3, 4);
 SELECT * FROM t ORDER BY x LIMIT 18446744073709551614;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#34291261: The result of query plan is different between 5.7 and 8.0
+--echo #
+
+CREATE TABLE test (
+a bigint NOT NULL AUTO_INCREMENT,
+b int not null,
+c date NOT NULL,
+d int NOT NULL,
+PRIMARY KEY (a),
+KEY ix_ordered_date (c,a)
+);
+
+DELIMITER $$;
+CREATE PROCEDURE insertProc(input_date varchar(10))
+BEGIN
+    DECLARE i INT DEFAULT 1;
+    WHILE (i <= 1000)
+    DO
+        INSERT INTO test VALUE (0, 0, input_date, 0);
+        SET i = i + 1;
+    END WHILE;
+END$$
+DELIMITER ;$$
+
+CALL insertProc('2022-06-09');
+CALL insertProc('2022-06-10');
+CALL insertProc('2022-06-13');
+analyze table test;
+
+EXPLAIN SELECT * FROM test  WHERE c = '2022-06-13' AND a > 222 ORDER BY c, a LIMIT 10;
+
+DROP PROCEDURE insertProc;
+DROP TABLE test;

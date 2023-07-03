@@ -11,7 +11,7 @@
 #    event with an unique gtid due to the stmt_cache is not big enough to
 #    accommodate the changes.
 #
-# 2. Wait for the error 'ER_SLAVE_INCIDENT' caused by applying incident
+# 2. Wait for the error 'ER_REPLICA_INCIDENT' caused by applying incident
 #    event on slave and then stop the slave threads.
 #
 # 3. Prepare the slave to skip the incident event by its GTID.
@@ -30,12 +30,8 @@
 --source include/master-slave.inc
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occurred on the master.");
-call mtr.add_suppression("The content of the statement cache is corrupted "
-                         "while writing a rollback record of the transaction "
-                         "to the binary log. An incident event has been "
-                         "written to the binary log which will stop the "
-                         "slaves.");
+call mtr.add_suppression("Replica SQL for channel '': The incident LOST_EVENTS occurred on the source.");
+call mtr.add_suppression("The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log. An incident event has been written to the binary log which will stop the replicas.");
 
 --let $old_max_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_stmt_cache_size", Value, 1)
 --let $old_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_stmt_cache_size", Value, 1)
@@ -65,10 +61,10 @@ eval INSERT INTO t1 (c1, data) VALUES (1,
 
 --source include/rpl_connection_slave.inc
 --echo #
---echo # Wait for the error 'ER_SLAVE_INCIDENT' caused by applying incident
+--echo # Wait for the error 'ER_REPLICA_INCIDENT' caused by applying incident
 --echo # event on slave and then stop the slave sql thread.
 --echo #
---let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+--let $slave_sql_errno= convert_error(ER_REPLICA_INCIDENT)
 --source include/wait_for_slave_sql_error.inc
 --echo #
 --echo # Prepare the slave to skip the incident event by its GTID.

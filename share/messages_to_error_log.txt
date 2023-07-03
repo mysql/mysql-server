@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@ ER_LOG_CANNOT_WRITE
   eng "Failed to write to %s: %s"
 
 ER_RPL_ZOMBIE_ENCOUNTERED
-  eng "While initializing dump thread for slave with %s <%s>, found a zombie dump thread with the same %s. Master is killing the zombie dump thread(%u)."
+  eng "While initializing dump thread for replica with %s <%s>, found a zombie dump thread with the same %s. Source is killing the zombie dump thread(%u)."
 
 ER_RPL_GTID_TABLE_CANNOT_OPEN
   eng "Gtid table is not ready to be used. Table '%s.%s' cannot be opened."
@@ -404,8 +404,8 @@ ER_UNSUPPORTED_DATE
 ER_STARTING_AS
   eng "%s (mysqld %s) starting as process %lu"
 
-ER_SHUTTING_DOWN_SLAVE_THREADS
-  eng "Shutting down slave threads"
+ER_SHUTTING_DOWN_REPLICA_THREADS
+  eng "Shutting down replica threads"
 
 ER_DISCONNECTING_REMAINING_CLIENTS
   eng "Forcefully disconnecting %d remaining clients"
@@ -544,7 +544,7 @@ ER_NEED_FILE_INSTEAD_OF_DIR
 
 # Unused since MySQL 8.0.3
 ER_LOG_BIN_BETTER_WITH_NAME
-  eng "No argument was provided to --log-bin, and --log-bin-index was not used; so replication may break when this MySQL server acts as a master and has his hostname changed!! Please use '--log-bin=%s' to avoid this problem."
+  eng "No argument was provided to --log-bin, and --log-bin-index was not used; so replication may break when this MySQL server acts as a source and has his hostname changed!! Please use '--log-bin=%s' to avoid this problem."
 
 ER_BINLOG_NEEDS_SERVERID
   eng "You have enabled the binary log, but you haven't provided the mandatory server-id. Please refer to the proper server start-up parameters documentation"
@@ -711,7 +711,7 @@ ER_VALGRIND_COUNT_LEAKS
   eng "VALGRIND_COUNT_LEAKS reports %lu leaked bytes for query '%.*s'"
 
 ER_LOAD_DATA_INFILE_FAILED_IN_UNEXPECTED_WAY
-  eng "LOAD DATA INFILE in the slave SQL Thread can only read from --replica-load-tmpdir. Please, report a bug."
+  eng "LOAD DATA INFILE in the replica SQL Thread can only read from --replica-load-tmpdir. Please, report a bug."
 
 ER_UNKNOWN_ERROR_NUMBER
   eng "Got unknown error: %d"
@@ -1181,23 +1181,23 @@ ER_TZ_OOM_WHILE_LOADING_TIME_ZONE
 ER_TZ_OOM_WHILE_SETTING_TIME_ZONE
   eng "Fatal error: Out of memory while setting new time zone"
 
-ER_SLAVE_SQL_THREAD_STOPPED_UNTIL_CONDITION_BAD
-  eng "Slave SQL thread is stopped because UNTIL condition is bad(%s:%llu)."
+ER_REPLICA_SQL_THREAD_STOPPED_UNTIL_CONDITION_BAD
+  eng "Replica SQL thread is stopped because UNTIL condition is bad(%s:%llu)."
 
-ER_SLAVE_SQL_THREAD_STOPPED_UNTIL_POSITION_REACHED
-  eng "Slave SQL thread stopped because it reached its UNTIL position %llu"
+ER_REPLICA_SQL_THREAD_STOPPED_UNTIL_POSITION_REACHED
+  eng "Replica SQL thread stopped because it reached its UNTIL position %llu"
 
-ER_SLAVE_SQL_THREAD_STOPPED_BEFORE_GTIDS_ALREADY_APPLIED
-  eng "Slave SQL thread stopped because UNTIL SQL_BEFORE_GTIDS %s is already applied"
+ER_REPLICA_SQL_THREAD_STOPPED_BEFORE_GTIDS_ALREADY_APPLIED
+  eng "Replica SQL thread stopped because UNTIL SQL_BEFORE_GTIDS %s is already applied"
 
-ER_SLAVE_SQL_THREAD_STOPPED_BEFORE_GTIDS_REACHED
-  eng "Slave SQL thread stopped because it reached UNTIL SQL_BEFORE_GTIDS %s"
+ER_REPLICA_SQL_THREAD_STOPPED_BEFORE_GTIDS_REACHED
+  eng "Replica SQL thread stopped because it reached UNTIL SQL_BEFORE_GTIDS %s"
 
-ER_SLAVE_SQL_THREAD_STOPPED_AFTER_GTIDS_REACHED
-  eng "Slave SQL thread stopped because it reached UNTIL SQL_AFTER_GTIDS %s"
+ER_REPLICA_SQL_THREAD_STOPPED_AFTER_GTIDS_REACHED
+  eng "Replica SQL thread stopped because it reached UNTIL SQL_AFTER_GTIDS %s"
 
-ER_SLAVE_SQL_THREAD_STOPPED_GAP_TRX_PROCESSED
-  eng "Slave SQL thread stopped according to UNTIL SQL_AFTER_MTS_GAPS as it has processed all gap transactions left from the previous slave session."
+ER_REPLICA_SQL_THREAD_STOPPED_GAP_TRX_PROCESSED
+  eng "Replica SQL thread stopped according to UNTIL SQL_AFTER_MTS_GAPS as it has processed all gap transactions left from the previous replica session."
 
 ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED
   eng "Group Replication plugin is not installed."
@@ -1233,25 +1233,25 @@ ER_NPIPE_PIPE_ALREADY_IN_USE
   eng "Can't start server : Named Pipe \"%s\" already in use."
 
 OBSOLETE_ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS_ON_START
-  eng "NDB Slave : At SQL thread start applying epoch %llu/%llu (%llu) from Master ServerId %u which is lower than previously applied epoch %llu/%llu (%llu).  Group Master Log : %s  Group Master Log Pos : %llu.  Check slave positioning."
+  eng "NDB Replica : At SQL thread start applying epoch %llu/%llu (%llu) from Source ServerId %u which is lower than previously applied epoch %llu/%llu (%llu).  Group Source Log : %s  Group Source Log Pos : %llu.  Check replica positioning."
 
 OBSOLETE_ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS
-  eng "NDB Slave : SQL thread stopped as applying epoch %llu/%llu (%llu) from Master ServerId %u which is lower than previously applied epoch %llu/%llu (%llu).  Group Master Log : %s  Group Master Log Pos : %llu"
+  eng "NDB Replica : SQL thread stopped as applying epoch %llu/%llu (%llu) from Source ServerId %u which is lower than previously applied epoch %llu/%llu (%llu).  Group Source Log : %s  Group Source Log Pos : %llu"
 
 OBSOLETE_ER_NDB_SLAVE_SAW_ALREADY_COMMITTED_EPOCH
-  eng "NDB Slave : SQL thread stopped as attempted to reapply already committed epoch %llu/%llu (%llu) from server id %u.  Group Master Log : %s  Group Master Log Pos : %llu."
+  eng "NDB Replica : SQL thread stopped as attempted to reapply already committed epoch %llu/%llu (%llu) from server id %u.  Group Source Log : %s  Group Source Log Pos : %llu."
 
 OBSOLETE_ER_NDB_SLAVE_PREVIOUS_EPOCH_NOT_COMMITTED
-  eng "NDB Slave : SQL thread stopped as attempting to apply new epoch %llu/%llu (%llu) while lower received epoch %llu/%llu (%llu) has not been committed.  Master server id : %u.  Group Master Log : %s  Group Master Log Pos : %llu."
+  eng "NDB Replica : SQL thread stopped as attempting to apply new epoch %llu/%llu (%llu) while lower received epoch %llu/%llu (%llu) has not been committed.  Source server id : %u.  Group Source Log : %s  Group Source Log Pos : %llu."
 
 OBSOLETE_ER_NDB_SLAVE_MISSING_DATA_FOR_TIMESTAMP_COLUMN
-  eng "NDB Slave: missing data for %s timestamp column %u."
+  eng "NDB Replica: missing data for %s timestamp column %u."
 
 OBSOLETE_ER_NDB_SLAVE_LOGGING_EXCEPTIONS_TO
-  eng "NDB Slave: Table %s.%s logging exceptions to %s.%s"
+  eng "NDB Replica: Table %s.%s logging exceptions to %s.%s"
 
 OBSOLETE_ER_NDB_SLAVE_LOW_EPOCH_RESOLUTION
-  eng "NDB Slave: Table %s.%s : %s, low epoch resolution"
+  eng "NDB Replica: Table %s.%s : %s, low epoch resolution"
 
 OBSOLETE_ER_NDB_INFO_FOUND_UNEXPECTED_FIELD_TYPE
   eng "Found unexpected field type %u"
@@ -1293,55 +1293,55 @@ ER_RPL_INCONSISTENT_SEQUENCE_NO_IN_TRX
   eng "Transaction's sequence number is inconsistent with that of a preceding one: sequence_number (%lld) <= previous sequence_number (%lld)"
 
 ER_RPL_CHANNELS_REQUIRE_TABLES_AS_INFO_REPOSITORIES
-  eng "For the creation of replication channels the master info and relay log info repositories must be set to TABLE"
+  eng "For the creation of replication channels the connection metadata and applier metadata repositories must be set to TABLE"
 
 ER_RPL_CHANNELS_REQUIRE_NON_ZERO_SERVER_ID
   eng "For the creation of replication channels the server id must be different from 0"
 
 ER_RPL_REPO_SHOULD_BE_TABLE
-  eng "Slave: Wrong repository. Repository should be TABLE"
+  eng "Replica: Wrong repository. Repository should be TABLE"
 
-ER_RPL_ERROR_CREATING_MASTER_INFO
-  eng "Error creating master info: %s."
+ER_RPL_ERROR_CREATING_CONNECTION_METADATA
+  eng "Error creating connection metadata: %s."
 
-ER_RPL_ERROR_CHANGING_MASTER_INFO_REPO_TYPE
-  eng "Error changing the type of master info's repository: %s."
+ER_RPL_ERROR_CHANGING_CONNECTION_METADATA_REPO_TYPE
+  eng "Error changing the type of connection metadata's repository: %s."
 
-ER_RPL_CHANGING_RELAY_LOG_INFO_REPO_TYPE_FAILED_DUE_TO_GAPS
+ER_RPL_CHANGING_APPLIER_METADATA_REPO_TYPE_FAILED_DUE_TO_GAPS
   eng "It is not possible to change the type of the relay log repository because there are workers repositories with possible execution gaps. The value of --relay_log_info_repository is altered to one of the found Worker repositories. The gaps have to be sorted out before resuming with the type change."
 
-ER_RPL_ERROR_CREATING_RELAY_LOG_INFO
-  eng "Error creating relay log info: %s."
+ER_RPL_ERROR_CREATING_APPLIER_METADATA
+  eng "Error creating applier metadata: %s."
 
-ER_RPL_ERROR_CHANGING_RELAY_LOG_INFO_REPO_TYPE
-  eng "Error changing the type of relay log info's repository: %s."
+ER_RPL_ERROR_CHANGING_APPLIER_METADATA_REPO_TYPE
+  eng "Error changing the type of applier metadata's repository: %s."
 
-ER_RPL_FAILED_TO_DELETE_FROM_SLAVE_WORKERS_INFO_REPOSITORY
-  eng "Could not delete from Slave Workers info repository."
+ER_RPL_FAILED_TO_DELETE_FROM_REPLICA_WORKERS_INFO_REPOSITORY
+  eng "Could not delete from Replica Workers info repository."
 
-ER_RPL_FAILED_TO_RESET_STATE_IN_SLAVE_INFO_REPOSITORY
-  eng "Could not store the reset Slave Worker state into the slave info repository."
+ER_RPL_FAILED_TO_RESET_STATE_IN_REPLICA_INFO_REPOSITORY
+  eng "Could not store the reset Replica Worker state into the replica info repository."
 
 ER_RPL_ERROR_CHECKING_REPOSITORY
   eng "Error in checking %s repository info type of %s."
 
-ER_RPL_SLAVE_GENERIC_MESSAGE
-  eng "Slave: %s"
+ER_RPL_REPLICA_GENERIC_MESSAGE
+  eng "Replica: %s"
 
-ER_RPL_SLAVE_COULD_NOT_CREATE_CHANNEL_LIST
-  eng "Slave: Could not create channel list"
+ER_RPL_REPLICA_COULD_NOT_CREATE_CHANNEL_LIST
+  eng "Replica: Could not create channel list"
 
 ER_RPL_MULTISOURCE_REQUIRES_TABLE_TYPE_REPOSITORIES
-  eng "Slave: This slave was a multisourced slave previously which is supported only by both TABLE based master info and relay log info repositories. Found one or both of the info repos to be type FILE. Set both repos to type TABLE."
+  eng "Replica: This replica was a multisourced replica previously which is supported only by both TABLE based connection metadata and applier metadata repositories. Found one or both of the info repos to be type FILE. Set both repos to type TABLE."
 
-ER_RPL_SLAVE_FAILED_TO_INIT_A_MASTER_INFO_STRUCTURE
-  eng "Slave: Failed to initialize the master info structure for channel '%s'; its record may still be present in 'mysql.slave_master_info' table, consider deleting it."
+ER_RPL_REPLICA_FAILED_TO_INIT_A_CONNECTION_METADATA_STRUCTURE
+  eng "Replica: Failed to initialize the connection metadata structure for channel '%s'; its record may still be present in the applier metadata repository, consider deleting it."
 
-ER_RPL_SLAVE_FAILED_TO_INIT_MASTER_INFO_STRUCTURE
-  eng "Failed to initialize the master info structure%s"
+ER_RPL_REPLICA_FAILED_TO_INIT_CONNECTION_METADATA_STRUCTURE
+  eng "Failed to initialize the connection metadata structure%s"
 
-ER_RPL_SLAVE_FAILED_TO_CREATE_CHANNEL_FROM_MASTER_INFO
-  eng "Slave: Failed to create a channel from master info table repository."
+ER_RPL_REPLICA_FAILED_TO_CREATE_CHANNEL_FROM_CONNECTION_METADATA
+  eng "Replica: Failed to create a channel from connection metadata repository."
 
 ER_RPL_FAILED_TO_CREATE_NEW_INFO_FILE
   eng "Failed to create a new info file (file '%s', errno %d)"
@@ -1413,7 +1413,7 @@ OBSOLETE_ER_NDB_SCHEMA_GENERIC_MESSAGE
   eng "Ndb schema[%s.%s]: %s"
 
 ER_RPL_INCOMPATIBLE_DECIMAL_IN_RBR
-  eng "In RBR mode, Slave received incompatible DECIMAL field (old-style decimal field) from Master while creating conversion table. Please consider changing datatype on Master to new style decimal by executing ALTER command for column Name: %s.%s.%s."
+  eng "In RBR mode, Replica received incompatible DECIMAL field (old-style decimal field) from Source while creating conversion table. Please consider changing datatype on Source to new style decimal by executing ALTER command for column Name: %s.%s.%s."
 
 ER_INIT_ROOT_WITHOUT_PASSWORD
   eng "root@localhost is created with an empty password ! Please consider switching off the --initialize-insecure option."
@@ -1443,16 +1443,16 @@ ER_INIT_CREATING_DD
   eng "Creating the data directory %s"
 
 ER_RPL_BINLOG_STARTING_DUMP
-  eng "Start binlog_dump to master_thread_id(%u) slave_server(%u), pos(%s, %llu)"
+  eng "Start binlog_dump to source_thread_id(%u) replica_server(%u), pos(%s, %llu)"
 
-ER_RPL_BINLOG_MASTER_SENDS_HEARTBEAT
-  eng "master sends heartbeat message"
+ER_RPL_BINLOG_SOURCE_SENDS_HEARTBEAT
+  eng "source sends heartbeat message"
 
 ER_RPL_BINLOG_SKIPPING_REMAINING_HEARTBEAT_INFO
   eng "the rest of heartbeat info skipped ..."
 
-ER_RPL_BINLOG_MASTER_USES_CHECKSUM_AND_SLAVE_CANT
-  eng "Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process them"
+ER_RPL_BINLOG_SOURCE_USES_CHECKSUM_AND_REPLICA_CANT
+  eng "Source is configured to log replication events with checksum, but will not send such events to replicas that cannot process them"
 
 OBSOLETE_ER_NDB_QUERY_FAILED
   eng "NDB: Query '%s' failed, error: %d: %s"
@@ -1479,10 +1479,10 @@ ER_KILLED_THREADS_OF_PLUGIN
   eng "Killed %u threads of plugin %s"
 
 OBSOLETE_ER_NDB_SLAVE_MAX_REPLICATED_EPOCH_UNKNOWN
-  eng "NDB Slave : Could not determine maximum replicated epoch from %s.%s at Slave start, error %u %s"
+  eng "NDB Replica : Could not determine maximum replicated epoch from %s.%s at Replica start, error %u %s"
 
 OBSOLETE_ER_NDB_SLAVE_MAX_REPLICATED_EPOCH_SET_TO
-  eng "NDB Slave : MaxReplicatedEpoch set to %llu (%u/%u) at Slave start"
+  eng "NDB Replica : MaxReplicatedEpoch set to %llu (%u/%u) at Replica start"
 
 OBSOLETE_ER_NDB_NODE_ID_AND_MANAGEMENT_SERVER_INFO
   eng "NDB: NodeID is %lu, management server '%s:%lu'"
@@ -1506,16 +1506,16 @@ OBSOLETE_ER_NDB_OOM_IN_FIX_UNIQUE_INDEX_ATTR_ORDER
   eng "fix_unique_index_attr_order: my_malloc(%u) failure"
 
 OBSOLETE_ER_NDB_SLAVE_MALFORMED_EVENT_RECEIVED_ON_TABLE
-  eng "NDB Slave : Malformed event received on table %s cannot parse.  Stopping Slave."
+  eng "NDB Replica : Malformed event received on table %s cannot parse.  Stopping Replica."
 
 OBSOLETE_ER_NDB_SLAVE_CONFLICT_FUNCTION_REQUIRES_ROLE
-  eng "NDB Slave : Conflict function %s defined on table %s requires ndb_slave_conflict_role variable to be set.  Stopping slave."
+  eng "NDB Replica : Conflict function %s defined on table %s requires ndb_replica_conflict_role variable to be set.  Stopping replica."
 
 OBSOLETE_ER_NDB_SLAVE_CONFLICT_TRANSACTION_IDS
-  eng "NDB Slave : Transactional conflict detection defined on table %s, but events received without transaction ids.  Check --ndb-log-transaction-id setting on upstream Cluster."
+  eng "NDB Replica : Transactional conflict detection defined on table %s, but events received without transaction ids.  Check --ndb-log-transaction-id setting on upstream Cluster."
 
 OBSOLETE_ER_NDB_SLAVE_BINLOG_MISSING_INFO_FOR_CONFLICT_DETECTION
-  eng "NDB Slave : Binlog event on table %s missing info necessary for conflict detection.  Check binlog format options on upstream cluster."
+  eng "NDB Replica : Binlog event on table %s missing info necessary for conflict detection.  Check binlog format options on upstream cluster."
 
 OBSOLETE_ER_NDB_ERROR_IN_READAUTOINCREMENTVALUE
   eng "Error %lu in readAutoIncrementValue(): %s"
@@ -1524,7 +1524,7 @@ OBSOLETE_ER_NDB_FOUND_UNCOMMITTED_AUTOCOMMIT
   eng "found uncommitted autocommit+rbwr transaction, commit status: %d"
 
 OBSOLETE_ER_NDB_SLAVE_TOO_MANY_RETRIES
-  eng "Ndb slave retried transaction %u time(s) in vain.  Giving up."
+  eng "Ndb replica retried transaction %u time(s) in vain.  Giving up."
 
 OBSOLETE_ER_NDB_SLAVE_ERROR_IN_UPDATE_CREATE_INFO
   eng "Error %lu in ::update_create_info(): %s"
@@ -1643,20 +1643,20 @@ ER_TC_HEURISTIC_RECOVERY_FAILED
 ER_TC_RESTART_WITHOUT_TC_HEURISTIC_RECOVER
   eng "Please restart mysqld without --tc-heuristic-recover"
 
-ER_RPL_SLAVE_FAILED_TO_CREATE_OR_RECOVER_INFO_REPOSITORIES
+ER_RPL_REPLICA_FAILED_TO_CREATE_OR_RECOVER_INFO_REPOSITORIES
   eng "Failed to create or recover replication info repositories."
 
-ER_RPL_SLAVE_AUTO_POSITION_IS_1_AND_GTID_MODE_IS_OFF
-  eng "Detected misconfiguration: replication channel '%.192s' was configured with AUTO_POSITION = 1, but the server was started with --gtid-mode=off. Either reconfigure replication using CHANGE MASTER TO MASTER_AUTO_POSITION = 0 FOR CHANNEL '%.192s', or change GTID_MODE to some value other than OFF, before starting the slave receiver thread."
+ER_RPL_REPLICA_AUTO_POSITION_IS_1_AND_GTID_MODE_IS_OFF
+  eng "Detected misconfiguration: replication channel '%.192s' was configured with AUTO_POSITION = 1, but the server was started with --gtid-mode=off. Either reconfigure replication using CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL '%.192s', or change GTID_MODE to some value other than OFF, before starting the replica receiver thread."
 
-ER_RPL_SLAVE_CANT_START_SLAVE_FOR_CHANNEL
-  eng "Slave: Could not start slave for channel '%s'. operation discontinued"
+ER_RPL_REPLICA_CANT_START_REPLICA_FOR_CHANNEL
+  eng "Replica: Could not start replica for channel '%s'. operation discontinued"
 
-ER_RPL_SLAVE_CANT_STOP_SLAVE_FOR_CHANNEL
-  eng "Slave: Could not stop slave for channel '%s' operation discontinued"
+ER_RPL_REPLICA_CANT_STOP_REPLICA_FOR_CHANNEL
+  eng "Replica: Could not stop replica for channel '%s' operation discontinued"
 
-ER_RPL_RECOVERY_NO_ROTATE_EVENT_FROM_MASTER
-  eng "Error during --relay-log-recovery: Could not locate rotate event from the master."
+ER_RPL_RECOVERY_NO_ROTATE_EVENT_FROM_SOURCE
+  eng "Error during --relay-log-recovery: Could not locate rotate event from the source."
 
 ER_RPL_RECOVERY_ERROR_READ_RELAY_LOG
   eng "Error during --relay-log-recovery: Error reading events from relay log: %d"
@@ -1673,185 +1673,185 @@ ER_RPL_RECOVERY_ERROR
 ER_RPL_RECOVERY_IO_ERROR_READING_RELAY_LOG_INDEX
   eng "Error during --relay-log-recovery: Could not read relay log index file due to an IO error."
 
-ER_RPL_RECOVERY_FILE_MASTER_POS_INFO
-  eng "Recovery from master pos %ld and file %s%s. Previous relay log pos and relay log file had been set to %lld, %s respectively."
+ER_RPL_RECOVERY_FILE_SOURCE_POS_INFO
+  eng "Recovery from source pos %ld and file %s%s. Previous relay log pos and relay log file had been set to %lld, %s respectively."
 
 ER_RPL_RECOVERY_REPLICATE_SAME_SERVER_ID_REQUIRES_POSITION
   eng "Error during --relay-log-recovery: replicate_same_server_id is in use and sql thread's positions are not initialized, hence relay log recovery cannot happen."
 
-ER_RPL_MTS_RECOVERY_STARTING_COORDINATOR
-  eng "MTS recovery: starting coordinator thread to fill MTS gaps."
+ER_RPL_MTA_RECOVERY_STARTING_COORDINATOR
+  eng "MTA recovery: starting coordinator thread to fill MTA gaps."
 
-ER_RPL_MTS_RECOVERY_FAILED_TO_START_COORDINATOR
-  eng "MTS recovery: failed to start the coordinator thread. Check the error log for additional details."
+ER_RPL_MTA_RECOVERY_FAILED_TO_START_COORDINATOR
+  eng "MTA recovery: failed to start the coordinator thread. Check the error log for additional details."
 
-ER_RPL_MTS_AUTOMATIC_RECOVERY_FAILED
-  eng "MTS recovery: automatic recovery failed. Either the slave server had stopped due to an error during an earlier session or relay logs are corrupted.Fix the cause of the slave side error and restart the slave server or consider using RESET SLAVE."
+ER_RPL_MTA_AUTOMATIC_RECOVERY_FAILED
+  eng "MTA recovery: automatic recovery failed. Either the replica server had stopped due to an error during an earlier session or relay logs are corrupted.Fix the cause of the replica side error and restart the replica server or consider using RESET REPLICA."
 
-ER_RPL_MTS_RECOVERY_CANT_OPEN_RELAY_LOG
+ER_RPL_MTA_RECOVERY_CANT_OPEN_RELAY_LOG
   eng "Failed to open the relay log '%s' (relay_log_pos %s)."
 
-ER_RPL_MTS_RECOVERY_SUCCESSFUL
-  eng "MTS recovery: completed successfully."
+ER_RPL_MTA_RECOVERY_SUCCESSFUL
+  eng "MTA recovery: completed successfully."
 
 ER_RPL_SERVER_ID_MISSING
-  eng "Server id not set, will not start slave%s"
+  eng "Server id not set, will not start replica%s"
 
-ER_RPL_CANT_CREATE_SLAVE_THREAD
-  eng "Can't create slave thread%s."
+ER_RPL_CANT_CREATE_REPLICA_THREAD
+  eng "Can't create replica thread%s."
 
-ER_RPL_SLAVE_IO_THREAD_WAS_KILLED
-  eng "The slave IO thread%s was killed while executing initialization query '%s'"
+ER_RPL_REPLICA_IO_THREAD_WAS_KILLED
+  eng "The replica IO thread%s was killed while executing initialization query '%s'"
 
-ER_RPL_SLAVE_MASTER_UUID_HAS_CHANGED
-  eng "The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was %s."
+OBSOLETE_ER_RPL_REPLICA_SOURCE_UUID_HAS_CHANGED
+  eng "The source's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was %s."
 
-ER_RPL_SLAVE_USES_CHECKSUM_AND_MASTER_PRE_50
-  eng "Found a master with MySQL server version older than 5.0. With checksums enabled on the slave, replication might not work correctly. To ensure correct replication, restart the slave server with --replica_sql_verify_checksum=0."
+ER_RPL_REPLICA_USES_CHECKSUM_AND_SOURCE_PRE_50
+  eng "Found a source with MySQL server version older than 5.0. With checksums enabled on the replica, replication might not work correctly. To ensure correct replication, restart the replica server with --replica_sql_verify_checksum=0."
 
-ER_RPL_SLAVE_SECONDS_BEHIND_MASTER_DUBIOUS
-  eng "\"SELECT UNIX_TIMESTAMP()\" failed on master, do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS. Error: %s (%d)"
+ER_RPL_REPLICA_SECONDS_BEHIND_SOURCE_DUBIOUS
+  eng "\"SELECT UNIX_TIMESTAMP()\" failed on source, do not trust column Seconds_Behind_Source of SHOW REPLICA STATUS. Error: %s (%d)"
 
-ER_RPL_SLAVE_CANT_FLUSH_MASTER_INFO_FILE
-  eng "Failed to flush master info file."
+ER_RPL_REPLICA_CANT_FLUSH_CONNECTION_METADATA_REPOS
+  eng "Failed to flush connection metadata repository."
 
-ER_RPL_SLAVE_REPORT_HOST_TOO_LONG
-  eng "The length of report_host is %zu. It is larger than the max length(%d), so this slave cannot be registered to the master%s."
+ER_RPL_REPLICA_REPORT_HOST_TOO_LONG
+  eng "The length of report_host is %zu. It is larger than the max length(%d), so this replica cannot be registered to the source%s."
 
-ER_RPL_SLAVE_REPORT_USER_TOO_LONG
-  eng "The length of report_user is %zu. It is larger than the max length(%d), so this slave cannot be registered to the master%s."
+ER_RPL_REPLICA_REPORT_USER_TOO_LONG
+  eng "The length of report_user is %zu. It is larger than the max length(%d), so this replica cannot be registered to the source%s."
 
-ER_RPL_SLAVE_REPORT_PASSWORD_TOO_LONG
-  eng "The length of report_password is %zu. It is larger than the max length(%d), so this slave cannot be registered to the master%s."
+ER_RPL_REPLICA_REPORT_PASSWORD_TOO_LONG
+  eng "The length of report_password is %zu. It is larger than the max length(%d), so this replica cannot be registered to the source%s."
 
-ER_RPL_SLAVE_ERROR_RETRYING
+ER_RPL_REPLICA_ERROR_RETRYING
   eng "Error on %s: %d  %s, will retry in %d secs"
 
-ER_RPL_SLAVE_ERROR_READING_FROM_SERVER
+ER_RPL_REPLICA_ERROR_READING_FROM_SERVER
   eng "Error reading packet from server%s: %s (server_errno=%d)"
 
-ER_RPL_SLAVE_DUMP_THREAD_KILLED_BY_MASTER
-  eng "Slave%s: received end packet from server due to dump thread being killed on master. Dump threads are killed for example during master shutdown, explicitly by a user, or when the master receives a binlog send request from a duplicate server UUID <%s> : Error %s"
+ER_RPL_REPLICA_DUMP_THREAD_KILLED_BY_SOURCE
+  eng "Replica%s: received end packet from server due to dump thread being killed on source. Dump threads are killed for example during source shutdown, explicitly by a user, or when the source receives a binlog send request from a duplicate server UUID <%s> : Error %s"
 
-ER_RPL_MTS_STATISTICS
-  eng "Multi-threaded slave statistics%s: seconds elapsed = %lu; events assigned = %llu; worker queues filled over overrun level = %lu; waited due a Worker queue full = %lu; waited due the total size = %lu; waited at clock conflicts = %llu waited (count) when Workers occupied = %lu waited when Workers occupied = %llu"
+ER_RPL_MTA_STATISTICS
+  eng "Multi-threaded replica statistics%s: seconds elapsed = %lu; events assigned = %llu; worker queues filled over overrun level = %lu; waited due a Worker queue full = %lu; waited due the total size = %lu; waited at clock conflicts = %llu waited (count) when Workers occupied = %lu waited when Workers occupied = %llu"
 
-ER_RPL_MTS_RECOVERY_COMPLETE
-  eng "Slave%s: MTS Recovery has completed at relay log %s, position %llu master log %s, position %llu."
+ER_RPL_MTA_RECOVERY_COMPLETE
+  eng "Replica%s: MTA Recovery has completed at relay log %s, position %llu source log %s, position %llu."
 
-ER_RPL_SLAVE_CANT_INIT_RELAY_LOG_POSITION
+ER_RPL_REPLICA_CANT_INIT_RELAY_LOG_POSITION
   eng "Error initializing relay log position%s: %s"
 
-ER_RPL_SLAVE_CONNECTED_TO_MASTER_REPLICATION_STARTED
-  eng "Slave I/O thread%s: connected to master '%s@%s:%d',replication started in log '%s' at position %s"
+OBSOLETE_ER_RPL_REPLICA_CONNECTED_TO_SOURCE_REPLICATION_STARTED
+  eng "Replica I/O thread%s: connected to source '%s@%s:%d',replication started in log '%s' at position %s"
 
-ER_RPL_SLAVE_IO_THREAD_KILLED
-  eng "Slave I/O thread%s killed while connecting to master"
+ER_RPL_REPLICA_IO_THREAD_KILLED
+  eng "Replica I/O thread%s killed while connecting to source"
 
-ER_RPL_SLAVE_IO_THREAD_CANT_REGISTER_ON_MASTER
-  eng "Slave I/O thread couldn't register on master"
+ER_RPL_REPLICA_IO_THREAD_CANT_REGISTER_ON_SOURCE
+  eng "Replica I/O thread couldn't register on source"
 
-ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD
-  eng "Forcing to reconnect slave I/O thread%s"
+ER_RPL_REPLICA_FORCING_TO_RECONNECT_IO_THREAD
+  eng "Forcing to reconnect replica I/O thread%s"
 
-ER_RPL_SLAVE_ERROR_REQUESTING_BINLOG_DUMP
+ER_RPL_REPLICA_ERROR_REQUESTING_BINLOG_DUMP
   eng "Failed on request_dump()%s"
 
 ER_RPL_LOG_ENTRY_EXCEEDS_REPLICA_MAX_ALLOWED_PACKET
-  eng "Log entry on master is longer than replica_max_allowed_packet (%lu) on slave. If the entry is correct, restart the server with a higher value of replica_max_allowed_packet"
+  eng "Log entry on source is longer than replica_max_allowed_packet (%lu) on replica. If the entry is correct, restart the server with a higher value of replica_max_allowed_packet"
 
-ER_RPL_SLAVE_STOPPING_AS_MASTER_OOM
-  eng "Stopping slave I/O thread due to out-of-memory error from master"
+ER_RPL_REPLICA_STOPPING_AS_SOURCE_OOM
+  eng "Stopping replica I/O thread due to out-of-memory error from source"
 
-ER_RPL_SLAVE_IO_THREAD_ABORTED_WAITING_FOR_RELAY_LOG_SPACE
-  eng "Slave I/O thread aborted while waiting for relay log space"
+ER_RPL_REPLICA_IO_THREAD_ABORTED_WAITING_FOR_RELAY_LOG_SPACE
+  eng "Replica I/O thread aborted while waiting for relay log space"
 
-ER_RPL_SLAVE_IO_THREAD_EXITING
-  eng "Slave I/O thread exiting%s, read up to log '%s', position %s"
+ER_RPL_REPLICA_IO_THREAD_EXITING
+  eng "Replica I/O thread exiting%s, read up to log '%s', position %s"
 
-ER_RPL_SLAVE_CANT_INITIALIZE_SLAVE_WORKER
-  eng "Failed during slave worker initialization%s"
+ER_RPL_REPLICA_CANT_INITIALIZE_REPLICA_WORKER
+  eng "Failed during replica worker initialization%s"
 
-ER_RPL_MTS_GROUP_RECOVERY_RELAY_LOG_INFO_FOR_WORKER
-  eng "Slave: MTS group recovery relay log info based on Worker-Id %lu, group_relay_log_name %s, group_relay_log_pos %llu group_master_log_name %s, group_master_log_pos %llu"
+ER_RPL_MTA_GROUP_RECOVERY_APPLIER_METADATA_FOR_WORKER
+  eng "Replica: MTA group recovery applier metadata based on Worker-Id %lu, group_relay_log_name %s, group_relay_log_pos %llu group_source_log_name %s, group_source_log_pos %llu"
 
 ER_RPL_ERROR_LOOKING_FOR_LOG
   eng "Error looking for %s."
 
-ER_RPL_MTS_GROUP_RECOVERY_RELAY_LOG_INFO
-  eng "Slave: MTS group recovery relay log info group_master_log_name %s, event_master_log_pos %llu."
+ER_RPL_MTA_GROUP_RECOVERY_APPLIER_METADATA
+  eng "Replica: MTA group recovery applier metadata group_source_log_name %s, event_source_log_pos %llu."
 
 ER_RPL_CANT_FIND_FOLLOWUP_FILE
   eng "Error looking for file after %s."
 
-ER_RPL_MTS_CHECKPOINT_PERIOD_DIFFERS_FROM_CNT
+ER_RPL_MTA_CHECKPOINT_PERIOD_DIFFERS_FROM_CNT
   eng "This an error cnt != mta_checkpoint_period"
 
-ER_RPL_SLAVE_WORKER_THREAD_CREATION_FAILED
-  eng "Failed during slave worker thread creation%s"
+ER_RPL_REPLICA_WORKER_THREAD_CREATION_FAILED
+  eng "Failed during replica worker thread creation%s"
 
-ER_RPL_SLAVE_WORKER_THREAD_CREATION_FAILED_WITH_ERRNO
-  eng "Failed during slave worker thread creation%s (errno= %d)"
+ER_RPL_REPLICA_WORKER_THREAD_CREATION_FAILED_WITH_ERRNO
+  eng "Failed during replica worker thread creation%s (errno= %d)"
 
-ER_RPL_SLAVE_FAILED_TO_INIT_PARTITIONS_HASH
+ER_RPL_REPLICA_FAILED_TO_INIT_PARTITIONS_HASH
   eng "Failed to init partitions hash"
 
 OBSOLETE_ER_RPL_SLAVE_NDB_TABLES_NOT_AVAILABLE
-  eng "Slave SQL thread : NDB : Tables not available after %lu seconds. Consider increasing --ndb-wait-setup value"
+  eng "Replica SQL thread : NDB : Tables not available after %lu seconds. Consider increasing --ndb-wait-setup value"
 
-ER_RPL_SLAVE_SQL_THREAD_STARTING
-  eng "Slave SQL thread%s initialized, starting replication in log '%s' at position %s, relay log '%s' position: %s"
+ER_RPL_REPLICA_SQL_THREAD_STARTING
+  eng "Replica SQL thread%s initialized, starting replication in log '%s' at position %s, relay log '%s' position: %s"
 
-ER_RPL_SLAVE_SKIP_COUNTER_EXECUTED
-  eng "'SQL_REPLICA_SKIP_COUNTER=%ld' executed at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' and new position at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' "
+ER_RPL_REPLICA_SKIP_COUNTER_EXECUTED
+  eng "'SQL_REPLICA_SKIP_COUNTER=%ld' executed at relay_log_file='%s', relay_log_pos='%ld', source_log_name='%s', source_log_pos='%ld' and new position at relay_log_file='%s', relay_log_pos='%ld', source_log_name='%s', source_log_pos='%ld' "
 
-ER_RPL_SLAVE_ADDITIONAL_ERROR_INFO_FROM_DA
-  eng "Slave (additional info): %s Error_code: MY-%06d"
+ER_RPL_REPLICA_ADDITIONAL_ERROR_INFO_FROM_DA
+  eng "Replica (additional info): %s Error_code: MY-%06d"
 
-ER_RPL_SLAVE_ERROR_INFO_FROM_DA
-  eng "Slave: %s Error_code: MY-%06d"
+ER_RPL_REPLICA_ERROR_INFO_FROM_DA
+  eng "Replica: %s Error_code: MY-%06d"
 
-ER_RPL_SLAVE_ERROR_LOADING_USER_DEFINED_LIBRARY
-  eng "Error loading user-defined library, slave SQL thread aborted. Install the missing library, and restart the slave SQL thread with \"SLAVE START\". We stopped at log '%s' position %s"
+ER_RPL_REPLICA_ERROR_LOADING_USER_DEFINED_LIBRARY
+  eng "Error loading user-defined library, replica SQL thread aborted. Install the missing library, and restart the replica SQL thread with \"START REPLICA\". We stopped at log '%s' position %s"
 
-ER_RPL_SLAVE_ERROR_RUNNING_QUERY
-  eng "Error running query, slave SQL thread aborted. Fix the problem, and restart the slave SQL thread with \"SLAVE START\". We stopped at log '%s' position %s"
+ER_RPL_REPLICA_ERROR_RUNNING_QUERY
+  eng "Error running query, replica SQL thread aborted. Fix the problem, and restart the replica SQL thread with \"START REPLICA\". We stopped at log '%s' position %s"
 
-ER_RPL_SLAVE_SQL_THREAD_EXITING
-  eng "Slave SQL thread%s exiting, replication stopped in log '%s' at position %s"
+ER_RPL_REPLICA_SQL_THREAD_EXITING
+  eng "Replica SQL thread%s exiting, replication stopped in log '%s' at position %s"
 
-ER_RPL_SLAVE_READ_INVALID_EVENT_FROM_MASTER
-  eng "Read invalid event from master: '%s', master could be corrupt but a more likely cause of this is a bug"
+ER_RPL_REPLICA_READ_INVALID_EVENT_FROM_SOURCE
+  eng "Read invalid event from source: '%s', source could be corrupt but a more likely cause of this is a bug"
 
-ER_RPL_SLAVE_QUEUE_EVENT_FAILED_INVALID_CONFIGURATION
+ER_RPL_REPLICA_QUEUE_EVENT_FAILED_INVALID_CONFIGURATION
   eng "The queue event failed for channel '%s' as its configuration is invalid."
 
-ER_RPL_SLAVE_IO_THREAD_DETECTED_UNEXPECTED_EVENT_SEQUENCE
-  eng "An unexpected event sequence was detected by the IO thread while queuing the event received from master '%s' binary log file, at position %llu."
+ER_RPL_REPLICA_IO_THREAD_DETECTED_UNEXPECTED_EVENT_SEQUENCE
+  eng "An unexpected event sequence was detected by the IO thread while queuing the event received from source '%s' binary log file, at position %llu."
 
-ER_RPL_SLAVE_CANT_USE_CHARSET
-  eng "'%s' can not be used as client character set. '%s' will be used as default client character set while connecting to master."
+ER_RPL_REPLICA_CANT_USE_CHARSET
+  eng "'%s' can not be used as client character set. '%s' will be used as default client character set while connecting to source."
 
-ER_RPL_SLAVE_CONNECTED_TO_MASTER_REPLICATION_RESUMED
-  eng "Slave%s: connected to master '%s@%s:%d',replication resumed in log '%s' at position %s"
+ER_RPL_REPLICA_CONNECTED_TO_SOURCE_REPLICATION_RESUMED
+  eng "Replica%s: connected to source '%s@%s:%d',replication resumed in log '%s' at position %s"
 
-ER_RPL_SLAVE_NEXT_LOG_IS_ACTIVE
+ER_RPL_REPLICA_NEXT_LOG_IS_ACTIVE
   eng "next log '%s' is active"
 
-ER_RPL_SLAVE_NEXT_LOG_IS_INACTIVE
+ER_RPL_REPLICA_NEXT_LOG_IS_INACTIVE
   eng "next log '%s' is not active"
 
-ER_RPL_SLAVE_SQL_THREAD_IO_ERROR_READING_EVENT
-  eng "Slave SQL thread%s: I/O error reading event (errno: %d  cur_log->error: %d)"
+ER_RPL_REPLICA_SQL_THREAD_IO_ERROR_READING_EVENT
+  eng "Replica SQL thread%s: I/O error reading event (errno: %d  cur_log->error: %d)"
 
-ER_RPL_SLAVE_ERROR_READING_RELAY_LOG_EVENTS
+ER_RPL_REPLICA_ERROR_READING_RELAY_LOG_EVENTS
   eng "Error reading relay log event%s: %s"
 
-ER_SLAVE_CHANGE_MASTER_TO_EXECUTED
-  eng "'CHANGE MASTER TO%s executed'. Previous state master_host='%s', master_port= %u, master_log_file='%s', master_log_pos= %ld, master_bind='%s'. New state master_host='%s', master_port= %u, master_log_file='%s', master_log_pos= %ld, master_bind='%s'."
+ER_REPLICA_CHANGE_SOURCE_TO_EXECUTED
+  eng "'CHANGE REPLICATION SOURCE TO%s executed'. Previous state source_host='%s', source_port= %u, source_log_file='%s', source_log_pos= %ld, source_bind='%s'. New state source_host='%s', source_port= %u, source_log_file='%s', source_log_pos= %ld, source_bind='%s'."
 
-ER_RPL_SLAVE_NEW_MASTER_INFO_NEEDS_REPOS_TYPE_OTHER_THAN_FILE
-  eng "Slave: Cannot create new master info structure when repositories are of type FILE. Convert slave repositories to TABLE to replicate from multiple sources."
+ER_RPL_REPLICA_NEW_C_M_NEEDS_REPOS_TYPE_OTHER_THAN_FILE
+  eng "Replica: Cannot create new connection metadata structure when repositories are of type FILE. Convert replica repositories to TABLE to replicate from multiple sources."
 
 ER_RPL_FAILED_TO_STAT_LOG_IN_INDEX
   eng "log %s listed in the index, but failed to stat."
@@ -1859,8 +1859,8 @@ ER_RPL_FAILED_TO_STAT_LOG_IN_INDEX
 ER_RPL_LOG_NOT_FOUND_WHILE_COUNTING_RELAY_LOG_SPACE
   eng "Could not find first log while counting relay log space."
 
-ER_SLAVE_CANT_USE_TEMPDIR
-  eng "Unable to use slave's temporary directory '%s'."
+ER_REPLICA_CANT_USE_TEMPDIR
+  eng "Unable to use replica's temporary directory '%s'."
 
 ER_RPL_RELAY_LOG_NEEDS_FILE_NOT_DIRECTORY
   eng "Path '%s' is a directory name, please specify a file name for --relay-log option."
@@ -1869,15 +1869,15 @@ ER_RPL_RELAY_LOG_INDEX_NEEDS_FILE_NOT_DIRECTORY
   eng "Path '%s' is a directory name, please specify a file name for --relay-log-index option."
 
 ER_RPL_PLEASE_USE_OPTION_RELAY_LOG
-  eng "Neither --relay-log nor --relay-log-index were used; so replication may break when this MySQL server acts as a slave and has his hostname changed!! Please use '--relay-log=%s' to avoid this problem."
+  eng "Neither --relay-log nor --relay-log-index were used; so replication may break when this MySQL server acts as a replica and has his hostname changed!! Please use '--relay-log=%s' to avoid this problem."
 
 ER_RPL_OPEN_INDEX_FILE_FAILED
   eng "Failed in open_index_file() called from Relay_log_info::rli_init_info()."
 
-ER_RPL_CANT_INITIALIZE_GTID_SETS_IN_RLI_INIT_INFO
+ER_RPL_CANT_INITIALIZE_GTID_SETS_IN_AM_INIT_INFO
   eng "Failed in init_gtid_sets() called from Relay_log_info::rli_init_info()."
 
-ER_RPL_CANT_OPEN_LOG_IN_RLI_INIT_INFO
+ER_RPL_CANT_OPEN_LOG_IN_AM_INIT_INFO
   eng "Failed in open_log() called from Relay_log_info::rli_init_info()."
 
 ER_RPL_ERROR_WRITING_RELAY_LOG_CONFIGURATION
@@ -2040,7 +2040,7 @@ OBSOLETE_ER_NDB_BINLOG_WRITE_INDEX_FAILED_AFTER_KILL
   eng "NDB Binlog: Failed writing to ndb_binlog_index table while retrying after kill during shutdown"
 
 OBSOLETE_ER_NDB_BINLOG_USING_SERVER_ID_0_SLAVES_WILL_NOT
-  eng "NDB: server id set to zero - changes logged to bin log with server id zero will be logged with another server id by slave mysqlds"
+  eng "NDB: server id set to zero - changes logged to bin log with server id zero will be logged with another server id by replica mysqlds"
 
 OBSOLETE_ER_NDB_SERVER_ID_RESERVED_OR_TOO_LARGE
   eng "NDB: server id provided is too large to be represented in opt_server_id_bits or is reserved"
@@ -2061,10 +2061,10 @@ OBSOLETE_ER_NDB_TRANS_DEPENDENCY_TRACKER_ERROR
   eng "%s"
 
 OBSOLETE_ER_NDB_CONFLICT_FN_PARSE_ERROR
-  eng "NDB Slave: Table %s.%s : Parse error on conflict fn : %s"
+  eng "NDB Replica: Table %s.%s : Parse error on conflict fn : %s"
 
 OBSOLETE_ER_NDB_CONFLICT_FN_SETUP_ERROR
-  eng "NDB Slave: Table %s.%s : %s"
+  eng "NDB Replica: Table %s.%s : %s"
 
 OBSOLETE_ER_NDB_BINLOG_FAILED_TO_GET_TABLE
   eng "NDB Binlog: Failed to get table %s from ndb: %s, %d"
@@ -2139,7 +2139,7 @@ OBSOLETE_ER_NDB_BINLOG_SERVER_SHUTDOWN_DURING_NDB_CLUSTER_START
   eng "NDB Binlog: Server shutdown detected while waiting for ndbcluster to start..."
 
 OBSOLETE_ER_NDB_BINLOG_CLUSTER_RESTARTED_RESET_MASTER_SUGGESTED
-  eng "NDB Binlog: cluster has been restarted --initial or with older filesystem. ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: %u/%u. RESET MASTER should be issued. Resetting ndb_latest_handled_binlog_epoch."
+  eng "NDB Binlog: cluster has been restarted --initial or with older filesystem. ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: %u/%u. RESET SOURCE should be issued. Resetting ndb_latest_handled_binlog_epoch."
 
 OBSOLETE_ER_NDB_BINLOG_CLUSTER_HAS_RECONNECTED
   eng "NDB Binlog: cluster has reconnected. Changes to the database that occurred while disconnected will not be in the binlog"
@@ -2207,11 +2207,11 @@ ER_WRONG_COUNT_FOR_KEY
 ER_WRONG_COUNT_OF_ELEMENTS
   eng "Wrong number of elements: %u (should be %u) for tree at %p"
 
-ER_RPL_ERROR_READING_SLAVE_WORKER_CONFIGURATION
-  eng "Error reading slave worker configuration"
+ER_RPL_ERROR_READING_REPLICA_WORKER_CONFIGURATION
+  eng "Error reading replica worker configuration"
 
 OBSOLETE_ER_RPL_ERROR_WRITING_SLAVE_WORKER_CONFIGURATION
-  eng "Error writing slave worker configuration"
+  eng "Error writing replica worker configuration"
 
 ER_RPL_FAILED_TO_OPEN_RELAY_LOG
   eng "Failed to open relay log %s, error: %s"
@@ -2222,8 +2222,8 @@ ER_RPL_WORKER_CANT_READ_RELAY_LOG
 ER_RPL_WORKER_CANT_FIND_NEXT_RELAY_LOG
   eng "Failed to find next relay log when retrying the transaction, current relay log is %s"
 
-ER_RPL_MTS_SLAVE_COORDINATOR_HAS_WAITED
-  eng "Multi-threaded slave: Coordinator has waited %lu times hitting replica_pending_jobs_size_max; current event size = %zu."
+ER_RPL_MTA_REPLICA_COORDINATOR_HAS_WAITED
+  eng "Multi-threaded replica: Coordinator has waited %lu times hitting replica_pending_jobs_size_max; current event size = %zu."
 
 ER_BINLOG_FAILED_TO_WRITE_DROP_FOR_TEMP_TABLES
   eng "Failed to write the DROP statement for temporary tables to binary log"
@@ -2240,14 +2240,14 @@ ER_FAILED_TO_REMOVE_TEMP_TABLE
 ER_SYSTEM_TABLE_NOT_TRANSACTIONAL
   eng "System table '%.*s' is expected to be transactional."
 
-ER_RPL_ERROR_WRITING_MASTER_CONFIGURATION
-  eng "Error writing master configuration."
+ER_RPL_ERROR_WRITING_SOURCE_CONFIGURATION
+  eng "Error writing source configuration."
 
-ER_RPL_ERROR_READING_MASTER_CONFIGURATION
-  eng "Error reading master configuration."
+ER_RPL_ERROR_READING_SOURCE_CONFIGURATION
+  eng "Error reading source configuration."
 
-ER_RPL_SSL_INFO_IN_MASTER_INFO_IGNORED
-  eng "SSL information in the master info file are ignored because this MySQL slave was compiled without SSL support."
+ER_RPL_SSL_INFO_IN_CONNECTION_METADATA_IGNORED
+  eng "SSL information in the connection metadata repository are ignored because this MySQL replica was compiled without SSL support."
 
 ER_PLUGIN_FAILED_DEINITIALIZATION
   eng "Plugin '%s' of type %s failed deinitialization"
@@ -2513,7 +2513,7 @@ ER_BINLOG_FAILED_TO_SYNC_INDEX_FILE
 ER_BINLOG_ERROR_READING_GTIDS_FROM_RELAY_LOG
   eng "Error reading GTIDs from relaylog: %d"
 
-ER_BINLOG_EVENTS_READ_FROM_RELAY_LOG_INFO
+ER_BINLOG_EVENTS_READ_FROM_APPLIER_METADATA
   eng "%lu events read in relaylog file '%s' for updating Retrieved_Gtid_Set and/or IO thread transaction parser state."
 
 ER_BINLOG_ERROR_READING_GTIDS_FROM_BINARY_LOG
@@ -2615,8 +2615,8 @@ ER_BINLOG_CANT_DELETE_FILE_AND_READ_BINLOG_INDEX
 ER_BINLOG_FAILED_TO_DELETE_LOG_FILE
   eng "Failed to delete log file '%s'"
 
-ER_BINLOG_LOGGING_INCIDENT_TO_STOP_SLAVES
-  eng "%s An incident event has been written to the binary log which will stop the slaves."
+ER_BINLOG_LOGGING_INCIDENT_TO_STOP_REPLICAS
+  eng "%s An incident event has been written to the binary log which will stop the replicas."
 
 ER_BINLOG_CANT_FIND_LOG_IN_INDEX
   eng "find_log_pos() failed (error: %d)"
@@ -2625,16 +2625,16 @@ ER_BINLOG_RECOVERING_AFTER_CRASH_USING
   eng "Recovering after a crash using %s"
 
 ER_BINLOG_CANT_OPEN_CRASHED_BINLOG
-  eng "Failed to open the crashed binlog file when master server is recovering it."
+  eng "Failed to open the crashed binlog file when source server is recovering it."
 
 ER_BINLOG_CANT_TRIM_CRASHED_BINLOG
-  eng "Failed to trim the crashed binlog file when master server is recovering it."
+  eng "Failed to trim the crashed binlog file when source server is recovering it."
 
 ER_BINLOG_CRASHED_BINLOG_TRIMMED
   eng "Crashed binlog file %s size is %llu, but recovered up to %llu. Binlog trimmed to %llu bytes."
 
 ER_BINLOG_CANT_CLEAR_IN_USE_FLAG_FOR_CRASHED_BINLOG
-  eng "Failed to clear LOG_EVENT_BINLOG_IN_USE_F for the crashed binlog file when master server is recovering it."
+  eng "Failed to clear LOG_EVENT_BINLOG_IN_USE_F for the crashed binlog file when source server is recovering it."
 
 ER_BINLOG_FAILED_TO_RUN_AFTER_SYNC_HOOK
   eng "Failed to run 'after_sync' hooks"
@@ -2739,22 +2739,22 @@ ER_AUDIT_WARNING
   eng "%s. The trigger error was (%d) [%s]: %s"
 
 OBSOLETE_ER_NDB_NUMBER_OF_CHANNELS
-  eng "Slave SQL: Configuration with number of replication masters = %u' is not supported when applying to Ndb"
+  eng "Replica SQL: Configuration with number of replication sources = %u' is not supported when applying to Ndb"
 
 OBSOLETE_ER_NDB_REPLICA_PARALLEL_WORKERS
-  eng "Slave SQL: Configuration 'replica_parallel_workers = %lu' is not supported when applying to Ndb"
+  eng "Replica SQL: Configuration 'replica_parallel_workers = %lu' is not supported when applying to Ndb"
 
 OBSOLETE_ER_NDB_DISTRIBUTING_ERR
   eng "NDB %s: distributing %s err: %u"
 
-ER_RPL_SLAVE_INSECURE_CHANGE_MASTER
-  eng "Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information."
+ER_RPL_REPLICA_INSECURE_CHANGE_SOURCE
+  eng "Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information."
 
 OBSOLETE_ER_RPL_SLAVE_FLUSH_RELAY_LOGS_NOT_ALLOWED
   eng "FLUSH RELAY LOGS cannot be performed on channel '%-.192s'."
 
-ER_RPL_SLAVE_INCORRECT_CHANNEL
-  eng "Slave channel '%s' does not exist."
+ER_RPL_REPLICA_INCORRECT_CHANNEL
+  eng "Replica channel '%s' does not exist."
 
 ER_FAILED_TO_FIND_DL_ENTRY
   eng "Can't find symbol '%-.128s' in library."
@@ -2936,19 +2936,19 @@ ER_BINLOG_FILE_OPEN_FAILED
 ER_BINLOG_EVENT_WRITE_TO_STMT_CACHE_FAILED
   eng "Failed to write an incident event into stmt_cache."
 
-ER_SLAVE_RELAY_LOG_TRUNCATE_INFO
+ER_REPLICA_RELAY_LOG_TRUNCATE_INFO
   eng "Relaylog file %s size was %llu, but was truncated at %llu."
 
-ER_SLAVE_RELAY_LOG_PURGE_FAILED
+ER_REPLICA_RELAY_LOG_PURGE_FAILED
   eng "Unable to purge relay log files. %s:%s."
 
-ER_RPL_SLAVE_FILTER_CREATE_FAILED
-  eng "Slave: failed in creating filter for channel '%s'."
+ER_RPL_REPLICA_FILTER_CREATE_FAILED
+  eng "Replica: failed in creating filter for channel '%s'."
 
-ER_RPL_SLAVE_GLOBAL_FILTERS_COPY_FAILED
-  eng "Slave: failed in copying the global filters to its own per-channel filters on configuration for channel '%s'."
+ER_RPL_REPLICA_GLOBAL_FILTERS_COPY_FAILED
+  eng "Replica: failed in copying the global filters to its own per-channel filters on configuration for channel '%s'."
 
-ER_RPL_SLAVE_RESET_FILTER_OPTIONS
+ER_RPL_REPLICA_RESET_FILTER_OPTIONS
   eng "There are per-channel replication filter(s) configured for channel '%.192s' which does not exist. The filter(s) have been discarded."
 
 ER_MISSING_GRANT_SYSTEM_TABLE
@@ -3131,19 +3131,19 @@ ER_FAILED_TO_CONSTRUCT_DROP_EVENT_QUERY
 ER_FAILED_TO_BINLOG_DROP_EVENT
   eng "Unable to binlog drop event %s.%s."
 
-ER_FAILED_TO_START_SLAVE_THREAD
-  eng "Failed to start slave threads for channel '%s'."
+ER_FAILED_TO_START_REPLICA_THREAD
+  eng "Failed to start replica threads for channel '%s'."
 
 ER_RPL_IO_THREAD_KILLED
   eng "%s%s."
 
-ER_SLAVE_RECONNECT_FAILED
-  eng "Failed registering on master, reconnecting to try again, log '%s' at position %s. %s."
+ER_REPLICA_RECONNECT_FAILED
+  eng "Failed registering on source, reconnecting to try again, log '%s' at position %s. %s."
 
-ER_SLAVE_KILLED_AFTER_RECONNECT
-  eng "Slave I/O thread killed during or after reconnect."
+ER_REPLICA_KILLED_AFTER_RECONNECT
+  eng "Replica I/O thread killed during or after reconnect."
 
-ER_SLAVE_NOT_STARTED_ON_SOME_CHANNELS
+ER_REPLICA_NOT_STARTED_ON_SOME_CHANNELS
   eng "Some of the channels are not created/initialized properly. Check for additional messages above. You will not be able to start replication on those channels until the issue is resolved and the server restarted."
 
 ER_FAILED_TO_ADD_RPL_FILTER
@@ -3233,7 +3233,7 @@ ER_WIN_LOAD_LIBRARY_FAILED
 ER_PARTITION_HANDLER_ADMIN_MSG
   eng "%s."
 
-ER_RPL_RLI_INIT_INFO_MSG
+ER_RPL_AM_INIT_INFO_MSG
   eng "%s."
 
 ER_DD_UPGRADE_TABLE_INTACT_ERROR
@@ -3482,25 +3482,25 @@ ER_SEMISYNC_SERVER_REPLY
 ER_SEMISYNC_FUNCTION_CALLED_TWICE
   eng "%s called twice."
 
-ER_SEMISYNC_RPL_ENABLED_ON_MASTER
-  eng "Semi-sync replication enabled on the master."
+ER_SEMISYNC_RPL_ENABLED_ON_SOURCE
+  eng "Semi-sync replication enabled on the source."
 
-ER_SEMISYNC_MASTER_OOM
-  eng "Cannot allocate memory to enable semi-sync on the master."
+ER_SEMISYNC_SOURCE_OOM
+  eng "Cannot allocate memory to enable semi-sync on the source."
 
-ER_SEMISYNC_DISABLED_ON_MASTER
-  eng "Semi-sync replication disabled on the master."
+ER_SEMISYNC_DISABLED_ON_SOURCE
+  eng "Semi-sync replication disabled on the source."
 
 ER_SEMISYNC_FORCED_SHUTDOWN
   eng "SEMISYNC: Forced shutdown. Some updates might not be replicated."
 
-ER_SEMISYNC_MASTER_GOT_REPLY_AT_POS
+ER_SEMISYNC_SOURCE_GOT_REPLY_AT_POS
   eng "%s: Got reply at (%s, %lu)."
 
-ER_SEMISYNC_MASTER_SIGNAL_ALL_WAITING_THREADS
+ER_SEMISYNC_SOURCE_SIGNAL_ALL_WAITING_THREADS
   eng "%s: signal all waiting threads."
 
-ER_SEMISYNC_MASTER_TRX_WAIT_POS
+ER_SEMISYNC_SOURCE_TRX_WAIT_POS
   eng "%s: wait pos (%s, %lu), repl(%d)."
 
 ER_SEMISYNC_BINLOG_REPLY_IS_AHEAD
@@ -3539,8 +3539,8 @@ ER_SEMISYNC_FAILED_TO_INSERT_TRX_NODE
 ER_SEMISYNC_TRX_SKIPPED_AT_POS
   eng "%s: Transaction skipped at (%s, %lu)."
 
-ER_SEMISYNC_MASTER_FAILED_ON_NET_FLUSH
-  eng "Semi-sync master failed on net_flush() before waiting for replica reply."
+ER_SEMISYNC_SOURCE_FAILED_ON_NET_FLUSH
+  eng "Semi-sync source failed on net_flush() before waiting for replica reply."
 
 ER_SEMISYNC_RECEIVED_ACK_IS_SMALLER
   eng "The received ack is smaller than m_greatest_ack."
@@ -3548,7 +3548,7 @@ ER_SEMISYNC_RECEIVED_ACK_IS_SMALLER
 ER_SEMISYNC_ADD_ACK_TO_SLOT
   eng "Add the ack into slot %u."
 
-ER_SEMISYNC_UPDATE_EXISTING_SLAVE_ACK
+ER_SEMISYNC_UPDATE_EXISTING_REPLICA_ACK
   eng "Update an exsiting ack in slot %u."
 
 ER_SEMISYNC_FAILED_TO_START_ACK_RECEIVER_THD
@@ -3563,14 +3563,14 @@ ER_SEMISYNC_FAILED_TO_WAIT_ON_DUMP_SOCKET
 ER_SEMISYNC_STOPPING_ACK_RECEIVER_THREAD
   eng "Stopping ack receiver thread."
 
-ER_SEMISYNC_FAILED_REGISTER_SLAVE_TO_RECEIVER
-  eng "Failed to register slave to semi-sync ACK receiver thread."
+ER_SEMISYNC_FAILED_REGISTER_REPLICA_TO_RECEIVER
+  eng "Failed to register replica to semi-sync ACK receiver thread."
 
-ER_SEMISYNC_START_BINLOG_DUMP_TO_SLAVE
-  eng "Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)."
+ER_SEMISYNC_START_BINLOG_DUMP_TO_REPLICA
+  eng "Start %s binlog_dump to replica (server_id: %d), pos(%s, %lu)."
 
-ER_SEMISYNC_STOP_BINLOG_DUMP_TO_SLAVE
-  eng "Stop %s binlog_dump to slave (server_id: %d)."
+ER_SEMISYNC_STOP_BINLOG_DUMP_TO_REPLICA
+  eng "Stop %s binlog_dump to replica (server_id: %d)."
 
 ER_SEMISYNC_UNREGISTER_TRX_OBSERVER_FAILED
   eng "unregister_trans_observer failed."
@@ -3585,34 +3585,34 @@ ER_SEMISYNC_UNREGISTERED_REPLICATOR
   eng "unregister_replicator OK."
 
 ER_SEMISYNC_SOCKET_FD_TOO_LARGE
-  eng "Semisync slave socket fd is %u. select() cannot handle if the socket fd is bigger than %u (FD_SETSIZE)."
+  eng "Semisync replica socket fd is %u. select() cannot handle if the socket fd is bigger than %u (FD_SETSIZE)."
 
-ER_SEMISYNC_SLAVE_REPLY
+ER_SEMISYNC_REPLICA_REPLY
   eng "%s: reply - %d."
 
 ER_SEMISYNC_MISSING_MAGIC_NO_FOR_SEMISYNC_PKT
   eng "Missing magic number for semi-sync packet, packet len: %lu."
 
-ER_SEMISYNC_SLAVE_START
-  eng "Slave I/O thread: Start %s replication to master '%s@%s:%d' in log '%s' at position %lu."
+ER_SEMISYNC_REPLICA_START
+  eng "Replica I/O thread: Start %s replication to source '%s@%s:%d' in log '%s' at position %lu."
 
-ER_SEMISYNC_SLAVE_REPLY_WITH_BINLOG_INFO
+ER_SEMISYNC_REPLICA_REPLY_WITH_BINLOG_INFO
   eng "%s: reply (%s, %lu)."
 
-ER_SEMISYNC_SLAVE_NET_FLUSH_REPLY_FAILED
-  eng "Semi-sync slave net_flush() reply failed."
+ER_SEMISYNC_REPLICA_NET_FLUSH_REPLY_FAILED
+  eng "Semi-sync replica net_flush() reply failed."
 
-ER_SEMISYNC_SLAVE_SEND_REPLY_FAILED
-  eng "Semi-sync slave send reply failed: %s (%d)."
+ER_SEMISYNC_REPLICA_SEND_REPLY_FAILED
+  eng "Semi-sync replica send reply failed: %s (%d)."
 
-ER_SEMISYNC_EXECUTION_FAILED_ON_MASTER
-  eng "Execution failed on master: %s; error %d"
+ER_SEMISYNC_EXECUTION_FAILED_ON_SOURCE
+  eng "Execution failed on source: %s; error %d"
 
-ER_SEMISYNC_NOT_SUPPORTED_BY_MASTER
-  eng "Master server does not support semi-sync, fallback to asynchronous replication"
+ER_SEMISYNC_NOT_SUPPORTED_BY_SOURCE
+  eng "Source server does not support semi-sync, fallback to asynchronous replication"
 
-ER_SEMISYNC_SLAVE_SET_FAILED
-  eng "Set 'rpl_semi_sync_replica=1' on master failed"
+ER_SEMISYNC_REPLICA_SET_FAILED
+  eng "Set 'rpl_semi_sync_replica=1' on source failed"
 
 ER_SEMISYNC_FAILED_TO_STOP_ACK_RECEIVER_THD
   eng "Failed to stop ack receiver thread on my_thread_join, errno(%d)."
@@ -3842,7 +3842,7 @@ ER_SYS_VAR_COMPONENT_FAILED_TO_MAKE_VARIABLE_PERSISTENT
 ER_COMPONENT_FILTER_CONFUSED
   eng "The log-filter component \"%s\" got confused at \"%s\" (state: %s) ..."
 
-ER_STOP_SLAVE_IO_THREAD_DISK_SPACE
+ER_STOP_REPLICA_IO_THREAD_DISK_SPACE
   eng "Waiting until I/O thread for channel '%s' finish writing to disk before stopping. Free some disk space or use 'KILL' to abort I/O thread operation. Notice that aborting the I/O thread while rotating the relay log might corrupt the relay logs, requiring a server restart to fix it."
 
 ER_LOG_FILE_CANNOT_OPEN
@@ -3858,7 +3858,7 @@ OBSOLETE_ER_DEPRECATED_NATIONAL
   eng "NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous."
 
 OBSOLETE_ER_SLAVE_POSSIBLY_DIVERGED_AFTER_DDL
-  eng "A commit for an atomic DDL statement was unsuccessful on the master and the slave. The slave supports atomic DDL statements but the master does not, so the action taken by the slave and master might differ. Check that their states have not diverged before proceeding."
+  eng "A commit for an atomic DDL statement was unsuccessful on the source and the replica. The replica supports atomic DDL statements but the source does not, so the action taken by the replica and source might differ. Check that their states have not diverged before proceeding."
 
 ER_PERSIST_OPTION_STATUS
   eng "Configuring persisted options failed: \"%s\"."
@@ -4650,7 +4650,7 @@ ER_GRP_RPL_MEMBER_STOP_RPL_CHANNELS_ERROR
   eng "Error stopping all replication channels while server was leaving the group. %s"
 
 ER_GRP_RPL_PURGE_APPLIER_LOGS
-  eng "Detected previous RESET MASTER invocation or an issue exists in the group replication applier relay log. Purging existing applier logs."
+  eng "Detected previous RESET SOURCE invocation or an issue exists in the group replication applier relay log. Purging existing applier logs."
 
 ER_GRP_RPL_RESET_APPLIER_MODULE_LOGS_ERROR
   eng "Unknown error occurred while resetting applier's module logs."
@@ -4667,17 +4667,17 @@ ER_GRP_RPL_APPLIER_THD_STOP_ERROR
 ER_GRP_RPL_FETCH_TRANS_DATA_FAILED
   eng "Failed to fetch transaction data containing required transaction info for applier"
 
-ER_GRP_RPL_SLAVE_IO_THD_PRIMARY_UNKNOWN
-  eng "Can't start slave IO THREAD of channel '%s' when group replication is running with single-primary mode and the primary member is not known."
+ER_GRP_RPL_REPLICA_IO_THD_PRIMARY_UNKNOWN
+  eng "Can't start replica IO THREAD of channel '%s' when group replication is running with single-primary mode and the primary member is not known."
 
 ER_GRP_RPL_SALVE_IO_THD_ON_SECONDARY_MEMBER
-  eng "Can't start slave IO THREAD of channel '%s' when group replication is running with single-primary mode on a secondary member."
+  eng "Can't start replica IO THREAD of channel '%s' when group replication is running with single-primary mode on a secondary member."
 
-ER_GRP_RPL_SLAVE_SQL_THD_PRIMARY_UNKNOWN
-  eng "Can't start slave SQL THREAD of channel '%s' when group replication is running with single-primary mode and the primary member is not known."
+ER_GRP_RPL_REPLICA_SQL_THD_PRIMARY_UNKNOWN
+  eng "Can't start replica SQL THREAD of channel '%s' when group replication is running with single-primary mode and the primary member is not known."
 
-ER_GRP_RPL_SLAVE_SQL_THD_ON_SECONDARY_MEMBER
-  eng "Can't start slave SQL THREAD of channel '%s' when group replication is running with single-primary mode on a secondary member."
+ER_GRP_RPL_REPLICA_SQL_THD_ON_SECONDARY_MEMBER
+  eng "Can't start replica SQL THREAD of channel '%s' when group replication is running with single-primary mode on a secondary member."
 
 ER_GRP_RPL_NEEDS_INNODB_TABLE
   eng "Table %s does not use the InnoDB storage engine. This is not compatible with Group Replication."
@@ -4806,7 +4806,7 @@ ER_GRP_RPL_DONOR_SERVER_CONN
   eng "There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials and all MEMBER_HOST column values of performance_schema.replication_group_members table are correct and DNS resolvable."
 
 ER_GRP_RPL_CHECK_STATUS_TABLE
-  eng "For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery."
+  eng "For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery."
 
 ER_GRP_RPL_STARTING_GRP_REC
   eng "Error while starting the group replication incremental recovery receiver/applier threads"
@@ -5093,11 +5093,11 @@ ER_GRP_RPL_LOG_REPLICA_UPDATES_NOT_SET
 ER_GRP_RPL_INVALID_TRANS_WRITE_SET_EXTRACTION_VALUE
   eng "Extraction of transaction write sets requires an hash algorithm configuration. Please, double check that the parameter transaction-write-set-extraction is set to a valid algorithm."
 
-ER_GRP_RPL_RELAY_LOG_INFO_REPO_MUST_BE_TABLE
-  eng "Relay log info repository must be set to TABLE"
+ER_GRP_RPL_APPLIER_METADATA_REPO_MUST_BE_TABLE
+  eng "Applier metadata repository must be set to TABLE"
 
-ER_GRP_RPL_MASTER_INFO_REPO_MUST_BE_TABLE
-  eng "Master info repository must be set to TABLE."
+ER_GRP_RPL_CONNECTION_METADATA_REPO_MUST_BE_TABLE
+  eng "Connection metadata repository must be set to TABLE."
 
 ER_GRP_RPL_INCORRECT_TYPE_SET_FOR_PARALLEL_APPLIER
   eng "In order to use parallel applier on Group Replication, parameter replica-parallel-type must be set to 'LOGICAL_CLOCK'."
@@ -5264,17 +5264,17 @@ OBSOLETE_ER_GRP_RPL_STOP_REP_CHANNEL
 ER_GRP_RPL_GCS_GR_ERROR_MSG
   eng "%s"
 
-ER_GRP_RPL_SLAVE_IO_THREAD_UNBLOCKED
-  eng "The slave IO thread of channel '%s' is unblocked as the member is declared ONLINE now."
+ER_GRP_RPL_REPLICA_IO_THREAD_UNBLOCKED
+  eng "The replica IO thread of channel '%s' is unblocked as the member is declared ONLINE now."
 
-ER_GRP_RPL_SLAVE_IO_THREAD_ERROR_OUT
-  eng "The slave IO thread of channel '%s' will error out as the member failed to come ONLINE."
+ER_GRP_RPL_REPLICA_IO_THREAD_ERROR_OUT
+  eng "The replica IO thread of channel '%s' will error out as the member failed to come ONLINE."
 
-ER_GRP_RPL_SLAVE_APPLIER_THREAD_UNBLOCKED
-  eng "The slave applier thread of channel '%s' is unblocked as the member is declared ONLINE now."
+ER_GRP_RPL_REPLICA_APPLIER_THREAD_UNBLOCKED
+  eng "The replica applier thread of channel '%s' is unblocked as the member is declared ONLINE now."
 
-ER_GRP_RPL_SLAVE_APPLIER_THREAD_ERROR_OUT
-  eng "The slave applier thread of channel '%s' will error out as the member failed to come ONLINE."
+ER_GRP_RPL_REPLICA_APPLIER_THREAD_ERROR_OUT
+  eng "The replica applier thread of channel '%s' will error out as the member failed to come ONLINE."
 
 ER_LDAP_AUTH_FAILED_TO_CREATE_OR_GET_CONNECTION
   eng "LDAP authentication initialize: failed to create/ get connection from the pool. "
@@ -7730,7 +7730,7 @@ ER_IB_MSG_LOG_FILES_CREATED_BY_CLONE
 ER_IB_MSG_LOG_FORMAT_OLD
   eng "Redo log is from an earlier version, v%lu."
 
-ER_IB_MSG_LOG_FORMAT_NOT_SUPPORTED
+OBSOLETE_ER_IB_MSG_LOG_FORMAT_NOT_SUPPORTED
   eng "Redo log format v%lu not supported. Current supported format is v%lu."
 
 ER_IB_MSG_RECOVERY_CHECKPOINT_FROM_BEFORE_CLEAN_SHUTDOWN
@@ -8060,8 +8060,8 @@ ER_IB_MSG_841
 ER_IB_MSG_842
   eng "%s"
 
-ER_IB_MSG_843
-  eng "%s"
+ER_IB_MSG_CANT_ENCRYPT_REDO_LOG_DATA
+  eng "Can't encrypt data of redo log"
 
 ER_IB_MSG_844
   eng "%s"
@@ -8916,7 +8916,7 @@ ER_IB_MSG_1127
   eng "Unable to create monitor file %s: %s"
 
 ER_IB_MSG_1128
-  eng "Disabling background log and ibuf IO write threads."
+  eng "Disabling background ibuf IO read threads."
 
 ER_IB_MSG_1129
   eng "Cannot initialize AIO sub-system"
@@ -8954,7 +8954,7 @@ ER_IB_MSG_1139
 ER_IB_MSG_RECOVERY_CORRUPT
   eng "The redo log file may have been corrupt and it is possible that the log scan or parsing did not proceed far enough in recovery. Please run CHECK TABLE on your InnoDB tables to check that they are ok! It may be safest to recover your InnoDB database from a backup!"
 
-ER_IB_MSG_LOG_FILES_RESIZE_ON_START_IN_READ_ONLY_MODE
+OBSOLETE_ER_IB_MSG_LOG_FILES_RESIZE_ON_START_IN_READ_ONLY_MODE
   eng "Cannot resize redo log files in read-only mode. Provide --innodb_redo_log_capacity >= %lluMB or start without --innodb-read-only."
 
 ER_IB_MSG_1142
@@ -9344,11 +9344,11 @@ ER_IB_MSG_1269
 ER_IB_MSG_THREAD_CONCURRENCY_CHANGED
   eng "User has set innodb_thread_concurrency to %lu."
 
-ER_RPL_SLAVE_SQL_THREAD_STOP_CMD_EXEC_TIMEOUT
-  eng "STOP SLAVE command execution is incomplete: Slave SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
+ER_RPL_REPLICA_SQL_THREAD_STOP_CMD_EXEC_TIMEOUT
+  eng "STOP REPLICA command execution is incomplete: Replica SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
 
-ER_RPL_SLAVE_IO_THREAD_STOP_CMD_EXEC_TIMEOUT
-  eng "STOP SLAVE command execution is incomplete: Slave IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
+ER_RPL_REPLICA_IO_THREAD_STOP_CMD_EXEC_TIMEOUT
+  eng "STOP REPLICA command execution is incomplete: Replica IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
 
 ER_RPL_GTID_UNSAFE_STMT_ON_NON_TRANS_TABLE
   eng "Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
@@ -9396,40 +9396,40 @@ ER_XPLUGIN_FAILED_TO_STOP_SERVICES
   eng "Stopping services failed with error \"%s\""
 
 ER_INCONSISTENT_ERROR
-  eng "Query caused different errors on master and slave. Error on master: message (format)='%s' error code=%d; Error on slave:actual message='%s', error code=%d. Default database:'%s'. Query:'%s'"
+  eng "Query caused different errors on source and replica. Error on source: message (format)='%s' error code=%d; Error on replica:actual message='%s', error code=%d. Default database:'%s'. Query:'%s'"
 
-ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
-  eng "Got fatal error %d from master when reading data from binary log: '%-.512s'"
+ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG
+  eng "Got fatal error %d from source when reading data from binary log: '%-.512s'"
 
 ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from network."
 
-ER_SLAVE_CREATE_EVENT_FAILURE
+ER_REPLICA_CREATE_EVENT_FAILURE
   eng "Failed to create %s"
 
-ER_SLAVE_FATAL_ERROR
+ER_REPLICA_FATAL_ERROR
   eng "Fatal error: %s"
 
-ER_SLAVE_HEARTBEAT_FAILURE
-  eng "Unexpected master's heartbeat data: %s"
+ER_REPLICA_HEARTBEAT_FAILURE
+  eng "Unexpected source's heartbeat data: %s"
 
-ER_SLAVE_INCIDENT
-  eng "The incident %s occurred on the master. Message: %s"
+ER_REPLICA_INCIDENT
+  eng "The incident %s occurred on the source. Message: %s"
 
-ER_SLAVE_MASTER_COM_FAILURE
-  eng "Master command %s failed: %s"
+ER_REPLICA_SOURCE_COM_FAILURE
+  eng "Source command %s failed: %s"
 
-ER_SLAVE_RELAY_LOG_READ_FAILURE
+ER_REPLICA_RELAY_LOG_READ_FAILURE
   eng "Relay log read failure: %s"
 
-ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+ER_REPLICA_RELAY_LOG_WRITE_FAILURE
   eng "Relay log write failure: %s"
 
-ER_SERVER_SLAVE_MI_INIT_REPOSITORY
-  eng "Slave failed to initialize master info structure from the repository"
+ER_SERVER_REPLICA_CM_INIT_REPOSITORY
+  eng "Replica failed to initialize connection metadata structure from the repository"
 
-ER_SERVER_SLAVE_RLI_INIT_REPOSITORY
-  eng "Slave failed to initialize relay log info structure from the repository"
+ER_SERVER_REPLICA_AM_INIT_REPOSITORY
+  eng "Replica failed to initialize applier metadata structure from the repository"
 
 ER_SERVER_NET_PACKET_TOO_LARGE
   eng "Got a packet bigger than 'max_allowed_packet' bytes"
@@ -9437,7 +9437,7 @@ ER_SERVER_NET_PACKET_TOO_LARGE
 ER_SERVER_NO_SYSTEM_TABLE_ACCESS
   eng "Access to %.64s '%.64s.%.64s' is rejected."
 
-ER_SERVER_UNKNOWN_ERROR
+OBSOLETE_ER_SERVER_UNKNOWN_ERROR
   eng "Unknown error"
 
 ER_SERVER_UNKNOWN_SYSTEM_VARIABLE
@@ -9491,14 +9491,14 @@ ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 ER_SERVER_ACL_TABLE_ERROR
   eng ""
 
-ER_SERVER_SLAVE_INIT_QUERY_FAILED
-  eng "Slave SQL thread aborted. Can't execute init_replica query, MY-%06d - '%s'"
+ER_SERVER_REPLICA_INIT_QUERY_FAILED
+  eng "Replica SQL thread aborted. Can't execute init_replica query, MY-%06d - '%s'"
 
-ER_SERVER_SLAVE_CONVERSION_FAILED
+ER_SERVER_REPLICA_CONVERSION_FAILED
   eng "Column %d of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"
 
-ER_SERVER_SLAVE_IGNORED_TABLE
-  eng "Slave SQL thread ignored the query because of replicate-*-table rules"
+ER_SERVER_REPLICA_IGNORED_TABLE
+  eng "Replica SQL thread ignored the query because of replicate-*-table rules"
 
 ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
   eng "Cannot replicate anonymous transaction when AUTO_POSITION = 1, at file %.400s, position %lld."
@@ -9586,7 +9586,7 @@ OBSOLETE_ER_REGEXP_INVALID_FLAG
   eng "Invalid match mode flag in regular expression."
 
 OBSOLETE_ER_XA_REPLICATION_FILTERS
-  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
+  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replica."
 
 OBSOLETE_ER_UPDATE_GTID_PURGED_WITH_GR
   eng "Cannot update GTID_PURGED with the Group Replication plugin running"
@@ -10264,7 +10264,7 @@ ER_IB_MSG_DDL_LOG_FAIL_POST_DDL
   eng "Error in DLL Log cleanup during Post-DDL processing."
 
 ER_SERVER_BINLOG_UNSAFE_SYSTEM_FUNCTION
-  eng "'%s' statement is unsafe because it uses a system function that may return a different value on the slave."
+  eng "'%s' statement is unsafe because it uses a system function that may return a different value on the replica."
 
 ER_SERVER_UPGRADE_HELP_TABLE_STATUS
   eng "Upgrade of help tables %s."
@@ -10347,7 +10347,7 @@ OBSOLETE_ER_WARN_DEPRECATED_FOUND_ROWS
   eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
 
 ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT
-  eng "The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave."
+  eng "The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the replica."
 
 ER_GRP_RPL_MEMBER_VER_READ_COMPATIBLE
   eng "Member version is read compatible with the group."
@@ -10494,7 +10494,7 @@ ER_GRP_RPL_RECOVERY_STRAT_FALLBACK
 ER_GRP_RPL_RECOVERY_STRAT_NO_FALLBACK
   eng "Due to a critical cloning error or lack of donors, distributed recovery cannot be executed. The member will now leave the group."
 
-ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_CLONE
+ER_GRP_RPL_REPLICA_THREAD_ERROR_ON_CLONE
   eng "The '%s' thread of channel '%s' will error out as the server will attempt to clone another server"
 
 ER_UNKNOWN_TABLE_IN_UPGRADE
@@ -10537,10 +10537,10 @@ ER_GRP_RPL_MESSAGE_SERVICE_FATAL_ERROR
   eng "A message sent through the Group Replication message deliver service was not delivered successfully. The server will now leave the group. Try to add the server back to the group and check if the problem persists, or check previous messages in the log for hints of what could be the problem."
 
 ER_WARN_WRONG_COMPRESSION_ALGORITHM_LOG
-  eng "Invalid MASTER_COMPRESSION_ALGORITHMS '%.192s' found in repository for channel '%.192s'. Resetting to 'uncompressed' (no compression)."
+  eng "Invalid SOURCE_COMPRESSION_ALGORITHMS '%.192s' found in repository for channel '%.192s'. Resetting to 'uncompressed' (no compression)."
 
 ER_WARN_WRONG_COMPRESSION_LEVEL_LOG
-  eng "Invalid MASTER_ZSTD_COMPRESSION_LEVEL found in repository for channel '%.192s'. Resetting to %u."
+  eng "Invalid SOURCE_ZSTD_COMPRESSION_LEVEL found in repository for channel '%.192s'. Resetting to %u."
 
 ER_PROTOCOL_COMPRESSION_RESET_LOG
   eng "Option --protocol-compression-algorithms is reset to default value."
@@ -10558,16 +10558,16 @@ ER_WARN_LOG_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST
   eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' was set to `%.64s`@`%.255s`, but this is not an existing user. Correct this before starting replication threads."
 
 ER_WARN_LOG_PRIVILEGE_CHECKS_USER_CORRUPT
-  eng "Invalid, corrupted PRIVILEGE_CHECKS_USER was found in the replication configuration repository for channel '%.192s'. Use CHANGE MASTER TO PRIVILEGE_CHECKS_USER to correct the configuration."
+  eng "Invalid, corrupted PRIVILEGE_CHECKS_USER was found in the replication configuration repository for channel '%.192s'. Use CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER to correct the configuration."
 
 ER_WARN_LOG_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV
   eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' was set to `%.64s`@`%.255s`, but this user does not have REPLICATION_APPLIER privilege. Correct this before starting the replication threads."
 
 ER_OBSOLETE_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS
-  eng "The PRIVILEGE_CHECKS_USER for channel '%.192s' would need FILE privilege to execute a LOAD DATA INFILE statement replicated in statement format. Consider using binlog_format=ROW on master. If the replicated events are trusted, recover from the failure by temporarily granting FILE to the PRIVILEGE_CHECKS_USER."
+  eng "The PRIVILEGE_CHECKS_USER for channel '%.192s' would need FILE privilege to execute a LOAD DATA INFILE statement replicated in statement format. Consider using binlog_format=ROW on source. If the replicated events are trusted, recover from the failure by temporarily granting FILE to the PRIVILEGE_CHECKS_USER."
 
-ER_RPL_SLAVE_SQL_THREAD_STARTING_WITH_PRIVILEGE_CHECKS
-  eng "Slave SQL thread%s initialized, starting replication in log '%s' at position %s, relay log '%s' position: %s, user: '%.64s'@'%.255s', roles: %.512s"
+ER_RPL_REPLICA_SQL_THREAD_STARTING_WITH_PRIVILEGE_CHECKS
+  eng "Replica SQL thread%s initialized, starting replication in log '%s' at position %s, relay log '%s' position: %s, user: '%.64s'@'%.255s', roles: %.512s"
 
 ER_AUDIT_LOG_CANNOT_GENERATE_PASSWORD
   eng "Cannot generate password: '%.32s'"
@@ -10584,8 +10584,8 @@ ER_WARN_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
 ER_IB_MSG_SKIP_HIDDEN_DIR
   eng "Directory '%s' will not be scanned because it is a hidden directory."
 
-ER_WARN_RPL_RECOVERY_NO_ROTATE_EVENT_FROM_MASTER_EOF
-  eng "Server was not able to find a rotate event from master server to initialize relay log recovery for channel '%s'. Skipping relay log recovery for the channel."
+ER_WARN_RPL_RECOVERY_NO_ROTATE_EVENT_FROM_SOURCE_EOF
+  eng "Server was not able to find a rotate event from source server to initialize relay log recovery for channel '%s'. Skipping relay log recovery for the channel."
 
 ER_IB_LOB_ROLLBACK_INDEX_LEN
   eng "Rolling back LOB for transaction %llu undo number %llu : current index length %llu. (iteration %llu)"
@@ -10593,7 +10593,7 @@ ER_IB_LOB_ROLLBACK_INDEX_LEN
 ER_CANT_PROCESS_EXPRESSION_FOR_GENERATED_COLUMN_TO_DD
   eng "Error in processing (possibly deprecated) expression or function '%.128s' for generated column %.64s.%.64s.%.64s"
 
-ER_RPL_SLAVE_QUEUE_EVENT_FAILED_INVALID_NON_ROW_FORMAT
+ER_RPL_REPLICA_QUEUE_EVENT_FAILED_INVALID_NON_ROW_FORMAT
   eng "The queue event failed for channel '%s' as an invalid event according to REQUIRE_ROW_FORMAT was found."
 
 ER_OBSOLETE_REQUIRE_ROW_FORMAT_VIOLATION
@@ -10602,7 +10602,7 @@ ER_OBSOLETE_REQUIRE_ROW_FORMAT_VIOLATION
 ER_LOG_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET
   eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' can't be set to `%.64s`@`%.255s` unless REQUIRE_ROW_FORMAT is also set to %d."
 
-ER_RPL_SLAVE_SQL_THREAD_DETECTED_UNEXPECTED_EVENT_SEQUENCE
+ER_RPL_REPLICA_SQL_THREAD_DETECTED_UNEXPECTED_EVENT_SEQUENCE
   eng "An unexpected event sequence was detected by the SQL thread while applying an event."
 
 ER_IB_MSG_UPGRADE_PARTITION_FILE
@@ -10660,7 +10660,7 @@ ER_MIGRATE_TABLE_TO_DD_OOM
   eng "Could not allocate memory for key_info when migrating table %s.%s"
 
 ER_RPL_RELAY_LOG_RECOVERY_INFO_AFTER_CLONE
-  eng "Relay log information for channel '%s' was found after a clone operation. Relay log recovery will be executed to adjust positions and file information for this new server. Should that automatic procedure fail please adjust the positions through 'CHANGE MASTER TO'"
+  eng "Applier metadata information for channel '%s' was found after a clone operation. Relay log recovery will be executed to adjust positions and file information for this new server. Should that automatic procedure fail please adjust the positions through 'CHANGE REPLICATION SOURCE TO'"
 
 ER_IB_MSG_57_UNDO_SPACE_DELETE_FAIL
   eng "Failed to delete 5.7 undo tablespace: %s during upgrade"
@@ -11142,7 +11142,7 @@ ER_RPL_ASYNC_READ_FAILOVER_TABLE
 ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL
   eng "Error %s the channel '%s', the operation will be automatically retried."
 
-ER_SLAVE_ANONYMOUS_TO_GTID_IS_LOCAL_OR_UUID_AND_GTID_MODE_NOT_ON
+ER_REPLICA_ANON_TO_GTID_IS_LOCAL_OR_UUID_AND_GTID_MODE_NOT_ON
   eng "Replication channel '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS='%s', which is invalid when GTID_MODE <> ON. If you intend to use GTID_MODE = ON everywhere, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF and use the procedure for enabling GTIDs online (see the documentation). If you intend to use GTIDs on this replica and cannot enable GTIDs on the source, enable GTID_MODE = ON and leave ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>. If you intend to not use GTIDs at all in the replication topology, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS=OFF and leave GTID_MODE = '%s'."
 
 ER_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME
@@ -11179,7 +11179,7 @@ ER_GRP_RPL_APPLIER_CHANNEL_STILL_RUNNING
   eng "The group_replication_applier channel is still running, most likely it is waiting for a database/table lock, which is preventing the channel from stopping. Please check database/table locks, including the ones created by backup tools."
 
 ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF_CHANNEL
-  eng "Detected misconfiguration: replication channel \'%.192s\' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1, but the server was started with a value other then --gtid-mode = ON. Either reconfigure replication using CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 0 FOR CHANNEL \'%.192s\', or change GTID_MODE to value ON, before starting the replica receiver thread."
+  eng "Detected misconfiguration: replication channel \'%.192s\' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1, but the server was started with a value other then --gtid-mode = ON. Either reconfigure replication using CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0 FOR CHANNEL \'%.192s\', or change GTID_MODE to value ON, before starting the replica receiver thread."
 
 ER_FIREWALL_SERVICES_NOT_ACQUIRED
   eng "Could not acquire required component services."
@@ -11449,7 +11449,7 @@ ER_GRP_RPL_FAILOVER_PRIMARY_BACK_TO_MAJORITY
 ER_RPL_INCREMENTING_MEMBER_ACTION_VERSION
   eng "Error incrementing member action configuration version for %s.%s table."
 
-ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_SECONDARY_MEMBER
+ER_GRP_RPL_REPLICA_THREAD_ERROR_ON_SECONDARY_MEMBER
   eng "The '%s' thread of channel '%s' will error out as this server is a group secondary."
 
 ER_IB_MSG_CLONE_DDL_NTFN
@@ -11525,7 +11525,7 @@ ER_AUTHENTICATION_OCI_NO_GROUPS_FOUND
   eng "User is not part of any groups. However, account is configured to use group mapping."
 
 ER_AUTHENTICATION_OCI_NONCE
-  eng "Public/private key mismatch (fingerprint %s) while authenticating user %s in tenancy %s ."
+  eng "Received OpenSSL error: %s while authenticating user %s with fingerprint %s in tenancy %s ."
 
 ER_HEALTH_WARNING_MEMORY_USAGE_LEVEL_1
   eng "%s: Warning Level 1 (%llu MiB): available=%llu MiB, total=%llu MiB, used=%.2f%%, mysqld=%llu MiB"
@@ -11704,13 +11704,13 @@ ER_IB_MSG_LOG_UPGRADE_UNINITIALIZED_FILES
 ER_IB_MSG_LOG_UPGRADE_CORRUPTION__UNEXPECTED
   eng "Cannot upgrade format (v%lu) of redo log files when the redo log is corrupted. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
 
-ER_IB_MSG_LOG_UPGRADE_NON_PERSISTED_DD_METADATA__UNEXPECTED
+OBSOLETE_ER_IB_MSG_LOG_UPGRADE_NON_PERSISTED_DD_METADATA
   eng "Cannot upgrade format (v%lu) of redo log files when there is non-persisted DD metadata in redo. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
 
-ER_IB_MSG_LOG_UPGRADE_FLUSH_FAILED__UNEXPECTED
+OBSOLETE_ER_IB_MSG_LOG_UPGRADE_FLUSH_FAILED__UNEXPECTED
   eng "Cannot upgrade format (v%lu) of redo log files, because InnoDB failed to reach state in which redo log is logically empty. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
 
-ER_IB_MSG_LOG_FILES_RESIZE_ON_START_FAILED__UNEXPECTED
+OBSOLETE_ER_IB_MSG_LOG_FILES_RESIZE_ON_START_FAILED__UNEXPECTED
   eng "Failed to resize the redo log synchronously, because InnoDB failed to reach state in which redo log is logically empty. Please use an older version of MySQL - recover and shutdown (with innodb-fast-shutdown < 2)."
 
 ER_IB_MSG_LOG_FILE_FOREIGN_UUID
@@ -12052,7 +12052,7 @@ ER_IB_WRN_IGNORE_REDO_LOG_CAPACITY
   eng "Ignored the innodb-redo-log-capacity option in the Innodb read-only mode. Server is using active redo log files."
 
 ER_IB_PRIMARY_KEY_IS_INSTANT
-  eng "Unexpected INSTANLY Added / Dropped column: '%s' at position %lu for Table '%s', Index '%s' while getting Primary Key for row logging"
+  eng "Unexpected INSTANTLY Added / Dropped column: '%s' at position %lu for Table '%s', Index '%s' while getting Primary Key for row logging"
 
 ER_THREAD_POOL_IDLE_CONNECTION_CLOSED
    eng "%s"
@@ -12066,11 +12066,170 @@ ER_IB_DICT_INVALID_COLUMN_POSITION
 ER_IB_DICT_LOG_TABLE_INFO
    eng "%s"
 
+ER_RPL_ASYNC_NEXT_FAILOVER_CHANNEL_SELECTED
+  eng "The connection has timed out after %lu retries connecting to '%s@%s:%d'%s, and therefore the MySQL server is going to attempt an asynchronous replication connection failover, to '%s@%s:%d'"
+
+ER_RPL_REPLICA_SOURCE_UUID_HAS_NOT_CHANGED
+  eng "The Replica which was connected to source \'%s:%d\', is now connected to new source \'%s:%d\', but still has the same server_uuid %s."
+
+ER_RPL_REPLICA_SOURCE_UUID_HAS_CHANGED_HOST_PORT_UNCHANGED
+  eng "The server_uuid for source server \'%s:%d\' has changed from %s to %s. This should not happen unless you have changed it manually."
+
+ER_RPL_REPLICA_SOURCE_UUID_HOST_PORT_HAS_CHANGED
+  eng "The source server has changed from \'%s:%d\' with server_uuid %s, to \'%s:%d\' with server_uuid %s."
+
+ER_RPL_REPLICA_CONNECTED_TO_SOURCE_RPL_STARTED_FILE_BASED
+  eng "Replica receiver thread%s: connected to source \'%s@%s:%d\' with server_uuid=%s, server_id=%d. Starting replication from file '%s', position '%s'."
+
+ER_RPL_REPLICA_CONNECTED_TO_SOURCE_RPL_STARTED_GTID_BASED
+  eng "Replica receiver thread%s: connected to source \'%s@%s:%d\' with server_uuid=%s, server_id=%d. Starting GTID-based replication."
+
 ER_IB_INDEX_LOADER_DONE
    eng "Loader::build_all(): Completed building %zu indexes for old_table=%s, new_table=%s, err=%zu."
 
 ER_IB_INDEX_BUILDER_DONE
    eng "Builder::finish(): Completed building index=%s of table=%s, err=%zu."
+
+ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS_OPTION
+   eng "%s: '%s' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead."
+
+ER_IB_INDEX_BUILDER_INIT
+   eng "Builder::init(): Initialize for building index=%s of table=%s, n_threads=%zu, sort buffer size=%zu bytes, i/o buffer size=%zu bytes."
+
+ER_IB_SELECT_COUNT_STAR
+   eng "SELECT COUNT(*) FROM table=%s, n_threads=%zu, n_partitions=%zu."
+
+ER_IB_INDEX_LOG_VERSION_MISMATCH
+   eng "Index log version %u did not match. Max index version is %u. Recovery can't continue. Please make sure server is not starting up with the datadir generated in future version."
+
+ER_WARN_COMPONENTS_INFRASTRUCTURE_MANIFEST_MULTIPLE_KEYRING
+   eng "Multiple keyring component URNs '%s' found in manifest file '%s'. Only one keyring component can be loaded at a time."
+
+ER_GRP_RPL_HAS_STARTED
+  eng "Plugin 'group_replication' has been started."
+
+ER_CHECK_TABLE_MIN_REC_FLAG_SET
+   eng "Minimum record flag is wrongly set to rec on page '%lu' at level '%lu' for index '%s' of table '%s'."
+
+ER_CHECK_TABLE_MIN_REC_FLAG_NOT_SET
+   eng "Minimum record flag is not set to first rec on page '%lu' at level '%lu' for index '%s' of table '%s'."
+
+ER_NOTE_COMPONENT_SLOT_REGISTRATION_SUCCESS
+  eng "Successfully registered slot '%d' for component '%s'."
+
+ER_NOTE_COMPONENT_SLOT_DEREGISTRATION_SUCCESS
+  eng "Successfully de-registered slot '%d' from component '%s'."
+
+ER_WARN_CANNOT_FREE_COMPONENT_DATA_DEALLOCATION_FAILED
+  eng "Cannot free resources stored by component '%s' in thread with ID: '%d'. Component failed to free required resources."
+
+ER_IB_RESURRECT_TRX_INSERT
+  eng "Transaction ID: %lu found for resurrecting inserts"
+
+ER_IB_RESURRECT_TRX_UPDATE
+  eng "Transaction ID: %lu found for resurrecting updates"
+
+ER_IB_RESURRECT_IDENTIFY_TABLE_TO_LOCK
+  eng "Identified table ID: %lu to acquire lock"
+
+ER_IB_RESURRECT_ACQUIRE_TABLE_LOCK
+  eng "Acquired lock on table ID: %lu, name: %s"
+
+ER_IB_RESURRECT_RECORD_PROGRESS
+  eng "Records read: %lu - Pages read: %lu"
+
+ER_IB_RESURRECT_RECORD_COMPLETE
+  eng "Total records resurrected: %lu - Total pages read: %lu - Total tables acquired: %lu"
+
+ER_IB_RESURRECT_TRX_INSERT_COMPLETE
+  eng "Resurrected %lu transactions doing inserts."
+
+ER_IB_RESURRECT_TRX_UPDATE_COMPLETE
+  eng "Resurrected %lu transactions doing updates."
+
+ER_AUTHENTICATION_OCI_INVALID_TOKEN
+  eng "Invalid security token provided by '%s' for '%s'@'%s': %s."
+
+ER_AUTHENTICATION_OCI_TOKEN_DETAILS_MISMATCH
+  eng "Unknown user/tenancy (user: %s tenancy: %s) found in security token provided by '%s' for '%s'@'%s'."
+
+ER_AUTHENTICATION_OCI_TOKEN_NOT_VERIFIED
+  eng "Verification failed for security token provided by '%s' for '%s'@'%s' : %s."
+
+ER_AUTHENTICATION_OCI_DOWNLOAD_IDDP_PUBLIC_KEY
+  eng "Could not download IDDP Public key. Please check if security token provided by '%s' for '%s'@'%s' is valid."
+
+ER_AUTHENTICATION_OCI_NO_MATCHING_GROUPS_IN_TOKEN
+  eng "None of the groups extracted from security token matches any of the entries from authentication string."
+
+ER_SYS_VAR_REGISTRATION
+  eng "Cannot register variable '%s'. Please check if it is not already registered by another component."
+
+ER_SYS_VAR_DEREGISTRATION
+  eng "Cannot unregister variable '%s'. Please check if it was registered properly in the first place."
+
+ER_UDF_REGISTRATION
+  eng "Cannot register function '%s'. Please check if it is not already registered by another component."
+
+ER_UDF_DEREGISTRATION
+  eng "Cannot unregister function '%s'. Please check if it was registered properly in the first place."
+
+ER_PRIVILEGE_REGISTRATION
+  eng "Cannot register privilege '%s'. Please check if it is not already registered."
+
+ER_PRIVILEGE_DEREGISTRATION
+  eng "Cannot unregister privilege '%s'. Please check if it was registered properly in the first place."
+
+ER_UDF_EXEC_FAILURE
+  eng "Error while executing UDF %s."
+
+ER_UDF_EXEC_FAILURE_REASON
+  eng "Error while executing UDF %s: %s."
+
+ER_COMPONENT_SERVICE_CALL
+  eng "%s failed."
+
+ER_COMPONENT_SERVICE_CALL_RESULT
+  eng "%s failed with %u."
+
+ER_COMPONENT_LOCK
+  eng "Lock failed at %s : %u."
+
+ER_COMPONENT_UNLOCK
+  eng "Lock from %s : %u failed to unlock."
+
+ER_COMPONENT_MASKING_OTHER_ERROR
+  eng "Masking component error: '%s'."
+
+ER_COMPONENT_MASKING_ABI
+  eng "%s failed."
+
+ER_COMPONENT_MASKING_ABI_REASON
+  eng "%s failed because %s."
+
+ER_COMPONENT_MASKING_RANDOM_CREATE
+  eng "Creation of random context failed."
+
+ER_COMPONENT_MASKING_RANDOM_CREATE_REASON
+  eng "Creation of random context failed because %s."
+
+ER_COMPONENT_MASKING_CANNOT_ACCESS_TABLE
+  eng "Cannot access %s.%s table."
+
+ER_REDUCED_DBLWR_FILE_CORRUPTED
+  eng "Cannot recover from detect_only doublewrite buffer as page %u from batch doublewrite file is corrupted."
+
+ER_REDUCED_DBLWR_PAGE_FOUND
+  eng "Database page corruption of tablespace %s space_id: %u page_num: %u. Cannot recover it from the doublewrite buffer because it was written in detect_only-doublewrite mode."
+
+ER_CONN_INIT_CONNECT_IGNORED_MFA
+  eng "init_connect variable is ignored for user: %s host: %s due to multi-factor registration required sandboxing"
+
+ER_SECONDARY_ENGINE_DDL_FAILED
+  eng "Execution of alter table %s %s failed because %s."
+
+ER_THREAD_POOL_CONNECTION_REPORT
+   eng "TP conn (port: managed(delta), active, opened, closed, added, dropped): %s"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

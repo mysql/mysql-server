@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,28 +28,29 @@
 #include <memory>  // make_unique
 #include <string>
 
-#include "classic_binlog_dump.h"
-#include "classic_change_user.h"
-#include "classic_clone.h"
-#include "classic_connection.h"
+#include "classic_binlog_dump_forwarder.h"
+#include "classic_change_user_forwarder.h"
+#include "classic_clone_forwarder.h"
+#include "classic_connection_base.h"
 #include "classic_frame.h"
-#include "classic_init_schema.h"
-#include "classic_kill.h"
-#include "classic_list_fields.h"
-#include "classic_ping.h"
-#include "classic_query.h"
-#include "classic_quit.h"
-#include "classic_register_replica.h"
-#include "classic_reload.h"
-#include "classic_reset_connection.h"
-#include "classic_set_option.h"
-#include "classic_statistics.h"
-#include "classic_stmt_close.h"
-#include "classic_stmt_execute.h"
-#include "classic_stmt_fetch.h"
-#include "classic_stmt_param_append_data.h"
-#include "classic_stmt_prepare.h"
-#include "classic_stmt_reset.h"
+#include "classic_init_schema_forwarder.h"
+#include "classic_kill_forwarder.h"
+#include "classic_list_fields_forwarder.h"
+#include "classic_ping_forwarder.h"
+#include "classic_query_forwarder.h"
+#include "classic_query_sender.h"
+#include "classic_quit_forwarder.h"
+#include "classic_register_replica_forwarder.h"
+#include "classic_reload_forwarder.h"
+#include "classic_reset_connection_forwarder.h"
+#include "classic_set_option_forwarder.h"
+#include "classic_statistics_forwarder.h"
+#include "classic_stmt_close_forwarder.h"
+#include "classic_stmt_execute_forwarder.h"
+#include "classic_stmt_fetch_forwarder.h"
+#include "classic_stmt_param_append_data_forwarder.h"
+#include "classic_stmt_prepare_forwarder.h"
+#include "classic_stmt_reset_forwarder.h"
 #include "harness_assert.h"
 #include "hexify.h"
 #include "mysql/harness/logging/logging.h"
@@ -92,77 +93,32 @@ CommandProcessor::is_authed() {
 
 template <class P>
 stdx::expected<Processor::Result, std::error_code> push_processor(
-    MysqlRoutingClassicConnection *conn) {
+    MysqlRoutingClassicConnectionBase *conn) {
   conn->push_processor(std::make_unique<P>(conn));
 
   return Processor::Result::Again;
 }
 
-static PooledClassicConnection make_pooled_connection(
-    TlsSwitchableConnection &&other) {
-  auto *classic_protocol_state =
-      dynamic_cast<ClassicProtocolState *>(other.protocol());
-  return {std::move(other.connection()),
-          other.channel()->release_ssl(),
-          classic_protocol_state->server_capabilities(),
-          classic_protocol_state->client_capabilities(),
-          classic_protocol_state->server_greeting(),
-          other.ssl_mode(),
-          classic_protocol_state->username(),
-          classic_protocol_state->schema(),
-          classic_protocol_state->sent_attributes()};
-}
-
-static TlsSwitchableConnection make_connection_from_pooled(
-    PooledClassicConnection &&other) {
-  return {std::move(other.connection()),
-          nullptr,  // routing_conn
-          other.ssl_mode(), std::make_unique<Channel>(std::move(other.ssl())),
-          std::make_unique<ClassicProtocolState>(
-              other.server_capabilities(), other.client_capabilities(),
-              other.server_greeting(), other.username(), other.schema(),
-              other.attributes())};
-}
-
 void CommandProcessor::client_idle_timeout() {
-  auto *socket_splicer = connection()->socket_splicer();
-  auto &server_conn = socket_splicer->server_conn();
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("client::idle::timeout"));
+  }
 
-  trace(Tracer::Event().stage("client::idle::timeout"));
+  auto pool_res = pool_server_connection();
+  if (!pool_res) return;
 
-  // if we still have a server connection, move it to the pool
-  if (server_conn.is_open()) {
-    // move the connection to the pool.
-    //
-    // the pool will either close it or keep it alive.
-    auto &pools = ConnectionPoolComponent::get_instance();
+  if (auto &tr = tracer()) {
+    bool connection_was_pooled = *pool_res;
 
-    if (auto pool = pools.get(ConnectionPoolComponent::default_pool_name())) {
-      auto ssl_mode = server_conn.ssl_mode();
-
-      auto is_full_res = pool->add_if_not_full(make_pooled_connection(
-          std::exchange(server_conn,
-                        TlsSwitchableConnection{
-                            nullptr,   // connection
-                            nullptr,   // routing-connection
-                            ssl_mode,  //
-                            std::make_unique<ClassicProtocolState>()})));
-
-      if (is_full_res) {
-        trace(Tracer::Event().stage("client::idle::pool_full"));
-        // not pooled, restore.
-        server_conn = make_connection_from_pooled(std::move(*is_full_res));
-
-      } else {
-        trace(Tracer::Event().stage("server::pooled"));
-      }
-    }
+    tr.trace(Tracer::Event().stage(connection_was_pooled
+                                       ? "client::idle::pooled"
+                                       : "client::idle::pool_full"));
   }
 }
 
 class ShowWarningsHandler : public QuerySender::Handler {
  public:
-  ShowWarningsHandler(MysqlRoutingClassicConnection *connection)
+  ShowWarningsHandler(MysqlRoutingClassicConnectionBase *connection)
       : connection_(connection) {}
 
   void on_column_count(uint64_t count) override {
@@ -270,7 +226,7 @@ class ShowWarningsHandler : public QuerySender::Handler {
  private:
   uint64_t col_count_{};
   uint64_t col_cur_{};
-  MysqlRoutingClassicConnection *connection_;
+  MysqlRoutingClassicConnectionBase *connection_;
 
   bool something_failed_{false};
 };
@@ -292,7 +248,7 @@ CommandProcessor::wait_both() {
   auto *socket_splicer = connection()->socket_splicer();
 
   if (connection()->recv_from_either() ==
-      MysqlRoutingClassicConnection::FromEither::RecvedFromServer) {
+      MysqlRoutingClassicConnectionBase::FromEither::RecvedFromServer) {
     // server side sent something.
     //
     // - cancel the client side
@@ -305,7 +261,7 @@ CommandProcessor::wait_both() {
     // end this execution branch.
     return Result::Void;
   } else if (connection()->recv_from_either() ==
-             MysqlRoutingClassicConnection::FromEither::RecvedFromClient) {
+             MysqlRoutingClassicConnectionBase::FromEither::RecvedFromClient) {
     // client side sent something
     //
     // - cancel the server side
@@ -345,7 +301,9 @@ CommandProcessor::wait_client_cancelled() {
       ClassicFrame::ensure_has_msg_prefix(dst_channel, dst_protocol);
   if (!read_res) return recv_server_failed(read_res.error());
 
-  trace(Tracer::Event().stage("server::error"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("server::error"));
+  }
 
   // should be a Error packet.
   return forward_server_to_client();
@@ -368,14 +326,18 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
     auto ec = read_res.error();
 
     if (ec == std::errc::operation_would_block || ec == TlsErrc::kWantRead) {
-      trace(Tracer::Event().stage("client::idle"));
+      if (auto &tr = tracer()) {
+        tr.trace(Tracer::Event().stage("client::idle"));
+      }
 
       auto &t = connection()->read_timer();
 
       using namespace std::chrono_literals;
 
       if (server_conn.is_open() && connection()->connection_sharing_allowed()) {
-        trace(Tracer::Event().stage("client::idle::starting"));
+        if (auto &tr = tracer()) {
+          tr.trace(Tracer::Event().stage("client::idle::starting"));
+        }
 
         if (connection()->diagnostic_area_changed()) {
           // inject a SHOW WARNINGS.
@@ -425,7 +387,7 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
         stage(Stage::WaitBoth);
 
         connection()->recv_from_either(
-            MysqlRoutingClassicConnection::FromEither::Started);
+            MysqlRoutingClassicConnectionBase::FromEither::Started);
 
         return Result::RecvFromBoth;
       }
@@ -476,7 +438,7 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   switch (Msg{msg_type}) {
     case Msg::Quit:
       stage(Stage::Done);  // after Quit is done, leave.
-      return push_processor<QuitProcessor>(connection());
+      return push_processor<QuitForwarder>(connection());
     case Msg::InitSchema:
       return push_processor<InitSchemaForwarder>(connection());
     case Msg::Query:
@@ -498,17 +460,17 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
     case Msg::StmtPrepare:
       return push_processor<StmtPrepareForwarder>(connection());
     case Msg::StmtExecute:
-      return push_processor<StmtExecuteProcessor>(connection());
+      return push_processor<StmtExecuteForwarder>(connection());
     case Msg::StmtClose:
-      return push_processor<StmtCloseProcessor>(connection());
+      return push_processor<StmtCloseForwarder>(connection());
     case Msg::StmtFetch:
-      return push_processor<StmtFetchProcessor>(connection());
+      return push_processor<StmtFetchForwarder>(connection());
     case Msg::SetOption:
       return push_processor<SetOptionForwarder>(connection());
     case Msg::StmtReset:
-      return push_processor<StmtResetProcessor>(connection());
+      return push_processor<StmtResetForwarder>(connection());
     case Msg::StmtParamAppendData:
-      return push_processor<StmtParamAppendDataProcessor>(connection());
+      return push_processor<StmtParamAppendDataForwarder>(connection());
     case Msg::Clone:
       return push_processor<CloneForwarder>(connection());
     case Msg::BinlogDump:
@@ -518,14 +480,16 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
       return push_processor<RegisterReplicaForwarder>(connection());
   }
 
-  trace(Tracer::Event().stage("cmd::command"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("cmd::command"));
+  }
 
   // unknown command
   // drain the current command from the recv-buffers.
   (void)ClassicFrame::ensure_has_full_frame(src_channel, src_protocol);
 
   log_debug("client sent unknown command: %s",
-            hexify(src_channel->recv_plain_buffer()).c_str());
+            hexify(src_channel->recv_plain_view()).c_str());
 
   // try to discard the current message.
   //
@@ -533,11 +497,11 @@ stdx::expected<Processor::Result, std::error_code> CommandProcessor::command() {
   // after sending the error-message.
   const auto discard_res = discard_current_msg(src_channel, src_protocol);
 
-  const auto send_res =
-      ClassicFrame::send_msg<classic_protocol::message::server::Error>(
-          src_channel, src_protocol,
-          {ER_UNKNOWN_COM_ERROR, "Unknown command " + std::to_string(msg_type),
-           "HY000"});
+  const auto send_res = ClassicFrame::send_msg<
+      classic_protocol::borrowed::message::server::Error>(
+      src_channel, src_protocol,
+      {ER_UNKNOWN_COM_ERROR, "Unknown command " + std::to_string(msg_type),
+       "HY000"});
   if (!discard_res || !send_res) {
     stage(Stage::Done);  // closes the connection after the error-msg was sent.
 

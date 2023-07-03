@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -153,12 +153,15 @@ static inline void btr_page_set_next(
   }
 }
 
+static inline page_no_t btr_page_get_prev(const page_t *page) {
+  ut_ad(page != nullptr);
+  return (mach_read_from_4(page + FIL_PAGE_PREV));
+}
+
 static inline page_no_t btr_page_get_prev(const page_t *page,
                                           mtr_t *mtr [[maybe_unused]]) {
-  ut_ad(page != nullptr);
   ut_ad(mtr != nullptr);
-
-  return (mach_read_from_4(page + FIL_PAGE_PREV));
+  return btr_page_get_prev(page);
 }
 
 /** Sets the previous index page field. */
@@ -200,6 +203,13 @@ static inline page_no_t btr_node_ptr_get_child_page_no(const rec_t *rec,
   return (page_no);
 }
 
+/** Check if the given page is first page on level.
+@param[in]  page  Btree page
+@return true if it is first page */
+static inline bool btr_is_first_page_on_level(const page_t *page) {
+  return (btr_page_get_prev(page) == FIL_NULL);
+}
+
 #ifndef UNIV_HOTBACKUP
 /** Releases the latches on a leaf page and bufferunfixes it. */
 static inline void btr_leaf_page_release(
@@ -230,4 +240,5 @@ static inline void btr_leaf_page_release(
 
   mtr->memo_release(block, mode);
 }
+
 #endif /* !UNIV_HOTBACKUP */

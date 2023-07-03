@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1124,7 +1124,7 @@ static bool log_files_consuming_oldest_file_takes_too_long(const log_t &log) {
   log_files_access_allowed_validate(log);
   ut_a(!log.m_files.empty());
 
-  if (recv_recovery_on) {
+  if (!(log_checkpointer_is_active() && log.m_allow_checkpoints.load())) {
     return false;
   }
 
@@ -1154,7 +1154,7 @@ static bool log_files_filling_oldest_file_takes_too_long(const log_t &log) {
   log_files_access_allowed_validate(log);
   ut_a(!log.m_files.empty());
 
-  if (recv_recovery_on) {
+  if (!(log_checkpointer_is_active() && log.m_allow_checkpoints.load())) {
     return false;
   }
 
@@ -1533,7 +1533,7 @@ static dberr_t log_files_create_file(log_t &log, Log_file_id file_id,
   return DB_SUCCESS;
 }
 
-dberr_t log_files_create(log_t &log, lsn_t flushed_lsn, lsn_t &checkpoint_lsn) {
+dberr_t log_files_create(log_t &log, lsn_t flushed_lsn) {
   log_files_initialize_on_empty_redo(log);
 
   dberr_t err;
@@ -1559,30 +1559,23 @@ dberr_t log_files_create(log_t &log, lsn_t flushed_lsn, lsn_t &checkpoint_lsn) {
   file (the flushed headers store information about the checkpoint,
   format of redo log and that is neither created by mysqlbackup
   nor by clone). */
+  /* Start lsn stored in header of the first log file is divisible
+  by OS_FILE_LOG_BLOCK_SIZE. Also, we want the MTR data to start
+  immediately after the header.
+  To achieve this, flushed_lsn should point to header's end.*/
 
-  /* We start at the next log block. Note, that we keep invariant,
-  that start lsn stored in header of the first log file is divisible
-  by OS_FILE_LOG_BLOCK_SIZE. */
-  lsn_t file_start_lsn;
-  if (flushed_lsn % OS_FILE_LOG_BLOCK_SIZE > LOG_BLOCK_HDR_SIZE) {
-    file_start_lsn = ut_uint64_align_up(flushed_lsn, OS_FILE_LOG_BLOCK_SIZE);
-  } else {
-    ut_a(flushed_lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE);
-    file_start_lsn = flushed_lsn - LOG_BLOCK_HDR_SIZE;
-  }
+  ut_a(flushed_lsn % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE);
+  const lsn_t file_start_lsn = flushed_lsn - LOG_BLOCK_HDR_SIZE;
 
   ut_a(log.last_checkpoint_lsn.load() == 0);
 
-  /* Checkpoint lsn should be outside header of log block. */
-  checkpoint_lsn = file_start_lsn + LOG_BLOCK_HDR_SIZE;
-
   err = log_files_create_file(log, LOG_FIRST_FILE_ID, file_start_lsn,
-                              checkpoint_lsn, true);
+                              flushed_lsn, true);
   if (err != DB_SUCCESS) {
     return err;
   }
 
-  log.last_checkpoint_lsn.store(checkpoint_lsn);
+  log.last_checkpoint_lsn.store(flushed_lsn);
 
   /* If the redo log is set to be encrypted,
   initialize encryption information. */
@@ -1890,6 +1883,7 @@ static void log_files_generate_dummy_records(log_t &log, lsn_t min_bytes) {
   ut_ad(log_writer_is_active());
   ut_ad(!log_writer_mutex_own(log));
   ut_ad(log_checkpointer_is_active());
+  ut_ad(log.m_allow_checkpoints.load());
   ut_ad(!log_checkpointer_mutex_own(log));
   ut_ad(log_flusher_is_active());
   ut_ad(!log_flusher_mutex_own(log));

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,16 +69,16 @@ struct PFS_ALIGNED PFS_setup_actor {
 };
 
 int init_setup_actor(const PFS_global_param *param);
-void cleanup_setup_actor(void);
+void cleanup_setup_actor();
 int init_setup_actor_hash(const PFS_global_param *param);
-void cleanup_setup_actor_hash(void);
+void cleanup_setup_actor_hash();
 
 int insert_setup_actor(const PFS_user_name *user, const PFS_host_name *host,
                        const PFS_role_name *role, bool enabled, bool history);
 int delete_setup_actor(const PFS_user_name *user, const PFS_host_name *host,
                        const PFS_role_name *role);
-int reset_setup_actor(void);
-long setup_actor_count(void);
+int reset_setup_actor();
+long setup_actor_count();
 
 void lookup_setup_actor(PFS_thread *thread, const PFS_user_name *user,
                         const PFS_host_name *host, bool *enabled,

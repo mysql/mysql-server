@@ -1,7 +1,7 @@
 include/group_replication.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 ############################################################
@@ -254,10 +254,4 @@ Occurrences of 'last_committed' in the input file: 13
 # Validate indexes on member 2.
 #
 include/include/assert_logical_timestamps.inc [0 0;1 2;2 3;3 4;3 5;4 6;5 7;6 8;7 9;9 10;8 11;11 12;12 13]
-Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000002'
-Inspected 9 transactions, all with correct transaction length.
-Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000003'
-Inspected 12 transactions, all with correct transaction length.
-Asserting all GTID transaction length information in 'server-binary-log.000001'
-Inspected 24 transactions, all with correct transaction length.
 include/group_replication_end.inc

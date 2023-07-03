@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,7 @@ int init_events_transactions_history_long(
 }
 
 /** Cleanup table EVENTS_TRANSACTIONS_HISTORY_LONG. */
-void cleanup_events_transactions_history_long(void) {
+void cleanup_events_transactions_history_long() {
   PFS_FREE_ARRAY(&builtin_memory_transactions_history_long,
                  events_transactions_history_long_size,
                  sizeof(PFS_events_transactions),
@@ -162,7 +162,7 @@ static void fct_reset_events_transactions_current(PFS_thread *pfs) {
 }
 
 /** Reset table EVENTS_TRANSACTIONS_CURRENT data. */
-void reset_events_transactions_current(void) {
+void reset_events_transactions_current() {
   global_thread_container.apply_all(fct_reset_events_transactions_current);
 }
 
@@ -179,12 +179,12 @@ static void fct_reset_events_transactions_history(PFS_thread *pfs_thread) {
 }
 
 /** Reset table EVENTS_TRANSACTIONS_HISTORY data. */
-void reset_events_transactions_history(void) {
+void reset_events_transactions_history() {
   global_thread_container.apply_all(fct_reset_events_transactions_history);
 }
 
 /** Reset table EVENTS_TRANSACTIONS_HISTORY_LONG data. */
-void reset_events_transactions_history_long(void) {
+void reset_events_transactions_history_long() {
   events_transactions_history_long_index.m_u32.store(0);
   events_transactions_history_long_full = false;
 

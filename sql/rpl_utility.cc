@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -490,7 +490,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
   if (compute_source_table_gipk_info(*thd, table)) {
     rli->report(ERROR_LEVEL, ER_REPLICATION_INCOMPATIBLE_TABLE_WITH_GIPK,
                 ER_THD(thd, ER_REPLICATION_INCOMPATIBLE_TABLE_WITH_GIPK),
-                size(),
+                static_cast<int>(size()),
                 decimal_numeric_version_to_string(
                     thd->variables.immediate_server_version)
                     .c_str(),
@@ -582,7 +582,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
       show_sql_type(type(col), is_array(col), field_metadata(col),
                     &source_type);
       field->sql_type(target_type);
-      if (!ignored_error_code(ER_SERVER_SLAVE_CONVERSION_FAILED)) {
+      if (!ignored_error_code(ER_SERVER_REPLICA_CONVERSION_FAILED)) {
         report_level = ERROR_LEVEL;
         thd->is_slave_error = true;
       } else if (log_error_verbosity >= 2)
@@ -602,10 +602,10 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
         field->sql_type(target_type);
 
       if (report_level != INFORMATION_LEVEL)
-        rli->report(report_level, ER_SERVER_SLAVE_CONVERSION_FAILED,
-                    ER_THD(thd, ER_SERVER_SLAVE_CONVERSION_FAILED), col,
-                    db_name, tbl_name, source_type.c_ptr_safe(),
-                    target_type.c_ptr_safe());
+        rli->report(report_level, ER_SERVER_REPLICA_CONVERSION_FAILED,
+                    ER_THD(thd, ER_SERVER_REPLICA_CONVERSION_FAILED),
+                    static_cast<int>(col), db_name, tbl_name,
+                    source_type.c_ptr_safe(), target_type.c_ptr_safe());
       return false;
     }
   }
@@ -770,15 +770,15 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
 err:
   if (conv_table == nullptr) {
     enum loglevel report_level = INFORMATION_LEVEL;
-    if (!ignored_error_code(ER_SLAVE_CANT_CREATE_CONVERSION)) {
+    if (!ignored_error_code(ER_REPLICA_CANT_CREATE_CONVERSION)) {
       report_level = ERROR_LEVEL;
       thd->is_slave_error = true;
     } else if (log_error_verbosity >= 2)
       report_level = WARNING_LEVEL;
 
     if (report_level != INFORMATION_LEVEL)
-      rli->report(report_level, ER_SLAVE_CANT_CREATE_CONVERSION,
-                  ER_THD(thd, ER_SLAVE_CANT_CREATE_CONVERSION),
+      rli->report(report_level, ER_REPLICA_CANT_CREATE_CONVERSION,
+                  ER_THD(thd, ER_REPLICA_CANT_CREATE_CONVERSION),
                   target_table->s->db.str, target_table->s->table_name.str);
   }
   return conv_table;
@@ -806,7 +806,8 @@ bool table_def::compute_source_table_gipk_info(THD &thd, TABLE *table) {
   }
 
   // column difference = number of columns in source - replica
-  longlong column_difference = size() - table->s->fields;
+  longlong column_difference =
+      static_cast<longlong>(size()) - static_cast<longlong>(table->s->fields);
 
   // if there is no difference assume the source has a GIPK
   if (0 == column_difference) {

@@ -67,7 +67,7 @@ DROP TABLE t1;
 
 # Bug #18233370
 
---echo # Test it will cause ER_MASTER_FATAL_ERROR_READING_BINLOG when the value
+--echo # Test it will cause ER_SOURCE_FATAL_ERROR_READING_BINLOG when the value
 --echo # of the bigger one of max_allowed_packet and binlog_row_event_max_size
 --echo # is lower than the the required size.
 connection master;
@@ -86,9 +86,9 @@ drop table t1;
 --source include/sync_slave_sql_with_master.inc
 
 connection slave;
-call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");
+call mtr.add_suppression("Replica I/O: Got fatal error 1236 from source when reading data from binary log: .*");
 call mtr.add_suppression("Found invalid event in binary log");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 # Suppression of valgrind warning:
 CALL mtr.add_suppression("==[0-9]*== Warning: set address range perms: large range");
 

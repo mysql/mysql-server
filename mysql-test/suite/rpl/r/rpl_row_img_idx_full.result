@@ -1,11 +1,11 @@
 include/rpl_init.inc [topology=1->2->3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Deadlock found when trying to get lock.*");
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at source log .*, end_log_pos.*Deadlock found when trying to get lock.*");
 CON: 'server_1', IMG: 'FULL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';

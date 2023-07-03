@@ -2507,3 +2507,91 @@ SELECT _utf8mb4 'ss' = _latin1 'ß' AS c;
 SELECT _utf8mb4 'ss' = _utf8mb3 'ß' AS c;
 
 SELECT _utf8mb3 'ß' = _utf8mb4 'ss' AS c;
+
+--echo # Bug#34962821 space():
+--echo #              Item_str_func::push_packet_overflow_warning:
+--echo #              Assertion `is_nullable()' failed.
+SET @@sql_mode='';
+--disable_warnings
+DO SPACE(SHA(UUID_SHORT()));
+--enable_warnings
+SET @@sql_mode = default;
+
+--echo #
+--echo # Bug#34961236 [rl]pad() + row_count():
+--echo # Item::null_return_str(): Assertion `m_nullable' failed.
+--echo #
+
+SET @@sql_mode='';
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO LPAD(BIT_XOR(1), ROW_COUNT(), JSON_PRETTY('-$ *?(8}'));
+SET @@sql_mode='';
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO RPAD(BIT_XOR(1), ROW_COUNT(), JSON_PRETTY('-$ *?(8}'));
+SET @@sql_mode = default;
+
+--echo #
+--echo # Bug#34781507 random_bytes(): Assertion `is_nullable()' failed.
+--echo # and Assertion `!null_value || is_nullable()' failed
+--echo #
+
+SET @@sql_mode='';
+--error ER_DATA_OUT_OF_RANGE
+DO RANDOM_BYTES(CAST((RANDOM_BYTES('?+,$ F5')) as unsigned));
+SET @@sql_mode = default;
+
+--echo #
+--echo # Bug#35129361 my_strnncollsp_utf16 Assertion `(slen % 2) == 0' failed.
+--echo #
+
+CREATE TABLE t1 (
+  c1 varchar(255)
+);
+
+INSERT INTO t1 VALUES('m'),('u'),('i');
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT
+  CASE (AES_ENCRYPT(0, c1))
+  WHEN '1234556789' THEN -1535639552
+  WHEN (CONVERT(c1 USING utf16)) THEN c1 END
+FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#35129166 push_packet_overflow_warning(THD*, const char*):
+--echo #              Assertion `is_nullable()' failed
+--echo #
+
+SET SESSION SQL_MODE='';
+
+CREATE TABLE t1 (
+  col_varchar_255_utf8_key varchar(255),
+  col_int int DEFAULT NULL,
+  pk int NOT NULL AUTO_INCREMENT,
+
+  PRIMARY KEY (pk),
+  KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key)
+);
+
+INSERT INTO t1 VALUES
+('that',4,1),
+('r',-1153105920,2);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT
+pk FROM v1
+ORDER BY  "cant"  IN ( ( FORMAT(  LAST_INSERT_ID( pk ) , 42 ) ) );
+
+SELECT
+STDDEV_POP( ( LAST_INSERT_ID( ( - 2313724308561592320 ) ) ) ) AS field5
+FROM t1
+GROUP BY HEX( col_varchar_255_utf8_key )
+ORDER BY SPACE( LAST_INSERT_ID() );
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+SET SESSION SQL_MODE=DEFAULT;

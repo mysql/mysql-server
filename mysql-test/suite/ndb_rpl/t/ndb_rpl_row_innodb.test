@@ -1,0 +1,16 @@
+#############################################
+#Purpose:    Generic replication from Innodb to NDB
+#            using 'binlog_format = ROW'
+#            and ensuring that the ndb_apply_status
+#            table is updated.
+#############################################
+
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+SET binlog_format = ROW;
+let $off_set = 10;
+let $rpl_format = 'ROW';
+--source suite/ndb_rpl/t/ndb_rpl_xxx_innodb.inc
+
+--source include/rpl_end.inc

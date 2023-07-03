@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,8 @@ SET(test_files
   test_setup_named_socket_service.cc
   test_setup_tcp_service.cc
   test_auth_digest.cc
+  test_classic_quit_sender.cc
+  test_classic_reset_connection_sender.cc
   )
 
 FOREACH(test_file ${test_files})
@@ -66,6 +68,7 @@ ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/plugin/test_plugin.cc
   LIB_DEPENDS
     routing_export_all
     test-helpers
+    extra::rapidjson
   INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/../src
     ${PROJECT_SOURCE_DIR}/tests/helpers
@@ -109,3 +112,18 @@ TARGET_INCLUDE_DIRECTORIES(${T}
   PRIVATE $<TARGET_PROPERTY:routing,INCLUDE_DIRECTORIES>)
 TARGET_COMPILE_DEFINITIONS(${T}
   PRIVATE ROUTING_STATIC_DEFINE=1)
+
+IF(LIBFUZZER_COMPILE_FLAGS)
+  MYSQL_ADD_EXECUTABLE(routertest_fuzz_parser_show_warnings
+    fuzz_show_warnings.cc
+    ../src/show_warnings_parser.cc
+    ../src/sql_lexer.cc
+    ${CMAKE_SOURCE_DIR}/sql/sql_lex_hash.cc
+    COMPONENT Router
+    DEPENDENCIES GenServerSource
+    LINK_LIBRARIES harness_stdx;mysys
+    SKIP_INSTALL
+    )
+  LIBFUZZER_ADD_TEST(routertest_fuzz_parser_show_warnings
+    INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/show_warnings)
+ENDIF()

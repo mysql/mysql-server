@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -107,13 +107,13 @@ PFS_engine_table *table_file_summary_by_event_name::create(
   return new table_file_summary_by_event_name();
 }
 
-int table_file_summary_by_event_name::delete_all_rows(void) {
+int table_file_summary_by_event_name::delete_all_rows() {
   reset_file_instance_io();
   reset_file_class_io();
   return 0;
 }
 
-ha_rows table_file_summary_by_event_name::get_row_count(void) {
+ha_rows table_file_summary_by_event_name::get_row_count() {
   return file_class_max;
 }
 
@@ -122,12 +122,12 @@ table_file_summary_by_event_name::table_file_summary_by_event_name()
   m_normalizer = time_normalizer::get_wait();
 }
 
-void table_file_summary_by_event_name::reset_position(void) {
+void table_file_summary_by_event_name::reset_position() {
   m_pos.m_index = 1;
   m_next_pos.m_index = 1;
 }
 
-int table_file_summary_by_event_name::rnd_next(void) {
+int table_file_summary_by_event_name::rnd_next() {
   PFS_file_class *file_class;
 
   m_pos.set_at(&m_next_pos);
@@ -165,7 +165,7 @@ int table_file_summary_by_event_name::index_init(uint idx [[maybe_unused]],
   return 0;
 }
 
-int table_file_summary_by_event_name::index_next(void) {
+int table_file_summary_by_event_name::index_next() {
   PFS_file_class *file_class;
 
   m_pos.set_at(&m_next_pos);

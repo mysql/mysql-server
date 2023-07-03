@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2894,22 +2894,24 @@ int ha_innopart::key_and_rowid_cmp(KEY **key_info, uchar *a, uchar *b) {
 int ha_innopart::extra(enum ha_extra_function operation) {
   if (operation == HA_EXTRA_SECONDARY_SORT_ROWID) {
     /* index_init(sorted=true) must have been called! */
-    ut_ad(m_ordered);
-    ut_ad(m_ordered_rec_buffer != nullptr);
-    /* No index_read call must have been done! */
-    ut_ad(m_queue->empty());
+    if (m_part_info->num_partitions_used() != 0) {
+      ut_ad(m_ordered);
+      ut_ad(m_ordered_rec_buffer != nullptr);
+      /* No index_read call must have been done! */
+      ut_ad(m_queue->empty());
 
-    /* If not PK is set as secondary sort, do secondary sort by
-    rowid/ref. */
+      /* If not PK is set as secondary sort, do secondary sort by
+      rowid/ref. */
 
-    ut_ad(m_curr_key_info[1] != nullptr ||
-          m_prebuilt->clust_index_was_generated != 0 ||
-          m_curr_key_info[0] == table->key_info + table->s->primary_key);
+      ut_ad(m_curr_key_info[1] != nullptr ||
+            m_prebuilt->clust_index_was_generated != 0 ||
+            m_curr_key_info[0] == table->key_info + table->s->primary_key);
 
-    if (m_curr_key_info[1] == nullptr &&
-        m_prebuilt->clust_index_was_generated) {
-      m_ref_usage = Partition_helper::REF_USED_FOR_SORT;
-      m_queue->m_fun = key_and_rowid_cmp;
+      if (m_curr_key_info[1] == nullptr &&
+          m_prebuilt->clust_index_was_generated) {
+        m_ref_usage = Partition_helper::REF_USED_FOR_SORT;
+        m_queue->m_fun = key_and_rowid_cmp;
+      }
     }
     return (0);
   }

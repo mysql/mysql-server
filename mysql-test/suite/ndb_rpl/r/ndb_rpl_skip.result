@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 create table t1 (a int not null, b int, c int, unique(c)) engine=ndb;
 Insert some records
@@ -11,7 +11,7 @@ count(*)
 1000
 call mtr.add_suppression(".*NDB Replica: SQL thread stopped as attempting to apply new epoch.*while lower received epoch.*has not been committed.*");
 call mtr.add_suppression(".*Could not execute Write_rows event on table.*");
-call mtr.add_suppression(".*Slave: Got error 173 'Unknown error code' from NDBCLUSTER.*");
+call mtr.add_suppression(".*Replica: Got error 173 'Unknown error code' from NDBCLUSTER.*");
 call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 Make a replica side change
 This can cause uniqueness violations when we replicate data

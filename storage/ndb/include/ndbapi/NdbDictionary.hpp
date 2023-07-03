@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1595,15 +1595,6 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
       = 0
 #endif
-#if 0 // not supported
-      ,ED_SESSION = 1,
-      // Only this API can use it
-      // and it's deleted after api has disconnected or ndb has restarted
-
-      ED_TEMPORARY = 2
-      // All API's can use it,
-      // But's its removed when ndb is restarted
-#endif
       ,ED_PERMANENT    ///< All API's can use it.
                        ///< It's still defined after a cluster system restart
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -1681,20 +1672,33 @@ public:
     bool getTableEvent(const TableEvent te) const;
     /**
      * Set durability of the event
+     *
+     * @note This function has no effect
      */
     void setDurability(EventDurability);
     /**
      * Get durability of the event
+     *
+     * @note This function always returns that event is permanent
      */
     EventDurability getDurability() const;
     /**
-     * Set report option of the event
+     * Set report options for the event
+     *
+     * @note The function accepts a value consisting of 'EventReport' flags
+     * describing what the event should report
+     *
      */
     void setReport(EventReport);
+    void setReportOptions(Uint32 report_options);
     /**
-     * Get report option of the event
+     * Get report options for the event
+     *
+     * @note The function returns a value consisting of 'EventReport' flags
+     * describing what the event is configured to report
      */
     EventReport getReport() const;
+    Uint32 getReportOptions() const;
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     void addColumn(const Column &c);
 #endif

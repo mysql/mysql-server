@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -40,8 +40,9 @@ THD *create_internal_thd_ctx(Sctx_ptr<Security_context> &ctx) {
   thd->set_connection_admin(false);
 
   const std::vector<std::string> priv_list = {
-      "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN", "SYSTEM_VARIABLES_ADMIN",
-      "AUDIT_ADMIN", "PERSIST_RO_VARIABLES_ADMIN"};
+      "ENCRYPTION_KEY_ADMIN",   "ROLE_ADMIN",
+      "SYSTEM_VARIABLES_ADMIN", "AUDIT_ADMIN",
+      "TELEMETRY_LOG_ADMIN",    "PERSIST_RO_VARIABLES_ADMIN"};
   const ulong static_priv_list = (SUPER_ACL | FILE_ACL);
 
   lex_start(thd);

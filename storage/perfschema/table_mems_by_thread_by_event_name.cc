@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -106,24 +106,24 @@ PFS_engine_table *table_mems_by_thread_by_event_name::create(
   return new table_mems_by_thread_by_event_name();
 }
 
-int table_mems_by_thread_by_event_name::delete_all_rows(void) {
+int table_mems_by_thread_by_event_name::delete_all_rows() {
   reset_memory_by_thread();
   return 0;
 }
 
-ha_rows table_mems_by_thread_by_event_name::get_row_count(void) {
+ha_rows table_mems_by_thread_by_event_name::get_row_count() {
   return global_thread_container.get_row_count() * memory_class_max;
 }
 
 table_mems_by_thread_by_event_name::table_mems_by_thread_by_event_name()
     : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
-void table_mems_by_thread_by_event_name::reset_position(void) {
+void table_mems_by_thread_by_event_name::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_mems_by_thread_by_event_name::rnd_next(void) {
+int table_mems_by_thread_by_event_name::rnd_next() {
   PFS_thread *thread;
   PFS_memory_class *memory_class;
   bool has_more_thread = true;
@@ -174,7 +174,7 @@ int table_mems_by_thread_by_event_name::index_init(uint idx [[maybe_unused]],
   return 0;
 }
 
-int table_mems_by_thread_by_event_name::index_next(void) {
+int table_mems_by_thread_by_event_name::index_next() {
   PFS_thread *thread;
   PFS_memory_class *memory_class;
   bool has_more_thread = true;

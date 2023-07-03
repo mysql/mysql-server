@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2074,7 +2074,13 @@ struct TABLE {
   /// @return true if current row has been deleted (multi-table delete)
   bool has_deleted_row() const { return m_status & STATUS_DELETED; }
 
-  /// Save the NULL flags of the current row into the designated buffer
+  /// Save the NULL flags of the current row into the designated buffer.
+  /// This should be done before null-complementing a table accessed
+  /// with EQRefIterator or a const table, as they need to be able to
+  /// restore the original contents of the record buffer before
+  /// reading the next row. This is necessary because of their special
+  /// code for avoiding table access if the same row should be
+  /// accessed by the next read.
   void save_null_flags() {
     if (s->null_bytes > 0) memcpy(null_flags_saved, null_flags, s->null_bytes);
   }
@@ -2963,9 +2969,6 @@ class Table_ref {
   /// Evaluate the check option of a view
   int view_check_option(THD *thd) const;
 
-  /// Cleanup field translations for a view
-  void cleanup_items();
-
   /// Produce a textual identification of this object
   void print(const THD *thd, String *str, enum_query_type query_type) const;
 
@@ -3317,7 +3320,8 @@ class Table_ref {
      respectively.
    */
   const char *get_table_name() const { return table_name; }
-  int fetch_number_of_rows();
+  int fetch_number_of_rows(
+      ha_rows fallback_estimate = PLACEHOLDER_TABLE_ROW_ESTIMATE);
   bool update_derived_keys(THD *, Field *, Item **, uint, bool *);
   bool generate_keys();
 

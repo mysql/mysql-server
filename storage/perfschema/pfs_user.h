@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,24 +61,24 @@ struct PFS_user_key {
 /** Per user statistics. */
 struct PFS_ALIGNED PFS_user : public PFS_connection_slice {
  public:
-  inline void init_refcount(void) { m_refcount.store(1); }
+  inline void init_refcount() { m_refcount.store(1); }
 
-  inline int get_refcount(void) { return m_refcount.load(); }
+  inline int get_refcount() { return m_refcount.load(); }
 
-  inline void inc_refcount(void) { ++m_refcount; }
+  inline void inc_refcount() { ++m_refcount; }
 
-  inline void dec_refcount(void) { --m_refcount; }
+  inline void dec_refcount() { --m_refcount; }
 
   void aggregate(bool alive);
-  void aggregate_waits(void);
-  void aggregate_stages(void);
-  void aggregate_statements(void);
-  void aggregate_transactions(void);
-  void aggregate_errors(void);
+  void aggregate_waits();
+  void aggregate_stages();
+  void aggregate_statements();
+  void aggregate_transactions();
+  void aggregate_errors();
   void aggregate_memory(bool alive);
-  void aggregate_status(void);
-  void aggregate_stats(void);
-  void release(void);
+  void aggregate_status();
+  void aggregate_stats();
+  void release();
 
   /** Reset all memory statistics. */
   void rebase_memory_stats();
@@ -139,14 +139,14 @@ struct PFS_ALIGNED PFS_user : public PFS_connection_slice {
 };
 
 int init_user(const PFS_global_param *param);
-void cleanup_user(void);
+void cleanup_user();
 int init_user_hash(const PFS_global_param *param);
-void cleanup_user_hash(void);
+void cleanup_user_hash();
 
 PFS_user *find_or_create_user(PFS_thread *thread, const PFS_user_name *user);
 
 PFS_user *sanitize_user(PFS_user *unsafe);
-void purge_all_user(void);
+void purge_all_user();
 
 /* For show status. */
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,9 +126,18 @@ SocketClient::bind(const char* local_hostname,
 #define NONBLOCKERR(E) (E!=EINPROGRESS)
 #endif
 
-
 ndb_socket_t
 SocketClient::connect(const char* server_hostname,
+                      unsigned short server_port)
+{
+  NdbSocket sock;
+  connect(sock, server_hostname, server_port);
+  return sock.ndb_socket();
+}
+
+void
+SocketClient::connect(NdbSocket & secureSocket,
+                      const char* server_hostname,
                       unsigned short server_port)
 {
   // Reset last used port(in case connect fails)
@@ -139,7 +148,7 @@ SocketClient::connect(const char* server_hostname,
     if (!init())
     {
       DEBUG_FPRINTF((stderr, "Failed init in connect\n"));
-      return m_sockfd;
+      return;
     }
   }
 
@@ -154,7 +163,7 @@ SocketClient::connect(const char* server_hostname,
     DEBUG_FPRINTF((stderr, "Failed Ndb_getInAddr in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
-    return m_sockfd;
+    return;
   }
 
   // Set socket non blocking
@@ -163,7 +172,7 @@ SocketClient::connect(const char* server_hostname,
     DEBUG_FPRINTF((stderr, "Failed to set socket nonblocking in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
-    return m_sockfd;
+    return;
   }
 
   // Start non blocking connect
@@ -177,7 +186,7 @@ SocketClient::connect(const char* server_hostname,
     DEBUG_FPRINTF((stderr, "Failed to connect_inet in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
-    return m_sockfd;
+    return;
   }
 
   if (ndb_poll(m_sockfd, true, true,
@@ -188,7 +197,7 @@ SocketClient::connect(const char* server_hostname,
     // or an error occurred
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
-    return m_sockfd;
+    return;
   }
 
   // Activity detected on the socket
@@ -201,7 +210,7 @@ SocketClient::connect(const char* server_hostname,
       DEBUG_FPRINTF((stderr, "Failed to set sockopt in connect\n"));
       ndb_socket_close(m_sockfd);
       ndb_socket_invalidate(&m_sockfd);
-      return m_sockfd;
+      return;
     }
 
     if (so_error)
@@ -209,7 +218,7 @@ SocketClient::connect(const char* server_hostname,
       DEBUG_FPRINTF((stderr, "so_error: %d in connect\n", so_error));
       ndb_socket_close(m_sockfd);
       ndb_socket_invalidate(&m_sockfd);
-      return m_sockfd;
+      return;
     }
   }
 
@@ -219,26 +228,23 @@ done:
     DEBUG_FPRINTF((stderr, "ndb_socket_nonblock failed in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
-    return m_sockfd;
+    return;
   }
 
   // Remember the local port used for this connection
   assert(m_last_used_port == 0);
   ndb_socket_get_port(m_sockfd, &m_last_used_port);
 
+  secureSocket.init_from_new(m_sockfd);
+
   if (m_auth) {
-    if (!m_auth->client_authenticate(m_sockfd))
+    if (!m_auth->client_authenticate(secureSocket))
     {
       DEBUG_FPRINTF((stderr, "authenticate failed in connect\n"));
-      ndb_socket_close(m_sockfd);
-      ndb_socket_invalidate(&m_sockfd);
-      return m_sockfd;
+      secureSocket.close();
+      secureSocket.invalidate();
     }
   }
 
-  ndb_socket_t sockfd = m_sockfd;
-
   ndb_socket_invalidate(&m_sockfd);
-
-  return sockfd;
 }

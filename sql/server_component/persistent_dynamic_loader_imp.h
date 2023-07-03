@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -130,6 +130,17 @@ class mysql_persistent_dynamic_loader_imp {
   */
   static DEFINE_BOOL_METHOD(unload, (void *thd_ptr, const char *urns[],
                                      int component_count));
+
+  /**
+    @brief Removes the entries from the in-memory cache
+
+    This is a "private method" of the persisted loader that's used in the
+    same component.
+    @param urns the entries to remove
+    @param component_count  the count of entries to remove.
+    @retval number of entried actually erased from the memory cache
+  */
+  static int remove_from_cache(const char *urns[], int component_count);
 
  private:
   /**

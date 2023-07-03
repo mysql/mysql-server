@@ -138,14 +138,14 @@ RESTART;
 # Verify in the log file that the applier thread failed
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_text = The applier thread for channel ch3_2 failed to start
---let $assert_select = The 'slave applier' thread of channel 'ch3_2' will error out as the server will attempt to clone another server
+--let $assert_select = The 'replica applier' thread of channel 'ch3_2' will error out as the server will attempt to clone another server
 --let $assert_count = 1
 --source include/assert_grep.inc
 
 # Verify in the log file that the IO thread failed
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_text = The IO thread for channel ch3_2 failed to start
---let $assert_select = The 'slave IO' thread of channel 'ch3_2' will error out as the server will attempt to clone another server
+--let $assert_select = The 'replica IO' thread of channel 'ch3_2' will error out as the server will attempt to clone another server
 --let $assert_count = 1
 --source include/assert_grep.inc
 
@@ -169,12 +169,12 @@ DROP TABLE t1;
 
 set session sql_log_bin=0;
 call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
-call mtr.add_suppression("The 'slave IO' thread of channel 'ch3_2' will error out as the server will attempt to clone another server");
-call mtr.add_suppression("The 'slave applier' thread of channel 'ch3_2' will error out as the server will attempt to clone another server");
+call mtr.add_suppression("The 'replica IO' thread of channel 'ch3_2' will error out as the server will attempt to clone another server");
+call mtr.add_suppression("The 'replica applier' thread of channel 'ch3_2' will error out as the server will attempt to clone another server");
 call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
 call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
-call mtr.add_suppression("Slave I/O for channel 'ch3_2': Fatal error: Failed to run 'thread_start' hook, Error_code: MY-013117");
-call mtr.add_suppression("Slave SQL for channel 'ch3_2': Fatal error: Failed to run 'applier_start' hook, Error_code: MY-013117");
+call mtr.add_suppression("Replica I/O for channel 'ch3_2': Fatal error: Failed to run 'thread_start' hook, Error_code: MY-013117");
+call mtr.add_suppression("Replica SQL for channel 'ch3_2': Fatal error: Failed to run 'applier_start' hook, Error_code: MY-013117");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 set session sql_log_bin=1;

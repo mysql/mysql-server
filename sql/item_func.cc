@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -708,6 +708,7 @@ void Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 void Item_func::update_used_tables() {
   used_tables_cache = get_initial_pseudo_tables();
   not_null_tables_cache = 0;
+  m_accum_properties = 0;
 
   for (uint i = 0; i < arg_count; i++) {
     args[i]->update_used_tables();
@@ -4461,6 +4462,7 @@ bool Item_udf_func::fix_fields(THD *thd, Item **) {
   if (udf.fix_fields(thd, this, arg_count, args)) return true;
   if (thd->is_error()) return true;
   used_tables_cache = udf.used_tables_cache;
+  m_non_deterministic = is_non_deterministic();
   fixed = true;
   return false;
 }
@@ -4570,6 +4572,21 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
 
   if (func->resolve_type(thd)) return true;
 
+  /*
+    Calculation of constness and non-deterministic property of a UDF is done
+    according to this algorithm:
+    - If any argument to the UDF is non-const, the used tables information
+      and constness of the UDF is derived from the aggregated properties of
+      the arguments.
+    - If all arguments to the UDF are const and the init function specifies
+      the UDF to be non-const, the UDF is marked as non-deterministic.
+    Thus, initid.const_item is only considered when all arguments are const,
+    and it's use is thus slightly inconsistent. However, the current behavior
+    seems to work well in most circumstances.
+
+    @todo Clarify the semantics of initid.const_item and make it affect
+          the constness and non-deterministic property more consistently.
+  */
   initid.max_length = func->max_length;
   initid.maybe_null = func->m_nullable;
   initid.const_item = used_tables_cache == 0;
@@ -5048,7 +5065,7 @@ longlong Item_source_pos_wait::val_int() {
   } else {
     if (channel_map.get_num_instances() > 1) {
       mi = nullptr;
-      my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+      my_error(ER_REPLICA_MULTIPLE_CHANNELS_CMD, MYF(0));
     } else
       mi = channel_map.get_default_channel_mi();
   }

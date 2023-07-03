@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7461,10 +7461,15 @@ void mysql_close_free(MYSQL *mysql) {
 
   /* Clear pointers for better safety */
   mysql->host_info = nullptr;
+  mysql->host = nullptr;
+  mysql->unix_socket = nullptr;
+  mysql->server_version = nullptr;
   mysql->user = nullptr;
   mysql->passwd = nullptr;
   mysql->db = nullptr;
   mysql->extension = nullptr;
+  mysql->thd = nullptr;
+  mysql->charset = nullptr;
 }
 
 /**
@@ -7522,13 +7527,12 @@ void mysql_detach_stmt_list(LIST **stmt_list [[maybe_unused]],
 #ifndef MYSQL_SERVER
   /* Reset connection handle in all prepared statements. */
   LIST *element = *stmt_list;
-  char buff[MYSQL_ERRMSG_SIZE];
   DBUG_TRACE;
 
-  snprintf(buff, sizeof(buff) - 1, ER_CLIENT(CR_STMT_CLOSED), func_name);
   for (; element; element = element->next) {
     MYSQL_STMT *stmt = (MYSQL_STMT *)element->data;
-    set_stmt_error(stmt, CR_STMT_CLOSED, unknown_sqlstate, buff);
+    set_stmt_extended_error(stmt, CR_STMT_CLOSED, unknown_sqlstate,
+                            ER_CLIENT(CR_STMT_CLOSED), func_name);
     stmt->mysql = nullptr;
     /* No need to call list_delete for statement here */
   }
@@ -9206,6 +9210,17 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name) {
     */
     cs_name = mysql->options.charset_name;
   }
+
+#ifndef MYSQL_SERVER
+  if (mysql->charset != nullptr) {
+    if (!is_supported_parser_charset(mysql->charset)) {
+      set_mysql_extended_error(mysql, CR_INVALID_CLIENT_CHARSET,
+                               unknown_sqlstate,
+                               ER_CLIENT(CR_INVALID_CLIENT_CHARSET), cs_name);
+      return 1;
+    }
+  }
+#endif
 
   if (strlen(cs_name) < MY_CS_NAME_SIZE &&
       (cs = get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0)))) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -92,6 +92,8 @@ struct row_threads {
   bool m_secondary;
   /** CURRENT_CONTROLLED_MEMORY, ... */
   PFS_session_all_memory_stat_row m_session_all_memory_row;
+  /** Column TELEMETRY_ACTIVE (read). */
+  bool m_telemetry_active;
 };
 
 class PFS_index_threads_by_thread_id : public PFS_index_threads {

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 # This is the CMakeLists for InnoDB
 
 INCLUDE(innodb.cmake)
+
+MSVC_CPPCHECK_DISABLE()
 
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="InnoDB")
 
@@ -269,7 +271,7 @@ ENDIF()
 IF(MY_COMPILER_IS_GNU AND
     CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 11 AND
     CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG" AND
-    CMAKE_CXX_FLAGS MATCHES " -O2 ")
+    "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}" MATCHES " -O2")
   ADD_COMPILE_FLAGS(arch/arch0arch.cc COMPILE_FLAGS "-Wformat-truncation=0")
 ENDIF()
 
@@ -318,7 +320,9 @@ ENDIF()
 
 ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
 TARGET_COMPILE_DEFINITIONS(
-    innodb_zipdecompress PRIVATE DISABLE_PSI_MEMORY UNIV_LIBRARY UNIV_NO_ERR_MSGS)
+  innodb_zipdecompress PRIVATE DISABLE_PSI_MEMORY UNIV_LIBRARY UNIV_NO_ERR_MSGS)
+TARGET_LINK_LIBRARIES(innodb_zipdecompress
+  PRIVATE extra::rapidjson ext::lz4 ext::zlib)
 ADD_DEPENDENCIES(innodb_zipdecompress GenError)
 
 MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
@@ -336,7 +340,8 @@ MYSQL_ADD_PLUGIN(innobase
   ${INNOBASE_SOURCES} ${INNOBASE_ZIP_DECOMPRESS_SOURCES} STORAGE_ENGINE
   MANDATORY
   MODULE_OUTPUT_NAME ha_innodb
-  LINK_LIBRARIES sql_dd sql_gis ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
+  LINK_LIBRARIES sql_dd sql_gis ext::zlib ext::lz4 ${NUMA_LIBRARY}
+                 extra::rapidjson)
 
 # On linux: /usr/include/stdio.h:#define BUFSIZ 8192
 # On Solaris: /usr/include/iso/stdio_iso.h:#define    BUFSIZ  1024

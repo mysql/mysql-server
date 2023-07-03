@@ -49,7 +49,7 @@ call mtr.add_suppression("IP address .* could not be resolved");
 --source include/rpl_restart_server.inc
 
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("Slave I/O for channel '': Master command COM_REGISTER_SLAVE failed: .*");
+call mtr.add_suppression("Replica I/O for channel '': Source command COM_REGISTER_REPLICA failed: .*");
 --source include/start_slave.inc
 
 # ==== Procedure verify_namespace_configuration ====

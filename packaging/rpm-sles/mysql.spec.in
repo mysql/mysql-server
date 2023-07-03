@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -720,7 +720,6 @@ install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysco
 %endif
 
 # Remove files pages we explicitly do not want to package
-rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
 
@@ -883,6 +882,8 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
+%attr(644, root, root) %{_datadir}/mysql-*/masking_functions_install.sql
+%attr(644, root, root) %{_datadir}/mysql-*/masking_functions_uninstall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_fido.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_kerberos.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
@@ -899,6 +900,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %endif # aws
@@ -976,6 +979,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_enterprise_encryption.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_masking_functions.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
 %endif # aws_sdk
@@ -1253,6 +1258,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlx_global_reset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_sensitive_system_variables.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_reader.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_server_telemetry_traces.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_thd_store_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
@@ -1345,6 +1352,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_sensitive_system_variables.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_reader.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_server_telemetry_traces.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_thd_store_service.so
 
 %if 0%{?cluster}
 %files management-server
@@ -1436,6 +1445,13 @@ rm -r $(readlink var) var
 %endif # with_router
 
 %changelog
+* Thu Oct 13 2022 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.0.33-1
+- Added component_test_server_telemetry_traces, component_test_mysql_thd_store_service
+
+* Tue Oct 11 2022 Michal Jankowski <michal.jankowski@oracle.com> - 8.0.33-1
+- Added component_masking.so component
+- Added component_masking_functions.so component
+
 * Tue Jun 28 2022 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.0.31-1
 - Added component_keyring_oci
 

@@ -1,12 +1,12 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-CALL mtr.add_suppression("Slave: .*Duplicate column name");
-call mtr.add_suppression("Slave: Unknown table 'test.t6' Error_code: 1051");
-call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: MY-013146");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+CALL mtr.add_suppression("Replica: .*Duplicate column name");
+call mtr.add_suppression("Replica: Unknown table 'test.t6' Error_code: 1051");
+call mtr.add_suppression("Replica SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 **** Diff Table Def Start ****
 *** On Slave ***
 STOP SLAVE;
@@ -86,7 +86,7 @@ set @b1 = 'b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TESTING');
 ******************************************************************
-*** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+*** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
 include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t3  ***
@@ -108,7 +108,7 @@ include/rpl_reset.inc
 INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
 (30000.22,4,'QA TESTING');
 ******************************************************************
-*** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+*** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
 include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t4  ***
@@ -130,7 +130,7 @@ include/rpl_reset.inc
 INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
 (2,'JOE',300.01,0,'b2b2',1.0000009);
 ******************************************************************
-*** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+*** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
 include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t5  ***
@@ -151,7 +151,7 @@ include/rpl_reset.inc
 INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
 (2,'JOE',300.01,0);
 ******************************************************************
-*** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+*** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
 include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t6  ***
@@ -260,7 +260,7 @@ set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ******************************************************************
-*** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+*** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
 include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t10  ***
@@ -281,7 +281,7 @@ set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ******************************************************************
-*** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+*** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
 include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t11  ***
@@ -474,7 +474,7 @@ c4 BLOB, c5 CHAR(5)) ENGINE='MyISAM';
 include/rpl_reset.inc
 call mtr.add_suppression("Error .Unknown table .t6.. on query.* Error_code: 1051");
 call mtr.add_suppression("Error .Duplicate column name .c6.. on query.* Error_code: MY-001060");
-call mtr.add_suppression("Table definition on master and slave does not match: Column . ...e mismatch.* Error_code: 1535");
+call mtr.add_suppression("Table definition on source and replica does not match: Column . ...e mismatch.* Error_code: 1535");
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
@@ -590,7 +590,7 @@ include/rpl_reset.inc
 *** Master Data Insert ***
 INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 ******************************************************************
-*** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
+*** Expect slave to fail with Error ER_REPLICA_CONVERSION_FAILED ***
 ******************************************************************
 include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 ** DROP table t17 ***

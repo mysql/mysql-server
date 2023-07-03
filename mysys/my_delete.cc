@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,14 +89,14 @@ int my_delete(const char *name, myf MyFlags) {
 
 */
 int nt_share_delete(const char *name, myf MyFlags) {
-  char buf[MAX_PATH + 20];
-  ulong cnt;
+  char buf[MAX_PATH + 25];
+  ulonglong cnt;
   DBUG_TRACE;
   DBUG_PRINT("my", ("name %s MyFlags %d", name, MyFlags));
 
-  for (cnt = GetTickCount(); cnt; cnt--) {
+  for (cnt = GetTickCount64(); cnt; cnt--) {
     errno = 0;
-    sprintf(buf, "%s.%08lX.deleted", name, cnt);
+    sprintf(buf, "%s.%08llX.deleted", name, cnt);
     if (MoveFile(name, buf)) break;
 
     if ((errno = GetLastError()) == ERROR_ALREADY_EXISTS) continue;

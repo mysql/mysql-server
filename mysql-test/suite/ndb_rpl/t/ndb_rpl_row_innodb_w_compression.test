@@ -1,0 +1,37 @@
+#############################################
+# Purpose:   Generic replication from Innodb to NDB
+#            using 'binlog_format = ROW' and compression
+#            and ensuring that the ndb_apply_status
+#            table is updated.
+#############################################
+
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--echo ******************************************************
+--echo * 1. Set compression to ON
+--echo ******************************************************
+
+--let $saved_binlog_transaction_compression_global =  `SELECT @@GLOBAL.binlog_transaction_compression`
+
+SET GLOBAL binlog_transaction_compression = ON;
+
+--echo ******************************************************
+--echo * 2. Replicate data
+--echo ******************************************************
+
+SET binlog_format = ROW;
+let $off_set = 10;
+let $rpl_format = 'ROW';
+--source suite/ndb_rpl/t/ndb_rpl_xxx_innodb.inc
+
+--echo ******************************************************
+--echo * 3. Cleanup
+--echo ******************************************************
+
+--source include/rpl_connection_master.inc
+
+--replace_result $saved_binlog_transaction_compression_global SAVED
+--eval SET GLOBAL binlog_transaction_compression = $saved_binlog_transaction_compression_global
+
+--source include/rpl_end.inc

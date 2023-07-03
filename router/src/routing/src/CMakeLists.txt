@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@ ADD_DEPENDENCIES(sql_lexer GenServerSource)
 ADD_LIBRARY(routing SHARED
   mysql_routing.cc
   destination.cc
+  destination_error.cc
   dest_metadata_cache.cc
   dest_first_available.cc
   dest_next_available.cc
@@ -49,47 +50,69 @@ ADD_LIBRARY(routing SHARED
   routing_component.cc
   channel.cc
   destination_ssl_context.cc
+  classic_connection_base.cc
   classic_connection.cc
   x_connection.cc
   connection.cc
   blocked_endpoints.cc
 
   processor.cc
+  forwarding_processor.cc
+
   classic_auth.cc
   classic_auth_cleartext.cc
   classic_auth_caching_sha2.cc
-  classic_auth_forwarder.cc
   classic_auth_native.cc
   classic_auth_sha256_password.cc
-  classic_binlog_dump.cc
-  classic_change_user.cc
-  classic_clone.cc
   classic_command.cc
   classic_connect.cc
   classic_flow.cc
   classic_forwarder.cc
   classic_frame.cc
-  classic_greeting.cc
-  classic_init_schema.cc
-  classic_kill.cc
   classic_lazy_connect.cc
-  classic_list_fields.cc
-  classic_ping.cc
-  classic_query.cc
-  classic_quit.cc
-  classic_register_replica.cc
-  classic_reload.cc
-  classic_reset_connection.cc
-  classic_set_option.cc
-  classic_statistics.cc
-  classic_stmt_close.cc
-  classic_stmt_execute.cc
-  classic_stmt_fetch.cc
-  classic_stmt_param_append_data.cc
-  classic_stmt_prepare.cc
-  classic_stmt_reset.cc
+
+  classic_auth_cleartext_forwarder.cc
+  classic_auth_caching_sha2_forwarder.cc
+  classic_auth_forwarder.cc
+  classic_auth_native_forwarder.cc
+  classic_auth_sha256_password_forwarder.cc
+  classic_binlog_dump_forwarder.cc
+  classic_change_user_forwarder.cc
+  classic_clone_forwarder.cc
+  classic_greeting_forwarder.cc
+  classic_init_schema_forwarder.cc
+  classic_kill_forwarder.cc
+  classic_list_fields_forwarder.cc
+  classic_ping_forwarder.cc
+  classic_query_forwarder.cc
+  classic_quit_forwarder.cc
+  classic_register_replica_forwarder.cc
+  classic_reload_forwarder.cc
+  classic_reset_connection_forwarder.cc
+  classic_set_option_forwarder.cc
+  classic_statistics_forwarder.cc
+  classic_stmt_close_forwarder.cc
+  classic_stmt_execute_forwarder.cc
+  classic_stmt_fetch_forwarder.cc
+  classic_stmt_param_append_data_forwarder.cc
+  classic_stmt_prepare_forwarder.cc
+  classic_stmt_reset_forwarder.cc
+
+  classic_auth_cleartext_sender.cc
+  classic_auth_caching_sha2_sender.cc
+  classic_auth_native_sender.cc
+  classic_auth_sha256_password_sender.cc
+  classic_change_user_sender.cc
+  # classic_greeting_sender.cc
+  classic_init_schema_sender.cc
+  classic_query_sender.cc
+  classic_quit_sender.cc
+  classic_reset_connection_sender.cc
+
+  classic_greeting_receiver.cc
 
   sql_value.cc
+  show_warnings_parser.cc
 )
 
 TARGET_LINK_LIBRARIES(routing
@@ -148,6 +171,7 @@ add_harness_plugin(routing_plugin
  REQUIRES routing
  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
  )
+TARGET_LINK_LIBRARIES(routing_plugin PRIVATE extra::rapidjson)
 
 GENERATE_EXPORT_HEADER(routing_plugin
   EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/routing_plugin_export.h)

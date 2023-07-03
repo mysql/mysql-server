@@ -212,7 +212,7 @@ call mtr.add_suppression("Could not execute Delete_rows event on table test.t6")
 call mtr.add_suppression("Could not execute Update_rows event on table test.t6");
 call mtr.add_suppression("Can't find record in 't6'");
 # when mts is enabled
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 
 --let $i= 1
 

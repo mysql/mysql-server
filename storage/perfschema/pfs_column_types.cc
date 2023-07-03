@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ void object_type_to_string(enum_object_type object_type, const char **string,
                            size_t *length) {
   s_object_type_map *map;
 
-  static_assert(array_elements(object_type_map) == COUNT_OBJECT_TYPE + 1, "");
+  static_assert(array_elements(object_type_map) == COUNT_OBJECT_TYPE + 1);
 
   for (map = &object_type_map[0]; map->m_enum != NO_OBJECT_TYPE; map++) {
     if (map->m_enum == object_type) {
@@ -75,7 +75,6 @@ void object_type_to_string(enum_object_type object_type, const char **string,
 
   *string = map->m_string.str;
   *length = map->m_string.length;
-  return;
 }
 
 void string_to_object_type(const char *string, size_t length,
@@ -92,5 +91,4 @@ void string_to_object_type(const char *string, size_t length,
   }
 
   *object_type = map->m_enum;
-  return;
 }

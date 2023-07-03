@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -105,9 +105,11 @@ IF(MY_COMPILER_IS_GNU)
   )
 ENDIF()
 
-ADD_LIBRARY(mysqlpump_lib STATIC ${MYSQLPUMP_LIB_SOURCES})
-TARGET_LINK_LIBRARIES(mysqlpump_lib
-   client_base ${LZ4_LIBRARY})
+ADD_STATIC_LIBRARY(mysqlpump_lib
+  ${MYSQLPUMP_LIB_SOURCES}
+  LINK_LIBRARIES
+  client_base ext::lz4 ext::zlib
+  )
 
 MYSQL_ADD_EXECUTABLE(mysqlpump  program.cc)
 

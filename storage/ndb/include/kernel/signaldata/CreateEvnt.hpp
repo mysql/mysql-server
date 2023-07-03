@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -339,7 +339,8 @@ class CreateEvntConf {
 
 public:
   //  static constexpr Uint32 InternalLength = 3;
-  static constexpr Uint32 SignalLength = 8+MAXNROFATTRIBUTESINWORDS_OLD;
+  static constexpr Uint32 SignalLength_v8_0_31 = 8+MAXNROFATTRIBUTESINWORDS_OLD;
+  static constexpr Uint32 SignalLength = 13;
 
   union {
     Uint32 m_userRef;             // user block reference
@@ -356,6 +357,7 @@ public:
   Uint32 m_eventType;
   Uint32 m_eventId;
   Uint32 m_eventKey;
+  Uint32 m_reportFlags;          // using CreateEvntReq::EventFlags
 
   Uint32 getUserRef() const {
     return m_userRef;
@@ -410,6 +412,18 @@ public:
   }
   void setEventKey(Uint32 val) {
     m_eventKey = val;
+  }
+  void setReportFlags(Uint32 val) {
+    m_reportFlags = val;
+  }
+  Uint32 getReportAll() const {
+    return m_reportFlags & CreateEvntReq::EF_REPORT_ALL;
+  }
+  Uint32 getReportSubscribe() const {
+    return m_reportFlags & CreateEvntReq::EF_REPORT_SUBSCRIBE;
+  }
+  Uint32 getReportDDL() const {
+    return (m_reportFlags & CreateEvntReq::EF_NO_REPORT_DDL) == 0;
   }
 };
 

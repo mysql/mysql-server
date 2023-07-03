@@ -1,7 +1,7 @@
 include/group_replication.inc [rpl_server_count=4]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 # 1. server1 start group replication and server2 join
@@ -14,7 +14,7 @@ include/start_group_replication.inc
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=SERVER_3_PORT for channel 'ch3_1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'ch3_1']
 #
 # 3. server2 have a slave connection to server4
@@ -22,14 +22,14 @@ include/start_slave.inc [FOR CHANNEL 'ch3_1']
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=SERVER_4_PORT for channel 'ch4_2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc [FOR CHANNEL 'ch4_2']
 
 # 4. Execute action to single primary mode. It shall fail as more than
 #    one server has slave connections
 [connection server2]
 SELECT group_replication_switch_to_single_primary_mode();
-ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. There is more than a member in the group with running slave channels so no primary can be elected.
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. There is more than a member in the group with running replica channels so no primary can be elected.
 include/gr_assert_multi_primary_mode.inc
 [connection server1]
 include/gr_assert_multi_primary_mode.inc
@@ -42,7 +42,7 @@ RESET SLAVE ALL FOR CHANNEL 'ch3_1';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 set session sql_log_bin=0;
-call mtr.add_suppression("Error while executing a group configuration operation: There is more than a member in the group with running slave channels*");
+call mtr.add_suppression("Error while executing a group configuration operation: There is more than a member in the group with running replica channels*");
 set session sql_log_bin=1;
 [connection server2]
 STOP SLAVE FOR CHANNEL 'ch4_2';
@@ -52,6 +52,6 @@ RESET SLAVE ALL FOR CHANNEL 'ch4_2';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 set session sql_log_bin=0;
-call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. There is more than a member in the group with running slave channels*");
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. There is more than a member in the group with running replica channels*");
 set session sql_log_bin=1;
 include/group_replication_end.inc

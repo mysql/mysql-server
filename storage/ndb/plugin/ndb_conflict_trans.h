@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -265,6 +265,7 @@ class DependencyTracker {
   st_transaction *get_next_dependency(
       const st_transaction *current, bool include_dependents_of_current = true);
 
+#ifndef NDEBUG
   /**
      dump_dependents
 
@@ -278,6 +279,7 @@ class DependencyTracker {
      Internal invariant checking function.
   */
   bool verify_graph();
+#endif
 
   /* MemRoot allocator class instance */
   st_mem_root_allocator mra;

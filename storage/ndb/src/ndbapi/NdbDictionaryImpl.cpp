@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2460,31 +2460,16 @@ NdbEventImpl::NdbEventImpl() :
   NdbDictionary::Event(* this),
   NdbDictObjectImpl(NdbDictionary::Object::TypeUndefined), m_facade(this)
 {
-  DBUG_ENTER("NdbEventImpl::NdbEventImpl");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("this: %p", this));
-  init();
-  DBUG_VOID_RETURN;
 }
 
 NdbEventImpl::NdbEventImpl(NdbDictionary::Event & f) : 
   NdbDictionary::Event(* this),
   NdbDictObjectImpl(NdbDictionary::Object::TypeUndefined), m_facade(&f)
 {
-  DBUG_ENTER("NdbEventImpl::NdbEventImpl");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("this: %p", this));
-  init();
-  DBUG_VOID_RETURN;
-}
-
-void NdbEventImpl::init()
-{
-  m_eventId= RNIL;
-  m_eventKey= RNIL;
-  mi_type= 0;
-  m_dur= NdbDictionary::Event::ED_UNDEFINED;
-  m_mergeEvents = false;
-  m_tableImpl= nullptr;
-  m_rep= NdbDictionary::Event::ER_UPDATED;
 }
 
 NdbEventImpl::~NdbEventImpl()
@@ -2575,24 +2560,12 @@ NdbEventImpl::getTableEvent(const NdbDictionary::Event::TableEvent t) const
 }
 
 void
-NdbEventImpl::setDurability(NdbDictionary::Event::EventDurability d)
+NdbEventImpl::setReport(Uint32 report_options)
 {
-  m_dur = d;
+  m_rep = report_options;
 }
 
-NdbDictionary::Event::EventDurability
-NdbEventImpl::getDurability() const
-{
-  return m_dur;
-}
-
-void
-NdbEventImpl::setReport(NdbDictionary::Event::EventReport r)
-{
-  m_rep = r;
-}
-
-NdbDictionary::Event::EventReport
+Uint32
 NdbEventImpl::getReport() const
 {
   return m_rep;
@@ -6149,9 +6122,22 @@ NdbDictInterface::createEvent(NdbEventImpl & evnt,
   evnt.m_table_id = evntConf->getTableId();
   evnt.m_table_version = evntConf->getTableVersion();
 
+  Uint32 rep = 0;
+  if (lenCreateEvntConf == CreateEvntConf::SignalLength * 4) {
+    // CreateEvent*:: report flags -> EventReport flags
+    if (evntConf->getReportAll())
+      rep |= NdbDictionary::Event::EventReport::ER_ALL;
+    if (evntConf->getReportSubscribe())
+      rep |= NdbDictionary::Event::EventReport::ER_SUBSCRIBE;
+    if (evntConf->getReportDDL())
+      rep |= NdbDictionary::Event::EventReport::ER_DDL;
+    assert(getFlag || evnt.m_rep == rep); // create
+  }
+
   if (getFlag) {
     evnt.m_attrListBitmask = evntConf->getAttrListBitmask();
     evnt.mi_type           = evntConf->getEventType();
+    evnt.m_rep             = rep;
     evnt.setTable(dataPtr);
     if (!m_tableData.empty())
     {
@@ -7546,6 +7532,7 @@ NdbDictInterface::forceGCPWait(int type)
 
       m_impl->do_forceSend();
       m_impl->unlock();
+      break;
     }
     return m_error.code == 0 ? 0 : -1;
   }

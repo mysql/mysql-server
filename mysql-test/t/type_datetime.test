@@ -834,3 +834,32 @@ SELECT * FROM t1 wHERE pk = 5 AND
 (col_varchar, col_date) IN (('I','2022-02-25'), ('I', '2022-02-25'));
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#35080094: MySQL server crash -
+--echo #               Assertion CompatibleTypesForIndexLookup failed
+--echo #
+
+CREATE TABLE t(a VARCHAR(100) CHARSET latin1, KEY(a));
+INSERT INTO t VALUES ('2023-1-1 1:2:3'), ('2023-01-01 01:02:03');
+--sorted_result
+SELECT * FROM t WHERE a = TIMESTAMP'2023-01-01 01:02:03';
+DROP TABLE t;
+
+--echo #
+--echo # Bug#35115909: Wrong join result when one of the join columns
+--echo #               is compared to a temporal literal
+--echo #
+
+CREATE TABLE t (a VARCHAR(30) CHARSET latin1,
+                b VARCHAR(30) CHARSET latin1);
+INSERT INTO t VALUES
+  ('2023-01-01 01:02:03', '2023-01-01 01:02:03'),
+  ('2023-01-01 01:02:03', '2023-1-1 1:2:3'),
+  ('2023-1-1 1:2:3',      '2023-01-01 01:02:03'),
+  ('2023-1-1 1:2:3',      '2023-1-1 1:2:3');
+# Used to return four rows. Should return only those two rows that
+# satisfy the a=b predicate.
+--sorted_result
+SELECT * FROM t WHERE a = b and b = TIMESTAMP'2023-01-01 01:02:03';
+DROP TABLE t;

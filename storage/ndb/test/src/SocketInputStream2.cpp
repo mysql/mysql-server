@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,9 @@
 */
 
 #include "util/require.h"
-#include <SocketInputStream2.hpp>
 #include "portlib/ndb_socket_poller.h"
+
+#include "SocketInputStream2.hpp"
 
 bool
 SocketInputStream2::gets(BaseString& str)
@@ -54,16 +55,9 @@ SocketInputStream2::gets(BaseString& str)
 bool
 SocketInputStream2::has_data_to_read()
 {
-  const int res = ndb_poll(m_socket, true, false, m_read_timeout * 1000);
+  int res = m_socket.poll_readable(m_read_timeout * 1000);
 
-  if (res == 1)
-    return true; // Yes, there was data
-
-  if (res == 0)
-    return false; // Timeout occurred
-
-  require(res == -1);
-  return false;
+  return (res == 1);
 }
 
 
@@ -73,7 +67,7 @@ SocketInputStream2::read_socket(char* buf, size_t len)
   if (!has_data_to_read())
     return -1;
 
-  size_t read_res = ndb_recv(m_socket, buf, len, 0);
+  size_t read_res = m_socket.recv(buf, len, 0);
   if (read_res == 0)
     return -1; // Has data to read but only EOF received
 

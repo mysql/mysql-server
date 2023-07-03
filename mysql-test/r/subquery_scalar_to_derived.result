@@ -1319,8 +1319,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	cc_alias	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 2	DERIVED	cc	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(cc_alias); Using join buffer (hash join)
 Warnings:
-Note	1276	Field or reference 'test.cc_alias.i' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.cc.i' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.cc_alias.i' of SELECT #3 was resolved in SELECT #2
 Note	1003	/* select#1 */ select coalesce(`derived_1_2`.`COUNT(i)`,0) AS `cnt` from `test`.`cc` left join (/* select#2 */ select count(`test`.`cc_alias`.`i`) AS `COUNT(i)`,`test`.`cc_alias`.`i` AS `i` from `test`.`cc` `cc_alias` semi join (`test`.`cc`) group by `test`.`cc_alias`.`i`) `derived_1_2` on((`derived_1_2`.`i` = `test`.`cc`.`i`)) where true group by `test`.`cc`.`i`
 DROP TABLE cc;
 # Test: detect correlated aggregates deep inside scalar subquery (was
@@ -1511,7 +1511,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1` left join (/* select#2 */ select sum(`test`.`t2`.`i`) AS `SUM(t2.i)` from `test`.`t2`) `derived_1_2` on(true) where true group by `test`.`t1`.`i`,`test`.`t1`.`j` with rollup having (rollup_sum_switcher(sum(`j`)) > `derived_1_2`.`SUM(t2.i)`)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`j` AS `j` from `test`.`t1` left join (/* select#2 */ select sum(`test`.`t2`.`i`) AS `SUM(t2.i)` from `test`.`t2`) `derived_1_2` on(true) where true group by `test`.`t1`.`i`,`test`.`t1`.`j` with rollup having (rollup_sum_switcher(sum(`test`.`t1`.`j`)) > `derived_1_2`.`SUM(t2.i)`)
 DROP TABLE t1, t2;
 Bigger example (TPC-H Q11) where we get a scalar transformation
 in the grouping derived table also, i.e. nested scalar to
@@ -3860,18 +3860,18 @@ WHERE cc.col_varchar <> 'w';
 EXPLAIN
 -> Left hash join (no condition)  (cost=6.23 rows=1)
     -> Table scan on derived_1_3  (cost=3.51..3.51 rows=1)
-        -> Materialize  (cost=1.00..1.00 rows=1)
-            -> Aggregate: avg(cc.col_varchar_key)  (cost=0.90 rows=1)
-                -> Inner hash join (bb.col_varchar = cc.col_varchar_key)  (cost=0.80 rows=1)
+        -> Materialize  (cost=1..1 rows=1)
+            -> Aggregate: avg(cc.col_varchar_key)  (cost=0.9 rows=1)
+                -> Inner hash join (bb.col_varchar = cc.col_varchar_key)  (cost=0.8 rows=1)
                     -> Table scan on bb  (cost=0.35 rows=1)
                     -> Hash
                         -> Filter: (cc.col_varchar <> 'w')  (cost=0.45 rows=1)
                             -> Table scan on cc  (cost=0.45 rows=2)
     -> Hash
         -> Table scan on derived_1_4  (cost=3.61..3.61 rows=1)
-            -> Materialize  (cost=1.10..1.10 rows=1)
-                -> Aggregate: sum(cc.col_int_key)  (cost=1.00 rows=1)
-                    -> Inner hash join (no condition)  (cost=0.80 rows=2)
+            -> Materialize  (cost=1.1..1.1 rows=1)
+                -> Aggregate: sum(cc.col_int_key)  (cost=1 rows=1)
+                    -> Inner hash join (no condition)  (cost=0.8 rows=2)
                         -> Table scan on cc  (cost=0.45 rows=2)
                         -> Hash
                             -> Table scan on a  (cost=0.35 rows=1)
@@ -3976,24 +3976,24 @@ table1.col_varchar_key < 'O'
 ORDER BY table1.col_varchar ASC, field2, field1
 LIMIT 1000 OFFSET 2;
 EXPLAIN
--> Limit/Offset: 1000/2 row(s)  (cost=177.33 rows=0)
-    -> Left hash join (no condition)  (cost=177.33 rows=1)
+-> Limit/Offset: 1000/2 row(s)  (cost=177 rows=0)
+    -> Left hash join (no condition)  (cost=177 rows=1)
         -> Table scan on derived_1_4  (cost=9.11..9.11 rows=1)
-            -> Materialize  (cost=6.60..6.60 rows=1)
-                -> Aggregate: avg(table2.col_int)  (cost=6.50 rows=1)
-                    -> Inner hash join (no condition)  (cost=4.50 rows=20)
+            -> Materialize  (cost=6.6..6.6 rows=1)
+                -> Aggregate: avg(table2.col_int)  (cost=6.5 rows=1)
+                    -> Inner hash join (no condition)  (cost=4.5 rows=20)
                         -> Table scan on table2  (cost=2.25 rows=20)
                         -> Hash
                             -> Filter: ((((table1.pk = 1) and ((table1.col_varchar_key = 'D') or (table1.col_varchar_key = table1.col_varchar_key))) or (table1.col_varchar_key < 'O')) and (table1.col_varchar_key = table1.col_varchar_key))  (cost=2.25 rows=1)
                                 -> Table scan on table1  (cost=2.25 rows=20)
         -> Hash
-            -> Table scan on derived_1_5  (cost=174.71..174.71 rows=1)
-                -> Materialize  (cost=172.20..172.20 rows=1)
-                    -> Aggregate: count(subquery1_t1.col_varchar_key)  (cost=172.10 rows=1)
-                        -> Nested loop inner join  (cost=168.50 rows=36)
-                            -> Filter: (subquery1_t1.col_varchar_key <> subquery1_t2.col_varchar)  (cost=42.50 rows=360)
-                                -> Inner hash join (no condition)  (cost=42.50 rows=360)
-                                    -> Table scan on subquery1_t2  (cost=0.10 rows=20)
+            -> Table scan on derived_1_5  (cost=175..175 rows=1)
+                -> Materialize  (cost=172..172 rows=1)
+                    -> Aggregate: count(subquery1_t1.col_varchar_key)  (cost=172 rows=1)
+                        -> Nested loop inner join  (cost=169 rows=36)
+                            -> Filter: (subquery1_t1.col_varchar_key <> subquery1_t2.col_varchar)  (cost=42.5 rows=360)
+                                -> Inner hash join (no condition)  (cost=42.5 rows=360)
+                                    -> Table scan on subquery1_t2  (cost=0.103 rows=20)
                                     -> Hash
                                         -> Covering index scan on subquery1_t1 using idx_cc_col_varchar_key  (cost=2.25 rows=20)
                             -> Filter: (cc.col_varchar = subquery1_t2.col_varchar_key)  (cost=0.25 rows=0.1)
@@ -4679,12 +4679,27 @@ SELECT 1 AS one FROM t WHERE 1=(SELECT 1 UNION SELECT 2);
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN FORMAT=tree SELECT 1 AS one FROM t WHERE 1=(SELECT 1 UNION SELECT 2);
 EXPLAIN
--> Nested loop inner join  (cost=0.80 rows=2)
+-> Nested loop inner join  (cost=0.8 rows=2)
     -> Table scan on t  (cost=0.35 rows=1)
     -> Constant row from derived_1_2  (cost=0.55..0.55 rows=1)
-        -> Union materialize with deduplication  (cost=0.20..0.20 rows=2)
-            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
-            -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+        -> Union materialize with deduplication  (cost=0.2..0.2 rows=2)
+            -> Rows fetched before execution  (cost=0..0 rows=1)
+            -> Rows fetched before execution  (cost=0..0 rows=1)
 
+DROP TABLE t;
+#
+# Bug#34998721 Mysqld crash - Assertion `table_num_to_node_num[table_num] != -1' failed.
+#              Only seen with hypergraph optimizer enabled.
+#
+CREATE TABLE t(x INT);
+SET SQL_MODE='';
+SELECT COUNT(*), (SELECT 1 FROM t)
+FROM t AS t1,
+(SELECT 1 FROM t) AS t2,
+t AS t3
+ORDER BY ROW_NUMBER() OVER (ORDER BY -t3.x);
+COUNT(*)	(SELECT 1 FROM t)
+0	NULL
+SET SQL_MODE=default;
 DROP TABLE t;
 SET optimizer_switch='subquery_to_derived=default';

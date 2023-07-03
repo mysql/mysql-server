@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -290,7 +290,7 @@ stdx::expected<std::string, std::error_code> AuthBase::rsa_encrypt_password(
 }
 
 bool AuthBase::connection_has_public_key(
-    MysqlRoutingClassicConnection *connection) {
+    MysqlRoutingClassicConnectionBase *connection) {
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
   if (!connection->context().source_ssl_ctx()) return false;
 

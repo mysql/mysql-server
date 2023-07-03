@@ -1,0 +1,38 @@
+--source include/have_server_telemetry_traces.inc
+--source include/no_ps_protocol.inc
+--source include/not_parallel.inc
+--source include/no_ps_protocol.inc
+
+# Install required components.
+INSTALL COMPONENT 'file://component_query_attributes';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+
+--disable_query_log
+eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
+--enable_query_log
+
+--echo #
+--echo # Ensure statement using secondary engine is traced
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+
+--query_attributes trace on
+SELECT * FROM t1;
+
+ALTER TABLE t1 SECONDARY_UNLOAD;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+UNINSTALL COMPONENT 'file://component_query_attributes';
+
+--disable_query_log
+UNINSTALL PLUGIN mock;
+--enable_query_log
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo Component logs:
+--replace_result ha_mock.dll ha_mock.so
+cat_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+remove_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;

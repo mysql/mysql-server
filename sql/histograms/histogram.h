@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_HISTOGRAM_INCLUDED
 #define HISTOGRAMS_HISTOGRAM_INCLUDED
 
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -646,6 +646,12 @@ class Histogram {
     return 1.0 - get_null_values_fraction();
   }
 };
+
+/** Return true if 'histogram' was built on an empty table.*/
+inline bool empty(const Histogram &histogram) {
+  return histogram.get_num_distinct_values() == 0 &&
+         histogram.get_null_values_fraction() == 0.0;
+}
 
 /**
   Create a histogram from a value map.

@@ -2,7 +2,7 @@
 # thread) restart from where SQL thread left, not from where
 # I/O thread left (some old bug fixed in 4.0.17)
 
-call mtr.add_suppression("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum");
+call mtr.add_suppression("Replica I/O: The replica I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum");
 
 --connection default
 let $check_ipv6_just_check=1;

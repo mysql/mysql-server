@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 SET SQL_LOG_BIN=0;
 SELECT user, plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session', 'mysql.infoschema');
@@ -31,13 +31,13 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST', SOURCE_SSL = 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password';
-ERROR HY000: Setting authentication options is not possible when only the Slave SQL Thread is being started.
+ERROR HY000: Setting authentication options is not possible when only the Replica SQL Thread is being started.
 START REPLICA SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin';
-ERROR HY000: Setting authentication options is not possible when only the Slave SQL Thread is being started.
+ERROR HY000: Setting authentication options is not possible when only the Replica SQL Thread is being started.
 START REPLICA SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
-ERROR HY000: Setting authentication options is not possible when only the Slave SQL Thread is being started.
+ERROR HY000: Setting authentication options is not possible when only the Replica SQL Thread is being started.
 START REPLICA IO_THREAD USER= 'regular_user_p' PASSWORD= 'password';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -72,7 +72,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'regular_user_p' PASSWORD= 'password';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -82,7 +82,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'regular_user_wp' PASSWORD= '';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -92,7 +92,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'regular_user_p' PASSWORD= 'password';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -102,7 +102,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'regular_user_wp' PASSWORD= '';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -112,7 +112,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'regular_user_wp';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -122,7 +122,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -132,7 +132,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -142,7 +142,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -152,7 +152,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -162,7 +162,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -172,7 +172,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -182,7 +182,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -192,7 +192,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'DOES NOT EXIST', SOURCE_PASSWORD = 'DOES NOT EXIST';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START REPLICA USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -202,14 +202,14 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'plug_user_p', SOURCE_PASSWORD= 'proxy_user_p', SOURCE_SSL = 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'plug_user_wp', SOURCE_PASSWORD= 'proxy_user_wp';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 include/check_slave_is_running.inc
 CREATE USER 'ssl_user' IDENTIFIED BY '' REQUIRE SSL;
@@ -217,7 +217,7 @@ GRANT ALL ON *.* TO ssl_user;
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'root', SOURCE_PASSWORD = '' , SOURCE_SSL = 0;
 Warnings:
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 include/stop_slave.inc
 START REPLICA USER= 'root' PASSWORD= '';
@@ -225,7 +225,7 @@ include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 SET @old_log_output= @@log_output;
 SET GLOBAL log_output= 'TABLE,FILE';
-call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
+call mtr.add_suppression(".*Invalid .* username when attempting to connect to the source server.*");
 include/stop_slave.inc
 TRUNCATE mysql.general_log;
 START REPLICA PASSWORD='secret';

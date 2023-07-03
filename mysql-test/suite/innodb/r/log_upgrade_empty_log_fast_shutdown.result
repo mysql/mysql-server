@@ -1,0 +1,14 @@
+# Kill the server
+ib_logfile0
+ib_logfile1
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_DATADIR1/mysqld.err --log-error-verbosity=3 --lower-case-table-names=1
+SHOW TABLES FROM test;
+Tables_in_test
+t
+SELECT * FROM t;
+id
+42
+# Kill the server
+# Expect found
+Pattern "Upgrading redo log: .* LSN=[0-9]+" found
+# restart:

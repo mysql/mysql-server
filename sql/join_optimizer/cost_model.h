@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,11 @@ constexpr double kHashProbeOneRowCost = 0.1;
 constexpr double kHashReturnOneRowCost = 0.07;
 constexpr double kMaterializeOneRowCost = 0.1;
 constexpr double kWindowOneRowCost = 0.1;
+
+/// A fallback cardinality estimate that is used in case the storage engine
+/// cannot provide one (like for table functions). It's a fairly arbitrary
+/// non-zero value.
+constexpr ha_rows kRowEstimateFallback = 1000;
 
 /// See EstimateFilterCost.
 struct FilterCost {

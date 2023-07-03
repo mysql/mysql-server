@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,8 @@ ADD_LIBRARY(http_common
 TARGET_LINK_LIBRARIES(http_common
   PUBLIC
   harness_tls
+  ext::libevent
   PRIVATE
-  ${LIBEVENT_LIBRARIES}
   ${SSL_LIBRARIES}
   )
 TARGET_INCLUDE_DIRECTORIES(http_common
@@ -74,7 +74,7 @@ GENERATE_EXPORT_HEADER(http_auth_backend_lib
   EXPORT_FILE_NAME
   ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/http_auth_backend_lib_export.h
   )
-TARGET_LINK_LIBRARIES(http_auth_backend_lib http_common)
+TARGET_LINK_LIBRARIES(http_auth_backend_lib http_common extra::rapidjson)
 SET_TARGET_PROPERTIES(http_auth_backend_lib PROPERTIES
   OUTPUT_NAME "mysqlrouter_http_auth_backend"
   SOVERSION 1
@@ -183,7 +183,6 @@ ADD_LIBRARY(http_client
   rest_client.cc
   )
 TARGET_LINK_LIBRARIES(http_client
-  ${LIBEVENT_LIBRARIES}
   ${LIBRT}
   http_common)
 
@@ -225,7 +224,6 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_passwd
   )
 ADD_INSTALL_RPATH(mysqlrouter_passwd "${ROUTER_INSTALL_RPATH}")
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/harness/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/router/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/metadata_cache/include/)

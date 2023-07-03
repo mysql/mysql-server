@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,6 @@ MACRO(FIND_CUSTOM_SASL)
         NO_SYSTEM_ENVIRONMENT_PATH
         )
       IF(NOT ${VAR_NAME})
-        # This should be FATAL_ERROR, enable later
         MESSAGE(FATAL_ERROR
         "Could not find plugin lib${SASL_PLUGIN}.so in ${WITH_SASL}/lib/sasl2")
       ENDIF()
@@ -278,21 +277,25 @@ ENDMACRO()
 MACRO(MYSQL_CHECK_SASL_DLLS)
   IF(LINUX_STANDALONE AND SASL_CUSTOM_LIBRARY)
     FIND_OBJECT_DEPENDENCIES(${SASL_CUSTOM_LIBRARY} SASL_DEPENDS_ON)
+    # On el6, the main library does not depend on krb5, but some plugins do.
+    FOREACH(SASL_PLUGIN ${CUSTOM_SASL_PLUGINS})
+      SET(VAR_NAME "SASL_CUSTOM_PLUGIN_${SASL_PLUGIN}")
+      FIND_OBJECT_DEPENDENCIES(${${VAR_NAME}} PLUGIN_DEPS)
+      MESSAGE(STATUS "SASL_PLUGIN ${SASL_PLUGIN} DEPENDS ON ${PLUGIN_DEPS}")
+      LIST(APPEND SASL_DEPENDS_ON ${PLUGIN_DEPS})
+    ENDFOREACH()
+    LIST(REMOVE_DUPLICATES SASL_DEPENDS_ON)
+
     STRING(REPLACE ";" " " SASL_DEPENDS_ON "${SASL_DEPENDS_ON}")
+    MESSAGE(STATUS "SASL dependencies ${SASL_DEPENDS_ON}")
+
     IF(NOT SASL_DEPENDS_ON MATCHES "libkrb5")
       MESSAGE(WARNING "This SASL library is built without KERBEROS")
+      MESSAGE(WARNING "DEPENDENCIES are ${SASL_DEPENDS_ON}")
+      # Disable KERBEROS for LDAP client authentication plugin.
       SET(SASL_WITHOUT_KERBEROS 1)
-      UNSET(KERBEROS_CUSTOM_LIBRARY CACHE)
-      UNSET(KERBEROS_CUSTOM_LIBRARY)
-      UNSET(KERBEROS_FOUND CACHE)
-      UNSET(KERBEROS_FOUND)
-      UNSET(KERBEROS_LIBRARIES CACHE)
-      UNSET(KERBEROS_LIBRARIES)
       UNSET(KERBEROS_LIB_CONFIGURED CACHE)
       UNSET(KERBEROS_LIB_CONFIGURED)
-      UNSET(KERBEROS_SYSTEM_LIBRARY CACHE)
-      UNSET(KERBEROS_SYSTEM_LIBRARY)
-      SET(WITH_KERBEROS "none" CACHE STRING "" FORCE)
     ENDIF()
 
     COPY_CUSTOM_SHARED_LIBRARY("${SASL_CUSTOM_LIBRARY}" ""

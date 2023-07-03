@@ -832,13 +832,42 @@ delete from t12;
 select count(*) from t11ver x, t12ver y
 where ifnull(x.a,'NULL') = ifnull(y.b,'NULL');
 
+create table t13 (
+  a varchar(127) collate utf8mb4_unicode_ci,
+  b binary(255),
+  primary key(a,b)
+) engine=ndb;
+
+--echo # errins-type=bug34917498, use small computeHash scratch buffer
+error 1;
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
+     --input-type=csv --output-type=ndb --errins-type=bug34917498
+     test $MYSQLTEST_VARDIR/tmp/t1.csv -t t13 >> $NDB_TOOLS_OUTPUT 2>&1;
+
+create table t14 (
+  a varchar(767) collate utf8mb4_unicode_ci primary key,
+  b int not null
+) engine=ndb;
+
+--echo # errins-type=bug34917498, use small computeHash scratch buffer
+error 1;
+exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
+     --input-type=csv --output-type=ndb --errins-type=bug34917498
+     test $MYSQLTEST_VARDIR/tmp/t1.csv -t t14 >> $NDB_TOOLS_OUTPUT 2>&1;
+--let $assert_text= Found expected error ndb-4278
+--let $assert_select= error.ndb
+--let $assert_match= ndb-4278
+--let $assert_file= $NDB_TOOLS_OUTPUT
+--let $assert_count=
+--source include/assert_grep.inc
+
 # END t11
 
 drop table tpersons;
 
 drop table t1, t1ver, t2, t2ver, t4, t5a, t5b, t5c,
            t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver, t10, t10ver,
-           t11, t11ver, t12, t12ver;
+           t11, t11ver, t12, t12ver, t13, t14;
 
 
 --source suite/ndb/include/backup_restore_cleanup.inc

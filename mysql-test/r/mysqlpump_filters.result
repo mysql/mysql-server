@@ -319,6 +319,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 
 DROP DATABASE db3;
 DROP DATABASE db1_1gb;
+Pattern "VIEW `db1`.`v1`" not found
+Pattern "VIEW `db1`.`v1`" found
 DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;

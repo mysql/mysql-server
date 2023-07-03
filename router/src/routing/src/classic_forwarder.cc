@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,10 @@
 
 #include "classic_forwarder.h"
 
-#include "classic_connection.h"
+#include "classic_connection_base.h"
+#include "classic_frame.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/tls_error.h"
-#include "tracer.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -37,65 +37,9 @@ static bool has_frame_header(ClassicProtocolState *src_protocol) {
   return src_protocol->current_frame().has_value();
 }
 
-static stdx::expected<std::pair<size_t, ClassicProtocolState::FrameInfo>,
-                      std::error_code>
-decode_frame_header(const net::const_buffer &recv_buf) {
-  const auto decode_res =
-      classic_protocol::decode<classic_protocol::frame::Header>(
-          net::buffer(recv_buf), 0);
-  if (!decode_res) {
-    const auto ec = decode_res.error();
-
-    if (ec == classic_protocol::codec_errc::not_enough_input) {
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
-    }
-    return decode_res.get_unexpected();
-  }
-
-  const auto frame_header_res = decode_res.value();
-  const auto header_size = frame_header_res.first;
-  const auto seq_id = frame_header_res.second.seq_id();
-  const auto payload_size = frame_header_res.second.payload_size();
-
-  const auto frame_size = header_size + payload_size;
-
-  return {std::in_place, header_size,
-          ClassicProtocolState::FrameInfo{seq_id, frame_size, 0u}};
-}
-
-/**
- * ensure current_frame() has a current frame-info.
- *
- * @post after success returned, src_protocol->current_frame() has a frame
- * decoded.
- */
-static stdx::expected<void, std::error_code> ensure_frame_header(
-    Channel *src_channel, ClassicProtocolState *src_protocol) {
-  auto &recv_buf = src_channel->recv_plain_buffer();
-
-  const size_t min_size{4};
-  const auto cur_size = recv_buf.size();
-  if (cur_size < min_size) {
-    // read the rest of the header.
-    auto read_res = src_channel->read_to_plain(min_size - cur_size);
-    if (!read_res) return read_res.get_unexpected();
-
-    if (recv_buf.size() < min_size) {
-      return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
-    }
-  }
-
-  const auto decode_frame_res = decode_frame_header(net::buffer(recv_buf));
-  if (!decode_frame_res) return decode_frame_res.get_unexpected();
-
-  src_protocol->current_frame() = std::move(decode_frame_res.value()).second;
-
-  return {};
-}
-
 static stdx::expected<size_t, std::error_code> forward_frame_header_as_is(
     Channel *src_channel, Channel *dst_channel, size_t header_size) {
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
 
   return dst_channel->write(net::buffer(recv_buf, header_size));
 }
@@ -136,13 +80,14 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
     Channel *src_channel, ClassicProtocolState *src_protocol,
     Channel *dst_channel, ClassicProtocolState *dst_protocol) {
   if (!has_frame_header(src_protocol)) {
-    auto read_res = ensure_frame_header(src_channel, src_protocol);
+    auto read_res =
+        ClassicFrame::ensure_frame_header(src_channel, src_protocol);
     if (!read_res) return read_res.get_unexpected();
   }
 
   auto &current_frame = src_protocol->current_frame().value();
 
-  auto &recv_buf = src_channel->recv_plain_buffer();
+  auto &recv_buf = src_channel->recv_plain_view();
   if (current_frame.forwarded_frame_size_ == 0) {
     const size_t header_size{4};
 
@@ -168,7 +113,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
     current_frame.forwarded_frame_size_ = transferred;
 
     // skip the original header
-    net::dynamic_buffer(recv_buf).consume(transferred);
+    src_channel->consume_plain(transferred);
   }
 
 #if 0
@@ -186,10 +131,13 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
 
   if (rest_of_frame_size > 0) {
     // try to fill the recv-buf up to the end of the frame
+    //
+    // ... not more than kMaxForwardSize to avoid reading all 16M at once.
+    const size_t kMaxForwardSize{64UL * 1024};
+
     if (rest_of_frame_size > recv_buf.size()) {
-      // ... not more than 16k to avoid reading all 16M at once.
       auto read_res = src_channel->read_to_plain(
-          std::min(rest_of_frame_size - recv_buf.size(), size_t{16 * 1024}));
+          std::min(rest_of_frame_size - recv_buf.size(), kMaxForwardSize));
       if (!read_res) return read_res.get_unexpected();
     }
 
@@ -204,7 +152,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
     size_t transferred = write_res.value();
     current_frame.forwarded_frame_size_ += transferred;
 
-    net::dynamic_buffer(recv_buf).consume(transferred);
+    src_channel->consume_plain(transferred);
   }
 
   bool src_side_is_done{false};
@@ -235,8 +183,6 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
 #endif
   }
 
-  dst_channel->flush_to_send_buf();
-
   return src_side_is_done;
 }
 
@@ -260,19 +206,16 @@ forward_frame_sequence(Channel *src_channel, ClassicProtocolState *src_protocol,
     return forward_res.get_unexpected();
   }
 
-  // if forward-frame succeeded, then the send-buffer should be all sent.
-  if (dst_channel->send_buffer().empty()) {
+  // if forward-frame succeeded, the send-plain-buffer should contain some data
+  if (dst_channel->send_plain_buffer().empty()) {
     log_debug("%d: %s", __LINE__, "send-buffer is empty.");
 
     return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
   }
 
   const auto src_is_done = forward_res.value();
-  if (src_is_done) {
-    return Forwarder::ForwardResult::kFinished;
-  } else {
-    return Forwarder::ForwardResult::kWantSendDestination;
-  }
+  return src_is_done ? Forwarder::ForwardResult::kFinished
+                     : Forwarder::ForwardResult::kWantSendDestination;
 }
 
 stdx::expected<Processor::Result, std::error_code>
@@ -290,9 +233,7 @@ ServerToClientForwarder::process() {
 stdx::expected<Processor::Result, std::error_code>
 ServerToClientForwarder::forward() {
   auto forward_res = forward_frame_sequence();
-  if (!forward_res) {
-    return recv_server_failed(forward_res.error());
-  }
+  if (!forward_res) return recv_server_failed(forward_res.error());
 
   switch (forward_res.value()) {
     case ForwardResult::kWantRecvDestination:
@@ -307,7 +248,7 @@ ServerToClientForwarder::forward() {
       stage(Stage::Done);
 
       auto *socket_splicer = connection()->socket_splicer();
-      auto dst_channel = socket_splicer->client_channel();
+      auto *dst_channel = socket_splicer->client_channel();
 
       // if flush is optional and send-buffer is not too full, skip the flush.
       //
@@ -318,16 +259,20 @@ ServerToClientForwarder::forward() {
       // resultset.
       // - buffering less: faster forwarding of smaller packets if the server
       // is send to generate packets.
-      constexpr const size_t kForceFlushAfterBytes{16 * 1024};
+      //
+      // 64k is 4 TLS frames.
+      constexpr const size_t kForceFlushAfterBytes{64UL * 1024};
 
       if (flush_before_next_func_optional_ &&
-          dst_channel->send_buffer().size() < kForceFlushAfterBytes) {
+          dst_channel->send_plain_buffer().size() < kForceFlushAfterBytes) {
         return Result::Again;
-      } else if (dst_channel->send_buffer().empty()) {
-        return Result::Again;
-      } else {
-        return Result::SendToClient;
       }
+
+      // encrypt if there is something to encrypt.
+      dst_channel->flush_to_send_buf();
+
+      return dst_channel->send_buffer().empty() ? Result::Again
+                                                : Result::SendToClient;
     }
   }
 
@@ -361,12 +306,10 @@ ClientToServerForwarder::process() {
 stdx::expected<Processor::Result, std::error_code>
 ClientToServerForwarder::forward() {
   auto *socket_splicer = connection()->socket_splicer();
-  auto dst_channel = socket_splicer->server_channel();
+  auto *dst_channel = socket_splicer->server_channel();
 
   auto forward_res = forward_frame_sequence();
-  if (!forward_res) {
-    return recv_client_failed(forward_res.error());
-  }
+  if (!forward_res) return recv_client_failed(forward_res.error());
 
   switch (forward_res.value()) {
     case ForwardResult::kWantRecvSource:
@@ -380,11 +323,27 @@ ClientToServerForwarder::forward() {
     case ForwardResult::kFinished:
       stage(Stage::Done);
 
-      if (dst_channel->send_buffer().empty()) {
+      // if flush is optional and send-buffer is not too full, skip the flush.
+      //
+      // force-send-buffer-size is a trade-off between latency,
+      // syscall-latency and memory usage:
+      //
+      // - buffering more: less send()-syscalls which helps with small
+      // resultset.
+      // - buffering less: faster forwarding of smaller packets if the server
+      // is send to generate packets.
+      constexpr const size_t kForceFlushAfterBytes{64L * 1024};
+
+      if (flush_before_next_func_optional_ &&
+          dst_channel->send_plain_buffer().size() < kForceFlushAfterBytes) {
         return Result::Again;
-      } else {
-        return Result::SendToServer;
       }
+
+      // encrypt the plaintext data if needed.
+      dst_channel->flush_to_send_buf();
+
+      return dst_channel->send_buffer().empty() ? Result::Again
+                                                : Result::SendToServer;
   }
 
   harness_assert_this_should_not_execute();

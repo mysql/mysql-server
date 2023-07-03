@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,9 +109,10 @@ static TableCollection CreateTenTableJoin(
     tables.push_back(fake_table);
   }
 
-  return TableCollection(tables,
-                         /*store_rowids=*/false,
-                         /*tables_to_get_rowid_for=*/0);
+  return {tables,
+          /*store_rowids=*/false,
+          /*tables_to_get_rowid_for=*/0,
+          /*tables_to_store_contents_of_null_rows_for=*/0};
 }
 
 static void DestroyFakeTables(const TableCollection &table_collection) {

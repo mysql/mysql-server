@@ -45,11 +45,11 @@
 
 --source include/rpl_connection_slave.inc
 call mtr.add_suppression("Duplicate entry*");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-call mtr.add_suppression("Failed to initialize the master info structure");
-call mtr.add_suppression("Slave failed to initialize relay log info*");
-call mtr.add_suppression("MTS recovery: automatic recovery failed.*");
-call mtr.add_suppression("Recovery from master pos");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Failed to initialize the connection metadata structure");
+call mtr.add_suppression("Replica failed to initialize applier metadata*");
+call mtr.add_suppression("MTA recovery: automatic recovery failed.*");
+call mtr.add_suppression("Recovery from source pos");
 
 --source extra/rpl_tests/rpl_generate_mts_gap.test
 
@@ -67,7 +67,7 @@ source include/wait_for_slave_sql_error.inc;
 --source include/rpl_connection_slave.inc
 --exec echo "Relay log recovery should fail as MTS stopped due to an error"
 
---error ER_SLAVE_RLI_INIT_REPOSITORY
+--error ER_REPLICA_AM_INIT_REPOSITORY
 START SLAVE;
 
 # Remove the affending rows from slave.

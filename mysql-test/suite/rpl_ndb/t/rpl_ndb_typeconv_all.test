@@ -46,7 +46,7 @@ connection slave;
 DROP TABLE type_conversions;
 
 --disable_query_log
-call mtr.add_suppression("Slave SQL.*Column 1 of table .test.t1. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("Replica SQL.*Column 1 of table .test.t1. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression(".*coordinator and worker threads are stopped.*");
 --enable_query_log
 

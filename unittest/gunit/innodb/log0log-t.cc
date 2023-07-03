@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,7 +202,7 @@ static bool log_test_init() {
 
   fil_open_system_tablespace_files();
 
-  err = log_start(log, flushed_lsn, flushed_lsn, nullptr);
+  err = log_start(log, flushed_lsn, flushed_lsn);
   ut_a(err == DB_SUCCESS);
 
   log_start_background_threads(log);

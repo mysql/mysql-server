@@ -540,3 +540,36 @@ execute s using @dt;
 SELECT * FROM t;
 
 DROP TABLE t, dt;
+
+--echo #
+--echo # Bug#35080094: MySQL server crash -
+--echo #               Assertion CompatibleTypesForIndexLookup failed
+--echo #
+
+CREATE TABLE t(a VARCHAR(100), KEY(a));
+INSERT INTO t VALUES ('1:2:3'), ('01:02:03');
+SELECT * FROM t WHERE a = TIME'01:02:03';
+DROP TABLE t;
+
+--echo #
+--echo # Bug#35115909: Wrong join result when one of the join columns
+--echo #               is compared to a temporal literal
+--echo #
+
+# This test case is provided for completeness, based on the test cases
+# for the same bug number in type_date and type_datetime, even though
+# the bug that was seen with DATE and DATETIME was not seen with TIME.
+CREATE TABLE t (a VARCHAR(10), b VARCHAR(10));
+INSERT INTO t VALUES
+  ('01:02:03', '01:02:03'),
+  ('01:02:03', '1:2:3'),
+  ('1:2:3',    '01:02:03'),
+  ('1:2:3',    '1:2:3');
+# The main point of this test case is to verify that the a=b predicate
+# uses string comparison and excludes the second and third row from
+# the result. The query currently returns the first row only. It would
+# have been more consistent with DATE and DATETIME if it had returned
+# both the first and the fourth row (see the test cases for the same
+# bug number in type_date and type_datetime).
+SELECT * FROM t WHERE a = b and b = TIME'01:02:03';
+DROP TABLE t;

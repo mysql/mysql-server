@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -249,9 +249,6 @@ class METADATA_CACHE_EXPORT MetadataCacheAPIBase
    * @param cluster_type type of the cluster the metadata cache object will
    *                     represent (GR or ReplicaSet)
    * @param router_id id of the router in the cluster metadata
-   * @param cluster_type_specific_id id of the ReplicaSet in case of the
-   * ReplicaSet, Replication Group name for GR Cluster (if bootstrapped as a
-   * single Cluster, empty otherwise)
    * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
    * bootstrapped as a ClusterSet, empty otherwise)
    * @param metadata_servers The list of cluster metadata servers
@@ -272,7 +269,6 @@ class METADATA_CACHE_EXPORT MetadataCacheAPIBase
    */
   virtual void cache_init(
       const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
-      const std::string &cluster_type_specific_id,
       const std::string &clusterset_id,
       const metadata_servers_list_t &metadata_servers,
       const MetadataCacheTTLConfig &ttl_config,
@@ -440,7 +436,6 @@ class METADATA_CACHE_EXPORT MetadataCacheAPIBase
   };
 
   virtual RefreshStatus get_refresh_status() = 0;
-  virtual std::string cluster_type_specific_id() const = 0;
   virtual mysqlrouter::TargetCluster target_cluster() const = 0;
 
   virtual std::chrono::milliseconds ttl() const = 0;
@@ -470,9 +465,7 @@ class METADATA_CACHE_EXPORT MetadataCacheAPI : public MetadataCacheAPIBase {
   static MetadataCacheAPIBase *instance();
 
   void cache_init(const mysqlrouter::ClusterType cluster_type,
-                  const unsigned router_id,
-                  const std::string &cluster_type_specific_id,
-                  const std::string &clusterset_id,
+                  const unsigned router_id, const std::string &clusterset_id,
                   const metadata_servers_list_t &metadata_servers,
                   const MetadataCacheTTLConfig &ttl_config,
                   const mysqlrouter::SSLOptions &ssl_options,
@@ -487,7 +480,6 @@ class METADATA_CACHE_EXPORT MetadataCacheAPI : public MetadataCacheAPIBase {
   void instance_name(const std::string &inst_name) override;
   std::string instance_name() const override;
 
-  std::string cluster_type_specific_id() const override;
   mysqlrouter::TargetCluster target_cluster() const override;
   std::chrono::milliseconds ttl() const override;
 

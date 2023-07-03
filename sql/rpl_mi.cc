@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,8 +117,8 @@ enum {
   fields.
 */
 const char *info_mi_fields[] = {"number_of_lines",
-                                "master_log_name",
-                                "master_log_pos",
+                                "source_log_name",
+                                "source_log_pos",
                                 "host",
                                 "user",
                                 "password",
@@ -144,8 +144,8 @@ const char *info_mi_fields[] = {"number_of_lines",
                                 "public_key_path",
                                 "get_public_key",
                                 "network_namespace",
-                                "master_compression_algorithm",
-                                "master_zstd_compression_level",
+                                "source_compression_algorithm",
+                                "source_zstd_compression_level",
                                 "tls_ciphersuites",
                                 "source_connection_auto_failover",
                                 "gtid_only"};
@@ -362,7 +362,7 @@ void Master_info::end_info() {
 
 int Master_info::flush_info(bool force) {
   DBUG_TRACE;
-  DBUG_PRINT("enter", ("master_pos: %lu", (ulong)master_log_pos));
+  DBUG_PRINT("enter", ("source_pos: %lu", (ulong)master_log_pos));
 
   bool skip_flushing = !inited;
   /*
@@ -391,7 +391,7 @@ int Master_info::flush_info(bool force) {
   return 0;
 
 err:
-  LogErr(ERROR_LEVEL, ER_RPL_ERROR_WRITING_MASTER_CONFIGURATION);
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_WRITING_SOURCE_CONFIGURATION);
   return 1;
 }
 
@@ -428,7 +428,7 @@ int Master_info::mi_init_info() {
 err:
   handler->end_info();
   inited = false;
-  LogErr(ERROR_LEVEL, ER_RPL_ERROR_READING_MASTER_CONFIGURATION);
+  LogErr(ERROR_LEVEL, ER_RPL_ERROR_READING_SOURCE_CONFIGURATION);
   return 1;
 }
 

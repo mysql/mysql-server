@@ -246,16 +246,16 @@ RESET MASTER;
 DROP TABLE t2;
 
 let $messages =
-Slave SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Duplicate column name 'my_row_id''
-Slave SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Multiple primary key defined' on query.
-Slave SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Failed to generate invisible primary key. Column 'my_row_id' already exists.'
-Slave SQL for channel .*: ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.
-Slave SQL for channel '': Error 'Duplicate column name 'my_row_id'' on query.
-Slave: Duplicate column name 'my_row_id' Error_code:
-Slave SQL for channel '': Error 'Multiple primary key defined' on query.
-Slave: Multiple primary key defined Error_code:
-Slave SQL for channel '': Error 'Failed to generate invisible primary key. Column 'my_row_id' already exists.'
-Slave: Failed to generate invisible primary key. Column 'my_row_id' already exists.
+Replica SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Duplicate column name 'my_row_id''
+Replica SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Multiple primary key defined' on query.
+Replica SQL for channel .*: Worker .* failed executing transaction .* at .*, end_log_pos .* Error 'Failed to generate invisible primary key. Column 'my_row_id' already exists.'
+Replica SQL for channel .*: ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.
+Replica SQL for channel '': Error 'Duplicate column name 'my_row_id'' on query.
+Replica: Duplicate column name 'my_row_id' Error_code:
+Replica SQL for channel '': Error 'Multiple primary key defined' on query.
+Replica: Multiple primary key defined Error_code:
+Replica SQL for channel '': Error 'Failed to generate invisible primary key. Column 'my_row_id' already exists.'
+Replica: Failed to generate invisible primary key. Column 'my_row_id' already exists.
 ;
 --let $suppress_on_current_connection = 1
 --source include/suppress_messages.inc

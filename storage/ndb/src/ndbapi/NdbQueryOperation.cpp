@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -575,6 +575,8 @@ public:
 
   bool isScanResult() const
   { return (m_properties & Is_Scan_Result); }
+  bool isSortedResult() const
+  { return (m_properties & Is_Sorted_Result); }
 
   bool isInnerJoin() const
   { return (m_properties & Is_Inner_Join); }
@@ -608,9 +610,9 @@ public:
    *       to consider.
    *       
    * Both the child/parent correlation set and the parentId HashMap has been
-   * folded into the same structure on order to reduce number of objects 
-   * being dynamically allocated. 
-   * As an advantage this results in an autoscaling of the hash bucket size .
+   * folded into the same structure in order to reduce number of objects
+   * being dynamically allocated.
+   * As an advantage this results in an autoscaling of the hash bucket size.
    *
    * Structure is only present if 'isScanQuery'
    */
@@ -727,6 +729,7 @@ private:
   {
     Is_Scan_Query = 0x01,
     Is_Scan_Result = 0x02,
+    Is_Sorted_Result = 0x04,
     Is_Inner_Join = 0x10,  // As opposed to outer join
     Is_First_Match = 0x20,  // Return FirstMatch only (semijoin)
     Is_Anti_Join = 0x40,
@@ -921,6 +924,8 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
        ? Is_Scan_Query : 0)
      | (operation.getQueryOperationDef().isScanOperation()
        ? Is_Scan_Result : 0)
+     | (operation.getOrdering() != NdbQueryOptions::ScanOrdering_unordered
+       ? Is_Sorted_Result : 0)
      // Note1: If an ancestor is a firstMatch-type, we only need to firstMatch this as well.
      // Note2: FirstMatch is only relevant for scans (Both are optimizations only)
      | ((operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchFirst ||
@@ -1240,7 +1245,23 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
   {
     const Uint32 thisOpId = getInternalOpNo();
     const Uint32 rowCount = readResult.getRowCount();
-    for (Uint32 tupleNo=0; tupleNo < rowCount; tupleNo++)
+
+    /**
+     * For sorted result streams only the last row will get new related
+     * child rows in a 'nextResult', other rows can be skipped immediately.
+     * Note that such skipped rows would also have been NULL-expand already
+     * if they were part of an outer join.
+     */
+    Uint32 tupleNo = 0;
+    if (isSortedResult() && !expectingResults.get(thisOpId))
+    {
+      while (tupleNo < rowCount-1)
+      {
+        setSkipped(tupleNo++);
+      }
+    }
+
+    for (; tupleNo < rowCount; tupleNo++)
     {
       /**
        * FirstMatch handling: If this tupleNo already found a match from all
@@ -1359,6 +1380,19 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
 
         if (childStream.isOuterJoin())
         {
+	  /**
+           * A NULL-extended row should be emitted when we know there are
+           * no possibilities for finding a child-match, That is:
+           *  1) There are no more unfetched result rows from any of the
+           *     outer-joined tables, or descendants of these.
+           *  2) This NdbResultStream is known to return a sorted result,
+           *     which also guarantes that all child streams returned all
+           *     related rows in the first batch. (Except the last one)
+           */
+          const bool last_child_seen =
+            !stillActive.overlaps(childStream.m_dependants) ||  // 1)
+            (isSortedResult() && tupleNo < rowCount-1);         // 2)
+
           if (childMatched == true)
           {
             /**
@@ -1393,12 +1427,11 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
            *
            * A NULL-extended row should be created if:
            *  1) This child is the firstInner in this outer-joined_nest, and
-           *  2) There are no more unfetched result rows from any of the
-           *     outer-joined tables, or descendants of these.
+           *  2) There are no more unfetched result rows from childStreams.
            *  3) A previous join-match had not been found
            */
-          else if (childStream.isFirstInner()  &&                      // 1)
-                   !stillActive.overlaps(childStream.m_dependants) &&  // 2)
+          else if (childStream.isFirstInner() &&                       // 1)
+                   last_child_seen &&                                  // 2)
                    !m_tupleSet[tupleNo].m_matchingChild.get(childId))  // 3)
           {
             /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -936,25 +936,10 @@ class THD : public MDL_context_owner,
   Thd_mem_cnt m_mem_cnt;
 
  private:
-  inline bool is_stmt_prepare() const {
-    assert(0);
-    return Query_arena::is_stmt_prepare();
-  }
-
-  inline bool is_stmt_prepare_or_first_sp_execute() const {
-    assert(0);
-    return Query_arena::is_stmt_prepare_or_first_sp_execute();
-  }
-
-  inline bool is_stmt_prepare_or_first_stmt_execute() const {
-    assert(0);
-    return Query_arena::is_stmt_prepare_or_first_stmt_execute();
-  }
-
-  inline bool is_regular() const {
-    assert(0);
-    return Query_arena::is_regular();
-  }
+  bool is_stmt_prepare() const = delete;
+  bool is_stmt_prepare_or_first_sp_execute() const = delete;
+  bool is_stmt_prepare_or_first_stmt_execute() const = delete;
+  inline bool is_regular() const = delete;
 
  public:
   MDL_context mdl_context;
@@ -1912,6 +1897,11 @@ class THD : public MDL_context_owner,
   /* MTS: method inserts a new unique name into binlog_updated_dbs */
   void add_to_binlog_accessed_dbs(const char *db);
 
+  bool is_applier_thread() const {
+    return system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+           system_thread == SYSTEM_THREAD_SLAVE_WORKER;
+  }
+
  private:
   std::unique_ptr<Transaction_ctx> m_transaction;
 
@@ -2739,12 +2729,6 @@ class THD : public MDL_context_owner,
   /** number of name_const() substitutions, see sp_head.cc:subst_spvars() */
   uint query_name_consts;
 
-  /*
-    If we do a purge of binary logs, log index info of the threads
-    that are currently reading it needs to be adjusted. To do that
-    each thread that is using LOG_INFO needs to adjust the pointer to it
-  */
-  LOG_INFO *current_linfo;
   /* Used by the sys_var class to store temporary values */
   union {
     bool bool_value;
@@ -4698,6 +4682,13 @@ class THD : public MDL_context_owner,
              get_stmt_da()->mysql_errno() == ER_DA_CONN_LIMIT));
   }
 #endif
+
+ public:
+  bool add_external(unsigned int slot, void *data);
+  void *fetch_external(unsigned int slot);
+
+ private:
+  std::unordered_map<unsigned int, void *> external_store_;
 };
 
 /**

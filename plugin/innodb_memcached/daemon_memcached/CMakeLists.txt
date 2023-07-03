@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ ENDIF()
 
 MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
   LINK_LIBRARIES
-  ${LIBEVENT_LIBRARIES}
+  ext::libevent
   memcached_utilities
   ${MEMCACHED_SASL_LIBRARY}
   MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")

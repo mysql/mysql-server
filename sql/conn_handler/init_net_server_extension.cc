@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,6 +89,13 @@ static void net_after_header_psi(NET *net [[maybe_unused]], void *user_data,
       and nested in the proper parent.
     */
     MYSQL_END_IDLE_WAIT(thd->m_idle_psi);
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_thread *thread = thd_get_psi(thd);
+    if (thread != nullptr) {
+      PSI_THREAD_CALL(detect_telemetry)(thread);
+    }
+#endif
 
     if (!rc) {
       assert(thd->m_statement_psi == nullptr);

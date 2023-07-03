@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@ ADD_LIBRARY(metadata_cache
   cache_api.cc
   group_replication_metadata.cc
   gr_notifications_listener.cc
+  router_cs_options.cc
 )
 TARGET_LINK_LIBRARIES(metadata_cache
   PUBLIC
@@ -41,6 +42,8 @@ TARGET_LINK_LIBRARIES(metadata_cache
   router_lib
   mysqlxclient_lite
   router_mysqlxmessages
+  PRIVATE
+    extra::rapidjson
   )
 TARGET_INCLUDE_DIRECTORIES(metadata_cache
   PRIVATE
@@ -81,6 +84,7 @@ add_harness_plugin(metadata_cache_plugin
   metadata_cache
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
+TARGET_LINK_LIBRARIES(metadata_cache_plugin PRIVATE extra::rapidjson)
 GENERATE_EXPORT_HEADER(metadata_cache_plugin
   EXPORT_FILE_NAME
   ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/metadata_cache_plugin_export.h

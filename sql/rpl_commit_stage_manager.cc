@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,6 +98,7 @@ std::pair<bool, THD *> Commit_stage_manager::Mutex_queue::pop_front() {
 void Commit_stage_manager::init(PSI_mutex_key key_LOCK_flush_queue,
                                 PSI_mutex_key key_LOCK_sync_queue,
                                 PSI_mutex_key key_LOCK_commit_queue,
+                                PSI_mutex_key key_LOCK_after_commit_queue,
                                 PSI_mutex_key key_LOCK_done,
                                 PSI_mutex_key key_LOCK_wait_for_group_turn,
                                 PSI_cond_key key_COND_done,
@@ -122,8 +123,8 @@ void Commit_stage_manager::init(PSI_mutex_key key_LOCK_flush_queue,
 #endif
 
   /**
-    Initialize mutex for flush, sync and commit stage queue. The binlog flush
-    stage and commit order flush stage share same mutex.
+    Initialize mutex for flush, sync, commit and after commit stage queue. The
+    binlog flush stage and commit order flush stage share same mutex.
   */
   mysql_mutex_init(key_LOCK_flush_queue, &m_queue_lock[BINLOG_FLUSH_STAGE],
                    MY_MUTEX_INIT_FAST);
@@ -131,12 +132,15 @@ void Commit_stage_manager::init(PSI_mutex_key key_LOCK_flush_queue,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_commit_queue, &m_queue_lock[COMMIT_STAGE],
                    MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_after_commit_queue,
+                   &m_queue_lock[AFTER_COMMIT_STAGE], MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_wait_for_group_turn,
                    &this->m_lock_wait_for_ticket_turn, MY_MUTEX_INIT_FAST);
 
   m_queue[BINLOG_FLUSH_STAGE].init(&m_queue_lock[BINLOG_FLUSH_STAGE]);
   m_queue[SYNC_STAGE].init(&m_queue_lock[SYNC_STAGE]);
   m_queue[COMMIT_STAGE].init(&m_queue_lock[COMMIT_STAGE]);
+  m_queue[AFTER_COMMIT_STAGE].init(&m_queue_lock[AFTER_COMMIT_STAGE]);
   m_queue[COMMIT_ORDER_FLUSH_STAGE].init(&m_queue_lock[BINLOG_FLUSH_STAGE]);
 }
 
@@ -144,8 +148,11 @@ void Commit_stage_manager::deinit() {
   if (!m_is_initialized) return;
   m_is_initialized = false;
 
-  for (size_t i = 0; i < STAGE_COUNTER - 1; ++i)
-    mysql_mutex_destroy(&m_queue_lock[i]);
+  mysql_mutex_destroy(&m_queue_lock[BINLOG_FLUSH_STAGE]);
+  mysql_mutex_destroy(&m_queue_lock[SYNC_STAGE]);
+  mysql_mutex_destroy(&m_queue_lock[COMMIT_STAGE]);
+  mysql_mutex_destroy(&m_queue_lock[AFTER_COMMIT_STAGE]);
+
   mysql_cond_destroy(&m_stage_cond_binlog);
   mysql_cond_destroy(&m_stage_cond_commit_order);
   mysql_cond_destroy(&m_stage_cond_leader);
@@ -295,6 +302,11 @@ bool Commit_stage_manager::enroll_for(StageID stage, THD *thd,
     case COMMIT_STAGE:
       DEBUG_SYNC(thd, "bgc_after_enrolling_for_commit_stage");
       CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("after_writing_to_tc_log");
+      break;
+    case AFTER_COMMIT_STAGE:
+      DEBUG_SYNC(thd, "bgc_after_enrolling_for_after_commit_stage");
+      CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(
+          "bgc_after_enrolling_for_after_commit_stage");
       break;
     case COMMIT_ORDER_FLUSH_STAGE:
       break;

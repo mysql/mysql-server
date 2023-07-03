@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,6 +57,7 @@ class ConnectionBase {
 
   virtual void async_wait_send(std::function<void(std::error_code ec)>) = 0;
   virtual void async_wait_recv(std::function<void(std::error_code ec)>) = 0;
+  virtual void async_wait_error(std::function<void(std::error_code ec)>) = 0;
 
   [[nodiscard]] virtual bool is_open() const = 0;
 

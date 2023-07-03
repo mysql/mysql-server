@@ -383,3 +383,37 @@ Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 DROP TABLE t1;
 set optimizer_switch="subquery_to_derived=off";
+#
+# Bug#34828328: Assertion `right != nullptr' failed in
+#               make_join_hypergraph.cc
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+set optimizer_switch="subquery_to_derived=on";
+EXPLAIN FORMAT=tree SELECT 1
+FROM t1 JOIN t1 AS t2 ON (t2.f1 = t1.f1)
+LEFT JOIN t1 AS t3 ON (t2.f2 = t1.f2 AND t2.f2 IN (SELECT f1 FROM t1 AS t4));
+EXPLAIN
+-> Nested loop left join  (rows=1)
+    -> Inner hash join (t2.f1 = t1.f1)  (rows=1)
+        -> Table scan on t2 in secondary engine MOCK  (rows=1)
+        -> Hash
+            -> Table scan on t1 in secondary engine MOCK  (rows=1)
+    -> Filter: (t2.f2 = t1.f2)  (rows=1)
+        -> Hash semijoin (no condition)  (rows=1)
+            -> Table scan on t3 in secondary engine MOCK  (rows=1)
+            -> Hash
+                -> Limit: 1 row(s)  (rows=1)
+                    -> Filter: (t4.f1 = t1.f2)  (rows=1)
+                        -> Table scan on t4 in secondary engine MOCK  (rows=1)
+
+Warnings:
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+SELECT 1
+FROM t1 JOIN t1 AS t2 ON (t2.f1 = t1.f1)
+LEFT JOIN t1 AS t3 ON (t2.f2 = t1.f2 AND t2.f2 IN (SELECT f1 FROM t1 AS t4));
+1
+DROP TABLE t1;
+set optimizer_switch="subquery_to_derived=off";

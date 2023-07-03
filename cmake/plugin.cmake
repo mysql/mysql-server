@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,19 +29,23 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     DEFAULT_LEGACY_ENGINE
     MANDATORY       # not actually a plugin, always builtin
     MODULE_ONLY     # build only as shared library
+    NO_UNDEFINED    # add -Wl,--no-undefined on Linux, relevant for MODULE_ONLY
     SKIP_INSTALL
     STATIC_ONLY
     STORAGE_ENGINE
     TEST_ONLY
     VISIBILITY_HIDDEN # Add -fvisibility=hidden on UNIX
                       # TODO(tdidriks) make this default if MODULE_ONLY
+    SERVER_AND_CLIENT # Two plugins in a single binary
     )
   SET(PLUGIN_ONE_VALUE_KW
     MODULE_OUTPUT_NAME
+    WIN_DEF_FILE
     )
   SET(PLUGIN_MULTI_VALUE_KW
-    DEPENDENCIES   # target1 ... targetN
-    LINK_LIBRARIES # lib1 ... libN
+    DEPENDENCIES        # target1 ... targetN
+    LINK_LIBRARIES      # lib1 ... libN
+    SYSTEM_INCLUDE_DIRECTORIES # for TARGET_SYSTEM_INCLUDE_DIRECTORIES
     )
 
   CMAKE_PARSE_ARGUMENTS(ARG
@@ -51,6 +55,9 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     ${ARGN}
     )
 
+  IF(ARG_CLIENT_ONLY AND ARG_SERVER_AND_CLIENT)
+    MESSAGE(FATAL_ERROR "Need to pick one of CLIENT_ONLY or SERVER_AND_CLIENT for the ${plugin} plugin.")
+  ENDIF()
   SET(plugin ${plugin_arg})
   SET(SOURCES ${ARG_UNPARSED_ARGUMENTS})
 
@@ -189,8 +196,27 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       MY_TARGET_LINK_OPTIONS(${target}
         "LINKER:--compress-debug-sections=zlib")
     ENDIF()
-    SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
-      COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
+    IF(ARG_SERVER_AND_CLIENT)
+      SET_TARGET_PROPERTIES (${target} PROPERTIES
+        COMPILE_DEFINITIONS "MYSQL_DYNAMIC_CLIENT_PLUGIN;MYSQL_DYNAMIC_PLUGIN")
+    ELSEIF(ARG_CLIENT_ONLY)
+      SET_TARGET_PROPERTIES (${target} PROPERTIES
+        COMPILE_DEFINITIONS "MYSQL_DYNAMIC_CLIENT_PLUGIN")
+    ELSE()
+      SET_TARGET_PROPERTIES (${target} PROPERTIES
+        COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
+    ENDIF()
+    SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX "")
+
+    # CLIENT_ONLY plugins should have no undefined symbols.
+    IF(ARG_CLIENT_ONLY)
+      SET(ARG_NO_UNDEFINED ON)
+    ENDIF()
+
+    IF(ARG_NO_UNDEFINED AND LINK_FLAG_NO_UNDEFINED)
+      MY_TARGET_LINK_OPTIONS(${target} "${LINK_FLAG_NO_UNDEFINED}")
+    ENDIF()
+
     IF(WIN32_CLANG AND WITH_ASAN)
       TARGET_LINK_LIBRARIES(${target}
         "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
@@ -271,8 +297,24 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     MESSAGE(STATUS "Skipping the ${plugin} plugin.")
   ENDIF()
 
+  IF(BUILD_PLUGIN)
+    # Most plugins seem to #include my_checksum.h in some way.
+    # Link explicitly here, to avoid build breaks on e.g. Windows.
+    TARGET_LINK_LIBRARIES(${target} ext::zlib)
+  ENDIF()
+
+  # Add SYSTEM INCLUDE_DIRECTORIES
+  IF(ARG_SYSTEM_INCLUDE_DIRECTORIES)
+    TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PRIVATE
+      ${ARG_SYSTEM_INCLUDE_DIRECTORIES})
+  ENDIF()
+
   IF(BUILD_PLUGIN AND ARG_LINK_LIBRARIES)
     TARGET_LINK_LIBRARIES (${target} ${ARG_LINK_LIBRARIES})
+  ENDIF()
+
+  IF(BUILD_PLUGIN AND WIN32 AND ARG_WIN_DEF_FILE)
+    MY_TARGET_LINK_OPTIONS(${target} "/DEF:${ARG_WIN_DEF_FILE}")
   ENDIF()
 
   IF(BUILD_PLUGIN AND ARG_VISIBILITY_HIDDEN AND UNIX)

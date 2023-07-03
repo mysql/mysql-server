@@ -10,19 +10,19 @@ SET SESSION debug="-d,bug13820776_1";
 SET SESSION debug="+d,bug13822652_1";
 EXPLAIN ANALYZE SELECT * FROM t1, t1 AS t2;
 EXPLAIN
--> Inner hash join (no condition)  (cost=1.70 rows=9) (actual time=N.NNN..N.NNN rows=1 loops=1)
-    -> Table scan on t2  (cost=0.18 rows=3) (actual time=N.NNN..N.NNN rows=1 loops=1)
+-> Inner hash join (no condition)  (cost=1.7 rows=9) (actual rows=1 loops=1)
+    -> Table scan on t2  (cost=0.183 rows=3) (actual rows=1 loops=1)
     -> Hash
-        -> Table scan on t1  (cost=0.55 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+        -> Table scan on t1  (cost=0.55 rows=3) (actual rows=3 loops=1)
 
 Warnings:
 Warning	1317	Query execution was interrupted
 SET SESSION debug="-d,bug13822652_1";
 EXPLAIN ANALYZE SELECT * from t1, t1 AS t2;
 EXPLAIN
--> Inner hash join (no condition)  (cost=1.70 rows=9) (actual time=N.NNN..N.NNN rows=9 loops=1)
-    -> Table scan on t2  (cost=0.18 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+-> Inner hash join (no condition)  (cost=1.7 rows=9) (actual rows=9 loops=1)
+    -> Table scan on t2  (cost=0.183 rows=3) (actual rows=3 loops=1)
     -> Hash
-        -> Table scan on t1  (cost=0.55 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+        -> Table scan on t1  (cost=0.55 rows=3) (actual rows=3 loops=1)
 
 DROP TABLE t1;

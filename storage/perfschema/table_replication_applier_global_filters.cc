@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -94,20 +94,20 @@ table_replication_applier_global_filters::
 table_replication_applier_global_filters::
     ~table_replication_applier_global_filters() = default;
 
-void table_replication_applier_global_filters::reset_position(void) {
+void table_replication_applier_global_filters::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
 ha_rows table_replication_applier_global_filters::get_row_count() {
   rpl_global_filter.rdlock();
-  uint count = rpl_global_filter.get_filter_count();
+  const uint count = rpl_global_filter.get_filter_count();
   rpl_global_filter.unlock();
 
   return count;
 }
 
-int table_replication_applier_global_filters::rnd_next(void) {
+int table_replication_applier_global_filters::rnd_next() {
   int res = HA_ERR_END_OF_FILE;
   Rpl_pfs_filter *rpl_pfs_filter = nullptr;
 
@@ -118,11 +118,10 @@ int table_replication_applier_global_filters::rnd_next(void) {
 
     if (rpl_pfs_filter == nullptr) {
       break;
-    } else {
-      make_row(rpl_pfs_filter);
-      m_next_pos.set_after(&m_pos);
-      res = 0;
     }
+    make_row(rpl_pfs_filter);
+    m_next_pos.set_after(&m_pos);
+    res = 0;
   }
   rpl_global_filter.unlock();
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
@@ -564,6 +565,98 @@ TEST(PollIoService, hup_add_remove) {
     auto interest_res = io_svc.interest(fds.first);
     ASSERT_TRUE(interest_res);
     EXPECT_EQ(std::bitset<32>(*interest_res), std::bitset<32>(0));
+  }
+}
+
+/**
+ * test how poll() reacts to delayed connect().
+ */
+TEST(PollIoService, connect_fail) {
+  auto proto = net::ip::tcp::v4();
+
+  auto sock_res =
+      net::impl::socket::socket(proto.family(), proto.type(), proto.protocol());
+  ASSERT_TRUE(sock_res) << sock_res.error();
+  auto fd = *sock_res;
+
+  ASSERT_TRUE(net::impl::socket::native_non_blocking(fd, true));
+
+  // port 4 is unassigned.
+  net::ip::tcp::endpoint ep(net::ip::address_v4::loopback(), 4);
+  auto connect_res = net::impl::socket::connect(
+      fd, reinterpret_cast<const sockaddr *>(ep.data()), ep.size());
+  ASSERT_FALSE(connect_res);
+  EXPECT_THAT(
+      connect_res.error(),
+      ::testing::AnyOf(
+          make_error_condition(std::errc::operation_in_progress),  // Unix
+          make_error_condition(std::errc::operation_would_block)   // Windows
+          ))
+      << connect_res.error().message();
+
+  Scope_guard sock_guard([&]() { net::impl::socket::close(fd); });
+
+  net::poll_io_service io_svc;
+
+  ASSERT_TRUE(io_svc.open());
+
+  SCOPED_TRACE("// add interest for OUT");
+  EXPECT_TRUE(io_svc.add_fd_interest(fd, net::socket_base::wait_write));
+
+  SCOPED_TRACE("// check fd-interest after add interest");
+  {
+    auto interest_res = io_svc.interest(fd);
+    ASSERT_TRUE(interest_res);
+    EXPECT_EQ(std::bitset<32>(*interest_res), std::bitset<32>(POLLOUT));
+  }
+
+  // Linux:   POLLOUT|POLLERR|POLLHUP -> POLLOUT, POLLERR, POLLHUP
+  // Windows: POLLOUT|POLLERR|POLLHUP -> POLLOUT, POLLERR, POLLHUP
+  // MacOS:   POLLHUP                 -> POLLOUT, POLLHUP
+  // Solaris: POLLOUT                 -> POLLOUT
+  {
+    SCOPED_TRACE("// should have POLLOUT");
+    auto poll_res = io_svc.poll_one(std::chrono::seconds(10));
+    ASSERT_TRUE(poll_res) << poll_res.error();
+    EXPECT_EQ(poll_res->fd, fd);
+    EXPECT_EQ(poll_res->event, POLLOUT);
+  }
+
+#if defined(__linux__) || defined(_WIN32)
+  {
+    SCOPED_TRACE("// should have POLLERR");
+    auto poll_res = io_svc.poll_one(std::chrono::seconds(0));
+    ASSERT_TRUE(poll_res) << poll_res.error();
+    EXPECT_EQ(poll_res->fd, fd);
+    EXPECT_EQ(poll_res->event, POLLERR);
+  }
+#endif
+
+#if defined(__linux__) || defined(_WIN32) || defined(__APPLE__)
+  {
+    SCOPED_TRACE("// should have POLLHUP");
+    auto poll_res = io_svc.poll_one(std::chrono::seconds(0));
+    ASSERT_TRUE(poll_res) << poll_res.error();
+    EXPECT_EQ(poll_res->fd, fd);
+    EXPECT_EQ(poll_res->event, POLLHUP);
+  }
+#endif
+
+  SCOPED_TRACE("// get socket error");
+  net::socket_base::error opt;
+  socklen_t opt_len = opt.size(proto);
+  auto opt_res = net::impl::socket::getsockopt(
+      fd, opt.level(proto), opt.name(proto), opt.data(proto), &opt_len);
+  ASSERT_TRUE(opt_res) << opt_res.error();
+
+  std::error_code opt_ec{opt.value(), std::system_category()};
+
+  EXPECT_EQ(opt_ec, make_error_condition(std::errc::connection_refused));
+
+  SCOPED_TRACE("// no further events");
+  {
+    auto poll_res = io_svc.poll_one(std::chrono::seconds(0));
+    ASSERT_FALSE(poll_res) << std::bitset<16>(poll_res->event);
   }
 }
 

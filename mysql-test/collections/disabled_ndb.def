@@ -17,11 +17,6 @@ ndb_big.smoke : BUG#29110705 Not ready for automated testing yet.
 
 # ndb_rpl suite tests
 ndb_rpl.ndb_rpl_binlog_format_errors       : BUG#26078612 PB2 TEST FAILURE
-ndb_rpl.ndb_rpl_ctype_ucs2_def             : BUG#34661 rpl_ndb_ctype_ucs2_def fails in 6.2
-ndb_rpl.ndb_rpl_mix_innodb                 : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
-ndb_rpl.ndb_rpl_slave_lsu                  : BUG#29110717 SEAGULL ndb-force-binlog-format-statement
-ndb_rpl.ndb_rpl_slave_lsu_anyval           : BUG#29110717 SEAGULL ndb-force-binlog-format-statement
-ndb_rpl.ndb_rpl_stm_innodb                 : BUG#16321437 NDB_APPLY_STATUS START_POS ALWAYS EQUALS END_POS
 
 # ndb suite tests
 ndb.ndb_insert            : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
@@ -36,7 +31,7 @@ ndb.ndb_addnode_restart2: Bug#29192097 IMPROVE ABORT HANDLING OF ALTER TABLE
 
 # The below two tests runs extra/rpl_tests/rpl_mixed_implicit_commit_binlog
 # which is maintained upstream and easily breaks due to the inherent
-# difference in binlog ouput depending on who's creating the binlog.
+# difference in binlog ouput depending on who is creating the binlog.
 # These tests should be merged and made much more stable by not having
 # to hardcode "magic" numbers into the test. Test should also be fixed
 # to switch binlog_format itself if that is necessary for the test to properly

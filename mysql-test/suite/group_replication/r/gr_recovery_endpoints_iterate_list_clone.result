@@ -1,7 +1,7 @@
 include/group_replication.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 # 1. Install clone plugin on server1.
@@ -63,7 +63,7 @@ call mtr.add_suppression("Due to the number of missing transactions being higher
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 call mtr.add_suppression("There was an error when connecting to the donor*");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Internal query: CLONE INSTANCE FROM 'root'@'127.0.0.1':.*");
 call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862*");
 call mtr.add_suppression("Failed to shutdown components infrastructure.");

@@ -470,7 +470,7 @@ UNINSTALL PLUGIN clone;
 UNINSTALL PLUGIN clone;
 
 set session sql_log_bin=0;
-call mtr.add_suppression("Recovery from master pos .* and file .* for channel 'ch1'. Previous relay log pos and relay log file had been set to .* respectively.");
+call mtr.add_suppression("Recovery from source pos .* and file .* for channel 'ch1'. Previous relay log pos and relay log file had been set to .* respectively.");
 call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel 'ch1', thence it will try to connect to another source.");
 call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
@@ -479,9 +479,9 @@ call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt 1 of 1");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
-call mtr.add_suppression("Relay log information for channel 'ch1' was found after a clone operation. Relay log recovery will be executed to adjust positions .*");
-call mtr.add_suppression("Error during .* Could not locate rotate event from the master.");
-call mtr.add_suppression("Server was not able to find a rotate event from master server to initialize relay log recovery for channel .*");
+call mtr.add_suppression("Applier metadata information for channel 'ch1' was found after a clone operation. Relay log recovery will be executed to adjust positions .*");
+call mtr.add_suppression("Error during .* Could not locate rotate event from the source.");
+call mtr.add_suppression("Server was not able to find a rotate event from source server to initialize relay log recovery for channel .*");
 set session sql_log_bin=1;
 
 --source include/clean_monitoring_process.inc

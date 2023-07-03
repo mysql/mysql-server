@@ -1,0 +1,68 @@
+#
+# WL#14277 Deprecate user defined collations
+#
+
+create table t (t text collate utf8mb4_test_ci);
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+
+create procedure p () begin
+declare a varchar(1) charset utf8mb4 collate utf8mb4_test_ci;
+set @a = "a" collate utf8mb4_test_ci;
+create table tp (t varchar(1) collate utf8mb4_test_ci);
+insert into t values (@a);
+end|
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+
+create function f () returns varchar(1) charset utf8mb4 collate utf8mb4_test_ci begin
+declare a varchar(1) charset utf8mb4 collate utf8mb4_test_ci;
+set @a = "a" collate utf8mb4_test_ci;
+insert into tp values (@a);
+return @a;
+end|
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+
+create trigger tr after insert on t for each row begin
+declare a varchar(1) charset utf8mb4 collate utf8mb4_test_ci;
+set @a = "a" collate utf8mb4_test_ci;
+insert into tp values (@a);
+end|
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+
+call p();
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+
+insert into t values ("a" collate utf8mb4_test_ci), ("a" collate utf8mb4_test_ci);
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+
+select t.*, f(), f() from t;
+t	f()	f()
+a	a	a
+a	a	a
+a	a	a
+Warnings:
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+Warning	4162	'utf8mb4_test_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
+
+select count(*) from tp;
+count(*)
+9
+
+drop table if exists tp;
+drop table if exists t;
+drop procedure if exists p;
+drop function if exists f;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ struct compatible_name_t {
   was introduced.  If there is no alternative name, 'old_name' is
   nullptr and version is 0.
 */
-compatible_name_t lookup(PFS_class_type class_type, const std::string str,
+compatible_name_t lookup(PFS_class_type class_type, std::string str,
                          bool use_prefix = true);
 
 /**

@@ -3,10 +3,10 @@
 include/rpl_init.inc [topology=1->2,3->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server_2]
 GRANT REPLICATION_APPLIER,CREATE,DROP ON *.* TO 'u'@'localhost';
 CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM FOR CHANNEL 'channel_1';
@@ -112,7 +112,7 @@ SET @@global.sql_require_primary_key = SQL_REQUIRE_PRIMARY_KEY;
 DROP TABLE t7;
 [connection server_2]
 CALL mtr.add_suppression(".*Access denied; you need .at least one of. the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege.*");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression(".*Unable to create or change a table without a primary key*");
 include/stop_slave.inc [FOR CHANNEL 'channel_1']
 include/stop_slave.inc [FOR CHANNEL 'channel_3']

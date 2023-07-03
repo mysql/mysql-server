@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,6 @@
 #include "mysql/psi/psi_table.h"  // IWYU pragma: keep
 
 /* PSI_TABLE_CALL() with WITH_LOCK_ORDER */
-#include "mysql/psi/mysql_table.h"  // IWYU pragma: keep
-
 #include "decimal.h"
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
@@ -81,6 +79,7 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_table.h"  // IWYU pragma: keep
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"  // ER_*
@@ -2667,8 +2666,10 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
       ha_resolve_by_name(thd, &table.s->secondary_engine, false);
   if ((plugin == nullptr) || !plugin_is_ready(table.s->secondary_engine,
                                               MYSQL_STORAGE_ENGINE_PLUGIN)) {
-    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), table.s->secondary_engine.str);
-    return true;
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_UNKNOWN_STORAGE_ENGINE,
+        ER_THD(thd, ER_UNKNOWN_STORAGE_ENGINE), table.s->secondary_engine.str);
+    return false;
   }
 
   // The engine must support being used as a secondary engine.
@@ -2730,9 +2731,12 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   plugin_ref plugin = ha_resolve_by_name(thd, &secondary_engine, false);
   if ((plugin == nullptr) ||
       !plugin_is_ready(secondary_engine, MYSQL_STORAGE_ENGINE_PLUGIN)) {
-    if (error_if_not_loaded)
-      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), secondary_engine);
-    return error_if_not_loaded;
+    if (error_if_not_loaded) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_UNKNOWN_STORAGE_ENGINE,
+          ER_THD(thd, ER_UNKNOWN_STORAGE_ENGINE), secondary_engine.str);
+    }
+    return false;
   }
   handlerton *hton = plugin_data<handlerton *>(plugin);
   if (hton == nullptr) {
@@ -11484,6 +11488,15 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
          hton->flags & HTON_SUPPORTS_SECONDARY_ENGINE &&
          hton->post_ddl != nullptr);
 
+  // cache table name locally for future use
+  const size_t name_len = table_list->db_length +
+                          table_list->table_name_length +
+                          5;  // for backticks, dot `db`.`tab`
+  // allocated on thread, freed-up on thread exit
+  char *full_tab_name = (char *)sql_calloc(name_len + 1);  // for \0 at the end
+  sprintf(full_tab_name, "`%s`.`%s`", table_list->db, table_list->table_name);
+  full_tab_name[name_len] = '\0';  // may not needed, since inited with 0
+
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Table *table_def = nullptr;
   if (thd->dd_client()->acquire_for_modification(
@@ -11518,6 +11531,14 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
     cleanup();
   });
 
+  /* Currently, if the DDL rolls back after completing the secondary engine
+   * operation, then during undo only the secondary_flag update is undone, but
+   * the secondary engine operation (load/unload) is not undone. This creates
+   * a temporary inconsistency in the system where the secondary_load flag is
+   * not in sync with the actual status of the table in the secondary engine. */
+
+  // TODO: undo handling of secondary engine operation
+
   // Load if SECONDARY_LOAD, unload if SECONDARY_UNLOAD
   const bool is_load = m_alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD;
 
@@ -11540,19 +11561,87 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
                                       table_list->table_name, *table_def, true))
       return true;
   }
+  DBUG_PRINT("sec_load_unload", ("secondary engine %s succeeded for table %s",
+                                 (is_load ? "load" : "unload"), full_tab_name));
+
+  DBUG_EXECUTE_IF("sim_fail_before_metadata_update", {
+    DBUG_PRINT("sec_load_unload", ("Force exit before metadata update"));
+    my_error(
+        ER_SECONDARY_ENGINE, MYF(0),
+        "Simulated failure of sec_{un}load before secondary_load flag update");
+    return true;
+  });
 
   // Update the secondary_load flag based on the current operation.
-  if (table_def->options().set("secondary_load", is_load) ||
-      thd->dd_client()->update(table_def))
+  if (DBUG_EVALUATE_IF("sim_fail_metadata_update",
+                       (my_error(ER_SECONDARY_ENGINE, MYF(0),
+                                 "Simulated failure during metadata update"),
+                        true),
+                       false) ||
+      table_def->options().set("secondary_load", is_load) ||
+      thd->dd_client()->update(table_def)) {
+    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+           (is_load ? "secondary_load" : "secondary_unload"),
+           "metadata update failed");
     return true;
+  }
+
+  DBUG_PRINT("sec_load_unload", ("secondary_load flag %s for table %s",
+                                 (is_load ? "set" : "reset"), full_tab_name));
+
+  DBUG_EXECUTE_IF("sim_fail_before_write_bin_log", {
+    DBUG_PRINT("sec_load_unload", ("Force exit before binlog write"));
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "Simulated failure of sec_{un}load before write_bin_log()");
+    return true;
+  });
+
+  /* Write binlog to maintain replication consistency. Read-Replica's may not
+   * have binlog enabled. write_bin_log API takes care of such cases. */
+  if (DBUG_EVALUATE_IF("sim_fail_binlog_write",
+                       (my_error(ER_SECONDARY_ENGINE, MYF(0),
+                                 "Simulated failure during binlog write"),
+                        true),
+                       false) ||
+      (write_bin_log(thd, true, thd->query().str, thd->query().length, true) !=
+       0)) {
+    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+           (is_load ? "secondary_load" : "secondary_unload"),
+           "binlog write failed");
+    return true;
+  }
+
+  DBUG_PRINT("sec_load_unload",
+             ("binlog entry added for alter table %s secondary_%s",
+              full_tab_name, (is_load ? "load" : "unload")));
+
+  DBUG_EXECUTE_IF("sim_fail_after_write_bin_log", {
+    DBUG_PRINT("sec_load_unload", ("Force exit after binlog write"));
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "Simulated failure of sec_{un}load after write_bin_log()");
+    return true;
+  });
 
   // Close primary table.
   close_all_tables_for_name(thd, table_list->table->s, false, nullptr);
   table_list->table = nullptr;
 
   // Commit transaction if no errors.
-  if (trans_commit_stmt(thd) || trans_commit_implicit(thd)) return true;
+  if (DBUG_EVALUATE_IF("sim_fail_transaction_commit",
+                       (my_error(ER_SECONDARY_ENGINE, MYF(0),
+                                 "Simulated failure during metadata update"),
+                        true),
+                       false) ||
+      trans_commit_stmt(thd) || trans_commit_implicit(thd)) {
+    LogErr(ERROR_LEVEL, ER_SECONDARY_ENGINE_DDL_FAILED, full_tab_name,
+           (is_load ? "secondary_load" : "secondary_unload"),
+           "transaction commit failed");
+    return true;
+  }
 
+  DBUG_PRINT("sec_load_unload",
+             ("commit succeeded for alter table %s secondary_%s", full_tab_name,
+              (is_load ? "load" : "unload")));
   // Transaction committed successfully, no rollback will be necessary.
   rollback_guard.commit();
 

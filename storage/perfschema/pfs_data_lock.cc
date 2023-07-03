@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -190,7 +190,7 @@ const char *PFS_data_cache::cache_data(const char *ptr, size_t length) {
     which actually can contain a 0 byte ...
     Never use strlen() on the binary data.
   */
-  std::string key(ptr, length);
+  const std::string key(ptr, length);
   std::pair<set_type::iterator, bool> ret;
 
   ret = m_set.insert(key);
@@ -343,7 +343,7 @@ row_data_lock *PFS_data_lock_container::get_row(size_t index) {
     return nullptr;
   }
 
-  size_t physical_index = index - m_logical_row_index;
+  const size_t physical_index = index - m_logical_row_index;
 
   if (physical_index < m_rows.size()) {
     return &m_rows[physical_index];
@@ -504,7 +504,7 @@ row_data_lock_wait *PFS_data_lock_wait_container::get_row(size_t index) {
     return nullptr;
   }
 
-  size_t physical_index = index - m_logical_row_index;
+  const size_t physical_index = index - m_logical_row_index;
 
   if (physical_index < m_rows.size()) {
     return &m_rows[physical_index];

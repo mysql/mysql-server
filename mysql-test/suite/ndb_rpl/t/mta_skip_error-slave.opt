@@ -1,0 +1,3 @@
+# Skip uniqueness problem
+--replica-skip-errors=1022
+

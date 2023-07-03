@@ -1,0 +1,578 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+######## 1. Test referential action RESTRICT with WRITESET. ########
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
+CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
+CREATE TABLE child1 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent1 (c) ON UPDATE RESTRICT
+) engine = NDB;
+CREATE TABLE child2 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE RESTRICT
+) engine = NDB;
+INSERT INTO parent1 VALUES (1, 1, 1), (2, 2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+INSERT INTO child2 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+UPDATE child1 SET a = 2;
+# Wait for ndb_binlog thread...
+UPDATE child2 SET a = 2;
+# Wait for ndb_binlog thread...
+DELETE FROM child1;
+# Wait for ndb_binlog thread...
+DELETE FROM child2;
+# Wait for ndb_binlog thread...
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+# Wait for ndb_binlog thread...
+INSERT INTO parent1 VALUES (3, 3, 3);
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (2);
+# Wait for ndb_binlog thread...
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (5);
+# Wait for ndb_binlog thread...
+UPDATE parent1 SET c=5 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_fk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`c`) ON DELETE NO ACTION ON UPDATE RESTRICT)
+# Wait for ndb_binlog thread...
+DELETE FROM parent2 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_fk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`) ON DELETE RESTRICT ON UPDATE NO ACTION)
+# Wait for ndb_binlog thread...
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;10 11;11 12;11 13;13 14]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+######## 2. Test referential action RESTRICT with WRITESET_SESSION. ########
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET_SESSION
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
+CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
+CREATE TABLE child1 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent1 (c) ON UPDATE RESTRICT
+) engine = NDB;
+CREATE TABLE child2 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE RESTRICT
+) engine = NDB;
+INSERT INTO parent1 VALUES (1, 1, 1), (2, 2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+INSERT INTO child2 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+UPDATE child1 SET a = 2;
+# Wait for ndb_binlog thread...
+UPDATE child2 SET a = 2;
+# Wait for ndb_binlog thread...
+DELETE FROM child1;
+# Wait for ndb_binlog thread...
+DELETE FROM child2;
+# Wait for ndb_binlog thread...
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+# Wait for ndb_binlog thread...
+INSERT INTO parent1 VALUES (3, 3, 3);
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (2);
+# Wait for ndb_binlog thread...
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (5);
+# Wait for ndb_binlog thread...
+UPDATE parent1 SET c=5 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_fk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`c`) ON DELETE NO ACTION ON UPDATE RESTRICT)
+# Wait for ndb_binlog thread...
+DELETE FROM parent2 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_fk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`) ON DELETE RESTRICT ON UPDATE NO ACTION)
+# Wait for ndb_binlog thread...
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13;13 14]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+######## 3. Test referential action NO ACTION with WRITESET. ########
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
+CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
+CREATE TABLE child1 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent1 (c) ON UPDATE NO ACTION
+) engine = NDB;
+CREATE TABLE child2 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE NO ACTION
+) engine = NDB;
+INSERT INTO parent1 VALUES (1, 1, 1), (2, 2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+INSERT INTO child2 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+UPDATE child1 SET a = 2;
+# Wait for ndb_binlog thread...
+UPDATE child2 SET a = 2;
+# Wait for ndb_binlog thread...
+DELETE FROM child1;
+# Wait for ndb_binlog thread...
+DELETE FROM child2;
+# Wait for ndb_binlog thread...
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+# Wait for ndb_binlog thread...
+INSERT INTO parent1 VALUES (3, 3, 3);
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (2);
+# Wait for ndb_binlog thread...
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (5);
+# Wait for ndb_binlog thread...
+UPDATE parent1 SET c=5 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_fk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`c`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+# Wait for ndb_binlog thread...
+DELETE FROM parent2 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_fk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+# Wait for ndb_binlog thread...
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;10 11;11 12;11 13;13 14]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+######## 4. Test referential action NO ACTION with WRITESET_SESSION. ########
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET_SESSION
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
+CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
+CREATE TABLE child1 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent1 (c) ON UPDATE NO ACTION
+) engine = NDB;
+CREATE TABLE child2 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE NO ACTION
+) engine = NDB;
+INSERT INTO parent1 VALUES (1, 1, 1), (2, 2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+INSERT INTO child2 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+UPDATE child1 SET a = 2;
+# Wait for ndb_binlog thread...
+UPDATE child2 SET a = 2;
+# Wait for ndb_binlog thread...
+DELETE FROM child1;
+# Wait for ndb_binlog thread...
+DELETE FROM child2;
+# Wait for ndb_binlog thread...
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+# Wait for ndb_binlog thread...
+INSERT INTO parent1 VALUES (3, 3, 3);
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (2);
+# Wait for ndb_binlog thread...
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (5);
+# Wait for ndb_binlog thread...
+UPDATE parent1 SET c=5 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child1`, CONSTRAINT `child1_fk_1` FOREIGN KEY (`b`) REFERENCES `parent1` (`c`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+# Wait for ndb_binlog thread...
+DELETE FROM parent2 WHERE a=1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child2`, CONSTRAINT `child2_fk_1` FOREIGN KEY (`b`) REFERENCES `parent2` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+# Wait for ndb_binlog thread...
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13;13 14]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+######## 5. Test referential action CASCADE with WRITESET. ########
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
+CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
+CREATE TABLE child1 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent1 (c) ON UPDATE CASCADE
+) engine = NDB;
+CREATE TABLE child2 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE CASCADE
+) engine = NDB;
+INSERT INTO parent1 VALUES (1, 1, 1), (2, 2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+INSERT INTO child2 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+UPDATE child1 SET a = 2;
+# Wait for ndb_binlog thread...
+UPDATE child2 SET a = 2;
+# Wait for ndb_binlog thread...
+DELETE FROM child1;
+# Wait for ndb_binlog thread...
+DELETE FROM child2;
+# Wait for ndb_binlog thread...
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+# Wait for ndb_binlog thread...
+INSERT INTO parent1 VALUES (3, 3, 3);
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (2);
+# Wait for ndb_binlog thread...
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (5);
+# Wait for ndb_binlog thread...
+UPDATE parent1 SET c=5 WHERE a=1;
+# Wait for ndb_binlog thread...
+DELETE FROM parent2 WHERE a=1;
+# Wait for ndb_binlog thread...
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;10 11;11 12;11 13;13 14;14 15;15 16]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+######## 6. Test referential action CASCADE with WRITESET_SESSION. ########
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET_SESSION
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
+CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
+CREATE TABLE child1 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent1 (c) ON UPDATE CASCADE
+) engine = NDB;
+CREATE TABLE child2 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE CASCADE
+) engine = NDB;
+INSERT INTO parent1 VALUES (1, 1, 1), (2, 2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+INSERT INTO child2 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+UPDATE child1 SET a = 2;
+# Wait for ndb_binlog thread...
+UPDATE child2 SET a = 2;
+# Wait for ndb_binlog thread...
+DELETE FROM child1;
+# Wait for ndb_binlog thread...
+DELETE FROM child2;
+# Wait for ndb_binlog thread...
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+# Wait for ndb_binlog thread...
+INSERT INTO parent1 VALUES (3, 3, 3);
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (2);
+# Wait for ndb_binlog thread...
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (5);
+# Wait for ndb_binlog thread...
+UPDATE parent1 SET c=5 WHERE a=1;
+# Wait for ndb_binlog thread...
+DELETE FROM parent2 WHERE a=1;
+# Wait for ndb_binlog thread...
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13;13 14;14 15;15 16]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+######## 7. Test referential action SET NULL with WRITESET. ########
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
+CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
+CREATE TABLE child1 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent1 (c) ON UPDATE SET NULL
+) engine = NDB;
+CREATE TABLE child2 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE SET NULL
+) engine = NDB;
+INSERT INTO parent1 VALUES (1, 1, 1), (2, 2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+INSERT INTO child2 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+UPDATE child1 SET a = 2;
+# Wait for ndb_binlog thread...
+UPDATE child2 SET a = 2;
+# Wait for ndb_binlog thread...
+DELETE FROM child1;
+# Wait for ndb_binlog thread...
+DELETE FROM child2;
+# Wait for ndb_binlog thread...
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+# Wait for ndb_binlog thread...
+INSERT INTO parent1 VALUES (3, 3, 3);
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (2);
+# Wait for ndb_binlog thread...
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (5);
+# Wait for ndb_binlog thread...
+UPDATE parent1 SET c=5 WHERE a=1;
+# Wait for ndb_binlog thread...
+DELETE FROM parent2 WHERE a=1;
+# Wait for ndb_binlog thread...
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;10 11;11 12;11 13;13 14;14 15;15 16]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+######## 8. Test referential action SET NULL with WRITESET_SESSION. ########
+SELECT @@binlog_transaction_dependency_tracking;
+@@binlog_transaction_dependency_tracking
+WRITESET_SESSION
+CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50), c INT, UNIQUE(c)) engine = NDB;
+CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50)) engine = NDB;
+CREATE TABLE t1 (a INT PRIMARY KEY) engine = NDB;
+CREATE TABLE child1 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent1 (c) ON UPDATE SET NULL
+) engine = NDB;
+CREATE TABLE child2 (
+a INT PRIMARY KEY,
+b INT,
+FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE SET NULL
+) engine = NDB;
+INSERT INTO parent1 VALUES (1, 1, 1), (2, 2, 2);
+INSERT INTO parent2 VALUES (1, 1), (2, 2);
+FLUSH LOGS;
+# Case 2.1, 2.2, 2.3
+INSERT INTO child1 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+INSERT INTO child2 VALUES (1, 1);
+# Wait for ndb_binlog thread...
+UPDATE child1 SET a = 2;
+# Wait for ndb_binlog thread...
+UPDATE child2 SET a = 2;
+# Wait for ndb_binlog thread...
+DELETE FROM child1;
+# Wait for ndb_binlog thread...
+DELETE FROM child2;
+# Wait for ndb_binlog thread...
+# Case 1.1, 1.2, 1.3
+INSERT INTO t1 VALUES (1);
+# Wait for ndb_binlog thread...
+INSERT INTO parent1 VALUES (3, 3, 3);
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (2);
+# Wait for ndb_binlog thread...
+# Case 1.4, 1.5
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO child1 VALUES (1, 1);
+BEGIN;
+INSERT INTO parent1 VALUEs (4, 4, 4);
+INSERT INTO child2 VALUES (1, 1);
+BEGIN;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+COMMIT;
+# Wait for ndb_binlog thread...
+INSERT INTO t1 VALUES (5);
+# Wait for ndb_binlog thread...
+UPDATE parent1 SET c=5 WHERE a=1;
+# Wait for ndb_binlog thread...
+DELETE FROM parent2 WHERE a=1;
+# Wait for ndb_binlog thread...
+# Drop table and flush logs to force binlog to rotate
+DROP TABLE child2, parent2, child1, parent1, t1;
+FLUSH LOGS;
+# Processing binlog...
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10;10 11;11 12;12 13;13 14;14 15;15 16]
+# Verify that replication is correct
+include/sync_slave_sql_with_master.inc
+
+# Clean up
+SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+include/rpl_end.inc

@@ -6330,3 +6330,25 @@ SELECT * FROM v0;
 
 DROP VIEW v0;
 DROP TABLE t0;
+
+--echo #
+--echo # Bug#34800905 - View definition changes latin 1 Invalid utf8mb4 character
+--echo #
+
+CREATE TABLE `t1` (`c1` SMALLINT DEFAULT NULL);
+CREATE VIEW v1 AS SELECT c1,'á' AS c2 FROM t1;
+INSERT INTO t1 (c1) VALUES ('0'), ('1');
+
+SET NAMES 'latin1';
+ALTER TABLE t1 RENAME t1_aux;
+ALTER TABLE t1_aux RENAME t1;
+SHOW CREATE VIEW v1;
+
+SET NAMES DEFAULT;
+--echo # Without fix, invalid character string error is reported for column c2.
+SHOW CREATE VIEW v1;
+--echo # Without fix, incorrect values listed for column c2.
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1;

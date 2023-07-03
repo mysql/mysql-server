@@ -339,10 +339,9 @@ SELECT b FROM t5 WHERE b > 5;
 ERROR HY000: Index idx_b is corrupted
 CHECK TABLE t6;
 Table	Op	Msg_type	Msg_text
-corrupted.t6	check	Error	Table 'corrupted.t6' doesn't exist
-corrupted.t6	check	status	Operation failed
+corrupted.t6	check	error	Corrupt
 CREATE INDEX idx_v ON t6(v);
-ERROR 42000: Can't open table
+ERROR 42S02: Table 'corrupted.t6' doesn't exist
 # Invoke checkpoint to persist the latest corruption bits again
 SET @start_global_value = @@global.innodb_log_checkpoint_now;
 SELECT @start_global_value;

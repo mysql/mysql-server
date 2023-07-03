@@ -29,7 +29,7 @@
 --source include/rpl_connection.inc
 
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("Server id not set, will not start slave for channel 'group_replication_applier'");
+call mtr.add_suppression("Server id not set, will not start replica for channel 'group_replication_applier'");
 call mtr.add_suppression("Error while starting the group replication applier thread");
 call mtr.add_suppression("Unable to initialize the Group Replication applier module.");
 SET SESSION sql_log_bin=1;
@@ -45,7 +45,7 @@ SET SESSION sql_log_bin=1;
 SET GLOBAL super_read_only = 1;
 
 SET GLOBAL server_id=0;
---error ER_BAD_SLAVE, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+--error ER_BAD_REPLICA, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 START GROUP_REPLICATION;
 
 --echo
@@ -62,7 +62,7 @@ START GROUP_REPLICATION;
 SET GLOBAL read_only = 1;
 
 SET GLOBAL server_id=0;
---error ER_BAD_SLAVE, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+--error ER_BAD_REPLICA, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 START GROUP_REPLICATION;
 
 --echo
@@ -86,7 +86,7 @@ START GROUP_REPLICATION;
 SET GLOBAL read_only = 0;
 
 SET GLOBAL server_id=0;
---error ER_BAD_SLAVE, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
+--error ER_BAD_REPLICA, ER_GROUP_REPLICATION_APPLIER_INIT_ERROR
 START GROUP_REPLICATION;
 
 --echo

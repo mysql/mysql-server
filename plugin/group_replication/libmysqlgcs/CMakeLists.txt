@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,6 @@ SET(XCOM_BASEDIR
 
 SET(XCOM_INCLUDE_DIR
   ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/)
-
-SET (XCOM_INCLUDE_DIR
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/)
 
 ### DEFINITIONS ###
 
@@ -203,6 +200,8 @@ ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
       )
   ENDIF()
 ENDIF()
+
+MSVC_CPPCHECK_DISABLE()
 
 MY_ADD_COMPILE_DEFINITIONS(
   ${XCOM_SOURCES}

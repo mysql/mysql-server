@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,10 @@
 #define RAPIDJSON_HAS_STDSTRING 1
 
 #include "my_rapidjson_size_t.h"
-#include "rapidjson/document.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
+
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 #include "components/keyrings/common/data/data.h"
 #include "components/keyrings/common/data/meta.h"

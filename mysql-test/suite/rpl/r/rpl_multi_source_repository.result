@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
 # Create a new channel from the slave to the third server.
@@ -15,7 +15,7 @@ include/stop_slave.inc
 SET @@GLOBAL.master_info_repository ="TABLE";
 Warnings:
 Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-call mtr.add_suppression("Slave: Cannot create new master info structure when repositories are of type FILE. Convert slave repositories to TABLE to replicate from multiple sources.");
+call mtr.add_suppression("Replica: Cannot create new connection metadata structure when repositories are of type FILE. Convert replica repositories to TABLE to replicate from multiple sources.");
 CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_USER = "root", SOURCE_PORT = MASTER_PORT FOR CHANNEL "channel_3";;
 ERROR HY000: To have multiple channels, repository cannot be of type FILE; Please check the repository configuration and convert them to TABLE.
 #  Convert only relay log info repository to TABLE
@@ -37,11 +37,11 @@ Warning	1287	'@@master_info_repository' is deprecated and will be removed in a f
 CHANGE REPLICATION SOURCE TO SOURCE_HOST ="127.0.0.1", SOURCE_USER ="root", SOURCE_PORT=MASTER_PORT FOR CHANNEL "channel_3";
 Warnings:
 Note	#	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	#	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	#	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 # Slave now is a multisourced slave.
 # Restart the slave and check that slave threads are not started because
 # the repositories are of type FILE
-call mtr.add_suppression("Slave: This slave was a multisourced slave previously*");
+call mtr.add_suppression("Replica: This replica was a multisourced replica previously*");
 call mtr.add_suppression("Failed to create or recover replication info repositories");
 include/rpl_restart_server.inc [server_number=2]
 SHOW SLAVE STATUS;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -148,6 +148,15 @@ struct CHARSET_INFO;
 #endif
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
+#define MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES(LOCKER, P1) \
+  inline_mysql_notify_statement_query_attributes(LOCKER, P1)
+#else
+#define MYSQL_NOTIFY_STATEMENT_QUERY_ATTRIBUTES(LOCKER, P1) \
+  do {                                                      \
+  } while (0)
+#endif
+
+#ifdef HAVE_PSI_STATEMENT_INTERFACE
 #define MYSQL_END_STATEMENT(LOCKER, DA) inline_mysql_end_statement(LOCKER, DA)
 #else
 #define MYSQL_END_STATEMENT(LOCKER, DA) \
@@ -244,6 +253,14 @@ static inline void inline_mysql_set_statement_rows_examined(
     PSI_statement_locker *locker, ulonglong count) {
   if (likely(locker != nullptr)) {
     PSI_STATEMENT_CALL(set_statement_rows_examined)(locker, count);
+  }
+}
+
+static inline void inline_mysql_notify_statement_query_attributes(
+    PSI_statement_locker *locker, bool with_query_attributes) {
+  if (likely(locker != nullptr)) {
+    PSI_STATEMENT_CALL(notify_statement_query_attributes)
+    (locker, with_query_attributes);
   }
 }
 

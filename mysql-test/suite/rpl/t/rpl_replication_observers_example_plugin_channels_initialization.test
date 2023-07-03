@@ -16,7 +16,7 @@ SET @saved_relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
 --source include/install_replication_observers_example.inc
 
 CALL mtr.add_suppression('For the creation of replication channels the server *');
-CALL mtr.add_suppression('For the creation of replication channels the master *');
+CALL mtr.add_suppression('For the creation of replication channels the connection metadata *');
 
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 

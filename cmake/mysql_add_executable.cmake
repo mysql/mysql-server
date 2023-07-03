@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,13 @@ ENDFUNCTION()
 
 FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
   SET(EXECUTABLE_OPTIONS
-    ENABLE_EXPORTS
+    ENABLE_EXPORTS     # For Linux, link with: -Wl,--export-dynamic -rdynamic
+                       # This option is needed for some uses of "dlopen" or
+                       # to allow obtaining backtraces from within a program.
+                       # We disable it for non-Linux platforms.
+                       # On WIN32 it would add /implib:.... to the linker
+                       # command, which is probably not what you want
+                       # (except for mysqld.lib which is used by plugins).
     EXCLUDE_FROM_ALL   # add target, but do not build it by default
     EXCLUDE_FROM_PGO   # add target, but do not build for PGO
     SKIP_INSTALL       # do not install it
@@ -139,7 +145,7 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
     ENDIF()
   ENDIF()
 
-  IF(ARG_ENABLE_EXPORTS)
+  IF(LINUX AND ARG_ENABLE_EXPORTS)
     SET_TARGET_PROPERTIES(${target} PROPERTIES ENABLE_EXPORTS TRUE)
   ENDIF()
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -759,12 +759,14 @@ bool page_simple_validate_old(
  @return true if ok */
 bool page_simple_validate_new(
     const page_t *page); /*!< in: index page in ROW_FORMAT!=REDUNDANT */
+
 /** This function checks the consistency of an index page.
- @return true if ok */
-bool page_validate(
-    const page_t *page,   /*!< in: index page */
-    dict_index_t *index); /*!< in: data dictionary index containing
-                          the page record type definition */
+@param[in]  page   index page
+@param[in]  index  data dictionary index containing the page record type
+definition
+@return true if ok */
+bool page_validate(const page_t *page, dict_index_t *index);
+
 /** Looks in the page record list for a record with the given heap number.
  @return record, NULL if not found */
 const rec_t *page_find_rec_with_heap_no(

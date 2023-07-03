@@ -33,7 +33,7 @@ echo master_id: $master_id;
 stop slave;
 --echo *** --replicate-same-server-id and change master option can clash ***
 --replace_column 2 ####
---error ER_SLAVE_IGNORE_SERVER_IDS
+--error ER_REPLICA_IGNORE_SERVER_IDS
 CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (2, 1);
 --echo *** must be empty due to the error ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);

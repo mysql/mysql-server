@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1377,7 +1377,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD *thd) {
 
   if (!lex->mi.for_channel) {
     if (channel_map.get_num_instances(true) == 0) {
-      my_error(ER_SLAVE_CONFIGURATION, MYF(0));
+      my_error(ER_REPLICA_CONFIGURATION, MYF(0));
       ret = true;
       goto err;
     }
@@ -1402,7 +1402,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD *thd) {
         init_thread_mask(&thread_mask, mi, false /*not inverse*/);
         if (thread_mask & SLAVE_SQL) {
           /* We refuse if any slave thread is running */
-          my_error(ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP, MYF(0),
+          my_error(ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP, MYF(0),
                    mi->get_channel());
           ret = true;
           /*
@@ -1491,7 +1491,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD *thd) {
         If an explicit FOR CHANNEL clause is provided, the statement
         is disallowed on group replication channels.
       */
-      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+      my_error(ER_REPLICA_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "CHANGE REPLICATION FILTER", lex->mi.channel);
       ret = true;
       goto err;
@@ -1508,7 +1508,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD *thd) {
     mi = channel_map.get_mi(lex->mi.channel);
 
     if (!Master_info::is_configured(mi)) {
-      my_error(ER_SLAVE_CONFIGURATION, MYF(0));
+      my_error(ER_REPLICA_CONFIGURATION, MYF(0));
       ret = true;
       goto err;
     }
@@ -1520,7 +1520,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD *thd) {
     init_thread_mask(&thread_mask, mi, false /*not inverse*/);
     /* We refuse if the slave thread is running */
     if (thread_mask & SLAVE_SQL) {
-      my_error(ER_SLAVE_CHANNEL_SQL_THREAD_MUST_STOP, MYF(0),
+      my_error(ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP, MYF(0),
                mi->get_channel());
       ret = true;
     }

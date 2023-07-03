@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,8 @@ REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_command_query_result,
                                 cmd_query_result_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_command_field_info, cmd_field_info_srv);
 REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_command_error_info, cmd_error_info_srv);
+REQUIRES_SERVICE_PLACEHOLDER_AS(mysql_command_field_metadata,
+                                cmd_field_meta_srv);
 
 BEGIN_COMPONENT_PROVIDES(test_mysql_command_services)
 END_COMPONENT_PROVIDES();
@@ -59,6 +61,7 @@ REQUIRES_SERVICE_AS(udf_registration, udf_srv),
     REQUIRES_SERVICE_AS(mysql_command_query_result, cmd_query_result_srv),
     REQUIRES_SERVICE_AS(mysql_command_field_info, cmd_field_info_srv),
     REQUIRES_SERVICE_AS(mysql_command_error_info, cmd_error_info_srv),
+    REQUIRES_SERVICE_AS(mysql_command_field_metadata, cmd_field_meta_srv),
     END_COMPONENT_REQUIRES();
 
 MYSQL_H mysql_h = nullptr;
@@ -121,11 +124,7 @@ static char *test_mysql_command_services_udf(UDF_INIT *, UDF_ARGS *args,
       goto err;
     }
 
-    for (uint64_t i = 0; i < row_count; i++) {
-      if (cmd_query_result_srv->fetch_row(mysql_res, &row)) {
-        result = nullptr;
-        goto err;
-      }
+    if (field_count > 0) {
       if (cmd_field_info_srv->fetch_field(mysql_res, &field_h)) {
         result = nullptr;
         goto err;
@@ -134,8 +133,37 @@ static char *test_mysql_command_services_udf(UDF_INIT *, UDF_ARGS *args,
         result = nullptr;
         goto err;
       }
+
+      const char *field_name = nullptr, *table_name = nullptr,
+                 *db_name = nullptr;
+      if (cmd_field_meta_srv->get(field_h, MYSQL_COMMAND_FIELD_METADATA_NAME,
+                                  &field_name) ||
+          !field_name) {
+        result = nullptr;
+        goto err;
+      }
+      if (cmd_field_meta_srv->get(
+              field_h, MYSQL_COMMAND_FIELD_METADATA_TABLE_NAME, &table_name)) {
+        result = nullptr;
+        goto err;
+      }
+      if (cmd_field_meta_srv->get(
+              field_h, MYSQL_COMMAND_FIELD_METADATA_TABLE_DB_NAME, &db_name)) {
+        result = nullptr;
+        goto err;
+      }
+    }
+
+    for (uint64_t i = 0; i < row_count; i++) {
+      if (cmd_query_result_srv->fetch_row(mysql_res, &row)) {
+        result = nullptr;
+        goto err;
+      }
       ulong *length = nullptr;
-      cmd_query_result_srv->fetch_lengths(mysql_res, &length);
+      if (cmd_query_result_srv->fetch_lengths(mysql_res, &length)) {
+        result = nullptr;
+        goto err;
+      }
       for (unsigned int j = 0; j < num_column; j++) {
         result_set += row[j];
       }

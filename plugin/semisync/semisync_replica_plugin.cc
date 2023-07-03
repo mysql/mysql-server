@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ static int has_source_semisync(MYSQL *mysql, std::string name) {
     if (mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE)
       return 0;
     else {
-      LogPluginErr(ERROR_LEVEL, ER_SEMISYNC_EXECUTION_FAILED_ON_MASTER,
+      LogPluginErr(ERROR_LEVEL, ER_SEMISYNC_EXECUTION_FAILED_ON_SOURCE,
                    query.c_str(), mysql_error);
       return -1;
     }
@@ -123,7 +123,7 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param, uint32) {
     source_state = has_source_semisync(mysql, "master");
     if (source_state == 0) {
       /* Source does not support semi-sync */
-      LogPluginErr(WARNING_LEVEL, ER_SEMISYNC_NOT_SUPPORTED_BY_MASTER);
+      LogPluginErr(WARNING_LEVEL, ER_SEMISYNC_NOT_SUPPORTED_BY_SOURCE);
       rpl_semi_sync_replica_status = 0;
       return 0;
     }
@@ -137,7 +137,7 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param, uint32) {
   const char *query =
       "SET @rpl_semi_sync_replica = 1, @rpl_semi_sync_slave = 1";
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)))) {
-    LogPluginErr(ERROR_LEVEL, ER_SEMISYNC_SLAVE_SET_FAILED);
+    LogPluginErr(ERROR_LEVEL, ER_SEMISYNC_REPLICA_SET_FAILED);
     return 1;
   }
   mysql_free_result(mysql_store_result(mysql));
@@ -314,7 +314,7 @@ static int semi_sync_replica_plugin_check_uninstall(void *) {
   if (ret) {
     my_error(
         ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), SEMI_SYNC_PLUGIN_NAME,
-        "Stop any active semisynchronous I/O threads on this slave first.");
+        "Stop any active semisynchronous I/O threads on this replica first.");
   }
   return ret;
 }

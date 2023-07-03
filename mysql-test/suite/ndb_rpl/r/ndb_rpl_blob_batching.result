@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 show variables like 'replica_allow_batching';
 Variable_name	Value
@@ -24,15 +24,15 @@ Bulk insert (20 x ~3kb)
 -----------------------
 Varchar table
 round_trips_slave	1
-pk_ops_slave	22
+pk_ops_slave	21
 
 1 Blob table
 round_trips_slave	3
-pk_ops_slave	122
+pk_ops_slave	121
 
 2 Blob table
 round_trips_slave	3
-pk_ops_slave	222
+pk_ops_slave	221
 
 
 Bulk update (20 x ~3kB)
@@ -43,7 +43,7 @@ update tv set b=repeat('J', 3000) where a in
 commit;
 Varchar table
 round_trips_slave	1
-pk_ops_slave	22
+pk_ops_slave	21
 
 begin;
 update tb1 set b=repeat('J', 3000) where a in
@@ -51,7 +51,7 @@ update tb1 set b=repeat('J', 3000) where a in
 commit;
 1 Blob table
 round_trips_slave	2
-pk_ops_slave	102
+pk_ops_slave	101
 
 begin;
 update tb2 set b=repeat('J', 3000), c=repeat('C', 3000) where a in
@@ -59,7 +59,7 @@ update tb2 set b=repeat('J', 3000), c=repeat('C', 3000) where a in
 commit;
 2 Blob table
 round_trips_slave	2
-pk_ops_slave	182
+pk_ops_slave	181
 
 
 Mixed batch (6 x ~3kB update, 5x ~1kB delete, 5x ~3kB insert all independent)
@@ -76,7 +76,7 @@ insert into tv values (25, repeat('B', 3000));
 commit;
 Varchar table
 round_trips_slave	1
-pk_ops_slave	18
+pk_ops_slave	17
 
 begin;
 update tb1 set b=repeat('C', 3000) where a in (15,16,17,18,19,20);
@@ -89,7 +89,7 @@ insert into tb1 values (25, repeat('B', 3000));
 commit;
 1 Blob table
 round_trips_slave	3
-pk_ops_slave	82
+pk_ops_slave	81
 
 begin;
 update tb2 set b=repeat('C', 3000), c=repeat('T', 4000) where a in (15,16,17,18,19,20);
@@ -102,7 +102,7 @@ insert into tb2 values (25, repeat('B', 3000), repeat('!', 4000));
 commit;
 2 Blob table
 round_trips_slave	3
-pk_ops_slave	146
+pk_ops_slave	145
 
 
 Mixed batch multiple tables 
@@ -135,7 +135,7 @@ insert into tb2 values (5, repeat('C', 2999), repeat('!', 3200));
 commit;
 Mixed operations
 round_trips_slave	3
-pk_ops_slave	244
+pk_ops_slave	243
 
 
 Bulk delete (20 x ~3kB)
@@ -146,7 +146,7 @@ delete from tv where a in
 commit;
 Varchar table
 round_trips_slave	1
-pk_ops_slave	22
+pk_ops_slave	21
 
 begin;
 delete from tb1 where a in
@@ -154,7 +154,7 @@ delete from tb1 where a in
 commit;
 1 Blob table
 round_trips_slave	2
-pk_ops_slave	83
+pk_ops_slave	82
 
 begin;
 delete from tb2 where a in
@@ -162,7 +162,7 @@ delete from tb2 where a in
 commit;
 2 Blob table
 round_trips_slave	2
-pk_ops_slave	143
+pk_ops_slave	142
 
 drop table tv;
 drop table tb1;

@@ -5,9 +5,7 @@ call mtr.add_suppression("Unable to use user mysql.session account when connecti
 call mtr.add_suppression("Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
 
 --disable_query_log
-call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
-call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
-call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
+--source include/add_mtr_suppression_for_innodb_readonly.inc
 --enable_query_log
 
 create table t1(f1 int not null, f2 int not null, index idx(f2))engine=innodb;

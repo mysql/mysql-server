@@ -1,0 +1,35 @@
+#########
+# SETUP #
+#########
+CREATE TABLE t1(c1 CHAR(10), c2 CHAR(10));
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+insert into t1 values ("r1c1", "r1c2");
+insert into t1 values ("r2c1", "r2c2");
+insert into t1 values ("r3c1", "r3c2");
+insert into t1 values ("r4c1", "r4c2");
+insert into t1 values ("r5c1", "r5c2");
+insert into t1 values ("r6c1", "r6c2");
+SET SESSION debug="+d,check_table_set_wrong_min_bit";
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: The B-tree of index GEN_CLUST_INDEX is corrupted.
+test.t1	check	error	Corrupt
+# Expect found
+Pattern "Setting wrong min bit to 2nd record" found
+# Expect found
+Pattern "Minimum record flag is wrongly set to rec on page '4' at level '3' for index 'GEN_CLUST_INDEX' of table 'test/t1'." found
+SET SESSION debug="-d,check_table_set_wrong_min_bit";
+SET SESSION debug="+d,check_table_reset_correct_min_bit";
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Warning	InnoDB: The B-tree of index GEN_CLUST_INDEX is corrupted.
+test.t1	check	error	Corrupt
+# Expect found
+Pattern "Resetting correct min bit to 1st record" found
+# Expect found
+Pattern "Minimum record flag is not set to first rec on page '4' at level '3' for index 'GEN_CLUST_INDEX' of table 'test/t1'." found
+SET SESSION debug="-d,check_table_reset_correct_min_bit";
+###########
+# CLEANUP #
+###########
+drop table t1;

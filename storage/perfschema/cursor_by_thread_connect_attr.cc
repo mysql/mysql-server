@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 
 #include "storage/perfschema/pfs_buffer_container.h"
 
-ha_rows cursor_by_thread_connect_attr::get_row_count(void) {
+ha_rows cursor_by_thread_connect_attr::get_row_count() {
   /*
     The real number of attributes per thread does not matter,
     we only need to hint the optimizer there are many per thread,
@@ -46,12 +46,12 @@ cursor_by_thread_connect_attr::cursor_by_thread_connect_attr(
     const PFS_engine_table_share *share)
     : PFS_engine_table(share, &m_pos) {}
 
-void cursor_by_thread_connect_attr::reset_position(void) {
+void cursor_by_thread_connect_attr::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int cursor_by_thread_connect_attr::rnd_next(void) {
+int cursor_by_thread_connect_attr::rnd_next() {
   PFS_thread *thread;
   bool has_more_thread = true;
 

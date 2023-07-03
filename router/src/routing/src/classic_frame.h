@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include <system_error>
 
 #include "channel.h"
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
 
 class ClassicFrame {
@@ -68,7 +68,7 @@ class ClassicFrame {
         ClassicFrame::recv_frame_sequence(src_channel, src_protocol);
     if (!read_res) return stdx::make_unexpected(read_res.error());
 
-    auto &recv_buf = src_channel->recv_plain_buffer();
+    auto &recv_buf = src_channel->recv_plain_view();
 
     auto decode_res =
         classic_protocol::decode<classic_protocol::frame::Frame<Msg>>(
@@ -91,15 +91,12 @@ class ClassicFrame {
   static inline stdx::expected<size_t, std::error_code> send_msg(
       Channel *dst_channel, ClassicProtocolState *dst_protocol, Msg msg,
       classic_protocol::capabilities::value_type caps) {
-    std::vector<uint8_t> frame_buf;
     auto encode_res = classic_protocol::encode(
         classic_protocol::frame::Frame<Msg>(++dst_protocol->seq_id(),
                                             std::forward<Msg>(msg)),
-        caps, net::dynamic_buffer(frame_buf));
+        caps, net::dynamic_buffer(dst_channel->send_plain_buffer()));
     if (!encode_res) return encode_res;
 
-    auto write_res = dst_channel->write_plain(net::buffer(frame_buf));
-    if (!write_res) return write_res;
     return dst_channel->flush_to_send_buf();
   }
 
@@ -110,5 +107,57 @@ class ClassicFrame {
                          dst_protocol->shared_capabilities());
   }
 };
+
+/**
+ * receive a StmtExecute message from a channel.
+ *
+ * specialization of recv_msg<> as StmtExecute needs a the data from the
+ * StmtPrepareOk.
+ */
+template <>
+inline stdx::expected<classic_protocol::borrowed::message::client::StmtExecute,
+                      std::error_code>
+ClassicFrame::recv_msg<
+    classic_protocol::borrowed::message::client::StmtExecute>(
+    Channel *src_channel, ClassicProtocolState *src_protocol,
+    classic_protocol::capabilities::value_type caps) {
+  using msg_type = classic_protocol::borrowed::message::client::StmtExecute;
+
+  auto read_res = ClassicFrame::recv_frame_sequence(src_channel, src_protocol);
+  if (!read_res) return stdx::make_unexpected(read_res.error());
+
+  const auto &recv_buf = src_channel->recv_plain_view();
+
+  auto frame_decode_res = classic_protocol::decode<
+      classic_protocol::frame::Frame<classic_protocol::borrowed::wire::String>>(
+      net::buffer(recv_buf), caps);
+  if (!frame_decode_res) {
+    return stdx::make_unexpected(frame_decode_res.error());
+  }
+
+  src_protocol->seq_id(frame_decode_res->second.seq_id());
+
+  auto decode_res = classic_protocol::decode<msg_type>(
+      net::buffer(frame_decode_res->second.payload().value()), caps,
+      [src_protocol](auto stmt_id)
+          -> stdx::expected<std::vector<msg_type::ParamDef>, std::error_code> {
+        const auto it = src_protocol->prepared_statements().find(stmt_id);
+        if (it == src_protocol->prepared_statements().end()) {
+          return stdx::make_unexpected(make_error_code(
+              classic_protocol::codec_errc::statement_id_not_found));
+        }
+
+        std::vector<msg_type::ParamDef> params;
+        params.reserve(it->second.parameters.size());
+
+        for (const auto &param : it->second.parameters) {
+          params.emplace_back(param.type_and_flags);
+        }
+
+        return params;
+      });
+
+  return decode_res->second;
+}
 
 #endif

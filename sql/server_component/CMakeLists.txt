@@ -1,4 +1,4 @@
-# Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,8 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   mysql_command_backend.cc
   mysql_status_variable_reader_imp.cc
   storing_auto_thd.cc
+  mysql_thd_store_imp.cc
+  set_variables_helper.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases
@@ -74,4 +76,6 @@ ADD_LIBRARY(mysql_server_component_services STATIC
   ${MYSQL_SERVER_COMPONENT_SOURCES})
 TARGET_COMPILE_DEFINITIONS(mysql_server_component_services
   PRIVATE WITH_MYSQL_COMPONENTS_TEST_DRIVER)
+TARGET_LINK_LIBRARIES(mysql_server_component_services PRIVATE extra::rapidjson)
+TARGET_LINK_LIBRARIES(mysql_server_component_services PRIVATE ext::zlib)
 ADD_DEPENDENCIES(mysql_server_component_services GenError)

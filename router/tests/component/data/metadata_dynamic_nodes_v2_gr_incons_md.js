@@ -6,7 +6,7 @@ if (mysqld.global.gr_node_host === undefined) {
 }
 
 if (mysqld.global.gr_id === undefined) {
-  mysqld.global.gr_id = "00-000";
+  mysqld.global.gr_id = "uuid";
 }
 
 if (mysqld.global.gr_nodes === undefined) {
@@ -14,7 +14,7 @@ if (mysqld.global.gr_nodes === undefined) {
 }
 
 if (mysqld.global.cluster_nodes === undefined) {
-  mysqld.global.cluster_nodes = mysqld.global.gr_nodes;
+  mysqld.global.cluster_nodes = [];
 }
 
 if (mysqld.global.notices === undefined) {
@@ -33,27 +33,18 @@ if (mysqld.global.cluster_type === undefined) {
   mysqld.global.cluster_type = "gr";
 }
 
-var nodes = function(host, port_and_state) {
-  return port_and_state.map(function(current_value) {
-    return [
-      current_value[0], host, current_value[0], current_value[1],
-      current_value[2]
-    ];
-  });
-};
-
-var group_replication_membership_online =
-    nodes(mysqld.global.gr_node_host, mysqld.global.gr_nodes);
-
 var options = {
-  group_replication_membership: group_replication_membership_online,
+  group_replication_members: gr_memberships.gr_members(
+      mysqld.global.gr_node_host, mysqld.global.gr_nodes),
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   gr_id: mysqld.global.gr_id,
   cluster_type: mysqld.global.cluster_type,
 };
 
 // first node is PRIMARY
 options.group_replication_primary_member =
-    options.group_replication_membership[mysqld.global.primary_id][0];
+    options.group_replication_members[mysqld.global.primary_id][0];
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
@@ -66,6 +57,8 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_commit",
       "router_rollback",
       "router_select_schema_version",
+      "router_check_member_state",
+      "router_select_members_count",
       "router_select_group_membership_with_primary_mode",
       "router_select_group_replication_primary_member",
       "router_update_last_check_in_v2",
@@ -86,16 +79,18 @@ var common_responses_regex = common_stmts.prepare_statement_responses_regex(
 // in this test the GR members need to be independent from the nodes in the
 // cluster metadata as we want to test the behavior in case of the metadata
 // inconsistency
-var cluster_nodes_online =
-    nodes(mysqld.global.gr_node_host, mysqld.global.cluster_nodes);
+var gr_nodes_online = gr_memberships.gr_members(
+    mysqld.global.gr_node_host, mysqld.global.cluster_nodes);
 var options_cluster_members = {
   gr_id: mysqld.global.gr_id,
-  group_replication_membership: cluster_nodes_online,
+  group_replication_members: gr_nodes_online,
+  innodb_cluster_instances: gr_memberships.cluster_nodes(
+      mysqld.global.gr_node_host, mysqld.global.cluster_nodes),
   cluster_type: mysqld.global.cluster_type,
 };
 options_cluster_members.group_replication_primary_member =
     options_cluster_members
-        .group_replication_membership[mysqld.global.primary_id][0];
+        .group_replication_members[mysqld.global.primary_id][0];
 var router_select_metadata =
     common_stmts.get("router_select_metadata_v2_gr", options_cluster_members);
 

@@ -1,4 +1,7 @@
 # Tests for the SECONDARY_ENGINE table option.
+# Most DDLs are allowed on tables with SECONDARY_ENGINE when
+# the corresponding SECONDARY_ENGINE plugin is not installed.
+# Following tests are with SECONDARY_ENGINE plugin that doesn't exist.
 
 --echo #
 --echo # Attempt to load table into an undefined secondary engine.
@@ -12,7 +15,7 @@ DROP TABLE t1;
 --echo # Attempt to load table into an unknown storage engine.
 --echo #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
---error ER_UNKNOWN_STORAGE_ENGINE
+# expect warning
 ALTER TABLE t1 SECONDARY_LOAD;
 DROP TABLE t1;
 
@@ -68,7 +71,7 @@ CREATE TABLE t1 (a INT) ENGINE MYISAM SECONDARY_ENGINE NONEXISTENT;
 --echo # support loading into a secondary engine.
 --echo #
 CREATE TABLE t1 (a INT) ENGINE InnoDB SECONDARY_ENGINE NONEXISTENT;
---error ER_SECONDARY_ENGINE_DDL
+--error ER_SECONDARY_ENGINE
 ALTER TABLE t1 ENGINE MYISAM;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
@@ -82,29 +85,22 @@ CREATE TABLE t1 (a INT) SECONDARY_LOAD;
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT, SECONDARY_LOAD;
 
 --echo #
---echo # Attempt to alter a table after a secondary engine has been defined.
+--echo # Alter a table after a secondary engine has been defined.
 --echo #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
---error ER_SECONDARY_ENGINE_DDL
-ALTER TABLE t1 COMMENT="Test";
---error ER_SECONDARY_ENGINE_DDL
-ALTER TABLE t1 COMMENT="Test", ALGORITHM=INPLACE;
---error ER_SECONDARY_ENGINE_DDL
-ALTER TABLE t1 COMMENT="Test", ALGORITHM=COPY;
---error ER_SECONDARY_ENGINE_DDL
+ALTER TABLE t1 COMMENT="Test1";
+ALTER TABLE t1 COMMENT="Test2", ALGORITHM=INPLACE;
+ALTER TABLE t1 COMMENT="Test3", ALGORITHM=COPY;
 ALTER TABLE t1 ADD COLUMN (b INT);
---error ER_SECONDARY_ENGINE_DDL
-ALTER TABLE t1 ADD COLUMN (b INT), ALGORITHM=INPLACE;
---error ER_SECONDARY_ENGINE_DDL
-ALTER TABLE t1 ADD COLUMN (b INT), ALGORITHM=COPY;
+ALTER TABLE t1 ADD COLUMN (c INT), ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN (d INT), ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 --echo #
---echo # Attempt to truncate a table after a secondary engine has been defined.
+--echo # Truncate a table after a secondary engine has been defined.
 --echo #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
---error ER_SECONDARY_ENGINE_DDL
 TRUNCATE TABLE t1;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
@@ -133,12 +129,11 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 --echo #
---echo # Attempt to rename a table with a secondary engine defined.
+--echo # Rename a table with a secondary engine defined.
 --echo #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
---error ER_SECONDARY_ENGINE_DDL
 RENAME TABLE t1 TO t2;
-DROP TABLE t1;
+DROP TABLE t2;
 
 --echo #
 --echo # Attempt to use SECONDARY_LOAD in conjunction with another DDL.
@@ -170,16 +165,14 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 --echo #
---echo # It should not be possible to set or remove NOT SECONDARY on a column
+--echo # It should be possible to set or remove NOT SECONDARY on a column
 --echo # if the table is defined with a secondary engine.
 --echo #
 CREATE TABLE t1 (a INT NOT SECONDARY, b INT NOT SECONDARY);
 ALTER TABLE t1 MODIFY a INT;
 ALTER TABLE t1 SECONDARY_ENGINE MOCK;
 SHOW CREATE TABLE t1;
---error ER_SECONDARY_ENGINE_DDL
 ALTER TABLE t1 MODIFY b INT;
---error ER_SECONDARY_ENGINE_DDL
 ALTER TABLE t1 MODIFY a INT NOT SECONDARY;
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 SECONDARY_ENGINE NULL;

@@ -116,7 +116,7 @@ while ($_rpl_server)
 
   if (!$skip_recovery_configuration)
   {
-    --error 0, ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+    --error 0, ER_REPLICA_CHANNEL_DOES_NOT_EXIST
     RESET REPLICA ALL FOR CHANNEL "group_replication_recovery";
     # Set distributed recovery user.
     --disable_warnings
@@ -124,7 +124,7 @@ while ($_rpl_server)
     --enable_warnings
   }
 
-  --error 0, ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+  --error 0, ER_REPLICA_CHANNEL_DOES_NOT_EXIST
   RESET REPLICA ALL FOR CHANNEL "group_replication_applier";
 
   if ($rpl_privilege_checks_user == ''){

@@ -1,5 +1,5 @@
 ﻿/*
-   Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,14 @@
 // Implements the interface defined in
 #include "storage/ndb/plugin/ndb_apply_status_table.h"
 
+#include <algorithm>
+#include <functional>
 #include <sstream>
 
 #include "storage/ndb/plugin/ndb_dd_table.h"
-#include "storage/ndb/plugin/ndb_thd_ndb.h"
+#include "storage/ndb/plugin/ndb_retry.h"
+
+class Thd_ndb;
 
 const std::string Ndb_apply_status_table::DB_NAME = "mysql";
 const std::string Ndb_apply_status_table::TABLE_NAME = "ndb_apply_status";
@@ -38,6 +42,14 @@ static const char *COL_EPOCH = "epoch";
 static const char *COL_LOG_NAME = "log_name";
 static const char *COL_START_POS = "start_pos";
 static const char *COL_END_POS = "end_pos";
+
+// Numeric constants for the column numbers of ndb_apply_status, these are only
+// used in the "applier hot path" to avoid lookup of column from name
+constexpr Uint32 COLNUM_SERVER_ID = 0;
+constexpr Uint32 COLNUM_EPOCH = 1;
+constexpr Uint32 COLNUM_LOG_NAME = 2;
+constexpr Uint32 COLNUM_START_POS = 3;
+constexpr Uint32 COLNUM_END_POS = 4;
 
 Ndb_apply_status_table::Ndb_apply_status_table(Thd_ndb *thd_ndb)
     : Ndb_util_table(thd_ndb, DB_NAME, TABLE_NAME, false) {}
@@ -213,4 +225,156 @@ bool Ndb_apply_status_table::is_apply_status_table(const char *db,
     return true;
   }
   return false;
+}
+
+// Function for scanning ndb_apply_status to get current state
+static const NdbError *read_epochs_func(
+    NdbTransaction *trans, const NdbDictionary::Table *ndb_table,
+    Uint32 own_server_id, const std::vector<Uint32> &ignore_server_ids,
+    Uint32 source_server_id, Uint64 *highest_applied_epoch,
+    Uint64 *source_epoch, std::vector<Uint32> *server_ids) {
+  NdbScanOperation *op = trans->getNdbScanOperation(ndb_table);
+  if (op == nullptr) {
+    return &trans->getNdbError();
+  }
+
+  if (op->readTuples() != 0) {
+    return &op->getNdbError();
+  }
+
+  // Define the attributes to be fetched
+  const NdbRecAttr *server_id_ra = op->getValue(COL_SERVER_ID);
+  const NdbRecAttr *epoch_ra = op->getValue(COL_EPOCH);
+  if (!server_id_ra || !epoch_ra) {
+    return &op->getNdbError();
+  }
+
+  // Start scanning
+  if (trans->execute(NdbTransaction::NoCommit)) {
+    return &trans->getNdbError();
+  }
+
+  // Process the results
+  while (true) {
+    const int r = op->nextResult();
+    if (r < 0) {
+      // Failed to fetch next row
+      return &op->getNdbError();
+    }
+    if (r > 0) {
+      // No more rows
+      break;
+    }
+
+    const Uint32 read_server_id = server_id_ra->u_32_value();
+    const Uint64 read_epoch = epoch_ra->u_64_value();
+    DBUG_PRINT("info", ("read_server_id: %u, read_epoch: %llu", read_server_id,
+                        read_epoch));
+
+    // 1) Determine MAX(epoch) for our server and all ignored server_id's
+    // see WL5353 Primary Cluster Conflict Detection.
+    if (read_server_id == own_server_id ||
+        (std::find(ignore_server_ids.begin(), ignore_server_ids.end(),
+                   read_server_id) != ignore_server_ids.end())) {
+      *highest_applied_epoch = std::max(read_epoch, *highest_applied_epoch);
+    }
+
+    // 2) epoch WHERE server_id == source_server_id
+    if (read_server_id == source_server_id) {
+      // Found row for source server, it's the primary key and thus
+      // there can only be one epoch that matches this condition
+      *source_epoch = read_epoch;
+    }
+
+    // 3) list of server_id's
+    server_ids->push_back(read_server_id);
+  }
+
+  // Successfully read the rows. Return to caller
+  return nullptr;
+}
+
+bool Ndb_apply_status_table::load_state(
+    Uint32 own_server_id, const std::vector<Uint32> &ignore_server_ids,
+    Uint32 source_server_id, Uint64 &highest_applied_epoch,
+    Uint64 &source_epoch, std::vector<Uint32> &server_ids) const {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("own_server_id: %u", own_server_id));
+  DBUG_PRINT("enter", ("source_server_id: %u", source_server_id));
+
+  highest_applied_epoch = 0;
+  source_epoch = 0;
+
+  NdbError ndb_err;
+  if (!ndb_trans_retry(
+          get_ndb(), nullptr, ndb_err,
+          std::function<decltype(read_epochs_func)>(read_epochs_func),
+          get_table(), own_server_id, ignore_server_ids, source_server_id,
+          &highest_applied_epoch, &source_epoch, &server_ids)) {
+    push_ndb_error_warning(ndb_err);
+    push_warning("Failed to read epochs");
+    return false;
+  }
+
+  return true;
+}
+
+const NdbError *Ndb_apply_status_table::define_update_row(
+    NdbTransaction *trans, Uint32 server_id, std::string_view log_name,
+    Uint64 start_pos, Uint64 end_pos, Uint32 any_value) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("server_id: %u", server_id));
+  DBUG_PRINT("enter", ("log_name: '%s', start_pos: %llu, end_pos: %llu",
+                       log_name.data(), start_pos, end_pos));
+
+  NdbOperation *op = trans->getNdbOperation(get_table());
+  if (op == nullptr) {
+    return &trans->getNdbError();
+  }
+
+  char log_name_buf[FN_REFLEN];
+  pack_varchar(COLNUM_LOG_NAME, log_name, log_name_buf);
+
+  // Update row
+  if (op->updateTuple() != 0 ||
+      op->equal(COLNUM_SERVER_ID, server_id) != 0 ||  // PK
+      op->setValue(COLNUM_LOG_NAME, log_name_buf) != 0 ||
+      op->setValue(COLNUM_START_POS, start_pos) != 0 ||
+      op->setValue(COLNUM_END_POS, end_pos) != 0 ||
+      op->setAnyValue(any_value) != 0) {
+    return &op->getNdbError();
+  }
+
+  return nullptr;
+}
+
+const NdbError *Ndb_apply_status_table::define_write_row(
+    NdbTransaction *trans, Uint32 server_id, Uint64 epoch,
+    std::string_view log_name, Uint64 start_pos, Uint64 end_pos,
+    Uint32 any_value) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("server_id: %u", server_id));
+  DBUG_PRINT("enter", ("log_name: '%s', start_pos: %llu, end_pos: %llu",
+                       log_name.data(), start_pos, end_pos));
+
+  NdbOperation *op = trans->getNdbOperation(get_table());
+  if (op == nullptr) {
+    return &trans->getNdbError();
+  }
+
+  char log_name_buf[FN_REFLEN];
+  pack_varchar(COLNUM_LOG_NAME, log_name, log_name_buf);
+
+  // Write row
+  if (op->writeTuple() != 0 ||
+      op->equal(COLNUM_SERVER_ID, server_id) != 0 ||  // PK
+      op->setValue(COLNUM_EPOCH, epoch) != 0 ||
+      op->setValue(COLNUM_LOG_NAME, log_name_buf) != 0 ||
+      op->setValue(COLNUM_START_POS, start_pos) != 0 ||
+      op->setValue(COLNUM_END_POS, end_pos) != 0 ||
+      op->setAnyValue(any_value) != 0) {
+    return &op->getNdbError();
+  }
+
+  return nullptr;
 }

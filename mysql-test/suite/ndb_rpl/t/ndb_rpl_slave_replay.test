@@ -26,7 +26,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=4;
 START REPLICA;
 
 --echo Capture current count of epoch decline warnings
---let mysqld_name=mysqld.1.slave
+--let $mysqld_name=mysqld.1.slave
 --source ndb_rpl_get_server_error_log.inc
 --disable_query_log
 --disable_result_log
@@ -159,8 +159,8 @@ while($i)
 --connection slave
 --disable_query_log
 call mtr.add_suppression("NDB Replica: SQL thread stopped as applying epoch .*");
-call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
-call mtr.add_suppression("Slave: Got error 173 .*");
+call mtr.add_suppression("Replica SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Replica: Got error 173 .*");
 --enable_query_log
 
 --echo Check that slave stopped with an error
@@ -240,8 +240,8 @@ while($i)
 --connection slave
 --disable_query_log
 call mtr.add_suppression("NDB Replica: SQL thread stopped as attempted to reapply already committed epoch .*");
-call mtr.add_suppression("Slave SQL for channel '': Worker 1 failed executing .* HA_ERR_ROWS_EVENT_APPLY; .*");
-call mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*MY-001756");
+call mtr.add_suppression("Replica SQL for channel '': Worker 1 failed executing .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*MY-001756");
 --enable_query_log
 
 --echo Check that slave stopped with an error
@@ -321,8 +321,8 @@ while($i)
 --connection slave
 --disable_query_log
 call mtr.add_suppression("NDB Replica: SQL thread stopped as attempting to apply new epoch .*");
-call mtr.add_suppression("Slave SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
-call mtr.add_suppression("Slave: Got error 173 .*");
+call mtr.add_suppression("Replica SQL for channel '': Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Replica: Got error 173 .*");
 --enable_query_log
 
 --echo Check that slave stopped with an error

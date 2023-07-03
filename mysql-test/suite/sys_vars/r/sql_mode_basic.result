@@ -703,7 +703,7 @@ DROP PROCEDURE p1;
 DROP TABLE t1;
 SET @@session.pseudo_replica_mode = @session_pseudo_replica_mode;
 Warnings:
-Warning	1231	Slave applier execution mode not active, statement ineffective.
+Warning	1231	Replica applier execution mode not active, statement ineffective.
 SET @@session.sql_mode = DEFAULT;
 SET @@global.sql_mode = @global_start_value;
 SELECT @@global.sql_mode;

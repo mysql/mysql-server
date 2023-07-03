@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 
 SET(WITH_NODEJS_INCLUDE_PATH "" CACHE PATH "location of node.js header files")
 
-SET(NODE_VERSION 16.15.0)
+SET(NODE_VERSION 18.12.1)
 
 IF(NDB_NODEJS_EXTRAS_PATH)
   SET(NODE_LIBRARIES ${NDB_NODEJS_EXTRAS_PATH}/windows-libs/${NODE_VERSION})

@@ -1,10 +1,10 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 CALL mtr.add_suppression("Failed to set up SSL because of the following *");
-CALL mtr.add_suppression("Slave SQL for channel '': Request to stop slave SQL Thread received while *");
+CALL mtr.add_suppression("Replica SQL for channel '': Request to stop replica SQL Thread received while *");
 [on master]
 SET GLOBAL ssl_fips_mode=on;
 [on slave]
@@ -13,7 +13,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 include/check_slave_no_error.inc
 [on slave]
@@ -22,7 +22,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1;;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -35,7 +35,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'AES128-SHA';;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 include/check_slave_no_error.inc
 include/stop_slave.inc
@@ -43,7 +43,7 @@ include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL=0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/rpl_reset.inc
 [on master]
 SET GLOBAL ssl_fips_mode=off;

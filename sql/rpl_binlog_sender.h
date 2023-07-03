@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -430,11 +430,11 @@ class Binlog_sender {
   }
 
   inline void set_fatal_error(const char *errmsg) {
-    set_error(ER_MASTER_FATAL_ERROR_READING_BINLOG, errmsg);
+    set_error(ER_SOURCE_FATAL_ERROR_READING_BINLOG, errmsg);
   }
 
   inline bool is_fatal_error() {
-    return m_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG;
+    return m_errno == ER_SOURCE_FATAL_ERROR_READING_BINLOG;
   }
 
   inline bool event_checksum_on() {

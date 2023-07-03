@@ -2120,7 +2120,7 @@ EXPLAIN
             -> Table scan on table1, activating pushed join of 3 tables
             -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int), child of table1 in pushed join
         -> Nested loop inner join
-            -> Index lookup on table3 using ix1 (col_int=9), activating pushed join of 2 tables
+            -> Index lookup on table3 using PRIMARY (col_int=9), activating pushed join of 2 tables
             -> Single-row index lookup on table4 using ix1 (col_int_unique=table3.col_int_unique), child of table3 in pushed join, with pushed condition: (table4.col_int = 9)
     -> Nested loop inner join
         -> Nested loop left join
@@ -3511,10 +3511,7 @@ EXPLAIN
 -> Limit: 1 row(s)
     -> Table scan on <temporary>
         -> Temporary table
-            -> Left hash join (no condition)
-                -> Table scan on table1
-                -> Hash
-                    -> Zero rows (Impossible filter)
+            -> Table scan on table1
 
 SELECT DISTINCT
 4 AS field1
@@ -5227,6 +5224,61 @@ field1	field2	field3
 0	41	0
 0	5	0
 0	NULL	0
+##################
+#
+# Bug#34782276:
+#   Improve SPJ-internal execution plan, evaluate inner-joins first
+#
+##################
+explain format=tree SELECT
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM x AS table1
+JOIN q AS table2
+RIGHT OUTER JOIN q AS table3
+LEFT OUTER JOIN x AS table4 ON table3.pk = table4.col_int_key
+ON table2.col_int = table3.col_int AND
+table2.col_int_unique = table3.col_int_unique
+ON table1.col_int =  table4.col_int_unique;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop left join
+        -> Nested loop inner join
+            -> Table scan on table3, activating pushed join of 4 tables
+            -> Index lookup on table4 using col_int_key (col_int_key=table3.pk), child of table3 in pushed join, with pushed condition: (table4.col_int_unique is not null)
+        -> Single-row index lookup on table2 using ix1 (col_int=table3.col_int, col_int_unique=table3.col_int_unique), child of table3 in pushed join
+    -> Index lookup on table1 using PRIMARY (col_int=table4.col_int_unique), child of table4 in pushed join
+
+SELECT
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM x AS table1
+JOIN q AS table2
+RIGHT OUTER JOIN q AS table3
+LEFT OUTER JOIN x AS table4 ON table3.pk = table4.col_int_key
+ON table2.col_int = table3.col_int AND
+table2.col_int_unique = table3.col_int_unique
+ON table1.col_int =  table4.col_int_unique;
+pk	pk	pk	pk
+10	3	3	26
+13	1	1	17
+15	1	1	17
+16	3	3	26
+17	1	1	10
+18	1	1	10
+19	3	3	26
+2	1	1	17
+20	3	3	26
+22	1	1	17
+23	1	1	10
+24	3	3	26
+25	1	1	17
+26	3	3	26
+27	1	1	10
+4	1	1	10
+5	1	1	10
+6	1	1	17
+7	1	1	17
+8	3	3	26
+9	3	3	26
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
 ##################
 #

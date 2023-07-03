@@ -19,7 +19,7 @@ save_master_pos;
 connection slave;
 
 # Add suppression for expected warning(s) in slaves error log
-call mtr.add_suppression("Slave: Can\'t find record in \'user\' Error_code: 1032");
+call mtr.add_suppression("Replica: Can\'t find record in \'user\' Error_code: 1032");
 
 sync_with_master;
 reset master;

@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 #
 # Setup
@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection slave]
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression("The query does not comply with variable require_row_format restrictions");
 include/start_slave.inc
 # FR1: Receiver thread does not error on an event that violates

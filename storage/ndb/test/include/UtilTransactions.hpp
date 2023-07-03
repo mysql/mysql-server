@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,13 +31,15 @@ typedef int (ReadCallBackFn)(NDBT_ResultRow*);
 
 class UtilTransactions {
 public:
-  Uint64 m_util_latest_gci;
+  Uint64 m_util_latest_gci{0};
   Uint32 get_high_latest_gci()
   {
+    assert(m_util_latest_gci != 0);
     return Uint32(Uint64(m_util_latest_gci >> 32));
   }
   Uint32 get_low_latest_gci()
   {
+    assert(m_util_latest_gci != 0);
     return Uint32(Uint64(m_util_latest_gci & 0xFFFFFFFF));
   }
   UtilTransactions(const NdbDictionary::Table&,
@@ -295,6 +297,11 @@ private:
 			 bool transactional = false,
                          bool findNulls = false);
 
+  int verifyTableReplicasPkCompareRow(Ndb* pNdb, Uint32 nodeId,
+                                      const NDBT_ResultRow& scanRow);
+  int verifyTableReplicasScanAndCompareNodes(Ndb* pNdb, Uint32 sourceNodeId,
+                                             Uint32 numDataNodes,
+                                             Uint32 dataNodes[256]);
   int verifyTableReplicasWithSource(Ndb*, Uint32 sourceNodeId=0);
 
   int verifyOrderedIndexViews(Ndb* pNdb,
@@ -318,11 +325,10 @@ private:
             bool skipNull=false);
 
 protected:
-  int m_defaultClearMethod;
   const NdbDictionary::Table& tab;
   const NdbDictionary::Index* idx;
-  NdbConnection* pTrans;
-  Uint32 m_verbosity;
+  NdbConnection* pTrans{nullptr};
+  Uint32 m_verbosity{0};
   
   NdbOperation* getOperation(NdbConnection*, 
 			     NdbOperation::OperationType);

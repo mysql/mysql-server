@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [On Master]
 #
@@ -265,9 +265,6 @@ CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 I
 ERROR HY000: Plugin 'shsh' is not loaded
 include/assert.inc [assert that the above Event has not been added to binlog]
 CREATE USER u1;
-CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 IDENTIFIED BY 'nw';
-ERROR HY000: Plugin 'shsh' is not loaded
-include/assert.inc [assert that the above Event has not been added to binlog]
 DROP USER u3;
 # Errors scenarios related to password_history
 SET @old_password_history= @@GLOBAL.password_history;

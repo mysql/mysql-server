@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -500,8 +500,7 @@ class CostingReceiver {
                                       AccessPath *path,
                                       const char *description_for_trace);
   bool ProposeTableScan(TABLE *table, int node_idx,
-                        double force_num_output_rows_after_filter,
-                        bool is_recursive_reference);
+                        double force_num_output_rows_after_filter);
   bool ProposeIndexScan(TABLE *table, int node_idx,
                         double force_num_output_rows_after_filter,
                         unsigned key_idx, bool reverse, int ordering_idx);
@@ -762,8 +761,7 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
     }
   }
 
-  if (ProposeTableScan(table, node_idx, range_optimizer_row_estimate,
-                       tl->is_recursive_reference())) {
+  if (ProposeTableScan(table, node_idx, range_optimizer_row_estimate)) {
     return true;
   }
 
@@ -1325,23 +1323,27 @@ bool CostingReceiver::FindIndexRangeScans(
       // we'll be applying it as a normal one later.
       continue;
     }
-    tree_applied_predicates.SetBit(i);
-    if (new_tree->inexact) {
+
+    if (new_tree->keys_map.is_clear_all()) {
+      // The predicate was not converted into a range scan, so it won't be
+      // applied or subsumed by any index range scan.
+    } else if (new_tree->inexact) {
       // The predicate was converted into a range scan, but there was some part
       // of it that couldn't be completely represented. We need to note that
-      // it was converted (which we did by setting its bit in
-      // applied_range_predicates), so that we don't double-count its
+      // it was converted, so that we don't double-count its
       // selectivity, but we also need to re-apply it as a filter afterwards,
       // so we cannot set it in subsumed_range_predicates.
       // Of course, we don't know the selectivity of the non-applied parts
       // of the predicate, but it's OK to overcount rows (much better than to
       // undercount them).
+      tree_applied_predicates.SetBit(i);
     } else {
       // The predicate was completely represented as a range scan for at least
       // one index. This means we can mark it as subsumed for now, but note that
       // if we end up choosing some index that doesn't include the field as a
       // keypart, or one where (some of) its ranges have to be skipped, we could
       // revert this decision. See SEL_TREE::inexact and get_ranges_from_tree().
+      tree_applied_predicates.SetBit(i);
       tree_subsumed_predicates.SetBit(i);
     }
 
@@ -1361,6 +1363,12 @@ bool CostingReceiver::FindIndexRangeScans(
       // ie., we pick one part of the conjunction and have to check the other
       // by filter. So we need to note here that this has happened.
       merge.inexact = (new_tree->merges.size() > 1);
+
+      // Similarly, if there is also range scan arising from this predicate
+      // (again because of an AND inside an OR), we need to handle the index
+      // merge nonexactly, as the index merge will need to have the range
+      // predicate in a filter on top of it.
+      merge.inexact |= !new_tree->keys_map.is_clear_all();
 
       index_merges.push_back(merge);
     }
@@ -1751,6 +1759,10 @@ struct KeypartForRef {
   // Tables used by the condition. Necessarily includes the table “field”
   // is part of.
   table_map used_tables;
+
+  // Is it safe to evaluate "val" during optimization? It must be
+  // const_for_execution() and contain no subqueries or stored procedures.
+  bool can_evaluate;
 };
 
 int WasPushedDownToRef(Item *condition, const KeypartForRef *keyparts,
@@ -1790,13 +1802,6 @@ bool CostingReceiver::ProposeRefAccess(
   KeypartForRef keyparts[MAX_REF_PARTS];
   table_map parameter_tables = 0;
 
-  if (PopulationCount(allowed_parameter_tables) >
-      static_cast<int>(usable_keyparts)) {
-    // It is inevitable that we fail the (parameter_tables ==
-    // allowed_parameter_tables) test below, so error out earlier.
-    return false;
-  }
-
   for (unsigned keypart_idx = 0;
        keypart_idx < usable_keyparts && keypart_idx < MAX_REF_PARTS;
        ++keypart_idx) {
@@ -1812,29 +1817,17 @@ bool CostingReceiver::ProposeRefAccess(
       Item_func_eq *item = down_cast<Item_func_eq *>(
           m_graph->predicates[sp.predicate_index].condition);
       if (sp.field->eq(keyinfo.field)) {
-        // x = const.
-        if (sp.is_constant) {
+        const table_map other_side_tables =
+            sp.other_side->used_tables() & ~PSEUDO_TABLE_BITS;
+        if (IsSubset(other_side_tables, allowed_parameter_tables)) {
+          parameter_tables |= other_side_tables;
           matched_this_keypart = true;
           keyparts[keypart_idx].field = sp.field;
           keyparts[keypart_idx].condition = item;
           keyparts[keypart_idx].val = sp.other_side;
           keyparts[keypart_idx].null_rejecting = true;
           keyparts[keypart_idx].used_tables = item->used_tables();
-          ++matched_keyparts;
-          length += keyinfo.store_length;
-          break;
-        }
-
-        // x = other_table.field.
-        if (sp.other_side->type() == Item::FIELD_ITEM &&
-            IsSubset(sp.other_side->used_tables(), allowed_parameter_tables)) {
-          parameter_tables |= sp.other_side->used_tables();
-          matched_this_keypart = true;
-          keyparts[keypart_idx].field = sp.field;
-          keyparts[keypart_idx].condition = item;
-          keyparts[keypart_idx].val = sp.other_side;
-          keyparts[keypart_idx].null_rejecting = true;
-          keyparts[keypart_idx].used_tables = item->used_tables();
+          keyparts[keypart_idx].can_evaluate = sp.can_evaluate;
           ++matched_keyparts;
           length += keyinfo.store_length;
           break;
@@ -1956,7 +1949,7 @@ bool CostingReceiver::ProposeRefAccess(
     const KeypartForRef &keypart = keyparts[keypart_idx];
     bool subsumes;
     if (ref_lookup_subsumes_comparison(m_thd, keypart.field, keypart.val,
-                                       &subsumes)) {
+                                       keypart.can_evaluate, &subsumes)) {
       return true;
     }
     if (subsumes) {
@@ -2075,7 +2068,8 @@ bool HasConstantEqualityForField(
     const Field *field) {
   return std::any_of(sargable_predicates.begin(), sargable_predicates.end(),
                      [field](const SargablePredicate &sp) {
-                       return sp.is_constant && field->eq(sp.field);
+                       return sp.other_side->const_for_execution() &&
+                              field->eq(sp.field);
                      });
 }
 
@@ -2099,10 +2093,8 @@ bool CostingReceiver::ProposeAllUniqueIndexLookupsWithConstantKey(int node_idx,
   }
 
   TABLE *const table = m_graph->nodes[node_idx].table;
-  if (table->pos_in_table_list->is_recursive_reference() ||
-      Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
-    return false;
-  }
+  assert(!table->pos_in_table_list->is_recursive_reference());
+  assert(!Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS));
 
   for (const ActiveIndexInfo &index_info : *m_active_indexes) {
     if (index_info.table != table) {
@@ -2190,21 +2182,14 @@ void CostingReceiver::ProposeAccessPathForIndex(
 }
 
 bool CostingReceiver::ProposeTableScan(
-    TABLE *table, int node_idx, double force_num_output_rows_after_filter,
-    bool is_recursive_reference) {
+    TABLE *table, int node_idx, double force_num_output_rows_after_filter) {
+  Table_ref *tl = table->pos_in_table_list;
   AccessPath path;
-  if (is_recursive_reference) {
+  if (tl->is_recursive_reference()) {
     path.type = AccessPath::FOLLOW_TAIL;
     path.follow_tail().table = table;
     assert(forced_leftmost_table == 0);  // There can only be one, naturally.
     forced_leftmost_table = NodeMap{1} << node_idx;
-
-    // This will obviously grow, and it is zero now, so force a fairly arbitrary
-    // minimum.
-    // TODO(sgunders): We should probably go into the CTE and look at its number
-    // of expected output rows, which is another minimum.
-    table->file->stats.records =
-        std::max<ha_rows>(table->file->stats.records, 1000);
   } else {
     path.type = AccessPath::TABLE_SCAN;
     path.table_scan().table = table;
@@ -2217,8 +2202,8 @@ bool CostingReceiver::ProposeTableScan(
   // be replaced by something else.
   m_thd->set_status_no_index_used();
 
-  double num_output_rows = table->file->stats.records;
-  double cost = table->file->table_scan_cost().total_cost();
+  const double num_output_rows = table->file->stats.records;
+  const double cost = table->file->table_scan_cost().total_cost();
 
   path.num_output_rows_before_filter = num_output_rows;
   path.init_cost = path.init_once_cost = 0.0;
@@ -2238,7 +2223,6 @@ bool CostingReceiver::ProposeTableScan(
 
   // See if this is an information schema table that must be filled in before
   // we scan.
-  Table_ref *tl = table->pos_in_table_list;
   if (tl->schema_table != nullptr && tl->schema_table->fill_table) {
     // TODO(sgunders): We don't need to allocate materialize_path on the
     // MEM_ROOT.
@@ -2246,10 +2230,7 @@ bool CostingReceiver::ProposeTableScan(
     AccessPath *materialize_path =
         NewMaterializeInformationSchemaTableAccessPath(m_thd, new_path, tl,
                                                        /*condition=*/nullptr);
-
-    materialize_path->set_num_output_rows(path.num_output_rows());
-    materialize_path->num_output_rows_before_filter =
-        path.num_output_rows_before_filter;
+    materialize_path->num_output_rows_before_filter = num_output_rows;
     materialize_path->init_cost = path.cost;       // Rudimentary.
     materialize_path->init_once_cost = path.cost;  // Rudimentary.
     materialize_path->cost_before_filter = path.cost;
@@ -2258,16 +2239,7 @@ bool CostingReceiver::ProposeTableScan(
     materialize_path->delayed_predicates = path.delayed_predicates;
     new_path->filter_predicates.Clear();
     new_path->delayed_predicates.Clear();
-
-    // Some information schema tables have zero as estimate, which can lead
-    // to completely wild plans. Add a placeholder to make sure we have
-    // _something_ to work with.
-    if (materialize_path->num_output_rows_before_filter == 0) {
-      new_path->set_num_output_rows(1000);
-      new_path->num_output_rows_before_filter = 1000;
-      materialize_path->set_num_output_rows(1000);
-      materialize_path->num_output_rows_before_filter = 1000;
-    }
+    new_path->set_num_output_rows(num_output_rows);
 
     assert(!tl->uses_materialization());
     path = *materialize_path;
@@ -2286,13 +2258,7 @@ bool CostingReceiver::ProposeTableScan(
       CopyBasicProperties(*stable_path, materialize_path);
       materialize_path->cost_before_filter = materialize_path->init_cost =
           materialize_path->init_once_cost = materialize_path->cost;
-      materialize_path->num_output_rows_before_filter =
-          materialize_path->num_output_rows();
-
-      if (materialize_path->num_output_rows_before_filter <= 0.0) {
-        materialize_path->set_num_output_rows(1000.0);
-        materialize_path->num_output_rows_before_filter = 1000.0;
-      }
+      materialize_path->num_output_rows_before_filter = num_output_rows;
 
       materialize_path->parameter_tables = GetNodeMapFromTableMap(
           tl->table_function->used_tables() & ~PSEUDO_TABLE_BITS,
@@ -3453,12 +3419,19 @@ void CostingReceiver::ProposeHashJoin(
         FindOutputRowsForJoin(outer_input_rows, inner_input_rows, edge);
   }
 
+  // left_path and join_path.hash_join().outer are intentionally different if
+  // rewrite_semi_to_inner is true. See comment where DeduplicateForSemijoin()
+  // is called above. We want to calculate join cost based on the actual left
+  // child, so use join_path.hash_join().outer in cost calculations for
+  // join_path.
+  const AccessPath *outer = join_path.hash_join().outer;
+
   // TODO(sgunders): Add estimates for spill-to-disk costs.
   // NOTE: Keep this in sync with SimulateJoin().
   const double build_cost =
       right_path->cost + right_path->num_output_rows() * kHashBuildOneRowCost;
-  double cost = left_path->cost + build_cost +
-                left_path->num_output_rows() * kHashProbeOneRowCost +
+  double cost = outer->cost + build_cost +
+                outer->num_output_rows() * kHashProbeOneRowCost +
                 num_output_rows * kHashReturnOneRowCost;
 
   // Note: This isn't strictly correct if the non-equijoin conditions
@@ -3471,7 +3444,7 @@ void CostingReceiver::ProposeHashJoin(
   join_path.num_output_rows_before_filter = num_output_rows;
   join_path.cost_before_filter = cost;
   join_path.set_num_output_rows(num_output_rows);
-  join_path.init_cost = build_cost + left_path->init_cost;
+  join_path.init_cost = build_cost + outer->init_cost;
 
   double estimated_bytes_per_row = edge->estimated_bytes_per_row;
 
@@ -3509,10 +3482,10 @@ void CostingReceiver::ProposeHashJoin(
       right_path->parameter_tables == 0) {
     // Fits in memory (with 10% estimation margin), and has
     // no external dependencies, so the hash table can be reused.
-    join_path.init_once_cost = build_cost + left_path->init_once_cost;
+    join_path.init_once_cost = build_cost + outer->init_once_cost;
   } else {
     join_path.init_once_cost =
-        left_path->init_once_cost + right_path->init_once_cost;
+        outer->init_once_cost + right_path->init_once_cost;
   }
   join_path.cost = cost;
 
@@ -4002,7 +3975,15 @@ void CostingReceiver::ProposeNestedLoopJoin(
         FindOutputRowsForJoin(outer_input_rows, inner_input_rows, edge);
     join_path.set_num_output_rows(join_path.num_output_rows_before_filter);
   }
-  join_path.init_cost = left_path->init_cost;
+
+  // left_path and join_path.nested_loop_join().outer are intentionally
+  // different if rewrite_semi_to_inner is true. See comment where
+  // DeduplicateForSemijoin() is called above. We want to calculate join cost
+  // based on the actual left child, so use join_path.nested_loop_join().outer
+  // in cost calculations for join_path.
+  const AccessPath *outer = join_path.nested_loop_join().outer;
+
+  join_path.init_cost = outer->init_cost;
 
   // NOTE: The ceil() around the number of rows on the left side is a workaround
   // for an issue where we think the left side has a very low cardinality,
@@ -4011,8 +3992,8 @@ void CostingReceiver::ProposeNestedLoopJoin(
   // band-aid (we should “just” have better row estimation and/or braking
   // factors), but it should be fairly benign in general.
   join_path.cost_before_filter = join_path.cost =
-      left_path->cost + inner->init_cost +
-      inner_rescan_cost * ceil(left_path->num_output_rows());
+      outer->cost + inner->init_cost +
+      inner_rescan_cost * ceil(outer->num_output_rows());
 
   // Nested-loop preserves any ordering from the outer side. Note that actually,
   // the two orders are _concatenated_ (if you nested-loop join something
@@ -5309,21 +5290,6 @@ void EnableFullTextCoveringIndexes(const Query_block *query_block) {
   }
 }
 
-/// Does this path contain an EQ_REF path which has caching enabled?
-bool HasEqRefWithCache(AccessPath *path) {
-  bool found = false;
-  WalkAccessPaths(path, /*join=*/nullptr,
-                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
-                  [&found](const AccessPath *subpath, const JOIN *) {
-                    if (subpath->type == AccessPath::EQ_REF &&
-                        !subpath->eq_ref().ref->disable_cache) {
-                      found = true;
-                    }
-                    return found;
-                  });
-  return found;
-}
-
 /**
   Creates a ZERO_ROWS access path for an always empty join result, or a
   ZERO_ROWS_AGGREGATED in case of an implicitly grouped query. The zero rows
@@ -5341,22 +5307,25 @@ AccessPath *CreateZeroRowsForEmptyJoin(JOIN *join, const char *cause) {
   Creates an AGGREGATE AccessPath, possibly with an intermediary STREAM node if
   one is needed. The creation of the temporary table does not happen here, but
   is left for FinalizePlanForQueryBlock().
+
+  @param thd The current thread.
+  @param join The join to which 'path' belongs.
+  @param rollup True for "GROUP BY ... WITH ROLLUP".
+  @param row_estimate estimated number of output rows, so that we do not
+         need to recalculate it, or kUnknownRowCount if unknown.
+  @param trace Optimizer trace.
+  @returns The AGGREGATE AccessPath.
  */
 AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
                                           JOIN *join, bool rollup,
-                                          string *trace) {
+                                          double row_estimate, string *trace) {
   AccessPath *child_path = path;
   const Query_block *query_block = join->query_block;
 
   // Create a streaming node, if one is needed. It is needed for aggregation of
   // some full-text queries, because AggregateIterator doesn't preserve the
-  // position of the underlying scans. It is also needed if the query contains
-  // an EQ_REF path which caches the previous result, because EQRefIterator's
-  // caching assumes table->record[0] is left untouched between two calls to
-  // Read(), but AggregateIterator may change it when it switches between
-  // groups. Adding a STREAM object ensures that the EQRefIterator and the
-  // AggregateIterator work on different TABLE objects.
-  if (join->contains_non_aggregated_fts() || HasEqRefWithCache(path)) {
+  // position of the underlying scans.
+  if (join->contains_non_aggregated_fts()) {
     child_path = NewStreamingAccessPath(
         thd, path, join, /*temp_table_param=*/nullptr, /*table=*/nullptr,
         /*ref_slice=*/-1);
@@ -5367,6 +5336,7 @@ AccessPath CreateStreamingAggregationPath(THD *thd, AccessPath *path,
   aggregate_path.type = AccessPath::AGGREGATE;
   aggregate_path.aggregate().child = child_path;
   aggregate_path.aggregate().rollup = rollup;
+  aggregate_path.set_num_output_rows(row_estimate);
   EstimateAggregateCost(&aggregate_path, query_block, trace);
   return aggregate_path;
 }
@@ -5570,7 +5540,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      if (grouping.empty()) {
+      if (grouping.GetElements().empty()) {
         // Only const fields.
         AccessPath *limit_path = NewLimitOffsetAccessPath(
             thd, root_path, /*limit=*/1, /*offset=*/0, join->calc_found_rows,
@@ -5587,12 +5557,13 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         // TODO(sgunders): In some cases, we could apply LIMIT 1,
         // which would be slightly more efficient; see e.g. the test for
         // bug #33148369.
-        Item **group_items = thd->mem_root->ArrayAlloc<Item *>(grouping.size());
-        for (size_t i = 0; i < grouping.size(); ++i) {
-          group_items[i] = orderings.item(grouping[i].item);
+        Item **group_items =
+            thd->mem_root->ArrayAlloc<Item *>(grouping.GetElements().size());
+        for (size_t i = 0; i < grouping.GetElements().size(); ++i) {
+          group_items[i] = orderings.item(grouping.GetElements()[i].item);
         }
         AccessPath *dedup_path = NewRemoveDuplicatesAccessPath(
-            thd, root_path, group_items, grouping.size());
+            thd, root_path, group_items, grouping.GetElements().size());
         CopyBasicProperties(*root_path, dedup_path);
         // TODO(sgunders): Model the actual reduction in rows somehow.
         dedup_path->cost += kAggregateOneRowCost * root_path->num_output_rows();
@@ -5618,8 +5589,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         if (sort_ahead_ordering.ordering_idx == distinct_ordering_idx) {
           // The ordering derived from DISTINCT. Always propose this one,
           // regardless of whether it also satisfies the ORDER BY ordering.
-        } else if (grouping.size() <
+        } else if (grouping.GetElements().size() <
                    orderings.ordering(sort_ahead_ordering.ordering_idx)
+                       .GetElements()
                        .size()) {
           // This sort-ahead ordering is too wide and may cause duplicates to be
           // returned. Don't propose it.
@@ -5834,7 +5806,7 @@ static int FindBestOrderingForWindow(
     }
     Ordering ordering = orderings.ordering(ordering_idx);
     bool any_wf = false;
-    for (OrderElement elem : ordering) {
+    for (OrderElement elem : ordering.GetElements()) {
       WalkItem(orderings.item(elem.item), enum_walk::PREFIX,
                [&any_wf](Item *item) {
                  if (item->m_is_window_function) {
@@ -5885,10 +5857,11 @@ static int FindBestOrderingForWindow(
       is_best = false;
     } else if (num_matching_windows > best_num_matching_windows) {
       is_best = true;
-    } else if (orderings.ordering(ordering_idx).size() <
+    } else if (orderings.ordering(ordering_idx).GetElements().size() <
                orderings
                    .ordering(
                        sort_ahead_orderings[best_ordering_idx].ordering_idx)
+                   .GetElements()
                    .size()) {
       is_best = true;
     } else {
@@ -6181,7 +6154,8 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       continue;
     }
     Field *field = down_cast<Item_field *>(left)->field;
-    if (force_table != nullptr && force_table != field->table) {
+    TABLE *table = field->table;
+    if (force_table != nullptr && force_table != table) {
       continue;
     }
     if (field->part_of_key.is_clear_all()) {
@@ -6189,7 +6163,11 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       // key, though, but we include them for now.)
       continue;
     }
-    JoinHypergraph::Node *node = FindNodeWithTable(graph, field->table);
+    if (Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS)) {
+      // Can't use index lookups on this table, so not sargable.
+      continue;
+    }
+    JoinHypergraph::Node *node = FindNodeWithTable(graph, table);
     if (node == nullptr) {
       // A field in a different query block, so not sargable for us.
       continue;
@@ -6202,6 +6180,22 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       assert(CompatibleTypesForIndexLookup(eq_item, field, right));
     } else if (!CompatibleTypesForIndexLookup(eq_item, field, right)) {
       continue;
+    }
+
+    const table_map used_tables_left = table->pos_in_table_list->map();
+    const table_map used_tables_right = right->used_tables();
+
+    if (Overlaps(used_tables_left, used_tables_right)) {
+      // Not sargable if the tables on the left and right side overlap, such as
+      // t1.x = t1.y + t2.x. Will not be sargable in the opposite direction
+      // either, so "break" instead of "continue".
+      break;
+    }
+
+    if (Overlaps(used_tables_right, RAND_TABLE_BIT)) {
+      // Non-deterministic predicates are not sargable. Will not be sargable in
+      // the opposite direction either, so "break" instead of "continue".
+      break;
     }
 
     if (trace != nullptr) {
@@ -6233,19 +6227,18 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       graph->sargable_join_predicates.emplace(eq_item, predicate_index);
     }
 
-    // Remember if this predicate is field = const. Don't consider items with
-    // subqueries or stored procedures constant, as we don't want to execute
-    // them during optimization.
-    const bool is_constant =
-        (right->const_for_execution() && !right->has_subquery() &&
-         !right->is_expensive()) ||
-        right->used_tables() == OUTER_REF_TABLE_BIT;
+    // Can we evaluate the right side of the predicate during optimization (in
+    // ref_lookup_subsumes_comparison())? Don't consider items with subqueries
+    // or stored procedures constant, as we don't want to execute them during
+    // optimization.
+    const bool can_evaluate = right->const_for_execution() &&
+                              !right->has_subquery() && !right->is_expensive();
 
     node->sargable_predicates.push_back(
-        {predicate_index, field, right, is_constant});
+        {predicate_index, field, right, can_evaluate});
 
     // No need to check the opposite order. We have no indexes on constants.
-    if (is_constant) break;
+    if (can_evaluate) break;
   }
 }
 
@@ -6718,6 +6711,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       *trace += "Applying aggregation for GROUP BY\n";
     }
 
+    // Reuse this, so that we do not have to recalculate it for each
+    // alternative aggregate path.
+    double aggregate_rows = kUnknownRowCount;
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       const bool rollup = (join->rollup_state != JOIN::RollupState::NONE);
@@ -6727,8 +6723,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                                      group_by_ordering_idx);
 
       if (!group_needs_sort) {
-        AccessPath aggregate_path =
-            CreateStreamingAggregationPath(thd, root_path, join, rollup, trace);
+        AccessPath aggregate_path = CreateStreamingAggregationPath(
+            thd, root_path, join, rollup, aggregate_rows, trace);
+        aggregate_rows = aggregate_path.num_output_rows();
         receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
         continue;
@@ -6772,8 +6769,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                    sort_ahead_ordering.ordering_idx);
         }
 
-        AccessPath aggregate_path =
-            CreateStreamingAggregationPath(thd, sort_path, join, rollup, trace);
+        AccessPath aggregate_path = CreateStreamingAggregationPath(
+            thd, sort_path, join, rollup, aggregate_rows, trace);
+        aggregate_rows = aggregate_path.num_output_rows();
         receiver.ProposeAccessPath(&aggregate_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, description);
       }

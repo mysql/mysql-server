@@ -2,7 +2,7 @@ call mtr.add_suppression("Statement is unsafe because it is being used inside a 
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
@@ -21,7 +21,7 @@ INSERT INTO t2 VALUES (1);
 XA START 'xa_trx';
 INSERT INTO t1 VALUES(2);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END 'xa_trx';
 XA PREPARE 'xa_trx';
 XA ROLLBACK 'xa_trx';

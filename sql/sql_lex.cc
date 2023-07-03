@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -738,7 +738,8 @@ Query_block *LEX::new_set_operation_query(Query_block *curr_query_block) {
   return select;
 }
 
-Query_block *Query_expression::create_post_processing_block() {
+Query_block *Query_expression::create_post_processing_block(
+    Query_term_set_op *term) {
   Query_block *first_qb = first_query_block();
   DBUG_TRACE;
 
@@ -753,7 +754,8 @@ Query_block *Query_expression::create_post_processing_block() {
 
   /* allow item list resolving in fake select for ORDER BY */
   qb->context.resolve_in_select_list = true;
-  qb->no_table_names_allowed = true;
+  qb->no_table_names_allowed =
+      !term->is_unary() || first_qb->is_ordered() || first_qb->has_limit();
   first_qb->parent_lex->pop_context();
   return qb;
 }
@@ -3303,7 +3305,7 @@ void Query_block::print_from_clause(const THD *thd, String *str,
   /*
     from clause
   */
-  if (m_table_list.elements) {
+  if (has_tables()) {
     str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
     print_join(thd, str, &m_table_nest, query_type);
@@ -3450,8 +3452,7 @@ bool Query_block::accept(Select_lex_visitor *visitor) {
   }
 
   // From clause
-  if (m_table_list.elements != 0 &&
-      accept_for_join(m_current_table_nest, visitor))
+  if (has_tables() && accept_for_join(m_current_table_nest, visitor))
     return true;
 
   // Where clause
@@ -3795,9 +3796,9 @@ bool Query_expression::is_mergeable() const {
   if (is_set_operation()) return false;
 
   Query_block *const select = first_query_block();
-  return !select->is_grouped() && !select->having_cond() &&
-         !select->is_distinct() && select->m_table_list.elements > 0 &&
-         !select->has_limit() && select->m_windows.elements == 0;
+  return !select->is_grouped() && select->having_cond() == nullptr &&
+         !select->is_distinct() && select->has_tables() &&
+         !select->has_limit() && !select->has_windows();
 }
 
 /**

@@ -29,10 +29,10 @@
 set session sql_log_bin=0;
 call mtr.add_suppression("Can't start IO THREAD for channel 'ch3_1' when group replication is running a group configuration operation 'Change to single primary mode'*");
 call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
-call mtr.add_suppression("Slave I/O for channel 'ch3_1': Fatal error: Failed to run 'thread_start' hook, Error_code:*");
+call mtr.add_suppression("Replica I/O for channel 'ch3_1': Fatal error: Failed to run 'thread_start' hook, Error_code:*");
 call mtr.add_suppression("Can't start SQL THREAD for channel 'ch3_1' when group replication is running a group configuration operation 'Change to single primary mode'*");
 call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
-call mtr.add_suppression("Slave SQL for channel 'ch3_1': Fatal error: Failed to run 'applier_start' hook, Error_code:*");
+call mtr.add_suppression("Replica SQL for channel 'ch3_1': Fatal error: Failed to run 'applier_start' hook, Error_code:*");
 set session sql_log_bin=1;
 
 --source include/start_and_bootstrap_group_replication.inc
@@ -69,11 +69,11 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 
 --let $rpl_channel_name='ch3_1'
 
---let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_io_error= 0
 --let $slave_io_error_replace= / at [0-9]*/ at XXX/
 
---let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_sql_error= 0
 --let $slave_sql_error_replace= / at [0-9]*/ at XXX/
 

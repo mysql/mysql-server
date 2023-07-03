@@ -1947,17 +1947,17 @@ test.t3	analyze	status	OK
 EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON c < 3 and b = c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	100.00	Using index
-1	SIMPLE	t3	NULL	index	c	c	5	NULL	6	100.00	Using where; Using index
-1	SIMPLE	t2	NULL	ref	b	b	5	test.t3.c	1	100.00	Using index
+1	SIMPLE	t2	NULL	range	b	b	5	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	ref	c	c	5	test.t2.b	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t3`.`c` < 3))) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t3`.`c` = `test`.`t2`.`b`) and (`test`.`t2`.`b` < 3))) where true
 EXPLAIN SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	100.00	Using index
-1	SIMPLE	t3	NULL	index	c	c	5	NULL	6	100.00	Using where; Using index
-1	SIMPLE	t2	NULL	ref	b	b	5	test.t3.c	1	100.00	Using index
+1	SIMPLE	t2	NULL	range	b	b	5	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	ref	c	c	5	test.t2.b	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t3`.`c` < 3))) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t3`.`c` = `test`.`t2`.`b`) and (`test`.`t2`.`b` < 3))) where true
 SELECT a, b, c FROM t1 LEFT JOIN (t2, t3) ON b < 3 and b = c;
 a	b	c
 0	0	0
@@ -2654,7 +2654,7 @@ ON t6.b >= 2 AND t5.b=t7.b AND
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	index	NULL	b_i	5	NULL	3	100.00	Using index
 1	SIMPLE	t7	NULL	ref	b_i	b_i	5	test.t5.b	1	100.00	Using index
-1	SIMPLE	t6	NULL	index	b_i	b_i	5	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t6	NULL	range	b_i	b_i	5	NULL	2	100.00	Using where; Using index
 1	SIMPLE	t8	NULL	ALL	b_i	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b`,`test`.`t8`.`a` AS `a`,`test`.`t8`.`b` AS `b` from `test`.`t5` left join (`test`.`t6` join `test`.`t7` left join `test`.`t8` on(((`test`.`t8`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` < 10)))) on(((`test`.`t7`.`b` = `test`.`t5`.`b`) and (`test`.`t6`.`b` >= 2) and ((`test`.`t8`.`a` > 0) or (`test`.`t8`.`c` is null)))) where true

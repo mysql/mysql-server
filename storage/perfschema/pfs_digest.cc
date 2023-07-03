@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,8 @@ int init_digest(const PFS_global_param *param) {
 
   if (pfs_max_digest_length > 0) {
     /* Size of each digest array. */
-    size_t digest_memory_size = pfs_max_digest_length * sizeof(unsigned char);
+    const size_t digest_memory_size =
+        pfs_max_digest_length * sizeof(unsigned char);
 
     statements_digest_token_array =
         PFS_MALLOC_ARRAY(&builtin_memory_digest_tokens, digest_max,
@@ -109,7 +110,7 @@ int init_digest(const PFS_global_param *param) {
 
   if (pfs_max_sqltext > 0) {
     /* Size of each query sample text array. */
-    size_t sqltext_size = pfs_max_sqltext * sizeof(char);
+    const size_t sqltext_size = pfs_max_sqltext * sizeof(char);
 
     statements_digest_query_sample_text_array =
         PFS_MALLOC_ARRAY(&builtin_memory_digest_sample_sqltext, digest_max,
@@ -135,7 +136,7 @@ int init_digest(const PFS_global_param *param) {
 }
 
 /** Cleanup table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST. */
-void cleanup_digest(void) {
+void cleanup_digest() {
   PFS_FREE_ARRAY(&builtin_memory_digest, digest_max,
                  sizeof(PFS_statements_digest_stat),
                  statements_digest_stat_array);
@@ -224,7 +225,7 @@ int init_digest_hash(const PFS_global_param *param) {
   return 0;
 }
 
-void cleanup_digest_hash(void) {
+void cleanup_digest_hash() {
   if (digest_hash_inited) {
     lf_hash_destroy(&digest_hash);
     digest_hash_inited = false;
@@ -274,7 +275,7 @@ PFS_statements_digest_stat *find_or_create_digest(
   PFS_statements_digest_stat *pfs = nullptr;
   pfs_dirty_state dirty_state;
 
-  ulonglong now = my_micro_time();
+  const ulonglong now = my_micro_time();
 
 search:
 
@@ -385,7 +386,6 @@ static void purge_digest(PFS_thread *thread, PFS_digest_key *hash_key) {
     lf_hash_delete(&digest_hash, pins, hash_key, sizeof(PFS_digest_key));
   }
   lf_hash_search_unpin(pins);
-  return;
 }
 
 void PFS_statements_digest_stat::reset_data(unsigned char *token_array,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ class table_global_status : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_init(bool scan) override;
   int rnd_next() override;
@@ -99,7 +99,7 @@ class table_global_status : public PFS_engine_table {
   ~table_global_status() override = default;
 
  protected:
-  int make_row(const Status_variable *system_var);
+  int make_row(const Status_variable *status_var);
 
  private:
   /** Table share lock. */

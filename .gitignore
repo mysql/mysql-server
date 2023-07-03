@@ -27,3 +27,7 @@ heatwaveml.*
 automl.egg-info/
 _userconf.sh
 scalability_jobs_*
+# Configuration files for Eclipse
+.cproject
+.project
+.settings/

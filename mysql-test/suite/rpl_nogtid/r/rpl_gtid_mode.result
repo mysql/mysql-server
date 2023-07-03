@@ -1,23 +1,23 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 ==== Initialize ====
-call mtr.add_suppression("Slave I/O for channel '': The replication receiver thread cannot start");
-call mtr.add_suppression("Slave I/O for channel '': The slave IO thread stops");
-call mtr.add_suppression("Slave I/O for channel '': Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
-call mtr.add_suppression("Slave I/O for channel '': Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
+call mtr.add_suppression("Replica I/O for channel '': The replication receiver thread cannot start");
+call mtr.add_suppression("Replica I/O for channel '': The replica IO thread stops");
+call mtr.add_suppression("Replica I/O for channel '': Got fatal error 1236 from source when reading data from binary log: 'Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
+call mtr.add_suppression("Replica I/O for channel '': Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
 call mtr.add_suppression("GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT.");
-call mtr.add_suppression("An unexpected event sequence was detected by the IO thread while queuing the event received from master");
+call mtr.add_suppression("An unexpected event sequence was detected by the IO thread while queuing the event received from source");
 call mtr.add_suppression("Detected misconfiguration: replication channel '' was configured with AUTO_POSITION = 1, but the server was started with --gtid-mode=off.");
-call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: could not queue event from master");
-call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON");
-call mtr.add_suppression("Slave I/O for channel '': Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON");
-call mtr.add_suppression("Slave I/O for channel '': Cannot replicate anonymous transaction when AUTO_POSITION = 1");
-call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate anonymous transaction when AUTO_POSITION = 1,");
-call mtr.add_suppression("Slave I/O for channel '': The master uses an unknown GTID_MODE 'on_something'. Treating it as 'ON'.");
-call mtr.add_suppression("Slave I/O for channel '': The master uses an unknown GTID_MODE 'off_something'. Treating it as 'OFF'.");
+call mtr.add_suppression("Replica I/O for channel '': Relay log write failure: could not queue event from source");
+call mtr.add_suppression("Got fatal error 1236 from source when reading data from binary log: 'Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON");
+call mtr.add_suppression("Replica I/O for channel '': Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON");
+call mtr.add_suppression("Replica I/O for channel '': Cannot replicate anonymous transaction when AUTO_POSITION = 1");
+call mtr.add_suppression("Got fatal error 1236 from source when reading data from binary log: 'Cannot replicate anonymous transaction when AUTO_POSITION = 1,");
+call mtr.add_suppression("Replica I/O for channel '': The source uses an unknown GTID_MODE 'on_something'. Treating it as 'ON'.");
+call mtr.add_suppression("Replica I/O for channel '': The source uses an unknown GTID_MODE 'off_something'. Treating it as 'OFF'.");
 call mtr.add_suppression("Could not open .* for logging.*. Turning logging off for the whole duration of the MySQL server process.");
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
@@ -39,7 +39,7 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
-ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
+ERROR HY000: CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [1 on servers 2]
 START SLAVE IO_THREAD;
@@ -84,7 +84,7 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
-ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
+ERROR HY000: CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [1 on servers 2]
 START SLAVE IO_THREAD;
@@ -128,7 +128,7 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
-ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
+ERROR HY000: CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [1 on servers 2]
 START SLAVE IO_THREAD;
@@ -173,7 +173,7 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
-ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
+ERROR HY000: CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1 cannot be executed because @@GLOBAL.GTID_MODE = OFF.
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 include/rpl_set_gtid_mode.inc [1 on servers 2]
 START SLAVE IO_THREAD;
@@ -249,7 +249,7 @@ include/rpl_set_gtid_mode.inc [OFF on servers 2]
 [connection master]
 CREATE TABLE t2(a int);
 [connection slave]
-include/wait_for_slave_io_error.inc [errno=13122 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE]
+include/wait_for_slave_io_error.inc [errno=13122 # ER_REPLICA_RELAY_LOG_WRITE_FAILURE]
 include/assert_grep.inc [Receiver thread should report - Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF.]
 [connection master]
 DROP TABLE t2;
@@ -302,7 +302,7 @@ include/rpl_set_gtid_mode.inc [OFF on servers 1]
 [connection master]
 CREATE TABLE t4(a int);
 [connection slave]
-include/wait_for_slave_io_error.inc [errno=13122 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE]
+include/wait_for_slave_io_error.inc [errno=13122 # ER_REPLICA_RELAY_LOG_WRITE_FAILURE]
 include/assert_grep.inc [While gtid-mode=on, slave expects an anonymous event to get ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON.]
 include/stop_slave_sql.inc
 include/rpl_set_gtid_mode.inc [OFF on servers 2]
@@ -383,7 +383,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
-include/wait_for_slave_io_error.inc [errno=13122 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE]
+include/wait_for_slave_io_error.inc [errno=13122 # ER_REPLICA_RELAY_LOG_WRITE_FAILURE]
 include/assert_grep.inc [While AUTO_POSITION is enabled, Master sends an anonymous transaction resulting into ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION.]
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
@@ -450,7 +450,7 @@ START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13117]
-Last_IO_Error = 'The slave IO thread stops because the master has an unknown @@GLOBAL.GTID_MODE 'Krakel Spektakel'.'
+Last_IO_Error = 'The replica IO thread stops because the source has an unknown @@GLOBAL.GTID_MODE 'Krakel Spektakel'.'
 SET @@GLOBAL.DEBUG= @debug_saved;
 SET @@GLOBAL.GTID_MODE = OFF_PERMISSIVE;
 RESET SLAVE;
@@ -462,7 +462,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 include/rpl_set_gtid_mode.inc [ON on servers 1]
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 SET @@GLOBAL.GTID_MODE = OFF;
-ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because replication channel '' is configured in AUTO_POSITION mode. Execute CHANGE MASTER TO MASTER_AUTO_POSITION = 0 FOR CHANNEL '' before you set @@GLOBAL.GTID_MODE = OFF..
+ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because replication channel '' is configured in AUTO_POSITION mode. Execute CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL '' before you set @@GLOBAL.GTID_MODE = OFF..
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 SET @@GLOBAL.GTID_MODE = OFF;
 include/rpl_set_gtid_mode.inc [OFF on servers 1]

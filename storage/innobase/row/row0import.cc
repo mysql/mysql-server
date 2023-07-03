@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -312,6 +312,9 @@ struct row_import {
 
   /** Compression type in the meta-data file */
   Compression::Type m_compression_type{};
+
+  /** Encryption settings */
+  Encryption_metadata m_encryption_metadata{};
 };
 
 /** Use the page cursor to iterate over records in a block. */
@@ -2807,9 +2810,6 @@ static void row_import_discard_changes(
 
   trx_commit_for_mysql(trx);
 
-  prebuilt->table->encryption_key = nullptr;
-  prebuilt->table->encryption_iv = nullptr;
-
   row_mysql_unlock_data_dictionary(trx);
 
   trx_free_for_mysql(trx);
@@ -4194,11 +4194,11 @@ Read the contents of the @<tablename@>.cfg file.
 }
 
 /** Read the contents of the .cfp file.
-@param[in]      table           table
+@param[out]     cfg             the encryption key will be stored to it
 @param[in]      file            file to read from
 @param[in]      thd             session
 @return DB_SUCCESS or error code. */
-static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
+static dberr_t row_import_read_encryption_data(row_import &cfg, FILE *file,
                                                THD *thd) {
   byte row[sizeof(uint32_t)];
   ulint key_size;
@@ -4248,21 +4248,9 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
 
     return (DB_IO_ERROR);
   }
-
-  lint old_size = mem_heap_get_size(table->heap);
-
-  table->encryption_key =
-      static_cast<byte *>(mem_heap_alloc(table->heap, Encryption::KEY_LEN));
-
-  table->encryption_iv =
-      static_cast<byte *>(mem_heap_alloc(table->heap, Encryption::KEY_LEN));
-
-  lint new_size = mem_heap_get_size(table->heap);
-  dict_sys->size += new_size - old_size;
-
   /* Decrypt tablespace key and iv. */
   elen = my_aes_decrypt(encryption_key, Encryption::KEY_LEN,
-                        table->encryption_key, transfer_key,
+                        cfg.m_encryption_metadata.m_key, transfer_key,
                         Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
@@ -4273,8 +4261,8 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
   }
 
   elen = my_aes_decrypt(encryption_iv, Encryption::KEY_LEN,
-                        table->encryption_iv, transfer_key, Encryption::KEY_LEN,
-                        my_aes_256_ecb, nullptr, false);
+                        cfg.m_encryption_metadata.m_iv, transfer_key,
+                        Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
     ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
@@ -4282,6 +4270,8 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
 
     return (DB_IO_ERROR);
   }
+  cfg.m_encryption_metadata.m_type = Encryption::Type::AES;
+  cfg.m_encryption_metadata.m_key_len = Encryption::KEY_LEN;
 
   return (DB_SUCCESS);
 }
@@ -4297,8 +4287,7 @@ static dberr_t row_import_read_cfp(dict_table_t *table, THD *thd,
   char name[OS_FILE_MAX_PATH];
 
   /* Clear table encryption information. */
-  table->encryption_key = nullptr;
-  table->encryption_iv = nullptr;
+  import.m_encryption_metadata.m_type = Encryption::Type::NONE;
 
   srv_get_encryption_data_filename(table, name, sizeof(name));
 
@@ -4308,7 +4297,7 @@ static dberr_t row_import_read_cfp(dict_table_t *table, THD *thd,
 
   if (file != nullptr) {
     import.m_cfp_missing = false;
-    err = row_import_read_encryption_data(table, file, thd);
+    err = row_import_read_encryption_data(import, file, thd);
     fclose(file);
   } else {
     /* If there's no cfp file, we assume it's not an
@@ -4409,7 +4398,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   /* Prevent DDL operations while we are checking. */
   rw_lock_s_lock_func(dict_operation_lock, 0, UT_LOCATION_HERE);
 
-  row_import cfg;
+  row_import cfg{};
   ulint space_flags = 0;
 
   /* Read CFP file */
@@ -4433,8 +4422,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
       return (row_import_error(prebuilt, trx, err));
     } else {
       /* If CFP file is read, encryption_key must have been populted. */
-      ut_ad(table->encryption_key != nullptr &&
-            table->encryption_iv != nullptr);
+      ut_ad(cfg.m_encryption_metadata.can_encrypt());
     }
   }
 
@@ -4486,7 +4474,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     FetchIndexRootPages fetchIndexRootPages(table, trx);
 
     err = fil_tablespace_iterate(
-        table,
+        cfg.m_encryption_metadata, table,
         IO_BUFFER_SIZE(cfg.m_page_size.physical(), cfg.m_page_size.physical()),
         cfg.m_compression_type, fetchIndexRootPages);
 
@@ -4552,7 +4540,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   /* Set the IO buffer size in pages. */
 
   err = fil_tablespace_iterate(
-      table,
+      cfg.m_encryption_metadata, table,
       IO_BUFFER_SIZE(cfg.m_page_size.physical(), cfg.m_page_size.physical()),
       cfg.m_compression_type, converter);
 
@@ -4618,7 +4606,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   fil_space_set_imported() to declare it a persistent tablespace. */
 
   uint32_t fsp_flags = dict_tf_to_fsp_flags(table->flags);
-  if (table->encryption_key != nullptr) {
+  if (cfg.m_encryption_metadata.can_encrypt()) {
     fsp_flags_set_encryption(fsp_flags);
   }
 
@@ -4644,8 +4632,10 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   /* For encrypted tablespace, set encryption information. */
   if (FSP_FLAGS_GET_ENCRYPTION(fsp_flags)) {
-    err = fil_set_encryption(table->space, Encryption::AES,
-                             table->encryption_key, table->encryption_iv);
+    ut_ad(cfg.m_encryption_metadata.can_encrypt());
+    err = fil_set_encryption(table->space, cfg.m_encryption_metadata.m_type,
+                             cfg.m_encryption_metadata.m_key,
+                             cfg.m_encryption_metadata.m_iv);
   }
 
   const char *compression_algorithm =

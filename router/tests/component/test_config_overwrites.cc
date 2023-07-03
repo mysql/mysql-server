@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -492,13 +492,10 @@ TEST_P(MetadataConfigTest, MetadataConfig) {
 
   const std::string metadata_cache_section =
       mysql_harness::ConfigBuilder::build_section(
-          "metadata_cache:test",
-          {
-              {"cluster_type", "gr"},
-              {"bootstrap_server_addresses",
-               "mysql://localhost:" + std::to_string(md_server_port)},
-              {"metadata_cluster", "test"},
-          });
+          "metadata_cache:test", {
+                                     {"cluster_type", "gr"},
+                                     {"metadata_cluster", "test"},
+                                 });
 
   const std::string routing_section =
       mysql_harness::ConfigBuilder::build_section(
@@ -511,6 +508,11 @@ TEST_P(MetadataConfigTest, MetadataConfig) {
 
   auto default_section = get_DEFAULT_defaults();
   init_keyring(default_section, conf_dir.name());
+
+  const std::string state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", {md_server_port}, 0));
+  default_section["dynamic_state"] = state_file;
 
   const std::string conf_file = create_config_file(
       conf_dir.name(), routing_section + metadata_cache_section,

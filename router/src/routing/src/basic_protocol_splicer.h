@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -164,6 +164,32 @@ class BasicConnection : public ConnectionBase {
   void async_send(recv_buffer_type &buf,
                   std::function<void(std::error_code ec, size_t transferred)>
                       completion) override {
+    if (sock_.native_non_blocking()) {
+      // if the socket is non-blocking try to send directly as the send-buffer
+      // is usually empty
+      auto write_res = net::write(sock_, net::dynamic_buffer(buf),
+                                  net::transfer_at_least(1));
+      if (write_res) {
+        net::defer(sock_.get_executor(), [completion = std::move(completion),
+                                          transferred = *write_res]() {
+          completion({}, transferred);
+        });
+        return;
+      }
+
+      const auto ec = write_res.error();
+
+      if (ec != make_error_condition(std::errc::operation_would_block) &&
+          ec !=
+              make_error_condition(std::errc::resource_unavailable_try_again)) {
+        net::defer(sock_.get_executor(), [completion = std::move(completion),
+                                          ec]() { completion(ec, 0); });
+        return;
+      }
+
+      // if it would-block, use the normal async-write.
+    }
+
     net::async_write(sock_, net::dynamic_buffer(buf), net::transfer_at_least(1),
                      std::move(completion));
   }
@@ -176,6 +202,11 @@ class BasicConnection : public ConnectionBase {
   void async_wait_recv(
       std::function<void(std::error_code ec)> completion) override {
     sock_.async_wait(net::socket_base::wait_read, std::move(completion));
+  }
+
+  void async_wait_error(
+      std::function<void(std::error_code ec)> completion) override {
+    sock_.async_wait(net::socket_base::wait_error, std::move(completion));
   }
 
   [[nodiscard]] bool is_open() const override { return sock_.is_open(); }
@@ -273,6 +304,13 @@ class ProtocolStateBase {
  */
 class TlsSwitchableConnection {
  public:
+  //    16kb per buffer
+  //     2   buffers per channel (send/recv)
+  //     2   channels per connection
+  // 10000   connections
+  // = 640MByte
+  static constexpr size_t kRecvBufferSize{16UL * 1024};
+
   TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
                           std::unique_ptr<RoutingConnectionBase> routing_conn,
                           SslMode ssl_mode,
@@ -281,7 +319,9 @@ class TlsSwitchableConnection {
         routing_conn_{std::move(routing_conn)},
         ssl_mode_{std::move(ssl_mode)},
         channel_{std::make_unique<Channel>()},
-        protocol_{std::move(state)} {}
+        protocol_{std::move(state)} {
+    channel_->recv_buffer().reserve(kRecvBufferSize);
+  }
 
   TlsSwitchableConnection(std::unique_ptr<ConnectionBase> conn,
                           std::unique_ptr<RoutingConnectionBase> routing_conn,
@@ -291,7 +331,9 @@ class TlsSwitchableConnection {
         routing_conn_{std::move(routing_conn)},
         ssl_mode_{std::move(ssl_mode)},
         channel_{std::move(channel)},
-        protocol_{std::move(state)} {}
+        protocol_{std::move(state)} {
+    channel_->recv_buffer().reserve(kRecvBufferSize);
+  }
 
   [[nodiscard]] std::vector<std::pair<std::string, std::string>>
   initial_connection_attributes() const {
@@ -315,7 +357,16 @@ class TlsSwitchableConnection {
     harness_assert(conn_ != nullptr);
     harness_assert(channel_ != nullptr);
 
-    conn_->async_recv(channel_->recv_buffer(), std::forward<Func>(func));
+    // discard everything that has been marked as 'consumed'
+    channel_->view_discard_raw();
+
+    conn_->async_recv(channel_->recv_buffer(),
+                      [this, func = std::forward<Func>(func)](
+                          std::error_code ec, size_t transferred) {
+                        channel_->view_sync_raw();
+
+                        func(ec, transferred);
+                      });
   }
 
   /**
@@ -336,6 +387,11 @@ class TlsSwitchableConnection {
   template <class Func>
   void async_wait_send(Func &&func) {
     conn_->async_wait_send(std::forward<Func>(func));
+  }
+
+  template <class Func>
+  void async_wait_error(Func &&func) {
+    conn_->async_wait_error(std::forward<Func>(func));
   }
 
   [[nodiscard]] Channel *channel() { return channel_.get(); }
@@ -452,6 +508,11 @@ class ProtocolSplicerBase {
   template <class Func>
   void async_send_client(Func &&func) {
     client_conn_.async_send(std::forward<Func>(func));
+  }
+
+  template <class Func>
+  void async_client_wait_error(Func &&func) {
+    client_conn_.async_wait_error(std::forward<Func>(func));
   }
 
   [[nodiscard]] TlsSwitchableConnection &client_conn() { return client_conn_; }

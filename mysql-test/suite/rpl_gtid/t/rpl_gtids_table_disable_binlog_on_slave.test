@@ -42,7 +42,7 @@ XA COMMIT '1';
 --let $gno_root = 1-$gno_0
 --let $expected_gtid_root = $master_uuid:$gno_root
 --let $expected_gtid = $expected_gtid_root
---let $assert_text= committed gtids MASTER_UUID:$gno_root
+--let $assert_text= committed gtids SOURCE_UUID:$gno_root
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid"
 --source include/assert.inc
 
@@ -51,7 +51,7 @@ XA COMMIT '1';
 --echo # from global.gtid_executed correctly.
 --echo #
 --let $gno_1 = 17
---replace_result $master_uuid MASTER_UUID
+--replace_result $master_uuid SOURCE_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_1'
 XA START '1';
 --disable_warnings
@@ -61,21 +61,21 @@ XA END '1';
 XA PREPARE '1';
 --let $gno_2 = $gno_1
 --inc $gno_2
---replace_result $master_uuid MASTER_UUID
+--replace_result $master_uuid SOURCE_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_2'
 XA COMMIT '1';
 --let $expected_gtid=$expected_gtid_root:$gno_1-$gno_2
---let $assert_text= committed gtids MASTER_UUID:$gno_root:$gno_1-$gno_2
+--let $assert_text= committed gtids SOURCE_UUID:$gno_root:$gno_1-$gno_2
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid"
 --source include/assert.inc
 
 --echo #
---echo # Verify that we can store gtids MASTER_UUID:$gno_root:16 in gtid_executed
+--echo # Verify that we can store gtids SOURCE_UUID:$gno_root:16 in gtid_executed
 --echo # table for XA transactions on binlog rotation.
 --echo #
 --eval SET GTID_NEXT='AUTOMATIC'
 FLUSH LOGS;
---replace_result $master_uuid MASTER_UUID
+--replace_result $master_uuid SOURCE_UUID
 SELECT * FROM mysql.gtid_executed;
 
 
@@ -84,21 +84,21 @@ SELECT * FROM mysql.gtid_executed;
 --echo # connection slave
 --echo #
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
-call mtr.add_suppression("Slave SQL for channel '': Error in Xid_log_event: Commit could not "
+call mtr.add_suppression("Replica SQL for channel '': Error in Xid_log_event: Commit could not "
                          "be completed, 'Got error -1 - 'Unknown error.*' from storage engine', "
                          "Error_code: MY-001030");
-call mtr.add_suppression("Slave.*Got error -1 .* from storage engine.*Error_code: MY-001030");
-call mtr.add_suppression("Slave: An error occurred at storing the GTID value");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("Replica.*Got error -1 .* from storage engine.*Error_code: MY-001030");
+call mtr.add_suppression("Replica: An error occurred at storing the GTID value");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 
---let $assert_text= committed gtids MASTER_UUID:$gno_root:$gno_1-$gno_2
+--let $assert_text= committed gtids SOURCE_UUID:$gno_root:$gno_1-$gno_2
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid"
 --source include/assert.inc
 --echo #
 --echo # Verify that the transaction is skiped if its specified gtid
 --echo # is already in global.gtid_executed.
 --echo #
---replace_result $master_uuid MASTER_UUID
+--replace_result $master_uuid SOURCE_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:4'
 INSERT INTO t1 VALUES(11);
 --let $assert_text= Table t1 must not contain 11
@@ -110,11 +110,11 @@ INSERT INTO t1 VALUES(11);
 --echo # global.gtid_executed and gtid_executed table.
 --echo #
 --inc $gno_2
---replace_result $master_uuid MASTER_UUID
+--replace_result $master_uuid SOURCE_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_2'
 COMMIT;
 --let $expected_gtid=$expected_gtid_root:$gno_1-$gno_2
---let $assert_text= committed gtids MASTER_UUID:$gno_root:$gno_1-$gno_2
+--let $assert_text= committed gtids SOURCE_UUID:$gno_root:$gno_1-$gno_2
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid"
 --source include/assert.inc
 
@@ -124,7 +124,7 @@ COMMIT;
 #--echo # Verify that we store gtid into gtid_executed table within
 #--echo # each transaction when binlog is disabled.
 #--echo #
-#--replace_result $master_uuid MASTER_UUID
+#--replace_result $master_uuid SOURCE_UUID
 #SELECT * FROM mysql.gtid_executed;
 
 --echo #
@@ -133,7 +133,7 @@ COMMIT;
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 --inc $gno_2
---replace_result $master_uuid MASTER_UUID
+--replace_result $master_uuid SOURCE_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_2'
 COMMIT;
 --eval SET GTID_NEXT='AUTOMATIC'
@@ -142,7 +142,7 @@ COMMIT;
 FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
---replace_result $master_uuid MASTER_UUID
+--replace_result $master_uuid SOURCE_UUID
 SELECT * FROM mysql.gtid_executed;
 
 --echo #
@@ -162,9 +162,9 @@ INSERT INTO t1 VALUES(12);
 DROP TABLE t3;
 
 --echo #
---echo # Stored gtids MASTER_UUID:$gno_root:$gno_1-$gno_2 in gtid_executed table
+--echo # Stored gtids SOURCE_UUID:$gno_root:$gno_1-$gno_2 in gtid_executed table
 --echo # on slave.
---replace_result $master_uuid MASTER_UUID
+--replace_result $master_uuid SOURCE_UUID
 --eval SELECT * FROM mysql.gtid_executed
 
 #
@@ -229,13 +229,13 @@ SET GLOBAL DEBUG= @debug_save;
 --let $expected_gtid_root= $master_uuid:$gno_root
 --let $expected_gtid = $expected_gtid_root:$gno_1-$gno_2
 --echo #
---echo # Stored gtids MASTER_UUID:$gno_root:$gno_1-$gno_2 in gtid_executed table on slave.
+--echo # Stored gtids SOURCE_UUID:$gno_root:$gno_1-$gno_2 in gtid_executed table on slave.
 --echo #
 # GTID is persisted now in batches by Innodb background thread. Number of
 # rows in gtid_executed could vary and should check only after compressing.
-#--replace_result $master_uuid MASTER_UUID
+#--replace_result $master_uuid SOURCE_UUID
 #--eval SELECT * FROM mysql.gtid_executed
---let $assert_text= committed gtids MASTER_UUID:$gno_root:$gno_1-$gno_2
+--let $assert_text= committed gtids SOURCE_UUID:$gno_root:$gno_1-$gno_2
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid"
 --source include/assert.inc
 --let $assert_text= Table t3 must not contain 1
@@ -248,7 +248,7 @@ SET GLOBAL DEBUG= @debug_save;
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 --inc $gno_2
---replace_result $master_uuid MASTER_UUID
+--replace_result $master_uuid SOURCE_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:$gno_2'
 COMMIT;
 --eval SET GTID_NEXT='AUTOMATIC'
@@ -257,7 +257,7 @@ COMMIT;
 FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
---replace_result $master_uuid MASTER_UUID
+--replace_result $master_uuid SOURCE_UUID
 SELECT * FROM mysql.gtid_executed;
 
 --connection master

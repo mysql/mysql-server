@@ -1,14 +1,14 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '':.*Error 'Unknown storage engine 'MOCK'' on query");
-CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '':.*Error 'Secondary engine operation failed. No secondary engine defined");
-CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Slave: Unknown storage engine 'MOCK'");
-CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Slave: Secondary engine operation failed. No secondary engine defined");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Replica SQL for channel '':.*Error 'Unknown storage engine 'MOCK'' on query");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Replica SQL for channel '':.*Error 'Secondary engine operation failed. No secondary engine defined");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Replica: Unknown storage engine 'MOCK'");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Replica: Secondary engine operation failed. No secondary engine defined");
 CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Server\\] Unsafe statement written to the binary log using statement format");
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
 [ Connection Master ]
 INSTALL PLUGIN mock SONAME 'ha_mock.so';
 SET @@secondary_engine_cost_threshold = 0;
@@ -44,18 +44,6 @@ INSERT INTO t1 VALUES(NULL, 'Shiba', '{"1":"one"}', 'Mastiff', x'ffff');
 ALTER TABLE t1 SECONDARY_LOAD;
 include/sync_slave_sql_with_master.inc
 [ Connection Slave ]
-FLUSH STATUS;
-SELECT * FROM t1;
-pk	vc	j	b	vb
-1	Poodle	{"key": "value"}	Pug	4
-2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
-3	Beagle	[1, 2, 3]	Pitbull	«Í4
-4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
-5	Shiba	{"1": "one"}	Mastiff	ÿÿ
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	0
-ALTER TABLE t1 SECONDARY_LOAD;
 FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
@@ -172,18 +160,6 @@ t3	CREATE TABLE `t3` (
 FLUSH STATUS;
 SELECT * FROM t2;
 pk	vc	j	b	vb
-1	Poodle	{"key": "value"}	Pug	4
-2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
-3	Beagle	[1, 2, 3]	Pitbull	«Í4
-4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
-5	Shiba	{"1": "one"}	Mastiff	ÿÿ
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	0
-ALTER TABLE t2 SECONDARY_LOAD;
-FLUSH STATUS;
-SELECT * FROM t2;
-pk	vc	j	b	vb
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
@@ -198,13 +174,6 @@ ALTER TABLE t1 SECONDARY_UNLOAD;
 DROP TABLE t3;
 include/sync_slave_sql_with_master.inc
 [ Connection Slave ]
-FLUSH STATUS;
-SELECT * FROM t1;
-pk	vc	j	b	vb
-SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	1
-ALTER TABLE t1 SECONDARY_UNLOAD;
 FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
@@ -243,14 +212,9 @@ include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 FLUSH STATUS;
 SELECT * FROM t2;
 pk	vc	j	b	vb
-1	Poodle	{"key": "value"}	Pug	4
-2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
-3	Beagle	[1, 2, 3]	Pitbull	«Í4
-4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
-5	Shiba	{"1": "one"}	Mastiff	ÿÿ
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	0
+Secondary_engine_execution_count	1
 [ Connection Master ]
 ALTER TABLE t1 SECONDARY_ENGINE=NULL;
 include/sync_slave_sql_with_master.inc
@@ -351,14 +315,9 @@ include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
-1	Poodle	{"key": "value"}	Pug	4
-2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
-3	Beagle	[1, 2, 3]	Pitbull	«Í4
-4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
-5	Shiba	{"1": "one"}	Mastiff	ÿÿ
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	0
+Secondary_engine_execution_count	1
 [ Connection Master ]
 DROP TABLE t1;
 DROP TABLE t2;

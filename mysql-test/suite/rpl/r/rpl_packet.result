@@ -1,16 +1,16 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Slave I/O for channel '': Got a packet bigger than 'replica_max_allowed_packet' bytes, Error_code: MY-013125");
-call mtr.add_suppression("Log entry on master is longer than replica_max_allowed_packet");
+call mtr.add_suppression("Replica I/O for channel '': Got a packet bigger than 'replica_max_allowed_packet' bytes, Error_code: MY-013125");
+call mtr.add_suppression("Log entry on source is longer than replica_max_allowed_packet");
 drop database if exists DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 create database DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 SET @@global.max_allowed_packet=10240;
 SET @@global.net_buffer_length=1024;
 include/sync_slave_sql_with_master.inc
-call mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+call mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 include/stop_slave.inc
 include/start_slave.inc
 select @@net_buffer_length, @@max_allowed_packet;

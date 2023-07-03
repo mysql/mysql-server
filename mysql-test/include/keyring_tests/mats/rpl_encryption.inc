@@ -320,7 +320,7 @@ FLUSH LOGS;
 --let $assert_text=New binary log is still encrypted
 --let $assert_cond=RIGHT("$rpl_encryption_key_id", 2) = "_2"
 --source include/assert.inc
---let $slave_sql_errno= convert_error(ER_SLAVE_RELAY_LOG_READ_FAILURE)
+--let $slave_sql_errno= convert_error(ER_REPLICA_RELAY_LOG_READ_FAILURE)
 --source include/wait_for_slave_sql_error.inc
 --source include/stop_slave_io.inc
 
@@ -345,7 +345,7 @@ RESET SLAVE ALL;
 
 # SQL thread is still not able to read encrypted relay log files
 START SLAVE SQL_THREAD;
---let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_sql_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --source include/wait_for_slave_sql_error.inc
 
 # Disable the option to not rely on keyring anymore

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,12 @@ Thd_ndb *Thd_ndb::seize(THD *thd) {
 
   // Save mapping between Ndb and THD
   thd_ndb->ndb->setCustomData64(thd_get_thread_id(thd));
+
+  // Init Applier state (if it will do applier work)
+  if (!thd_ndb->init_applier()) {
+    delete thd_ndb;
+    return nullptr;
+  }
 
   return thd_ndb;
 }
@@ -239,8 +245,6 @@ void Thd_ndb::set_trans_option(Trans_options option) {
 #ifndef NDEBUG
   if (check_trans_option(TRANS_TRANSACTIONS_OFF))
     DBUG_PRINT("info", ("Disabling transactions"));
-  if (check_trans_option(TRANS_INJECTED_APPLY_STATUS))
-    DBUG_PRINT("info", ("Statement has written to ndb_apply_status"));
   if (check_trans_option(TRANS_NO_LOGGING))
     DBUG_PRINT("info", ("Statement is not using logging"));
 #endif
@@ -282,7 +286,11 @@ static void push_condition(THD *thd,
   // NOTE! This can be removed when BUG#27507543 has been implemented
   // and instead log these warnings in a more controlled/selective manner
   // in Ndb_local_connection.
-  if (ndb_thd_is_binlog_thread(thd)) {
+  if (ndb_thd_is_binlog_thread(thd) || ndb_thd_is_replica_thread(thd)) {
+    if (code == ER_REPLICA_SILENT_RETRY_TRANSACTION) {
+      // The warning should be handled silently
+      return;
+    }
     ndb_log_warning("%s", msg_buf);
   }
 }

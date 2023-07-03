@@ -49,7 +49,7 @@ EXPLAIN
         -> Nested loop inner join  (cost=2.05 rows=4)
             -> Filter: (t1.userID is not null)  (cost=0.65 rows=4)
                 -> Table scan on t1  (cost=0.65 rows=4)
-            -> Single-row covering index lookup on t2 using PRIMARY (userID=t1.userID)  (cost=0.28 rows=1)
+            -> Single-row covering index lookup on t2 using PRIMARY (userID=t1.userID)  (cost=0.275 rows=1)
 
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 userid	MIN(t1.score)
@@ -3814,8 +3814,8 @@ EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY
 EXPLAIN
 -> Group aggregate: count(distinct t.b)
     -> Sort: -(a)
-        -> Stream results  (cost=*** rows=***)
-            -> Table scan on t  (cost=*** rows=***)
+        -> Stream results  (...)
+            -> Table scan on t  (...)
 
 Warnings:
 Note	1276	Field or reference 'test.t.a' of SELECT #2 was resolved in SELECT #1
@@ -3848,8 +3848,8 @@ EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY
 EXPLAIN
 -> Group aggregate: count(distinct t.b)
     -> Sort: -(a)
-        -> Stream results  (cost=*** rows=***)
-            -> Table scan on t  (cost=*** rows=***)
+        -> Stream results  (...)
+            -> Table scan on t  (...)
 
 Warnings:
 Note	1276	Field or reference 'test.t.a' of SELECT #2 was resolved in SELECT #1
@@ -3955,8 +3955,8 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 EXPLAIN
 -> Sort: x
-    -> Stream results  (cost=1.45 rows=2)
-        -> Group aggregate: count(distinct t1.f2)  (cost=1.45 rows=2)
+    -> Stream results  (cost=1.45 rows=2.45)
+        -> Group aggregate: count(distinct t1.f2)  (cost=1.45 rows=2.45)
             -> Index scan on t1 using k1  (cost=0.85 rows=6)
 
 SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
@@ -4481,3 +4481,379 @@ x
 2
 3
 DROP TABLE t1, t2;
+#
+# Bug#34891365: MySQL 8.0.29+ is slower than MySQL 8.0.28 with
+#               queries using JOINS
+#
+CREATE TABLE t1(a INT AUTO_INCREMENT PRIMARY KEY, b INT, KEY(b));
+INSERT INTO t1(b)
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<250)
+SELECT n FROM qn;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+CREATE TABLE t2(b INT PRIMARY KEY, c INT);
+INSERT INTO t2
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<250)
+SELECT n, n FROM qn;
+CREATE TABLE t3(b INT PRIMARY KEY, d INT);
+INSERT INTO t3
+WITH RECURSIVE qn(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM qn WHERE n<250)
+SELECT n, n FROM qn;
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT b, COUNT(*) FROM t1 LEFT JOIN t2 USING (b) LEFT JOIN t3 USING (b)
+GROUP BY b;
+EXPLAIN
+-> Group aggregate: count(0)  (rows=250)
+    -> Nested loop left join  (rows=8000)
+        -> Nested loop left join  (rows=8000)
+            -> Index scan on t1 using b  (rows=8000)
+            -> Single-row covering index lookup on t2 using PRIMARY (b=t1.b)  (rows=1)
+        -> Single-row covering index lookup on t3 using PRIMARY (b=t1.b)  (rows=1)
+
+FLUSH STATUS;
+SELECT b, COUNT(*) FROM t1 LEFT JOIN t2 USING (b) LEFT JOIN t3 USING (b)
+GROUP BY b;
+b	COUNT(*)
+1	32
+10	32
+100	32
+101	32
+102	32
+103	32
+104	32
+105	32
+106	32
+107	32
+108	32
+109	32
+11	32
+110	32
+111	32
+112	32
+113	32
+114	32
+115	32
+116	32
+117	32
+118	32
+119	32
+12	32
+120	32
+121	32
+122	32
+123	32
+124	32
+125	32
+126	32
+127	32
+128	32
+129	32
+13	32
+130	32
+131	32
+132	32
+133	32
+134	32
+135	32
+136	32
+137	32
+138	32
+139	32
+14	32
+140	32
+141	32
+142	32
+143	32
+144	32
+145	32
+146	32
+147	32
+148	32
+149	32
+15	32
+150	32
+151	32
+152	32
+153	32
+154	32
+155	32
+156	32
+157	32
+158	32
+159	32
+16	32
+160	32
+161	32
+162	32
+163	32
+164	32
+165	32
+166	32
+167	32
+168	32
+169	32
+17	32
+170	32
+171	32
+172	32
+173	32
+174	32
+175	32
+176	32
+177	32
+178	32
+179	32
+18	32
+180	32
+181	32
+182	32
+183	32
+184	32
+185	32
+186	32
+187	32
+188	32
+189	32
+19	32
+190	32
+191	32
+192	32
+193	32
+194	32
+195	32
+196	32
+197	32
+198	32
+199	32
+2	32
+20	32
+200	32
+201	32
+202	32
+203	32
+204	32
+205	32
+206	32
+207	32
+208	32
+209	32
+21	32
+210	32
+211	32
+212	32
+213	32
+214	32
+215	32
+216	32
+217	32
+218	32
+219	32
+22	32
+220	32
+221	32
+222	32
+223	32
+224	32
+225	32
+226	32
+227	32
+228	32
+229	32
+23	32
+230	32
+231	32
+232	32
+233	32
+234	32
+235	32
+236	32
+237	32
+238	32
+239	32
+24	32
+240	32
+241	32
+242	32
+243	32
+244	32
+245	32
+246	32
+247	32
+248	32
+249	32
+25	32
+250	32
+26	32
+27	32
+28	32
+29	32
+3	32
+30	32
+31	32
+32	32
+33	32
+34	32
+35	32
+36	32
+37	32
+38	32
+39	32
+4	32
+40	32
+41	32
+42	32
+43	32
+44	32
+45	32
+46	32
+47	32
+48	32
+49	32
+5	32
+50	32
+51	32
+52	32
+53	32
+54	32
+55	32
+56	32
+57	32
+58	32
+59	32
+6	32
+60	32
+61	32
+62	32
+63	32
+64	32
+65	32
+66	32
+67	32
+68	32
+69	32
+7	32
+70	32
+71	32
+72	32
+73	32
+74	32
+75	32
+76	32
+77	32
+78	32
+79	32
+8	32
+80	32
+81	32
+82	32
+83	32
+84	32
+85	32
+86	32
+87	32
+88	32
+89	32
+9	32
+90	32
+91	32
+92	32
+93	32
+94	32
+95	32
+96	32
+97	32
+98	32
+99	32
+# Expect around 500 index reads. 250 from t2 and 250 from t3.
+# It used to be around 16000 index reads.
+SHOW STATUS LIKE 'Handler_read_key';
+Variable_name	Value
+Handler_read_key	501
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1(x INT, y INT);
+CREATE TABLE t2(x INT, y INT);
+CREATE TABLE t3(id INT PRIMARY KEY, x INT, y INT);
+INSERT INTO t1 VALUES (1, 3), (2, 3), (3, 2), (4, 3), (5, 1), (6, 3);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (1, 3);
+INSERT INTO t3 VALUES (1, 1, 0), (2, 2, 0), (3, 3, 0),
+(4, 4, 0), (5, 5, 0), (6, 6, 0);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT t1.x, dt.* FROM t1, LATERAL (
+SELECT SQL_BIG_RESULT t2.y, SUM(t3.x)
+FROM t2, t3 WHERE t2.x = t3.id AND t2.y + t3.y < t1.y
+GROUP BY t2.y
+) AS dt;
+EXPLAIN
+-> Nested loop inner join  (rows=10.4)
+    -> Invalidate materialized tables (row from t1)  (rows=6)
+        -> Table scan on t1  (rows=6)
+    -> Table scan on dt  (rows=1.73)
+        -> Materialize (invalidate on row from t1)  (rows=1.73)
+            -> Group aggregate: sum(t3.x)  (rows=1.73)
+                -> Nested loop inner join  (rows=3)
+                    -> Sort: t2.y  (rows=3)
+                        -> Filter: (t2.x is not null)  (rows=3)
+                            -> Table scan on t2  (rows=3)
+                    -> Filter: ((t2.y + t3.y) < t1.y)  (rows=1)
+                        -> Single-row index lookup on t3 using PRIMARY (id=t2.x)  (rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.y' of SELECT #2 was resolved in SELECT #1
+SELECT t1.x, dt.* FROM t1, LATERAL (
+SELECT SQL_BIG_RESULT t2.y, SUM(t3.x)
+FROM t2, t3 WHERE t2.x = t3.id AND t2.y + t3.y < t1.y
+GROUP BY t2.y
+) AS dt;
+x	y	SUM(t3.x)
+1	1	1
+1	2	2
+2	1	1
+2	2	2
+3	1	1
+4	1	1
+4	2	2
+6	1	1
+6	2	2
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (a INTEGER PRIMARY KEY, b INTEGER);
+INSERT INTO t1 VALUES  (1, 1), (2, 2), (3, 2);
+CREATE TABLE t2 (a INTEGER PRIMARY KEY, b INTEGER);
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT t1.a, MAX(t2.b) FROM t1 LEFT JOIN t2 ON t1.b = t2.a AND t1.a <> 2
+GROUP BY t1.a;
+EXPLAIN
+-> Group aggregate: max(t2.b)  (rows=1.73)
+    -> Nested loop left join  (rows=3)
+        -> Index scan on t1 using PRIMARY  (rows=3)
+        -> Filter: (t1.a <> 2)  (rows=1)
+            -> Single-row index lookup on t2 using PRIMARY (a=t1.b)  (rows=1)
+
+SELECT t1.a, MAX(t2.b) FROM t1 LEFT JOIN t2 ON t1.b = t2.a AND t1.a <> 2
+GROUP BY t1.a;
+a	MAX(t2.b)
+1	1
+2	NULL
+3	2
+DROP TABLE t1, t2;
+#
+# Bug#32932749: HYPERGRAPH: FAKESINGLEROWITERATOR::SETNULLROWFLAG(BOOL):
+#               ASSERTION `!IS_NULL_ROW' FAILED.
+#
+SELECT COUNT(*) WHERE RAND() > 1;
+COUNT(*)
+0

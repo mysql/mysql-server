@@ -19,9 +19,9 @@
 
 --connection slave
 
-call mtr.add_suppression("Slave SQL for channel '':.* Could not execute Write_rows event on table test.t1");
-call mtr.add_suppression("Slave SQL for channel '':.* Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL for channel '':.* Could not execute Write_rows event on table test.t1");
+call mtr.add_suppression("Replica SQL for channel '':.* Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 create view worker_proc_list as SELECT id  from Information_Schema.processlist
        where state like 'Waiting for an event from Coordinator';
@@ -48,7 +48,7 @@ let $count= 0;
 let $table= worker_proc_list;
 source include/wait_until_rows_count.inc;
 
---let $slave_sql_errno= convert_error(ER_MTS_INCONSISTENT_DATA)
+--let $slave_sql_errno= convert_error(ER_MTA_INCONSISTENT_DATA)
 source include/wait_for_slave_sql_to_stop.inc;
 
 #
@@ -74,7 +74,7 @@ let $count= 0;
 let $table= worker_proc_list;
 source include/wait_until_rows_count.inc;
 
-let $slave_sql_errno= 1756; # ER_MTS_PARALLEL_INCONSISTENT_DATA
+let $slave_sql_errno= 1756; # ER_MTA_PARALLEL_INCONSISTENT_DATA
 source include/wait_for_slave_sql_error.inc;
 
 source include/start_slave.inc;
@@ -305,7 +305,7 @@ start slave until sql_after_mts_gaps SOURCE_LOG_POS=0;
 --error 1064
 start slave until sql_after_mts_gaps SQL_BEFORE_GTIDS='dummy';
 
-call mtr.add_suppression('Slave SQL for channel '': Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock');
+call mtr.add_suppression('Replica SQL for channel '': Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock');
 
 # regular start now
 source include/start_slave.inc;

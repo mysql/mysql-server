@@ -3,6 +3,7 @@
 --echo #
 # Test case is unstable in valgrind
 --source include/not_valgrind.inc
+--source include/elide_costs.inc
 
 --echo # Join on two integer columns.
 CREATE TABLE t1 (col1 INTEGER);
@@ -218,7 +219,7 @@ let $hash_join_file_operations =
     WHERE event_name LIKE '%hash_join%';
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex /cost=\d+.\d+/cost=***/
+--replace_regex $elide_cost
 --skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree
   SELECT SUM(t1.col1), SUM(t2.col1) FROM t1, t2 WHERE t1.col1 = t2.col1;
@@ -344,7 +345,7 @@ ORDER BY
 ANALYZE TABLE t1;
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex /cost=\d+.\d+/cost=***/
+--replace_regex $elide_cost
 --skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query1;
 eval $query1;
@@ -390,7 +391,7 @@ let $hash_join_file_operations =
     WHERE event_name LIKE '%hash_join%';
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex /cost=\d+.\d+/cost=***/
+--replace_regex $elide_cost
 --skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree
   SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
@@ -661,7 +662,7 @@ let $query = SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
 ANALYZE TABLE t1, t2;
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex /cost=\d+.\d+/cost=***/
+--replace_regex $elide_cost
 --skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
@@ -724,7 +725,7 @@ CREATE TABLE t1 (col1 TEXT);
 INSERT INTO t1 VALUES (REPEAT('A', 50000)), (REPEAT('A', 50000));
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex /cost=\d+.\d+/cost=***/
+--replace_regex $elide_cost
 --skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT a.col1 FROM t1 AS a, t1 AS b;
 --disable_result_log
@@ -756,7 +757,7 @@ SET GLOBAL innodb_stats_persistent_sample_pages = DEFAULT;
 let $query = SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 
 # Mask out the cost estimates, since they will differ with innodb_page_size.
---replace_regex /cost=\d+.\d+/cost=***/
+--replace_regex $elide_cost
 --skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 --disable_result_log
@@ -1911,7 +1912,7 @@ SET optimizer_switch="materialization=off";
 
 --skip_if_hypergraph  # Depends on the query plan.
 # Mask out the cost estimates, since they will differ by how much of the data is in RAM.
---replace_regex /cost=\d+.\d+/cost=***/
+--replace_regex $elide_cost
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -2474,7 +2475,7 @@ ANALYZE TABLE t1;
 # Verify that:
 #  a) There's a LIMIT 1 being put on the hash.
 #  b) The outer side of the hash join is never executed.
---replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+--replace_regex $elide_time
 --skip_if_hypergraph   # Not being rewritten to antijoins yet.
 EXPLAIN ANALYZE SELECT t1.a FROM t1 LEFT JOIN t1 AS t2 ON TRUE WHERE t2.a IS NULL;
 
@@ -2640,7 +2641,7 @@ CREATE VIEW vmerge AS SELECT 1 AS f1, f1 AS b_f1 FROM t2;
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t2 VALUES (1),(2);
 
---replace_regex /cost=\d+.\d+(\.\.\d+\.\d+)?/cost=***/  /rows=\d+/rows=***/
+--replace_regex $elide_costs_and_rows
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN vmerge AS v ON t1.f1 = v.f1;
 
 DROP TABLE t1,t2;
@@ -2662,3 +2663,34 @@ SELECT 1
  JOIN (t1 AS t4 JOIN t1 AS t5 ON t4.f2 = t5.f1) ON t2.f2 = t5.f1)
  ON t1.f2 = t5.f2;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34837464: Incorrect Left Outer Join Execution
+--echo #
+
+CREATE TABLE t1(varchar_col VARCHAR(10), decimal_col DECIMAL(10, 0));
+INSERT INTO t1 VALUES ('', 0), ('', 0), ('', 0), ('', 0);
+
+CREATE TABLE t2(id INT, varchar_col VARCHAR(10), decimal_col DECIMAL(10, 0));
+INSERT INTO t2 VALUES (1, NULL, NULL), (2, NULL, NULL), (3, NULL, NULL);
+
+ANALYZE TABLE t1, t2;
+
+# These two hash joins used to compare decimal zero or the empty
+# string in t1 as equal to NULL in t2, and return wrong results.
+
+--let $query = SELECT id FROM t1 LEFT JOIN t2 USING (varchar_col)
+# Filter out minor plan differences between old optimizer and hypergraph.
+--let $patterns = $elide_metrics /t2\.varchar_col = t1\.varchar_col/t1.varchar_col = t2.varchar_col/
+--replace_regex $patterns
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+--let $query = SELECT id FROM t1 LEFT JOIN t2 USING (decimal_col)
+# Filter out minor plan differences between old optimizer and hypergraph.
+--let $patterns = $elide_metrics /t2\.decimal_col = t1\.decimal_col/t1.decimal_col = t2.decimal_col/
+--replace_regex $patterns
+--eval EXPLAIN FORMAT=TREE $query
+--eval $query
+
+DROP TABLE t1, t2;

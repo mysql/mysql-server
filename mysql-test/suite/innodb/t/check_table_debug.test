@@ -1,0 +1,77 @@
+##########################################################################
+# Test script to test CHECK TABLE
+##########################################################################
+
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+--disable_query_log
+call mtr.add_suppression("Minimum record flag is wrongly set to rec on page .* at level .* for index 'GEN_CLUST_INDEX' of table 'test/t1'.");
+call mtr.add_suppression("Minimum record flag is not set to first rec on page .* at level .* for index 'GEN_CLUST_INDEX' of table 'test/t1'.");
+call mtr.add_suppression("Apparent corruption in space .* page .* index `GEN_CLUST_INDEX`");
+call mtr.add_suppression("In page .* of index `GEN_CLUST_INDEX` of table");
+--enable_query_log
+
+--let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err
+
+CREATE TABLE t1(c1 CHAR(10), c2 CHAR(10));
+
+--disable_query_log
+SET @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;
+--enable_query_log
+
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+
+insert into t1 values ("r1c1", "r1c2");
+insert into t1 values ("r2c1", "r2c2");
+insert into t1 values ("r3c1", "r3c2");
+insert into t1 values ("r4c1", "r4c2");
+insert into t1 values ("r5c1", "r5c2");
+insert into t1 values ("r6c1", "r6c2");
+
+#-------------------------------------------------------------------------------
+# Scenario 1 : Min bit is set wrongly to a record which is not the first record
+#              on first page on level.
+#-------------------------------------------------------------------------------
+
+SET SESSION debug="+d,check_table_set_wrong_min_bit";
+CHECK TABLE t1;
+
+--echo # Expect found
+--let SEARCH_PATTERN= Setting wrong min bit to 2nd record
+--source include/search_pattern.inc
+
+--echo # Expect found
+--let SEARCH_PATTERN= Minimum record flag is wrongly set to rec on page '4' at level '3' for index 'GEN_CLUST_INDEX' of table 'test/t1'.
+--source include/search_pattern.inc
+SET SESSION debug="-d,check_table_set_wrong_min_bit";
+
+#-------------------------------------------------------------------------------
+# Scenario 2 : Min bit is not set to a record which is the first record on first
+#              page on level.
+#-------------------------------------------------------------------------------
+SET SESSION debug="+d,check_table_reset_correct_min_bit";
+CHECK TABLE t1;
+
+--echo # Expect found
+--let SEARCH_PATTERN= Resetting correct min bit to 1st record
+--source include/search_pattern.inc
+
+--echo # Expect found
+--let SEARCH_PATTERN= Minimum record flag is not set to first rec on page '4' at level '3' for index 'GEN_CLUST_INDEX' of table 'test/t1'.
+--source include/search_pattern.inc
+SET SESSION debug="-d,check_table_reset_correct_min_bit";
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+
+--disable_query_log
+SET GLOBAL innodb_limit_optimistic_insert_debug = @old_innodb_limit_optimistic_insert_debug;
+--enable_query_log
+
+drop table t1;

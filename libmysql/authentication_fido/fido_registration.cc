@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,7 +132,8 @@ bool fido_make_cred::generate_signature() {
   fido_init(0);
   size_t dev_infos_len = 0;
   fido_dev_info_t *dev_infos = fido_dev_info_new(1);
-  if (fido_dev_info_manifest(dev_infos, 1, &dev_infos_len) != FIDO_OK) {
+  if (fido_dev_info_manifest(dev_infos, 1, &dev_infos_len) != FIDO_OK ||
+      dev_infos_len == 0) {
     fido_dev_info_free(&dev_infos, 1);
     get_plugin_messages("No FIDO device available on client host.",
                         message_type::ERROR);

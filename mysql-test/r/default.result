@@ -245,3 +245,104 @@ CREATE TABLE t(t TIME DEFAULT TIME'01:02:03');
 ERROR 42000: Invalid default value for 't'
 CREATE TABLE d(d DATE DEFAULT DATE'2019-10-01');
 ERROR 42000: Invalid default value for 'd'
+# Bug#33322551: hex-blob not respected in DDL during mysqldump
+#
+
+# Create a table with a binary default that is not valid UTF-8.
+CREATE TABLE t1 (f1 BINARY(6)  NOT NULL DEFAULT 0x414243FAFA00,
+f2 VARCHAR(6) CHARACTER SET ujis DEFAULT 0xA4A2,
+f3 BIT(4) DEFAULT b'1101');
+
+# Let's see what SHOW CREATE TABLE makes of it.
+# Should look like 'ABC' followed by binary garbage on unpatched server.
+# On a patched server, it should show the same value prefixed by its
+# charset ('_binary' in this case), or show a hex-value.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` binary(6) NOT NULL DEFAULT 0x414243FAFA00,
+  `f2` varchar(6) CHARACTER SET ujis COLLATE ujis_japanese_ci DEFAULT 'あ',
+  `f3` bit(4) DEFAULT b'1101'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+# Show that we do not erraneously print the character set designator
+# ("_binary", etc.) when printing the default as a field (rather than
+# as part of a statement).
+SELECT data_type,character_set_name,
+column_default
+FROM information_schema.columns
+WHERE table_name='t1'
+   AND column_name='f1';
+DATA_TYPE	CHARACTER_SET_NAME	COLUMN_DEFAULT
+binary	NULL	0x414243FAFA
+SELECT data_type,
+character_set_name,HEX(CONVERT(column_default USING ujis)),
+column_default
+FROM information_schema.columns
+WHERE table_name='t1'
+   AND column_name='f2';
+DATA_TYPE	CHARACTER_SET_NAME	HEX(CONVERT(column_default USING ujis))	COLUMN_DEFAULT
+varchar	ujis	A4A2	あ
+SELECT data_type,
+character_set_name,
+column_default
+FROM information_schema.columns
+WHERE table_name='t1'
+   AND column_name='f3';
+DATA_TYPE	CHARACTER_SET_NAME	COLUMN_DEFAULT
+bit	NULL	b'1101'
+
+# INSERT the defined DEFAULT into the table, then retrieve it.
+# When we hexify the result, the value should be the same as
+# in the original CREATE TABLE statement.
+INSERT INTO t1 VALUES(DEFAULT,DEFAULT,DEFAULT);
+SELECT "--base--";
+--base--
+--base--
+SELECT HEX(f1),HEX(f2),HEX(f3) FROM t1;
+HEX(f1)	HEX(f2)	HEX(f3)
+414243FAFA00	A4A2	D
+
+# mysqldump the table. In the unpatched server, this will dump a
+# CREATE TABLE statement with a broken default value.
+
+# Drop the table,
+DROP TABLE t1;
+# then recreate it from the dumped file.
+
+# Add another row with the DEFAULT, then retrieve both rows.
+# If their hex values are not the same, we broke the DEFAULT
+# in mysqldump (on account of SHOW CREATE TABLE printing the
+# DEFAULT clause wrong).
+INSERT INTO t1 VALUES(DEFAULT,DEFAULT,DEFAULT);
+SELECT "--base,dump--";
+--base,dump--
+--base,dump--
+SELECT HEX(f1),HEX(f2),HEX(f3) FROM t1;
+HEX(f1)	HEX(f2)	HEX(f3)
+414243FAFA00	A4A2	D
+414243FAFA00	A4A2	D
+
+# Now dump the table using mysqlpump.
+
+# Drop the table,
+DROP TABLE t1;
+# then recreate it from the pumped file.
+Note (Code 1007): Can't create database 'test'; database exists
+
+# Add another row with the DEFAULT, then retrieve three rows.
+# If their hex values are not the same, we broke the DEFAULT
+# in mysqlpump (on account of SHOW CREATE TABLE printing the
+# DEFAULT clause wrong).
+INSERT INTO t1 VALUES(DEFAULT,DEFAULT,DEFAULT);
+SELECT "--base,dump,pump--";
+--base,dump,pump--
+--base,dump,pump--
+SELECT HEX(f1),HEX(f2),HEX(f3) FROM t1;
+HEX(f1)	HEX(f2)	HEX(f3)
+414243FAFA00	A4A2	D
+414243FAFA00	A4A2	D
+414243FAFA00	A4A2	D
+
+# Clean up.
+DROP TABLE t1;

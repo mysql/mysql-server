@@ -186,7 +186,7 @@ INSERT INTO t1 VALUES (3);
 --eval KILL $sql_applier_process_id
 --enable_query_log
 
---let $slave_sql_errno= convert_error(ER_MTS_INCONSISTENT_DATA)
+--let $slave_sql_errno= convert_error(ER_MTA_INCONSISTENT_DATA)
 --source include/wait_for_slave_sql_error.inc
 
 --let $srs_relay_log_pos = query_get_value(SHOW REPLICA STATUS FOR CHANNEL '', Relay_Log_Pos, 1)
@@ -339,7 +339,7 @@ RESET REPLICA ALL;
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --source include/start_slave.inc
 
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --source include/rpl_connection_master.inc
 

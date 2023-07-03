@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -645,7 +645,7 @@ class PFS_buffer_scalable_container {
   void deallocate(value_type *safe_pfs) {
     /* Find the containing page */
     PFS_opaque_container_page *opaque_page = safe_pfs->m_page;
-    array_type *page = reinterpret_cast<array_type *>(opaque_page);
+    auto *page = reinterpret_cast<array_type *>(opaque_page);
 
     /* Mark the object free */
     safe_pfs->m_lock.allocated_to_free();
@@ -660,7 +660,7 @@ class PFS_buffer_scalable_container {
   static void static_deallocate(value_type *safe_pfs) {
     /* Find the containing page */
     PFS_opaque_container_page *opaque_page = safe_pfs->m_page;
-    array_type *page = reinterpret_cast<array_type *>(opaque_page);
+    auto *page = reinterpret_cast<array_type *>(opaque_page);
 
     /* Mark the object free */
     safe_pfs->m_lock.allocated_to_free();

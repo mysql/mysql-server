@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,11 +65,8 @@ IMPORT_LOG_FUNCTIONS()
  * @return A string object encapsulation of the input character string. An empty
  *         string if input string is nullptr.
  */
-std::string get_string(const char *input_str) {
-  if (input_str == nullptr) {
-    return "";
-  }
-  return std::string(input_str);
+std::string as_string(const char *input_str) {
+  return {input_str == nullptr ? "" : input_str};
 }
 
 ClusterMetadata::ClusterMetadata(
@@ -123,7 +120,8 @@ bool ClusterMetadata::connect_and_setup_session(
   // Get a clean metadata server connection object
   // (RAII will close the old one if needed).
   try {
-    metadata_connection_ = mysql_harness::DIM::instance().new_MySQLSession();
+    metadata_connection_ = std::make_shared<MySQLSession>(
+        std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
   } catch (const std::logic_error &e) {
     // defensive programming, shouldn't really happen
     log_error("Failed connecting with Metadata Server: %s", e.what());
@@ -194,7 +192,7 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
                         const size_t classic_port_column,
                         const size_t x_port_column) {
   {
-    const std::string classic_port = get_string(row[classic_port_column]);
+    const std::string classic_port = as_string(row[classic_port_column]);
 
     auto make_res = mysql_harness::make_tcp_address(classic_port);
     if (!make_res) {
@@ -211,7 +209,7 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
 
   // X protocol support is not mandatory
   if (row[x_port_column] && *row[x_port_column]) {
-    const std::string x_port = get_string(row[x_port_column]);
+    const std::string x_port = as_string(row[x_port_column]);
     auto make_res = mysql_harness::make_tcp_address(x_port);
     if (!make_res) {
       // There is a Shell bug (#27677227) that can cause the mysqlx port be
@@ -239,7 +237,8 @@ bool ClusterMetadata::update_router_attributes(
     const metadata_cache::metadata_server_t &rw_server,
     const unsigned router_id,
     const metadata_cache::RouterAttributes &router_attributes) {
-  auto connection = mysql_harness::DIM::instance().new_MySQLSession();
+  auto connection = std::make_unique<MySQLSession>(
+      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
   if (!do_connect(*connection, rw_server)) {
     log_warning(
         "Updating the router attributes in metadata failed: Could not connect "
@@ -309,7 +308,8 @@ bool ClusterMetadata::update_router_last_check_in(
   // only relevant to for metadata V2
   if (get_cluster_type() == ClusterType::GR_V1) return true;
 
-  auto connection = mysql_harness::DIM::instance().new_MySQLSession();
+  auto connection = std::make_unique<MySQLSession>(
+      std::make_unique<MySQLSession::LoggingStrategyDebugLogger>());
   if (!do_connect(*connection, rw_server)) {
     log_warning(
         "Updating the router last_check_in in metadata failed: Could not "
@@ -351,14 +351,18 @@ bool ClusterMetadata::update_router_last_check_in(
 
 static std::string get_limit_target_cluster_clause(
     const mysqlrouter::TargetCluster &target_cluster,
-    const std::string &cluster_type_specific_id,
+    const mysqlrouter::ClusterType &cluster_type,
     mysqlrouter::MySQLSession &session) {
   switch (target_cluster.target_type()) {
     case mysqlrouter::TargetCluster::TargetType::ByUUID:
-      return "(SELECT cluster_id FROM "
-             "mysql_innodb_cluster_metadata.v2_gr_clusters C WHERE "
-             "C.attributes->>'$.group_replication_group_name' = " +
-             session.quote(target_cluster.to_string()) + ")";
+      if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
+        return session.quote(target_cluster.to_string());
+      } else {
+        return "(SELECT cluster_id FROM "
+               "mysql_innodb_cluster_metadata.v2_gr_clusters C WHERE "
+               "C.group_name = " +
+               session.quote(target_cluster.to_string()) + ")";
+      }
     case mysqlrouter::TargetCluster::TargetType::ByName:
       return "(SELECT cluster_id FROM "
              "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name=" +
@@ -372,43 +376,43 @@ static std::string get_limit_target_cluster_clause(
              "CSM.cluster_id = "
              "C.cluster_id WHERE CSM.member_role = 'PRIMARY' and "
              "CSM.clusterset_id = " +
-             session.quote(cluster_type_specific_id) + ")";
+             session.quote(target_cluster.to_string()) + ")";
   }
 }
 
 ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
-    const mysqlrouter::TargetCluster &target_cluster,
-    const std::string &cluster_type_specific_id) {
+    const mysqlrouter::TargetCluster &target_cluster) {
   ClusterMetadata::auth_credentials_t auth_credentials;
   if (!metadata_connection_) {
     return auth_credentials;
   }
+
   const std::string query =
       "SELECT user, authentication_string, privileges, authentication_method "
       "FROM mysql_innodb_cluster_metadata.v2_router_rest_accounts WHERE "
       "cluster_id="s +
-      get_limit_target_cluster_clause(target_cluster, cluster_type_specific_id,
+      get_limit_target_cluster_clause(target_cluster, get_cluster_type(),
                                       *metadata_connection_);
 
   auto result_processor =
       [&auth_credentials](const MySQLSession::Row &row) -> bool {
     JsonDocument privileges;
-    if (row[2] != nullptr) privileges.Parse<0>(get_string(row[2]).c_str());
+    if (row[2] != nullptr) privileges.Parse<0>(as_string(row[2]).c_str());
 
-    const auto username = get_string(row[0]);
+    const auto username = as_string(row[0]);
     if (privileges.HasParseError()) {
       log_warning(
           "Skipping user '%s': invalid privilege format '%s', authentication "
           "will not be possible",
-          username.c_str(), get_string(row[2]).c_str());
-    } else if (get_string(row[3]) != "modular_crypt_format") {
+          username.c_str(), as_string(row[2]).c_str());
+    } else if (as_string(row[3]) != "modular_crypt_format") {
       log_warning(
           "Skipping user '%s': authentication method '%s' is not supported for "
           "metadata_cache authentication",
-          username.c_str(), get_string(row[3]).c_str());
+          username.c_str(), as_string(row[3]).c_str());
     } else {
       auth_credentials[username] =
-          std::make_pair(get_string(row[1]), std::move(privileges));
+          std::make_pair(as_string(row[1]), std::move(privileges));
     }
     return true;
   };

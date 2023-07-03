@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -97,13 +97,13 @@ table_keyring_component_status::table_keyring_component_status()
 
 void table_keyring_component_status::materialize() {
   SERVICE_TYPE(registry) *plugin_registry = mysql_plugin_registry_acquire();
-  my_service<SERVICE_TYPE(keyring_component_metadata_query)>
+  const my_service<SERVICE_TYPE(keyring_component_metadata_query)>
       metadata_query_service("keyring_component_metadata_query",
                              plugin_registry);
   if (!metadata_query_service) {
     my_h_keyring_component_metadata_iterator iterator = nullptr;
 
-    if (metadata_query_service->init(&iterator) == false) {
+    if (!metadata_query_service->init(&iterator)) {
       for (; metadata_query_service->is_valid(iterator);
            (void)metadata_query_service->next(iterator)) {
         size_t key_buffer_length = 0;
@@ -111,10 +111,11 @@ void table_keyring_component_status::materialize() {
         if (metadata_query_service->get_length(iterator, &key_buffer_length,
                                                &value_buffer_length) != 0)
           break;
-        std::unique_ptr<char[]> key_buffer(new char[key_buffer_length]);
-        std::unique_ptr<char[]> value_buffer(new char[value_buffer_length]);
+        const std::unique_ptr<char[]> key_buffer(new char[key_buffer_length]);
+        const std::unique_ptr<char[]> value_buffer(
+            new char[value_buffer_length]);
 
-        if (key_buffer.get() == nullptr || value_buffer.get() == nullptr) break;
+        if (key_buffer == nullptr || value_buffer == nullptr) break;
 
         memset(key_buffer.get(), 0, key_buffer_length);
         memset(value_buffer.get(), 0, value_buffer_length);
@@ -136,12 +137,12 @@ void table_keyring_component_status::materialize() {
   mysql_plugin_registry_release(plugin_registry);
 }
 
-ha_rows table_keyring_component_status::get_row_count(void) {
+ha_rows table_keyring_component_status::get_row_count() {
   /* A hint for optimizer - number bytes not number entries */
   return sizeof(row_keyring_component_status);
 }
 
-void table_keyring_component_status::reset_position(void) {
+void table_keyring_component_status::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
@@ -153,16 +154,15 @@ int table_keyring_component_status::rnd_pos(const void *pos) {
   return 0;
 }
 
-int table_keyring_component_status::rnd_next(void) {
+int table_keyring_component_status::rnd_next() {
   m_pos.set_at(&m_next_pos);
   if (m_pos.m_index < m_row_keyring_component_status.size()) {
     m_row = &m_row_keyring_component_status[m_pos.m_index];
     m_next_pos.set_after(&m_pos);
     return 0;
-  } else {
-    m_row = nullptr;
-    return HA_ERR_END_OF_FILE;
   }
+  m_row = nullptr;
+  return HA_ERR_END_OF_FILE;
 }
 
 int table_keyring_component_status::read_row_values(TABLE *table,

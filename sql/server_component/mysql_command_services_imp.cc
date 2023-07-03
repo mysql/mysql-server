@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,27 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::init, (MYSQL_H * mysql_h)) {
     ret = true;
   }
   return ret;
+}
+
+static MYSQL_LEX_CSTRING dummy_plugin{"server_service",
+                                      sizeof("server_service")};
+/**
+  Calls session init_thread() to initialize a physical thread to use the session
+  service.
+
+  @retval true    failure
+  @retval false   success
+*/
+DEFINE_BOOL_METHOD(mysql_command_services_imp::init, ()) {
+  return Srv_session::init_thread(&dummy_plugin);
+}
+
+/**
+  Calls session deinit_thread() to deinitialize a physical thread that has been
+  using the session service.
+*/
+DEFINE_METHOD(void, mysql_command_services_imp::end, ()) {
+  Srv_session::deinit_thread();
 }
 
 /**
@@ -1074,6 +1095,7 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::sql_error,
     if (m_handle == nullptr) return true;
     auto mcs_ext = MYSQL_COMMAND_SERVICE_EXTN(m_handle->mysql);
     auto consumer_data = mcs_ext->consumer_srv_data;
+    if (consumer_data == nullptr) return true;
     strcpy(*errmsg,
            const_cast<char *>(
                reinterpret_cast<Dom_ctx *>(consumer_data)->m_err_msg->c_str()));
@@ -1104,4 +1126,26 @@ DEFINE_BOOL_METHOD(mysql_command_services_imp::sql_state,
     return true;
   }
   return false;
+}
+
+DEFINE_BOOL_METHOD(mysql_command_services_imp::field_metadata_get,
+                   (MYSQL_FIELD_H field_h, int metadata, void *data))
+try {
+  MYSQL_FIELD *fld = reinterpret_cast<MYSQL_FIELD *>(field_h);
+
+  switch (metadata) {
+    case MYSQL_COMMAND_FIELD_METADATA_NAME:
+      *reinterpret_cast<const char **>(data) = fld->name;
+      return false;
+    case MYSQL_COMMAND_FIELD_METADATA_TABLE_NAME:
+      *reinterpret_cast<const char **>(data) = fld->table;
+      return false;
+    case MYSQL_COMMAND_FIELD_METADATA_TABLE_DB_NAME:
+      *reinterpret_cast<const char **>(data) = fld->db;
+      return false;
+  }
+  return true;
+} catch (...) {
+  mysql_components_handle_std_exception(__func__);
+  return true;
 }

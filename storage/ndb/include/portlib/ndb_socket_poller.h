@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,10 @@ class ndb_socket_poller {
   // Current number of fds in the list
   unsigned m_count;
 
+  // Number of sockets with SSL data ready to read when they
+  // were added to the list.
+  unsigned m_ssl_pending;
+
   // The list of pollfds, initial size is 1 and m_pfds will
   // then point at m_one_pfd. After dynamic expand points at
   // dynamic list of pollfds
@@ -56,6 +60,7 @@ public:
 
   void clear(void) {
     m_count = 0;
+    m_ssl_pending = 0;
   }
 
   ~ndb_socket_poller() {
@@ -67,9 +72,7 @@ public:
 
   unsigned add(ndb_socket_t sock, bool read, bool write);
 
-  unsigned add_readable(ndb_socket_t sock) {
-    return add(sock, true, false);
-  }
+  unsigned add_readable(ndb_socket_t sock, struct ssl_st *ssl = nullptr);
 
   unsigned add_writable(ndb_socket_t sock) {
     return add(sock, false, true);

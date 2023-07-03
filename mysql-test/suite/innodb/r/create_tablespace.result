@@ -1936,7 +1936,8 @@ SET GLOBAL innodb_strict_mode=default;
 #
 # Check CREATE TABLESPACE is handled properly in read-only mode
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
-# restart: --innodb_read_only --innodb-directories=MYSQL_TMP_DIR
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
 ERROR HY000: Running in read-only mode
 SHOW WARNINGS;

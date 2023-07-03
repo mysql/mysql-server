@@ -1,13 +1,14 @@
 -- source include/have_ndb.inc
 
-create table t1(id1 int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
+create table t1(id1 int NOT NULL PRIMARY KEY, data char(8), id3 int not null, unique(id3)) engine=ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
-create table t2(id2 int NOT NULL PRIMARY KEY, id1 int, data char(8)) engine=ndb
+create table t2(id2 int NOT NULL PRIMARY KEY, id1 int, data char(8), id3 int) engine=ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 alter table t2 algorithm=inplace, add constraint id1 foreign key (id1) references t1(id1);
+alter table t2 algorithm=inplace, add constraint id3 foreign key (id3) references t1(id3);
 
-load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n' ignore 900 lines;
-load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n' ignore 900 lines (@id, data) set id1 = @id, id2 = -@id;
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n' ignore 900 lines (@id, data) set id1 = @id, id3 = -@id;
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n' ignore 900 lines (@id, data) set id1 = @id, id2 = -@id, id3=-@id;
 
 ## Check details of partitioning
 SELECT partitions, fragments, hash_map from ndbinfo.dictionary_tables
@@ -32,6 +33,18 @@ alter table t1 algorithm=inplace, reorganize partition;
 SELECT partitions, fragments, hash_map from ndbinfo.dictionary_tables
 WHERE table_name in ("t1", "t2");
 
+--echo Check node restart after reorg with foreign keys
+--exec $NDB_MGM -e "1 RESTART -n" >> $NDB_TOOLS_OUTPUT
+
+--echo --- Wait for node to stop
+--exec $NDB_WAITER --not-started -w1 >> $NDB_TOOLS_OUTPUT
+
+--echo --- Startup node again
+--exec $NDB_MGM -e "1 START" >> $NDB_TOOLS_OUTPUT
+
+--echo --- Wait for node to recover
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
+
 ## Drop nodegroup with "new" nodes is not allowed with data one those nodes
 # NOTE: --error=0 is due to return codes doesnt work on windoze
 --replace_regex /Connected to Management Server at: .*//
@@ -45,3 +58,4 @@ drop table t2,t1;
 --exec $NDB_MGM -e "drop nodegroup 1"
 
 # Cleanup
+--remove_file $NDB_TOOLS_OUTPUT

@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection master]
 CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
@@ -14,12 +14,12 @@ XA START 'a';
 SET @one = (SELECT SUBSTRING('11', 1, 1));
 INSERT INTO t1 VALUES (@one);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 include/assert.inc [Any DML shall throw warning inside XA with SBR]
 SET @two = (SELECT SUBSTRING('22', 1, 1));
 INSERT INTO t1 VALUES (@two);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on replicas when replicated using statements.
 XA END 'a';
 XA PREPARE 'a';
 XA COMMIT 'a';

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,10 @@
 #if OPENSSL_VERSION_NUMBER < 0x10002000L
 #include <openssl/ec.h>
 #endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+#include <dh_keys.h>
+#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
 
 #include "my_openssl_fips.h"
 #define TLS_VERSION_OPTION_SIZE 256
@@ -139,71 +143,36 @@ static const char tls_cipher_blocked[] = {
 
 static bool ssl_initialized = false;
 
-#if OPENSSL_VERSION_NUMBER < 0x30000000L
-/*
-  Diffie-Hellman key.
-  Generated using: >openssl dhparam -5 -C 2048
+/* Helper functions */
 
-  -----BEGIN DH PARAMETERS-----
-  MIIBCAKCAQEAil36wGZ2TmH6ysA3V1xtP4MKofXx5n88xq/aiybmGnReZMviCPEJ
-  46+7VCktl/RZ5iaDH1XNG1dVQmznt9pu2G3usU+k1/VB4bQL4ZgW4u0Wzxh9PyXD
-  glm99I9Xyj4Z5PVE4MyAsxCRGA1kWQpD9/zKAegUBPLNqSo886Uqg9hmn8ksyU9E
-  BV5eAEciCuawh6V0O+Sj/C3cSfLhgA0GcXp3OqlmcDu6jS5gWjn3LdP1U0duVxMB
-  h/neTSCSvtce4CAMYMjKNVh9P1nu+2d9ZH2Od2xhRIqMTfAS1KTqF3VmSWzPFCjG
-  mjxx/bg6bOOjpgZapvB6ABWlWmRmAAWFtwIBBQ==
-  -----END DH PARAMETERS-----
- */
-static unsigned char dh2048_p[] = {
-    0x8A, 0x5D, 0xFA, 0xC0, 0x66, 0x76, 0x4E, 0x61, 0xFA, 0xCA, 0xC0, 0x37,
-    0x57, 0x5C, 0x6D, 0x3F, 0x83, 0x0A, 0xA1, 0xF5, 0xF1, 0xE6, 0x7F, 0x3C,
-    0xC6, 0xAF, 0xDA, 0x8B, 0x26, 0xE6, 0x1A, 0x74, 0x5E, 0x64, 0xCB, 0xE2,
-    0x08, 0xF1, 0x09, 0xE3, 0xAF, 0xBB, 0x54, 0x29, 0x2D, 0x97, 0xF4, 0x59,
-    0xE6, 0x26, 0x83, 0x1F, 0x55, 0xCD, 0x1B, 0x57, 0x55, 0x42, 0x6C, 0xE7,
-    0xB7, 0xDA, 0x6E, 0xD8, 0x6D, 0xEE, 0xB1, 0x4F, 0xA4, 0xD7, 0xF5, 0x41,
-    0xE1, 0xB4, 0x0B, 0xE1, 0x98, 0x16, 0xE2, 0xED, 0x16, 0xCF, 0x18, 0x7D,
-    0x3F, 0x25, 0xC3, 0x82, 0x59, 0xBD, 0xF4, 0x8F, 0x57, 0xCA, 0x3E, 0x19,
-    0xE4, 0xF5, 0x44, 0xE0, 0xCC, 0x80, 0xB3, 0x10, 0x91, 0x18, 0x0D, 0x64,
-    0x59, 0x0A, 0x43, 0xF7, 0xFC, 0xCA, 0x01, 0xE8, 0x14, 0x04, 0xF2, 0xCD,
-    0xA9, 0x2A, 0x3C, 0xF3, 0xA5, 0x2A, 0x83, 0xD8, 0x66, 0x9F, 0xC9, 0x2C,
-    0xC9, 0x4F, 0x44, 0x05, 0x5E, 0x5E, 0x00, 0x47, 0x22, 0x0A, 0xE6, 0xB0,
-    0x87, 0xA5, 0x74, 0x3B, 0xE4, 0xA3, 0xFC, 0x2D, 0xDC, 0x49, 0xF2, 0xE1,
-    0x80, 0x0D, 0x06, 0x71, 0x7A, 0x77, 0x3A, 0xA9, 0x66, 0x70, 0x3B, 0xBA,
-    0x8D, 0x2E, 0x60, 0x5A, 0x39, 0xF7, 0x2D, 0xD3, 0xF5, 0x53, 0x47, 0x6E,
-    0x57, 0x13, 0x01, 0x87, 0xF9, 0xDE, 0x4D, 0x20, 0x92, 0xBE, 0xD7, 0x1E,
-    0xE0, 0x20, 0x0C, 0x60, 0xC8, 0xCA, 0x35, 0x58, 0x7D, 0x3F, 0x59, 0xEE,
-    0xFB, 0x67, 0x7D, 0x64, 0x7D, 0x8E, 0x77, 0x6C, 0x61, 0x44, 0x8A, 0x8C,
-    0x4D, 0xF0, 0x12, 0xD4, 0xA4, 0xEA, 0x17, 0x75, 0x66, 0x49, 0x6C, 0xCF,
-    0x14, 0x28, 0xC6, 0x9A, 0x3C, 0x71, 0xFD, 0xB8, 0x3A, 0x6C, 0xE3, 0xA3,
-    0xA6, 0x06, 0x5A, 0xA6, 0xF0, 0x7A, 0x00, 0x15, 0xA5, 0x5A, 0x64, 0x66,
-    0x00, 0x05, 0x85, 0xB7,
-};
-
-static unsigned char dh2048_g[] = {
-    0x05,
-};
-
-static DH *get_dh2048() {
-  DH *dh;
-  if ((dh = DH_new())) {
-    BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), nullptr);
-    BIGNUM *g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), nullptr);
-    if (!p || !g
+int vio_security_level(void) {
+  int vio_security_level = 2;
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
-        || !DH_set0_pqg(dh, p, nullptr, g)
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
-    ) {
-      /* DH_free() will free 'p' and 'g' at once. */
-      DH_free(dh);
-      return nullptr;
-    }
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    dh->p = p;
-    dh->g = g;
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  }
-  return (dh);
+  /*
+    create a temporary SSL_CTX, we're going to use it to fetch
+    the current OpenSSL security level. So that we can generate
+    keys accordingly.
+  */
+  SSL_CTX *temp_ssl_ctx = SSL_CTX_new(TLS_server_method());
+
+  /* get the current security level */
+  vio_security_level = SSL_CTX_get_security_level(temp_ssl_ctx);
+
+  assert(vio_security_level <= 5);
+
+  /* current range for security level is [1,5] */
+  if (vio_security_level > 5)
+    vio_security_level = 5;
+  else if (vio_security_level <= 1)
+    vio_security_level = 2;
+
+  /* get rid of temp_ssl_ctx, we're done with it */
+  SSL_CTX_free(temp_ssl_ctx);
+#endif
+
+  DBUG_EXECUTE_IF("crypto_policy_3", vio_security_level = 3;);
+  return vio_security_level;
 }
-#endif /* OPENSSL_VERSION_NUMBER < 0x30000000L */
 
 static void report_errors() {
   unsigned long l;
@@ -505,9 +474,9 @@ long process_tls_version(const char *tls_version) {
       !my_strcasecmp(&my_charset_latin1, tls_version, ctx_flag_default))
     return 0;
 
-  if (strlen(tls_version) - 1 > sizeof(tls_version_option)) return -1;
+  if (strlen(tls_version) + 1 > sizeof(tls_version_option)) return -1;
 
-  strncpy(tls_version_option, tls_version, sizeof(tls_version_option));
+  snprintf(tls_version_option, sizeof(tls_version_option), "%s", tls_version);
   token = my_strtok_r(tls_version_option, separator, &lasts);
   while (token) {
     for (unsigned int i = 0; i < tls_versions_count; i++) {
@@ -681,14 +650,23 @@ static struct st_VioSSLFd *new_VioSSLFd(
   }
 #else  /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
   {
-    DH *dh = get_dh2048();
+    int sec_level = vio_security_level();
+
+    BIO *bio_storage =
+        BIO_new_mem_buf(const_cast<char *>(dh_keys[sec_level].data()),
+                        dh_keys[sec_level].size());
+
+    DH *dh = PEM_read_bio_DHparams(bio_storage, NULL, NULL, NULL);
 
     if (SSL_CTX_set_tmp_dh(ssl_fd->ssl_context, dh) == 0) {
+      printf("%s\n", ERR_error_string(ERR_get_error(), NULL));
       DH_free(dh);
+      BIO_free(bio_storage);
       *error = SSL_INITERR_DHFAIL;
       goto error;
     }
     DH_free(dh);
+    BIO_free(bio_storage);
   }
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 

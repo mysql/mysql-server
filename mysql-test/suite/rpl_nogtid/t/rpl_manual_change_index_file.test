@@ -58,9 +58,9 @@ FLUSH LOGS;
 # It expects that the new binlog file is in third line of index file, but
 # there is no third line in index file. It is so strange that master sends an
 # error to slave. 
-call mtr.add_suppression('Got fatal error 1236 from master when reading data from binary log: .*could not find next log');
+call mtr.add_suppression('Got fatal error 1236 from source when reading data from binary log: .*could not find next log');
 connection slave;
-# 13114 = ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+# 13114 = ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG
 --let $slave_io_errno= 13114
 --let $show_slave_io_error= 1
 # Mask line numbers
@@ -112,14 +112,14 @@ DROP TABLE t1, t2, t3, t4;
 --echo
 --echo # BUG#21437 server_errno=29 error message flood mysqld error log
 --echo # --------------------------------------------------------------------------
---echo # This test verifies if the ER_MASTER_FATAL_ERROR_READING_BINLOG which
+--echo # This test verifies if the ER_SOURCE_FATAL_ERROR_READING_BINLOG which
 --echo # insteads of EE_FILENOTFOUND error is sent to slave, so that the slave
 --echo # I/O thread stops immediately.
 
 --source include/rpl_reset.inc
 connection master;
 --echo [ on master ]
-call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log:");
+call mtr.add_suppression("Got fatal error 1236 from source when reading data from binary log:");
 let $MASTER_DATADIR= `SELECT @@DATADIR`;
 CREATE TABLE t1(c1 int);
 DROP TABLE t1;
@@ -142,7 +142,7 @@ connection slave;
 --echo [ on slave ]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='master-bin.000001';
 START SLAVE IO_THREAD;
---echo # Instead of EE_FILENOTFOUND, ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+--echo # Instead of EE_FILENOTFOUND, ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG
 --echo # and the specific information are sent to slave.
 --let $slave_io_errno= 13114
 --let $show_slave_io_error= 1

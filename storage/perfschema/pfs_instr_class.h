@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -264,7 +264,7 @@ struct PFS_instr_class {
     /* Reserved for future use. */
     allowed_flags |= PSI_FLAG_THREAD | PSI_FLAG_TRANSFER;
 
-    uint valid_flags = m_flags & allowed_flags;
+    const uint valid_flags = m_flags & allowed_flags;
     /*
       This fails when the instrumented code is providing
       flags that are not supported for this instrument.
@@ -405,27 +405,27 @@ struct PFS_ALIGNED PFS_table_share {
  public:
   uint32 get_version() { return m_lock.get_version(); }
 
-  enum_object_type get_object_type() { return m_key.m_type; }
+  enum_object_type get_object_type() const { return m_key.m_type; }
 
-  void aggregate_io(void);
-  void aggregate_lock(void);
+  void aggregate_io();
+  void aggregate_lock();
 
   void sum_io(PFS_single_stat *result, uint key_count);
   void sum_lock(PFS_single_stat *result);
   void sum(PFS_single_stat *result, uint key_count);
 
-  inline void aggregate(void) {
+  inline void aggregate() {
     aggregate_io();
     aggregate_lock();
   }
 
-  inline void init_refcount(void) { m_refcount.store(1); }
+  inline void init_refcount() { m_refcount.store(1); }
 
-  inline int get_refcount(void) { return m_refcount.load(); }
+  inline int get_refcount() { return m_refcount.load(); }
 
-  inline void inc_refcount(void) { ++m_refcount; }
+  inline void inc_refcount() { ++m_refcount; }
 
-  inline void dec_refcount(void) { --m_refcount; }
+  inline void dec_refcount() { --m_refcount; }
 
   void refresh_setup_object_flags(PFS_thread *thread);
 

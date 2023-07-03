@@ -43,7 +43,7 @@
 
 --connection slave
 
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
 
 SET @save.innodb_lock_wait_timeout=@@GLOBAL.innodb_lock_wait_timeout;
 eval SET @@global.innodb_lock_wait_timeout=$innodb_wait_timeout;

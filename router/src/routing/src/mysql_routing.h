@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ struct Nothing {};
  *  Example usage: bind to all IP addresses and use TCP Port 7001
  *
  *  @code
- *      MySQLRouting r(routing::AccessMode::kReadWrite, "0.0.0.0", 7001);
+ *      MySQLRouting r(conf, ioctx);
  *      r.destination_connect_timeout = std::chrono::seconds(1);
  *      r.set_destinations_from_csv("10.0.10.5;10.0.11.6");
  *      r.run();
@@ -124,50 +124,16 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
  public:
   /** @brief Default constructor
    *
+   * @param routing_config routing configuration
    * @param io_ctx IO context
-   * @param routing_strategy routing strategy
-   * @param port TCP port for listening for incoming connections
-   * @param protocol protocol for the routing
-   * @param access_mode access mode of the servers
-   * @param bind_address bind_address Bind to particular IP address
-   * @param named_socket Bind to Unix socket/Windows named pipe
    * @param route_name Name of connection routing (can be empty string)
-   * @param max_connections Maximum allowed active connections
-   * @param destination_connect_timeout Timeout trying to connect destination
-   * server
-   * @param max_connect_errors Maximum connect or handshake errors per host
-   * @param connect_timeout Timeout waiting for handshake response
-   * @param net_buffer_length send/receive buffer size
-   * @param client_ssl_mode SSL mode of the client side
    * @param client_ssl_ctx SSL context of the client side
-   * @param server_ssl_mode SSL mode of the serer side
    * @param dest_ssl_ctx SSL contexts of the destinations
-   * @param connection_sharing if connection sharing is allowed by the
-   * configuration
-   * @param connection_sharing_delay default before a idling connection is moved
-   * to the pool of connection sharing is allowed.
    */
-  MySQLRouting(
-      net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
-      uint16_t port, const Protocol::Type protocol,
-      const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
-      const std::string &bind_address = {"0.0.0.0"},
-      const mysql_harness::Path &named_socket = mysql_harness::Path(),
-      const std::string &route_name = {},
-      int max_connections = routing::kDefaultMaxConnections,
-      std::chrono::milliseconds destination_connect_timeout =
-          routing::kDefaultDestinationConnectionTimeout,
-      unsigned long long max_connect_errors = routing::kDefaultMaxConnectErrors,
-      std::chrono::milliseconds connect_timeout =
-          routing::kDefaultClientConnectTimeout,
-      unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
-      SslMode client_ssl_mode = SslMode::kDisabled,
-      TlsServerContext *client_ssl_ctx = nullptr,
-      SslMode server_ssl_mode = SslMode::kDisabled,
-      DestinationTlsContext *dest_ssl_ctx = nullptr,
-      bool connection_sharing = false,
-      std::chrono::milliseconds connection_sharing_delay =
-          routing::kDefaultConnectionSharingDelay);
+  MySQLRouting(const RoutingConfig &routing_config, net::io_context &io_ctx,
+               const std::string &route_name = {},
+               TlsServerContext *client_ssl_ctx = nullptr,
+               DestinationTlsContext *dest_ssl_ctx = nullptr);
 
   /** @brief Runs the service and accept incoming connections
    *
@@ -251,6 +217,8 @@ class ROUTING_EXPORT MySQLRouting : public MySQLRoutingBase {
   std::vector<mysql_harness::TCPAddress> get_destinations() const override;
 
   std::vector<MySQLRoutingAPI::ConnData> get_connections() override;
+
+  MySQLRoutingConnectionBase *get_connection(const std::string &) override;
 
   RouteDestination *destinations() { return destination_.get(); }
 

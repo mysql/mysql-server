@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 select last_insert_id();
 last_insert_id()
@@ -36,9 +36,9 @@ create table t1(a int, b int, unique(b));
 include/sync_slave_sql_with_master.inc
 insert into t1 values(1,10);
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
-call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .10. for key .t1.b.. on query.* Error_code: MY-001062");
-call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.*error code=1062.*Error on slave:.*Error_code: MY-013113");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*Error .Duplicate entry .10. for key .t1.b.. on query.* Error_code: MY-001062");
+call mtr.add_suppression("Replica SQL.*Query caused different errors on source and replica.*Error on source:.*error code=1062.*Error on replica:.*Error_code: MY-013113");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/wait_for_slave_sql_error_and_skip.inc [errno=1062]
 include/check_slave_no_error.inc
 set sql_log_bin=0;
@@ -50,11 +50,11 @@ include/stop_slave_io.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='test';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 include/check_slave_no_error.inc
 set global sql_replica_skip_counter=1;
 start slave;

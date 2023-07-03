@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1479,15 +1479,15 @@ NdbDictionary::Event::getTableEvent(const TableEvent t) const
 }
 
 void
-NdbDictionary::Event::setDurability(EventDurability d)
+NdbDictionary::Event::setDurability(EventDurability)
 {
-  m_impl.setDurability(d);
+  // EventDurability not implemented
 }
 
 NdbDictionary::Event::EventDurability
 NdbDictionary::Event::getDurability() const
 {
-  return m_impl.getDurability();
+  return ED_PERMANENT;
 }
 
 void
@@ -1496,8 +1496,20 @@ NdbDictionary::Event::setReport(EventReport r)
   m_impl.setReport(r);
 }
 
+void
+NdbDictionary::Event::setReportOptions(Uint32 report_options)
+{
+  m_impl.setReport(report_options);
+}
+
 NdbDictionary::Event::EventReport
 NdbDictionary::Event::getReport() const
+{
+  return static_cast<EventReport>(m_impl.getReport());
+}
+
+Uint32
+NdbDictionary::Event::getReportOptions() const
 {
   return m_impl.getReport();
 }

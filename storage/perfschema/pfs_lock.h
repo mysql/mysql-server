@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,8 @@
 
 #include <assert.h>
 #include <atomic>
+
+#include "my_inttypes.h"
 
 /* to cause bugs, testing */
 // #define MEM(X) std::memory_order_relaxed
@@ -176,15 +178,15 @@ struct pfs_lock {
   }
 
   /** Returns true if the record is free. */
-  bool is_free(void) {
-    uint32 copy = m_version_state.load();
+  bool is_free() {
+    const uint32 copy = m_version_state.load();
 
     return ((copy & STATE_MASK) == PFS_LOCK_FREE);
   }
 
   /** Returns true if the record contains values that can be read. */
-  bool is_populated(void) {
-    uint32 copy = m_version_state.load();
+  bool is_populated() {
+    const uint32 copy = m_version_state.load();
 
     return ((copy & STATE_MASK) == PFS_LOCK_ALLOCATED);
   }
@@ -202,9 +204,9 @@ struct pfs_lock {
       return false;
     }
 
-    uint32 new_val = (old_val & VERSION_MASK) + PFS_LOCK_DIRTY;
+    const uint32 new_val = (old_val & VERSION_MASK) + PFS_LOCK_DIRTY;
 
-    bool pass =
+    const bool pass =
         atomic_compare_exchange_strong(&m_version_state, &old_val, new_val);
 
     if (pass) {
@@ -220,11 +222,11 @@ struct pfs_lock {
     before the record is modified.
   */
   void allocated_to_dirty(pfs_dirty_state *copy_ptr) {
-    uint32 copy = copy_version_state();
+    const uint32 copy = copy_version_state();
     /* Make sure the record was ALLOCATED. */
     assert((copy & STATE_MASK) == PFS_LOCK_ALLOCATED);
     /* Keep the same version, set the DIRTY state */
-    uint32 new_val = (copy & VERSION_MASK) + PFS_LOCK_DIRTY;
+    const uint32 new_val = (copy & VERSION_MASK) + PFS_LOCK_DIRTY;
     /* We own the record, no need to use compare and swap. */
 
     m_version_state.store(new_val);
@@ -241,8 +243,8 @@ struct pfs_lock {
     /* Make sure the record was DIRTY. */
     assert((copy->m_version_state & STATE_MASK) == PFS_LOCK_DIRTY);
     /* Increment the version, set the ALLOCATED state */
-    uint32 new_val = (copy->m_version_state & VERSION_MASK) + VERSION_INC +
-                     PFS_LOCK_ALLOCATED;
+    const uint32 new_val = (copy->m_version_state & VERSION_MASK) +
+                           VERSION_INC + PFS_LOCK_ALLOCATED;
 
     m_version_state.store(new_val);
   }
@@ -253,11 +255,12 @@ struct pfs_lock {
     the lock,
     after the record is in a state ready to be read.
   */
-  void set_allocated(void) {
+  void set_allocated() {
     /* Do not set the version to 0, read the previous value. */
-    uint32 copy = copy_version_state();
+    const uint32 copy = copy_version_state();
     /* Increment the version, set the ALLOCATED state */
-    uint32 new_val = (copy & VERSION_MASK) + VERSION_INC + PFS_LOCK_ALLOCATED;
+    const uint32 new_val =
+        (copy & VERSION_MASK) + VERSION_INC + PFS_LOCK_ALLOCATED;
 
     m_version_state.store(new_val);
   }
@@ -267,9 +270,9 @@ struct pfs_lock {
   */
   void set_dirty(pfs_dirty_state *copy_ptr) {
     /* Do not set the version to 0, read the previous value. */
-    uint32 copy = m_version_state.load();
+    const uint32 copy = m_version_state.load();
     /* Increment the version, set the DIRTY state */
-    uint32 new_val = (copy & VERSION_MASK) + VERSION_INC + PFS_LOCK_DIRTY;
+    const uint32 new_val = (copy & VERSION_MASK) + VERSION_INC + PFS_LOCK_DIRTY;
     m_version_state.store(new_val);
 
     copy_ptr->m_version_state = new_val;
@@ -283,7 +286,8 @@ struct pfs_lock {
     /* Make sure the record was DIRTY. */
     assert((copy->m_version_state & STATE_MASK) == PFS_LOCK_DIRTY);
     /* Keep the same version, set the FREE state */
-    uint32 new_val = (copy->m_version_state & VERSION_MASK) + PFS_LOCK_FREE;
+    const uint32 new_val =
+        (copy->m_version_state & VERSION_MASK) + PFS_LOCK_FREE;
 
     m_version_state.store(new_val);
   }
@@ -292,17 +296,17 @@ struct pfs_lock {
     Execute an allocated to free transition.
     This transition should be executed by the writer that owns the record.
   */
-  void allocated_to_free(void) {
+  void allocated_to_free() {
     /*
       If this record is not in the ALLOCATED state and the caller is trying
       to free it, this is a bug: the caller is confused,
       and potentially damaging data owned by another thread or object.
     */
-    uint32 copy = copy_version_state();
+    const uint32 copy = copy_version_state();
     /* Make sure the record was ALLOCATED. */
     assert(((copy & STATE_MASK) == PFS_LOCK_ALLOCATED));
     /* Keep the same version, set the FREE state */
-    uint32 new_val = (copy & VERSION_MASK) + PFS_LOCK_FREE;
+    const uint32 new_val = (copy & VERSION_MASK) + PFS_LOCK_FREE;
 
     m_version_state.store(new_val);
   }
@@ -328,18 +332,14 @@ struct pfs_lock {
       return false;
     }
 
-    uint32 version_state = m_version_state.load();
+    const uint32 version_state = m_version_state.load();
 
     /* Check the version + state has not changed. */
-    if (copy->m_version_state != version_state) {
-      return false;
-    }
-
-    return true;
+    return (copy->m_version_state == version_state);
   }
 
   uint32 get_version() {
-    uint32 version_state = m_version_state.load();
+    const uint32 version_state = m_version_state.load();
 
     return (version_state & VERSION_MASK);
   }

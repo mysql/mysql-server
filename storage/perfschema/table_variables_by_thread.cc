@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -99,14 +99,14 @@ PFS_engine_table *table_variables_by_thread::create(PFS_engine_table_share *) {
   return new table_variables_by_thread();
 }
 
-ha_rows table_variables_by_thread::get_row_count(void) {
+ha_rows table_variables_by_thread::get_row_count() {
   mysql_mutex_lock(&LOCK_plugin_delete);
 #ifndef NDEBUG
   extern mysql_mutex_t LOCK_plugin;
   mysql_mutex_assert_not_owner(&LOCK_plugin);
 #endif
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  ulong system_var_count = get_system_variable_count();
+  const ulong system_var_count = get_system_variable_count();
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
   mysql_mutex_unlock(&LOCK_plugin_delete);
   return (global_thread_container.get_row_count() * system_var_count);
@@ -118,7 +118,7 @@ table_variables_by_thread::table_variables_by_thread()
       m_pos(),
       m_next_pos() {}
 
-void table_variables_by_thread::reset_position(void) {
+void table_variables_by_thread::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
@@ -130,7 +130,7 @@ int table_variables_by_thread::rnd_init(bool /* scan */) {
   return 0;
 }
 
-int table_variables_by_thread::rnd_next(void) {
+int table_variables_by_thread::rnd_next() {
   bool has_more_thread = true;
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
@@ -183,7 +183,7 @@ int table_variables_by_thread::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_variables_by_thread::index_next(void) {
+int table_variables_by_thread::index_next() {
   bool has_more_thread = true;
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {

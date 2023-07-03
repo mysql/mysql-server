@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1648,6 +1648,18 @@ static bool print_on_update_clause(Field *field, String *val, bool lcase) {
   return false;
 }
 
+/**
+  Print "DEFAULT" clause of a field into a string.
+
+  @param thd               The THD to create the DEFAULT clause for.
+  @param field             The field to generate the DEFAULT clause for.
+  @param def_value         String to write the DEFAULT clause to to.
+  @param quoted            Whether to quote the default value.
+                           false for not needed (value will became its
+                           own field (with its own charset) in a table);
+                           true for quote (as part of a SHOW CREATE statement).
+  @return                  true if field has a DEFAULT value, false otherwise.
+*/
 static bool print_default_clause(THD *thd, Field *field, String *def_value,
                                  bool quoted) {
   enum enum_field_types field_type = field->type();
@@ -1677,6 +1689,7 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
     } else if (!field->is_null() && field_type != FIELD_TYPE_BLOB) {
       char tmp[MAX_FIELD_WIDTH];
       String type(tmp, sizeof(tmp), field->charset());
+      // Wrap bit values in b'...'
       if (field_type == MYSQL_TYPE_BIT) {
         longlong dec = field->val_int();
         char *ptr = longlong2str(dec, tmp + 2, 2);
@@ -1688,17 +1701,72 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
         quoted = false;
       } else
         field->val_str(&type);
+
       if (type.length()) {
-        String def_val;
-        uint dummy_errors;
-        /* convert to system_charset_info == utf8 */
-        def_val.copy(type.ptr(), type.length(), field->charset(),
-                     system_charset_info, &dummy_errors);
-        if (quoted)
-          append_unescaped(def_value, def_val.ptr(), def_val.length());
-        else
-          def_value->append(def_val.ptr(), def_val.length());
-      } else if (quoted)
+        /*
+          value_only will contain only the default value itself,
+          while def_value will contain that, any quotation, escaping,
+          character-set designation, and so on.
+        */
+        String value_only;
+
+        /* Try to convert to system_charset_info (UTF-8). */
+        /* Counter-intuitively, we do not receive an error if we can not
+           create valid UTF-8 with copy(), so we'll have to talk to the
+           lower level functions. */
+
+        const char *well_formed_error_pos;
+        const char *cannot_convert_error_pos;
+        const char *from_end_pos;
+        size_t to_len; /* destination size in bytes (not characters) */
+        size_t bytes_copied;
+
+        to_len = type.length() * system_charset_info->mbmaxlen;
+
+        value_only.reserve(to_len);
+
+        bytes_copied = well_formed_copy_nchars(
+            /* to    */ system_charset_info, value_only.ptr(), to_len,
+            /* from  */ field->charset(), type.ptr(), type.length(),
+            /* chars */ type.length(), &well_formed_error_pos,
+            &cannot_convert_error_pos, &from_end_pos);
+
+        // If conversion failed, hexify string.
+        if ((well_formed_error_pos != nullptr) ||
+            (cannot_convert_error_pos != nullptr)) {
+          unsigned char *p;
+          size_t l = type.length();
+          char
+              hex[3];  // 2 characters as we have 2 nibbles per byte, plus '\0'.
+
+          /*
+            Result length:
+            - 2 characters (for 2 nibbles) for each byte we hexify
+            - plus "0x"
+            - plus '\0'
+          */
+          def_value->reserve(l * 2 + 3);
+          def_value->append("0x");
+          p = (unsigned char *)type.ptr();
+          while (l--) {
+            snprintf(hex, sizeof(hex), "%02X", (int)(*(p++) & 0xff));
+            def_value->append(hex);
+          }
+        }
+
+        /*
+          Charset conversation succeeded or wasn't necessary.
+        */
+        else {
+          value_only.length(bytes_copied);
+
+          if (quoted)
+            append_unescaped(def_value, value_only.ptr(), value_only.length());
+          else
+            def_value->append(value_only.ptr(), value_only.length());
+        }
+
+      } else if (quoted)  // !type.length()
         def_value->append(STRING_WITH_LEN("''"));
     } else if (field->is_nullable() && quoted && field_type != FIELD_TYPE_BLOB)
       def_value->append(STRING_WITH_LEN("NULL"));  // Null as default
@@ -2116,14 +2184,18 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
 
     // Storage engine specific json attributes
     if (field->m_engine_attribute.length) {
-      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE '"));
-      packet->append(field->m_engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE "));
+      // append escaped JSON
+      append_unescaped(packet, field->m_engine_attribute.str,
+                       field->m_engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
     if (field->m_secondary_engine_attribute.length) {
-      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE '"));
-      packet->append(field->m_secondary_engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE "));
+      // escape JSON
+      append_unescaped(packet, field->m_secondary_engine_attribute.str,
+                       field->m_secondary_engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
   }
 
@@ -2479,14 +2551,17 @@ bool store_create_info(THD *thd, Table_ref *table_list, String *packet,
     }
 
     if (share->engine_attribute.length) {
-      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE='"));
-      packet->append(share->engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE="));
+      append_unescaped(packet, share->engine_attribute.str,
+                       share->engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
     if (share->secondary_engine_attribute.length) {
-      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE='"));
-      packet->append(share->secondary_engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE="));
+      // escape JSON
+      append_unescaped(packet, share->secondary_engine_attribute.str,
+                       share->secondary_engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
     append_directory(thd, packet, "DATA", create_info.data_file_name);
     append_directory(thd, packet, "INDEX", create_info.index_file_name);
@@ -2559,15 +2634,19 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       packet->append(STRING_WITH_LEN(" /*!80000 INVISIBLE */"));
 
     if (key_info->engine_attribute.length > 0) {
-      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE '"));
-      packet->append(key_info->engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE "));
+      // escape JSON
+      append_unescaped(packet, key_info->engine_attribute.str,
+                       key_info->engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
 
     if (key_info->secondary_engine_attribute.length > 0) {
-      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE '"));
-      packet->append(key_info->secondary_engine_attribute);
-      packet->append(STRING_WITH_LEN("' */"));
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE "));
+      // escape JSON
+      append_unescaped(packet, key_info->secondary_engine_attribute.str,
+                       key_info->secondary_engine_attribute.length);
+      packet->append(STRING_WITH_LEN(" */"));
     }
   }
 }

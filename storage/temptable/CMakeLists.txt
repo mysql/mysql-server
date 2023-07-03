@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,6 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+MSVC_CPPCHECK_DISABLE()
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -46,6 +48,7 @@ MYSQL_ADD_PLUGIN(temptable
   ${TEMPTABLE_SOURCES}
   STORAGE_ENGINE
   MANDATORY
+  LINK_LIBRARIES extra::rapidjson
 )
 
 # Only used for debugging.

@@ -2,16 +2,16 @@
 include/rpl_init.inc [topology=1->2->3->4->1]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 
 [connection server_4]
 SET auto_increment_increment= 4;
@@ -28,10 +28,10 @@ SET auto_increment_offset= 1;
 *** Preparing data ***
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=InnoDB;
 include/rpl_sync.inc
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-call mtr.add_suppression("Slave SQL: Coordinator thread of multi-threaded slave is exiting seeing a failed Worker to apply an event");
-call mtr.add_suppression("Slave worker thread has failed to apply an event");
-call mtr.add_suppression("Slave SQL.*Duplicate entry .6. for key t1.PRIMARY.* Error_code: MY-001062");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL: Coordinator thread of multi-threaded replica is exiting seeing a failed Worker to apply an event");
+call mtr.add_suppression("Replica worker thread has failed to apply an event");
+call mtr.add_suppression("Replica SQL.*Duplicate entry .6. for key t1.PRIMARY.* Error_code: MY-001062");
 
 * Transactions with commits *
 BEGIN;

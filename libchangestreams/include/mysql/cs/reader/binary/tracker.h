@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,8 +70,8 @@ class Tracker : public cs::reader::Base_tracker {
    * @return true if there was an error.
    * @return false if there was no error.
    */
-  virtual bool track_and_update(std::shared_ptr<State> state,
-                                const std::vector<uint8_t> &buffer) override;
+  bool track_and_update(std::shared_ptr<State> state,
+                        const std::vector<uint8_t> &buffer) override;
 };
 
 }  // namespace cs::reader::binary

@@ -1,0 +1,178 @@
+# ==== Purpose ====
+#
+# Verify that heartbeat events work when the position is greater than 4 GiB
+#
+# ==== Requirements ====
+#
+# R1. If a binary log size is bigger than 4 GiB then the heartbeat event
+#     emitted should contain the correct size.
+#
+# ==== Implementation ====
+#
+# 1. Start only the IO_THREAD on replica and set the SOURCE_HEARTBEAT_PERIOD to
+#    0 in order to avoid the heartbeat_events from dump thread
+# 2. Create table on source.
+# 3. Sync the IO_THREAD on replica and stop the replica.
+# 4. Execute one 4 GiB transaction on connection_1 and one small transaction
+#    on connection_2, don't commit the transactions.
+# 5. Set up a sync point on the source to make sure that the 2
+#    transactions are committed in the same commit group, with the big
+#    transaction first and the small transaction second.
+# 6. Reap both transactions from connection 1 and 2.
+# 7. Verify that the gtid event in the source has the position greater than 4 GiB.
+# 8. Start the receiver thread and make it stop after receiving the first
+#    transaction from connection 1(the 4 GiB transaction)
+# 9. Source enables a debug symbol that makes it hit an assertion in case it
+#    sends a heartbeat event with a position smaller than 4 GiB.
+# 10.Replica starts the IO thread again. It uses the auto-position protocol,
+#    and therefore the dump thread will emit a heartbeat event after skipping
+#    the 4 GiB transaction (in order to notify the receiver of the position).
+# 11.Verify that we received exactly 1 heartbeat event after step 8 by
+#    inspecting performance_schema.replication_connection_status
+# 12.Cleanup
+#
+# ==== References ====
+#
+# Bug#33615584: Add mtr test to generate heartbeat_event in 4 gb binlog file
+#               for Bug#29913991
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave = 1
+--let $rpl_extra_connections_per_server = 2
+--source include/master-slave.inc
+# 1. Start only the IO_THREAD on replica and set the SOURCE_HEARTBEAT_PERIOD to
+#    0 in order to avoid the heartbeat_events from dump thread
+--source include/rpl_connection_slave.inc
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=0;
+--source include/start_slave_io.inc
+
+--source include/rpl_connection_master.inc
+# 2. Create tables on source.
+CREATE TABLE t (a LONGBLOB);
+--source include/save_binlog_position.inc
+
+# 3. Sync the IO_THREAD on replica and stop the replica
+--source include/sync_slave_io_with_master.inc
+--source include/stop_slave_io.inc
+
+# 4. Execute one 4 GiB transaction on connection_1 and one small transaction
+#    on connection_2, don't commit the transaction.
+
+# Start one transaction that is a little more than 4 GiB
+# (actually exactly 4 GiB row data, plus a bit of per-event overhead).
+# Split it into 128 statements, each 32 MiB, to keep within default
+# limits.
+--let $four_gib = `SELECT 1 << 32`
+--let $statement_count = 128
+--let $statement_size = `SELECT $four_gib DIV $statement_count`
+--disable_query_log
+
+--connection server_1_1
+BEGIN;
+--let $i = 0
+while ($i < $statement_count) {
+  eval INSERT INTO t VALUES (REPEAT('a', $statement_size));
+  --inc $i
+}
+--enable_query_log
+# On a different connection, start a small transaction.
+--connection server_1_2
+BEGIN;
+INSERT INTO t VALUES ('Hi!');
+# 5. Set up a sync point on the source to make sure that the 2
+#    transactions are committed in the same commit group, with the big
+#    transaction first and the small transaction second.
+
+--let $sync_point = bgc_after_enrolling_for_flush_stage
+--let $statement = COMMIT
+--let $auxiliary_connection = default
+
+--let $statement_connection = server_1_1
+--source include/execute_to_sync_point.inc
+--let $statement_connection = server_1_2
+--source include/execute_to_sync_point.inc
+# Release the transactions from their sync points.
+--let $skip_reap = 1
+
+--let $statement_connection = server_1_1
+--source include/execute_from_sync_point.inc
+--let $statement_connection = server_1_2
+--source include/execute_from_sync_point.inc
+
+# 6. Reap both transactions from connection 1 and 2.
+
+--connection server_1_1
+--reap
+--connection server_1_2
+--reap
+
+# 7. Verify that the gtid event in the source has the position greater than 4 GiB.
+
+# The binlog should contain:
+# GTID
+# BEGIN
+# ( Table_map + Write_rows ) * 128
+# Xid
+# GTID
+# BEGIN
+# Table_map + Write_rows
+# Xid
+# So the second GTID is the (2 + 2 * 128 + 1 + 1)'st event.
+--let $second_gtid_type = query_get_value("SHOW BINLOG EVENTS IN '$binlog_file' FROM $binlog_position LIMIT 259, 1", Event_type, 1)
+--let $assert_cond = "$second_gtid_type" = "Gtid"
+--let $assert_text = The event we think is the second GTID, should actually be the second GTID
+--source include/assert.inc
+
+--let $second_gtid_position = query_get_value("SHOW BINLOG EVENTS IN '$binlog_file' FROM $binlog_position LIMIT 259, 1", Pos, 1)
+--let $assert_cond = $second_gtid_position > $four_gib
+--let $assert_text = The second GTID event should have position > 4 GiB
+--source include/assert.inc
+
+# 8. Start the receiver thread and make it stop after receiving the first
+#    transaction from connection 1(the 4 GiB transaction)
+
+--source include/rpl_connection_slave.inc
+--let $rpl_after_received_events_action= stop
+--let $rpl_event_count= 2
+--let $rpl_count_only_event_type= Gtid
+--source include/rpl_receive_event_count.inc
+
+--let $rcvd_heartbeats_before= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1)
+
+# 9. Source enables a debug symbol that makes it hit an assertion in case it
+#    sends a heartbeat event with a position smaller than 4 GiB.
+
+--source include/rpl_connection_master.inc
+--let $debug_point = heartbeat_event_with_position_greater_than_4_gb
+--source include/add_debug_point.inc
+
+# 10. Replica starts the IO thread again. It uses the auto-position protocol,
+#    and therefore the dump thread will emit a heartbeat event after skipping
+#    the 4 GiB transaction (in order to notify the receiver of the position).
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_io_with_master.inc
+
+# 11.Verify that we received exactly 1 heartbeat event after step 8 by
+#    inspecting performance_schema.replication_connection_status
+--let $rcvd_heartbeats_after= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1)
+
+--let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) AS Result, Result, 1)
+--let $assert_cond = $rcvd_heartbeats_after - $rcvd_heartbeats_before = 1
+--let $assert_text = Exactly 1 heartbeat event occurred
+--source include/assert.inc
+
+# 12. Cleanup
+--source include/rpl_connection_master.inc
+--let $debug_point = heartbeat_event_with_position_greater_than_4_gb
+--source include/remove_debug_point.inc
+DROP TABLE t;
+
+--let $rpl_only_running_threads = 1
+--source include/rpl_end.inc

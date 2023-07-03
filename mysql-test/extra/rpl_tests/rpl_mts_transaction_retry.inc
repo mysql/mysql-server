@@ -42,10 +42,10 @@ INSERT INTO db1.t2 VALUES(1, NULL), (10, NULL), (100, NULL);
 INSERT INTO db2.t1 VALUES(1, NULL), (10, NULL), (100, NULL);
 
 --source include/sync_slave_sql_with_master.inc
-CALL mtr.add_suppression("Slave SQL for channel '':.*Lock wait timeout exceeded.*");
-CALL mtr.add_suppression("Slave SQL for channel '': Worker . failed executing transaction.*");
-CALL mtr.add_suppression("Slave SQL for channel '': .*Error_code: MY-001756");
-CALL mtr.add_suppression("Slave SQL for channel '': worker thread retried transaction.*");
+CALL mtr.add_suppression("Replica SQL for channel '':.*Lock wait timeout exceeded.*");
+CALL mtr.add_suppression("Replica SQL for channel '': Worker . failed executing transaction.*");
+CALL mtr.add_suppression("Replica SQL for channel '': .*Error_code: MY-001756");
+CALL mtr.add_suppression("Replica SQL for channel '': worker thread retried transaction.*");
 
 # Backup the original value of the variables
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;

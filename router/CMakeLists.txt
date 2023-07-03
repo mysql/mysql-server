@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@ CMAKE_POLICY(SET CMP0048 NEW)
 # only interpret if() arguments as variables or keywords when unquoted
 CMAKE_POLICY(SET CMP0054 NEW)
 PROJECT("MySQLRouter" VERSION ${PROJECT_VERSION_TEXT} LANGUAGES C CXX)
+MSVC_CPPCHECK_DISABLE()
 
 # In CMake 3.12 and above, the
 #

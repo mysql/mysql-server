@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,20 +26,20 @@
 
 #include <inttypes.h>
 
-#include "my_base.h"  // HA_ERR_ROWS_EVENT_APPLY
 #include "my_dbug.h"
 #include "sql/mysqld.h"  // lower_case_table_names
+#include "storage/ndb/include/ndbapi/Ndb.hpp"
+#include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
+#include "storage/ndb/include/ndbapi/NdbError.hpp"
+#include "storage/ndb/include/ndbapi/NdbInterpretedCode.hpp"
+#include "storage/ndb/include/ndbapi/NdbOperation.hpp"
+#include "storage/ndb/include/ndbapi/NdbTransaction.hpp"
 #include "storage/ndb/plugin/ndb_binlog_extra_row_info.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_table_guard.h"
 
-extern st_ndb_slave_state g_ndb_slave_state;
-
-#include "storage/ndb/plugin/ndb_mi.h"
-
 extern ulong opt_ndb_slave_conflict_role;
-extern bool opt_ndb_applier_allow_skip_epoch;
 
 typedef NdbDictionary::Table NDBTAB;
 typedef NdbDictionary::Column NDBCOL;
@@ -741,921 +741,6 @@ int ExceptionsTableWriter::writeRow(
 }
 
 /**
-   st_ndb_slave_state constructor
-
-   Initialise Ndb Slave state object
-*/
-st_ndb_slave_state::st_ndb_slave_state()
-    : current_delete_delete_count(0),
-      current_reflect_op_prepare_count(0),
-      current_reflect_op_discard_count(0),
-      current_refresh_op_count(0),
-      current_master_server_epoch(0),
-      current_master_server_epoch_committed(false),
-      current_max_rep_epoch(0),
-      conflict_flags(0),
-      retry_trans_count(0),
-      current_trans_row_conflict_count(0),
-      current_trans_row_reject_count(0),
-      current_trans_in_conflict_count(0),
-      last_conflicted_epoch(0),
-      last_stable_epoch(0),
-      total_delete_delete_count(0),
-      total_reflect_op_prepare_count(0),
-      total_reflect_op_discard_count(0),
-      total_refresh_op_count(0),
-      max_rep_epoch(0),
-      applier_sql_thread_start(true),
-      trans_row_conflict_count(0),
-      trans_row_reject_count(0),
-      trans_detect_iter_count(0),
-      trans_in_conflict_count(0),
-      trans_conflict_commit_count(0),
-      trans_conflict_apply_state(SAS_NORMAL),
-      trans_dependency_tracker(nullptr) {
-  memset(current_violation_count, 0, sizeof(current_violation_count));
-  memset(total_violation_count, 0, sizeof(total_violation_count));
-
-  /* Init conflict handling state memroot */
-  const size_t CONFLICT_MEMROOT_BLOCK_SIZE = 32768;
-  ::new ((void *)&conflict_mem_root)
-      MEM_ROOT(PSI_INSTRUMENT_ME, CONFLICT_MEMROOT_BLOCK_SIZE);
-}
-
-st_ndb_slave_state::~st_ndb_slave_state() {}
-
-/**
-   resetPerAttemptCounters
-
-   Reset the per-epoch-transaction-application-attempt counters
-*/
-void st_ndb_slave_state::resetPerAttemptCounters() {
-  memset(current_violation_count, 0, sizeof(current_violation_count));
-  current_delete_delete_count = 0;
-  current_reflect_op_prepare_count = 0;
-  current_reflect_op_discard_count = 0;
-  current_refresh_op_count = 0;
-  current_trans_row_conflict_count = 0;
-  current_trans_row_reject_count = 0;
-  current_trans_in_conflict_count = 0;
-
-  conflict_flags = 0;
-  current_max_rep_epoch = 0;
-}
-
-/**
-   saveServerId
-
-   Remember we have see server_id when writing into ndb_apply_status
-   This is so we can avoid overwriting any epochs when applying statements
-*/
-void st_ndb_slave_state::saveServerId(Uint32 server_id) {
-  // Just insert the server_id, most of the time it will already exist and thus
-  // the insert will have no effect
-  source_server_ids.insert(server_id);
-}
-
-/**
-   seenServerId
-
-   Check if we have already written an epoch from a server_id
- */
-bool st_ndb_slave_state::seenServerId(Uint32 server_id) const {
-  return source_server_ids.count(server_id) != 0;
-}
-
-/**
-   atTransactionAbort()
-
-   Called by Slave SQL thread during transaction abort.
-*/
-void st_ndb_slave_state::atTransactionAbort() {
-  /* Reset any gathered transaction dependency information */
-  atEndTransConflictHandling();
-  trans_conflict_apply_state = SAS_NORMAL;
-
-  /* Reset current-transaction counters + state */
-  resetPerAttemptCounters();
-}
-
-/**
-   atTransactionCommit()
-
-   Called by Slave SQL thread after transaction commit
-*/
-void st_ndb_slave_state::atTransactionCommit(Uint64 epoch) {
-  assert(((trans_dependency_tracker == nullptr) &&
-          (trans_conflict_apply_state == SAS_NORMAL)) ||
-         ((trans_dependency_tracker != nullptr) &&
-          (trans_conflict_apply_state == SAS_TRACK_TRANS_DEPENDENCIES)));
-  assert(trans_conflict_apply_state != SAS_APPLY_TRANS_DEPENDENCIES);
-
-  /* Merge committed transaction counters into total state
-   * Then reset current transaction counters
-   */
-  Uint32 total_conflicts = 0;
-  for (int i = 0; i < CFT_NUMBER_OF_CFTS; i++) {
-    total_conflicts += current_violation_count[i];
-    total_violation_count[i] += current_violation_count[i];
-  }
-  total_delete_delete_count += current_delete_delete_count;
-  total_reflect_op_prepare_count += current_reflect_op_prepare_count;
-  total_reflect_op_discard_count += current_reflect_op_discard_count;
-  total_refresh_op_count += current_refresh_op_count;
-  trans_row_conflict_count += current_trans_row_conflict_count;
-  trans_row_reject_count += current_trans_row_reject_count;
-  trans_in_conflict_count += current_trans_in_conflict_count;
-
-  if (current_trans_in_conflict_count) trans_conflict_commit_count++;
-
-  if (current_max_rep_epoch > max_rep_epoch) {
-    DBUG_PRINT("info", ("Max replicated epoch increases from %llu to %llu",
-                        max_rep_epoch, current_max_rep_epoch));
-    max_rep_epoch = current_max_rep_epoch;
-  }
-
-  {
-    bool hadConflict = false;
-    if (total_conflicts > 0) {
-      /**
-       * Conflict detected locally
-       */
-      DBUG_PRINT("info", ("Last conflicted epoch increases from %llu to %llu",
-                          last_conflicted_epoch, epoch));
-      hadConflict = true;
-    } else {
-      /**
-       * Update last_conflicted_epoch if we applied reflected or refresh ops
-       * (Implies Secondary role in asymmetric algorithms)
-       */
-      assert(current_reflect_op_prepare_count >=
-             current_reflect_op_discard_count);
-      Uint32 current_reflect_op_apply_count =
-          current_reflect_op_prepare_count - current_reflect_op_discard_count;
-      if (current_reflect_op_apply_count > 0 || current_refresh_op_count > 0) {
-        DBUG_PRINT(
-            "info",
-            ("Reflected (%u) or Refresh (%u) operations applied this "
-             "epoch, increasing last conflicted epoch from %llu to %llu.",
-             current_reflect_op_apply_count, current_refresh_op_count,
-             last_conflicted_epoch, epoch));
-        hadConflict = true;
-      }
-    }
-
-    /* Update status vars */
-    if (hadConflict) {
-      last_conflicted_epoch = epoch;
-    } else {
-      if (max_rep_epoch >= last_conflicted_epoch) {
-        /**
-         * This epoch which has looped the circle was stable -
-         * no new conflicts have been found / corrected since
-         * it was logged
-         */
-        last_stable_epoch = max_rep_epoch;
-
-        /**
-         * Note that max_rep_epoch >= last_conflicted_epoch
-         * implies that there are no currently known-about
-         * conflicts.
-         * On the primary this is a definitive fact as it
-         * finds out about all conflicts immediately.
-         * On the secondary it does not mean that there
-         * are not committed conflicts, just that they
-         * have not started being corrected yet.
-         */
-      }
-    }
-  }
-
-  resetPerAttemptCounters();
-
-  /* Clear per-epoch-transaction retry_trans_count */
-  retry_trans_count = 0;
-
-  current_master_server_epoch_committed = true;
-
-  if (DBUG_EVALUATE_IF("ndb_replica_fail_marking_epoch_committed", true,
-                       false)) {
-    fprintf(stderr,
-            "Replica clearing epoch committed flag "
-            "for epoch %llu/%llu (%llu)\n",
-            current_master_server_epoch >> 32,
-            current_master_server_epoch & 0xffffffff,
-            current_master_server_epoch);
-    current_master_server_epoch_committed = false;
-  }
-}
-
-/**
-   verifyNextEpoch
-
-   Check that a new incoming epoch from the relay log
-   is expected given the current slave state, previous
-   epoch etc.
-   This is checking Generic replication errors, with
-   a user warning thrown in too.
-*/
-bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
-                                         Uint32 master_server_id) const {
-  DBUG_TRACE;
-
-  /**
-    WRITE_ROW to ndb_apply_status injected by MySQLD
-    immediately upstream of us.
-
-    Now we do some validation of the incoming epoch transaction's
-    epoch - to make sure that we are getting a sensible sequence
-    of epochs.
-  */
-  bool first_epoch_since_slave_start = applier_sql_thread_start;
-
-  DBUG_PRINT(
-      "info",
-      ("ndb_apply_status write from upstream source"
-       "ServerId %u, Epoch %llu/%llu (%llu) "
-       "Current source Server epoch %llu/%llu (%llu)"
-       "Current source Server epoch committed? %u",
-       master_server_id, next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
-       current_master_server_epoch >> 32,
-       current_master_server_epoch & 0xffffffff, current_master_server_epoch,
-       current_master_server_epoch_committed));
-  DBUG_PRINT("info", ("First epoch since slave start : %u",
-                      first_epoch_since_slave_start));
-
-  /* Analysis of nextEpoch generally depends on whether it's the first or not */
-  if (first_epoch_since_slave_start) {
-    /**
-       First epoch since slave start - might've had a CHANGE MASTER command,
-       since we were last running, so we are not too strict about epoch
-       changes, but we will warn.
-    */
-    if (next_epoch < current_master_server_epoch) {
-      ndb_log_warning(
-          "NDB Replica: At SQL thread start "
-          "applying epoch %llu/%llu (%llu) from "
-          "Source ServerId %u which is lower than "
-          "previously applied epoch %llu/%llu (%llu).  "
-          "Group Source Log : %s  "
-          "Group Source Log Pos : %" PRIu64
-          ".  "
-          "Check replica positioning.  ",
-          next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
-          master_server_id, current_master_server_epoch >> 32,
-          current_master_server_epoch & 0xffffffff, current_master_server_epoch,
-          ndb_mi_get_group_master_log_name(),
-          ndb_mi_get_group_master_log_pos());
-      /* Slave not stopped */
-    } else if (next_epoch == current_master_server_epoch) {
-      /**
-         Could warn that started on already applied epoch,
-         but this is often harmless.
-      */
-    } else {
-      /* next_epoch > current_master_server_epoch - fine. */
-    }
-  } else {
-    /**
-       ! first_epoch_since_slave_start
-
-       Slave has already applied some epoch in this run, so we expect
-       either :
-        a) previous epoch committed ok and next epoch is higher
-                                  or
-        b) previous epoch not committed and next epoch is the same
-           (Retry case)
-    */
-    if (next_epoch < current_master_server_epoch) {
-      /* Should never happen */
-      ndb_log_error(
-          "NDB Replica: SQL thread stopped as "
-          "applying epoch %llu/%llu (%llu) from "
-          "Source ServerId %u which is lower than "
-          "previously applied epoch %llu/%llu (%llu).  "
-          "Group Source Log : %s  "
-          "Group Source Log Pos : %." PRIu64,
-          next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
-          master_server_id, current_master_server_epoch >> 32,
-          current_master_server_epoch & 0xffffffff, current_master_server_epoch,
-          ndb_mi_get_group_master_log_name(),
-          ndb_mi_get_group_master_log_pos());
-      /* Stop the slave */
-      return false;
-    } else if (next_epoch == current_master_server_epoch) {
-      /**
-         This is ok if we are retrying - e.g. the
-         last epoch was not committed
-      */
-      if (current_master_server_epoch_committed) {
-        /* This epoch is committed already, why are we replaying it? */
-        ndb_log_error(
-            "NDB Replica: SQL thread stopped as attempted to "
-            "reapply already committed epoch %llu/%llu (%llu) "
-            "from server id %u.  "
-            "Group Source Log : %s  "
-            "Group Source Log Pos : %." PRIu64,
-            current_master_server_epoch >> 32,
-            current_master_server_epoch & 0xffffffff,
-            current_master_server_epoch, master_server_id,
-            ndb_mi_get_group_master_log_name(),
-            ndb_mi_get_group_master_log_pos());
-        /* Stop the slave */
-        return false;
-      } else {
-        /* Probably a retry, no problem. */
-      }
-    } else {
-      /**
-         next_epoch > current_master_server_epoch
-
-         This is the normal case, *unless* the previous epoch
-         did not commit - in which case it may be a bug in
-         transaction retry.
-      */
-      if (!current_master_server_epoch_committed) {
-        /**
-           We've moved onto a new epoch without committing
-           the last - could be a bug, or perhaps the user
-           has configured slave-skip-errors?
-        */
-        if (!opt_ndb_applier_allow_skip_epoch) {
-          ndb_log_error(
-              "NDB Replica: SQL thread stopped as attempting to "
-              "apply new epoch %llu/%llu (%llu) while lower "
-              "received epoch %llu/%llu (%llu) has not been "
-              "committed.  Source Server id : %u.  "
-              "Group Source Log : %s  "
-              "Group Source Log Pos : %." PRIu64,
-              next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
-              current_master_server_epoch >> 32,
-              current_master_server_epoch & 0xffffffff,
-              current_master_server_epoch, master_server_id,
-              ndb_mi_get_group_master_log_name(),
-              ndb_mi_get_group_master_log_pos());
-          /* Stop the slave */
-          return false;
-        } else {
-          ndb_log_warning(
-              "NDB Replica: SQL thread attempting to "
-              "apply new epoch %llu/%llu (%llu) while lower "
-              "received epoch %llu/%llu (%llu) has not been "
-              "committed.  Source Server id : %u.  "
-              "Group Source Log : %s  "
-              "Group Source Log Pos : %." PRIu64
-              ".  "
-              "Continuing as ndb_applier_allow_skip_epoch set.",
-              next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
-              current_master_server_epoch >> 32,
-              current_master_server_epoch & 0xffffffff,
-              current_master_server_epoch, master_server_id,
-              ndb_mi_get_group_master_log_name(),
-              ndb_mi_get_group_master_log_pos());
-          /* Continue */
-        }
-      } else {
-        /* Normal case of next epoch after committing last */
-      }
-    }
-  }
-
-  /* Epoch looks ok */
-  return true;
-}
-
-/**
-   atApplyStatusWrite
-
-   Called by Slave SQL thread when applying an event to the
-   ndb_apply_status table
-*/
-int st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
-                                           Uint32 row_server_id,
-                                           Uint64 row_epoch,
-                                           bool is_row_server_id_local) {
-  DBUG_TRACE;
-
-  /* Save any remote server_id seen */
-  saveServerId(row_server_id);
-
-  if (row_server_id == master_server_id) {
-    /* This is an apply status write from the immediate master */
-
-    if (!verifyNextEpoch(row_epoch, master_server_id)) {
-      /* Problem with the next epoch, stop the slave SQL thread */
-      return HA_ERR_ROWS_EVENT_APPLY;
-    }
-
-    /* Epoch ok, record that we're working on it now... */
-
-    current_master_server_epoch = row_epoch;
-    current_master_server_epoch_committed = false;
-    assert(!is_row_server_id_local);
-  } else if (is_row_server_id_local) {
-    DBUG_PRINT("info", ("Recording application of local server %u epoch %llu "
-                        " which is %s.",
-                        row_server_id, row_epoch,
-                        (row_epoch > current_max_rep_epoch)
-                            ? " new highest."
-                            : " older than previously applied"));
-    if (row_epoch > current_max_rep_epoch) {
-      /*
-        Store new highest epoch in thdvar.  If we commit successfully
-        then this can become the new global max
-      */
-      current_max_rep_epoch = row_epoch;
-    }
-  }
-  return 0;
-}
-
-/**
-   atResetSlave()
-
-   Called when RESET SLAVE command issued - in context of command client.
-*/
-void st_ndb_slave_state::atResetSlave() {
-  /* Reset the Maximum replicated epoch vars
-   * on slave reset
-   */
-  resetPerAttemptCounters();
-
-  retry_trans_count = 0;
-  max_rep_epoch = 0;
-  last_conflicted_epoch = 0;
-  last_stable_epoch = 0;
-
-  /* Forget any source server_id's seen */
-  source_server_ids.clear();
-
-  /* Reset current master server epoch
-   * This avoids warnings when replaying a lower
-   * epoch number after a RESET SLAVE - in this
-   * case we assume the user knows best.
-   */
-  current_master_server_epoch = 0;
-  current_master_server_epoch_committed = false;
-}
-
-/**
-   atStartSlave()
-
-   Called by Slave SQL thread when first applying a row to Ndb after
-   a START SLAVE command.
-*/
-void st_ndb_slave_state::atStartSlave() {
-  if (trans_conflict_apply_state != SAS_NORMAL) {
-    /*
-      Remove conflict handling state on a SQL thread
-      restart
-    */
-    atEndTransConflictHandling();
-    trans_conflict_apply_state = SAS_NORMAL;
-  }
-}
-
-bool st_ndb_slave_state::checkSlaveConflictRoleChange(
-    enum_slave_conflict_role old_role, enum_slave_conflict_role new_role,
-    const char **failure_cause) {
-  if (old_role == new_role) return true;
-
-  /**
-   * Initial role is SCR_NONE
-   * Allowed transitions :
-   *   SCR_NONE -> SCR_PASS
-   *   SCR_NONE -> SCR_PRIMARY
-   *   SCR_NONE -> SCR_SECONDARY
-   *   SCR_PRIMARY -> SCR_NONE
-   *   SCR_PRIMARY -> SCR_SECONDARY
-   *   SCR_SECONDARY -> SCR_NONE
-   *   SCR_SECONDARY -> SCR_PRIMARY
-   *   SCR_PASS -> SCR_NONE
-   *
-   * Disallowed transitions
-   *   SCR_PASS -> SCR_PRIMARY
-   *   SCR_PASS -> SCR_SECONDARY
-   *   SCR_PRIMARY -> SCR_PASS
-   *   SCR_SECONDARY -> SCR_PASS
-   */
-  bool bad_transition = false;
-  *failure_cause = "Internal error";
-
-  switch (old_role) {
-    case SCR_NONE:
-      break;
-    case SCR_PRIMARY:
-    case SCR_SECONDARY:
-      bad_transition = (new_role == SCR_PASS);
-      break;
-    case SCR_PASS:
-      bad_transition =
-          ((new_role == SCR_PRIMARY) || (new_role == SCR_SECONDARY));
-      break;
-    default:
-      assert(false);
-      return false;
-  }
-
-  if (bad_transition) {
-    *failure_cause = "Invalid role change.";
-    return false;
-  }
-
-  /* Check that Slave SQL thread is not running */
-  if (ndb_mi_get_slave_sql_running()) {
-    *failure_cause =
-        "Cannot change role while Replica SQL "
-        "thread is running.  Use STOP REPLICA first.";
-    return false;
-  }
-
-  return true;
-}
-
-/**
-   atEndTransConflictHandling
-
-   Called when transactional conflict handling has completed.
-*/
-void st_ndb_slave_state::atEndTransConflictHandling() {
-  DBUG_TRACE;
-  /* Release any conflict handling state */
-  if (trans_dependency_tracker) {
-    current_trans_in_conflict_count =
-        trans_dependency_tracker->get_conflict_count();
-    trans_dependency_tracker = nullptr;
-    conflict_mem_root.ClearForReuse();
-  }
-}
-
-/**
-   atBeginTransConflictHandling()
-
-   Called by Slave SQL thread when it determines that Transactional
-   Conflict handling is required
-*/
-void st_ndb_slave_state::atBeginTransConflictHandling() {
-  DBUG_TRACE;
-  /*
-     Allocate and initialise Transactional Conflict
-     Resolution Handling Structures
-  */
-  assert(trans_dependency_tracker == nullptr);
-  trans_dependency_tracker =
-      DependencyTracker::newDependencyTracker(&conflict_mem_root);
-}
-
-/**
-   atPrepareConflictDetection
-
-   Called by Slave SQL thread prior to defining an operation on
-   a table with conflict detection defined.
-*/
-int st_ndb_slave_state::atPrepareConflictDetection(
-    const NdbDictionary::Table *table, const NdbRecord *key_rec,
-    const uchar *row_data, Uint64 transaction_id, bool &handle_conflict_now) {
-  DBUG_TRACE;
-  /*
-    Slave is preparing to apply an operation with conflict detection.
-    If we're performing Transactional Conflict Resolution, take
-    extra steps
-  */
-  switch (trans_conflict_apply_state) {
-    case SAS_NORMAL:
-      DBUG_PRINT("info", ("SAS_NORMAL : No special handling"));
-      /* No special handling */
-      break;
-    case SAS_TRACK_TRANS_DEPENDENCIES: {
-      DBUG_PRINT("info", ("SAS_TRACK_TRANS_DEPENDENCIES : Tracking operation"));
-      /*
-        Track this operation and its transaction id, to determine
-        inter-transaction dependencies by {table, primary key}
-      */
-      assert(trans_dependency_tracker);
-
-      int res = trans_dependency_tracker->track_operation(
-          table, key_rec, row_data, transaction_id);
-      if (res != 0) {
-        ndb_log_error("%s", trans_dependency_tracker->get_error_text());
-        return res;
-      }
-      /* Proceed as normal */
-      break;
-    }
-    case SAS_APPLY_TRANS_DEPENDENCIES: {
-      DBUG_PRINT("info",
-                 ("SAS_APPLY_TRANS_DEPENDENCIES : Deciding whether to apply"));
-      /*
-         Check if this operation's transaction id is marked in-conflict.
-         If it is, we tell the caller to perform conflict resolution now instead
-         of attempting to apply the operation.
-      */
-      assert(trans_dependency_tracker);
-
-      if (trans_dependency_tracker->in_conflict(transaction_id)) {
-        DBUG_PRINT("info",
-                   ("Event for transaction %llu is conflicting.  Handling.",
-                    transaction_id));
-        current_trans_row_reject_count++;
-        handle_conflict_now = true;
-        return 0;
-      }
-
-      /*
-         This transaction is not marked in-conflict, so continue with normal
-         processing.
-         Note that normal processing may subsequently detect a conflict which
-         didn't exist at the time of the previous TRACK_DEPENDENCIES pass.
-         In this case, we will rollback and repeat the TRACK_DEPENDENCIES
-         stage.
-      */
-      DBUG_PRINT("info", ("Event for transaction %llu is OK, applying",
-                          transaction_id));
-      break;
-    }
-  }
-  return 0;
-}
-
-/**
-   atTransConflictDetected
-
-   Called by the Slave SQL thread when a conflict is detected on
-   an executed operation.
-*/
-int st_ndb_slave_state::atTransConflictDetected(Uint64 transaction_id) {
-  DBUG_TRACE;
-
-  /*
-     The Slave has detected a conflict on an operation applied
-     to a table with Transactional Conflict Resolution defined.
-     Handle according to current state.
-  */
-  conflict_flags |= SCS_TRANS_CONFLICT_DETECTED_THIS_PASS;
-  current_trans_row_conflict_count++;
-
-  switch (trans_conflict_apply_state) {
-    case SAS_NORMAL: {
-      DBUG_PRINT("info",
-                 ("SAS_NORMAL : Conflict on op on table with trans detection."
-                  "Requires multi-pass resolution.  Will transition to "
-                  "SAS_TRACK_TRANS_DEPENDENCIES at Commit."));
-      /*
-        Conflict on table with transactional conflict resolution
-        defined.
-        This is the trigger that we will do transactional conflict
-        resolution.
-        Record that we need to do multiple passes to correctly
-        perform resolution.
-        TODO : Early exit from applying epoch?
-      */
-      break;
-    }
-    case SAS_TRACK_TRANS_DEPENDENCIES: {
-      DBUG_PRINT(
-          "info",
-          ("SAS_TRACK_TRANS_DEPENDENCIES : Operation in transaction %llu "
-           "had conflict",
-           transaction_id));
-      /*
-         Conflict on table with transactional conflict resolution
-         defined.
-         We will mark the operation's transaction_id as in-conflict,
-         so that any other operations on the transaction are also
-         considered in-conflict, and any dependent transactions are also
-         considered in-conflict.
-      */
-      assert(trans_dependency_tracker != nullptr);
-      int res = trans_dependency_tracker->mark_conflict(transaction_id);
-
-      if (res != 0) {
-        ndb_log_error("%s", trans_dependency_tracker->get_error_text());
-        return res;
-      }
-      break;
-    }
-    case SAS_APPLY_TRANS_DEPENDENCIES: {
-      /*
-         This must be a new conflict, not noticed on the previous
-         pass.
-      */
-      DBUG_PRINT("info", ("SAS_APPLY_TRANS_DEPENDENCIES : Conflict detected.  "
-                          "Must be further conflict.  Will return to "
-                          "SAS_TRACK_TRANS_DEPENDENCIES state at commit."));
-      // TODO : Early exit from applying epoch
-      break;
-    }
-    default:
-      break;
-  }
-
-  return 0;
-}
-
-/**
-   atConflictPreCommit
-
-   Called by the Slave SQL thread prior to committing a Slave transaction.
-   This method can request that the Slave transaction is retried.
-
-
-   State transitions :
-
-                       START SLAVE /
-                       RESET SLAVE /
-                        STARTUP
-                            |
-                            |
-                            v
-                    ****************
-                    *  SAS_NORMAL  *
-                    ****************
-                       ^       |
-    No transactional   |       | Conflict on transactional table
-       conflicts       |       | (Rollback)
-       (Commit)        |       |
-                       |       v
-            **********************************
-            *  SAS_TRACK_TRANS_DEPENDENCIES  *
-            **********************************
-               ^          I              ^
-     More      I          I Dependencies |
-    conflicts  I          I determined   | No new conflicts
-     found     I          I (Rollback)   | (Commit)
-    (Rollback) I          I              |
-               I          v              |
-           **********************************
-           *  SAS_APPLY_TRANS_DEPENDENCIES  *
-           **********************************
-
-
-   Operation
-     The initial state is SAS_NORMAL.
-
-     On detecting a conflict on a transactional conflict detetecing table,
-     SAS_TRACK_TRANS_DEPENDENCIES is entered, and the epoch transaction is
-     rolled back and reapplied.
-
-     In SAS_TRACK_TRANS_DEPENDENCIES state, transaction dependencies and
-     conflicts are tracked as the epoch transaction is applied.
-
-     Then the Slave transitions to SAS_APPLY_TRANS_DEPENDENCIES state, and
-     the epoch transaction is rolled back and reapplied.
-
-     In the SAS_APPLY_TRANS_DEPENDENCIES state, operations for transactions
-     marked as in-conflict are not applied.
-
-     If this results in no new conflicts, the epoch transaction is committed,
-     and the SAS_TRACK_TRANS_DEPENDENCIES state is re-entered for processing
-     the next replicated epch transaction.
-     If it results in new conflicts, the epoch transactions is rolled back, and
-     the SAS_TRACK_TRANS_DEPENDENCIES state is re-entered again, to determine
-     the new set of dependencies.
-
-     If no conflicts are found in the SAS_TRACK_TRANS_DEPENDENCIES state, then
-     the epoch transaction is committed, and the Slave transitions to SAS_NORMAL
-     state.
-
-
-   Properties
-     1) Normally, there is no transaction dependency tracking overhead paid by
-        the slave.
-
-     2) On first detecting a transactional conflict, the epoch transaction must
-   be applied at least three times, with two rollbacks.
-
-     3) Transactional conflicts detected in subsequent epochs require the epoch
-        transaction to be applied two times, with one rollback.
-
-     4) A loop between states SAS_TRACK_TRANS_DEPENDENCIES and SAS_APPLY_TRANS_
-        DEPENDENCIES occurs when further transactional conflicts are discovered
-        in SAS_APPLY_TRANS_DEPENDENCIES state.  This implies that the  conflicts
-        discovered in the SAS_TRACK_TRANS_DEPENDENCIES state must not be
-   complete, so we revisit that state to get a more complete picture.
-
-     5) The number of iterations of this loop is fixed to a hard coded limit,
-   after which the Slave will stop with an error.  This should be an unlikely
-        occurrence, as it requires not just n conflicts, but at least 1 new
-   conflict appearing between the transactions in the epoch transaction and the
-        database between the two states, n times in a row.
-
-     6) Where conflicts are occasional, as expected, the post-commit transition
-   to SAS_TRACK_TRANS_DEPENDENCIES rather than SAS_NORMAL results in one epoch
-        transaction having its transaction dependencies needlessly tracked.
-
-*/
-int st_ndb_slave_state::atConflictPreCommit(bool &retry_slave_trans) {
-  DBUG_TRACE;
-
-  /*
-    Prior to committing a Slave transaction, we check whether
-    Transactional conflicts have been detected which require
-    us to retry the slave transaction
-  */
-  retry_slave_trans = false;
-  switch (trans_conflict_apply_state) {
-    case SAS_NORMAL: {
-      DBUG_PRINT("info", ("SAS_NORMAL"));
-      /*
-         Normal case.  Only if we defined conflict detection on a table
-         with transactional conflict detection, and saw conflicts (on any table)
-         do we go to another state
-       */
-      if (conflict_flags & SCS_TRANS_CONFLICT_DETECTED_THIS_PASS) {
-        DBUG_PRINT("info", ("Conflict(s) detected this pass, transitioning to "
-                            "SAS_TRACK_TRANS_DEPENDENCIES."));
-        assert(conflict_flags & SCS_OPS_DEFINED);
-        /* Transactional conflict resolution required, switch state */
-        atBeginTransConflictHandling();
-        resetPerAttemptCounters();
-        trans_conflict_apply_state = SAS_TRACK_TRANS_DEPENDENCIES;
-        retry_slave_trans = true;
-      }
-      break;
-    }
-    case SAS_TRACK_TRANS_DEPENDENCIES: {
-      DBUG_PRINT("info", ("SAS_TRACK_TRANS_DEPENDENCIES"));
-
-      if (conflict_flags & SCS_TRANS_CONFLICT_DETECTED_THIS_PASS) {
-        /*
-           Conflict on table with transactional detection
-           this pass, we have collected the details and
-           dependencies, now transition to
-           SAS_APPLY_TRANS_DEPENDENCIES and
-           reapply the epoch transaction without the
-           conflicting transactions.
-        */
-        assert(conflict_flags & SCS_OPS_DEFINED);
-        DBUG_PRINT("info", ("Transactional conflicts, transitioning to "
-                            "SAS_APPLY_TRANS_DEPENDENCIES"));
-
-        trans_conflict_apply_state = SAS_APPLY_TRANS_DEPENDENCIES;
-        trans_detect_iter_count++;
-        retry_slave_trans = true;
-        break;
-      } else {
-        /*
-           No transactional conflicts detected this pass, lets
-           return to SAS_NORMAL state after commit for more efficient
-           application of epoch transactions
-        */
-        DBUG_PRINT("info", ("No transactional conflicts, transitioning to "
-                            "SAS_NORMAL"));
-        atEndTransConflictHandling();
-        trans_conflict_apply_state = SAS_NORMAL;
-        break;
-      }
-    }
-    case SAS_APPLY_TRANS_DEPENDENCIES: {
-      DBUG_PRINT("info", ("SAS_APPLY_TRANS_DEPENDENCIES"));
-      assert(conflict_flags & SCS_OPS_DEFINED);
-      /*
-         We've applied the Slave epoch transaction subject to the
-         conflict detection.  If any further transactional
-         conflicts have been observed, then we must repeat the
-         process.
-      */
-      atEndTransConflictHandling();
-      atBeginTransConflictHandling();
-      trans_conflict_apply_state = SAS_TRACK_TRANS_DEPENDENCIES;
-
-      if (unlikely(conflict_flags & SCS_TRANS_CONFLICT_DETECTED_THIS_PASS)) {
-        DBUG_PRINT("info", ("Further conflict(s) detected, repeating the "
-                            "TRACK_TRANS_DEPENDENCIES pass"));
-        /*
-           Further conflict observed when applying, need
-           to re-determine dependencies
-        */
-        resetPerAttemptCounters();
-        retry_slave_trans = true;
-        break;
-      }
-
-      DBUG_PRINT("info", ("No further conflicts detected, committing and "
-                          "returning to SAS_TRACK_TRANS_DEPENDENCIES state"));
-      /*
-         With dependencies taken into account, no further
-         conflicts detected, can now proceed to commit
-      */
-      break;
-    }
-  }
-
-  /*
-    Clear conflict flags, to ensure that we detect any new conflicts
-  */
-  conflict_flags = 0;
-
-  if (retry_slave_trans) {
-    DBUG_PRINT("info", ("Requesting transaction restart"));
-    return 1;
-  }
-
-  DBUG_PRINT("info", ("Allowing commit to proceed"));
-  return 0;
-}
-
-/**
  * Conflict function interpreted programs
  */
 
@@ -1677,7 +762,7 @@ static int row_conflict_fn_old(NDB_CONFLICT_FN_SHARE *cfn_share,
                                const NdbRecord *data_record,
                                const uchar *old_data, const uchar *,
                                const MY_BITMAP *bi_cols, const MY_BITMAP *,
-                               NdbInterpretedCode *code) {
+                               NdbInterpretedCode *code, Uint64) {
   DBUG_TRACE;
   uint32 resolve_column = cfn_share->m_resolve_column;
   uint32 resolve_size = cfn_share->m_resolve_size;
@@ -1831,7 +916,7 @@ static int row_conflict_fn_max(NDB_CONFLICT_FN_SHARE *cfn_share,
                                const uchar *old_data, const uchar *new_data,
                                const MY_BITMAP *bi_cols,
                                const MY_BITMAP *ai_cols,
-                               NdbInterpretedCode *code) {
+                               NdbInterpretedCode *code, Uint64 max_rep_epoch) {
   switch (op_type) {
     case WRITE_ROW:
       abort();
@@ -1846,7 +931,8 @@ static int row_conflict_fn_max(NDB_CONFLICT_FN_SHARE *cfn_share,
        * Use OLD instead
        */
       return row_conflict_fn_old(cfn_share, op_type, data_record, old_data,
-                                 new_data, bi_cols, ai_cols, code);
+                                 new_data, bi_cols, ai_cols, code,
+                                 max_rep_epoch);
     default:
       abort();
       return 1;
@@ -1871,7 +957,7 @@ static int row_conflict_fn_max_del_win(
     NDB_CONFLICT_FN_SHARE *cfn_share, enum_conflicting_op_type op_type,
     const NdbRecord *data_record, const uchar *old_data, const uchar *new_data,
     const MY_BITMAP *bi_cols, const MY_BITMAP *ai_cols,
-    NdbInterpretedCode *code) {
+    NdbInterpretedCode *code, Uint64) {
   switch (op_type) {
     case WRITE_ROW:
       abort();
@@ -1895,13 +981,11 @@ static int row_conflict_fn_max_del_win(
  *  CFT_NDB_MAX_INS:
  */
 
-static int row_conflict_fn_max_ins(NDB_CONFLICT_FN_SHARE *cfn_share,
-                                   enum_conflicting_op_type op_type,
-                                   const NdbRecord *data_record,
-                                   const uchar *old_data, const uchar *new_data,
-                                   const MY_BITMAP *bi_cols,
-                                   const MY_BITMAP *ai_cols,
-                                   NdbInterpretedCode *code) {
+static int row_conflict_fn_max_ins(
+    NDB_CONFLICT_FN_SHARE *cfn_share, enum_conflicting_op_type op_type,
+    const NdbRecord *data_record, const uchar *old_data, const uchar *new_data,
+    const MY_BITMAP *bi_cols, const MY_BITMAP *ai_cols,
+    NdbInterpretedCode *code, Uint64 max_rep_epoch) {
   switch (op_type) {
     case WRITE_ROW:
     case UPDATE_ROW:
@@ -1910,7 +994,8 @@ static int row_conflict_fn_max_ins(NDB_CONFLICT_FN_SHARE *cfn_share,
           code);
     case DELETE_ROW:
       return row_conflict_fn_old(cfn_share, op_type, data_record, old_data,
-                                 new_data, bi_cols, ai_cols, code);
+                                 new_data, bi_cols, ai_cols, code,
+                                 max_rep_epoch);
     default:
       abort();
       return 1;
@@ -1925,7 +1010,7 @@ static int row_conflict_fn_max_del_win_ins(
     NDB_CONFLICT_FN_SHARE *cfn_share, enum_conflicting_op_type op_type,
     const NdbRecord *data_record, const uchar *old_data, const uchar *new_data,
     const MY_BITMAP *bi_cols, const MY_BITMAP *ai_cols,
-    NdbInterpretedCode *code) {
+    NdbInterpretedCode *code, Uint64) {
   switch (op_type) {
     case WRITE_ROW:
     case UPDATE_ROW:
@@ -1949,7 +1034,8 @@ static int row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE *,
                                  enum_conflicting_op_type op_type,
                                  const NdbRecord *, const uchar *,
                                  const uchar *, const MY_BITMAP *,
-                                 const MY_BITMAP *, NdbInterpretedCode *code) {
+                                 const MY_BITMAP *, NdbInterpretedCode *code,
+                                 Uint64 max_rep_epoch) {
   DBUG_TRACE;
   switch (op_type) {
     case WRITE_ROW:
@@ -1975,7 +1061,7 @@ static int row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE *,
       /*
        * Load registers RegMaxRepEpoch and RegRowEpoch
        */
-      r = code->load_const_u64(RegMaxRepEpoch, g_ndb_slave_state.max_rep_epoch);
+      r = code->load_const_u64(RegMaxRepEpoch, max_rep_epoch);
       assert(r == 0);
       r = code->read_attr(RegRowEpoch, NdbDictionary::Column::ROW_GCI64);
       assert(r == 0);
@@ -2010,12 +1096,12 @@ static int row_conflict_fn_epoch2_primary(
     NDB_CONFLICT_FN_SHARE *cfn_share, enum_conflicting_op_type op_type,
     const NdbRecord *data_record, const uchar *old_data, const uchar *new_data,
     const MY_BITMAP *bi_cols, const MY_BITMAP *ai_cols,
-    NdbInterpretedCode *code) {
+    NdbInterpretedCode *code, Uint64 max_rep_epoch) {
   DBUG_TRACE;
 
   /* We use the normal NDB$EPOCH detection function */
   return row_conflict_fn_epoch(cfn_share, op_type, data_record, old_data,
-                               new_data, bi_cols, ai_cols, code);
+                               new_data, bi_cols, ai_cols, code, max_rep_epoch);
 }
 
 static int row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE *,
@@ -2023,7 +1109,7 @@ static int row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE *,
                                             const NdbRecord *, const uchar *,
                                             const uchar *, const MY_BITMAP *,
                                             const MY_BITMAP *,
-                                            NdbInterpretedCode *code) {
+                                            NdbInterpretedCode *code, Uint64) {
   DBUG_TRACE;
 
   /* Only called for reflected update and delete operations
@@ -2068,13 +1154,11 @@ static int row_conflict_fn_epoch2_secondary(NDB_CONFLICT_FN_SHARE *,
   }
 }
 
-static int row_conflict_fn_epoch2(NDB_CONFLICT_FN_SHARE *cfn_share,
-                                  enum_conflicting_op_type op_type,
-                                  const NdbRecord *data_record,
-                                  const uchar *old_data, const uchar *new_data,
-                                  const MY_BITMAP *bi_cols,
-                                  const MY_BITMAP *ai_cols,
-                                  NdbInterpretedCode *code) {
+static int row_conflict_fn_epoch2(
+    NDB_CONFLICT_FN_SHARE *cfn_share, enum_conflicting_op_type op_type,
+    const NdbRecord *data_record, const uchar *old_data, const uchar *new_data,
+    const MY_BITMAP *bi_cols, const MY_BITMAP *ai_cols,
+    NdbInterpretedCode *code, Uint64 max_rep_epoch) {
   DBUG_TRACE;
 
   /**
@@ -2088,11 +1172,11 @@ static int row_conflict_fn_epoch2(NDB_CONFLICT_FN_SHARE *cfn_share,
     case SCR_PRIMARY:
       return row_conflict_fn_epoch2_primary(cfn_share, op_type, data_record,
                                             old_data, new_data, bi_cols,
-                                            ai_cols, code);
+                                            ai_cols, code, max_rep_epoch);
     case SCR_SECONDARY:
       return row_conflict_fn_epoch2_secondary(cfn_share, op_type, data_record,
                                               old_data, new_data, bi_cols,
-                                              ai_cols, code);
+                                              ai_cols, code, max_rep_epoch);
     case SCR_PASS:
       /* Do nothing */
       return 0;
@@ -2544,72 +1628,4 @@ void slave_reset_conflict_fn(NDB_CONFLICT_FN_SHARE *cfn_share) {
     cfn_share->m_resolve_column = 0;
     cfn_share->m_flags = 0;
   }
-}
-
-/**
- * Variables related to conflict handling
- * All prefixed 'ndb_conflict'
- */
-
-SHOW_VAR ndb_status_conflict_variables[] = {
-    {"fn_max", (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_MAX],
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"fn_old", (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_OLD],
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"fn_max_del_win",
-     (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN],
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"fn_max_ins",
-     (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_INS],
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"fn_max_del_win_ins",
-     (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_MAX_DEL_WIN_INS],
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"fn_epoch",
-     (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH],
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"fn_epoch_trans",
-     (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH_TRANS],
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"fn_epoch2",
-     (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH2],
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"fn_epoch2_trans",
-     (char *)&g_ndb_slave_state.total_violation_count[CFT_NDB_EPOCH2_TRANS],
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"trans_row_conflict_count",
-     (char *)&g_ndb_slave_state.trans_row_conflict_count, SHOW_LONGLONG,
-     SHOW_SCOPE_GLOBAL},
-    {"trans_row_reject_count",
-     (char *)&g_ndb_slave_state.trans_row_reject_count, SHOW_LONGLONG,
-     SHOW_SCOPE_GLOBAL},
-    {"trans_reject_count", (char *)&g_ndb_slave_state.trans_in_conflict_count,
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"trans_detect_iter_count",
-     (char *)&g_ndb_slave_state.trans_detect_iter_count, SHOW_LONGLONG,
-     SHOW_SCOPE_GLOBAL},
-    {"trans_conflict_commit_count",
-     (char *)&g_ndb_slave_state.trans_conflict_commit_count, SHOW_LONGLONG,
-     SHOW_SCOPE_GLOBAL},
-    {"epoch_delete_delete_count",
-     (char *)&g_ndb_slave_state.total_delete_delete_count, SHOW_LONGLONG,
-     SHOW_SCOPE_GLOBAL},
-    {"reflected_op_prepare_count",
-     (char *)&g_ndb_slave_state.total_reflect_op_prepare_count, SHOW_LONGLONG,
-     SHOW_SCOPE_GLOBAL},
-    {"reflected_op_discard_count",
-     (char *)&g_ndb_slave_state.total_reflect_op_discard_count, SHOW_LONGLONG,
-     SHOW_SCOPE_GLOBAL},
-    {"refresh_op_count", (char *)&g_ndb_slave_state.total_refresh_op_count,
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"last_conflict_epoch", (char *)&g_ndb_slave_state.last_conflicted_epoch,
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {"last_stable_epoch", (char *)&g_ndb_slave_state.last_stable_epoch,
-     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
-    {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
-
-int show_ndb_status_conflict(THD *, SHOW_VAR *var, char *) {
-  var->type = SHOW_ARRAY;
-  var->value = (char *)&ndb_status_conflict_variables;
-  return 0;
 }

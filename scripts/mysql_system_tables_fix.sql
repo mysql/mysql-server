@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+-- Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -676,6 +676,13 @@ COMMIT;
 -- provided that there isn't a user who already has the privilige AUDIT_ADMIN.
 SET @hadAuditAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'AUDIT_ADMIN');
 INSERT INTO global_grants SELECT user, host, 'AUDIT_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadAuditAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege TELEMETRY_LOG_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige TELEMETRY_LOG_ADMIN.
+SET @hadAuditAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'TELEMETRY_LOG_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'TELEMETRY_LOG_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
 FROM mysql.user WHERE super_priv = 'Y' AND @hadAuditAdminPriv = 0;
 COMMIT;
 

@@ -1,0 +1,442 @@
+################################################################################
+# Test case to test telemetry tracing service functionality using test component.
+#
+# This test script:
+#    - Installs the query_attributes and test_server_telemetry components.
+#       The test_server_telemetry component implements custom telemetry tracing callback
+#       with following tracing strategy:
+#              - only trace statements with trace:on query attribute
+#              - do not trace requests from user 'internal'
+#              - force tracing requests from user 'app'
+#    - Executes different statements and verifies that correct tracing action happened
+#    - Statements ending with errors should also reach the telemetry engine (logs) no
+#      matter if they will be traced or not
+#    - To synchronize output of different sessons, it's using sleep instead of wait
+#       because wait loop SQL would be traced in non-deterministic way
+################################################################################
+
+--source include/have_server_telemetry_traces.inc
+--source include/not_parallel.inc
+--source include/no_ps_protocol.inc
+
+--echo #########
+--echo # SETUP #
+--echo #########
+
+SET @mem_limit_orig= @@GLOBAL.connection_memory_limit;
+
+# needed to test telemetry feature forcing the creation of these instruments
+UPDATE performance_schema.setup_instruments SET ENABLED = 'NO', TIMED = 'NO' WHERE NAME LIKE 'statement/%';
+UPDATE performance_schema.setup_consumers SET ENABLED = 'NO' WHERE NAME LIKE '%statements%';
+
+# Install required components.
+INSTALL COMPONENT 'file://component_query_attributes';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+
+# additional test users
+CREATE USER internal@localhost IDENTIFIED BY 'internal';
+CREATE USER api@localhost IDENTIFIED BY 'api';
+CREATE USER normal@localhost IDENTIFIED BY 'normal';
+
+# show initial value of sysvars in component_test_server_telemetry_traces
+SHOW VARIABLES LIKE 'test_server_telemetry_traces.%';
+
+--echo ##############
+--echo # Operations #
+--echo ##############
+
+--echo # check initial telemetry session refcount (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--echo # similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+
+--echo # no query attributes attached, should not be traced
+SELECT 1;
+
+--echo # "trace" query attribute missing, should not be traced
+--query_attributes a b
+SELECT 2;
+
+--echo # "trace" query attribute present but off, should not be traced
+--query_attributes trace off
+SELECT 3;
+
+--echo # "trace" query attribute present and on, should be traced
+--query_attributes trace on
+SELECT 4;
+--sleep 0.5
+
+--echo # "internal" user requests are never traced
+connect (con_internal, localhost, internal, internal, );
+--query_attributes trace on
+SELECT 5;
+
+--echo # check telemetry session refcount with new session (should be 2)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--echo # similar refcount check using PS.threads table (no permissions for user 'internal')
+--error 1142
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+
+connection default;
+disconnect con_internal;
+--sleep 0.5
+
+--echo # check telemetry session refcount with new session closed (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--echo # similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+
+--echo # "api" user requests are traced (in force mode)
+connect (con_api, localhost, api, api, );
+--query_attributes trace on
+SELECT 6;
+
+--echo # check telemetry session refcount with 'api' session created (should be 2)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--echo # similar refcount check using PS.threads table (no permissions for user 'api')
+--error 1142
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+
+connection default;
+disconnect con_api;
+--sleep 0.5
+
+--echo # check telemetry session refcount with 'api' session destroyed (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--echo # similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+
+--echo # requests by users other than "api"/"root" are not forced
+connect (con_normal, localhost, normal, normal, );
+--query_attributes trace on
+SELECT 7;
+
+--echo # check telemetry session refcount with 'normal' session created (should be 2)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--echo # similar refcount check using PS.threads table (no permissions for user 'normal')
+--error 1142
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+
+connection default;
+disconnect con_normal;
+--sleep 0.5
+
+--echo # check telemetry session refcount with 'normal' session destroyed (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--echo # similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+
+--echo # modify tracing activation key name
+SET GLOBAL test_server_telemetry_traces.trace_key='activate';
+
+--echo # - do not trace statement using old key
+--query_attributes trace on
+SELECT 8;
+
+--echo # - do trace statement using new key
+--query_attributes activate on
+SELECT 9;
+
+--echo # define application and call-site contexts
+SET GLOBAL test_server_telemetry_traces.application_context_keys='client_id;root_id;parent_id;id';
+SET GLOBAL test_server_telemetry_traces.callsite_context_keys=';source_file;source_line;;';
+
+--echo # trace statement with rich context data
+--query_attributes activate on client_id 10 root_id 1 parent_id 2 id 99 external_id 123 source_file "main.cc" source_line 998 source_dir "dummy"
+SELECT 10;
+
+--echo # trace nested query
+--query_attributes activate on
+SELECT 11, (SELECT COUNT(*) FROM DUAL);
+
+--echo  # trace substatements
+DELIMITER |;
+CREATE PROCEDURE proc1()
+BEGIN
+  SELECT "proc1 stmt#1";
+  SELECT "proc1 stmt#2";
+END|
+CREATE PROCEDURE proc2()
+BEGIN
+  CALL proc1();
+  CALL proc1();
+END|
+DELIMITER ;|
+--query_attributes activate on
+CALL proc2();
+
+# delimiter between two proc2() calls
+SELECT 12;
+
+--echo  # no trace if root statement without query attributes
+CALL proc2();
+
+--echo  # trace substatements using function
+DELIMITER |;
+CREATE FUNCTION SayHi( name VARCHAR(20) )
+RETURNS VARCHAR(30)
+DETERMINISTIC
+BEGIN
+  DECLARE greeting VARCHAR(20);
+  SET greeting = CONCAT('Hi ', name);
+  RETURN greeting;
+END|
+DELIMITER ;|
+--query_attributes activate on
+SELECT SayHi('Marc');
+
+--echo  # prepared statement without qa, should not be traced
+PREPARE stmt1 FROM 'SELECT SQRT(?) AS square_root';
+SET @a = 4;
+EXECUTE stmt1 USING @a;
+DEALLOCATE PREPARE stmt1;
+
+--echo  # statements within transaction, should be traced
+CREATE TABLE t1 (s1 INT) ENGINE=InnoDB;
+START TRANSACTION;
+--query_attributes activate on
+INSERT INTO t1 VALUES (1),(2);
+ROLLBACK;
+
+--echo # cursor handling statements without qa, should not be traced
+INSERT INTO t1 VALUES (1),(2);
+DELIMITER |;
+CREATE PROCEDURE curdemo()
+BEGIN
+  DECLARE done INT DEFAULT FALSE;
+  DECLARE a INT;
+  DECLARE t1_cursor CURSOR FOR SELECT s1 FROM t1;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+  OPEN t1_cursor;
+  read_loop: LOOP
+    FETCH t1_cursor INTO a;
+    IF done THEN
+      LEAVE read_loop;
+    END IF;
+  END LOOP;
+  CLOSE t1_cursor;
+END|
+DELIMITER ;|
+CALL curdemo();
+
+--echo  # statement within trigger without qa, should not be traced
+DELIMITER |;
+CREATE TRIGGER valcheck BEFORE INSERT ON t1 FOR EACH ROW IF NEW.s1 < 0 THEN SET NEW.s1 = 0; END IF; |
+DELIMITER ;|
+INSERT INTO t1 VALUES (1),(-2);
+DROP TRIGGER valcheck;
+
+--echo  # statement within view without qa, should not be traced
+CREATE DEFINER=root@localhost VIEW big_nums AS SELECT s1 FROM t1 WHERE s1 > 1;
+SELECT count(*) FROM big_nums;
+
+--echo  # statement within event without qa, should not be traced
+CREATE EVENT new_item ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t1 VALUES(100);
+--sleep 6
+
+--echo # statement with runtime error without qa, should not be traced
+--error ER_BAD_FIELD_ERROR
+SELECT wrong FROM t1;
+
+--echo # statement with syntax error with qa, should be traced
+--query_attributes activate on
+--error ER_PARSE_ERROR
+SEEELECT s1 FROM t1;
+
+--echo # EXPLAIN statement without qa, should not be traced
+--disable_result_log
+EXPLAIN SELECT s1 FROM t1;
+--enable_result_log
+
+--echo  # utility statement without qa, should not be traced
+DESCRIBE t1;
+DROP TABLE t1;
+
+--echo # SHOW PROCESSLIST statement without qa, should not be traced
+--disable_result_log
+SHOW PROCESSLIST;
+--enable_result_log
+
+--echo # substatement of SET type without qa, should not be traced
+DELIMITER |;
+CREATE PROCEDURE SetMemLimit( amount INT )
+BEGIN
+  SET @@GLOBAL.connection_memory_limit=amount;
+END|
+DELIMITER ;|
+CALL SetMemLimit(33333333);
+
+--echo # statement run through mysql_command_query service, should not be traced
+INSTALL COMPONENT "file://component_test_mysql_command_services";
+SELECT test_mysql_command_services_udf("SELECT 1+1");
+
+--echo # statement run through mysql_command_query service, should be traced
+--query_attributes activate on
+SELECT test_mysql_command_services_udf("SELECT 2+2");
+UNINSTALL COMPONENT "file://component_test_mysql_command_services";
+
+--echo # statement using Memory engine, should be traced
+CREATE TABLE t2 (s1 INT) ENGINE=MEMORY;
+--query_attributes activate on
+INSERT INTO t2 VALUES (1),(2);
+DROP TABLE t2;
+
+--echo # statements working with sensitive data which should be obfuscated
+DELIMITER |;
+--query_attributes activate on
+CREATE PROCEDURE obfuscate_this_2(a DECIMAL(4,2))
+  SET PASSWORD FOR internal@localhost='CmdrShepard';|
+DELIMITER ;|
+
+--query_attributes activate on
+CALL obfuscate_this_2(1);
+# restore password
+--query_attributes activate on
+SET PASSWORD FOR internal@localhost='internal';
+
+--echo # statements in non-default character set should be logged correctly by telemetry
+--character_set latin2
+SET CHARACTER SET cp1250_latin2;
+SELECT '£¥ª¯';
+SET CHARACTER SET default;
+--character_set utf8mb4
+
+--echo # COM_QUIT command should be processed by telemetry (appear in the log)
+connect (con_api, localhost, api, api, );
+
+--echo # check telemetry session refcount with 'api' session created (should be 2)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--echo # similar refcount check using PS.threads table (no permissions for user 'api')
+--error 1142
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+
+connection default;
+--echo # similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+connection con_api;
+
+--echo # COM_CHANGE_USER command should be processed by telemetry (appear in the log)
+change_user internal, internal;
+--sleep 0.5
+
+send_quit con_api;
+--sleep 0.5
+connection default;
+disconnect con_api;
+--sleep 0.5
+
+--echo # check telemetry session refcount with 'api' session destroyed (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--echo # similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+
+--echo # COM_INIT_DB command should be processed by telemetry (appear in the log)
+USE mysql;
+USE test;
+
+--echo # COM_PING command should be processed by telemetry (appear in the log)
+ping;
+
+--echo # COM_RESET_CONNECTION command should be processed by telemetry (appear in the log)
+# User-defined variables get lost on reset, so do this cleanup first
+SET @@GLOBAL.connection_memory_limit= @mem_limit_orig;
+reset_connection;
+
+--echo # Telemetry component reinstall works OK, new statement processed
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+--query_attributes trace on
+SELECT 13;
+
+--echo # Test LOAD DATA being processed by telemetry
+SET @orig_infile= @@GLOBAL.local_infile;
+SET GLOBAL local_infile = 1;
+CREATE TABLE tload (c1 TEXT);
+--query_attributes trace on
+--copy_file $MYSQLTEST_VARDIR_ABS/std_data/numbers.txt tmp1.txt
+--eval LOAD DATA LOCAL INFILE 'tmp1.txt' INTO TABLE tload;
+--remove_file tmp1.txt
+DROP TABLE tload;
+SET GLOBAL local_infile = @orig_infile;
+
+--echo # Test interaction between validate_password component and telemetry
+INSTALL COMPONENT "file://component_validate_password";
+--echo # password policy LOW (which only checks for password length)
+--echo # default case: password length should be minimum 8
+SET @@global.validate_password.policy=LOW;
+--query_attributes trace on
+--error ER_NOT_VALID_PASSWORD
+CREATE USER 'user'@'localhost' IDENTIFIED BY '';
+UNINSTALL COMPONENT "file://component_validate_password";
+
+--echo # Test multiqueries with telemetry
+delimiter |;
+--query_attributes trace on
+select 14; select 15; select 16;|
+delimiter ;|
+
+--echo # Test comments
+--query_attributes trace on
+CREATE TABLE t3 (s1 INT COMMENT 'field') COMMENT='table' ENGINE=MEMORY;
+INSERT INTO t3 VALUES (7),(8);
+
+--echo # Test mysqldump
+--exec $MYSQL_DUMP --compact --skip-triggers --skip-network-timeout --skip-opt --skip-lock-tables --skip-quick --skip-set-charset --no-tablespaces --skip-disable-keys --skip-tz-utc --result-file=$MYSQLTEST_VARDIR/tmp/test_telemetry_traces_server.sql test t3
+--sleep 0.5
+
+--echo # Test nested statements
+--query_attributes trace on
+SELECT (SELECT 1) UNION SELECT (SELECT 2);
+--query_attributes trace on
+SELECT (SELECT (SELECT 0 UNION SELECT 0));
+--query_attributes trace on
+SELECT (SELECT MIN(s1) FROM t3) UNION (SELECT MAX(s1) FROM t3);
+DROP TABLE t3;
+
+--echo ###########
+--echo # CLEANUP #
+--echo ###########
+DROP PROCEDURE proc2;
+DROP PROCEDURE proc1;
+DROP FUNCTION SayHi;
+DROP PROCEDURE SetMemLimit;
+DROP PROCEDURE curdemo;
+DROP VIEW big_nums;
+DROP PROCEDURE obfuscate_this_2;
+DROP USER internal@localhost;
+DROP USER api@localhost;
+DROP USER normal@localhost;
+
+--echo # check telemetry session refcount before unloading component (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--echo # similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+UNINSTALL COMPONENT 'file://component_query_attributes';
+
+--echo # check telemetry session refcount after unloading component (status variable should not exist)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+
+--echo # similar refcount check using PS.threads table
+SELECT count(*) FROM performance_schema.threads WHERE telemetry_active = 'YES';
+
+# restore default PS configuration
+UPDATE performance_schema.setup_instruments SET ENABLED = 'YES', TIMED = 'YES' WHERE NAME LIKE 'statement/%';
+UPDATE performance_schema.setup_consumers SET ENABLED = 'YES' WHERE NAME LIKE '%statements%';
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo Component logs:
+cat_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+remove_file $MYSQLD_DATADIR/test_server_telemetry_traces_component.log;
+remove_file $MYSQLTEST_VARDIR/tmp/test_telemetry_traces_server.sql;

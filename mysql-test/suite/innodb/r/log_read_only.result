@@ -25,11 +25,38 @@ DROP TABLE t;
 # Perform slow shutdown to ensure redo is empty.
 SET GLOBAL innodb_fast_shutdown = 0;
 # Restart MySQL in read-only mode (different redo log capacity).
-Pattern "Cannot resize redo log files in read-only mode" found
+# restart: --innodb-read-only --innodb-redo-log-capacity=8M --log-error=MYSQLD_LOG_2
+Pattern "Ignored the innodb-redo-log-capacity option in the Innodb read-only mode" found
+SELECT @@innodb_redo_log_capacity;
+@@innodb_redo_log_capacity
+8388608
+SET GLOBAL innodb_fast_shutdown = 0;
 # Scenario 3
+# Ensure to print warning in case --innodb_log_file_size is specified.
+#
+# restart: --innodb-read-only --innodb_log_file_size=4194304 --log-error=MYSQLD_LOG_3
+Pattern "Ignored the innodb-redo-log-capacity option in the Innodb read-only mode" found
+SET GLOBAL innodb_fast_shutdown = 0;
+# Scenario 4
+# Ensure to print warning in case --innodb_log_files_in_group is specified.
+#
+# restart: --innodb-read-only --innodb_log_files_in_group=4 --log-error=MYSQLD_LOG_4
+Pattern "Ignored the innodb-redo-log-capacity option in the Innodb read-only mode" found
+SET GLOBAL innodb_fast_shutdown = 0;
+# Scenario 5
 # Refuse to start in read-only mode without log files.
 #
 # Remove all redo log files.
 Pattern "Cannot create redo log files in read-only mode" found
 # Cleanup...
 # restart
+# Scenario 6
+# Restart MySQL in read-only mode
+# Ensure we do not allow to change the innodb_redo_log_capacity in read-only mode.
+# Try to set some random value to innodb_redo_log_capacity
+set global innodb_redo_log_capacity=60000000;
+ERROR HY000: Cannot change the 'innodb-redo-log-capacity' system variable in read-only mode.
+# Try to set default value to innodb_redo_log_capacity
+set global innodb_redo_log_capacity=10485760;
+ERROR HY000: Cannot change the 'innodb-redo-log-capacity' system variable in read-only mode.
+# Cleanup...

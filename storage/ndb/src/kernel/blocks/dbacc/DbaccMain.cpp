@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4248,14 +4248,36 @@ Dbacc::trigger_dealloc(Signal* signal, const Operationrec* opPtrP)
     if (scanInd)
     {
       jam();
-      /**
-       * Operation triggering deallocation is a scan operation
-       * We must use a reference to the LQH deallocation operation
-       * stored on the scan operation in report_pending_dealloc()
-       * to inform LQH that the deallocation is triggered.
-       */
-      ndbrequire(opPtrP->m_scanOpDeleteCountOpRef != RNIL);
-      userptr = opPtrP->m_scanOpDeleteCountOpRef;
+
+      if (likely(opPtrP->m_scanOpDeleteCountOpRef != RNIL))
+      {
+        jam();
+        ndbrequire((opbits & Operationrec::OP_PENDING_ABORT) == 0);
+
+        /**
+         * Operation triggering deallocation as part of commit
+         * is a scan operation.
+         * We must use a reference to the LQH deallocation operation
+         * stored on the scan operation in commitDeleteCheck()/
+         * report_pending_dealloc() to inform LQH that the
+         * deallocation is triggered.
+         * LQH then decides when it is safe to deallocate.
+         */
+        userptr = opPtrP->m_scanOpDeleteCountOpRef;
+      }
+      else
+      {
+        jam();
+        ndbrequire((opbits & Operationrec::OP_PENDING_ABORT) != 0);
+
+        /**
+         * Operation triggering deallocation as part of abort
+         * is a scan operation.
+         *
+         * We will inform LQH to deallocate immediately.
+         */
+        userptr = RNIL;
+      }
     }
     /* Inform LQH that deallocation can go ahead */
     signal->theData[0] = fragrecptr.p->myfid;
@@ -5462,8 +5484,10 @@ void Dbacc::commitOperation(Signal* signal)
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   Uint32 op = opbits & Operationrec::OP_MASK;
   ndbrequire((opbits & Operationrec::OP_STATE_MASK) == Operationrec::OP_STATE_EXECUTED);
-  ndbrequire((opbits & Operationrec::OP_PENDING_ABORT) == 0);
-  if ((opbits & Operationrec::OP_COMMIT_DELETE_CHECK) == 0 && 
+  ndbrequire(((opbits & Operationrec::OP_PENDING_ABORT) == 0) ||
+             (op == ZSCAN_OP) || (op == ZREAD)); // Scan commits to unlock/abort
+
+  if ((opbits & Operationrec::OP_COMMIT_DELETE_CHECK) == 0 &&
       (op != ZREAD && op != ZSCAN_OP))
   {
     jam();

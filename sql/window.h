@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -478,20 +478,25 @@ class Window {
     Execution state: The number of the row being visited for its contribution
     to a window function, relative to the start of the partition. Note that
     this will often be different from the current row for which we are
-    processing the window function, reading it for output. That is given by
-    m_rowno_in_partition, q.v.
+    processing the window function, readying it for output. That is given by
+    \c m_rowno_in_partition, q.v. Contrast also with \c m_rowno_in_frame
+    which is frame relative.
   */
   int64 m_rowno_being_visited;
 
   /**
-    Execution state: the row number of the current row within a frame, cf.
-    m_is_last_row_in_frame, relative to start of the frame. 1-based.
+    Execution state: the row number of the row we are looking at for evaluating
+    its contribution to some window function(s).  It is relative to start of
+    the frame and 1-based. It is typically set after fetching a row from the
+    frame buffer using \c bring_back_frame_row and before calling
+    \c copy_funcs.  Cf. also \c m_is_last_row_in_frame.
   */
   int64 m_rowno_in_frame;
 
   /**
     Execution state: The row number of the current row being readied for
     output within the partition. 1-based.
+    In \c process_buffered_windowing_record this is known as \c current_row.
   */
   int64 m_rowno_in_partition;
 

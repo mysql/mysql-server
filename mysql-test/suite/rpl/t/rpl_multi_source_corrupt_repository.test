@@ -44,12 +44,12 @@
 --let $rpl_connection_name= server_$rpl_number_of_servers
 --source include/rpl_connection.inc
 CALL mtr.add_suppression("Failed to open the relay log");
-CALL mtr.add_suppression("Could not find target log file mentioned in relay log info in the index file");
-CALL mtr.add_suppression(".*Failed to initialize the master info structure for channel.*");
+CALL mtr.add_suppression("Could not find target log file mentioned in applier metadata in the index file");
+CALL mtr.add_suppression(".*Failed to initialize the connection metadata structure for channel.*");
 CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
-CALL mtr.add_suppression("Slave failed to initialize relay log info structure from the repository");
-CALL mtr.add_suppression("Failed to start slave threads for channel");
-CALL mtr.add_suppression("Could not start slave for channel");
+CALL mtr.add_suppression("Replica failed to initialize applier metadata structure from the repository");
+CALL mtr.add_suppression("Failed to start replica threads for channel");
+CALL mtr.add_suppression("Could not start replica for channel");
 CALL mtr.add_suppression("file .* was not purged because it was being read by thread");
 
 --let $iter =1

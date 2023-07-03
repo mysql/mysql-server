@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include "mysql/components/services/registry.h"
 
 // pfs services
+#include <mysql/components/services/mysql_server_telemetry_traces_service.h>
 #include <mysql/components/services/psi_cond_service.h>
 #include <mysql/components/services/psi_error_service.h>
 #include <mysql/components/services/psi_file_service.h>
@@ -68,8 +69,8 @@ extern SERVICE_TYPE(psi_socket_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_socket_v1);
 extern SERVICE_TYPE(psi_stage_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_stage_v1);
-extern SERVICE_TYPE(psi_statement_v4)
-    SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v4);
+extern SERVICE_TYPE(psi_statement_v5)
+    SERVICE_IMPLEMENTATION(performance_schema, psi_statement_v5);
 extern SERVICE_TYPE(psi_system_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_system_v1);
 extern SERVICE_TYPE(psi_table_v1)
@@ -84,5 +85,8 @@ extern SERVICE_TYPE(psi_transaction_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_transaction_v1);
 extern SERVICE_TYPE(psi_tls_channel_v1)
     SERVICE_IMPLEMENTATION(performance_schema, psi_tls_channel_v1);
+extern SERVICE_TYPE(mysql_server_telemetry_traces_v1)
+    SERVICE_IMPLEMENTATION(performance_schema,
+                           mysql_server_telemetry_traces_v1);
 
 #endif /* PFS_SERVICES_H */

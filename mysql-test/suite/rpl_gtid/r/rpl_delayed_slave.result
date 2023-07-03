@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format");
@@ -30,8 +30,8 @@ include/assert.inc [The difference between the immediate_commit_timestamp should
 # CREATE FUNCTION delay_on_slave(time_units INT) RETURNS INT BEGIN IF @@server_id = 2 THEN RETURN SLEEP(time_units * T); ELSE RETURN 0; END IF; END
 INSERT INTO t1 SELECT delay_on_slave(3), 2;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 [connection slave]
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
@@ -53,8 +53,8 @@ include/assert.inc [The difference between the immediate_commit_timestamp should
 [connection master]
 INSERT INTO t1 SELECT delay_on_slave(2), 4;
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the replica.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 [connection slave]
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
@@ -134,7 +134,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 2147483647;
 # Expect error for setting delay between 2^31 and 2^32-1
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 2147483648;
-ERROR HY000: The requested value 2147483648 for the master delay exceeds the maximum 2147483647
+ERROR HY000: The requested value 2147483648 for the source delay exceeds the maximum 2147483647
 # Expect error for setting delay to nonsense
 CHANGE REPLICATION SOURCE TO SOURCE_DELAY = blah;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'blah' at line 1

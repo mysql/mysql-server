@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2001, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,8 @@
  @sa DISABLE_PSI_THREAD
  @sa DISABLE_PSI_TRANSACTION
  @sa DISABLE_TLS_CHANNEL
- */
+ @sa DISABLE_PSI_SERVER_TELEMETRY_TRACES
+*/
 
 #ifndef DISABLE_PSI_MUTEX
 #define HAVE_PSI_MUTEX_INTERFACE
@@ -258,11 +259,22 @@
 /**
   @def DISABLE_PSI_TLS_CHANNEL
   Compiling option to disable TLS Channel instrumentation.
+  @sa DISABLE_PSI_MUTEX
 */
 
 #ifndef DISABLE_PSI_TLS_CHANNEL
 #define HAVE_PSI_TLS_CHANNEL_INTERFACE
 #endif  // !DISABLE_PSI_TLS_CHANNEL
+
+/**
+  @def DISABLE_PSI_SERVER_TELEMETRY_TRACES
+  Compiling option to disable MySQL Server Telemetry traces instrumentation.
+  @sa DISABLE_PSI_MUTEX
+ */
+
+#ifndef DISABLE_PSI_SERVER_TELEMETRY_TRACES
+#define HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
+#endif  // !DISABLE_PSI_SERVER_TELEMETRY_TRACES
 
 #endif /* HAVE_PSI_INTERFACE */
 

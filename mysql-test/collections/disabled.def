@@ -42,6 +42,9 @@ innodb.slow_shutdown                              : Bug#31763837 mtr hits this d
 innodb.upgrade_fts_aux                            : Bug#33034679 Test needs an upgrade of its 5.7 data files
 innodb.instant_ddl_recovery_old                   : WL#12527 Redo format has changed - crashed_datadir.zip needs to be recreated.
 innodb.log_logical_size                           : WL#12527 Test is shaky - needs to be fixed.
+innodb.doublewrite_on_to_reduced                  : Bug#35087987 Mtr test doublewrite_on_to_reduced hangs
+innodb.doublewrite_reduced                        : Bug#35087987 Mtr test doublewrite_on_to_reduced hangs
+innodb.doublewrite_reduced_odirect                : Bug#35087987 Mtr test doublewrite_on_to_reduced hangs
 
 # keyring tests
 keyring_encrypted_file.keyring_migration_bugs @darwin : Bug#31041633
@@ -90,7 +93,6 @@ rpl_gtid.rpl_start_replica_until_pos_with_gtid_only      : Bug#33119241 START RE
 # rpl_nogtid suite tests
 rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
 rpl_nogtid.rpl_binlog_format_errors               : BUG#29776083 EXPLICIT BINLOG INJECTION WITH SELF LOGGING ENGINES IS BROKEN
-rpl_nogtid.rpl_gipk_cross_version_schema_changes  : BUG#34668313 Fix rpl_gipk_cross_version_schema_changes & binlog_mysqlbinlog_source_gipk_info
 
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.

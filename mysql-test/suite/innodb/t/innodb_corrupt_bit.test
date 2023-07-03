@@ -329,7 +329,7 @@ CHECK TABLE t5;
 SELECT b FROM t5 WHERE b > 5;
 
 CHECK TABLE t6;
---error ER_CHECK_NO_SUCH_TABLE
+--error ER_NO_SUCH_TABLE
 CREATE INDEX idx_v ON t6(v);
 
 --echo # Invoke checkpoint to persist the latest corruption bits again

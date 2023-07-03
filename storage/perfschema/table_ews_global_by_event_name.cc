@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ PFS_engine_table *table_ews_global_by_event_name::create(
   return new table_ews_global_by_event_name();
 }
 
-int table_ews_global_by_event_name::delete_all_rows(void) {
+int table_ews_global_by_event_name::delete_all_rows() {
   reset_events_waits_by_instance();
   reset_table_waits_by_table_handle();
   reset_table_waits_by_table();
@@ -106,7 +106,7 @@ int table_ews_global_by_event_name::delete_all_rows(void) {
   return 0;
 }
 
-ha_rows table_ews_global_by_event_name::get_row_count(void) {
+ha_rows table_ews_global_by_event_name::get_row_count() {
   return wait_class_max;
 }
 
@@ -116,12 +116,12 @@ table_ews_global_by_event_name::table_ews_global_by_event_name()
   m_normalizer = time_normalizer::get_wait();
 }
 
-void table_ews_global_by_event_name::reset_position(void) {
+void table_ews_global_by_event_name::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_ews_global_by_event_name::rnd_next(void) {
+int table_ews_global_by_event_name::rnd_next() {
   PFS_mutex_class *mutex_class;
   PFS_rwlock_class *rwlock_class;
   PFS_cond_class *cond_class;
@@ -238,9 +238,8 @@ int table_ews_global_by_event_name::rnd_pos(const void *pos) {
       assert(m_pos.m_index_2 <= 2);
       if (m_pos.m_index_2 == 1) {
         return make_table_io_row(&global_table_io_class);
-      } else {
-        return make_table_lock_row(&global_table_lock_class);
       }
+      return make_table_lock_row(&global_table_lock_class);
       break;
     case pos_ews_global_by_event_name::VIEW_SOCKET:
       socket_class = find_socket_class(m_pos.m_index_2);
@@ -278,7 +277,7 @@ int table_ews_global_by_event_name::index_init(uint idx [[maybe_unused]],
   return 0;
 }
 
-int table_ews_global_by_event_name::index_next(void) {
+int table_ews_global_by_event_name::index_next() {
   PFS_mutex_class *mutex_class;
   PFS_rwlock_class *rwlock_class;
   PFS_cond_class *cond_class;
@@ -350,9 +349,8 @@ int table_ews_global_by_event_name::index_next(void) {
               m_next_pos.set_after(&m_pos);
               if (m_pos.m_index_2 == 1) {
                 return make_table_io_row(table_class);
-              } else {
-                return make_table_lock_row(table_class);
               }
+              return make_table_lock_row(table_class);
             }
             m_pos.set_after(&m_pos);
           }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2284,9 +2284,7 @@ double Item_sum_avg::val_real() {
     double sum = Item_sum_sum::val_real();
 
     if (m_window->is_last_row_in_frame()) {
-      int64 divisor = (m_window->needs_buffering()
-                           ? m_window->rowno_in_frame() - m_frame_null_count
-                           : m_count - m_frame_null_count);
+      const int64 divisor = m_count - m_frame_null_count;
       if (divisor > 0) sum = sum / ulonglong2double(divisor);
     }
     m_avg = sum;  // save
@@ -2347,9 +2345,7 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val) {
       }
     }
 
-    int64 divisor = (m_window->needs_buffering()
-                         ? m_window->rowno_in_frame() - m_frame_null_count
-                         : m_count - m_frame_null_count);
+    const int64 divisor = m_count - m_frame_null_count;
 
     if (m_window->is_last_row_in_frame() && divisor > 0) {
       int2my_decimal(E_DEC_FATAL_ERROR, divisor, false, &cnt);
@@ -4757,11 +4753,22 @@ void Item_rank::update_after_wf_arguments_changed(THD *thd) {
   if (!order) return;
   ORDER *o = order->value.first;
   for (unsigned i = 0; i < m_previous.size(); ++i, o = o->next) {
-    if (thd->lex->is_exec_started())
-      thd->change_item_tree(m_previous[i]->get_item_ptr(),
-                            (*o->item)->real_item());
-    else
-      *m_previous[i]->get_item_ptr() = (*o->item)->real_item();
+    // If using the old optimizer, the references created for ORDER BY
+    // expressions should not be disturbed. The ref array slices depend
+    // on them. This is called only during resolving with ROLLUP in case
+    // of old optimizer.
+    Item **item_to_be_changed;
+    if (!thd->lex->using_hypergraph_optimizer) {
+      Item_ref *item_ref = down_cast<Item_ref *>(m_previous[i]->get_item());
+      item_to_be_changed = item_ref->ref_pointer();
+    } else {
+      item_to_be_changed = m_previous[i]->get_item_ptr();
+    }
+    if (thd->lex->is_exec_started()) {
+      thd->change_item_tree(item_to_be_changed, (*o->item)->real_item());
+    } else {
+      *item_to_be_changed = (*o->item)->real_item();
+    }
   }
 }
 
@@ -4992,6 +4999,10 @@ longlong Item_ntile::val_int() {
     }
 
     longlong buckets = args[0]->val_int();
+    if (buckets == 0) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      return error_int();
+    }
 
     /*
       Should not be evaluated until we have read all rows in partition

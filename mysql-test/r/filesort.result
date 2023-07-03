@@ -133,7 +133,7 @@ EXPLAIN
         -> Nested loop inner join
             -> Nested loop inner join
                 -> Nested loop inner join
-                    -> Constant row from SUBQUERY1_t2  (cost=0.17..0.17 rows=1)
+                    -> Constant row from SUBQUERY1_t2
                     -> Table scan on table2
                 -> Index scan on SUBQUERY1_t1 using PRIMARY
             -> Index scan on t1 using PRIMARY

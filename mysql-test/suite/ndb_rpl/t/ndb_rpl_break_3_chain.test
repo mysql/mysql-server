@@ -41,14 +41,23 @@ insert into t1 values (1,'Summertime');
 --sync_slave_with_master cluster2
 --echo Cluster2 has insert and apply_status from Cluster1
 show variables like 'server_id';
---replace_column 2 # 3 # 4 # 5 #
+--replace_column 2 # 4 # 5 #
 select * from mysql.ndb_apply_status order by server_id;
 select * from test.t1;
+
+# Wait for replicated changes to be binlogged
+--source include/wait_for_ndb_committed_to_binlog.inc
+
+# Show the binlog on cluster2, include server_id in output
+# since it's interesting to see how those are propagated
+--let $show_binlog_events_verbose = 1
+--let $show_binlog_events_mask_columns = 2,5
+--source include/show_binlog_events.inc
 
 --sync_slave_with_master cluster3
 --echo Cluster3 has insert and apply_status from Cluster1+2
 show variables like 'server_id';
---replace_column 2 # 3 # 4 # 5 #
+--replace_column 2 # 4 # 5 #
 select * from mysql.ndb_apply_status order by server_id;
 select * from test.t1;
 
@@ -75,20 +84,13 @@ select * from test.t1 order by a;
 
 --echo Now change Cluster3 to skip-over Cluster2 and get binlog direct from Cluster1
 
---replace_column 2 # 3 # 4 # 5 #
+--replace_column 2 # 4 # 5 #
 select * from mysql.ndb_apply_status order by server_id;
 
---disable_query_log
---disable_result_log
-eval select @binlog_file_name:=log_name from mysql.ndb_apply_status 
-            where server_id = $CLUSTER1_SERVER_ID;
-eval select @binlog_file_pos:=end_pos from mysql.ndb_apply_status
-            where server_id = $CLUSTER1_SERVER_ID;
---enable_query_log
---enable_result_log
-
-let $CLUSTER1_LOG_FILE= query_get_value('select @binlog_file_name as v', v, 1);
-let $CLUSTER1_LOG_POS= query_get_value('select @binlog_file_pos as v', v, 1);
+let $CLUSTER1_LOG_FILE= `select log_name from mysql.ndb_apply_status
+                           where server_id = $CLUSTER1_SERVER_ID`;
+let $CLUSTER1_LOG_POS= `select end_pos from mysql.ndb_apply_status
+                          where server_id = $CLUSTER1_SERVER_ID`;
 
 # Avoid warnings about epoch# differences between Cluster 2 and Cluster 1
 reset slave;

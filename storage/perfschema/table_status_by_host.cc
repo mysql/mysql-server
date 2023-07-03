@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ PFS_engine_table *table_status_by_host::create(PFS_engine_table_share *) {
   return new table_status_by_host();
 }
 
-int table_status_by_host::delete_all_rows(void) {
+int table_status_by_host::delete_all_rows() {
   mysql_mutex_lock(&LOCK_status);
   reset_status_by_thread();
   reset_status_by_account();
@@ -108,9 +108,9 @@ int table_status_by_host::delete_all_rows(void) {
   return 0;
 }
 
-ha_rows table_status_by_host::get_row_count(void) {
+ha_rows table_status_by_host::get_row_count() {
   mysql_mutex_lock(&LOCK_status);
-  size_t status_var_count = all_status_vars.size();
+  const size_t status_var_count = all_status_vars.size();
   mysql_mutex_unlock(&LOCK_status);
   return (global_host_container.get_row_count() * status_var_count);
 }
@@ -121,7 +121,7 @@ table_status_by_host::table_status_by_host()
       m_pos(),
       m_next_pos() {}
 
-void table_status_by_host::reset_position(void) {
+void table_status_by_host::reset_position() {
   m_pos.reset();
   m_next_pos.reset();
 }
@@ -133,7 +133,7 @@ int table_status_by_host::rnd_init(bool /* scan */) {
   return 0;
 }
 
-int table_status_by_host::rnd_next(void) {
+int table_status_by_host::rnd_next() {
   /*
     For each host, build a cache of status variables using totals from all
     threads associated with the host.
@@ -186,7 +186,7 @@ int table_status_by_host::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_status_by_host::index_next(void) {
+int table_status_by_host::index_next() {
   /*
     For each host, build a cache of status variables using totals from all
     threads associated with the host.

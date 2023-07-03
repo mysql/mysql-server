@@ -81,8 +81,8 @@ STOP SLAVE FOR CHANNEL 'ch3_1';
 RESET SLAVE ALL FOR CHANNEL 'ch3_1';
 
 set session sql_log_bin=0;
-call mtr.add_suppression("Error while executing a group configuration operation: The requested primary is not valid as a slave channel is running on member*");
-call mtr.add_suppression("Error while executing a group configuration operation: There is a slave channel running in the group's current primary member.");
+call mtr.add_suppression("Error while executing a group configuration operation: The requested primary is not valid as a replica channel is running on member*");
+call mtr.add_suppression("Error while executing a group configuration operation: There is a replica channel running in the group's current primary member.");
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server2
@@ -90,8 +90,8 @@ set session sql_log_bin=1;
 
 SET GLOBAL read_only= 0;
 set session sql_log_bin=0;
-call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. The requested primary is not valid as a slave channel is running on member*");
-call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a slave channel running in the group's current primary member.");
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. The requested primary is not valid as a replica channel is running on member*");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a replica channel running in the group's current primary member.");
 set session sql_log_bin=1;
 
 --let $rpl_group_replication_single_primary_mode=1

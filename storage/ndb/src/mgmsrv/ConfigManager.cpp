@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -484,9 +484,6 @@ ConfigManager::init(void)
                           m_opts.mycnf ? "my.cnf" : m_opts.config_filename);
       m_config_change.m_initial_config = new Config(conf); // Copy config
       m_config_state = CS_INITIAL;
-
-      if (!init_checkers(m_config_change.m_initial_config))
-        DBUG_RETURN(false);
     }
     else
     {
@@ -527,9 +524,6 @@ ConfigManager::init(void)
                             m_config->getGeneration(), m_config->getName());
         m_config_state= CS_INITIAL;
         m_config_change.m_initial_config = new Config(conf); // Copy config
-
-        if (!init_checkers(m_config_change.m_initial_config))
-          DBUG_RETURN(false);
       }
       else
       {
@@ -1970,8 +1964,6 @@ ConfigManager::run()
   m_all_mgm.bitANDC(m_opts.nowait_nodes);
   m_all_mgm.set(m_facade->ownId()); // Never exclude own node
 
-  start_checkers();
-
   while (!is_stopped())
   {
 
@@ -2055,8 +2047,6 @@ ConfigManager::run()
         not_checked.bitANDC(m_checked);
         sendConfigCheckReq(ss, not_checked);
       }
-
-      handle_exclude_nodes();
     }
 
     SimpleSignal *sig = ss.waitFor((Uint32)1000);
@@ -2165,7 +2155,6 @@ ConfigManager::run()
       break;
     }
   }
-  stop_checkers();
   ss.unlock();
 }
 
@@ -2562,185 +2551,6 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
   return true;
 }
 
-
-bool
-ConfigManager::init_checkers(const Config* config)
-{
-
-  // Init one thread for each other mgmd
-  // in the config and check which version it has. If version
-  // does not have config manager, set this node to ignore
-  // that node in the config change protocol
-
-  BaseString connect_string;
-  ConfigIter iter(config, CFG_SECTION_NODE);
-  for (iter.first(); iter.valid(); iter.next())
-  {
-
-    // Only MGM nodes
-    Uint32 type;
-    if (iter.get(CFG_TYPE_OF_SECTION, &type) ||
-        type != NODE_TYPE_MGM)
-      continue;
-
-    // Not this node
-    Uint32 nodeid;
-    if(iter.get(CFG_NODE_ID, &nodeid) ||
-       nodeid == m_node_id)
-      continue;
-
-    const char* hostname;
-    Uint32 port;
-    require(!iter.get(CFG_NODE_HOST, &hostname));
-    require(!iter.get(CFG_MGM_PORT, &port));
-    connect_string.assfmt("%s:%u",hostname,port);
-
-    ConfigChecker* checker =
-      new ConfigChecker(*this, connect_string.c_str(),
-                        m_opts.bind_address, nodeid);
-    if (!checker)
-    {
-      g_eventLogger->error("Failed to create ConfigChecker");
-      return false;
-    }
-
-    if (!checker->init())
-      return false;
-
-    m_checkers.push_back(checker);
-  }
-  return true;
-}
-
-
-void
-ConfigManager::start_checkers(void)
-{
-  for (unsigned i = 0; i < m_checkers.size(); i++)
-    m_checkers[i]->start();
-}
-
-
-void
-ConfigManager::stop_checkers(void)
-{
-  for (unsigned i = 0; i < m_checkers.size(); i++)
-  {
-    ConfigChecker* checker = m_checkers[i];
-    ndbout << "stop checker " << i << endl;
-    checker->stop();
-    delete checker;
-  }
-}
-
-
-ConfigManager::ConfigChecker::ConfigChecker(ConfigManager& manager,
-                                            const char* connect_string,
-                                            const char * bindaddress,
-                                            NodeId nodeid) :
-  MgmtThread("ConfigChecker"),
-  m_manager(manager),
-  m_config_retriever(opt_ndb_connectstring, opt_ndb_nodeid, NDB_VERSION,
-                     NDB_MGM_NODE_TYPE_MGM, bindaddress),
-  m_connect_string(connect_string),
-  m_nodeid(nodeid)
-{
-}
-
-
-bool
-ConfigManager::ConfigChecker::init()
-{
-  if (m_config_retriever.hasError())
-  {
-    g_eventLogger->error("%s", m_config_retriever.getErrorString());
-    return false;
-  }
-
-  return true;
-}
-
-
-void
-ConfigManager::ConfigChecker::run()
-{
-  // Connect to other mgmd inifintely until thread is stopped
-  // or connect succeeds
-  g_eventLogger->debug("ConfigChecker, connecting to '%s'",
-                       m_connect_string.c_str());
-  while(m_config_retriever.do_connect(0 /* retry */,
-                                      1 /* delay */,
-                                      0 /* verbose */) != 0)
-  {
-    if (is_stopped())
-    {
-      g_eventLogger->debug("ConfigChecker, thread is stopped");
-      return; // Thread is stopped
-    }
-
-    NdbSleep_SecSleep(1);
-  }
-
-  // Connected
-  g_eventLogger->debug("ConfigChecker, connected to '%s'",
-                       m_connect_string.c_str());
-
-  // Check version
-  int major, minor, build;
-  char ver_str[50];
-  if (!ndb_mgm_get_version(m_config_retriever.get_mgmHandle(),
-                           &major, &minor, &build,
-                           sizeof(ver_str), ver_str))
-  {
-    g_eventLogger->error("Could not get version from mgmd on '%s'",
-                         m_connect_string.c_str());
-    return;
-  }
-  g_eventLogger->debug("mgmd on '%s' has version %d.%d.%d",
-                       m_connect_string.c_str(), major, minor, build);
-
-  // Versions prior to 7 don't have ConfigManager
-  // exclude it from config change protocol
-  if (major < 7)
-  {
-    g_eventLogger->info("Excluding node %d with version %d.%d.%d from "
-                        "config change protocol",
-                        m_nodeid, major, minor, build);
-    m_manager.m_exclude_nodes.push_back(m_nodeid);
-  }
-
-  return;
-}
-
-
-void
-ConfigManager::handle_exclude_nodes(void)
-{
-
-  if (!m_waiting_for.isclear())
-    return; // Other things going on
-
-  switch (m_config_state)
-  {
-  case CS_INITIAL:
-    m_exclude_nodes.lock();
-    for (unsigned i = 0; i < m_exclude_nodes.size(); i++)
-    {
-      NodeId nodeid = m_exclude_nodes[i];
-      g_eventLogger->debug("Handle exclusion of node %d", nodeid);
-      m_all_mgm.clear(nodeid);
-    }
-    m_exclude_nodes.unlock();
-    break;
-
-  default:
-    break;
-  }
-  m_exclude_nodes.clear();
-
-}
-
-
 static bool
 check_dynamic_port_configured(const Config* config,
                               int node1, int node2,
@@ -2932,5 +2742,3 @@ ConfigManager::DynamicPorts::set_in_config(Config* config)
 
 
 template class Vector<ConfigSubscriber*>;
-template class Vector<ConfigManager::ConfigChecker*>;
-

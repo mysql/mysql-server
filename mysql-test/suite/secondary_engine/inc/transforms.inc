@@ -176,6 +176,36 @@ SELECT 1
 DROP TABLE t1;
 set optimizer_switch="subquery_to_derived=off";
 
+--echo #
+--echo # Bug#34828328: Assertion `right != nullptr' failed in
+--echo #               make_join_hypergraph.cc
+
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ANALYZE TABLE t1;
+
+set optimizer_switch="subquery_to_derived=on";
+# The following query gets offloaded with the old optimizer,
+# however it does not with hypergraph. The reason is that,
+# the old optimizer is able to induce LIMIT clause to eliminate
+# duplicates for the semijoin. Hypergraph however rejects the
+# plan because of the semijoin condition between inner side of
+# the semijoin and the outer side of the outer join making
+# it not possible to create a hash joinable plan.
+# This could possibly be addressed as part of solution to
+# Bug#34448532.
+let $query=
+SELECT 1
+FROM t1 JOIN t1 AS t2 ON (t2.f1 = t1.f1)
+LEFT JOIN t1 AS t3 ON (t2.f2 = t1.f2 AND t2.f2 IN (SELECT f1 FROM t1 AS t4));
+
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;
+set optimizer_switch="subquery_to_derived=off";
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log

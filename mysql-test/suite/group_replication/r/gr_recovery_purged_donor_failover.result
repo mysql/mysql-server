@@ -1,7 +1,7 @@
 include/group_replication.inc [rpl_server_count=3]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 #
 # Setup a new 2 member group
@@ -38,12 +38,12 @@ CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
 GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user"@'%';;
 FLUSH PRIVILEGES;
 call mtr.add_suppression("There was an error when connecting to the donor*");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
-call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Got fatal error 1236*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Got fatal error 1236*");
 call mtr.add_suppression("Error while starting the group replication incremental recovery receiver/applier threads");
-call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: Access denied for user 'recovery_user'.*");
-call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again.*");
-call mtr.add_suppression("Slave I/O thread couldn't register on master");
+call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Source command COM_REGISTER_REPLICA failed: Access denied for user 'recovery_user'.*");
+call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Source command COM_REGISTER_REPLICA failed: failed registering on source, reconnecting to try again.*");
+call mtr.add_suppression("Replica I/O thread couldn't register on source");
 call mtr.add_suppression("Error while creating the group replication recovery channel with donor.*");
 call mtr.add_suppression("Error when configuring the asynchronous recovery channel connection to the donor.*");
 SET SESSION sql_log_bin= 1;

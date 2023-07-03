@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,10 +45,6 @@ class Handler;
 
 class HARNESS_EXPORT Registry {
  public:
-  const static std::map<std::string, LogLevel> kLogLevels;
-  const static std::map<std::string, LogTimestampPrecision>
-      kLogTimestampPrecisions;
-
   Registry() = default;
   Registry(const Registry &) = delete;
   Registry &operator=(const Registry &) = delete;

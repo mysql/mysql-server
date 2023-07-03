@@ -7,23 +7,22 @@
 #
 # ==== Implementation ====
 #
-# 1. Add suppressions.
-# 2. Verify Asynchronous Replication Connection Failover is initially
+# 1. Verify Asynchronous Replication Connection Failover is initially
 #    disabled. Also verify Asynchronous Replication is initially
 #    connected to server_1.
-# 3. Enable Asynchronous Replication Connection Failover and set retry
+# 2. Enable Asynchronous Replication Connection Failover and set retry
 #    count and retry time to 1 and verify its enabled in
 #    performance_schema.replication_connection_configuration.
-# 4. Add two asynchronous connection failover servers including
+# 3. Add two asynchronous connection failover servers including
 #    server 1 to which it is currently connected. Verify that they are
 #    inserted successfully in
 #    performance_schema.replication_asynchronous_connection_failover.
-# 5. Stop server 1.
-# 6. Verify connection is not attempted with server-1 when it is offline.
+# 4. Stop server 1.
+# 5. Verify connection is not attempted with server-1 when it is offline.
 #    Verify connection failover to server-3.
-# 7. Start server-1 again.
+# 6. Start server-1 again.
 #    Verify connection is fail over to server-1 when it is online.
-# 8. Clean up
+# 7. Clean up
 #
 
 --let $rpl_server_count=3
@@ -31,19 +30,7 @@
 --source include/master-slave.inc
 
 --echo #
---echo # 1. Add suppressions.
---echo #
-
---let $rpl_connection_name= server_2
---source include/rpl_connection.inc
-
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
-SET SESSION sql_log_bin= 1;
-
-
---echo #
---echo # 2. Verify Asynchronous Replication Connection Failover is initially
+--echo # 1. Verify Asynchronous Replication Connection Failover is initially
 --echo #    disabled. Also verify Asynchronous Replication is initially
 --echo #    connected to server_1.
 --echo #
@@ -60,7 +47,7 @@ SET SESSION sql_log_bin= 1;
 
 
 --echo #
---echo # 3. Enable Asynchronous Replication Connection Failover and set retry
+--echo # 2. Enable Asynchronous Replication Connection Failover and set retry
 --echo #    count and retry time to 1 and verify its enabled in
 --echo #    performance_schema.replication_connection_configuration.
 --echo #
@@ -79,7 +66,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURC
 
 
 --echo #
---echo # 4. Add two asynchronous connection failover servers including
+--echo # 3. Add two asynchronous connection failover servers including
 --echo #    server 1 to which it is currently connected. Verify that they are
 --echo #    inserted successfully in
 --echo #    performance_schema.replication_asynchronous_connection_failover.
@@ -99,14 +86,14 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURC
 
 
 --echo #
---echo # 5. Stop server 1.
+--echo # 4. Stop server 1.
 --echo #
 
 --let $rpl_server_number= 1
 --source include/rpl_stop_server.inc
 
 --echo #
---echo # 6. Verify connection is not attempted with server-1 when it is offline.
+--echo # 5. Verify connection is not attempted with server-1 when it is offline.
 --echo #    Verify connection failover to server-3.
 --echo #
 
@@ -119,11 +106,11 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURC
 --sleep 30
 
 --let $assert_text= 'Asynch connection failover is not attempted with off single-server.'
---let $assert_cond= "[SELECT COUNT(*) as count FROM performance_schema.error_log WHERE error_code=\'MY-010563\' AND data LIKE \"%Slave I/O thread for channel \'\' killed while connecting to master%\", count, 1]" = "1"
+--let $assert_cond= "[SELECT COUNT(*) as count FROM performance_schema.error_log WHERE error_code=\'MY-010584\' AND data LIKE \"%Error connecting to source \'%:$SERVER_MYPORT_1\'. This was attempt % with a delay of 1 seconds between attempts. Message:%\", count, 1]" >= 1
 --source include/assert.inc
 
 --echo #
---echo # 7. Start server-1 again.
+--echo # 6. Start server-1 again.
 --echo #    Verify connection is fail over to server-1 when it is online.
 --echo #
 
@@ -142,7 +129,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURC
 
 
 --echo #
---echo # 8. Clean up
+--echo # 7. Clean up
 --echo #
 
 --let $rpl_connection_name= server_2

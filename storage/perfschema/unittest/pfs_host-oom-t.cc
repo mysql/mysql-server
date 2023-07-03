@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,11 @@
 #include "storage/perfschema/pfs_host.h"
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/unittest/stub_digest.h"
 #include "storage/perfschema/unittest/stub_pfs_global.h"
 #include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
+#include "storage/perfschema/unittest/stub_pfs_tls_channel.h"
+#include "storage/perfschema/unittest/stub_server_telemetry.h"
 #include "unittest/mytap/tap.h"
 
 extern struct PSI_bootstrap PFS_bootstrap;
@@ -99,6 +102,22 @@ static void test_oom() {
   param.m_max_digest_length = 0;
   param.m_max_sql_text_length = 0;
   param.m_error_sizing = 0;
+  param.m_consumer_events_stages_current_enabled = false;
+  param.m_consumer_events_stages_history_enabled = false;
+  param.m_consumer_events_stages_history_long_enabled = false;
+  param.m_consumer_events_statements_cpu_enabled = false;
+  param.m_consumer_events_statements_current_enabled = false;
+  param.m_consumer_events_statements_history_enabled = false;
+  param.m_consumer_events_statements_history_long_enabled = false;
+  param.m_consumer_events_transactions_current_enabled = false;
+  param.m_consumer_events_transactions_history_enabled = false;
+  param.m_consumer_events_transactions_history_long_enabled = false;
+  param.m_consumer_events_waits_current_enabled = false;
+  param.m_consumer_events_waits_history_enabled = false;
+  param.m_consumer_events_waits_history_long_enabled = false;
+  param.m_consumer_global_instrumentation_enabled = false;
+  param.m_consumer_thread_instrumentation_enabled = false;
+  param.m_consumer_statement_digest_enabled = false;
 
   /* Setup */
 

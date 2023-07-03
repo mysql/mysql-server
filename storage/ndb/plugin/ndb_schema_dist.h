@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,6 +77,7 @@ enum Schema_op_result_code {
   NODE_TIMEOUT = 9003,       // Node timeout during
   COORD_ABORT = 9004,        // Coordinator aborted
   CLIENT_ABORT = 9005,       // Client aborted
+  CLIENT_TIMEOUT = 9006,     // Client timeout
   CLIENT_KILLED = 9007,      // Client killed
   SCHEMA_OP_FAILURE = 9008,  // Failure not related to protocol but the actual
                              // schema operation to be distributed
@@ -96,6 +97,7 @@ bool is_ready(void *requestor);
 }  // namespace Ndb_schema_dist
 
 class Ndb;
+class NDB_SCHEMA_OBJECT;
 
 /**
   @brief Ndb_schema_dist_client, class represents a Client
@@ -141,17 +143,19 @@ class Ndb_schema_dist_client {
   bool m_holding_acl_mutex;
 
   // List of schema operation results, populated when schema operation has
-  // completed successfully.
+  // completed
   struct Schema_op_result {
     uint32 nodeid;
     uint32 result;
     std::string message;
   };
   std::vector<Schema_op_result> m_schema_op_results;
+  // Save results from schema operation for later
+  void save_schema_op_results(const NDB_SCHEMA_OBJECT *ndb_schema_object);
+  // Push save results as warnings and clear results
+  void push_and_clear_schema_op_results();
 
   static bool m_ddl_blocked;
-
-  void push_and_clear_schema_op_results();
 
   bool log_schema_op_impl(Ndb *ndb, const char *query, int query_length,
                           const char *db, const char *table_name,

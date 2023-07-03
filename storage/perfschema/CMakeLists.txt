@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -77,6 +77,7 @@ pfs_tls_channel.h
 pfs_user.h
 pfs_variable.h
 pfs_visitor.h
+mysql_server_telemetry_traces_service_imp.h
 table_accounts.h
 table_all_instr.h
 table_data_lock_waits.h
@@ -239,6 +240,7 @@ pfs_tls_channel.cc
 pfs_user.cc
 pfs_variable.cc
 pfs_visitor.cc
+mysql_server_telemetry_traces_service_imp.cc
 service_pfs_notification.cc
 service_pfs_resource_group.cc
 table_accounts.cc
@@ -364,7 +366,8 @@ table_replication_applier_global_filters.cc
 table_binary_log_transaction_compression_stats.cc
 )
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
-  STORAGE_ENGINE MANDATORY STATIC_ONLY)
+  STORAGE_ENGINE MANDATORY STATIC_ONLY
+  LINK_LIBRARIES extra::rapidjson ext::zlib)
 
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest)
@@ -392,6 +395,7 @@ OPTION(DISABLE_PSI_TRANSACTION "Exclude the performance schema transaction instr
 OPTION(DISABLE_PSI_ERROR "Exclude the performance schema server error instrumentation" OFF)
 OPTION(DISABLE_PSI_DATA_LOCK "Exclude the performance schema data lock instrumentation" OFF)
 OPTION(DISABLE_PSI_TLS_CHANNEL "Exclude the performance schema tls channel instrumentation" OFF)
+OPTION(DISABLE_PSI_SERVER_TELEMETRY_TRACES "Exclude the performance schema server telemetry traces instrumentation" OFF)
 
 MARK_AS_ADVANCED(DISABLE_PSI_THREAD)
 
@@ -413,4 +417,5 @@ MARK_AS_ADVANCED(DISABLE_PSI_TRANSACTION)
 MARK_AS_ADVANCED(DISABLE_PSI_ERROR)
 MARK_AS_ADVANCED(DISABLE_PSI_DATA_LOCK)
 MARK_AS_ADVANCED(DISABLE_PSI_TLS_CHANNEL)
+MARK_AS_ADVANCED(DISABLE_PSI_SERVER_TELEMETRY_TRACES)
 

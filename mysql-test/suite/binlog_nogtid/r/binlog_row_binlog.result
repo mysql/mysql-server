@@ -756,7 +756,7 @@ unique_checks	OFF
 # INSERT INTO t1 VALUES(2)
 # foreign_key_checks=1 and unique_checks=1
 # It should not change current session's variables, even error happens
-call mtr.add_suppression("Slave SQL.*Could not execute Write_rows_v1 event on table test.t1; Duplicate entry .2. for key .t1.PRIMARY., Error_code: 1062");
+call mtr.add_suppression("Replica SQL.*Could not execute Write_rows_v1 event on table test.t1; Duplicate entry .2. for key .t1.PRIMARY., Error_code: 1062");
 BINLOG '
 dfLtTBMBAAAAKQAAAKsBAAAAABcAAAAAAAEABHRlc3QAAnQxAAEDAAE=
 dfLtTBcBAAAAIgAAAM0BAAAAABcAAAAAAAEAAf/+AgAAAA==

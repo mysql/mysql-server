@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 # Create a table with functional index
 CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
@@ -35,6 +35,7 @@ t1	CREATE TABLE `t1` (
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
+[connection master]
 DROP TABLE t1;
 SET @start_row_image_value= @@session.binlog_row_image;
 # Try with various row_image values
@@ -61,6 +62,7 @@ t1	CREATE TABLE `t1` (
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
+[connection master]
 DROP TABLE t1;
 SET @@session.binlog_row_image= noblob;
 CREATE TABLE t1 (col1 INT, INDEX ((ABS(col1))));
@@ -85,6 +87,7 @@ t1	CREATE TABLE `t1` (
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
+[connection master]
 DROP TABLE t1;
 SET @@session.binlog_row_image= @start_row_image_value;
 #
@@ -94,15 +97,18 @@ SET @@session.binlog_row_image= @start_row_image_value;
 CREATE TABLE t1 (col1 INT, UNIQUE INDEX idx ((col1 + col1)));
 include/sync_slave_sql_with_master.inc
 INSERT INTO t1 (col1) VALUES (1);
-call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_rows event on table test.t1");
-call mtr.add_suppression("Slave SQL for channel '': .*Error 'Duplicate entry '2'");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+[connection master]
+call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Write_rows event on table test.t1");
+call mtr.add_suppression("Replica SQL for channel '': .*Error 'Duplicate entry '2'");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 INSERT INTO t1 (col1) VALUES (1), (2);
+[connection slave]
 include/wait_for_slave_sql_error.inc [errno=1062]
 DELETE FROM t1;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
+[connection master]
 INSERT INTO t1 (col1) VALUES (3), (4);
 SELECT col1 FROM t1;
 col1
@@ -117,6 +123,7 @@ col1
 2
 3
 4
+[connection master]
 DROP TABLE t1;
 #
 # Bug#28218073 SLAVE CRASHES WHEN AN UPDATE ON SLAVE REFERS TO COLUMN
@@ -139,6 +146,7 @@ a	b
 1	2
 2	3
 3	4
+[connection master]
 DROP TABLE t;
 #
 # Bug#28218481 UPDATE TABLE ON SLAVE DOESN'T UPDATE WHEN FUNCTIONAL INDEX
@@ -171,6 +179,7 @@ a	b
 9	5
 4	2
 2	7
+[connection master]
 DROP TABLE t;
 #
 # Bug#28243453 ASSERTION`MAP->BITMAP&&MAP2->BITMAP&&MAP->N_BITS==MAP2->
@@ -179,11 +188,13 @@ DROP TABLE t;
 CREATE TABLE t(a INT, b INT);
 include/sync_slave_sql_with_master.inc
 ALTER TABLE t ADD UNIQUE INDEX i ((a + b));
+[connection master]
 INSERT INTO t VALUES (1, 2);
 include/sync_slave_sql_with_master.inc
 SELECT a, b FROM t;
 a	b
 1	2
+[connection master]
 DROP TABLE t;
 #
 # Bug#29317684 REPLICATION IS SENSITIVE TO ORDER OF HIDDEN COLUMNS FOR
@@ -198,11 +209,30 @@ SET @@session.sql_log_bin = 0;
 CREATE TABLE t (a INT, INDEX ((a+1)));
 ALTER TABLE t ADD COLUMN b INT;
 SET @@session.sql_log_bin = 1;
+[connection slave]
 SET @@session.sql_log_bin = 0;
 CREATE TABLE t (a INT, b INT, INDEX ((a+1)));
 SET @@session.sql_log_bin = 1;
+[connection master]
 INSERT INTO t VALUES (1, 2);
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:test.t,slave:test.t]
+[connection master]
 DROP TABLE t;
+#
+# Bug#107366 REPLICATION ERROR WITH HASH_SCAN ROW SEARCH ALGORITHM FOR
+#            FUNCTIONAL INDEXES
+[connection master]
+CREATE TABLE t1 (
+id INT,
+c1 JSON NOT NULL,
+c2 INT,
+KEY comp ((CAST(c1 AS UNSIGNED ARRAY)))
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1,'[1046, 2995]',1);
+UPDATE t1 SET c2=2;
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Table t1 was updated]
+[connection master]
+DROP TABLE t1;
 include/rpl_end.inc

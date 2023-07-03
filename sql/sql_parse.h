@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,6 +123,7 @@ const CHARSET_INFO *get_bin_collation(const CHARSET_INFO *cs);
 void killall_non_super_threads(THD *thd);
 bool shutdown(THD *thd, enum mysql_enum_shutdown_level level);
 bool show_precheck(THD *thd, LEX *lex, bool lock);
+void statement_id_to_session(THD *thd);
 
 /* Variables */
 

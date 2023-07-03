@@ -77,7 +77,7 @@ CALL mtr.add_suppression('Duplicate entry');
 
 # Save global variables that will be changed during the test
 --source include/rpl_connection_slave.inc
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SET @saved_sync_relay_log_info= @@GLOBAL.sync_relay_log_info;
 
 --echo #

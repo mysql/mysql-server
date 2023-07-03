@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,7 @@ bool ARMetadataCache::refresh(bool needs_writable_node) {
   size_t metadata_server_id;
   const auto res = meta_data_->fetch_cluster_topology(
       terminated_, target_cluster_, router_id_, metadata_servers_,
-      needs_writable_node, cluster_type_specific_id_, "", true,
-      metadata_server_id);
+      needs_writable_node, "", true, metadata_server_id);
 
   if (!res) {
     const bool md_servers_reachable =

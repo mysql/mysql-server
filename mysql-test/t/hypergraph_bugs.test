@@ -190,22 +190,24 @@ EXPLAIN FORMAT=tree
 DROP TABLE t1;
 
 --echo #
---echo # Bug#34534373: Row estimates for joins ignores histograms.
+--echo # Bug#34699398: Row estimates for joins ignores histograms.
 --echo #
 
 CREATE TABLE num (n INT);
 INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
-CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT, ah INT, ai INT, KEY ix1(ai));
 
-INSERT INTO t1 SELECT k%25 FROM
+INSERT INTO t1 SELECT k%25, k%25, K%25 FROM
   (SELECT num1.n+num2.n*10 k FROM num num1, num num2) d1;
 
-CREATE TABLE t2 (b INT);
+CREATE TABLE t2 (b INT, bh INT, bi INT, KEY ix2(bi));
 
-INSERT INTO t2 SELECT k%25 FROM
+INSERT INTO t2 SELECT k%25, k%25, k%25 FROM
   (SELECT num1.n+num2.n*10 k FROM num num1, num num2, num num3) d1;
 
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON ah;
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON bh;
 ANALYZE TABLE t1,t2;
 
 # Neither index nor histogram, so use 10% selectivity estimate.
@@ -219,57 +221,46 @@ EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.a=x2.a;
 EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.b=x2.b;
 
 # Estimate selectivity from ix1.
-CREATE INDEX ix1 ON t1(a);
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ai=b;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.a=x2.a;
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.ai=x2.ai;
 
 # Estimate selectivity from ix1 or ix2.
-CREATE INDEX ix2 ON t2(b);
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ai=bi;
 
 # Estimate selectivity from ix2.
-DROP INDEX ix1 ON t1;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=bi;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.b=x2.b;
-
-DROP INDEX ix2 ON t2;
+EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.bi=x2.bi;
 
 # Estimate selectivity from histogram on 'a'.
-ANALYZE TABLE t1 UPDATE HISTOGRAM ON a;
-ANALYZE TABLE t1;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ah=b;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.a=x2.a;
+EXPLAIN ANALYZE SELECT 1 FROM t1 x1, t1 x2 WHERE x1.ah=x2.ah;
 
 # Estimate selectivity from histogram on 'a' or 'b'.
-ANALYZE TABLE t2 UPDATE HISTOGRAM ON b;
-ANALYZE TABLE t2;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE ah=bh;
 
 # Estimate selectivity from histogram on 'b'.
-ANALYZE TABLE t1 DROP HISTOGRAM ON a;
-ANALYZE TABLE t1;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=b;
+EXPLAIN ANALYZE SELECT 1 FROM t1,t2 WHERE a=bh;
 
 --replace_regex $elide_costs_and_time
-EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.b=x2.b;
+EXPLAIN ANALYZE SELECT 1 FROM t2 x1, t2 x2 WHERE x1.bh=x2.bh;
 
 DROP TABLE num, t1, t2;
 
@@ -319,3 +310,160 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#34828364: Assertion `!eq_items.is_empty()' failed
+--echo #               in make_join_hypergraph.cc
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+
+ANALYZE TABLE t1;
+
+let $query =
+SELECT 1
+FROM (SELECT * FROM t1
+      WHERE f1 IN (SELECT t1.f1 FROM (t1 AS t2 JOIN t1 AS t3 ON t3.f1 = t2.f2)
+                   LEFT JOIN t1 AS t4 ON TRUE
+                   WHERE (t3.f2 <> t3.f2 OR t4.f2 = t2.f2))) AS t5 JOIN t1 AS t6
+ON TRUE;
+
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#34821222: Hypergraph: mysqld crash-signal 11 - IsAnd &
+--echo #               CommonSubexpressionElimination
+--echo #
+
+CREATE TABLE t1 (x INTEGER NOT NULL);
+CREATE TABLE t2 (y INTEGER, z INTEGER);
+
+SELECT 1 IN (
+  SELECT COUNT(*) FROM t1 WHERE x NOT IN (
+    SELECT 1 FROM t2 WHERE y <> y OR z <> z));
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#34854369: Customer query hits assert(m_pq.is_valid()) failure
+--echo #
+
+# Graph simplification used to hit an assertion as a result of
+# division by zero caused by information schema tables with zero row
+# estimates.
+CREATE TABLE t (table_id BIGINT UNSIGNED);
+SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ 1
+FROM t AS t1 JOIN t AS t2 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t3 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t4 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t5 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t6 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t7 USING (table_id)
+     JOIN INFORMATION_SCHEMA.INNODB_TABLES AS t8 USING (table_id);
+DROP TABLE t;
+
+# Graph simplification used to hit an assertion as a result of
+# division by zero caused by zero row estimates from MyISAM. (InnoDB
+# never gives zero row estimates, not even for empty tables, whereas
+# MyISAM does.)
+CREATE TABLE t0 (x INT) ENGINE = MyISAM;
+CREATE TABLE t1 (x INT) ENGINE = InnoDB;
+SELECT /*+ SET_VAR(optimizer_max_subgraph_pairs = 1) */ 1
+FROM t0 AS a NATURAL JOIN
+     t0 AS b NATURAL JOIN
+     t0 AS c NATURAL JOIN
+     t0 AS d NATURAL JOIN
+     t0 AS e NATURAL JOIN
+     t0 AS f NATURAL JOIN
+     t1 AS g NATURAL JOIN
+     t1 AS h;
+DROP TABLE t0, t1;
+
+
+--echo #
+--echo # Bug#34861693: Assertion
+--echo # `std::abs(1.0 - EstimateAggregateRows(child, query_block, path->aggreg
+--echo #
+
+CREATE TABLE num (n INT);
+INSERT INTO num VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1 (a INT, b INT);
+
+INSERT INTO t1 SELECT n,n FROM num UNION SELECT n+10,n+10 FROM num;
+
+CREATE TABLE t2 (a INT, b INT);
+
+ANALYZE TABLE t1, t2;
+
+# The row estimate for "x1 LEFT JOIN (x2 LEFT JOIN x3)" may be different from that of
+#  "(x1 LEFT JOIN x2) LEFT JOIN x3" (see bug #33550360 "Inconsistent row estimates
+# in the hypergraph optimizer"). Then the the row estimate for GROUP BY will also depend
+# on the join order. This triggers the assert (i.e. bug#34861693).
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT x1.a+0 k, COUNT(x1.b) FROM t1 x1
+  LEFT JOIN t2 x2 ON x1.b=x2.a
+  LEFT JOIN t1 x3 ON x2.b=x3.a GROUP BY k;
+
+DROP TABLE t1,t2,num;
+
+
+--echo #
+--echo # Bug#35000554: assertion error in EstimateAggregateNoRollupRows()
+--echo #
+
+CREATE TABLE num10 (n INT);
+INSERT INTO num10 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1(a INT, b INT, c INT);
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a, b, c;
+
+INSERT INTO t1 SELECT NULL, x1.n+x2.n*10, NULL FROM num10 x1, num10 x2;
+INSERT INTO t1 VALUES (NULL, 0, 0);
+
+ANALYZE TABLE t1;
+
+# Row estimate should not be zero, even if histogram was built on empty table.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT b FROM t1 GROUP BY b;
+
+# Row estimate should not be zero, even if histogram was built on empty table.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a, b, c;
+
+# Prior to the fix, this would trigger the assert, as we would estimate
+# zero distinct values for 'a'.
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT a,b FROM t1 GROUP BY a,b;
+
+# Now there is an updated histogram (built on a non-empty table),
+# and thus a better estimate.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT b FROM t1 WHERE b=c;
+
+# Estimate should be two rows (NULL and 0).
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT c FROM t1 GROUP BY c;
+
+DROP TABLE num10, t1;
+
+CREATE TABLE t2(a INT, b INT);
+
+INSERT INTO t2 VALUES (0, 0), (0, 1), (1, 2), (NULL, 3), (NULL, 4), (NULL, 5);
+
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON a, b;
+ANALYZE TABLE t2;
+
+# Estimate should be 1.5 rows (i.e. 25% of the table), as there are two distinct
+# values, and 'a' is NULL for 50% of the rows.
+--replace_regex $elide_costs_and_time
+EXPLAIN ANALYZE SELECT 1 FROM t2 WHERE a=b;
+
+DROP TABLE t2;

@@ -40,7 +40,7 @@
 --source include/rpl_connection.inc
 --eval SET GLOBAL replication_sender_observe_commit_only = 1
 --eval SET GLOBAL replication_optimize_for_static_plugin_config = 1
-CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+CALL mtr.add_suppression("Semi-sync source failed on net_flush.*");
 CALL mtr.add_suppression("Read semi-sync reply magic number error.*");
 CALL mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached.*");
 CALL mtr.add_suppression("Timeout waiting for reply of binlog.*");
@@ -49,7 +49,7 @@ CALL mtr.add_suppression("Timeout waiting for reply of binlog.*");
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 --source include/install_semisync_replica.inc
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped.*");
 
 --echo # b) Ensure that replication_sender_observe_commit_only is turned on
 

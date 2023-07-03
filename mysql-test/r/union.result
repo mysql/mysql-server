@@ -626,9 +626,9 @@ Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where tru
 explain format=tree (select * from t1 where a=5) union (select * from t2 where a=1);
 EXPLAIN
 -> Table scan on <union temporary>  (cost=2.61..2.61 rows=1)
-    -> Union materialize with deduplication  (cost=0.10..0.10 rows=1)
-        -> Zero rows (no matching row in const table)  (cost=0.00..0.00 rows=0)
-        -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+    -> Union materialize with deduplication  (cost=0.1..0.1 rows=1)
+        -> Zero rows (no matching row in const table)  (cost=0..0 rows=0)
+        -> Rows fetched before execution  (cost=0..0 rows=1)
 
 (select * from t1 where a=5) union (select * from t2 where a=1);
 a	b
@@ -2066,12 +2066,12 @@ CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t2 VALUES (1);
 EXPLAIN FORMAT=tree SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 EXPLAIN
--> Append
+-> Append  (cost=0.45 rows=2)
     -> Stream results  (cost=0.45 rows=1)
         -> Aggregate: sum(t2.a)  (cost=0.45 rows=1)
             -> Index scan on t2 using PRIMARY  (cost=0.35 rows=1)
-    -> Stream results  (cost=0.00..0.00 rows=1)
-        -> Zero input rows (No matching min/max row), aggregated into one output row  (cost=0.00..0.00 rows=1)
+    -> Stream results  (cost=0..0 rows=1)
+        -> Zero input rows (No matching min/max row), aggregated into one output row  (cost=0..0 rows=1)
 
 SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 a	SUM(a)
@@ -3346,7 +3346,7 @@ PRIMARY KEY (pk)
 INSERT INTO t1 VALUES (1,'');
 EXPLAIN FORMAT=tree SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
 EXPLAIN
--> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+-> Rows fetched before execution  (cost=0..0 rows=1)
 
 SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
 pk	b
@@ -3487,7 +3487,7 @@ DROP TABLE t1;
 #
 EXPLAIN FORMAT=TREE SELECT 1 UNION SELECT 1 LIMIT 0;
 EXPLAIN
--> Zero rows (Zero limit)  (cost=0.00..0.00 rows=0)
+-> Zero rows (Zero limit)  (cost=0..0 rows=0)
 
 SELECT 1 UNION SELECT 1 LIMIT 0;
 1
@@ -3533,7 +3533,7 @@ EXPLAIN FORMAT = tree SELECT * FROM r UNION ALL
 SELECT * FROM s UNION ALL
 SELECT * FROM t;
 EXPLAIN
--> Append
+-> Append  (rows=14)
     -> Stream results  (rows=4)
         -> Table scan on r  (rows=4)
     -> Stream results  (rows=5)
@@ -3885,7 +3885,7 @@ a
 EXPLAIN FORMAT = tree (((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2) UNION ALL
 (((SELECT * FROM t ORDER BY a LIMIT 5) ORDER BY -a LIMIT 3) ORDER BY a LIMIT 2);
 EXPLAIN
--> Append
+-> Append  (rows=4)
     -> Stream results  (rows=2)
         -> Limit: 2 row(s)  (rows=2)
             -> Sort: a, limit input to 2 row(s) per chunk  (rows=2)
@@ -4059,7 +4059,7 @@ a
 EXPLAIN FORMAT = tree (SELECT * FROM r UNION DISTINCT SELECT * FROM t ORDER BY a LIMIT 3) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t ORDER BY -a LIMIT 5);
 EXPLAIN
--> Append
+-> Append  (rows=8)
     -> Stream results  (rows=3)
         -> Limit: 3 row(s)  (rows=3)
             -> Sort: a, limit input to 3 row(s) per chunk  (rows=3)
@@ -4126,7 +4126,7 @@ a
 EXPLAIN FORMAT = tree (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM t);
 EXPLAIN
--> Append
+-> Append  (rows=18)
     -> Stream results  (rows=9)
         -> Table scan on <union temporary>  (rows=9)
             -> Union materialize with deduplication  (rows=9)
@@ -4187,7 +4187,7 @@ a
 EXPLAIN FORMAT = tree (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t);
 EXPLAIN
--> Append
+-> Append  (rows=18)
     -> Stream results  (rows=9)
         -> Table scan on <union temporary>  (rows=9)
             -> Union materialize with deduplication  (rows=9)
@@ -4250,7 +4250,7 @@ a
 EXPLAIN FORMAT = tree (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM r UNION DISTINCT SELECT * FROM t);
 EXPLAIN
--> Append
+-> Append  (rows=22)
     -> Stream results  (rows=9)
         -> Table scan on <union temporary>  (rows=9)
             -> Union materialize with deduplication  (rows=9)
@@ -4319,7 +4319,7 @@ EXPLAIN FORMAT = tree (SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM t);
 EXPLAIN
--> Append
+-> Append  (rows=23)
     -> Stream results  (rows=9)
         -> Table scan on <union temporary>  (rows=9)
             -> Union materialize with deduplication  (rows=9)
@@ -4389,7 +4389,7 @@ EXPLAIN FORMAT = tree (SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM t);
 EXPLAIN
--> Append
+-> Append  (rows=23)
     -> Stream results  (rows=18)
         -> Table scan on <union temporary>  (rows=18)
             -> Union materialize with deduplication  (rows=18)
@@ -4615,7 +4615,7 @@ EXPLAIN FORMAT = tree (SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s);
 EXPLAIN
--> Append
+-> Append  (rows=27)
     -> Stream results  (rows=9)
         -> Table scan on <union temporary>  (rows=9)
             -> Union materialize with deduplication  (rows=9)
@@ -4700,7 +4700,7 @@ EXPLAIN FORMAT = tree (SELECT * FROM r UNION DISTINCT SELECT * FROM s) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM s);
 EXPLAIN
--> Append
+-> Append  (rows=27)
     -> Stream results  (rows=9)
         -> Table scan on <union temporary>  (rows=9)
             -> Union materialize with deduplication  (rows=9)
@@ -4784,7 +4784,7 @@ EXPLAIN FORMAT = tree (SELECT * FROM r UNION ALL SELECT * FROM s) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM t) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM s);
 EXPLAIN
--> Append
+-> Append  (rows=27)
     -> Stream results  (rows=4)
         -> Table scan on r  (rows=4)
     -> Stream results  (rows=5)
@@ -4915,7 +4915,7 @@ a
 EXPLAIN FORMAT = tree (SELECT * FROM r UNION SELECT * FROM s ORDER BY 1 LIMIT 1) UNION ALL
 (SELECT * FROM r UNION SELECT * FROM s ORDER BY 1 LIMIT 1);
 EXPLAIN
--> Append
+-> Append  (rows=2)
     -> Stream results  (rows=1)
         -> Limit: 1 row(s)  (rows=1)
             -> Sort: a, limit input to 1 row(s) per chunk  (rows=1)
@@ -4939,7 +4939,7 @@ a
 EXPLAIN FORMAT = tree (SELECT * FROM r UNION ALL      SELECT * FROM s ORDER BY 1 LIMIT 1) UNION ALL
 (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1);
 EXPLAIN
--> Append
+-> Append  (rows=2)
     -> Stream results  (rows=1)
         -> Limit: 1 row(s)  (rows=1)
             -> Sort: a, limit input to 1 row(s) per chunk  (rows=1)
@@ -4963,7 +4963,7 @@ a
 EXPLAIN FORMAT = tree (SELECT * FROM r UNION DISTINCT SELECT * FROM s ORDER BY 1 LIMIT 1) UNION ALL
 (SELECT * FROM r UNION ALL      SELECT * FROM s ORDER BY 1 LIMIT 1);
 EXPLAIN
--> Append
+-> Append  (rows=2)
     -> Stream results  (rows=1)
         -> Limit: 1 row(s)  (rows=1)
             -> Sort: a, limit input to 1 row(s) per chunk  (rows=1)
@@ -4987,7 +4987,7 @@ a
 EXPLAIN FORMAT = tree (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY 1 LIMIT 1) UNION ALL
 (SELECT * FROM r UNION ALL SELECT * FROM s ORDER BY 1 LIMIT 1);
 EXPLAIN
--> Append
+-> Append  (rows=2)
     -> Stream results  (rows=1)
         -> Limit: 1 row(s)  (rows=1)
             -> Sort: a, limit input to 1 row(s) per chunk  (rows=1)

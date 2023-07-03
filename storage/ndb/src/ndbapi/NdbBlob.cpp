@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -278,7 +278,6 @@ NdbBlob::getBlobEvent(NdbEventImpl& be, const NdbEventImpl* e, const NdbColumnIm
   be.setTable(bt);
   // simple assignments
   be.mi_type = e->mi_type;
-  be.m_dur = e->m_dur;
   be.m_mergeEvents = e->m_mergeEvents;
   // report unchanged data
   // not really needed now since UPD is DEL o INS and we subscribe to all

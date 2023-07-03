@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ PFS_engine_table *table_esgs_global_by_event_name::create(
   return new table_esgs_global_by_event_name();
 }
 
-int table_esgs_global_by_event_name::delete_all_rows(void) {
+int table_esgs_global_by_event_name::delete_all_rows() {
   reset_events_stages_by_thread();
   reset_events_stages_by_account();
   reset_events_stages_by_user();
@@ -100,7 +100,7 @@ int table_esgs_global_by_event_name::delete_all_rows(void) {
   return 0;
 }
 
-ha_rows table_esgs_global_by_event_name::get_row_count(void) {
+ha_rows table_esgs_global_by_event_name::get_row_count() {
   return stage_class_max;
 }
 
@@ -109,14 +109,14 @@ table_esgs_global_by_event_name::table_esgs_global_by_event_name()
   m_normalizer = time_normalizer::get_stage();
 }
 
-void table_esgs_global_by_event_name::reset_position(void) {
+void table_esgs_global_by_event_name::reset_position() {
   m_pos = 1;
   m_next_pos = 1;
 }
 
 int table_esgs_global_by_event_name::rnd_init(bool) { return 0; }
 
-int table_esgs_global_by_event_name::rnd_next(void) {
+int table_esgs_global_by_event_name::rnd_next() {
   PFS_stage_class *stage_class;
 
   if (global_instr_class_stages_array == nullptr) {
@@ -161,7 +161,7 @@ int table_esgs_global_by_event_name::index_init(uint idx [[maybe_unused]],
   return 0;
 }
 
-int table_esgs_global_by_event_name::index_next(void) {
+int table_esgs_global_by_event_name::index_next() {
   PFS_stage_class *stage_class;
 
   if (global_instr_class_stages_array == nullptr) {

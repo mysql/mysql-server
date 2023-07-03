@@ -698,10 +698,10 @@ ORDER BY a.pk LIMIT 10;
 EXPLAIN
 -> Limit: 10 row(s)  (cost=1.21 rows=0)
     -> Nested loop inner join  (cost=1.21 rows=0)
-        -> Sort: a.pk  (cost=0.70 rows=2)
-            -> Table scan on a  (cost=0.70 rows=2)
-        -> Filter: ((b.pk <= a.col_int) and (a.col_varchar_255 = b.col_varchar_10))  (cost=0.50 rows=0)
-            -> Index range scan on b (re-planned for each iteration)  (cost=0.50 rows=0)
+        -> Sort: a.pk  (cost=0.702 rows=2)
+            -> Table scan on a  (cost=0.702 rows=2)
+        -> Filter: ((b.pk <= a.col_int) and (a.col_varchar_255 = b.col_varchar_10))  (cost=0.504 rows=0)
+            -> Index range scan on b (re-planned for each iteration)  (cost=0.504 rows=0)
 
 INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
 INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
@@ -720,10 +720,10 @@ JOIN b ON a.col_varchar_255 = b.col_varchar_10
 WHERE b.pk <= a.col_int
 ORDER BY a.pk LIMIT 10;
 EXPLAIN
--> Limit: 10 row(s)  (cost=423.65 rows=0)
-    -> Nested loop inner join  (cost=423.65 rows=0)
-        -> Sort: a.pk  (cost=415.10 rows=4096)
-            -> Table scan on a  (cost=415.10 rows=4096)
+-> Limit: 10 row(s)  (cost=424 rows=0)
+    -> Nested loop inner join  (cost=424 rows=0)
+        -> Sort: a.pk  (cost=415 rows=4096)
+            -> Table scan on a  (cost=415 rows=4096)
         -> Filter: ((b.pk <= a.col_int) and (a.col_varchar_255 = b.col_varchar_10))  (cost=8.55 rows=0)
             -> Index range scan on b (re-planned for each iteration)  (cost=8.55 rows=0)
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,10 @@ class DestFirstAvailable final : public RouteDestination {
 
   // mark index as invalid
   void mark_ndx_invalid(size_t ndx) noexcept { valid_ndx_ = ndx + 1; }
+
+  routing::RoutingStrategy get_strategy() override {
+    return routing::RoutingStrategy::kFirstAvailable;
+  }
 
  private:
   size_t valid_ndx_{};

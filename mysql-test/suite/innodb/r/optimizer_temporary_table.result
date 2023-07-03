@@ -2266,7 +2266,7 @@ x
 102
 SET @@optimizer_switch=@optimizer_switch_saved;
 SET GLOBAL innodb_fast_shutdown = 0;
-# restart: --big-tables=1 --innodb-read-only
+# restart: --innodb-read-only --big-tables=1
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 explain format = json select sql_buffer_result * from t1;

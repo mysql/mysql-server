@@ -252,7 +252,7 @@ insert t0 select * from t1;
 set autocommit=1;
 insert into t0 select GET_LOCK("lock1",null);
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 set autocommit=0;
 create table t2 (n int) engine=innodb;
 insert into t2 values (3);

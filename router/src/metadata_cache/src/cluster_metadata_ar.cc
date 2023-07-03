@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,12 +39,10 @@ ARClusterMetadata::~ARClusterMetadata() = default;
 stdx::expected<metadata_cache::ClusterTopology, std::error_code>
 ARClusterMetadata::fetch_cluster_topology(
     const std::atomic<bool> &terminated,
-    mysqlrouter::TargetCluster & /*target_cluster*/,
-    const unsigned /*router_id*/,
+    mysqlrouter::TargetCluster &target_cluster, const unsigned /*router_id*/,
     const metadata_cache::metadata_servers_list_t &metadata_servers,
-    bool /* needs_writable_node */, const std::string &cluster_type_specific_id,
-    const std::string & /*clusterset_id*/, bool /*whole_topology*/,
-    std::size_t &instance_id) {
+    bool /* needs_writable_node */, const std::string & /*clusterset_id*/,
+    bool /*whole_topology*/, std::size_t &instance_id) {
   metadata_cache::ClusterTopology result;
 
   bool metadata_read = false;
@@ -79,8 +77,12 @@ ARClusterMetadata::fetch_cluster_topology(
       }
 
       uint64_t view_id{0};
-      if (!get_member_view_id(*metadata_connection_, cluster_type_specific_id,
-                              view_id)) {
+      const std::string cluster_id =
+          target_cluster.target_type() ==
+                  mysqlrouter::TargetCluster::TargetType::ByUUID
+              ? target_cluster.to_string()
+              : "";
+      if (!get_member_view_id(*metadata_connection_, cluster_id, view_id)) {
         log_warning("Failed fetching view_id from the metadata server on %s:%d",
                     metadata_server.address().c_str(), metadata_server.port());
         continue;
@@ -95,7 +97,7 @@ ARClusterMetadata::fetch_cluster_topology(
       }
 
       result = fetch_topology_from_member(*metadata_connection_, view_id,
-                                          cluster_type_specific_id);
+                                          cluster_id);
 
       this->view_id_ = view_id;
       metadata_read = true;
@@ -117,9 +119,18 @@ ARClusterMetadata::fetch_cluster_topology(
   }
 
   // for ReplicaSet Cluster we assume metadata servers are just Cluster nodes
+  // we want PRIMARY(s) at the beginning of the vector
+  metadata_cache::metadata_servers_list_t non_primary_mds;
   for (const auto &cluster_node : cluster_members) {
-    result.metadata_servers.emplace_back(cluster_node.host, cluster_node.port);
+    if (cluster_node.role == metadata_cache::ServerRole::Primary)
+      result.metadata_servers.emplace_back(cluster_node.host,
+                                           cluster_node.port);
+    else
+      non_primary_mds.emplace_back(cluster_node.host, cluster_node.port);
   }
+  result.metadata_servers.insert(result.metadata_servers.end(),
+                                 non_primary_mds.begin(),
+                                 non_primary_mds.end());
   result.writable_server = find_rw_server(cluster_members);
 
   return result;
@@ -175,17 +186,17 @@ metadata_cache::ClusterTopology ARClusterMetadata::fetch_topology_from_member(
           std::to_string(row.size()));
     }
 
-    cluster.id = get_string(row[0]);
-    cluster.name = get_string(row[1]);
+    cluster.id = as_string(row[0]);
+    cluster.name = as_string(row[1]);
     metadata_cache::ManagedInstance instance{
         metadata_cache::InstanceType::AsyncMember};
-    instance.mysql_server_uuid = get_string(row[2]);
+    instance.mysql_server_uuid = as_string(row[2]);
 
     if (!set_instance_ports(instance, row, 3, 4)) {
       return true;  // next row
     }
 
-    if (get_string(row[5]) == "PRIMARY") {
+    if (as_string(row[5]) == "PRIMARY") {
       instance.mode = metadata_cache::ServerMode::ReadWrite;
       instance.role = metadata_cache::ServerRole::Primary;
     } else {
@@ -193,7 +204,7 @@ metadata_cache::ClusterTopology ARClusterMetadata::fetch_topology_from_member(
       instance.role = metadata_cache::ServerRole::Secondary;
     }
 
-    set_instance_attributes(instance, get_string(row[6]));
+    set_instance_attributes(instance, as_string(row[6]));
 
     cluster.members.push_back(instance);
     return true;  // get next row if available

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,16 +24,14 @@
 
 #include "classic_lazy_connect.h"
 
-#include "classic_change_user.h"
+#include "classic_change_user_sender.h"
 #include "classic_connect.h"
-#include "classic_connection.h"
-#include "classic_greeting.h"
-#include "classic_init_schema.h"
-#include "classic_query.h"
-#include "classic_reset_connection.h"
-#include "hexify.h"
-
-using mysql_harness::hexify;
+#include "classic_connection_base.h"
+#include "classic_greeting_forwarder.h"  // ServerGreetor
+#include "classic_init_schema_sender.h"
+#include "classic_query_sender.h"
+#include "classic_reset_connection_sender.h"
+#include "mysqlrouter/classic_protocol_message.h"
 
 stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
   switch (stage()) {
@@ -55,7 +53,9 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::process() {
 }
 
 stdx::expected<Processor::Result, std::error_code> LazyConnector::connect() {
-  trace(Tracer::Event().stage("connect::connect"));
+  if (auto &tr = tracer()) {
+    tr.trace(Tracer::Event().stage("connect::connect"));
+  }
 
   auto *socket_splicer = connection()->socket_splicer();
   auto &server_conn = socket_splicer->server_conn();
@@ -64,8 +64,11 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connect() {
     stage(Stage::Connected);
 
     // creates a fresh connection or takes one from the pool.
-    connection()->push_processor(
-        std::make_unique<ConnectProcessor>(connection()));
+    connection()->push_processor(std::make_unique<ConnectProcessor>(
+        connection(),
+        [this](const classic_protocol::message::server::Error &err) {
+          on_error_(err);
+        }));
   } else {
     stage(Stage::Done);  // there still is a connection open, nothing to do.
   }
@@ -79,11 +82,14 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connect() {
 stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
   auto *socket_splicer = connection()->socket_splicer();
   auto &server_conn = socket_splicer->server_conn();
-  auto client_protocol = connection()->client_protocol();
-  auto server_protocol = connection()->server_protocol();
+  auto *client_protocol = connection()->client_protocol();
+  auto *server_protocol = connection()->server_protocol();
 
   if (!server_conn.is_open()) {
-    trace(Tracer::Event().stage("connect::not_connected"));
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::not_connected"));
+    }
+
     // looks like connection failed, leave.
     stage(Stage::Done);
     return Result::Again;
@@ -103,12 +109,18 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
       connection()->push_processor(
           std::make_unique<ResetConnectionSender>(connection()));
     } else {
-      connection()->push_processor(
-          std::make_unique<ChangeUserSender>(connection(), in_handshake_));
+      connection()->push_processor(std::make_unique<ChangeUserSender>(
+          connection(), in_handshake_,
+          [this](const classic_protocol::message::server::Error &err) {
+            on_error_(err);
+          }));
     }
   } else {
-    connection()->push_processor(
-        std::make_unique<ServerGreetor>(connection(), in_handshake_));
+    connection()->push_processor(std::make_unique<ServerGreetor>(
+        connection(), in_handshake_,
+        [this](const classic_protocol::message::server::Error &err) {
+          on_error_(err);
+        }));
   }
 
   stage(Stage::Authenticated);
@@ -117,11 +129,18 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::connected() {
 
 stdx::expected<Processor::Result, std::error_code>
 LazyConnector::authenticated() {
-  trace(Tracer::Event().stage("connect::authenticated"));
+  if (!connection()->authenticated() ||
+      !connection()->socket_splicer()->server_conn().is_open()) {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::authenticate::error"));
+    }
 
-  if (!connection()->authenticated()) {
     stage(Stage::Done);
   } else {
+    if (auto &tr = tracer()) {
+      tr.trace(Tracer::Event().stage("connect::authenticate::ok"));
+    }
+
     stage(Stage::SetVars);
   }
   return Result::Again;
@@ -177,8 +196,12 @@ stdx::expected<Processor::Result, std::error_code> LazyConnector::set_vars() {
     }
   }
 
-  for (auto var : sysvars) {
+  for (const auto &var : sysvars) {
+    // already set earlier.
     if (var.first == "session_track_system_variables") continue;
+
+    // is read-only
+    if (var.first == "statement_id") continue;
 
     set_session_var(q, var.first, var.second);
   }

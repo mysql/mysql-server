@@ -1,20 +1,16 @@
 include/group_replication.inc [rpl_server_count=4]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
-SET SESSION sql_log_bin = 1;
 [connection server2]
 SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Can't start slave IO THREAD of channel 'ch1' when group replication is running with single-primary mode on a secondary member.");
-call mtr.add_suppression("Can't start slave SQL THREAD of channel 'ch1' when group replication is running with single-primary mode on a secondary member.");
+call mtr.add_suppression("Can't start replica IO THREAD of channel 'ch1' when group replication is running with single-primary mode on a secondary member.");
+call mtr.add_suppression("Can't start replica SQL THREAD of channel 'ch1' when group replication is running with single-primary mode on a secondary member.");
 call mtr.add_suppression("Run function 'thread_start' in plugin 'group_replication' failed");
 call mtr.add_suppression("Run function 'applier_start' in plugin 'group_replication' failed");
 call mtr.add_suppression("Failed to run 'thread_start' hook");
 call mtr.add_suppression("Failed to run 'applier_start' hook");
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
 SET SESSION sql_log_bin = 1;
 
 # 1. Create a replication channel to replicate from server4 to
@@ -24,12 +20,12 @@ SET SESSION sql_log_bin = 1;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server2]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 
 # 2. Add server4 using asynchronous_connection_failover_add_managed
 #    UDF on stand alone server2.

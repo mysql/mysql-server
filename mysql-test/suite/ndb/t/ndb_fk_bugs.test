@@ -5,6 +5,14 @@
 drop table if exists t2, t1;
 -- enable_warnings
 
+# Record DISK_RECORD usage (used by FK schema objects).
+select SUM(used) INTO @used_dr from ndbinfo.resources
+  where resource_name='DISK_RECORDS';
+
+# Record number of schema object records in use related to foreign keys.
+select SUM(used) INTO @used_fk from ndbinfo.ndb$pools
+  where (pool_name like '%foreign%' or pool_name like '%trigger%');
+
 # BUG 14095785 - DROPPING FK WITHOUT LABEL CAUSED MYSQLD TO CRASH
 -- echo # bug#14095785
 
@@ -1067,4 +1075,12 @@ insert into t1 values (4,3,3,3,3);
 delete from t1;
 
 drop table t1;
+
+# Allow DISK_RECORDS to increase from 0 to one page per DBDICT(1) and DBTC(3) on each node(2).
+select SUM(used) - @used_dr <= 8 from ndbinfo.resources where resource_name='DISK_RECORDS';
+
+# Check no fk related schema object records left behind.
+select ROUND(SUM(used) - @used_fk) from ndbinfo.ndb$pools
+  where (pool_name like '%foreign%' or pool_name like '%trigger%');
+
 --remove_file $NDB_TOOLS_OUTPUT

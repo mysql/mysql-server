@@ -60,11 +60,11 @@ CREATE TABLE t1 (a VARCHAR(36), b VARCHAR(15));
 SET GLOBAL log_error_verbosity = 1;
 INSERT INTO t1 VALUES(UUID(), 'timestamp');
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 SET GLOBAL log_error_verbosity = 2;
 INSERT INTO t1 VALUES(UUID(), 'timestamp');
 Warnings:
-Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
 DROP TABLE t1;
 SET GLOBAL log_error_verbosity = @old_log_error_verbosity;
 # Count the number of times the "Unsafe" message was printed

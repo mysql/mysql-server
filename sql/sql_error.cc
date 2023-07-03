@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,7 +97,7 @@ using std::min;
   When invoking my_error(), the error number and message is typically
   provided like this:
   - my_error(ER_WRONG_DB_NAME, MYF(0), ...);
-  - my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
+  - my_message(ER_REPLICA_IGNORED_TABLE, ER(ER_REPLICA_IGNORED_TABLE), MYF(0));
 
   In both cases, the message is retrieved from ER(ER_XXX), which in turn
   is read from the resource file errmsg.sys at server startup.
@@ -683,7 +683,7 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
   DBUG_PRINT("enter", ("warning: %u", code));
 
   assert(code != 0);
-  if (format == nullptr) format = ER_THD(thd, code);
+  if (format == nullptr) format = ER_THD_NONCONST(thd, code);
 
   va_start(args, format);
   vsnprintf(warning, sizeof(warning), format, args);
@@ -1034,6 +1034,18 @@ void warn_on_deprecated_collation(THD *thd, const CHARSET_INFO *collation,
       LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_COLLATION_OPTION, option,
              collation->m_coll_name, collation->csname, "utf8mb4");
   }
+  if (!(collation->state & MY_CS_COMPILED)) {
+    if (option == nullptr) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING,
+          ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS,
+          ER_THD(thd, ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS),
+          collation->m_coll_name);
+    } else {
+      LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS_OPTION,
+             option, collation->m_coll_name);
+    }
+  }
 }
 
 /**
@@ -1079,7 +1091,7 @@ void check_deprecated_datetime_format(THD *thd, const CHARSET_INFO *cs,
           sys_cs, warn_buff, sizeof(warn_buff),
           ER_THD(thd, ER_WARN_DEPRECATED_DATETIME_DELIMITER), delim,
           status.m_deprecation.m_position, argument.ptr(),
-          thd->get_stmt_da()->current_row_for_condition(),
+          static_cast<int>(thd->get_stmt_da()->current_row_for_condition()),
           status.m_deprecation.m_kind ==
                   MYSQL_TIME_STATUS::DEPRECATION::DP_WRONG_SPACE
               ? ' '
@@ -1092,7 +1104,7 @@ void check_deprecated_datetime_format(THD *thd, const CHARSET_INFO *cs,
           sys_cs, warn_buff, sizeof(warn_buff),
           ER_THD(thd, ER_WARN_DEPRECATED_SUPERFLUOUS_DELIMITER), delim,
           status.m_deprecation.m_position, argument.ptr(),
-          thd->get_stmt_da()->current_row_for_condition());
+          static_cast<int>(thd->get_stmt_da()->current_row_for_condition()));
       push_warning(thd, Sql_condition::SL_WARNING,
                    ER_WARN_DEPRECATED_SUPERFLUOUS_DELIMITER, warn_buff);
       break;

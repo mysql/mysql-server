@@ -16,8 +16,8 @@ source include/have_binlog_format_row.inc;
 
 source include/master-slave.inc;
 
-call mtr.add_suppression("Slave I/O for channel '': Got a packet bigger than 'replica_max_allowed_packet' bytes, Error_code: MY-013125");
-call mtr.add_suppression("Log entry on master is longer than replica_max_allowed_packet");
+call mtr.add_suppression("Replica I/O for channel '': Got a packet bigger than 'replica_max_allowed_packet' bytes, Error_code: MY-013125");
+call mtr.add_suppression("Log entry on source is longer than replica_max_allowed_packet");
 let $db= DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 disable_warnings;
 eval drop database if exists $db;
@@ -34,7 +34,7 @@ SET @@global.net_buffer_length=1024;
 
 --source include/sync_slave_sql_with_master.inc
 # Restart slave for setting to take effect
-call mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+call mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 source include/stop_slave.inc;
 source include/start_slave.inc;
 
@@ -123,7 +123,7 @@ connection slave;
 
 #
 # Bug#42914: On the master, if a binary log event is larger than
-# max_allowed_packet, the error message ER_MASTER_FATAL_ERROR_READING_BINLOG
+# max_allowed_packet, the error message ER_SOURCE_FATAL_ERROR_READING_BINLOG
 # is sent to a slave when it requests a dump from the master, thus leading the
 # I/O thread to stop. However, there is no Last_IO_Error reported.
 #

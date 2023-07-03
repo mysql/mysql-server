@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -611,7 +611,6 @@ extern ulong srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
 extern ulint srv_lock_table_size;
 
-extern ulint srv_n_file_io_threads;
 extern bool srv_random_read_ahead;
 extern ulong srv_read_ahead_threshold;
 extern ulong srv_n_read_io_threads;
@@ -797,9 +796,7 @@ extern mysql_pfs_key_t dict_stats_thread_key;
 extern mysql_pfs_key_t fts_optimize_thread_key;
 extern mysql_pfs_key_t fts_parallel_merge_thread_key;
 extern mysql_pfs_key_t fts_parallel_tokenization_thread_key;
-extern mysql_pfs_key_t io_handler_thread_key;
 extern mysql_pfs_key_t io_ibuf_thread_key;
-extern mysql_pfs_key_t io_log_thread_key;
 extern mysql_pfs_key_t io_read_thread_key;
 extern mysql_pfs_key_t io_write_thread_key;
 extern mysql_pfs_key_t log_writer_thread_key;

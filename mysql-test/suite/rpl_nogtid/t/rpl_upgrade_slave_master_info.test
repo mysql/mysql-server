@@ -65,7 +65,7 @@
 --echo # DROP slave_master_info table and re-create it as of MySQL 5.6.30
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
-CALL mtr.add_suppression('A slave with the same server_uuid/server_id as this slave has connected to the master');
+CALL mtr.add_suppression('A replica with the same server_uuid/server_id as this replica has connected to the source');
 --source include/stop_slave.inc
 USE mysql;
 DROP TABLE `slave_master_info`;
@@ -163,7 +163,7 @@ ALTER TABLE slave_master_info
 # The slave will throw the following errors:
 CALL mtr.add_suppression('Info table has a problem with its key field.*slave_master_info');
 CALL mtr.add_suppression('Error in checking mysql.slave_master_info repository info type of TABLE');
-CALL mtr.add_suppression('Error creating master info');
+CALL mtr.add_suppression('Error creating connection metadata');
 
 # Change the position of the slave_master_info table primary key
 ALTER TABLE slave_master_info
@@ -173,13 +173,13 @@ ALTER TABLE slave_master_info
 
 # We cannot perform repository operations until the repository be fixed
 
---error ER_MASTER_INFO
+--error ER_CONNECTION_METADATA
 RESET SLAVE ALL;
 
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/slave.err
 # Show entries only after the last occurrence of the following pattern
---let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] Shutting down slave threads
+--let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] Shutting down replica threads
 # Each test will log only one warning line
 --let $assert_count= 1
 # Assert that there is the expected warning log line but just after the last restart
@@ -188,10 +188,10 @@ RESET SLAVE ALL;
 --source include/assert_grep.inc
 
 --replace_result $SERVER_MYPORT_2 MASTER_PORT
---error ER_SLAVE_CONFIGURATION
+--error ER_REPLICA_CONFIGURATION
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2
 
---error ER_SLAVE_CONFIGURATION
+--error ER_REPLICA_CONFIGURATION
 START SLAVE;
 
 # Restore the position of the slave_master_info table primary key
@@ -217,7 +217,7 @@ RESET SLAVE ALL;
 #             channels configured and used.
 
 # The slave will throw the following errors:
-CALL mtr.add_suppression('Failed to create a channel from master info table repository');
+CALL mtr.add_suppression('Failed to create a channel from connection metadata repository');
 CALL mtr.add_suppression('Could not create channel list');
 CALL mtr.add_suppression('Failed to create or recover replication info repositories');
 
@@ -266,17 +266,17 @@ ALTER TABLE slave_master_info
 --source include/rpl_restart_server.inc
 
 # We cannot perform repository operations until the repository be fixed
---error ER_SLAVE_CONFIGURATION
+--error ER_REPLICA_CONFIGURATION
 RESET SLAVE ALL;
 
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/slave.err
 # Show entries only after the last occurrence of the following pattern
---let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] Shutting down slave threads
+--let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] Shutting down replica threads
 # Each test will log only one warning line
 --let $assert_count= 1
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[ERROR\] \[[^]]*\] \[[^]]*\] Slave: Failed to create a channel from master info table repository
+--let $assert_select=.* \[ERROR\] \[[^]]*\] \[[^]]*\] Replica: Failed to create a channel from connection metadata repository
 --let $assert_text= Found the expected error line in the error log generated on server startup.
 --source include/assert_grep.inc
 
@@ -292,7 +292,7 @@ ALTER TABLE slave_master_info
 
 # This now should work fine now
 --let $rpl_channel_name=
---let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
 RESET SLAVE ALL;
 

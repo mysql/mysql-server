@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,11 @@ class Ndb_binlog_client {
    */
   void log_warning(uint code, const char *fmt, ...) const
       MY_ATTRIBUTE((format(printf, 3, 4)));
+
+  /**
+   * @brief Log the NDB error using log_warning()
+   */
+  void log_ndb_error(const NdbError &ndberr) const;
 
   /**
    * @brief event_name_for_table, generate name for the event for this table

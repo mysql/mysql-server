@@ -1,15 +1,11 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occurred on the master.");
-call mtr.add_suppression("The content of the statement cache is corrupted "
-                         "while writing a rollback record of the transaction "
-                         "to the binary log. An incident event has been "
-                         "written to the binary log which will stop the "
-                         "slaves.");
+call mtr.add_suppression("Replica SQL for channel '': The incident LOST_EVENTS occurred on the source.");
+call mtr.add_suppression("The content of the statement cache is corrupted while writing a rollback record of the transaction to the binary log. An incident event has been written to the binary log which will stop the replicas.");
 SET GLOBAL max_binlog_stmt_cache_size = 4096;
 Warnings:
 Warning	1745	Option binlog_stmt_cache_size (32768) is greater than max_binlog_stmt_cache_size (4096); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size.
@@ -30,7 +26,7 @@ master-bin.000001	#	Incident	#	#	#1 (LOST_EVENTS)
 master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
 [connection slave]
 #
-# Wait for the error 'ER_SLAVE_INCIDENT' caused by applying incident
+# Wait for the error 'ER_REPLICA_INCIDENT' caused by applying incident
 # event on slave and then stop the slave sql thread.
 #
 include/wait_for_slave_sql_error.inc [errno=13119]

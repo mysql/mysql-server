@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,6 @@ class NdbScanOperation;
 class NdbIndexScanOperation;
 class NdbBlob;
 class NdbIndexStat;
-class NdbEventOperation;
 class ha_ndbcluster_cond;
 class NdbQuery;
 class NdbQueryOperation;
@@ -493,7 +492,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int create_pushed_join(const NdbQueryParamValue *keyFieldParams = nullptr,
                          uint paramCnt = 0);
 
-  int ndb_pk_update_row(THD *thd, const uchar *old_data, uchar *new_data);
+  int ndb_pk_update_row(const uchar *old_data, uchar *new_data);
   int pk_read(const uchar *key, uchar *buf, uint32 *part_id);
   int ordered_index_scan(const key_range *start_key, const key_range *end_key,
                          bool sorted, bool descending, uchar *buf,
@@ -554,8 +553,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   void get_read_set(bool use_cursor, uint idx);
 
   int log_exclusive_read(const NdbRecord *key_rec, const uchar *key, uchar *buf,
-                         Uint32 *ppartition_id);
-  int scan_log_exclusive_read(NdbScanOperation *, NdbTransaction *);
+                         Uint32 *ppartition_id) const;
+  int scan_log_exclusive_read(NdbScanOperation *, NdbTransaction *) const;
   const NdbOperation *pk_unique_index_read_key(uint idx, const uchar *key,
                                                uchar *buf,
                                                NdbOperation::LockMode lm,

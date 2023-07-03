@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -285,6 +285,7 @@ static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
 mysql_cond_t resume_encryption_cond;
 mysql_mutex_t resume_encryption_cond_m;
+os_event_t recovery_lock_taken;
 static bool innodb_inited = false;
 
 [[maybe_unused]] static inline bool EQ_CURRENT_THD(THD *thd) {
@@ -828,11 +829,7 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_THREAD_KEY(ddl_thread, "ib_ddl", 0, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(dict_stats_thread, "ib_dict_stats", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
-    PSI_THREAD_KEY(io_handler_thread, "ib_io_handler", PSI_FLAG_SINGLETON, 0,
-                   PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(io_ibuf_thread, "ib_io_ibuf", PSI_FLAG_SINGLETON, 0,
-                   PSI_DOCUMENT_ME),
-    PSI_THREAD_KEY(io_log_thread, "ib_io_log", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(io_read_thread, "ib_io_rd", 0, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(io_write_thread, "ib_io_wr", 0, 0, PSI_DOCUMENT_ME),
@@ -1616,6 +1613,7 @@ static int innodb_shutdown(handlerton *, ha_panic_function) {
     mysql_cond_destroy(&commit_cond);
     mysql_mutex_destroy(&resume_encryption_cond_m);
     mysql_cond_destroy(&resume_encryption_cond);
+    os_event_destroy(recovery_lock_taken);
 
     os_event_global_destroy();
   }
@@ -2653,26 +2651,12 @@ bool Encryption::is_none(const char *algorithm) noexcept {
   return (false);
 }
 
-dberr_t Encryption::set_algorithm(const char *option,
-                                  Encryption *encryption) noexcept {
-  if (is_none(option)) {
-    encryption->m_type = NONE;
-
-  } else if (innobase_strcasecmp(option, "y") == 0) {
-    encryption->m_type = AES;
-
-  } else {
-    return (DB_UNSUPPORTED);
-  }
-
-  return (DB_SUCCESS);
-}
-
 dberr_t Encryption::validate(const char *option) noexcept {
-  Encryption encryption;
-
-  return (encryption.set_algorithm(option, &encryption));
+  return (is_none(option) || (innobase_strcasecmp(option, "y") == 0))
+             ? DB_SUCCESS
+             : DB_UNSUPPORTED;
 }
+
 /** Compute the next autoinc value.
 
  For MySQL replication the autoincrement values can be partitioned among
@@ -4104,7 +4088,7 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
       srv_dict_recover_on_restart();
   }
 
-  srv_start_threads(dict_recovery_mode != DICT_RECOVERY_RESTART_SERVER);
+  srv_start_threads();
 
 #ifndef UNIV_HOTBACKUP
   /* Update the metadata for innodb_temporary tablespace to reflect
@@ -4724,6 +4708,10 @@ static void innodb_redo_log_capacity_init() {
       ib::warn(ER_IB_MSG_LOG_PARAMS_DEDICATED_SERVER_IGNORED,
                ulonglong{srv_redo_log_capacity_used / MB});
     }
+  }
+
+  if (capacity_set && srv_read_only_mode) {
+    ib::warn(ER_IB_WRN_IGNORE_REDO_LOG_CAPACITY);
   }
 
   ut_a(LOG_CAPACITY_MIN <= srv_redo_log_capacity_used);
@@ -5590,6 +5578,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   mysql_mutex_init(resume_encryption_cond_mutex_key.m_value,
                    &resume_encryption_cond_m, MY_MUTEX_INIT_FAST);
   mysql_cond_init(resume_encryption_cond_key.m_value, &resume_encryption_cond);
+  recovery_lock_taken = os_event_create();
   innodb_inited = true;
 #ifdef MYSQL_DYNAMIC_PLUGIN
   if (innobase_hton != p) {
@@ -21827,6 +21816,12 @@ static void innodb_redo_log_capacity_update(THD *thd, SYS_VAR *, void *,
   ut_a(LOG_CAPACITY_MIN <= new_value);
   ut_a(new_value <= LOG_CAPACITY_MAX);
   ut_a(new_value % MB == 0);
+
+  if (srv_read_only_mode) {
+    my_error(ER_CANT_CHANGE_SYS_VAR_IN_READ_ONLY_MODE, MYF(0),
+             "innodb-redo-log-capacity");
+    return;
+  }
 
   srv_redo_log_capacity = new_value;
 

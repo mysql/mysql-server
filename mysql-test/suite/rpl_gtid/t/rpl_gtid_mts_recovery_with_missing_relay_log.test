@@ -45,11 +45,11 @@
 --source include/rpl_connection_slave.inc
 
 let $messages =
-Recovery from master pos .* and file .* for channel ''*
+Recovery from source pos .* and file .* for channel ''*
 Error looking for file after .*slave-relay-bin.000007.*
-Slave: Failed to initialize the master info structure for channel .* its record may still be present in*
+Replica: Failed to initialize the connection metadata structure for channel .* its record may still be present in*
 Failed to create or recover replication info repositories.*
-Slave SQL for channel .* Slave failed to initialize relay log info structure from the repository, Error_code*
+Replica SQL for channel .* Replica failed to initialize applier metadata structure from the repository, Error_code*
 ;
 --let $suppress_on_current_connection = 1
 --source include/suppress_messages.inc
@@ -124,7 +124,7 @@ END_OF_PROCEDURE
 
 --source $restart_server_with_gaps_file
 
---error ER_SLAVE_RLI_INIT_REPOSITORY
+--error ER_REPLICA_AM_INIT_REPOSITORY
 START SLAVE;
 
 --let $rpl_server_parameters= --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=1 --gtid_mode=ON --enforce-gtid-consistency --log-replica-updates

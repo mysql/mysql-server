@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -145,6 +145,31 @@ DECLARE_BOOL_METHOD(autocommit, (MYSQL_H mysql_h, bool mode));
 */
 DECLARE_BOOL_METHOD(rollback, (MYSQL_H mysql_h));
 END_SERVICE_DEFINITION(mysql_command_factory)
+
+/**
+  @ingroup group_components_services_inventory
+
+  A service that provides the apis for mysql command session thread init and
+  thread end.
+
+*/
+BEGIN_SERVICE_DEFINITION(mysql_command_thread)
+
+/**
+  Calls session init_thread() to initialize a thread to use the session
+  service.
+
+  @retval true    failure
+  @retval false   success
+        */
+DECLARE_BOOL_METHOD(init, (void));
+
+/**
+  Calls session deinit_thread() to deinitialize a thread that has been using
+  the session service.
+*/
+DECLARE_METHOD(void, end, (void));
+END_SERVICE_DEFINITION(mysql_command_thread)
 
 /**
   @ingroup group_components_services_inventory
@@ -393,6 +418,44 @@ DECLARE_BOOL_METHOD(fetch_fields,
 */
 DECLARE_BOOL_METHOD(field_count, (MYSQL_H mysql_h, unsigned int *num_fields));
 END_SERVICE_DEFINITION(mysql_command_field_info)
+
+#define MYSQL_COMMAND_FIELD_METADATA_NAME 0
+#define MYSQL_COMMAND_FIELD_METADATA_TABLE_NAME 1
+#define MYSQL_COMMAND_FIELD_METADATA_TABLE_DB_NAME 2
+
+/**
+  @ingroup group_components_services_inventory
+
+  Fetch the metadata of a service.
+
+  Usually used as follows:
+
+*/
+BEGIN_SERVICE_DEFINITION(mysql_command_field_metadata)
+/**
+  Retrieves the metadata for the field.
+
+  @param[in]  mysql_field_h A valid mysql field handle object.
+  @param[in]  metadata A metadata ID to fetch. Can be one of:
+
+--------------+-------------------------------------------+--------------------------------+
+     Type     |    Option                                 |Explanation |
+--------------+-------------------------------------------+--------------------------------+
+const char *  |MYSQL_COMMAND_FIELD_METADATA_NAME          |The field name. |
+--------------+-------------------------------------------+--------------------------------+
+const char *  |MYSQL_COMMAND_FIELD_METADATA_TABLE_NAME    |The table name. |
+--------------+-------------------------------------------+--------------------------------+
+const char *  |MYSQL_COMMAND_FIELD_METADATA_TABLE_DB_NAME |The table database
+name.        |
+--------------+-------------------------------------------+--------------------------------+
+
+  @param[out] data A buffer to receive the data fetched.
+  @retval true    failure
+  @retval false   success
+*/
+DECLARE_BOOL_METHOD(get,
+                    (MYSQL_FIELD_H mysql_field_h, int metadata, void *data));
+END_SERVICE_DEFINITION(mysql_command_field_metadata)
 
 /**
   @ingroup group_components_services_inventory

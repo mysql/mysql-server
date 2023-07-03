@@ -25,7 +25,7 @@
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 
-CALL mtr.add_suppression('.statement is unsafe because it uses a system function that may return a different value on the slave.');
+CALL mtr.add_suppression('.statement is unsafe because it uses a system function that may return a different value on the replica.');
 
 --echo # Create tables on master
 CREATE TABLE t1 (z VARCHAR(36));
@@ -34,7 +34,7 @@ ALTER TABLE t1 ADD COLUMN a char(36) DEFAULT (PI());
 ALTER TABLE t1 ADD COLUMN b char(36) DEFAULT (RAND());
 --let $assert_text = Found 1 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_select = statement is unsafe because it uses a system function that may return a different value on the slave
+--let $assert_select = statement is unsafe because it uses a system function that may return a different value on the replica
 --let $assert_count = 1
 --source include/assert_grep.inc
 

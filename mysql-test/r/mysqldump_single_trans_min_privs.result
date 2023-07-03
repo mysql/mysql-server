@@ -1,0 +1,42 @@
+# Create the test database
+CREATE DATABASE bug_test;
+USE bug_test;
+# Create the test table
+CREATE TABLE bug(n INT);
+# Enter random data which could be dumped
+INSERT INTO bug VALUES(10);
+INSERT INTO bug VALUES(20);
+INSERT INTO bug VALUES(30);
+# Create the test user
+CREATE USER test@localhost;
+# Grant only SELECT privilege on the test database
+GRANT SELECT ON bug_test.* TO test@localhost;
+SHOW GRANTS FOR test@localhost;
+Grants for test@localhost
+GRANT USAGE ON *.* TO `test`@`localhost`
+GRANT SELECT ON `bug_test`.* TO `test`@`localhost`
+# Create the dump file
+# Start the dump tests
+# ----- Test 1 -----
+# GTID enabled on the server, --set-gtid-purged is set to it's default value (AUTO).
+# Should fail because of insufficient privileges.
+# Start the dump
+# ----- Test 1 succeeded -----
+# ----- Test 2 -----
+# GTID enabled on the server, --set-gtid-purged is set to OFF
+# Should succeed
+# ----- Test 2 succeeded -----
+# ----- Test 3 -----
+# Increase the privileges of test user by granting RELOAD privilege
+GRANT RELOAD ON *.* TO test@localhost;
+SHOW GRANTS FOR test@localhost;
+Grants for test@localhost
+GRANT RELOAD ON *.* TO `test`@`localhost`
+GRANT SELECT ON `bug_test`.* TO `test`@`localhost`
+# Start the dump with --set-gtid-purged=ON
+# Should succeed
+# ----- Test 3 succeeded -----
+# ----- End of tests -----
+DROP USER test@localhost;
+DROP DATABASE bug_test;
+RESET MASTER;

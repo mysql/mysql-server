@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@ MYSQL_ADD_COMPONENT(log_sink_syseventlog
 MYSQL_ADD_COMPONENT(log_sink_json
   log_sink_json.cc
   MODULE_ONLY
+  LINK_LIBRARIES extra::rapidjson
   )
 MYSQL_ADD_COMPONENT(log_filter_dragnet
   log_filter_dragnet.cc

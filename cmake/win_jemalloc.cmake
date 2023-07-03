@@ -1,4 +1,4 @@
-# Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,15 +35,7 @@ MACRO (MYSQL_CHECK_WIN_JEMALLOC)
     )
 
     IF(HAVE_JEMALLOC_DLL)
-      MY_ADD_CUSTOM_TARGET(copy_jemalloc_dll ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${HAVE_JEMALLOC_DLL}"
-        "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${JEMALLOC_DLL_NAME}"
-        )
-      MESSAGE(STATUS "INSTALL ${HAVE_JEMALLOC_DLL} to ${INSTALL_BINDIR}")
-      INSTALL(FILES
-        "${HAVE_JEMALLOC_DLL}"
-        DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries)
+      COPY_CUSTOM_DLL(${HAVE_JEMALLOC_DLL} UNUSED_JEMALLOC_TARGET)
     ELSE()
       MESSAGE(FATAL_ERROR
         "Cannot find ${JEMALLOC_DLL_NAME} in ${WITH_WIN_JEMALLOC}")

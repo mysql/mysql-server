@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,8 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"  // Item_result
+#include "mysql_com.h"          // Item_result
+#include "sql/binlog_reader.h"  // Binlog_file_reader
 #include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_trx_tracking.h"
 #include "sql/tc_log.h"            // TC_LOG
@@ -103,17 +104,13 @@ struct Binlog_user_var_event {
 #define LOG_INFO_IN_USE -8
 #define LOG_INFO_EMFILE -9
 #define LOG_INFO_BACKUP_LOCK -10
+#define LOG_INFO_NOT_IN_USE -11
 
 /* bitmap to MYSQL_BIN_LOG::close() */
 #define LOG_CLOSE_INDEX 1
 #define LOG_CLOSE_TO_BE_OPENED 2
 #define LOG_CLOSE_STOP_EVENT 4
 
-/*
-  Note that we destroy the lock mutex in the destructor here.
-  This means that object instances cannot be destroyed/go out of scope
-  until we have reset thd->current_linfo to NULL;
- */
 struct LOG_INFO {
   char log_file_name[FN_REFLEN] = {0};
   my_off_t index_file_offset, index_file_start_offset;
@@ -121,13 +118,15 @@ struct LOG_INFO {
   bool fatal;       // if the purge happens to give us a negative offset
   int entry_index;  // used in purge_logs(), calculatd in find_log_pos().
   int encrypted_header_size;
+  my_thread_id thread_id;
   LOG_INFO()
       : index_file_offset(0),
         index_file_start_offset(0),
         pos(0),
         fatal(false),
         entry_index(0),
-        encrypted_header_size(0) {
+        encrypted_header_size(0),
+        thread_id(0) {
     memset(log_file_name, 0, FN_REFLEN);
   }
 };
@@ -161,6 +160,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
   PSI_mutex_key m_key_LOCK_binlog_end_pos;
   /** The PFS instrumentation key for @ LOCK_commit_queue. */
   PSI_mutex_key m_key_LOCK_commit_queue;
+  /** The PFS instrumentation key for @ LOCK_after_commit_queue. */
+  PSI_mutex_key m_key_LOCK_after_commit_queue;
   /** The PFS instrumentation key for @ LOCK_done. */
   PSI_mutex_key m_key_LOCK_done;
   /** The PFS instrumentation key for @ LOCK_flush_queue. */
@@ -175,10 +176,14 @@ class MYSQL_BIN_LOG : public TC_LOG {
   PSI_mutex_key m_key_COND_flush_queue;
   /** The instrumentation key to use for @ LOCK_commit. */
   PSI_mutex_key m_key_LOCK_commit;
+  /** The instrumentation key to use for @ LOCK_after_commit. */
+  PSI_mutex_key m_key_LOCK_after_commit;
   /** The instrumentation key to use for @ LOCK_sync. */
   PSI_mutex_key m_key_LOCK_sync;
   /** The instrumentation key to use for @ LOCK_xids. */
   PSI_mutex_key m_key_LOCK_xids;
+  /** The instrumentation key to use for @ m_key_LOCK_log_info. */
+  PSI_mutex_key m_key_LOCK_log_info;
   /** The instrumentation key to use for @ update_cond. */
   PSI_cond_key m_key_update_cond;
   /** The instrumentation key to use for @ prep_xids_cond. */
@@ -197,6 +202,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   /* POSIX thread objects are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
   mysql_mutex_t LOCK_commit;
+  mysql_mutex_t LOCK_after_commit;
   mysql_mutex_t LOCK_sync;
   mysql_mutex_t LOCK_binlog_end_pos;
   mysql_mutex_t LOCK_xids;
@@ -291,6 +297,15 @@ class MYSQL_BIN_LOG : public TC_LOG {
                                   uint32 new_index_number);
   int generate_new_name(char *new_name, const char *log_name,
                         uint32 new_index_number = 0);
+  /**
+   * Read binary log stream header and Format_desc event from
+   * binlog_file_reader. Check for LOG_EVENT_BINLOG_IN_USE_F flag.
+   * @param[in] binlog_file_reader
+   * @return true - LOG_EVENT_BINLOG_IN_USE_F is set
+   *         false - LOG_EVENT_BINLOG_IN_USE_F is not set or an error occurred
+   *                 while reading log events
+   */
+  bool read_binlog_in_use_flag(Binlog_file_reader &binlog_file_reader);
 
  protected:
   /**
@@ -347,10 +362,12 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   void set_psi_keys(
       PSI_mutex_key key_LOCK_index, PSI_mutex_key key_LOCK_commit,
-      PSI_mutex_key key_LOCK_commit_queue, PSI_mutex_key key_LOCK_done,
+      PSI_mutex_key key_LOCK_commit_queue, PSI_mutex_key key_LOCK_after_commit,
+      PSI_mutex_key key_LOCK_after_commit_queue, PSI_mutex_key key_LOCK_done,
       PSI_mutex_key key_LOCK_flush_queue, PSI_mutex_key key_LOCK_log,
       PSI_mutex_key key_LOCK_binlog_end_pos, PSI_mutex_key key_LOCK_sync,
       PSI_mutex_key key_LOCK_sync_queue, PSI_mutex_key key_LOCK_xids,
+      PSI_mutex_key key_LOCK_log_info,
       PSI_mutex_key key_LOCK_wait_for_group_turn, PSI_cond_key key_COND_done,
       PSI_cond_key key_COND_flush_queue, PSI_cond_key key_update_cond,
       PSI_cond_key key_prep_xids_cond,
@@ -361,6 +378,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     m_key_COND_flush_queue = key_COND_flush_queue;
 
     m_key_LOCK_commit_queue = key_LOCK_commit_queue;
+    m_key_LOCK_after_commit_queue = key_LOCK_after_commit_queue;
     m_key_LOCK_done = key_LOCK_done;
     m_key_LOCK_flush_queue = key_LOCK_flush_queue;
     m_key_LOCK_sync_queue = key_LOCK_sync_queue;
@@ -369,8 +387,10 @@ class MYSQL_BIN_LOG : public TC_LOG {
     m_key_LOCK_log = key_LOCK_log;
     m_key_LOCK_binlog_end_pos = key_LOCK_binlog_end_pos;
     m_key_LOCK_commit = key_LOCK_commit;
+    m_key_LOCK_after_commit = key_LOCK_after_commit;
     m_key_LOCK_sync = key_LOCK_sync;
     m_key_LOCK_xids = key_LOCK_xids;
+    m_key_LOCK_log_info = key_LOCK_log_info;
     m_key_update_cond = key_update_cond;
     m_key_prep_xids_cond = key_prep_xids_cond;
     m_key_file_log = key_file_log;
@@ -820,6 +840,18 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
  private:
   bool after_write_to_relay_log(Master_info *mi);
+  /**
+   * Truncte log file and clear LOG_EVENT_BINLOG_IN_USE_F when update is set.
+   * @param[in] log_name name of the log file to be trunacted
+   * @param[in] valid_pos position at which to truncate the log file
+   * @param[in] binlog_size length of the log file before truncated
+   * @param[in] update should the LOG_EVENT_BINLOG_IN_USE_F flag be cleared
+   *                   true - set LOG_EVENT_BINLOG_IN_USE_F to 0
+   *                   false - do not modify LOG_EVENT_BINLOG_IN_USE_F flag
+   * @return true - sucess, false - failed
+   */
+  bool truncate_update_log_file(const char *log_name, my_off_t valid_pos,
+                                my_off_t binlog_size, bool update);
 
  public:
   void make_log_name(char *buf, const char *log_ident);
@@ -907,6 +939,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   const char *get_name() const { return name; }
   inline mysql_mutex_t *get_log_lock() { return &LOCK_log; }
   inline mysql_mutex_t *get_commit_lock() { return &LOCK_commit; }
+  inline mysql_mutex_t *get_after_commit_lock() { return &LOCK_after_commit; }
   inline mysql_cond_t *get_log_cond() { return &update_cond; }
   inline Binlog_ofile *get_binlog_file() { return m_binlog_file; }
 
@@ -924,7 +957,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     This function also informs slave about the GTID set sent by the slave,
     transactions missing on the master and few suggestions to recover from
     the error. This message shall be wrapped by
-    ER_MASTER_FATAL_ERROR_READING_BINLOG on slave and will be logged as an
+    ER_SOURCE_FATAL_ERROR_READING_BINLOG on slave and will be logged as an
     error.
 
     This function will be called from mysql_binlog_send() function.
@@ -945,7 +978,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     This function also informs slave about the GTID set sent by the slave,
     transactions missing on the master and few suggestions to recover from
     the error. This message shall be wrapped by
-    ER_MASTER_FATAL_ERROR_READING_BINLOG on slave and will be logged as an
+    ER_SOURCE_FATAL_ERROR_READING_BINLOG on slave and will be logged as an
     error.
 
     This function will be called from find_first_log_not_in_gtid_set()
@@ -991,6 +1024,51 @@ class MYSQL_BIN_LOG : public TC_LOG {
     True while rotating binlog, which is caused by logging Incident_log_event.
   */
   bool is_rotating_caused_by_incident;
+
+ public:
+  /**
+    Register LOG_INFO so that log_in_use and adjust_linfo_offsets can
+    operate on all logs. Note that register_log_info, unregister_log_info,
+    log_in_use, adjust_linfo_offsets are is used on global mysql_bin_log object.
+    @param log_info pointer to LOG_INFO which is registred
+  */
+  void register_log_info(LOG_INFO *log_info);
+  /**
+    Unregister LOG_INFO when it is no longer needed.
+    @param log_info pointer to LOG_INFO which is registred
+  */
+  void unregister_log_info(LOG_INFO *log_info);
+  /**
+    Check if any threads use log name.
+    @note This method expects the LOCK_index to be taken so there are no
+    concurrent edits against linfo objects being iterated
+    @param log_name name of a log which is checked for usage
+
+  */
+  int log_in_use(const char *log_name);
+  /**
+    Adjust the position pointer in the binary log file for all running replicas.
+    SYNOPSIS
+      adjust_linfo_offsets()
+      purge_offset Number of bytes removed from start of log index file
+    NOTES
+      - This is called when doing a PURGE when we delete lines from the
+        index log file. This method expects the LOCK_index to be taken so there
+    are no concurrent edits against linfo objects being iterated. REQUIREMENTS
+      - Before calling this function, we have to ensure that no threads are
+        using any binary log file before purge_offset.
+    TODO
+      - Inform the replica threads that they should sync the position
+        in the binary log file with flush_relay_log_info.
+        Now they sync is done for next read.
+  */
+  void adjust_linfo_offsets(my_off_t purge_offset);
+
+ private:
+  mysql_mutex_t LOCK_log_info;
+  // Set of log info objects that are in usage and might prevent some other
+  // operations from executing.
+  std::set<LOG_INFO *> log_info_set;
 };
 
 struct LOAD_FILE_INFO {

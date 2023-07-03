@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -1401,8 +1401,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(OS_AIO_WRITE_MUTEX, SYNC_NO_ORDER_CHECK,
                   PFS_NOT_INSTRUMENTED);
-
-  LATCH_ADD_MUTEX(OS_AIO_LOG_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 
   LATCH_ADD_MUTEX(OS_AIO_IBUF_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 

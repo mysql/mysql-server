@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -560,13 +560,13 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
        (const struct mysql_event_server_shutdown *) event; */
     number_of_calls_server_shutdown++;
   } else if (event_class == MYSQL_AUDIT_COMMAND_CLASS) {
-    const struct mysql_event_command *event_command =
+    const struct mysql_event_command *local_event_command =
         (const struct mysql_event_command *)event;
 
     buffer_data =
-        sprintf(buffer, "command_id=\"%d\"", event_command->command_id);
+        sprintf(buffer, "command_id=\"%d\"", local_event_command->command_id);
 
-    switch (event_command->event_subclass) {
+    switch (local_event_command->event_subclass) {
       case MYSQL_AUDIT_COMMAND_START:
         number_of_calls_command_start++;
         break;
@@ -746,16 +746,16 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
         };
         LEX_CSTRING status = {STRING_WITH_LEN("EVENT-ORDER-INVALID-DATA")};
 
-        char *order_str = THDVAR(thd, event_order_check);
+        char *local_order_str = THDVAR(thd, event_order_check);
 
-        memmove(order_str, status.str, status.length + 1);
+        memmove(local_order_str, status.str, status.length + 1);
 
         strxnmov(invalid_data_buffer, sizeof(invalid_data_buffer),
                  "Invalid data for '", event_name.str, "' -> ", buffer, NullS);
         my_message(ER_AUDIT_API_ABORT, invalid_data_buffer, MYF(0));
 
         THDVAR(thd, event_order_started) = 0;
-        THDVAR(thd, event_order_check) = order_str;
+        THDVAR(thd, event_order_check) = local_order_str;
 
         return 1;
       }

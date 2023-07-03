@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -10580,7 +10580,7 @@ struct Fkdef {
   static const int colmax = 5;
   static const int indmax = 5;
   static const int keymax = tabmax * 5;
-  static const int strmax = 10;
+  static const int strmax = 32; // at least 2 dec (10 chars) aligned up
   struct Ob {
     bool retrieved;
     int id;

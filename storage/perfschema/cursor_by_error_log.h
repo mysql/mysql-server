@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -203,14 +203,15 @@ class PFS_ringbuffer_index {
     @retval   nullptr  no valid record could be obtained (end of buffer etc.)
     @retval !=nullptr  pointer to an entry in the ring-buffer
   */
-  log_sink_pfs_event *scan_next(void) {
+  log_sink_pfs_event *scan_next() {
     log_sink_pfs_event *current_event;
 
     // Is there a valid current event that we can load into this object?
-    if ((current_event = get_event()) !=
-        nullptr) {  // save current event if any
+    current_event = get_event();
+    if (current_event != nullptr) {  // save current event if any
       // try to advance index to next event
-      if ((m_event = log_sink_pfs_event_next(current_event)) != nullptr) {
+      m_event = log_sink_pfs_event_next(current_event);
+      if (m_event != nullptr) {
         // success. update this index object.
         m_timestamp = m_event->m_timestamp;
         m_index++;
@@ -241,7 +242,7 @@ class PFS_index_error_log : public PFS_engine_index {
  public:
   explicit PFS_index_error_log(PFS_engine_key *key) : PFS_engine_index(key) {}
 
-  ~PFS_index_error_log() = default;
+  ~PFS_index_error_log() override = default;
 
   virtual bool match(log_sink_pfs_event *row) = 0;
 };
@@ -251,12 +252,12 @@ class cursor_by_error_log : public PFS_engine_table {
  public:
   static ha_rows get_row_count();
 
-  virtual void reset_position(void) override;
+  void reset_position() override;
 
-  virtual int rnd_next() override;
-  virtual int rnd_pos(const void *pos) override;
+  int rnd_next() override;
+  int rnd_pos(const void *pos) override;
 
-  virtual int index_next() override;
+  int index_next() override;
 
  protected:
   explicit cursor_by_error_log(const PFS_engine_table_share *share);

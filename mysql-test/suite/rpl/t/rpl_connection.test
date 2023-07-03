@@ -6,7 +6,7 @@
 #
 
 --connection slave
-call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
+call mtr.add_suppression(".*Invalid .* username when attempting to connect to the source server.*");
 
 
 # Assert that we disallow empty users and that no problem

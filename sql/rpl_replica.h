@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -544,11 +544,11 @@ int add_new_channel(Master_info **mi, const char *channel);
 
   @return the operation status
     @retval 0    OK
-    @retval ER_SLAVE_NOT_RUNNING
+    @retval ER_REPLICA_NOT_RUNNING
       The slave is already stopped
-    @retval ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
+    @retval ER_STOP_REPLICA_SQL_THREAD_TIMEOUT
       There was a timeout when stopping the SQL thread
-    @retval ER_STOP_SLAVE_IO_THREAD_TIMEOUT
+    @retval ER_STOP_REPLICA_IO_THREAD_TIMEOUT
       There was a timeout when stopping the IO thread
     @retval ER_ERROR_DURING_FLUSH_LOGS
       There was an error while flushing the log/repositories
@@ -579,9 +579,6 @@ bool start_slave_thread(PSI_thread_key thread_key, my_start_routine h_func,
 
 bool show_slave_status(THD *thd, Master_info *mi);
 bool show_slave_status(THD *thd);
-bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
-                        bool (*pred)(const void *), const void *param);
-bool rpl_master_erroneous_autoinc(THD *thd);
 
 const char *print_slave_db_safe(const char *db);
 

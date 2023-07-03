@@ -176,7 +176,6 @@ SET sql_log_bin=1;
 
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("The source .* for channel 'ch1_3' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.*");
 call mtr.add_suppression("The source .* has lost quorum, and so channel 'ch1_3' connected to it will be stopped.*");
 call mtr.add_suppression("The source .* does not have quorum, and so connection will be killed for channel 'ch1_3'. Check for errors in its error log.");
 call mtr.add_suppression("The source (.*) does not belong to the group majority, .*");

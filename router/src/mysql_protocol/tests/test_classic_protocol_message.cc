@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include <gtest/gtest.h>
 
 #include "mysqlrouter/classic_protocol_constants.h"
+#include "mysqlrouter/classic_protocol_message.h"
 #include "test_classic_protocol_codec.h"
 
 // string_literals are supposed to solve the same problem, but they are broken
@@ -214,6 +215,46 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageServerOkTest,
                            return test_param_info.param.test_name;
                          });
 
+TEST(MessageServerOk, warning_count) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.warning_count(), 0);
+  msg.warning_count(1);
+  EXPECT_EQ(msg.warning_count(), 1);
+}
+
+TEST(MessageServerOk, last_insert_id) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.last_insert_id(), 0);
+  msg.last_insert_id(1);
+  EXPECT_EQ(msg.last_insert_id(), 1);
+}
+
+TEST(MessageServerOk, affected_rows) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.affected_rows(), 0);
+  msg.affected_rows(1);
+  EXPECT_EQ(msg.affected_rows(), 1);
+}
+
+TEST(MessageServerOk, message) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.message(), "");
+  msg.message("hi");
+  EXPECT_EQ(msg.message(), "hi");
+}
+
+TEST(MessageServerOk, session_changes) {
+  classic_protocol::message::server::Ok msg;
+
+  EXPECT_EQ(msg.session_changes(), "");
+  msg.session_changes("hi");
+  EXPECT_EQ(msg.session_changes(), "hi");
+}
+
 // server::Eof
 
 using CodecMessageServerEofTest =
@@ -341,6 +382,53 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageServerErrorTest,
                          [](auto const &test_param_info) {
                            return test_param_info.param.test_name;
                          });
+
+TEST(MessageServerError, default_constructed) {
+  classic_protocol::message::server::Error msg;
+
+  EXPECT_EQ(msg.error_code(), 0);
+  EXPECT_EQ(msg.message(), "");
+  EXPECT_EQ(msg.sql_state(), "");
+}
+
+TEST(MessageServerError, default_args_constructed) {
+  classic_protocol::message::server::Error msg(1234, "foo");
+
+  EXPECT_EQ(msg.error_code(), 1234);
+  EXPECT_EQ(msg.message(), "foo");
+  EXPECT_EQ(msg.sql_state(), "HY000");
+}
+
+TEST(MessageServerError, warning_count) {
+  classic_protocol::message::server::Error msg;
+
+  msg.error_code(123);
+  EXPECT_EQ(msg.error_code(), 123);
+}
+
+TEST(MessageServerError, message) {
+  classic_protocol::message::server::Error msg;
+
+  msg.message("foo");
+  EXPECT_EQ(msg.message(), "foo");
+}
+
+TEST(MessageServerError, sql_state) {
+  classic_protocol::message::server::Error msg;
+
+  msg.sql_state("HY000");
+  EXPECT_EQ(msg.sql_state(), "HY000");
+}
+
+TEST(MessageServerError, short_sql_state) {
+  std::array<uint8_t, 6> packet{
+      0xff, 0x12, 0x34, '#', 'F', 'O',
+  };
+  auto decode_res =
+      classic_protocol::Codec<classic_protocol::message::server::Error>::decode(
+          net::buffer(packet), {classic_protocol::capabilities::protocol_41});
+  ASSERT_FALSE(decode_res);
+}
 
 // server::Greeting
 
@@ -1058,7 +1146,7 @@ std::ostream &operator<<(std::ostream &os, const StmtExecute &v) {
   os << "  types: "
      << "\n";
   for (auto const &t : v.types()) {
-    os << "    - " << static_cast<uint16_t>(t) << "\n";
+    os << "    - " << t.type_and_flags << "\n";
   }
   os << "  values: "
      << "\n";
@@ -1080,7 +1168,11 @@ using CodecMessageClientStmtExecuteTest =
 
 TEST_P(CodecMessageClientStmtExecuteTest, encode) { test_encode(GetParam()); }
 TEST_P(CodecMessageClientStmtExecuteTest, decode) {
-  test_decode(GetParam(), [](uint32_t /* statement_id */) { return 1; });
+  test_decode(GetParam(), [](uint32_t /* statement_id */) {
+    // one param
+    return std::vector<
+        classic_protocol::message::client::StmtExecute::ParamDef>{{}};
+  });
 }
 
 const CodecParam<classic_protocol::message::client::StmtExecute>
@@ -1607,24 +1699,6 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageServerStatisticsTest,
                          [](auto const &test_param_info) {
                            return test_param_info.param.test_name;
                          });
-
-TEST(ClassicProto, Decode_NulTermString_multiple_chunks) {
-  std::list<std::vector<uint8_t>> read_storage{{'8', '0'}, {'1', 0x00, 'f'}};
-  std::list<net::const_buffer> read_bufs;
-  for (auto const &b : read_storage) {
-    read_bufs.push_back(net::buffer(b));
-  }
-
-  const auto res =
-      classic_protocol::Codec<classic_protocol::wire::NulTermString>::decode(
-          read_bufs, {});
-
-  ASSERT_TRUE(res);
-
-  // the \0 is consumed too, but not part of the output
-  EXPECT_EQ(res->first, 3 + 1);
-  EXPECT_EQ(res->second.value(), "801");
-}
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

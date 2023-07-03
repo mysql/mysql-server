@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,7 @@ handlerton *pfs_hton = nullptr;
 #define PFS_ENABLED() \
   (pfs_initialized && (pfs_enabled || m_table_share->m_perpetual))
 
-#define IS_NATIVE_TABLE(X) ((X)->m_st_table.open_table == NULL) ? true : false
+#define IS_NATIVE_TABLE(X) ((X)->m_st_table.open_table == NULL)
 
 static void lock_pfs_external_table_shares() {
   if (!opt_initialize) {
@@ -127,7 +127,7 @@ static handler *pfs_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
 }
 
 static size_t size_of_global_error_stat_buffer() {
-  size_t size = sizeof(PFS_error_single_stat) * max_global_server_errors;
+  const size_t size = sizeof(PFS_error_single_stat) * max_global_server_errors;
   return size;
 }
 
@@ -1609,7 +1609,7 @@ int ha_perfschema::open(const char *, int, uint, const dd::Table *) {
   return 0;
 }
 
-int ha_perfschema::close(void) {
+int ha_perfschema::close() {
   DBUG_TRACE;
 
   /* Only for table added by plugin/components */
@@ -1641,7 +1641,7 @@ int ha_perfschema::write_row(uchar *buf) {
   return result;
 }
 
-void ha_perfschema::use_hidden_primary_key(void) {
+void ha_perfschema::use_hidden_primary_key() {
   /*
     This is also called in case of row based replication,
     see TABLE::mark_columns_needed_for_update().
@@ -1663,7 +1663,8 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data) {
 
   assert(m_table);
   ha_statistic_increment(&System_status_var::ha_update_count);
-  int result = m_table->update_row(table, old_data, new_data, table->field);
+  const int result =
+      m_table->update_row(table, old_data, new_data, table->field);
   return result;
 }
 
@@ -1675,7 +1676,7 @@ int ha_perfschema::delete_row(const uchar *buf) {
 
   assert(m_table);
   ha_statistic_increment(&System_status_var::ha_delete_count);
-  int result = m_table->delete_row(table, buf, table->field);
+  const int result = m_table->delete_row(table, buf, table->field);
   return result;
 }
 
@@ -1701,7 +1702,7 @@ int ha_perfschema::rnd_init(bool scan) {
   return result;
 }
 
-int ha_perfschema::rnd_end(void) {
+int ha_perfschema::rnd_end() {
   DBUG_TRACE;
   assert(m_table);
   delete m_table;
@@ -1762,7 +1763,7 @@ int ha_perfschema::info(uint flag) {
   return 0;
 }
 
-int ha_perfschema::delete_all_rows(void) {
+int ha_perfschema::delete_all_rows() {
   int result;
 
   DBUG_TRACE;
@@ -1873,7 +1874,7 @@ ulong ha_perfschema::index_flags(uint, uint, bool) const {
     /* ha_perfschema::index_flags is const, can not save in m_table_share. */
   }
 
-  ulong flags = HA_KEY_SCAN_NOT_ROR;
+  const ulong flags = HA_KEY_SCAN_NOT_ROR;
 
   if (!tmp) {
     unlock_pfs_external_table_shares();

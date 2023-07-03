@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+MSVC_CPPCHECK_DISABLE()
 
 SET(GROUP_REPLICATION_SOURCES
   src/applier.cc
@@ -164,6 +165,8 @@ IF ((NOT (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)) AND
     SET_TARGET_PROPERTIES(gr_unit_test_resource
       PROPERTIES COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX"
       )
+    TARGET_LINK_LIBRARIES(gr_unit_test_resource extra::rapidjson)
+    TARGET_LINK_LIBRARIES(gr_unit_test_resource ext::zlib)
     ADD_DEPENDENCIES(gr_unit_test_resource GenError)
   ENDIF()
 
@@ -179,17 +182,20 @@ IF ((NOT (DEFINED WITHOUT_GROUP_REPLICATION AND WITHOUT_GROUP_REPLICATION)) AND
 ENDIF()
 
 
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="group_replication")
 
 # declare the plugin itself
 MYSQL_ADD_PLUGIN(group_replication
   ${GROUP_REPLICATION_SOURCES}
   ${GMS_LISTENER_SERVICE_TEST_SOURCES}
   LINK_LIBRARIES
-  ${LZ4_LIBRARY}
+  ext::lz4
+  ext::zlib
   ${SSL_LIBRARIES}
   ${PROTOBUF_LITE_LIBRARY}
   ${GR_PROTOBUF_LITE_LIB}
   mysqlgcs
+  extra::rapidjson
   MODULE_ONLY
   MODULE_OUTPUT_NAME "group_replication"
   )

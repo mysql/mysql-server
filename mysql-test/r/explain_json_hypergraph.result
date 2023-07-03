@@ -9,12 +9,12 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
 EXPLAIN
--> Filter: (t1.f1 = (select #2))  (cost=3.10..3.10 rows=1)
-    -> Table scan on t1  (cost=0.08..0.25 rows=3)
+-> Filter: (t1.f1 = (select #2))  (cost=3.1..3.1 rows=1)
+    -> Table scan on t1  (cost=0.0833..0.25 rows=3)
     -> Select #2 (subquery in condition; dependent)
         -> Aggregate: min(i.f1)  (cost=0.85..0.85 rows=1)
-            -> Filter: (i.f1 > t1.f1)  (cost=0.18..0.55 rows=3)
-                -> Table scan on i  (cost=0.08..0.25 rows=3)
+            -> Filter: (i.f1 > t1.f1)  (cost=0.183..0.55 rows=3)
+                -> Table scan on i  (cost=0.0833..0.25 rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -77,11 +77,11 @@ Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 EXPLAIN
--> Filter: (t1.f1 > (select #2))  (cost=0.27..0.63 rows=3)
-    -> Table scan on t1  (cost=0.08..0.25 rows=3)
+-> Filter: (t1.f1 > (select #2))  (cost=0.267..0.633 rows=3)
+    -> Table scan on t1  (cost=0.0833..0.25 rows=3)
     -> Select #2 (subquery in condition; run only once)
-        -> Limit: 1 row(s)  (cost=0.08..0.08 rows=1)
-            -> Table scan on t1  (cost=0.08..0.25 rows=3)
+        -> Limit: 1 row(s)  (cost=0.0833..0.0833 rows=1)
+            -> Table scan on t1  (cost=0.0833..0.25 rows=3)
 
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 EXPLAIN
@@ -139,7 +139,7 @@ insert into t1 values
 (4,1,4,5), (4,2,5,1), (4,3,1,2);
 explain format=TREE select * from t1 where a > 2;
 EXPLAIN
--> Index range scan on t1 using PRIMARY over (2 < a)  (cost=0.13..1.06 rows=8)
+-> Index range scan on t1 using PRIMARY over (2 < a)  (cost=0.133..1.06 rows=8)
 
 explain format=JSON select * from t1 where a > 2;
 EXPLAIN
@@ -172,8 +172,8 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN format=TREE SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
 EXPLAIN
--> Nested loop semijoin  (cost=0.31..1.25 rows=4)
-    -> Index scan on t1 using PRIMARY  (cost=0.06..0.25 rows=4)
+-> Nested loop semijoin  (cost=0.313..1.25 rows=4)
+    -> Index scan on t1 using PRIMARY  (cost=0.0626..0.25 rows=4)
     -> Index lookup on t2 using i1 (i=t1.i)  (cost=0.25..0.25 rows=1)
 
 EXPLAIN format=JSON SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
@@ -230,9 +230,9 @@ INSERT INTO t2 VALUES
 EXPLAIN FORMAT=TREE SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 EXPLAIN
--> Nested loop inner join  (cost=0.95..0.95 rows=1)
-    -> Table scan on t1  (cost=0.12..0.25 rows=2)
-    -> Filter: (t2.pk < t1.pk)  (cost=0.35..0.35 rows=0.3)
+-> Nested loop inner join  (cost=0.95..0.95 rows=0.667)
+    -> Table scan on t1  (cost=0.125..0.25 rows=2)
+    -> Filter: (t2.pk < t1.pk)  (cost=0.35..0.35 rows=0.333)
         -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int)  (cost=0.25..0.25 rows=1)
 
 EXPLAIN FORMAT=JSON SELECT t1.*,t2.* FROM t1 straight_join t2
@@ -299,14 +299,14 @@ WHERE NOT EXISTS( SELECT alias2.col_varchar_key FROM t1 AS alias2
 WHERE alias2.col_varchar_key >= t1.col_varchar)
 GROUP BY field1;
 EXPLAIN
--> Group (no aggregates)  (cost=1.59..1.59 rows=1)
-    -> Nested loop inner join  (cost=1.50..1.50 rows=1)
+-> Group (no aggregates)  (cost=1.59..1.59 rows=0.9)
+    -> Nested loop inner join  (cost=1.5..1.5 rows=0.9)
         -> Sort: t1.col_varchar_key  (cost=1.25..1.25 rows=0.3)
             -> Hash antijoin (no condition), extra conditions: (alias2.col_varchar_key >= t1.col_varchar)  (cost=1.15..1.15 rows=0.3)
-                -> Table scan on t1  (cost=0.08..0.25 rows=3)
+                -> Table scan on t1  (cost=0.0833..0.25 rows=3)
                 -> Hash
-                    -> Table scan on alias2  (cost=0.08..0.25 rows=3)
-        -> Table scan on alias1  (cost=0.08..0.25 rows=3)
+                    -> Table scan on alias2  (cost=0.0833..0.25 rows=3)
+        -> Table scan on alias1  (cost=0.0833..0.25 rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
@@ -397,9 +397,9 @@ drop table t1;
 # Information Schema
 explain format=TREE select * from information_schema.engines e WHERE e.ENGINE="MyISAM";
 EXPLAIN
--> Filter: (e.`ENGINE` = 'MyISAM')  (cost=3.50..102.50 rows=100)
-    -> Table scan on e  (cost=0.00..2.50 rows=1000)
-        -> Fill information schema table e  (cost=0.00..2.50 rows=1000)
+-> Filter: (e.`ENGINE` = 'MyISAM')  (cost=16..115 rows=100)
+    -> Table scan on e  (cost=0.015..15 rows=1000)
+        -> Fill information schema table e  (cost=0.015..15 rows=1000)
 
 explain format=JSON select * from information_schema.engines e WHERE e.ENGINE="MyISAM";
 EXPLAIN
@@ -413,24 +413,24 @@ EXPLAIN
           "table_name": "e",
           "access_type": "materialize_information_schema",
           "estimated_rows": 1000.0,
-          "estimated_total_cost": 2.5,
-          "estimated_first_row_cost": 0.0025
+          "estimated_total_cost": 15.0,
+          "estimated_first_row_cost": 0.015
         }
       ],
       "operation": "Table scan on e",
       "table_name": "e",
       "access_type": "table",
       "estimated_rows": 1000.0,
-      "estimated_total_cost": 2.5,
-      "estimated_first_row_cost": 0.0025
+      "estimated_total_cost": 15.0,
+      "estimated_first_row_cost": 0.015
     }
   ],
   "condition": "(e.`ENGINE` = 'MyISAM')",
   "operation": "Filter: (e.`ENGINE` = 'MyISAM')",
   "access_type": "filter",
   "estimated_rows": 100.00000149011612,
-  "estimated_total_cost": 102.5,
-  "estimated_first_row_cost": 3.499999985098839
+  "estimated_total_cost": 115.0,
+  "estimated_first_row_cost": 15.999999985098839
 }
 # Materialize, window aggregates, Stream
 CREATE TABLE t0 (i0 INTEGER);
@@ -459,10 +459,10 @@ EXPLAIN
 -> Filter: (dt.f1 > 2)  (cost=4.24..5.83 rows=2)
     -> Table scan on dt  (cost=2.58..5.23 rows=6)
         -> Materialize  (cost=2.66..2.66 rows=6)
-            -> Window aggregate with buffering: sum(t1.f2) OVER ()   (cost=0.34..2.06 rows=6)
-                -> Stream results  (cost=0.24..1.46 rows=6)
-                    -> Group (no aggregates)  (cost=0.24..1.46 rows=6)
-                        -> Index scan on t1 using f1_2  (cost=0.02..0.26 rows=12)
+            -> Window aggregate with buffering: sum(t1.f2) OVER ()   (cost=0.343..2.06 rows=6)
+                -> Stream results  (cost=0.243..1.46 rows=6)
+                    -> Group (no aggregates)  (cost=0.243..1.46 rows=6)
+                        -> Index scan on t1 using f1_2  (cost=0.0213..0.255 rows=12)
 
 EXPLAIN FORMAT=JSON SELECT * FROM
 (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
@@ -547,10 +547,10 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
 (SELECT f1, f2, f3 FROM t1) as dt, t0
 WHERE f1 > 3 and f2 < 50 and i0 > 3;
 EXPLAIN
--> Nested loop inner join  (cost=1.72..1.91 rows=1)
-    -> Filter: (t1.f2 < 50)  (cost=1.16..1.16 rows=1)
+-> Nested loop inner join  (cost=1.72..1.91 rows=1.11)
+    -> Filter: (t1.f2 < 50)  (cost=1.16..1.16 rows=0.667)
         -> Index range scan on t1 using f1 over (3 < f1)  (cost=0.48..0.96 rows=2)
-    -> Filter: (t0.i0 > 3)  (cost=0.45..0.75 rows=2)
+    -> Filter: (t0.i0 > 3)  (cost=0.45..0.75 rows=1.67)
         -> Table scan on t0  (cost=0.05..0.25 rows=5)
 
 EXPLAIN FORMAT=JSON SELECT /*+ JOIN_ORDER(t0, dt) */ * FROM
@@ -623,13 +623,13 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN analyze FORMAT=TREE SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
 EXPLAIN
--> Sort: t1.b  (cost=2.32..2.32 rows=2) (actual time=N.NNN..N.NNN rows=3 loops=1)
-    -> Table scan on <temporary>  (cost=2.92..3.99 rows=2) (actual time=N.NNN..N.NNN rows=3 loops=1)
-        -> Temporary table  (cost=1.47..1.47 rows=2) (actual time=N.NNN..N.NNN rows=3 loops=1)
-            -> Group aggregate: group_concat(t2.b separator ',')  (cost=0.75..1.30 rows=2) (actual time=N.NNN..N.NNN rows=3 loops=1)
-                -> Nested loop left join  (cost=0.33..1.00 rows=3) (actual time=N.NNN..N.NNN rows=4 loops=1)
-                    -> Index scan on t1 using PRIMARY  (cost=0.08..0.25 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
-                    -> Index lookup on t2 using PRIMARY (a=t1.a)  (cost=0.25..0.25 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=3)
+-> Sort: t1.b  (cost=2.32..2.32 rows=1.73) (actual rows=3 loops=1)
+    -> Table scan on <temporary>  (cost=2.92..3.99 rows=1.73) (actual rows=3 loops=1)
+        -> Temporary table  (cost=1.47..1.47 rows=1.73) (actual rows=3 loops=1)
+            -> Group aggregate: group_concat(t2.b separator ',')  (cost=0.751..1.3 rows=1.73) (actual rows=3 loops=1)
+                -> Nested loop left join  (cost=0.333..1 rows=3) (actual rows=4 loops=1)
+                    -> Index scan on t1 using PRIMARY  (cost=0.0834..0.25 rows=3) (actual rows=3 loops=1)
+                    -> Index lookup on t2 using PRIMARY (a=t1.a)  (cost=0.25..0.25 rows=1) (actual rows=1 loops=3)
 
 EXPLAIN FORMAT=JSON SELECT t1.a, GROUP_CONCAT(t2.b) AS b FROM t1 LEFT JOIN t2 ON t1.a=t2.a GROUP BY t1.a ORDER BY t1.b;
 EXPLAIN
@@ -724,9 +724,9 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM t1 AS a LEFT JOIN t1 AS b ON FALSE
 LEFT JOIN t1 AS c ON b.a=c.a;
 EXPLAIN
--> Nested loop left join  (cost=0.06..0.25 rows=4)
-    -> Table scan on a  (cost=0.06..0.25 rows=4)
-    -> Zero rows (Join condition rejects all rows)  (cost=0.00..0.00 rows=0)
+-> Nested loop left join  (cost=0.0625..0.25 rows=4)
+    -> Table scan on a  (cost=0.0625..0.25 rows=4)
+    -> Zero rows (Join condition rejects all rows)  (cost=0..0 rows=0)
 
 EXPLAIN FORMAT=JSON SELECT * FROM t1 AS a LEFT JOIN t1 AS b ON FALSE
 LEFT JOIN t1 AS c ON b.a=c.a;

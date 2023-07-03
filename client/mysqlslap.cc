@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -311,8 +311,8 @@ static long int timedif(struct timeval a, struct timeval b) {
 
 #ifdef _WIN32
 static int gettimeofday(struct timeval *tp, void *) {
-  unsigned int ticks;
-  ticks = GetTickCount();
+  ULONGLONG ticks;
+  ticks = GetTickCount64();
   tp->tv_usec = ticks * 1000;
   tp->tv_sec = ticks / 1000;
 

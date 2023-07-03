@@ -3,10 +3,10 @@
 include/rpl_init.inc [topology=1->2,3->2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 #
 # 2. Create some tables for testing
 [connection server_1]
@@ -91,10 +91,10 @@ DROP USER 'u1'@'localhost';
 set session sql_log_bin=0;
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
-call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]+\.[0-9]+ for channel 'channel_1'*");
-call mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]+\.[0-9]+ for channel 'channel_3'*");
-call mtr.add_suppression("Relay log information for channel 'channel_1' was found after a clone operation. Relay log recovery*");
-call mtr.add_suppression("Relay log information for channel 'channel_3' was found after a clone operation. Relay log recovery*");
+call mtr.add_suppression("Recovery from source pos [0-9]+ and file [a-zA-Z-]+\.[0-9]+ for channel 'channel_1'*");
+call mtr.add_suppression("Recovery from source pos [0-9]+ and file [a-zA-Z-]+\.[0-9]+ for channel 'channel_3'*");
+call mtr.add_suppression("Applier metadata information for channel 'channel_1' was found after a clone operation. Relay log recovery*");
+call mtr.add_suppression("Applier metadata information for channel 'channel_3' was found after a clone operation. Relay log recovery*");
 call mtr.add_suppression("Relay log recovery on channel with GTID_ONLY=1*");
 set session sql_log_bin=1;
 include/rpl_end.inc

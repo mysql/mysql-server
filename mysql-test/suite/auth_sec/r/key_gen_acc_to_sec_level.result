@@ -1,0 +1,13 @@
+# Setup
+call mtr.add_suppression("Failed to setup SSL");
+call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
+# Restart completed.
+# Restarting mysqld with : --debug="+d,crypto_policy_3"
+# Restart completed.
+# Make sure that size of the keys generated is 3072 bits
+Pattern found.
+Pattern found.
+Pattern found.
+Pattern found.
+# Clean-up
+# restart:

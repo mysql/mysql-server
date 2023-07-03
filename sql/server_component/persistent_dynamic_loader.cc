@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -338,6 +338,16 @@ bool mysql_persistent_dynamic_loader_imp::initialized() {
   return mysql_persistent_dynamic_loader_imp::is_initialized;
 }
 
+int mysql_persistent_dynamic_loader_imp::remove_from_cache(
+    const char *urns[], int component_count) {
+  int count_erased = 0;
+  MUTEX_LOCK(lock, &component_id_by_urn_mutex);
+  for (int i = 0; i < component_count; ++i)
+    count_erased +=
+        mysql_persistent_dynamic_loader_imp::component_id_by_urn.erase(urns[i]);
+  return count_erased;
+}
+
 /**
   Loads specified group of components by URN, initializes them and
   registers all service implementations present in these components.
@@ -415,6 +425,11 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
         return true;
       }
 
+      /*
+        This is an attempt to sync an out of sync memory cache.
+        This should ideally be removing zero rows.
+      */
+      mysql_persistent_dynamic_loader_imp::component_id_by_urn.erase(urns[i]);
       /* Use last insert auto-increment column value and store it by the URN. */
       mysql_persistent_dynamic_loader_imp::component_id_by_urn.emplace(
           urns[i], component_table->file->insert_id_for_cur_row);

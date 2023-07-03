@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,20 +53,43 @@ namespace stlalloc_unittest {
   These wrappers need to inherit so that they are allocators themselves.
   Otherwise TypeParam in the tests below will be wrong.
 */
-template <typename T>
-class Malloc_allocator_wrapper : public Malloc_allocator<T> {
+template <typename T, class A = Malloc_allocator<T>>
+class Malloc_allocator_wrapper : public A {
+  using a_t = std::allocator_traits<A>;
+
  public:
+  template <class U>
+  struct rebind {
+    using other =
+        Malloc_allocator_wrapper<U, typename a_t::template rebind_alloc<U>>;
+  };
+
+  // Inherit CTORs from base class.
+  using A::A;
+
   Malloc_allocator_wrapper() : Malloc_allocator<T>(PSI_NOT_INSTRUMENTED) {}
 };
 
-template <typename T>
-class Mem_root_allocator_wrapper : public Mem_root_allocator<T> {
-  MEM_ROOT m_mem_root{PSI_NOT_INSTRUMENTED, 1024};
+// Use a static mem-root for everything, so that list::splice will work.
+static MEM_ROOT static_mem_root{PSI_NOT_INSTRUMENTED, 1024};
+
+template <typename T, class A = Mem_root_allocator<T>>
+class Mem_root_allocator_wrapper : public A {
+  using a_t = std::allocator_traits<A>;
 
  public:
-  Mem_root_allocator_wrapper() : Mem_root_allocator<T>(&m_mem_root) {
+  template <class U>
+  struct rebind {
+    using other =
+        Mem_root_allocator_wrapper<U, typename a_t::template rebind_alloc<U>>;
+  };
+
+  // Inherit CTORs from base class.
+  using A::A;
+
+  Mem_root_allocator_wrapper() : Mem_root_allocator<T>(&static_mem_root) {
     // memory allocation error is expected, don't abort unit test.
-    m_mem_root.set_error_handler(nullptr);
+    static_mem_root.set_error_handler(nullptr);
   }
 
   /*
@@ -79,9 +102,9 @@ class Mem_root_allocator_wrapper : public Mem_root_allocator<T> {
     even with -std=c++17
   */
   Mem_root_allocator_wrapper(const Mem_root_allocator_wrapper &other)
-      : Mem_root_allocator<T>(&m_mem_root) {
-    memcpy(&m_mem_root, &other.m_mem_root, sizeof(m_mem_root));
-  }
+      : Mem_root_allocator<T>(other.m_mem_root_ptr) {}
+
+  MEM_ROOT *m_mem_root_ptr = &static_mem_root;
 };
 
 /*

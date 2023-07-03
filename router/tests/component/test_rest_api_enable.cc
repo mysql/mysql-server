@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+ Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -76,17 +76,15 @@ class TestRestApiEnable : public RouterComponentTest {
         trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
 
     set_globals();
+    set_router_accepting_ports();
 
     custom_port = port_pool_.get_next_available();
-    router_port_rw = port_pool_.get_next_available();
-    router_port_ro = port_pool_.get_next_available();
-    router_port_x_rw = port_pool_.get_next_available();
-    router_port_x_ro = port_pool_.get_next_available();
 
     setup_paths();
   }
 
-  ProcessWrapper &do_bootstrap(std::vector<std::string> additional_config) {
+  ProcessWrapper &do_bootstrap(std::vector<std::string> additional_config,
+                               bool will_run_with_created_config = true) {
     std::vector<std::string> cmdline = {
         "--bootstrap=" + gr_member_ip + ":" + std::to_string(cluster_node_port),
         "-d",
@@ -94,6 +92,21 @@ class TestRestApiEnable : public RouterComponentTest {
         "--conf-set-option=DEFAULT.logging_folder=" + get_logging_dir().str(),
         "--conf-set-option=logger.level=DEBUG",
     };
+
+    if (will_run_with_created_config) {
+      // since we are launching the Router after the bootstrap we
+      // can't allow default ports to be used
+      cmdline.insert(cmdline.end(),
+                     {"--conf-set-option=routing:bootstrap_rw.bind_port=" +
+                          std::to_string(router_port_rw),
+                      "--conf-set-option=routing:bootstrap_ro.bind_port=" +
+                          std::to_string(router_port_ro),
+                      "--conf-set-option=routing:bootstrap_x_rw.bind_port=" +
+                          std::to_string(router_port_x_rw),
+                      "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
+                          std::to_string(router_port_x_ro)});
+    }
+
     std::move(std::begin(additional_config), std::end(additional_config),
               std::back_inserter(cmdline));
     auto &router_bootstrap = launch_router(cmdline, EXIT_SUCCESS);
@@ -350,7 +363,6 @@ class TestRestApiEnable : public RouterComponentTest {
   uint16_t router_port_ro;
   uint16_t router_port_x_rw;
   uint16_t router_port_x_ro;
-  uint16_t default_rest_port{8443};
   ProcessWrapper *cluster_node;
 
   TempDirectory temp_test_dir;
@@ -376,12 +388,14 @@ class TestRestApiEnable : public RouterComponentTest {
 
  protected:
   void set_globals(std::string cluster_id = "") {
-    auto json_doc = mock_GR_metadata_as_json(cluster_id, {cluster_node_port},
-                                             0 /*primary_id*/, 0 /*view_id*/,
-                                             false /*error_on_md_query*/);
+    auto json_doc = mock_GR_metadata_as_json(
+        cluster_id, {cluster_node_port}, 0, {cluster_node_port},
+        0 /*primary_id*/, 0 /*view_id*/, false /*error_on_md_query*/);
     JsonAllocator allocator;
     JsonValue gr_members_json(rapidjson::kArrayType);
     JsonValue member(rapidjson::kArrayType);
+    member.PushBack(JsonValue("uuid-1", strlen("uuid-1"), allocator),
+                    allocator);
     member.PushBack(
         JsonValue(gr_member_ip.c_str(), gr_member_ip.length(), allocator),
         allocator);
@@ -400,6 +414,13 @@ class TestRestApiEnable : public RouterComponentTest {
     config_path =
         mysql_harness::Path{temp_test_dir.name()}.join("mysqlrouter.conf");
     datadir_path = mysql_harness::Path{temp_test_dir.name()}.join("data");
+  }
+
+  void set_router_accepting_ports() {
+    router_port_rw = port_pool_.get_next_available();
+    router_port_ro = port_pool_.get_next_available();
+    router_port_x_rw = port_pool_.get_next_available();
+    router_port_x_ro = port_pool_.get_next_available();
   }
 };
 
@@ -535,7 +556,8 @@ TEST_F(TestRestApiEnable, ensure_rest_is_disabled) {
  * WL13906:TS_FR05_01
  */
 TEST_F(TestRestApiEnable, ensure_rest_is_configured_by_default) {
-  ASSERT_NO_FATAL_FAILURE(do_bootstrap({/*default command line arguments*/}));
+  ASSERT_NO_FATAL_FAILURE(
+      do_bootstrap({/*default command line arguments*/}, false));
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
@@ -577,7 +599,7 @@ class UseEdgeHttpsPortValues : public TestRestApiEnable,
  */
 TEST_P(UseEdgeHttpsPortValues,
        ensure_bootstrap_works_for_edge_https_port_values) {
-  do_bootstrap({"--https-port", std::to_string(GetParam())});
+  do_bootstrap({"--https-port", std::to_string(GetParam())}, false);
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
@@ -632,7 +654,7 @@ class OverlappingHttpsPort
  */
 TEST_P(OverlappingHttpsPort,
        ensure_bootstrap_works_for_overlapping_https_port) {
-  do_bootstrap({"--https-port", std::to_string(this->*GetParam())});
+  do_bootstrap({"--https-port", std::to_string(this->*GetParam())}, false);
 
   EXPECT_TRUE(certificate_files_exists(
       {cert_file_t::k_ca_key, cert_file_t::k_ca_cert, cert_file_t::k_router_key,
@@ -793,7 +815,8 @@ class RestApiInvalidUserCerts
 
 /**
  * @test
- * Verify that bootstrap do not check if user provided certs and keys are valid.
+ * Verify that bootstrap does not check if user provided certs and keys are
+ * valid.
  * Verify that bootstrap succeeds and files are not changed.
  *
  * WL13906:TS_NFR01_01
@@ -823,7 +846,8 @@ TEST_P(RestApiInvalidUserCerts,
     router_cert_stream << GetParam();
   }
 
-  auto &router_bootstrap = do_bootstrap({/*default command line arguments*/});
+  auto &router_bootstrap =
+      do_bootstrap({"--https-port", std::to_string(custom_port)});
   const auto expected_message =
       string_format("- Using existing certificates from the '%s' directory",
                     datadir_path.real_path().c_str());
@@ -928,6 +952,7 @@ class TestRestApiEnableBootstrapFailover : public TestRestApiEnable {
   void SetUp() override {
     RouterComponentTest::SetUp();
     setup_paths();
+    set_router_accepting_ports();
   }
 
   void setup_mocks(const bool failover_successful) {
@@ -989,19 +1014,8 @@ TEST_F(TestRestApiEnableBootstrapFailover,
   const bool successful_failover = true;
   setup_mocks(successful_failover);
   const auto rest_port = port_pool_.get_next_available();
-  // since we are launching the Router after the bootstrap we can't allow
-  // default ports to be used
-  auto &router_bootstrap = do_bootstrap({
-      "--conf-set-option=http_server.port=" + std::to_string(rest_port),
-      "--conf-set-option=routing:bootstrap_rw.bind_port=" +
-          std::to_string(router_port_rw),
-      "--conf-set-option=routing:bootstrap_ro.bind_port=" +
-          std::to_string(router_port_ro),
-      "--conf-set-option=routing:bootstrap_x_rw.bind_port=" +
-          std::to_string(router_port_x_rw),
-      "--conf-set-option=routing:bootstrap_x_ro.bind_port=" +
-          std::to_string(router_port_x_ro),
-  });
+  auto &router_bootstrap = do_bootstrap(
+      {"--conf-set-option=http_server.port=" + std::to_string(rest_port)});
   EXPECT_THAT(router_bootstrap.get_full_output(),
               ::testing::HasSubstr("trying to connect to"));
 

@@ -675,3 +675,104 @@ EXPLAIN FORMAT=tree
 SELECT * FROM t1 EXCEPT    (SELECT * FROM t1 ORDER BY 1 LIMIT 3);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#34843764 Wrong Results when INTERSECT/EXCEPT combine with JOIN
+--echo #
+CREATE TABLE t1 (a INT, b INT);
+
+INSERT INTO t1 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5);
+INSERT INTO t1 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5);
+INSERT INTO t1 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5);
+
+CREATE TABLE t2 (a INT, b INT);
+
+INSERT INTO t2 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5), (7, 5), (8, 9);
+INSERT INTO t2 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5), (6, 5), (7, 5), (8, 9);
+
+CREATE TABLE t3 (a INT, b INT);
+
+INSERT INTO t3 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5);
+INSERT INTO t3 VALUES (NULL, NULL), (1, NULL), (2, 3), (4, 5);
+
+let $query =
+SELECT *
+FROM (SELECT a, b FROM t1 INTERSECT SELECT a, b FROM t3) AS x
+     JOIN
+     t2
+     ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+
+eval $query;
+--skip_if_hypergraph  # Different plans.
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+
+let $query =
+SELECT *
+FROM (SELECT a, b FROM t1 INTERSECT ALL SELECT a, b FROM t3) AS x
+     JOIN
+     t2
+     ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+
+eval $query;
+--skip_if_hypergraph  # Different plans.
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+
+let $query =
+SELECT *
+FROM (SELECT a, b FROM t1 EXCEPT SELECT a, b FROM t3) AS x
+     JOIN
+     t2
+     ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+
+eval $query;
+--skip_if_hypergraph  # Different plans.
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+
+let $query =
+SELECT *
+FROM (SELECT a, b FROM t1 EXCEPT ALL SELECT a, b FROM t3) AS x
+     JOIN
+     t2
+     ON x.a = t2.a AND x.b = t2.b
+ORDER BY 1, 2;
+
+eval $query;
+--skip_if_hypergraph  # Different plans.
+--replace_regex $elide_costs
+eval EXPLAIN FORMAT=tree $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#34704011 When using a single select in parenthesis, a
+--echo #              global order by cannot be used
+--echo #
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, d DATE);
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, d DATE);
+
+INSERT INTO t1 (d) VALUES ('2020-01-01'), ('2021-04-21'), ('2022-03-02');
+INSERT INTO t2 (d) VALUES ('2020-05-01'), ('2021-05-21'), ('2022-05-02');
+
+# The reference to t1 in the ORDER BY was flagged as an error
+# which is strictly is according the SQL standard, but MySQL used to
+# allow this before WL#11350, so make it work again.
+( SELECT t1.d, t2.d
+  FROM t1 INNER JOIN t2 USING (id) )
+ORDER BY t1.d;
+
+(( SELECT t1.d, t2.d
+  FROM t1 INNER JOIN t2 USING (id) ))
+ORDER BY t1.d;
+
+--error ER_BAD_FIELD_ERROR
+(( SELECT t1.d, t2.d
+  FROM t1 INNER JOIN t2 USING (id) ) LIMIT 1)
+ORDER BY t1.d;
+
+DROP TABLE t1, t2;

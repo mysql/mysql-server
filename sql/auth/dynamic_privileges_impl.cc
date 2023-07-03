@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -154,6 +154,8 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
       Thd_creator get_thd(current_thd);
       Acl_cache_lock_guard acl_cache_lock(get_thd(),
                                           Acl_cache_lock_mode::WRITE_MODE);
+      DBUG_EXECUTE_IF("bug34594035_simulate_lock_failure",
+                      DBUG_SET("+d,bug34594035_fail_acl_cache_lock"););
       acl_cache_lock.lock();
       return (get_dynamic_privilege_register()->erase(priv) == 0);
     } else
@@ -228,6 +230,8 @@ bool dynamic_privilege_init(void) {
       ret += service->register_privilege(
           STRING_WITH_LEN("TABLE_ENCRYPTION_ADMIN"));
       ret += service->register_privilege(STRING_WITH_LEN("AUDIT_ADMIN"));
+      ret +=
+          service->register_privilege(STRING_WITH_LEN("TELEMETRY_LOG_ADMIN"));
       ret +=
           service->register_privilege(STRING_WITH_LEN("REPLICATION_APPLIER"));
       ret += service->register_privilege(STRING_WITH_LEN("SHOW_ROUTINE"));

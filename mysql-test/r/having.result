@@ -969,3 +969,12 @@ SELECT DISTINCT f3 FROM t1 HAVING (SELECT 1 FROM t2 HAVING f2 LIMIT 1) ORDER BY 
 ERROR 42S22: Unknown column 'f2' in 'having clause'
 DROP TABLE t1;
 DROP TABLE t2;
+# Bug#34923792: Mysqld assert - JOIN::add_having_as_tmp_table_cond
+CREATE TABLE t1 (f1 INTEGER);
+SELECT SUM(t1.f1)+1 AS field1
+FROM t1 JOIN t1 AS t2
+GROUP BY t1.f1
+HAVING field1 < 7
+ORDER BY field1;
+field1
+DROP TABLE t1;

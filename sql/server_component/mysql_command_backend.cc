@@ -1,4 +1,4 @@
-/* Copyright (c) 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -81,9 +81,10 @@ mysql_state_machine_status cssm_begin_connect(mysql_async_connect *ctx) {
     */
     my_service<SERVICE_TYPE(mysql_admin_session)> service(
         "mysql_admin_session.mysql_server", srv_registry);
-    if (service.is_valid())
+    if (service.is_valid()) {
       mysql_session = service->open(nullptr, ctx);
-    else
+      if (mysql_session == nullptr) return STATE_MACHINE_FAILED;
+    } else
       return STATE_MACHINE_FAILED;
     thd = mysql_session->get_thd();
     mcs_extn->is_thd_associated = false;

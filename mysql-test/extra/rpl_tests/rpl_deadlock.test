@@ -205,6 +205,6 @@ DROP TABLE t1,t2,t3;
 sync_slave_with_master;
 SET global max_relay_log_size= @my_max_relay_log_size;
 CALL mtr.add_suppression(".*worker thread retried transaction.*");
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped.*");
 --echo End of 5.1 tests
 --source include/rpl_end.inc

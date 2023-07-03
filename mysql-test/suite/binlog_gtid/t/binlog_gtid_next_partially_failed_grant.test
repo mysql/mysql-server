@@ -27,7 +27,7 @@
 # Make sure the test is repeatable
 RESET MASTER;
 
-call mtr.add_suppression("REVOKE/GRANT failed while storing table level and column level grants in the privilege tables. An incident event has been written to the binary log which will stop the slaves.");
+call mtr.add_suppression("REVOKE/GRANT failed while storing table level and column level grants in the privilege tables. An incident event has been written to the binary log which will stop the replicas.");
 
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 

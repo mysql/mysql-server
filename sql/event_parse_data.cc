@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -144,6 +144,21 @@ bool Event_parse_data::check_dates(THD *thd, int previous_on_completion) {
   return do_not_create;
 }
 
+/// Resolves an item and checks that it returns a single column.
+static bool ResolveScalarItem(THD *thd, Item **item) {
+  if (!(*item)->fixed) {
+    if ((*item)->fix_fields(thd, item)) {
+      return true;
+    }
+  }
+
+  if ((*item)->check_cols(1)) {
+    return true;
+  }
+
+  return false;
+}
+
 /*
   Sets time for execution for one-time event.
 
@@ -164,9 +179,9 @@ int Event_parse_data::init_execute_at(THD *thd) {
 
   if (!item_execute_at) return 0;
 
-  if (!item_execute_at->fixed &&
-      item_execute_at->fix_fields(thd, &item_execute_at))
-    goto wrong_value;
+  if (ResolveScalarItem(thd, &item_execute_at)) {
+    return ER_WRONG_VALUE;
+  }
 
   /* no starts and/or ends in case of execute_at */
   DBUG_PRINT("info", ("starts_null && ends_null should be 1 is %d",
@@ -226,9 +241,9 @@ int Event_parse_data::init_interval(THD *thd) {
   StringBuffer<MAX_DATETIME_FULL_WIDTH + 1> value;
   Interval interval_tmp;
 
-  if (!item_expression->fixed &&
-      item_expression->fix_fields(thd, &item_expression))
-    goto wrong_value;
+  if (ResolveScalarItem(thd, &item_expression)) {
+    return ER_WRONG_VALUE;
+  }
 
   if (get_interval_value(item_expression, interval, &value, &interval_tmp))
     goto wrong_value;
@@ -324,8 +339,9 @@ int Event_parse_data::init_starts(THD *thd) {
   DBUG_TRACE;
   if (!item_starts) return 0;
 
-  if (!item_starts->fixed && item_starts->fix_fields(thd, &item_starts))
-    goto wrong_value;
+  if (ResolveScalarItem(thd, &item_starts)) {
+    return ER_WRONG_VALUE;
+  }
 
   if ((item_starts->get_date(&ltime, TIME_NO_ZERO_DATE))) goto wrong_value;
 
@@ -373,8 +389,9 @@ int Event_parse_data::init_ends(THD *thd) {
   DBUG_TRACE;
   if (!item_ends) return 0;
 
-  if (!item_ends->fixed && item_ends->fix_fields(thd, &item_ends))
-    goto error_bad_params;
+  if (ResolveScalarItem(thd, &item_ends)) {
+    return EVEX_BAD_PARAMS;
+  }
 
   DBUG_PRINT("info", ("convert to TIME"));
 

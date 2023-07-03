@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -247,7 +247,7 @@ static int write_row(PFS_engine_table *pfs_table, TABLE *table,
                      unsigned char *buf [[maybe_unused]], Field **fields) {
   int result = 0;
   Field *f;
-  table_plugin_table *temp = (table_plugin_table *)pfs_table;
+  auto *temp = (table_plugin_table *)pfs_table;
 
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
@@ -388,22 +388,21 @@ static int pfs_add_tables_v1(PFS_engine_table_share_proxy **st_share_list,
     temp_st_share = st_share_list[i];
 
     /* Create a new instance of table_share */
-    PFS_engine_table_share *temp_share = new PFS_engine_table_share();
+    auto *temp_share = new PFS_engine_table_share();
 
     /* Initialize table share for this new table */
     if (initialize_table_share(temp_share, temp_st_share)) {
       /* Delete all the initialized table shares till now */
-      for (auto share : share_list) {
+      for (auto *share : share_list) {
         pfs_external_table_shares.remove_share(share);
         destroy_table_share(share);
       }
       pfs_external_table_shares.unlock_share_list();
       return 1;
-    } else {
-      /* Add share to PFS shares list */
-      pfs_external_table_shares.add_share(temp_share);
-      share_list.push_back(temp_share);
     }
+    /* Add share to PFS shares list */
+    pfs_external_table_shares.add_share(temp_share);
+    share_list.push_back(temp_share);
   }
 
   /* Unlock mutex on PFS share list now because while creating table (by DD API)
@@ -418,14 +417,15 @@ static int pfs_add_tables_v1(PFS_engine_table_share_proxy **st_share_list,
   for (uint i = 0; i < share_list_count; i++) {
     temp_st_share = st_share_list[i];
 
-    Plugin_table t(PERFORMANCE_SCHEMA_str.str, temp_st_share->m_table_name,
-                   temp_st_share->m_table_definition,
-                   "engine = 'performance_schema'", nullptr);
+    const Plugin_table t(PERFORMANCE_SCHEMA_str.str,
+                         temp_st_share->m_table_name,
+                         temp_st_share->m_table_definition,
+                         "engine = 'performance_schema'", nullptr);
     if (create_native_table_for_pfs(&t)) {
       /* ============== CRITICAL SECTION 2 (begin) ================= */
       pfs_external_table_shares.lock_share_list();
       /* Delete all the initialized table share till now */
-      for (auto share : share_list) {
+      for (auto *share : share_list) {
         pfs_external_table_shares.remove_share(share);
         destroy_table_share(share);
       }
@@ -484,7 +484,7 @@ static int pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
    *
    * Now traverse share_list and drop tables using DD API.
    */
-  for (auto share : share_list) {
+  for (auto *share : share_list) {
     if (drop_native_table_for_pfs(PERFORMANCE_SCHEMA_str.str,
                                   share->m_table_def->get_name())) {
       return 1;
@@ -497,7 +497,7 @@ static int pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
   /* At this point tables have been dropped. So we can remove shares from
    * PFS shares list.
    */
-  for (auto share : share_list) {
+  for (auto *share : share_list) {
     pfs_external_table_shares.remove_share(share);
     destroy_table_share(share);
   }
@@ -514,7 +514,7 @@ static int pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
  * Type TINYINT                       *
  **************************************/
 void set_field_tinyint_v1(PSI_field *f, PSI_tinyint value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -523,7 +523,7 @@ void set_field_tinyint_v1(PSI_field *f, PSI_tinyint value) {
 }
 
 void set_field_utinyint_v1(PSI_field *f, PSI_utinyint value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -532,7 +532,7 @@ void set_field_utinyint_v1(PSI_field *f, PSI_utinyint value) {
 }
 
 void get_field_tinyint_v1(PSI_field *f, PSI_tinyint *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -543,7 +543,7 @@ void get_field_tinyint_v1(PSI_field *f, PSI_tinyint *value) {
 }
 
 void get_field_utinyint_v1(PSI_field *f, PSI_utinyint *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -555,8 +555,8 @@ void get_field_utinyint_v1(PSI_field *f, PSI_utinyint *value) {
 
 void read_key_tinyint_v1(PSI_key_reader *reader, PSI_plugin_key_tinyint *key,
                          int find_flag) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
-  enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
+  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto e_find_flag = (enum ha_rkey_function)find_flag;
 
   char temp_value{0};
   key->m_find_flags =
@@ -566,8 +566,8 @@ void read_key_tinyint_v1(PSI_key_reader *reader, PSI_plugin_key_tinyint *key,
 
 void read_key_utinyint_v1(PSI_key_reader *reader, PSI_plugin_key_utinyint *key,
                           int find_flag) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
-  enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
+  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto e_find_flag = (enum ha_rkey_function)find_flag;
 
   unsigned char temp_value{0};
   key->m_find_flags =
@@ -593,7 +593,7 @@ bool match_key_utinyint_v1(bool record_null, unsigned long record_value,
  * Type SMALLINT                      *
  **************************************/
 void set_field_smallint_v1(PSI_field *f, PSI_smallint value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -602,7 +602,7 @@ void set_field_smallint_v1(PSI_field *f, PSI_smallint value) {
 }
 
 void set_field_usmallint_v1(PSI_field *f, PSI_usmallint value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -611,7 +611,7 @@ void set_field_usmallint_v1(PSI_field *f, PSI_usmallint value) {
 }
 
 void get_field_smallint_v1(PSI_field *f, PSI_smallint *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -622,7 +622,7 @@ void get_field_smallint_v1(PSI_field *f, PSI_smallint *value) {
 }
 
 void get_field_usmallint_v1(PSI_field *f, PSI_usmallint *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -634,8 +634,8 @@ void get_field_usmallint_v1(PSI_field *f, PSI_usmallint *value) {
 
 void read_key_smallint_v1(PSI_key_reader *reader, PSI_plugin_key_smallint *key,
                           int find_flag) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
-  enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
+  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto e_find_flag = (enum ha_rkey_function)find_flag;
 
   short temp_value{0};
   key->m_find_flags =
@@ -645,8 +645,8 @@ void read_key_smallint_v1(PSI_key_reader *reader, PSI_plugin_key_smallint *key,
 
 void read_key_usmallint_v1(PSI_key_reader *reader,
                            PSI_plugin_key_usmallint *key, int find_flag) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
-  enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
+  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto e_find_flag = (enum ha_rkey_function)find_flag;
 
   unsigned short temp_value{0};
   key->m_find_flags =
@@ -672,7 +672,7 @@ bool match_key_usmallint_v1(bool record_null, unsigned long record_value,
  * Type MEDIUMINT                     *
  **************************************/
 void set_field_mediumint_v1(PSI_field *f, PSI_mediumint value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -681,7 +681,7 @@ void set_field_mediumint_v1(PSI_field *f, PSI_mediumint value) {
 }
 
 void set_field_umediumint_v1(PSI_field *f, PSI_umediumint value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -690,7 +690,7 @@ void set_field_umediumint_v1(PSI_field *f, PSI_umediumint value) {
 }
 
 void get_field_mediumint_v1(PSI_field *f, PSI_mediumint *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -701,7 +701,7 @@ void get_field_mediumint_v1(PSI_field *f, PSI_mediumint *value) {
 }
 
 void get_field_umediumint_v1(PSI_field *f, PSI_umediumint *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -713,8 +713,8 @@ void get_field_umediumint_v1(PSI_field *f, PSI_umediumint *value) {
 
 void read_key_mediumint_v1(PSI_key_reader *reader,
                            PSI_plugin_key_mediumint *key, int find_flag) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
-  enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
+  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto e_find_flag = (enum ha_rkey_function)find_flag;
 
   long temp_value{0};
   key->m_find_flags =
@@ -724,8 +724,8 @@ void read_key_mediumint_v1(PSI_key_reader *reader,
 
 void read_key_umediumint_v1(PSI_key_reader *reader,
                             PSI_plugin_key_umediumint *key, int find_flag) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
-  enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
+  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto e_find_flag = (enum ha_rkey_function)find_flag;
 
   unsigned long temp_value{0};
   key->m_find_flags =
@@ -751,7 +751,7 @@ bool match_key_umediumint_v1(bool record_null, unsigned long record_value,
  * Type INTEGER (INT)                 *
  **************************************/
 void set_field_integer_v1(PSI_field *f, PSI_int value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -760,7 +760,7 @@ void set_field_integer_v1(PSI_field *f, PSI_int value) {
 }
 
 void set_field_uinteger_v1(PSI_field *f, PSI_uint value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -769,7 +769,7 @@ void set_field_uinteger_v1(PSI_field *f, PSI_uint value) {
 }
 
 void get_field_integer_v1(PSI_field *f, PSI_int *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -780,7 +780,7 @@ void get_field_integer_v1(PSI_field *f, PSI_int *value) {
 }
 
 void get_field_uinteger_v1(PSI_field *f, PSI_int *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -792,8 +792,8 @@ void get_field_uinteger_v1(PSI_field *f, PSI_int *value) {
 
 void read_key_integer_v1(PSI_key_reader *reader, PSI_plugin_key_integer *key,
                          int find_flag) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
-  enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
+  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto e_find_flag = (enum ha_rkey_function)find_flag;
 
   long temp_value{0};
   key->m_find_flags =
@@ -803,8 +803,8 @@ void read_key_integer_v1(PSI_key_reader *reader, PSI_plugin_key_integer *key,
 
 void read_key_uinteger_v1(PSI_key_reader *reader, PSI_plugin_key_uinteger *key,
                           int find_flag) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
-  enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
+  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto e_find_flag = (enum ha_rkey_function)find_flag;
 
   unsigned long temp_value{0};
   key->m_find_flags =
@@ -830,7 +830,7 @@ bool match_key_uinteger_v1(bool record_null, unsigned long record_value,
  * Type BIGINT                        *
  **************************************/
 void set_field_bigint_v1(PSI_field *f, PSI_bigint value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -839,7 +839,7 @@ void set_field_bigint_v1(PSI_field *f, PSI_bigint value) {
 }
 
 void set_field_ubigint_v1(PSI_field *f, PSI_ubigint value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -848,7 +848,7 @@ void set_field_ubigint_v1(PSI_field *f, PSI_ubigint value) {
 }
 
 void get_field_bigint_v1(PSI_field *f, PSI_bigint *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -859,7 +859,7 @@ void get_field_bigint_v1(PSI_field *f, PSI_bigint *value) {
 }
 
 void get_field_ubigint_v1(PSI_field *f, PSI_ubigint *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -871,8 +871,8 @@ void get_field_ubigint_v1(PSI_field *f, PSI_ubigint *value) {
 
 void read_key_bigint_v1(PSI_key_reader *reader, PSI_plugin_key_bigint *key,
                         int find_flag) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
-  enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
+  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto e_find_flag = (enum ha_rkey_function)find_flag;
 
   long long temp_value{0};
   key->m_find_flags =
@@ -882,8 +882,8 @@ void read_key_bigint_v1(PSI_key_reader *reader, PSI_plugin_key_bigint *key,
 
 void read_key_ubigint_v1(PSI_key_reader *reader, PSI_plugin_key_ubigint *key,
                          int find_flag) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
-  enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
+  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto e_find_flag = (enum ha_rkey_function)find_flag;
 
   unsigned long long temp_value{0};
   key->m_find_flags =
@@ -909,7 +909,7 @@ bool match_key_ubigint_v1(bool record_null, unsigned long long record_value,
  * Type DECIMAL                       *
  **************************************/
 void set_field_decimal_v1(PSI_field *f, PSI_double value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -918,7 +918,7 @@ void set_field_decimal_v1(PSI_field *f, PSI_double value) {
 }
 
 void get_field_decimal_v1(PSI_field *f, PSI_double *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -932,7 +932,7 @@ void get_field_decimal_v1(PSI_field *f, PSI_double *value) {
  * Type FLOAT                         *
  **************************************/
 void set_field_float_v1(PSI_field *f, PSI_double value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -941,7 +941,7 @@ void set_field_float_v1(PSI_field *f, PSI_double value) {
 }
 
 void get_field_float_v1(PSI_field *f, PSI_double *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -955,7 +955,7 @@ void get_field_float_v1(PSI_field *f, PSI_double *value) {
  * Type DOUBLE                        *
  **************************************/
 void set_field_double_v1(PSI_field *f, PSI_double value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -964,7 +964,7 @@ void set_field_double_v1(PSI_field *f, PSI_double value) {
 }
 
 void get_field_double_v1(PSI_field *f, PSI_double *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -978,7 +978,7 @@ void get_field_double_v1(PSI_field *f, PSI_double *value) {
  * Type CHAR                          *
  **************************************/
 void set_field_char_utf8mb4_v1(PSI_field *f, const char *value, uint len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0) {
     set_field_char_utf8mb4(f_ptr, value, len);
   } else {
@@ -987,7 +987,7 @@ void set_field_char_utf8mb4_v1(PSI_field *f, const char *value, uint len) {
 }
 
 void get_field_char_utf8mb4_v1(PSI_field *f, char *val, uint *len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
   if (f_ptr->is_null()) {
@@ -996,14 +996,14 @@ void get_field_char_utf8mb4_v1(PSI_field *f, char *val, uint *len) {
     return;
   }
 
-  val = get_field_char_utf8mb4(f_ptr, val, len);
+  get_field_char_utf8mb4(f_ptr, val, len);
 }
 
 /**************************************
  * Type VARCAHAR                      *
  **************************************/
 void set_field_varchar_utf8mb4_len_v1(PSI_field *f, const char *str, uint len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0) {
     set_field_varchar_utf8mb4(f_ptr, str, len);
   } else {
@@ -1012,7 +1012,7 @@ void set_field_varchar_utf8mb4_len_v1(PSI_field *f, const char *str, uint len) {
 }
 
 void set_field_varchar_utf8mb4_v1(PSI_field *f, const char *str) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (str != nullptr) {
     set_field_varchar_utf8mb4(f_ptr, str);
   } else {
@@ -1021,7 +1021,7 @@ void set_field_varchar_utf8mb4_v1(PSI_field *f, const char *str) {
 }
 
 void get_field_varchar_utf8mb4_v1(PSI_field *f, char *val, uint *len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
   if (f_ptr->is_null()) {
@@ -1030,14 +1030,14 @@ void get_field_varchar_utf8mb4_v1(PSI_field *f, char *val, uint *len) {
     return;
   }
 
-  val = get_field_varchar_utf8mb4(f_ptr, val, len);
+  get_field_varchar_utf8mb4(f_ptr, val, len);
 }
 
 /**************************************
  * Type BLOB/TEXT                     *
  **************************************/
 void set_field_blob_v1(PSI_field *f, const char *val, uint len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0) {
     set_field_blob(f_ptr, val, len);
   } else {
@@ -1046,7 +1046,7 @@ void set_field_blob_v1(PSI_field *f, const char *val, uint len) {
 }
 
 void get_field_blob_v1(PSI_field *f, char *val, uint *len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
   if (f_ptr->is_null()) {
@@ -1055,14 +1055,14 @@ void get_field_blob_v1(PSI_field *f, char *val, uint *len) {
     return;
   }
 
-  val = get_field_blob(f_ptr, val, len);
+  get_field_blob(f_ptr, val, len);
 }
 
 /**************************************
  * Type ENUM                          *
  **************************************/
 void set_field_enum_v1(PSI_field *f, PSI_enum value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -1071,7 +1071,7 @@ void set_field_enum_v1(PSI_field *f, PSI_enum value) {
 }
 
 void get_field_enum_v1(PSI_field *f, PSI_enum *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -1085,7 +1085,7 @@ void get_field_enum_v1(PSI_field *f, PSI_enum *value) {
  * Type DATE                          *
  **************************************/
 void set_field_date_v1(PSI_field *f, const char *value, uint len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0) {
     set_field_date(f_ptr, value, len);
   } else {
@@ -1094,7 +1094,7 @@ void set_field_date_v1(PSI_field *f, const char *value, uint len) {
 }
 
 void get_field_date_v1(PSI_field *f, char *val, uint *len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
   if (f_ptr->is_null()) {
@@ -1103,14 +1103,14 @@ void get_field_date_v1(PSI_field *f, char *val, uint *len) {
     return;
   }
 
-  val = get_field_date(f_ptr, val, len);
+  get_field_date(f_ptr, val, len);
 }
 
 /**************************************
  * Type TIME                          *
  **************************************/
 void set_field_time_v1(PSI_field *f, const char *value, uint len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0) {
     set_field_time(f_ptr, value, len);
   } else {
@@ -1119,7 +1119,7 @@ void set_field_time_v1(PSI_field *f, const char *value, uint len) {
 }
 
 void get_field_time_v1(PSI_field *f, char *val, uint *len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
   if (f_ptr->is_null()) {
@@ -1128,14 +1128,14 @@ void get_field_time_v1(PSI_field *f, char *val, uint *len) {
     return;
   }
 
-  val = get_field_time(f_ptr, val, len);
+  get_field_time(f_ptr, val, len);
 }
 
 /**************************************
  * Type DATETIME                      *
  **************************************/
 void set_field_datetime_v1(PSI_field *f, const char *value, uint len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0) {
     set_field_datetime(f_ptr, value, len);
   } else {
@@ -1144,7 +1144,7 @@ void set_field_datetime_v1(PSI_field *f, const char *value, uint len) {
 }
 
 void get_field_datetime_v1(PSI_field *f, char *val, uint *len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
   if (f_ptr->is_null()) {
@@ -1153,14 +1153,14 @@ void get_field_datetime_v1(PSI_field *f, char *val, uint *len) {
     return;
   }
 
-  val = get_field_datetime(f_ptr, val, len);
+  get_field_datetime(f_ptr, val, len);
 }
 
 /**************************************
  * Type TIMESTAMP                     *
  **************************************/
 void set_field_timestamp_v1(PSI_field *f, const char *value, uint len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (len > 0) {
     set_field_timestamp(f_ptr, value, len);
   } else {
@@ -1169,7 +1169,7 @@ void set_field_timestamp_v1(PSI_field *f, const char *value, uint len) {
 }
 
 void set_field_timestamp2_v1(PSI_field *f, ulonglong value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value > 0) {
     set_field_timestamp(f_ptr, value);
   } else {
@@ -1178,7 +1178,7 @@ void set_field_timestamp2_v1(PSI_field *f, ulonglong value) {
 }
 
 void get_field_timestamp_v1(PSI_field *f, char *val, uint *len) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
 
   /* If NULL is provided */
   if (f_ptr->is_null()) {
@@ -1187,14 +1187,14 @@ void get_field_timestamp_v1(PSI_field *f, char *val, uint *len) {
     return;
   }
 
-  val = get_field_timestamp(f_ptr, val, len);
+  get_field_timestamp(f_ptr, val, len);
 }
 
 /**************************************
  * Type YEAR                          *
  **************************************/
 void set_field_year_v1(PSI_field *f, PSI_year value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (value.is_null) {
     f_ptr->set_null();
   } else {
@@ -1203,7 +1203,7 @@ void set_field_year_v1(PSI_field *f, PSI_year value) {
 }
 
 void get_field_year_v1(PSI_field *f, PSI_year *value) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   if (f_ptr->is_null()) {
     value->is_null = true;
     return;
@@ -1217,19 +1217,19 @@ void get_field_year_v1(PSI_field *f, PSI_year *value) {
  * NULL                               *
  **************************************/
 void set_field_null_v1(PSI_field *f) {
-  Field *f_ptr = reinterpret_cast<Field *>(f);
+  auto *f_ptr = reinterpret_cast<Field *>(f);
   f_ptr->set_null();
 }
 
 unsigned int get_parts_found_v1(PSI_key_reader *reader) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
+  auto *pfs_reader = (PFS_key_reader *)reader;
   return pfs_reader->m_parts_found;
 }
 
 void read_key_string_v1(PSI_key_reader *reader, PSI_plugin_key_string *key,
                         int find_flag) {
-  PFS_key_reader *pfs_reader = (PFS_key_reader *)reader;
-  enum ha_rkey_function e_find_flag = (enum ha_rkey_function)find_flag;
+  auto *pfs_reader = (PFS_key_reader *)reader;
+  const auto e_find_flag = (enum ha_rkey_function)find_flag;
 
   key->m_find_flags = PFS_key_pstring::stateless_read(
       *pfs_reader, e_find_flag, key->m_is_null, key->m_value_buffer,
@@ -1251,18 +1251,15 @@ void init_pfs_plugin_table() {
   /* Asserts that ERRORS defined in pfs_plugin_table_service.h are in
      accordance with ERRORS defined in my_base.h
   */
-  static_assert(
-      (PFS_HA_ERR_WRONG_COMMAND == HA_ERR_WRONG_COMMAND) &&
-          (PFS_HA_ERR_RECORD_DELETED == HA_ERR_RECORD_DELETED) &&
-          (PFS_HA_ERR_END_OF_FILE == HA_ERR_END_OF_FILE) &&
-          (PFS_HA_ERR_NO_REFERENCED_ROW == HA_ERR_NO_REFERENCED_ROW) &&
-          (PFS_HA_ERR_FOUND_DUPP_KEY == HA_ERR_FOUND_DUPP_KEY) &&
-          (PFS_HA_ERR_RECORD_FILE_FULL == HA_ERR_RECORD_FILE_FULL),
-      "");
+  static_assert((PFS_HA_ERR_WRONG_COMMAND == HA_ERR_WRONG_COMMAND) &&
+                (PFS_HA_ERR_RECORD_DELETED == HA_ERR_RECORD_DELETED) &&
+                (PFS_HA_ERR_END_OF_FILE == HA_ERR_END_OF_FILE) &&
+                (PFS_HA_ERR_NO_REFERENCED_ROW == HA_ERR_NO_REFERENCED_ROW) &&
+                (PFS_HA_ERR_FOUND_DUPP_KEY == HA_ERR_FOUND_DUPP_KEY) &&
+                (PFS_HA_ERR_RECORD_FILE_FULL == HA_ERR_RECORD_FILE_FULL));
 
   pfs_external_table_shares.init_mutex();
   plugin_table_service_initialized = true;
-  return;
 }
 
 void cleanup_pfs_plugin_table() {

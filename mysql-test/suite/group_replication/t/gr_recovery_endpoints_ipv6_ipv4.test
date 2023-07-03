@@ -121,7 +121,7 @@ START GROUP_REPLICATION;
 --let $assert_only_after = CURRENT_TEST: group_replication.gr_recovery_endpoints_ipv6_ipv4
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_count = 1
---let $assert_select = .*connected to master 'root@::1:$server1_port',replication started.*
+--let $assert_select = .*connected to source 'root@::1:$server1_port'.*
 --let $assert_text = recovery channel used recovery endpoints configuration
 --source include/assert_grep.inc
 

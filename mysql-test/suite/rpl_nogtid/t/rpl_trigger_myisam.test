@@ -10,8 +10,7 @@
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --connection slave
-call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.");
-call mtr.add_suppression("Either event.*is from an old master");
+call mtr.add_suppression("Either event.*is from an old source");
 call mtr.add_suppression("No definer attribute for trigger*");
 #
 # Since WL#7896 gets rid of SUID triggers it is necessary to suppress the following warning.
@@ -21,7 +20,7 @@ call mtr.add_suppression("No definer attribute for trigger*");
 # on the slave the error ER_TRG_NO_DEFINER is issued that causes the following warning
 # be emitted.
 #
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --connection master
 enable_query_log;
 

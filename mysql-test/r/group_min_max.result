@@ -1696,8 +1696,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a1` >= 'c') or (`test`.`t1`.`a2` < 'b')) and (`test`.`t1`.`b` > 'a')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain format=tree select a1,a2,b from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 EXPLAIN
--> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (cost=11.05 rows=17)
-    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.05 rows=17)
+-> Filter: (((t1.a1 >= 'c') or (t1.a2 < 'b')) and (t1.b > 'a'))  (cost=11.1 rows=17)
+    -> Covering index skip scan for deduplication on t1 using idx_t1_1  (cost=11.1 rows=17)
 
 explain select a1,a2,b from t1 where (a2 >= 'b') and (b = 'a') group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4444,7 +4444,7 @@ SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
 a	b
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
 EXPLAIN
--> Zero rows (Impossible WHERE noticed after reading const tables)  (cost=0.00..0.00 rows=0)
+-> Zero rows (Impossible WHERE noticed after reading const tables)  (cost=0..0 rows=0)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
@@ -4461,7 +4461,7 @@ a	b
 1	1
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE t1.a IN (SELECT MAX(t1.b) FROM t2);
 EXPLAIN
--> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+-> Rows fetched before execution  (cost=0..0 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
@@ -4478,10 +4478,10 @@ EXPLAIN
 -> Filter: <in_optimizer>(t1.a,<exists>(select #2))  (cost=2.73 rows=2)
     -> Table scan on t1  (cost=2.73 rows=2)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)  (cost=0.10..0.10 rows=1)
-            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.b)))  (cost=0.10..0.10 rows=1)
-                -> Aggregate: max(t1.b)  (cost=0.10..0.10 rows=1)
-                    -> Rows fetched before execution  (cost=0.00..0.00 rows=1)
+        -> Limit: 1 row(s)  (cost=0.1..0.1 rows=1)
+            -> Filter: (<cache>(t1.a) = <ref_null_helper>(max(t1.b)))  (cost=0.1..0.1 rows=1)
+                -> Aggregate: max(t1.b)  (cost=0.1..0.1 rows=1)
+                    -> Rows fetched before execution  (cost=0..0 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
@@ -4556,3 +4556,22 @@ MAX(f1)
 NULL
 DROP TABLE t1;
 DROP FUNCTION f;
+# Bug#34317267: Assertion `!table->file->inited' failed in Mysql 8.0.29.
+CREATE TABLE t1 (k INT, KEY(k)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+SELECT *
+FROM t1 AS ra0 LEFT JOIN t1 AS ra1
+ON ra0.k IN (SELECT MAX(ra0.k) FROM t1);
+k	k
+1	1
+SELECT *
+FROM t1 AS ra0 LEFT JOIN t1 AS ra1
+ON ra0.k IN (SELECT MIN(ra0.k) FROM t1);
+k	k
+1	1
+SELECT *
+FROM t1 AS ra0 LEFT JOIN t1 AS ra1
+ON ra0.k IN (SELECT COUNT(ra0.k) FROM t1);
+k	k
+1	1
+DROP TABLE t1;

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,11 @@
 IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
   STRING(REPLACE
     "-ftls-model=initial-exec" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+ENDIF()
+
+# Xcode >= 14 makes noise about sprintf, so silence:
+IF(APPLE)
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated-declarations")
 ENDIF()
 
 # Inhibit warning messages
@@ -78,6 +83,14 @@ IF(HAS_WARN_FLAG)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
+# memcpy accessing ... or more bytes at offsets ... may overlap
+MY_CHECK_CXX_COMPILER_WARNING("-Wrestrict" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
+MSVC_CPPCHECK_DISABLE()
+
 SET(protobuf_BUILD_TESTS OFF CACHE INTERNAL "")
 SET(protobuf_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 
@@ -87,10 +100,16 @@ SET(protobuf_BUILD_EXAMPLES OFF CACHE INTERNAL "")
 IF(SOLARIS)
   SET(protobuf_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
 ELSE()
-  SET(protobuf_BUILD_SHARED_LIBS ON CACHE INTERNAL "")
+  # With static C/C++ libraries, protoc with shared libs will segfault,
+  # so use static libs instead.
+  IF(CMAKE_CXX_FLAGS MATCHES "-static-libgcc")
+    SET(protobuf_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+  ELSE()
+    SET(protobuf_BUILD_SHARED_LIBS ON CACHE INTERNAL "")
+  ENDIF()
 ENDIF()
 
 SET(protobuf_MSVC_STATIC_RUNTIME OFF CACHE INTERNAL "")
 SET(protobuf_WITH_ZLIB ON CACHE INTERNAL "")
-SET(ZLIB_LIBRARIES ${ZLIB_LIBRARY})
+SET(ZLIB_LIBRARIES ext::zlib)
 ADD_SUBDIRECTORY(protobuf-3.19.4/cmake)

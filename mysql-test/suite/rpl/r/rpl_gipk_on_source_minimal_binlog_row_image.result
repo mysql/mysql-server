@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 
 ##################################################
@@ -46,10 +46,10 @@ include/rpl_reset_slave.inc
 RESET MASTER;
 include/start_slave.inc
 include/suppress_messages.inc
-# Connection 2 suppresses message <Slave SQL for channel .*: Worker .* failed executing transaction .* at master log master-bin.000001, end_log_pos .* Could not execute Update_rows event on table test>.
-# Connection 2 suppresses message <Slave SQL for channel .*: ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
-# Connection 2 suppresses message <Slave SQL for channel .*: Could not execute Update_rows event on table test.t1>.
-# Connection 2 suppresses message <Slave: Can.* find record in 't1'>.
+# Connection 2 suppresses message <Replica SQL for channel .*: Worker .* failed executing transaction .* at source log master-bin.000001, end_log_pos .* Could not execute Update_rows event on table test>.
+# Connection 2 suppresses message <Replica SQL for channel .*: ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.>.
+# Connection 2 suppresses message <Replica SQL for channel .*: Could not execute Update_rows event on table test.t1>.
+# Connection 2 suppresses message <Replica: Can.* find record in 't1'>.
 [connection master]
 DROP TABLE t1;
 include/rpl_end.inc

@@ -2,7 +2,7 @@ include/have_replication_observers_example_plugin.inc
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 
 ############################################################
@@ -14,7 +14,7 @@ SET SESSION sql_log_bin= 1;
 [connection slave]
 SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression("Table 't1' already exists");
-CALL mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log");
+CALL mtr.add_suppression("Got fatal error 1236 from source when reading data from binary log");
 SET SESSION sql_log_bin= 1;
 include/install_replication_observers_example.inc
 
@@ -30,7 +30,7 @@ INSERT INTO t1 VALUES (1);
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_MYPORT, SOURCE_USER='root', SOURCE_AUTO_POSITION=1 FOR CHANNEL 'example_channel';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 
 #######################
 # 4. SQL thread testing

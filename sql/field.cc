@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,6 @@
 #include "sql/mysqld.h"  // log_10
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
-#include "sql/rpl_replica.h"            // rpl_master_has_bug
 #include "sql/rpl_rli.h"                // Relay_log_info
 #include "sql/spatial.h"                // Geometry
 #include "sql/sql_class.h"              // THD
@@ -215,7 +214,7 @@ bool charset_prevents_inplace(const Field_str &from, const Create_field &to) {
       my_charset_same(to.charset, &my_charset_bin)) {
     return false;
   }
-  return (0 != strcmp(to.charset->csname, MY_UTF8MB4) ||
+  return (0 != strcmp(to.charset->csname, "utf8mb4") ||
           0 != strcmp(from.charset()->csname, "utf8mb3"));
 }
 
@@ -6307,24 +6306,9 @@ struct Check_field_param {
   const Field *field;
 };
 
-static bool check_field_for_37426(const void *param_arg) {
-  const Check_field_param *param =
-      static_cast<const Check_field_param *>(param_arg);
-  assert(param->field->real_type() == MYSQL_TYPE_STRING);
-  DBUG_PRINT("debug",
-             ("Field %s - type: %d, size: %d", param->field->field_name,
-              param->field->real_type(), param->field->row_pack_length()));
-  return param->field->row_pack_length() > 255;
-}
-
 bool Field_string::compatible_field_size(uint field_metadata,
                                          Relay_log_info *rli_arg, uint16 mflags,
                                          int *order_var) const {
-  const Check_field_param check_param = {this};
-  if (!is_mts_worker(rli_arg->info_thd) &&
-      rpl_master_has_bug(rli_arg, 37426, true, check_field_for_37426,
-                         &check_param))
-    return false;  // Not compatible field sizes
   return Field::compatible_field_size(field_metadata, rli_arg, mflags,
                                       order_var);
 }

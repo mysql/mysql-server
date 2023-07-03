@@ -24,7 +24,7 @@
 
 --source include/sync_slave_sql_with_master.inc
 call mtr.add_suppression(".*Found table map event mapping table id 0 which was already mapped but with different settings.*");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 # stop the slave and inject corruption
 --source include/stop_slave.inc
@@ -37,7 +37,7 @@ SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
 --eval UPDATE $t1, $t2 SET $t1.c1=3, $t2.c1=4 WHERE $t1.c1=1 OR $t2.c1=2
 --connection slave
 
-# wait for error 13117 (ER_SLAVE_FATAL_ERROR)
+# wait for error 13117 (ER_REPLICA_FATAL_ERROR)
 --let $slave_sql_errno=13117
 --source include/wait_for_slave_sql_error.inc
 --source include/stop_slave_io.inc

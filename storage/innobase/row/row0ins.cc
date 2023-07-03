@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2427,9 +2427,10 @@ dberr_t row_ins_clust_index_entry_low(uint32_t flags, ulint mode,
 
   /* Write logs for AUTOINC right after index lock has been got and
   before any further resource acquisitions to prevent deadlock.
-  No need to log for temporary tables and intermediate tables */
-  if (!index->table->is_temporary() && !index->table->skip_alter_undo &&
+  No need to log for temporary tables */
+  if (!index->table->is_temporary() &&
       dict_table_has_autoinc_col(index->table)) {
+    ut_ad(!index->table->is_intrinsic());
     uint64_t counter =
         row_get_autoinc_counter(entry, index->table->autoinc_field_no);
 
@@ -2439,6 +2440,9 @@ dberr_t row_ins_clust_index_entry_low(uint32_t flags, ulint mode,
       persist_autoinc = dict_table_autoinc_log(index->table, counter, &mtr);
     }
   }
+
+  DBUG_EXECUTE_IF("crash_create_after_autoinc_persisted_update",
+                  DBUG_SUICIDE(););
 
   /* Allowing duplicates in clustered index is currently enabled
   only for intrinsic table and caller understand the limited

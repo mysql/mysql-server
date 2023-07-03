@@ -25,3 +25,30 @@ WHERE (alias1.col_varchar_255_key IN (SELECT 'f' UNION ALL SELECT 'r'))
 GROUP BY field1;
 field1
 DROP TABLE t1;
+#
+# Bug#34854369: Customer query hits assert(m_pq.is_valid()) failure
+#
+CREATE TABLE t (x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (), (), (), ();
+ALTER TABLE t SECONDARY_LOAD;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=TREE SELECT * FROM t UNION ALL SELECT * FROM t;
+EXPLAIN
+-> Append  (rows=8)
+    -> Stream results  (rows=4)
+        -> Table scan on t in secondary engine MOCK  (rows=4)
+    -> Stream results  (rows=4)
+        -> Table scan on t in secondary engine MOCK  (rows=4)
+
+Warnings:
+Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
+SET optimizer_max_subgraph_pairs = 1;
+WITH u AS (SELECT * FROM t UNION ALL SELECT * FROM t)
+SELECT * FROM t AS t1 NATURAL JOIN t AS t2 NATURAL JOIN
+u AS u1 NATURAL JOIN u AS u2 NATURAL JOIN
+u AS u3 NATURAL JOIN u AS u4;
+x
+SET optimizer_max_subgraph_pairs = DEFAULT;
+DROP TABLE t;

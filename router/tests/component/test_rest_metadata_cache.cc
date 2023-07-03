@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -383,9 +383,12 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
           // name of the cluster in the mock's metadata
           {"metadata_cluster", "test"},
           {"ttl", "0.1"},
-          {"bootstrap_server_addresses",
-           "mysql://127.0.0.1:" + std::to_string(metadata_server_port_)},
       }));
+
+  const std::string state_file = create_state_file(
+      get_test_temp_dir_name(),
+      create_state_file_content("uuid", "", {metadata_server_port_}, 0));
+  default_section_["dynamic_state"] = state_file;
 
   std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, ""),
@@ -563,13 +566,13 @@ static const RestApiTestParams rest_api_valid_methods[]{
           [](const JsonValue *value) -> void {
             ASSERT_NE(value, nullptr);
             ASSERT_TRUE(value->IsString());
-            ASSERT_STREQ(value->GetString(), "test");
+            ASSERT_STREQ(value->GetString(), "");
           }},
          {"/groupReplicationId",
           [](const JsonValue *value) -> void {
             ASSERT_NE(value, nullptr);
             ASSERT_TRUE(value->IsString());
-            ASSERT_STREQ(value->GetString(), "");
+            ASSERT_STREQ(value->GetString(), "uuid");
           }},
          {"/timeRefreshInMs",
           [](const JsonValue *value) -> void {

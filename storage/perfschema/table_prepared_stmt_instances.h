@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -176,7 +176,7 @@ class PFS_index_prepared_stmt_instances_by_owner_object
 
   ~PFS_index_prepared_stmt_instances_by_owner_object() override = default;
 
-  bool match(const PFS_prepared_stmt *table) override;
+  bool match(const PFS_prepared_stmt *pfs) override;
 
  private:
   PFS_key_object_type_enum m_key_1;
@@ -193,7 +193,7 @@ class table_prepared_stmt_instances : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_next() override;
   int rnd_pos(const void *pos) override;

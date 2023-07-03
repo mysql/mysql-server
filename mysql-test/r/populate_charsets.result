@@ -19,6 +19,7 @@ utf8_phone_ci	utf8mb3	352			8	PAD SPACE
 CREATE TABLE t1 (pk INTEGER) COLLATE utf8_phone_ci;
 Warnings:
 Warning	3778	'utf8_phone_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	4162	'utf8_phone_ci' is a user defined collation. User defined collations are deprecated and will be removed in a future release. Consider using a compiled collation instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

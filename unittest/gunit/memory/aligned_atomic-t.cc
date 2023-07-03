@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,9 @@
 #include <chrono>
 #include <vector>
 
+#define private public
 #include "sql/memory/aligned_atomic.h"
+#undef private
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -55,6 +57,38 @@ TEST_F(Aligned_atomic_test, Class_template_test) {
   memory::Aligned_atomic<int> atm3;
   atm3 = std::move(atm2);
   EXPECT_EQ(atm3->load(), 2);
+}
+
+TEST_F(Aligned_atomic_test, minimum_cacheline_for) {
+  EXPECT_EQ(memory::minimum_cacheline_for<char>(), memory::cache_line_size());
+  EXPECT_EQ(memory::minimum_cacheline_for<int>(), memory::cache_line_size());
+  EXPECT_EQ(memory::minimum_cacheline_for<std::atomic<bool>>(),
+            memory::cache_line_size());
+  EXPECT_EQ(memory::minimum_cacheline_for<std::atomic<int>>(),
+            memory::cache_line_size());
+}
+
+TEST_F(Aligned_atomic_test, aligned_allocation) {
+  memory::Aligned_atomic<int> atm1{1};
+  EXPECT_EQ((unsigned long long)atm1.m_underlying % memory::cache_line_size(),
+            0);
+
+  memory::Aligned_atomic<bool> atm2{true};
+  EXPECT_EQ((unsigned long long)atm2.m_underlying % memory::cache_line_size(),
+            0);
+
+  memory::Aligned_atomic<short> atm3{0};
+  EXPECT_EQ((unsigned long long)atm3.m_underlying % memory::cache_line_size(),
+            0);
+}
+
+TEST_F(Aligned_atomic_test, aligned_allocation_array) {
+  static const int array_size = 10;
+  memory::Aligned_atomic<int> atm[array_size];
+
+  for (int i = 0; i < array_size; i++)
+    EXPECT_EQ(
+        (unsigned long long)atm[i].m_underlying % memory::cache_line_size(), 0);
 }
 
 }  // namespace unittests

@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,13 +180,20 @@ Item *CommonSubexpressionElimination(Item *cond) {
     return cond;
   }
 
+  Item_cond_or *or_item = down_cast<Item_cond_or *>(cond);
+  if (or_item->argument_list()->is_empty()) {
+    // An OR with no elements is a false condition. (Such items can be found
+    // when remove_eq_conds() has removed all always false legs of the OR
+    // condition.)
+    return new Item_func_false;
+  }
+
   // Find all items in the first AND of the OR group (or first Item,
   // if it's not an AND conjunction). For each of them, we check
   // if they exist in all the other ANDs as well.
   //
   // NOTE: AlwaysPresent() is doing a little bit of wasted work here,
   // since it doesn't skip the first group.
-  Item_cond_or *or_item = down_cast<Item_cond_or *>(cond);
   List<Item> common_items;
   Item *first_group = or_item->argument_list()->head();
   if (IsAnd(first_group)) {

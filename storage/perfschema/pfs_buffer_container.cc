@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -100,15 +100,15 @@ PFS_prepared_stmt_container global_prepared_stmt_container(
 
 int PFS_account_allocator::alloc_array(PFS_account_array *array) {
   PFS_account *pfs;
-  size_t size = array->m_max;
+  const size_t size = array->m_max;
   size_t index;
-  size_t waits_sizing = size * wait_class_max;
-  size_t stages_sizing = size * stage_class_max;
-  size_t statements_sizing = size * statement_class_max;
-  size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing =
+  const size_t waits_sizing = size * wait_class_max;
+  const size_t stages_sizing = size * stage_class_max;
+  const size_t statements_sizing = size * statement_class_max;
+  const size_t transactions_sizing = size * transaction_class_max;
+  const size_t errors_sizing =
       (max_session_server_errors != 0) ? size * error_class_max : 0;
-  size_t memory_sizing = size * memory_class_max;
+  const size_t memory_sizing = size * memory_class_max;
 
   array->m_ptr = nullptr;
   array->m_full = true;
@@ -233,14 +233,14 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array) {
 
 void PFS_account_allocator::free_array(PFS_account_array *array) {
   size_t index;
-  size_t size = array->m_max;
-  size_t waits_sizing = size * wait_class_max;
-  size_t stages_sizing = size * stage_class_max;
-  size_t statements_sizing = size * statement_class_max;
-  size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing =
+  const size_t size = array->m_max;
+  const size_t waits_sizing = size * wait_class_max;
+  const size_t stages_sizing = size * stage_class_max;
+  const size_t statements_sizing = size * statement_class_max;
+  const size_t transactions_sizing = size * transaction_class_max;
+  const size_t errors_sizing =
       (max_session_server_errors != 0) ? size * error_class_max : 0;
-  size_t memory_sizing = size * memory_class_max;
+  const size_t memory_sizing = size * memory_class_max;
 
   PFS_FREE_ARRAY(&builtin_memory_account, size, sizeof(PFS_account),
                  array->m_ptr);
@@ -282,16 +282,16 @@ PFS_account_allocator account_allocator;
 PFS_account_container global_account_container(&account_allocator);
 
 int PFS_host_allocator::alloc_array(PFS_host_array *array) {
-  size_t size = array->m_max;
+  const size_t size = array->m_max;
   PFS_host *pfs;
   size_t index;
-  size_t waits_sizing = size * wait_class_max;
-  size_t stages_sizing = size * stage_class_max;
-  size_t statements_sizing = size * statement_class_max;
-  size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing =
+  const size_t waits_sizing = size * wait_class_max;
+  const size_t stages_sizing = size * stage_class_max;
+  const size_t statements_sizing = size * statement_class_max;
+  const size_t transactions_sizing = size * transaction_class_max;
+  const size_t errors_sizing =
       (max_session_server_errors != 0) ? size * error_class_max : 0;
-  size_t memory_sizing = size * memory_class_max;
+  const size_t memory_sizing = size * memory_class_max;
 
   array->m_ptr = nullptr;
   array->m_full = true;
@@ -416,14 +416,14 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array) {
 
 void PFS_host_allocator::free_array(PFS_host_array *array) {
   size_t index;
-  size_t size = array->m_max;
-  size_t waits_sizing = size * wait_class_max;
-  size_t stages_sizing = size * stage_class_max;
-  size_t statements_sizing = size * statement_class_max;
-  size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing =
+  const size_t size = array->m_max;
+  const size_t waits_sizing = size * wait_class_max;
+  const size_t stages_sizing = size * stage_class_max;
+  const size_t statements_sizing = size * statement_class_max;
+  const size_t transactions_sizing = size * transaction_class_max;
+  const size_t errors_sizing =
       (max_session_server_errors != 0) ? size * error_class_max : 0;
-  size_t memory_sizing = size * memory_class_max;
+  const size_t memory_sizing = size * memory_class_max;
 
   PFS_FREE_ARRAY(&builtin_memory_host, size, sizeof(PFS_host), array->m_ptr);
   array->m_ptr = nullptr;
@@ -464,36 +464,37 @@ PFS_host_allocator host_allocator;
 PFS_host_container global_host_container(&host_allocator);
 
 int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
-  size_t size = array->m_max;
+  const size_t size = array->m_max;
   PFS_thread *pfs;
   PFS_events_statements *pfs_stmt;
   unsigned char *pfs_tokens;
 
   size_t index;
-  size_t waits_sizing = size * wait_class_max;
-  size_t stages_sizing = size * stage_class_max;
-  size_t statements_sizing = size * statement_class_max;
-  size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing =
+  const size_t waits_sizing = size * wait_class_max;
+  const size_t stages_sizing = size * stage_class_max;
+  const size_t statements_sizing = size * statement_class_max;
+  const size_t transactions_sizing = size * transaction_class_max;
+  const size_t errors_sizing =
       (max_session_server_errors != 0) ? size * error_class_max : 0;
-  size_t memory_sizing = size * memory_class_max;
+  const size_t memory_sizing = size * memory_class_max;
 
-  size_t waits_history_sizing = size * events_waits_history_per_thread;
-  size_t stages_history_sizing = size * events_stages_history_per_thread;
-  size_t statements_history_sizing =
+  const size_t waits_history_sizing = size * events_waits_history_per_thread;
+  const size_t stages_history_sizing = size * events_stages_history_per_thread;
+  const size_t statements_history_sizing =
       size * events_statements_history_per_thread;
-  size_t statements_stack_sizing = size * statement_stack_max;
-  size_t transactions_history_sizing =
+  const size_t statements_stack_sizing = size * statement_stack_max;
+  const size_t transactions_history_sizing =
       size * events_transactions_history_per_thread;
-  size_t session_connect_attrs_sizing =
+  const size_t session_connect_attrs_sizing =
       size * session_connect_attrs_size_per_thread;
 
-  size_t current_sqltext_sizing = size * pfs_max_sqltext * statement_stack_max;
-  size_t history_sqltext_sizing =
+  const size_t current_sqltext_sizing =
+      size * pfs_max_sqltext * statement_stack_max;
+  const size_t history_sqltext_sizing =
       size * pfs_max_sqltext * events_statements_history_per_thread;
-  size_t current_digest_tokens_sizing =
+  const size_t current_digest_tokens_sizing =
       size * pfs_max_digest_length * statement_stack_max;
-  size_t history_digest_tokens_sizing =
+  const size_t history_digest_tokens_sizing =
       size * pfs_max_digest_length * events_statements_history_per_thread;
 
   array->m_ptr = nullptr;
@@ -763,31 +764,32 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
 
 void PFS_thread_allocator::free_array(PFS_thread_array *array) {
   size_t index;
-  size_t size = array->m_max;
-  size_t waits_sizing = size * wait_class_max;
-  size_t stages_sizing = size * stage_class_max;
-  size_t statements_sizing = size * statement_class_max;
-  size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing =
+  const size_t size = array->m_max;
+  const size_t waits_sizing = size * wait_class_max;
+  const size_t stages_sizing = size * stage_class_max;
+  const size_t statements_sizing = size * statement_class_max;
+  const size_t transactions_sizing = size * transaction_class_max;
+  const size_t errors_sizing =
       (max_session_server_errors != 0) ? size * error_class_max : 0;
-  size_t memory_sizing = size * memory_class_max;
+  const size_t memory_sizing = size * memory_class_max;
 
-  size_t waits_history_sizing = size * events_waits_history_per_thread;
-  size_t stages_history_sizing = size * events_stages_history_per_thread;
-  size_t statements_history_sizing =
+  const size_t waits_history_sizing = size * events_waits_history_per_thread;
+  const size_t stages_history_sizing = size * events_stages_history_per_thread;
+  const size_t statements_history_sizing =
       size * events_statements_history_per_thread;
-  size_t statements_stack_sizing = size * statement_stack_max;
-  size_t transactions_history_sizing =
+  const size_t statements_stack_sizing = size * statement_stack_max;
+  const size_t transactions_history_sizing =
       size * events_transactions_history_per_thread;
-  size_t session_connect_attrs_sizing =
+  const size_t session_connect_attrs_sizing =
       size * session_connect_attrs_size_per_thread;
 
-  size_t current_sqltext_sizing = size * pfs_max_sqltext * statement_stack_max;
-  size_t history_sqltext_sizing =
+  const size_t current_sqltext_sizing =
+      size * pfs_max_sqltext * statement_stack_max;
+  const size_t history_sqltext_sizing =
       size * pfs_max_sqltext * events_statements_history_per_thread;
-  size_t current_digest_tokens_sizing =
+  const size_t current_digest_tokens_sizing =
       size * pfs_max_digest_length * statement_stack_max;
-  size_t history_digest_tokens_sizing =
+  const size_t history_digest_tokens_sizing =
       size * pfs_max_digest_length * events_statements_history_per_thread;
 
   PFS_FREE_ARRAY(&builtin_memory_thread, size, sizeof(PFS_thread),
@@ -875,16 +877,16 @@ PFS_thread_allocator thread_allocator;
 PFS_thread_container global_thread_container(&thread_allocator);
 
 int PFS_user_allocator::alloc_array(PFS_user_array *array) {
-  size_t size = array->m_max;
+  const size_t size = array->m_max;
   PFS_user *pfs;
   size_t index;
-  size_t waits_sizing = size * wait_class_max;
-  size_t stages_sizing = size * stage_class_max;
-  size_t statements_sizing = size * statement_class_max;
-  size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing =
+  const size_t waits_sizing = size * wait_class_max;
+  const size_t stages_sizing = size * stage_class_max;
+  const size_t statements_sizing = size * statement_class_max;
+  const size_t transactions_sizing = size * transaction_class_max;
+  const size_t errors_sizing =
       (max_session_server_errors != 0) ? size * error_class_max : 0;
-  size_t memory_sizing = size * memory_class_max;
+  const size_t memory_sizing = size * memory_class_max;
 
   array->m_ptr = nullptr;
   array->m_full = true;
@@ -1009,14 +1011,14 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array) {
 
 void PFS_user_allocator::free_array(PFS_user_array *array) {
   size_t index;
-  size_t size = array->m_max;
-  size_t waits_sizing = size * wait_class_max;
-  size_t stages_sizing = size * stage_class_max;
-  size_t statements_sizing = size * statement_class_max;
-  size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing =
+  const size_t size = array->m_max;
+  const size_t waits_sizing = size * wait_class_max;
+  const size_t stages_sizing = size * stage_class_max;
+  const size_t statements_sizing = size * statement_class_max;
+  const size_t transactions_sizing = size * transaction_class_max;
+  const size_t errors_sizing =
       (max_session_server_errors != 0) ? size * error_class_max : 0;
-  size_t memory_sizing = size * memory_class_max;
+  const size_t memory_sizing = size * memory_class_max;
 
   PFS_FREE_ARRAY(&builtin_memory_user, size, sizeof(PFS_user), array->m_ptr);
   array->m_ptr = nullptr;

@@ -715,6 +715,21 @@ eval EXPLAIN $query;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#34973220 Correlated scalar subquery transf. to derived table: wrong
+--echo #              result dup predicate
+--echo #
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES(1), (2), (3), (4);
+INSERT INTO t2 VALUES(1), (2);
+ANALYZE TABLE t1, t2;
+
+SELECT * FROM t1 WHERE (SELECT t2.a FROM t2 WHERE t2.a = t1.a AND t2.a = t1.a);
+
+DROP TABLE t1, t2;
+
 SET optimizer_switch = 'subquery_to_derived=default';
 # Local Variables:
 # mode: sql

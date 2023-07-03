@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #include "sql/join_optimizer/explain_access_path.h"
 
 #include <functional>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -1889,6 +1890,123 @@ void Explain_format_tree::ExplainPrintTreeNode(const Json_dom *json, int level,
   *explain += children_explain;
 }
 
+namespace {
+
+/// The maximal number of digits we use in decimal numbers (e.g. "123456" or
+/// "0.00123").
+constexpr int kPlainNumberLength = 6;
+
+/// The maximal number of digits in engineering format mantissas, e.g.
+/// "12.3e+6".
+constexpr int kMantissaLength = 3;
+
+/// The  smallest number (absolute value) that we do not format as "0".
+constexpr double kMinNonZeroNumber = 1.0e-12;
+
+/// For decimal numbers, include enough decimals to ensure that any rounding
+/// error is less than `<number>*10^kLogPrecision` (i.e. less than 1%).
+constexpr int kLogPrecision = -2;
+
+/// The smallest number (absolute value) that we format as decimal (rather than
+/// engineering format).
+const double kMinPlainFormatNumber =
+    std::pow(10, 1 - kPlainNumberLength - kLogPrecision);
+
+/// Find the number of integer digits (i.e. those before the decimal point) in
+/// 'd' when represented as a decimal number.
+int IntegerDigits(double d) {
+  return d == 0.0 ? 1
+                  : std::max(1, 1 + static_cast<int>(
+                                        std::floor(std::log10(std::abs(d)))));
+}
+
+/**
+   Format 'd' as a decimal number with enough decimals to get a rounding error
+   less than d*10^log_precision, without any trailing fractional zeros.
+*/
+std::string DecimalFormat(double d, int log_precision) {
+  assert(d != 0.0);
+  constexpr int max_digits = 18;
+  assert(IntegerDigits(d + 0.5) <= max_digits);
+
+  // The position of the first nonzero digit, relative to the decimal point.
+  const int first_nonzero_digit_pos =
+      static_cast<int>(std::floor(std::log10(std::abs(d))));
+
+  // The number of decimals needed for the required precision.
+  const int decimals = std::max(0, -log_precision - first_nonzero_digit_pos);
+
+  // Add space for sign, decimal point and zero termination.
+  char buff[max_digits + 3];
+  // NOTE: We cannot use %f, since MSVC and GCC round 0.5 in different
+  // directions, so tests would not be reproducible between platforms.
+  // Format/round using my_fcvt() instead.
+  my_fcvt(d, decimals, buff, nullptr);
+  if (strchr(buff, '.') == nullptr) {
+    return buff;
+  } else {
+    // Remove trailing fractional zeros.
+    return std::regex_replace(buff, std::regex("[.]?0+$"), "");
+  }
+}
+
+/**
+   Format 'd' in engineering format, i.e. `<mantissa>e<sign><exponent>`
+   where 1.0<=mantissa<1000.0 and exponent is a multiple of 3.
+*/
+std::string EngineeringFormat(double d) {
+  assert(d != 0.0);
+  int exp = std::floor(std::log10(std::abs(d)) / 3.0) * 3;
+  double mantissa = d / std::pow(10.0, exp);
+  std::ostringstream stream;
+
+  if (mantissa + 0.5 * std::pow(10, 3 - kMantissaLength) < 1000.0) {
+    stream << DecimalFormat(mantissa, 1 - kMantissaLength) << "e"
+           << std::showpos << exp;
+  } else {
+    // Cover the case where the mantissa will be rounded up to give an extra
+    // digit. For example, if d=999500000 and kMantissaLength=3, we want it to
+    // be formatted as "1e+9" rather than "1000e+6".
+    stream << DecimalFormat(mantissa / 1000.0, 1 - kMantissaLength) << "e"
+           << std::showpos << exp + 3;
+  }
+  return stream.str();
+}
+
+/// Format 'd' for "EXPLAIN FORMAT=TREE" output.
+std::string NumFormat(double d) {
+  if (std::abs(d) < kMinNonZeroNumber) {
+    return "0";
+  } else if (std::abs(d) < kMinPlainFormatNumber ||
+             IntegerDigits(d + 0.5) > kPlainNumberLength) {
+    return EngineeringFormat(d);
+  } else {
+    return DecimalFormat(d, kLogPrecision);
+  }
+}
+
+/// Integer exponentiation.
+uint64_t constexpr Power(uint64_t base, int power) {
+  assert(power >= 0);
+  uint64_t result = 1;
+  for (int i = 0; i < power; i++) {
+    result *= base;
+  }
+  return result;
+}
+
+/// Format 'l' for "EXPLAIN FORM=TREE" output.
+std::string NumFormat(uint64_t l) {
+  constexpr uint64_t limit = Power(10, kPlainNumberLength);
+  if (l >= limit) {
+    return EngineeringFormat(l);
+  } else {
+    return std::to_string(l);
+  }
+}
+
+}  // Anonymous namespace.
+
 void Explain_format_tree::ExplainPrintCosts(const Json_object *obj,
                                             string *explain) {
   bool has_first_cost = obj->get("estimated_first_row_cost") != nullptr;
@@ -1898,37 +2016,18 @@ void Explain_format_tree::ExplainPrintCosts(const Json_object *obj,
     double last_cost = GetJSONDouble(obj, "estimated_total_cost");
     assert(obj->get("estimated_rows") != nullptr);
     double rows = GetJSONDouble(obj, "estimated_rows");
+    std::ostringstream stream;
 
-    // NOTE: We cannot use %f, since MSVC and GCC round 0.5 in different
-    // directions, so tests would not be reproducible between platforms.
-    // Format/round using my_gcvt() and llrint() instead.
-    char cost_as_string[FLOATING_POINT_BUFFER];
-    my_fcvt(last_cost, 2, cost_as_string, /*error=*/nullptr);
-
-    // Nominally, we only write number of rows as an integer.
-    // However, if that should end up in zero, it's hard to know
-    // whether that was 0.49 or 0.00001, so we add enough precision
-    // to get one leading digit in that case.
-    char rows_as_string[32];
-    if (llrint(rows) == 0 && rows >= 1e-9) {
-      snprintf(rows_as_string, sizeof(rows_as_string), "%.1g", rows);
-    } else {
-      snprintf(rows_as_string, sizeof(rows_as_string), "%lld", llrint(rows));
-    }
-
-    char str[1024];
     if (has_first_cost) {
       double first_row_cost = GetJSONDouble(obj, "estimated_first_row_cost");
-      char first_row_cost_as_string[FLOATING_POINT_BUFFER];
-      my_fcvt(first_row_cost, 2, first_row_cost_as_string, /*error=*/nullptr);
-      snprintf(str, sizeof(str), "  (cost=%s..%s rows=%s)",
-               first_row_cost_as_string, cost_as_string, rows_as_string);
+      stream << "  (cost=" << NumFormat(first_row_cost) << ".."
+             << NumFormat(last_cost) << " rows=" << NumFormat(rows) << ")";
     } else {
-      snprintf(str, sizeof(str), "  (cost=%s rows=%s)", cost_as_string,
-               rows_as_string);
+      stream << "  (cost=" << NumFormat(last_cost)
+             << " rows=" << NumFormat(rows) << ")";
     }
 
-    *explain += str;
+    *explain += stream.str();
   }
 
   /* Show actual figures if timing info is present */
@@ -1947,12 +2046,14 @@ void Explain_format_tree::ExplainPrintCosts(const Json_object *obj,
       double actual_rows = GetJSONDouble(obj, "actual_rows");
       uint64_t actual_loops =
           down_cast<Json_int *>(obj->get("actual_loops"))->value();
-      char str[1024];
-      snprintf(str, sizeof(str),
-               "(actual time=%.3f..%.3f rows=%lld loops=%" PRIu64 ")",
-               actual_first_row_ms, actual_last_row_ms,
-               llrintf(static_cast<double>(actual_rows)), actual_loops);
-      *explain += str;
+
+      std::ostringstream stream;
+      stream << "(actual time=" << NumFormat(actual_first_row_ms) << ".."
+             << NumFormat(actual_last_row_ms)
+             << " rows=" << NumFormat(actual_rows)
+             << " loops=" << NumFormat(actual_loops) << ")";
+
+      *explain += stream.str();
     }
   }
   *explain += "\n";

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -586,13 +586,17 @@ typedef void (*notify_session_connect_v1_t)(PSI_thread *thread);
 typedef void (*notify_session_disconnect_v1_t)(PSI_thread *thread);
 
 /**
-  Invoke the callback function registered for a changer user event.
+  Invoke the callback function registered for a change user event.
 
   @param thread the thread instrumentation
 */
 typedef void (*notify_session_change_user_v1_t)(PSI_thread *thread);
 
 typedef struct PSI_thread_info_v5 PSI_thread_info;
+
+typedef void (*thread_detect_telemetry_v7_t)(PSI_thread *thread);
+
+typedef void (*thread_abort_telemetry_v7_t)(PSI_thread *thread);
 
 /** @} (end of group psi_abi_thread) */
 

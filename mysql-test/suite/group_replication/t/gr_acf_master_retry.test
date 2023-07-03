@@ -129,7 +129,12 @@ let $field= Last_IO_Errno;
 let $condition= = '1045';
 --source include/wait_show_condition.inc
 
---let $wait_condition= SELECT COUNT(*)>1 FROM performance_schema.error_log WHERE error_code='MY-010584' AND data LIKE "Slave I/O for channel 'ch1_3': error connecting to master 'rpl_user@127.0.0.1:%' - retry-time: 1 retries: 2 message: Access denied for user 'rpl_user'@'localhost'%"
+--let $wait_condition= SELECT COUNT(*)>1 FROM performance_schema.error_log WHERE error_code='MY-010584' AND data LIKE "Replica I/O for channel 'ch1_3': Error connecting to source 'rpl_user@127.0.0.1:%'. This was attempt 2/%, with a delay of 1 seconds between attempts. Message: Access denied for user 'rpl_user'@'localhost'%"
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-013679' AND data LIKE "The Monitor IO thread failed to connect to the source % for channel 'ch1_3', thence it will try to connect to another source."
+--source include/wait_condition.inc
+
 --source include/wait_condition.inc
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.error_log WHERE error_code='MY-013679' AND data LIKE "The Monitor IO thread failed to connect to the source % for channel 'ch1_3', thence it will try to connect to another source."

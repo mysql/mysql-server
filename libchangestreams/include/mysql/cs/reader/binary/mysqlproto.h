@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ class Mysql_protocol : public cs::reader::Reader {
    *
    * @returns true if the disconnection hit a problem, false otherwise.
    */
-  virtual bool close() override;
+  bool close() override;
 
   /**
    * @brief This member function attaches this connector to the stream.
@@ -112,7 +112,7 @@ class Mysql_protocol : public cs::reader::Reader {
    *
    * @returns true if there is a failure, false otherwise.
    */
-  virtual bool open(std::shared_ptr<State> state) override;
+  bool open(std::shared_ptr<State> state) override;
 
   /**
    * @brief Gets the next entry in the stream and puts it in the buffer.
@@ -122,7 +122,7 @@ class Mysql_protocol : public cs::reader::Reader {
    * @returns true if there was an error while reading from the stream, false
    * otherwise.
    */
-  virtual bool read(std::vector<uint8_t> &buffer) override;
+  bool read(std::vector<uint8_t> &buffer) override;
 
   /**
    * @brief Get the state object.
@@ -135,7 +135,7 @@ class Mysql_protocol : public cs::reader::Reader {
    * @return the state of the stream at this point in time. Returns nullptr if
    * the stream has not been opened yet.
    */
-  virtual std::shared_ptr<State> get_state() const override;
+  std::shared_ptr<State> get_state() const override;
 
   /**
    * @brief Get the mysql connection handle.

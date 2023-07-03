@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <vector>
 
 #include "lex_string.h"
@@ -702,6 +703,36 @@ class Relay_log_info : public Rpl_info {
   ulonglong event_relay_log_pos;
   ulonglong future_event_relay_log_pos;
 
+ public:
+  /**
+     Process an event and based on its type () set group beginning and end
+     @param ev - event within a group (including first and last)
+   */
+  void set_group_source_log_start_end_pos(const Log_event *ev);
+  /**
+     Get event group positions in source binary log on a replica which is
+     processed by a worker in MTA or coordinator in STA.
+     @return source event group start and end position in binary log
+   */
+  std::tuple<ulonglong, ulonglong> get_group_source_log_start_end_pos() const;
+
+ private:
+  /**
+   * Event group beginning event has been seen. Event group may begin with two
+   * events marked as beginning.
+   * @see set_group_source_log_start_end_pos
+   */
+  bool group_source_log_seen_start_pos;
+  /**
+   * @see set_group_source_log_start_end_pos, get_group_source_log_start_end_pos
+   */
+  ulonglong group_source_log_start_pos;
+  /**
+   * @see set_group_source_log_start_end_pos, get_group_source_log_start_end_pos
+   */
+  ulonglong group_source_log_end_pos;
+
+ protected:
   /* current event's start position in relay log */
   my_off_t event_start_pos;
   /*

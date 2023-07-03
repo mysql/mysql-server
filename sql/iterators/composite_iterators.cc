@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -192,6 +192,17 @@ bool AggregateIterator::Init() {
   m_current_rollup_position = -1;
   SetRollupLevel(INT_MAX);
 
+  // If the iterator has been executed before, restore the state of
+  // the table buffers. This is needed for correctness if there is an
+  // EQRefIterator below this iterator, as the restoring of the
+  // previous group in Read() may have disturbed the cache in
+  // EQRefIterator.
+  if (!m_first_row_next_group.is_empty()) {
+    LoadIntoTableBuffers(
+        m_tables, pointer_cast<const uchar *>(m_first_row_next_group.ptr()));
+    m_first_row_next_group.length(0);
+  }
+
   if (m_source->Init()) {
     return true;
   }
@@ -253,15 +264,8 @@ int AggregateIterator::Read() {
             Calculate a set of tables for which NULL values need to
             be restored after sending data.
           */
-          if (thd()->lex->using_hypergraph_optimizer) {
-            // JOIN::clear_fields() depends on QEP_TABs, which we don't have.
-            // However, there are no const tables to worry about in the
-            // hypergraph optimizer, so we don't need its special logic either.
-            m_source->SetNullRowFlag(true);
-          } else {
-            if (m_join->clear_fields(&m_save_nullinfo)) {
-              return 1;
-            }
+          if (m_join->clear_fields(&m_save_nullinfo)) {
+            return 1;
           }
           for (Item_sum **item = m_join->sum_funcs; *item != nullptr; ++item) {
             (*item)->clear();
@@ -311,6 +315,11 @@ int AggregateIterator::Read() {
 
         if (err == -1) {
           m_seen_eof = true;
+
+          // We need to be able to restore the table buffers in Init()
+          // if the iterator is reexecuted (can happen if it's inside
+          // a correlated subquery).
+          StoreFromTableBuffers(m_tables, &m_first_row_next_group);
 
           // End of input rows; return the last group. (One would think this
           // LoadIntoTableBuffers() call is unneeded, since the last row read
@@ -416,10 +425,7 @@ int AggregateIterator::Read() {
       return 0;
 
     case DONE_OUTPUTTING_ROWS:
-      if (thd()->lex->using_hypergraph_optimizer) {
-        // See the call to clear_fields().
-        m_source->SetNullRowFlag(false);
-      } else if (m_save_nullinfo != 0) {
+      if (m_save_nullinfo != 0) {
         m_join->restore_fields(m_save_nullinfo);
         m_save_nullinfo = 0;
       }

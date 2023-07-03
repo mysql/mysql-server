@@ -1,7 +1,7 @@
 include/group_replication.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 #Test a reset command before start.
 RESET MASTER;
@@ -38,7 +38,7 @@ include/assert.inc [On member 2, the table should exist and have 5 elements]
 include/assert.inc [On member 1, the table should exist and have 5 elements]
 # Run RESET MASTER while Group Replication is running must fail
 RESET MASTER;
-ERROR HY000: RESET MASTER is not allowed because Group Replication is running.
+ERROR HY000: RESET SOURCE is not allowed because Group Replication is running.
 # Clean up
 DROP TABLE t1;
 include/group_replication_end.inc

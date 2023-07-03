@@ -5700,3 +5700,77 @@ c
 1
 Warnings:
 Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+# Bug#34962821 space():
+#              Item_str_func::push_packet_overflow_warning:
+#              Assertion `is_nullable()' failed.
+SET @@sql_mode='';
+DO SPACE(SHA(UUID_SHORT()));
+SET @@sql_mode = default;
+#
+# Bug#34961236 [rl]pad() + row_count():
+# Item::null_return_str(): Assertion `m_nullable' failed.
+#
+SET @@sql_mode='';
+DO LPAD(BIT_XOR(1), ROW_COUNT(), JSON_PRETTY('-$ *?(8}'));
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "Invalid value." at position 1.
+SET @@sql_mode='';
+DO RPAD(BIT_XOR(1), ROW_COUNT(), JSON_PRETTY('-$ *?(8}'));
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "Invalid value." at position 1.
+SET @@sql_mode = default;
+#
+# Bug#34781507 random_bytes(): Assertion `is_nullable()' failed.
+# and Assertion `!null_value || is_nullable()' failed
+#
+SET @@sql_mode='';
+DO RANDOM_BYTES(CAST((RANDOM_BYTES('?+,$ F5')) as unsigned));
+ERROR 22003: length value is out of range in 'random_bytes'
+SET @@sql_mode = default;
+#
+# Bug#35129361 my_strnncollsp_utf16 Assertion `(slen % 2) == 0' failed.
+#
+CREATE TABLE t1 (
+c1 varchar(255)
+);
+INSERT INTO t1 VALUES('m'),('u'),('i');
+SELECT
+CASE (AES_ENCRYPT(0, c1))
+WHEN '1234556789' THEN -1535639552
+WHEN (CONVERT(c1 USING utf16)) THEN c1 END
+FROM t1;
+ERROR HY000: Cannot convert string '\xDC\x01\xA0\xC1\x02\xD8...' from binary to utf16
+DROP TABLE t1;
+#
+# Bug#35129166 push_packet_overflow_warning(THD*, const char*):
+#              Assertion `is_nullable()' failed
+#
+SET SESSION SQL_MODE='';
+CREATE TABLE t1 (
+col_varchar_255_utf8_key varchar(255),
+col_int int DEFAULT NULL,
+pk int NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (pk),
+KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key)
+);
+INSERT INTO t1 VALUES
+('that',4,1),
+('r',-1153105920,2);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT
+pk FROM v1
+ORDER BY  "cant"  IN ( ( FORMAT(  LAST_INSERT_ID( pk ) , 42 ) ) );
+pk
+2
+1
+SELECT
+STDDEV_POP( ( LAST_INSERT_ID( ( - 2313724308561592320 ) ) ) ) AS field5
+FROM t1
+GROUP BY HEX( col_varchar_255_utf8_key )
+ORDER BY SPACE( LAST_INSERT_ID() );
+field5
+0
+0
+Warnings:
+Warning	1301	Result of space() was larger than max_allowed_packet (67108864) - truncated
+DROP VIEW v1;
+DROP TABLE t1;
+SET SESSION SQL_MODE=DEFAULT;

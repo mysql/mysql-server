@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -321,13 +321,13 @@ SHM_Transporter::setupBuffers()
 }
 
 bool
-SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
+SHM_Transporter::connect_server_impl(NdbSocket & sockfd)
 {
   DBUG_ENTER("SHM_Transporter::connect_server_impl");
   DEBUG_FPRINTF((stderr, "(%u)connect_server_impl(%u)\n",
                  localNodeId, remoteNodeId));
-  SocketOutputStream s_output(sockfd);
-  SocketInputStream s_input(sockfd);
+  SecureSocketOutputStream s_output(sockfd);
+  SecureSocketInputStream s_input(sockfd);
 
   // Create
   if (!_shmSegCreated)
@@ -399,7 +399,7 @@ SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
 
   DEBUG_FPRINTF((stderr, "(%u)connect_common()(%u)\n",
                  localNodeId, remoteNodeId));
-  int r= connect_common(sockfd);
+  int r= connect_common();
 
   if (r)
   {
@@ -424,25 +424,25 @@ SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
 }
 
 void
-SHM_Transporter::set_socket(ndb_socket_t sockfd)
+SHM_Transporter::set_socket(NdbSocket & sock)
 {
-  set_get(sockfd, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", 1);
-  set_get(sockfd, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
-  ndb_socket_nonblock(sockfd, true);
+  set_get(sock.ndb_socket(), IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", 1);
+  set_get(sock.ndb_socket(), SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
+  sock.set_nonblocking(true);
   get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
-  theSocket = sockfd;
+  NdbSocket::transfer(theSocket, sock);
   send_checksum_state.init();
   get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 }
 
 bool
-SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
+SHM_Transporter::connect_client_impl(NdbSocket & sockfd)
 {
   DBUG_ENTER("SHM_Transporter::connect_client_impl");
   DEBUG_FPRINTF((stderr, "(%u)connect_client_impl(%u)\n",
                  localNodeId, remoteNodeId));
-  SocketInputStream s_input(sockfd);
-  SocketOutputStream s_output(sockfd);
+  SecureSocketInputStream s_input(sockfd);
+  SecureSocketOutputStream s_output(sockfd);
   char buf[256];
 
   // Wait for server to create and attach
@@ -522,7 +522,7 @@ SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
   
   DEBUG_FPRINTF((stderr, "(%u)connect_common(%u)\n",
                  localNodeId, remoteNodeId));
-  int r = connect_common(sockfd);
+  int r = connect_common();
   
   if (r)
   {
@@ -557,7 +557,7 @@ SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
 }
 
 bool
-SHM_Transporter::connect_common(ndb_socket_t)
+SHM_Transporter::connect_common()
 {
   if (!checkConnected())
   {
@@ -591,7 +591,7 @@ SHM_Transporter::connect_common(ndb_socket_t)
 void
 SHM_Transporter::remove_mutexes()
 {
-  if (ndb_socket_valid(theSocket))
+  if (theSocket.is_valid())
   {
     NdbMutex_Deinit(serverMutex);
     NdbMutex_Deinit(clientMutex);
@@ -617,16 +617,13 @@ SHM_Transporter::disconnect_socket()
 {
   get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
 
-  ndb_socket_t sock = theSocket;
-  ndb_socket_invalidate(&theSocket);
-
-  if(ndb_socket_valid(sock))
+  if(theSocket.is_valid())
   {
-    if(ndb_socket_close(sock) < 0){
+    if(theSocket.close() < 0) {
       report_error(TE_ERROR_CLOSING_SOCKET);
     }
-    ndb_socket_invalidate(&sock);
   }
+  theSocket.invalidate();
   setupBuffersUndone();
   get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 }
@@ -667,7 +664,7 @@ SHM_Transporter::wakeup()
   do
   {
     one_more_try--;
-    int nBytesSent = (int)ndb_socket_writev(theSocket, iov, iovcnt);
+    int nBytesSent = (int) theSocket.writev(iov, iovcnt);
     if (nBytesSent != 1)
     {
       require(nBytesSent < 0); //Should not be possible with any other value
@@ -692,7 +689,7 @@ SHM_Transporter::doReceive()
   do
   {
     one_more_try = false;
-    const int nBytesRead = (int)ndb_recv(theSocket, buf, sizeof(buf), 0);
+    const int nBytesRead = (int)theSocket.recv(buf, sizeof(buf), 0);
     if (unlikely(nBytesRead <= 0))
     {
       int err;

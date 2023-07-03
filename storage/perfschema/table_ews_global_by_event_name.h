@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -85,14 +85,14 @@ struct pos_ews_global_by_event_name : public PFS_double_index,
                                       public PFS_instrument_view_constants {
   pos_ews_global_by_event_name() : PFS_double_index(FIRST_VIEW, 1) {}
 
-  inline void reset(void) {
+  inline void reset() {
     m_index_1 = FIRST_VIEW;
     m_index_2 = 1;
   }
 
-  inline bool has_more_view(void) { return (m_index_1 <= LAST_VIEW); }
+  inline bool has_more_view() { return (m_index_1 <= LAST_VIEW); }
 
-  inline void next_view(void) {
+  inline void next_view() {
     m_index_1++;
     m_index_2 = 1;
   }
@@ -107,13 +107,13 @@ class table_ews_global_by_event_name : public PFS_engine_table {
   static int delete_all_rows();
   static ha_rows get_row_count();
 
-  void reset_position(void) override;
+  void reset_position() override;
 
   int rnd_next() override;
   int rnd_pos(const void *pos) override;
 
   int index_init(uint idx, bool sorted) override;
-  int index_next(void) override;
+  int index_next() override;
 
  protected:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,

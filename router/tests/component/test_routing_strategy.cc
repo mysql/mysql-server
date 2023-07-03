@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -344,7 +344,9 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  set_mock_metadata(http_port, "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
 
   // launch the secondary cluster nodes
@@ -1038,7 +1040,9 @@ TEST_F(RouterRoutingStrategyMetadataCache, SharedQuarantine) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  set_mock_metadata(http_port, "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
 
   // launch the secondary cluster nodes
@@ -1151,7 +1155,9 @@ TEST_P(UnreachableDestinationQuarantineOptions, Test) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  set_mock_metadata(http_port, "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
 
   // launch the secondary cluster nodes
@@ -1297,7 +1303,9 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  set_mock_metadata(http_port, "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
 
   // launch the secondary cluster nodes
@@ -1356,6 +1364,8 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   SCOPED_TRACE("// remove it from metadata");
   set_mock_metadata(
       http_port, "",
+      {cluster_nodes_ports[0], cluster_nodes_ports[2], cluster_nodes_ports[3]},
+      0,
       {cluster_nodes_ports[0], cluster_nodes_ports[2], cluster_nodes_ports[3]});
 
   EXPECT_TRUE(wait_log_contains(
@@ -1367,7 +1377,9 @@ TEST_F(RefreshSharedQuarantineOnTTL, RemoveDestination) {
   SCOPED_TRACE("// restore first RO node");
   cluster_nodes[1] =
       &launch_cluster_node(cluster_nodes_ports[1], get_data_dir().str());
-  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  set_mock_metadata(http_port, "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
   wait_for_transaction_count_increase(http_port, 2);
 
   // check that restored RO node got back to the round-robin rotation
@@ -1402,7 +1414,9 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  set_mock_metadata(http_port, "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
 
   // launch the secondary cluster nodes
@@ -1461,6 +1475,8 @@ TEST_F(RefreshSharedQuarantineOnTTL, KeepDestination) {
   SCOPED_TRACE("// remove it from metadata");
   set_mock_metadata(
       http_port, "",
+      {cluster_nodes_ports[0], cluster_nodes_ports[2], cluster_nodes_ports[3]},
+      0,
       {cluster_nodes_ports[0], cluster_nodes_ports[2], cluster_nodes_ports[3]});
   wait_for_transaction_count_increase(http_port, 2);
 
@@ -1495,7 +1511,9 @@ TEST_F(RefreshSharedQuarantineOnTTL, instance_in_metadata_but_quarantined) {
   ASSERT_NO_FATAL_FAILURE(
       check_port_ready(primary_node, cluster_nodes_ports[0]));
   EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
-  set_mock_metadata(http_port, "", cluster_nodes_ports);
+  set_mock_metadata(http_port, "",
+                    classic_ports_to_gr_nodes(cluster_nodes_ports), 0,
+                    classic_ports_to_cluster_nodes(cluster_nodes_ports));
   cluster_nodes.emplace_back(&primary_node);
 
   // launch the secondary cluster nodes

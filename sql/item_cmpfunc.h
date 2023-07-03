@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -470,7 +470,7 @@ class Item_func_truth final : public Item_bool_func {
 static const int UNKNOWN = -1;
 
 /*
-  Item_in_optimizer(left_expr, Item_in_subselect(...))
+  Item_in_optimizer(Item_in_subselect(...))
 
   Item_in_optimizer is used to wrap an instance of Item_in_subselect. This
   class does the following:
@@ -479,10 +479,7 @@ static const int UNKNOWN = -1;
    - Shortcut the evaluation of "NULL IN (...)" to NULL in the cases where we
      don't care if the result is NULL or FALSE.
 
-   args[1] keeps a reference to the Item_in_subselect object.
-
-   args[0] is a copy of Item_in_subselect's left expression and should be
-   kept equal also after resolving.
+   args[0] keeps a reference to the Item_in_subselect object.
 
   NOTE
     It is not quite clear why the above listed functionality should be
@@ -492,8 +489,6 @@ static const int UNKNOWN = -1;
 class Item_in_optimizer final : public Item_bool_func {
  private:
   Item_cache *cache{nullptr};
-  /// Required to restore original "left" pointer after execution
-  Item *left_original{nullptr};
   /**
     Stores the value of "NULL IN (SELECT ...)" for uncorrelated subqueries:
       UNKNOWN - "NULL in (SELECT ...)" has not yet been evaluated
@@ -503,24 +498,23 @@ class Item_in_optimizer final : public Item_bool_func {
   int result_for_null_param{UNKNOWN};
 
  public:
-  Item_in_optimizer(Item *a, Item_in_subselect *b)
-      : Item_bool_func(a, pointer_cast<Item *>(b)) {
+  Item_in_optimizer(Item_in_subselect *item)
+      : Item_bool_func(pointer_cast<Item *>(item)) {
     set_subquery();
   }
   bool fix_fields(THD *, Item **) override;
   bool fix_left(THD *thd, Item **ref);
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;
+  void split_sum_func(THD *thd, Ref_item_array ref_item_array,
+                      mem_root_deque<Item *> *fields) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   bool is_null() override;
   longlong val_int() override;
   void cleanup() override;
   const char *func_name() const override { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
-  void keep_top_level_cache();
-  Item *transform(Item_transformer transformer, uchar *arg) override;
-  Item *compile(Item_analyzer analyzer, uchar **arg_p,
-                Item_transformer transformer, uchar *arg_t) override;
-  void set_arg_resolve(THD *thd, uint i, Item *newp) override;
   void update_used_tables() override;
 };
 
@@ -2574,6 +2568,8 @@ class Item_equal final : public Item_bool_func {
   bool compare_as_dates{false};
 
  public:
+  ~Item_equal() override;
+
   Item_equal(Item_field *f1, Item_field *f2);
   Item_equal(Item *c, Item_field *f);
   explicit Item_equal(Item_equal *item_equal);

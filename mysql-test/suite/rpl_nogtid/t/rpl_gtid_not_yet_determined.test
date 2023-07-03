@@ -92,7 +92,7 @@
 CREATE TABLE t1 (a INT);
 --source include/sync_slave_sql_with_master.inc
 CALL mtr.add_suppression('QUERY.*COMMIT or ROLLBACK.* or XID_LOG_EVENT is not expected in an event stream outside a transaction');
-CALL mtr.add_suppression('An unexpected event sequence was detected by the IO thread while queuing the event received from master');
+CALL mtr.add_suppression('An unexpected event sequence was detected by the IO thread while queuing the event received from source');
 
 --echo #### 1. Check basic properties of GTID_NEXT = NOT_YET_DETERMINED ####
 

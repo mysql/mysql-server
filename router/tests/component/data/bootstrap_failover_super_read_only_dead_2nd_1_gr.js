@@ -6,11 +6,10 @@ var gr_members = gr_memberships.members(mysqld.global.gr_members);
 
 var options = {
   cluster_type: "gr",
+  gr_id: mysqld.global.gr_id,
   innodb_cluster_name: mysqld.global.cluster_name,
   replication_group_members: gr_members,
-
-  innodb_cluster_instances:
-      [["127.0.0.1", 13001], ["127.0.0.1", 13002], ["127.0.0.1", 13003]],
+  innodb_cluster_instances: gr_members,
   innodb_cluster_hosts: [[8, "dont.query.dns", null]],
 };
 
@@ -25,7 +24,7 @@ var common_responses = common_stmts.prepare_statement_responses(
       "router_select_members_count",
       "router_select_replication_group_name",
       "router_show_cipher_status",
-      "router_select_cluster_instances_v2",
+      "router_select_cluster_instances_v2_gr",
       "router_select_cluster_instance_addresses_v2",
       "router_start_transaction",
       "router_commit",

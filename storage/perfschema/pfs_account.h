@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,13 +65,13 @@ struct PFS_account_key {
 /** Per account statistics. */
 struct PFS_ALIGNED PFS_account : PFS_connection_slice {
  public:
-  inline void init_refcount(void) { m_refcount.store(1); }
+  inline void init_refcount() { m_refcount.store(1); }
 
-  inline int get_refcount(void) { return m_refcount.load(); }
+  inline int get_refcount() { return m_refcount.load(); }
 
-  inline void inc_refcount(void) { ++m_refcount; }
+  inline void inc_refcount() { ++m_refcount; }
 
-  inline void dec_refcount(void) { --m_refcount; }
+  inline void dec_refcount() { --m_refcount; }
 
   void aggregate(bool alive, PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_waits(PFS_user *safe_user, PFS_host *safe_host);
@@ -82,7 +82,7 @@ struct PFS_ALIGNED PFS_account : PFS_connection_slice {
   void aggregate_memory(bool alive, PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_status(PFS_user *safe_user, PFS_host *safe_host);
   void aggregate_stats(PFS_user *safe_user, PFS_host *safe_host);
-  void release(void);
+  void release();
 
   /** Reset all memory statistics. */
   void rebase_memory_stats();
@@ -149,16 +149,16 @@ struct PFS_ALIGNED PFS_account : PFS_connection_slice {
 };
 
 int init_account(const PFS_global_param *param);
-void cleanup_account(void);
+void cleanup_account();
 int init_account_hash(const PFS_global_param *param);
-void cleanup_account_hash(void);
+void cleanup_account_hash();
 
 PFS_account *find_or_create_account(PFS_thread *thread,
                                     const PFS_user_name *user,
                                     const PFS_host_name *host);
 
 PFS_account *sanitize_account(PFS_account *unsafe);
-void purge_all_account(void);
+void purge_all_account();
 
 void update_accounts_derived_flags(PFS_thread *thread);
 

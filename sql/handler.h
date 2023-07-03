@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2889,6 +2889,17 @@ constexpr const decltype(
 /** Whether the secondary engine supports DDLs. No meaning if the engine is not
  * secondary. */
 #define HTON_SECONDARY_ENGINE_SUPPORTS_DDL (1 << 19)
+
+/** Whether the engine does not support triggers. */
+#define HTON_NO_TRIGGER_SUPPORT (1 << 20)
+
+/** Whether the primary engine supports external data sources. This case refers
+   to having tables with data in object store and the engine does not store any
+   of those data, only metadata. Table contents can be accessed only after
+   loading the table in the secondary storage engine. The flag is used for
+   a primary engine only.
+ */
+#define HTON_SUPPORTS_EXTERNAL_SOURCE (1 << 21)
 
 inline bool secondary_engine_supports_ddl(const handlerton *hton) {
   assert(hton->flags & HTON_IS_SECONDARY_ENGINE);

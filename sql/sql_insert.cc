@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,8 +80,7 @@
 #include "sql/partition_info.h"  // partition_info
 #include "sql/protocol.h"
 #include "sql/query_options.h"
-#include "sql/rpl_replica.h"  // rpl_master_has_bug
-#include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/rpl_rli.h"  // Relay_log_info
 #include "sql/select_lex_visitor.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_array.h"
@@ -528,16 +527,6 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
     }
 
     insert_table->next_number_field = insert_table->found_next_number_field;
-
-    if (thd->slave_thread) {
-      /* Get SQL thread's rli, even for a slave worker thread */
-      Relay_log_info *c_rli = thd->rli_slave->get_c_rli();
-      assert(c_rli != nullptr);
-      if (info.get_duplicate_handling() == DUP_UPDATE &&
-          insert_table->next_number_field != nullptr &&
-          rpl_master_has_bug(c_rli, 24432, true, nullptr, nullptr))
-        return true;
-    }
 
     THD_STAGE_INFO(thd, stage_update);
     if (duplicates == DUP_REPLACE &&
@@ -2305,16 +2294,6 @@ bool Query_result_insert::start_execution(THD *thd) {
   if ((duplicate_handling == DUP_UPDATE) &&
       update.add_function_default_columns(table, table->write_set))
     return true;
-
-  if (thd->slave_thread) {
-    /* Get SQL thread's rli, even for a slave worker thread */
-    Relay_log_info *c_rli = thd->rli_slave->get_c_rli();
-    assert(c_rli != nullptr);
-    if (duplicate_handling == DUP_UPDATE &&
-        table->next_number_field != nullptr &&
-        rpl_master_has_bug(c_rli, 24432, true, nullptr, nullptr))
-      return true;
-  }
 
   thd->num_truncated_fields = 0;
   if (thd->lex->is_ignore() || duplicate_handling != DUP_ERROR)

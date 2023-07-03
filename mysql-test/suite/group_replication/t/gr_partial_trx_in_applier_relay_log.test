@@ -52,7 +52,7 @@ SET sql_log_bin=0;
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped");
 SET sql_log_bin=1;
 
 --echo ########################################################################

@@ -1,7 +1,7 @@
 #ifndef MY_AES_INCLUDED
 #define MY_AES_INCLUDED
 
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ extern const char *my_aes_opmode_names[];
   @param [in] source           Pointer to data for encryption
   @param [in] source_length    Size of encryption data
   @param [out] dest            Buffer to place encrypted data (must be large
-  enough)
+  enough and not overlap with source)
   @param [in] key              Key to be used for encryption
   @param [in] key_length       Length of the key. Will handle keys of any length
   @param [in] mode             encryption mode

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h> /* size_t */
+#include <stdint.h> /* uint64_t */
 #endif
 
 #include <mysql/components/services/bits/psi_bits.h>
@@ -70,16 +71,23 @@ typedef unsigned int PSI_statement_key;
 /**
   @def PSI_STATEMENT_VERSION_4
   Performance Schema Statement Interface number for version 4.
-  This version is supported.
+  This version is obsolete.
 */
 #define PSI_STATEMENT_VERSION_4 4
 
 /**
+  @def PSI_STATEMENT_VERSION_5
+  Performance Schema Statement Interface number for version 5.
+  This version is supported.
+*/
+#define PSI_STATEMENT_VERSION_5 5
+
+/**
   @def PSI_CURRENT_STATEMENT_VERSION
   Performance Schema Statement Interface number for the most recent version.
-  The most current version is @c PSI_STATEMENT_VERSION_4
+  The most current version is @c PSI_STATEMENT_VERSION_5
 */
-#define PSI_CURRENT_STATEMENT_VERSION 4
+#define PSI_CURRENT_STATEMENT_VERSION 5
 
 /**
   Interface for an instrumented statement.
@@ -139,26 +147,36 @@ typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 /* Duplicate of NAME_LEN, to avoid dependency on mysql_com.h */
 #define PSI_SCHEMA_NAME_LEN (64 * 3)
 
+/* Opaque. */
+struct telemetry_session_t;
+
+/* Opaque. */
+struct telemetry_locker_t;
+
 /**
-  State data storage for @c get_thread_statement_locker_v4_t.
+  State data storage for @c get_thread_statement_locker_v5_t.
   This structure provide temporary storage to a statement locker.
   The content of this structure is considered opaque,
   the fields are only hints of what an implementation
   of the psi interface can use.
   This memory is provided by the instrumented code for performance reasons.
-  @sa get_thread_statement_locker_v4_t
+  @sa get_thread_statement_locker_v5_t
 */
-struct PSI_statement_locker_state_v4 {
-  /** Discarded flag. */
-  bool m_discarded;
+struct PSI_statement_locker_state_v5 {
   /** In prepare flag. */
   bool m_in_prepare;
+  /** Using secondary engine. */
+  bool m_secondary;
   /** Metric, no index used flag. */
   unsigned char m_no_index_used;
   /** Metric, no good index used flag. */
   unsigned char m_no_good_index_used;
   /** Internal state. */
-  unsigned int m_flags;
+  unsigned int m_collect_flags;
+  /** Internal PFS flags. */
+  unsigned int m_pfs_flags;
+  /** Internal telemetry flags. */
+  unsigned int m_tel_flags;
   /** Instrumentation class. */
   void *m_class;
   /** Current thread. */
@@ -222,8 +240,16 @@ struct PSI_statement_locker_state_v4 {
 
   PSI_sp_share *m_parent_sp_share;
   PSI_prepared_stmt *m_parent_prepared_stmt;
+
+  /** Telemetry can force instruments creation regardless if
+   * the respective consumer is enabled or not through configuration. */
+  uint64_t m_telemetry_scope;
+
+  void *m_telemetry;
+  telemetry_session_t *m_telemetry_session;
+  telemetry_locker_t *m_telemetry_locker;
 };
-typedef struct PSI_statement_locker_state_v4 PSI_statement_locker_state_v4;
+typedef struct PSI_statement_locker_state_v5 PSI_statement_locker_state_v5;
 
 struct PSI_sp_locker_state_v1 {
   /** Internal state. */
@@ -257,8 +283,8 @@ typedef void (*register_statement_v1_t)(const char *category,
   @param sp_share Parent stored procedure share, if any.
   @return a statement locker, or NULL
 */
-typedef struct PSI_statement_locker *(*get_thread_statement_locker_v4_t)(
-    struct PSI_statement_locker_state_v4 *state, PSI_statement_key key,
+typedef struct PSI_statement_locker *(*get_thread_statement_locker_v5_t)(
+    struct PSI_statement_locker_state_v5 *state, PSI_statement_key key,
     const void *charset, PSI_sp_share *sp_share);
 
 /**
@@ -547,8 +573,13 @@ typedef void (*drop_sp_v1_t)(unsigned int object_type, const char *schema_name,
                              unsigned int object_name_length);
 
 typedef struct PSI_statement_info_v1 PSI_statement_info;
-typedef struct PSI_statement_locker_state_v4 PSI_statement_locker_state;
+typedef struct PSI_statement_locker_state_v5 PSI_statement_locker_state;
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
+
+typedef void (*notify_statement_query_attributes_v5_t)(
+    struct PSI_statement_locker *locker, bool with_query_attributes);
+
+typedef void (*statement_abort_telemetry_v5_t)(PSI_statement_locker *locker);
 
 /** @} (end of group psi_abi_statement) */
 

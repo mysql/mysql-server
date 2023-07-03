@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -446,8 +446,6 @@ extern CHARSET_INFO my_charset_utf8mb3_unicode_ci;
 extern CHARSET_INFO my_charset_utf8mb3_bin;
 extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
-
-#define MY_UTF8MB4 "utf8mb4"
 
 /* declarations for simple charsets */
 extern size_t my_strnxfrm_simple(const CHARSET_INFO *, uchar *dst,

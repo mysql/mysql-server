@@ -88,9 +88,9 @@ SET SESSION sql_log_bin= 1;
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
-call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
-call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
-call mtr.add_suppression("Slave I/O thread couldn't register on master*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Replica I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Replica I/O for channel 'group_replication_recovery': Source command COM_REGISTER_REPLICA failed*");
+call mtr.add_suppression("Replica I/O thread couldn't register on source*");
 SET SESSION sql_log_bin= 1;
 
 --disable_warnings

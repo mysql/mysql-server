@@ -1,14 +1,14 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection master]
 CREATE TABLE t1 (a INT);
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
-CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
-CALL mtr.add_suppression(".*The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave.*");
+CALL mtr.add_suppression(".*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression(".*The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replica.*");
 CHANGE REPLICATION FILTER Replicate_Ignore_Table=(test.t1);
 include/start_slave_sql.inc
 [connection master]

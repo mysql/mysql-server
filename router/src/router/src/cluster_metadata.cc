@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ namespace mysqlrouter {
  * @return A string object encapsulation of the input character string. An empty
  *         string if input string is nullptr.
  */
-static std::string get_string(const char *input_str) {
+static std::string as_string(const char *input_str) {
   return input_str == nullptr ? "" : input_str;
 }
 
@@ -499,9 +499,7 @@ MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql) {
   return {major, minor, patch};
 }
 
-// TODO std::logic_error probably should be replaced by std::runtime_error
-// throws std::logic_error, MySQLSession::Error
-static bool check_group_replication_online(MySQLSession *mysql) {
+bool check_group_replication_online(MySQLSession *mysql) {
   std::string q =
       "SELECT member_state"
       " FROM performance_schema.replication_group_members"
@@ -517,8 +515,7 @@ static bool check_group_replication_online(MySQLSession *mysql) {
   throw std::logic_error("No result returned for metadata query");
 }
 
-// throws MySQLSession::Error, std::logic_error, std::out_of_range
-static bool check_group_has_quorum(MySQLSession *mysql) {
+bool check_group_has_quorum(MySQLSession *mysql) {
   std::string q =
       "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) "
       "as num_total"
@@ -692,37 +689,49 @@ uint64_t ClusterMetadataGRV2::query_cluster_count() {
   return query_gr_cluster_count(mysql_, /*metadata_v2=*/true);
 }
 
-static ClusterInfo query_metadata_servers(MySQLSession *mysql,
-                                          const bool metadata_v2) {
-  // Query the name of the cluster, and the instance addresses
+static ClusterInfo query_metadata_servers(
+    MySQLSession *mysql, const mysqlrouter::ClusterType cluster_type) {
+  // Query the uuid and name of the cluster, and the instance addresses
   std::string query;
 
-  if (metadata_v2) {
-    query =
-        "select c.cluster_id, c.cluster_name, i.address from "
-        "mysql_innodb_cluster_metadata.v2_instances i join "
-        "mysql_innodb_cluster_metadata.v2_clusters c on c.cluster_id = "
-        "i.cluster_id";
-  } else {
-    query =
-        "SELECT "
-        "F.cluster_id, "
-        "F.cluster_name, "
-        "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) "
-        "FROM "
-        "mysql_innodb_cluster_metadata.clusters AS F, "
-        "mysql_innodb_cluster_metadata.instances AS I, "
-        "mysql_innodb_cluster_metadata.replicasets AS R "
-        "WHERE "
-        "R.replicaset_id = "
-        "(SELECT replicaset_id FROM mysql_innodb_cluster_metadata.instances "
-        "WHERE "
-        "CAST(mysql_server_uuid AS char ascii) = CAST(@@server_uuid AS char "
-        "ascii)) "
-        "AND "
-        "I.replicaset_id = R.replicaset_id "
-        "AND "
-        "R.cluster_id = F.cluster_id";
+  switch (cluster_type) {
+    case mysqlrouter::ClusterType::RS_V2:
+      query =
+          "select c.cluster_id, c.cluster_id as uuid, c.cluster_name, "
+          "i.address from "
+          "mysql_innodb_cluster_metadata.v2_instances i join "
+          "mysql_innodb_cluster_metadata.v2_clusters c on c.cluster_id = "
+          "i.cluster_id";
+      break;
+    case mysqlrouter::ClusterType::GR_V2:
+      query =
+          "select c.cluster_id, c.group_name as uuid, c.cluster_name, "
+          "i.address from "
+          "mysql_innodb_cluster_metadata.v2_instances i join "
+          "mysql_innodb_cluster_metadata.v2_gr_clusters c on c.cluster_id = "
+          "i.cluster_id";
+      break;
+    default:  // mysqlrouter::ClusterType::GR_V1:
+      query =
+          "SELECT "
+          "F.cluster_id, "
+          "R.attributes->>'$.group_replication_group_name' as uuid, "
+          "F.cluster_name, "
+          "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) "
+          "FROM "
+          "mysql_innodb_cluster_metadata.clusters AS F, "
+          "mysql_innodb_cluster_metadata.instances AS I, "
+          "mysql_innodb_cluster_metadata.replicasets AS R "
+          "WHERE "
+          "R.replicaset_id = "
+          "(SELECT replicaset_id FROM mysql_innodb_cluster_metadata.instances "
+          "WHERE "
+          "CAST(mysql_server_uuid AS char ascii) = CAST(@@server_uuid AS char "
+          "ascii)) "
+          "AND "
+          "I.replicaset_id = R.replicaset_id "
+          "AND "
+          "R.cluster_id = F.cluster_id";
   }
 
   ClusterInfo result;
@@ -731,14 +740,15 @@ static ClusterInfo query_metadata_servers(MySQLSession *mysql,
     mysql->query(
         query, [&result](const std::vector<const char *> &row) -> bool {
           if (result.cluster_id == "") {
-            result.cluster_id = get_string(row[0]);
-            result.name = get_string(row[1]);
-          } else if (result.cluster_id != get_string(row[0])) {
+            result.cluster_id = as_string(row[0]);
+            result.cluster_type_specific_id = as_string(row[1]);
+            result.name = as_string(row[2]);
+          } else if (result.cluster_id != as_string(row[0])) {
             // metadata with more than 1 cluster not currently supported
             throw std::runtime_error("Metadata contains more than one cluster");
           }
 
-          result.metadata_servers.push_back("mysql://" + get_string(row[2]));
+          result.metadata_servers.push_back("mysql://" + as_string(row[3]));
           return true;
         });
   } catch (const MySQLSession::Error &e) {
@@ -752,11 +762,11 @@ static ClusterInfo query_metadata_servers(MySQLSession *mysql,
 }
 
 ClusterInfo ClusterMetadataGRV1::fetch_metadata_servers() {
-  return query_metadata_servers(mysql_, /*metadata_v2=*/false);
+  return query_metadata_servers(mysql_, ClusterType::GR_V1);
 }
 
 ClusterInfo ClusterMetadataGRV2::fetch_metadata_servers() {
-  return query_metadata_servers(mysql_, /*metadata_v2=*/true);
+  return query_metadata_servers(mysql_, ClusterType::GR_V2);
 }
 
 ClusterMetadataGRInClusterSet::ClusterMetadataGRInClusterSet(
@@ -784,7 +794,7 @@ ClusterMetadataGRInClusterSet::ClusterMetadataGRInClusterSet(
 ClusterInfo ClusterMetadataGRInClusterSet::fetch_metadata_servers() {
   ClusterInfo result;
   std::string query =
-      "select C.cluster_id, C.attributes->>'$.group_replication_group_name', "
+      "select C.cluster_id, C.group_name, "
       "CS.domain_name, CSM.member_role from "
       "mysql_innodb_cluster_metadata.v2_gr_clusters C join "
       "mysql_innodb_cluster_metadata.v2_cs_members CSM on CSM.cluster_id = "
@@ -828,10 +838,10 @@ ClusterInfo ClusterMetadataGRInClusterSet::fetch_metadata_servers() {
         "expected 4 got " +
         std::to_string(result_cluster_info->size()));
   }
-  result.cluster_id = get_string((*result_cluster_info)[0]);
-  result.cluster_type_specific_id = get_string((*result_cluster_info)[1]);
-  result.name = get_string((*result_cluster_info)[2]);
-  result.is_primary = get_string((*result_cluster_info)[3]) == "PRIMARY";
+  result.cluster_id = as_string((*result_cluster_info)[0]);
+  result.cluster_type_specific_id = as_string((*result_cluster_info)[1]);
+  result.name = as_string((*result_cluster_info)[2]);
+  result.is_primary = as_string((*result_cluster_info)[3]) == "PRIMARY";
 
   // get all the nodes of all the Clusters that belong to the ClusterSet;
   // we want those that belong to the PRIMARY cluster to be first in the
@@ -859,10 +869,10 @@ ClusterInfo ClusterMetadataGRInClusterSet::fetch_metadata_servers() {
                     // we want PRIMARY cluster nodes first, so we put them
                     // directly in the result list, the non-PRIMARY ones we
                     // buffer and append to the result at the end
-                    auto &servers = (get_string(row[1]) == "PRIMARY")
+                    auto &servers = (as_string(row[1]) == "PRIMARY")
                                         ? result.metadata_servers
                                         : replica_clusters_nodes;
-                    servers.push_back("mysql://" + get_string(row[0]));
+                    servers.push_back("mysql://" + as_string(row[0]));
                     return true;
                   });
   } catch (const MySQLSession::Error &e) {
@@ -934,8 +944,7 @@ uint64_t ClusterMetadataGRInClusterSet::get_view_id(
 }
 
 static std::vector<std::string> do_get_routing_mode_queries(
-    MySQLSession *mysql, const bool metadata_v2,
-    const std::string &cluster_name) {
+    MySQLSession *mysql, const bool metadata_v2) {
   const std::string fetch_instances_query =
       metadata_v2
           ? "select C.cluster_id, C.cluster_name, I.mysql_server_uuid, "
@@ -943,7 +952,7 @@ static std::vector<std::string> do_get_routing_mode_queries(
             "from mysql_innodb_cluster_metadata.v2_instances I join "
             "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
             "C.cluster_id where C.cluster_name = " +
-                mysql->quote(cluster_name)
+                mysql->quote("some_cluster_name")
           : "SELECT F.cluster_name, R.replicaset_name, I.mysql_server_uuid, "
             "I.role, "
             "I.addresses->>'$.mysqlClassic', "
@@ -954,7 +963,7 @@ static std::vector<std::string> do_get_routing_mode_queries(
             "JOIN mysql_innodb_cluster_metadata.instances AS I "
             "ON R.replicaset_id = I.replicaset_id "
             "WHERE F.cluster_name = " +
-                mysql->quote(cluster_name);
+                mysql->quote("some_cluster_name");
 
   return {
       // MDC startup
@@ -979,16 +988,12 @@ static std::vector<std::string> do_get_routing_mode_queries(
   };
 }
 
-std::vector<std::string> ClusterMetadataGRV1::get_routing_mode_queries(
-    const std::string &cluster_name) {
-  return do_get_routing_mode_queries(mysql_, /*metadata_v2=*/false,
-                                     cluster_name);
+std::vector<std::string> ClusterMetadataGRV1::get_routing_mode_queries() {
+  return do_get_routing_mode_queries(mysql_, /*metadata_v2=*/false);
 }
 
-std::vector<std::string> ClusterMetadataGRV2::get_routing_mode_queries(
-    const std::string &cluster_name) {
-  return do_get_routing_mode_queries(mysql_, /*metadata_v2=*/true,
-                                     cluster_name);
+std::vector<std::string> ClusterMetadataGRV2::get_routing_mode_queries() {
+  return do_get_routing_mode_queries(mysql_, /*metadata_v2=*/true);
 }
 
 uint64_t ClusterMetadataAR::query_cluster_count() {
@@ -1013,7 +1018,7 @@ uint64_t ClusterMetadataAR::query_cluster_count() {
 }
 
 ClusterInfo ClusterMetadataAR::fetch_metadata_servers() {
-  return query_metadata_servers(mysql_, /*metadata_v2=*/true);
+  return query_metadata_servers(mysql_, ClusterType::RS_V2);
 }
 
 std::string ClusterMetadataAR::get_cluster_type_specific_id() {
@@ -1034,8 +1039,7 @@ std::string ClusterMetadataAR::get_cluster_type_specific_id() {
   throw std::logic_error("No result returned for metadata query");
 }
 
-std::vector<std::string> ClusterMetadataAR::get_routing_mode_queries(
-    const std::string &cluster_name) {
+std::vector<std::string> ClusterMetadataAR::get_routing_mode_queries() {
   return {
       // source: ClusterMetadata::fetch_instances_from_metadata_server()
       "select C.cluster_id, C.cluster_name, I.mysql_server_uuid, I.endpoint, "
@@ -1043,7 +1047,7 @@ std::vector<std::string> ClusterMetadataAR::get_routing_mode_queries(
       "mysql_innodb_cluster_metadata.v2_instances I join "
       "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
       "C.cluster_id where C.cluster_name = " +
-      mysql_->quote(cluster_name) + ";"};
+      mysql_->quote("some_cluster_name") + ";"};
 }
 
 std::vector<std::tuple<std::string, unsigned long>>
@@ -1136,7 +1140,7 @@ static bool was_bootstrapped_as_clusterset(MySQLSession *mysql,
     return false;
   }
 
-  return get_string((*row)[0]) == kClusterSet;
+  return as_string((*row)[0]) == kClusterSet;
 }
 
 ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,

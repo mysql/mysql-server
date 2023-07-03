@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7437,6 +7437,20 @@ void lo_drop_sp(uint sp_type, const char *schema_name, uint schema_name_length,
   }
 }
 
+void lo_notify_statement_query_attributes(struct PSI_statement_locker *locker,
+                                          bool with_query_attributes) {
+  if (g_statement_chain != nullptr) {
+    g_statement_chain->notify_statement_query_attributes(locker,
+                                                         with_query_attributes);
+  }
+}
+
+void lo_statement_abort_telemetry(struct PSI_statement_locker *locker) {
+  if (g_statement_chain != nullptr) {
+    g_statement_chain->statement_abort_telemetry(locker);
+  }
+}
+
 static void lo_start_file_open_wait(PSI_file_locker *locker,
                                     const char *src_file, uint src_line) {
   LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
@@ -7745,7 +7759,27 @@ static void lo_set_mem_cnt_THD(THD *thd, THD **backup_thd) {
   }
 }
 
-PSI_thread_service_v6 LO_thread_v6 = {lo_register_thread,
+static void lo_detect_telemetry(PSI_thread *thread) {
+  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+
+  if (lo != nullptr) {
+    if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
+      g_thread_chain->detect_telemetry(lo->m_chain);
+    }
+  }
+}
+
+static void lo_abort_telemetry(PSI_thread *thread) {
+  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+
+  if (lo != nullptr) {
+    if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
+      g_thread_chain->abort_telemetry(lo->m_chain);
+    }
+  }
+}
+
+PSI_thread_service_v7 LO_thread_v7 = {lo_register_thread,
                                       lo_spawn_thread,
                                       lo_new_thread,
                                       lo_set_thread_id,
@@ -7780,7 +7814,9 @@ PSI_thread_service_v6 LO_thread_v6 = {lo_register_thread,
                                       lo_notify_session_connect,
                                       lo_notify_session_disconnect,
                                       lo_notify_session_change_user,
-                                      lo_set_mem_cnt_THD};
+                                      lo_set_mem_cnt_THD,
+                                      lo_detect_telemetry,
+                                      lo_abort_telemetry};
 
 static void *lo_get_thread_interface(int version) {
   switch (version) {
@@ -7789,9 +7825,10 @@ static void *lo_get_thread_interface(int version) {
     case PSI_THREAD_VERSION_3:
     case PSI_THREAD_VERSION_4:
     case PSI_THREAD_VERSION_5:
-      return nullptr;
     case PSI_THREAD_VERSION_6:
-      return &LO_thread_v6;
+      return nullptr;
+    case PSI_THREAD_VERSION_7:
+      return &LO_thread_v7;
     default:
       return nullptr;
   }
@@ -7889,7 +7926,7 @@ static void *lo_get_idle_interface(int version) {
 
 struct PSI_idle_bootstrap LO_idle_bootstrap = {lo_get_idle_interface};
 
-PSI_statement_service_v4 LO_statement_v4 = {
+PSI_statement_service_v5 LO_statement_v5 = {
     lo_register_statement,
     lo_get_thread_statement_locker,
     lo_refine_statement,
@@ -7926,16 +7963,19 @@ PSI_statement_service_v4 LO_statement_v4 = {
     lo_release_sp_share,
     lo_start_sp,
     lo_end_sp,
-    lo_drop_sp};
+    lo_drop_sp,
+    lo_notify_statement_query_attributes,
+    lo_statement_abort_telemetry};
 
 static void *lo_get_statement_interface(int version) {
   switch (version) {
     case PSI_STATEMENT_VERSION_1:
     case PSI_STATEMENT_VERSION_2:
     case PSI_STATEMENT_VERSION_3:
-      return nullptr;
     case PSI_STATEMENT_VERSION_4:
-      return &LO_statement_v4;
+      return nullptr;
+    case PSI_STATEMENT_VERSION_5:
+      return &LO_statement_v5;
     default:
       return nullptr;
   }

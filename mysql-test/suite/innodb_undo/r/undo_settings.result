@@ -599,7 +599,8 @@ COUNT(*)
 SELECT COUNT(*) FROM t3;
 COUNT(*)
 9
-# restart: --innodb_read_only  --innodb_rollback_segments=8
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only --innodb_rollback_segments=8
 CREATE UNDO TABLESPACE `undo_007` ADD DATAFILE 'undo_007.ibu';
 ERROR HY000: Running in read-only mode
 SHOW VARIABLES LIKE 'innodb_rollback_segments';

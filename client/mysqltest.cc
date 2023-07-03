@@ -1,4 +1,4 @@
-// Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+// Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -4971,11 +4971,12 @@ static void do_wait_for_slave_to_stop(struct st_command *c [[maybe_unused]]) {
             "ras.SERVICE_STATE='ON' AND rcs.SERVICE_STATE='ON'") ||
         !(res = mysql_store_result_wrapper(mysql)))
 
-      die("Query failed while probing slave for stop: %s", mysql_error(mysql));
+      die("Query failed while probing replica for stop: %s",
+          mysql_error(mysql));
 
     if (!(row = mysql_fetch_row_wrapper(res)) || !row[1]) {
       mysql_free_result_wrapper(res);
-      die("Strange result from query while probing slave for stop");
+      die("Strange result from query while probing replica for stop");
     }
     done = !std::strcmp(row[1], "OFF");
     mysql_free_result_wrapper(res);
@@ -5030,7 +5031,7 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
         incorrect, or an error has occurred
       */
       die("%.*s failed: '%s' returned NULL "
-          "indicating slave SQL thread failure",
+          "indicating replica SQL thread failure",
           static_cast<int>(command->first_word_len), command->query, query_buf);
     }
 

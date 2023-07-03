@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -451,6 +451,26 @@ TEST_F(PreallocedArrayTest, CustomNewDelete) {
   Prealloced_array<TestAlloc, 1> array(PSI_NOT_INSTRUMENTED);
   for (int ix = 0; ix < 42; ++ix) array.push_back(TestAlloc(ix));
   for (int ix = 0; ix < 42; ++ix) EXPECT_EQ(ix, array[ix].getval());
+}
+
+/*
+  A simple class to verify that Prealloced_array also works for
+  dynamically allocated objects on heap.
+ */
+class TestAllocHeap {
+ public:
+  TestAllocHeap(int val) : m_int(val) {}
+  int getval() const { return m_int; }
+
+ private:
+  int m_int;
+};
+
+TEST_F(PreallocedArrayTest, CustomNewDeletePointer) {
+  Prealloced_array<TestAllocHeap *, 1> array(PSI_NOT_INSTRUMENTED);
+  for (int ix = 0; ix < 42; ++ix) array.push_back(new TestAllocHeap(ix));
+  for (int ix = 0; ix < 42; ++ix) EXPECT_EQ(ix, array[ix]->getval());
+  for (int ix = 0; ix < 42; ++ix) delete array[ix];
 }
 
 /**

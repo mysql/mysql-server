@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -729,7 +729,7 @@ static struct lookup {
      "event_id INT UNSIGNED NOT NULL PRIMARY KEY, "
      "name varchar(192) NOT NULL, "
      "table_id INT UNSIGNED NOT NULL, "
-     "reporting  enum('updated', 'all', 'subscribe', 'DDL') NOT NULL, "
+     "reporting  SET('updated', 'all', 'subscribe', 'DDL') NOT NULL, "
      "columns varchar(512) NOT NULL, "
      "table_event SET('INSERT','DELETE','UPDATE','SCAN','DROP','ALTER',"
      "'CREATE','GCP_COMPLETE','CLUSTER_FAILURE','STOP',"

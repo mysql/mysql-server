@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,10 @@
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/unittest/stub_digest.h"
 #include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
+#include "storage/perfschema/unittest/stub_pfs_tls_channel.h"
+#include "storage/perfschema/unittest/stub_server_telemetry.h"
 #include "unittest/mytap/tap.h"
 
 static void test_no_instruments() {

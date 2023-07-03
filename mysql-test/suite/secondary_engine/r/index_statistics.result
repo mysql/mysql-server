@@ -18,8 +18,8 @@ test.t1	analyze	status	OK
 # Uses the primary index to determine 10% filtering effect (one row).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 1;
 EXPLAIN
--> Filter: (t1.id = 1)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id = 1)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
@@ -27,8 +27,8 @@ Note	1003	Query is executed in secondary engine; the actual query plan may diver
 # rows 1 to 7).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1;
 EXPLAIN
--> Filter: (t1.x = 1)  (cost=X rows=7)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.x = 1)  (rows=7)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
@@ -36,8 +36,8 @@ Note	1003	Query is executed in secondary engine; the actual query plan may diver
 # rows 8 and 9).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2;
 EXPLAIN
--> Filter: (t1.x = 2)  (cost=X rows=2)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.x = 2)  (rows=2)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
@@ -45,184 +45,184 @@ Note	1003	Query is executed in secondary engine; the actual query plan may diver
 # row 10).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 3;
 EXPLAIN
--> Filter: (t1.x = 3)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.x = 3)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # No index on y, so a heuristic is used for the filtering effect.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE y = 1;
 EXPLAIN
--> Filter: (t1.y = 1)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.y = 1)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # Ignoring indexes cause heuristics to be used.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 USE INDEX () WHERE id = 1;
 EXPLAIN
--> Filter: (t1.id = 1)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id = 1)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 USE INDEX () WHERE x = 1;
 EXPLAIN
--> Filter: (t1.x = 1)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.x = 1)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 IGNORE INDEX (PRIMARY) WHERE id = 1;
 EXPLAIN
--> Filter: (t1.id = 1)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id = 1)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 IGNORE INDEX (x) WHERE x = 1;
 EXPLAIN
--> Filter: (t1.x = 1)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.x = 1)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # No matching rows. Rounds up estimates to one matching row (10%).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 100;
 EXPLAIN
--> Filter: (t1.id = 100)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id = 100)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 100;
 EXPLAIN
--> Filter: (t1.x = 100)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.x = 100)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # Matches two rows in the primary index (20%).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id = 3 OR id = 7;
 EXPLAIN
--> Filter: ((t1.id = 3) or (t1.id = 7))  (cost=X rows=2)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: ((t1.id = 3) or (t1.id = 7))  (rows=2)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # Matches three rows in the secondary index (30%).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 2 OR x = 3;
 EXPLAIN
--> Filter: ((t1.x = 2) or (t1.x = 3))  (cost=X rows=3)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: ((t1.x = 2) or (t1.x = 3))  (rows=3)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # Matches all rows in the secondary index (100%).
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x = 1 OR x = 2 OR x = 3;
 EXPLAIN
--> Filter: ((t1.x = 1) or (t1.x = 2) or (t1.x = 3))  (cost=X rows=10)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: ((t1.x = 1) or (t1.x = 2) or (t1.x = 3))  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # Ranges in the primary index.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 0;
 EXPLAIN
--> Filter: (t1.id > 0)  (cost=X rows=10)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id > 0)  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 1;
 EXPLAIN
--> Filter: (t1.id > 1)  (cost=X rows=9)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id > 1)  (rows=9)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 3;
 EXPLAIN
--> Filter: (t1.id > 3)  (cost=X rows=7)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id > 3)  (rows=7)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 9;
 EXPLAIN
--> Filter: (t1.id > 9)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id > 9)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id > 10;
 EXPLAIN
--> Filter: (t1.id > 10)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id > 10)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 1;
 EXPLAIN
--> Filter: (t1.id < 1)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id < 1)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 3;
 EXPLAIN
--> Filter: (t1.id < 3)  (cost=X rows=2)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id < 3)  (rows=2)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id < 10;
 EXPLAIN
--> Filter: (t1.id < 10)  (cost=X rows=9)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id < 10)  (rows=9)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE id BETWEEN 3 AND 7;
 EXPLAIN
--> Filter: (t1.id between 3 and 7)  (cost=X rows=5)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.id between 3 and 7)  (rows=5)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 # Ranges in the secondary index.
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 1;
 EXPLAIN
--> Filter: (t1.x < 1)  (cost=X rows=1)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.x < 1)  (rows=1)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 2;
 EXPLAIN
--> Filter: (t1.x < 2)  (cost=X rows=7)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.x < 2)  (rows=7)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 3;
 EXPLAIN
--> Filter: (t1.x < 3)  (cost=X rows=9)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.x < 3)  (rows=9)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x < 4;
 EXPLAIN
--> Filter: (t1.x < 4)  (cost=X rows=10)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.x < 4)  (rows=10)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
 EXPLAIN FORMAT=TREE SELECT * FROM t1 WHERE x BETWEEN 1 AND 2;
 EXPLAIN
--> Filter: (t1.x between 1 and 2)  (cost=X rows=9)
-    -> Table scan on t1 in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (t1.x between 1 and 2)  (rows=9)
+    -> Table scan on t1 in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
@@ -231,11 +231,11 @@ Note	1003	Query is executed in secondary engine; the actual query plan may diver
 # (No occurrence of "Range checked for each record" in the plan.)
 EXPLAIN FORMAT=TREE SELECT * FROM t1 a, t1 b WHERE a.id < b.id;
 EXPLAIN
--> Filter: (a.id < b.id)  (cost=X rows=33)
-    -> Inner hash join (no condition)  (cost=X rows=33)
-        -> Table scan on b in secondary engine MOCK  (cost=X rows=10)
+-> Filter: (a.id < b.id)  (rows=33.3)
+    -> Inner hash join (no condition)  (rows=33.3)
+        -> Table scan on b in secondary engine MOCK  (rows=10)
         -> Hash
-            -> Table scan on a in secondary engine MOCK  (cost=X rows=10)
+            -> Table scan on a in secondary engine MOCK  (rows=10)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one
@@ -254,8 +254,8 @@ WHERE MBRContains(POLYGON(LINESTRING(POINT(0,0), POINT(3,0),
 POINT(3,3), POINT(0,0))),
 g);
 EXPLAIN
--> Filter: mbrcontains(<cache>(polygon(linestring(point(0,0),point(3,0),point(3,3),point(0,0)))),geom.g)  (cost=X rows=3)
-    -> Table scan on geom in secondary engine MOCK  (cost=X rows=3)
+-> Filter: mbrcontains(<cache>(polygon(linestring(point(0,0),point(3,0),point(3,3),point(0,0)))),geom.g)  (rows=3)
+    -> Table scan on geom in secondary engine MOCK  (rows=3)
 
 Warnings:
 Note	1003	Query is executed in secondary engine; the actual query plan may diverge from the printed one

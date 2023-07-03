@@ -18,7 +18,7 @@
 #     The expected SQL error numbers. This can be either a single
 #     number, or a comma-separated list of numbers. Examples:
 #       --let $slave_sql_errno= 1040, 1053, 2002, 2003, 2006, 2013
-#       --let $slave_sql_errno= 1593 # ER_SLAVE_FATAL_ERROR
+#       --let $slave_sql_errno= 1593 # ER_REPLICA_FATAL_ERROR
 #     It is allowed to add a comment at the end of the line, and it
 #     is strongly advised to put the symbolic name of the error in
 #     this comment, like the example above.

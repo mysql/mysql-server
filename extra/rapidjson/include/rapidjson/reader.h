@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making RapidJSON available.
 //
-// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.
 //
 // Licensed under the MIT License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -154,6 +154,7 @@ enum ParseFlag {
     kParseNumbersAsStringsFlag = 64,    //!< Parse all numbers (ints/doubles) as strings.
     kParseTrailingCommasFlag = 128, //!< Allow trailing commas at the end of objects and arrays.
     kParseNanAndInfFlag = 256,      //!< Allow parsing NaN, Inf, Infinity, -Inf and -Infinity as doubles.
+    kParseEscapedApostropheFlag = 512,  //!< Allow escaped apostrophe in strings.
     kParseDefaultFlags = RAPIDJSON_PARSE_DEFAULT_FLAGS  //!< Default parse flags. Can be customized by defining RAPIDJSON_PARSE_DEFAULT_FLAGS
 };
 
@@ -449,11 +450,11 @@ inline const char *SkipWhitespace_SIMD(const char* p) {
 
         if (low == 0) {
             if (high != 0) {
-                uint32_t lz = RAPIDJSON_CLZLL(high);
+                uint32_t lz = internal::clzll(high);
                 return p + 8 + (lz >> 3);
             }
         } else {
-            uint32_t lz = RAPIDJSON_CLZLL(low);
+            uint32_t lz = internal::clzll(low);
             return p + (lz >> 3);
         }
     }
@@ -485,11 +486,11 @@ inline const char *SkipWhitespace_SIMD(const char* p, const char* end) {
 
         if (low == 0) {
             if (high != 0) {
-                uint32_t lz = RAPIDJSON_CLZLL(high);
+                uint32_t lz = internal::clzll(high);
                 return p + 8 + (lz >> 3);
             }
         } else {
-            uint32_t lz = RAPIDJSON_CLZLL(low);
+            uint32_t lz = internal::clzll(low);
             return p + (lz >> 3);
         }
     }
@@ -991,7 +992,7 @@ private:
 //!@cond RAPIDJSON_HIDDEN_FROM_DOXYGEN
 #define Z16 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
         static const char escape[256] = {
-            Z16, Z16, 0, 0,'\"', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,'/',
+            Z16, Z16, 0, 0,'\"', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '/',
             Z16, Z16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,'\\', 0, 0, 0,
             0, 0,'\b', 0, 0, 0,'\f', 0, 0, 0, 0, 0, 0, 0,'\n', 0,
             0, 0,'\r', 0,'\t', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1014,19 +1015,31 @@ private:
                     is.Take();
                     os.Put(static_cast<typename TEncoding::Ch>(escape[static_cast<unsigned char>(e)]));
                 }
+                else if ((parseFlags & kParseEscapedApostropheFlag) && RAPIDJSON_LIKELY(e == '\'')) { // Allow escaped apostrophe
+                    is.Take();
+                    os.Put('\'');
+                }
                 else if (RAPIDJSON_LIKELY(e == 'u')) {    // Unicode
                     is.Take();
                     unsigned codepoint = ParseHex4(is, escapeOffset);
                     RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
-                    if (RAPIDJSON_UNLIKELY(codepoint >= 0xD800 && codepoint <= 0xDBFF)) {
-                        // Handle UTF-16 surrogate pair
-                        if (RAPIDJSON_UNLIKELY(!Consume(is, '\\') || !Consume(is, 'u')))
+                    if (RAPIDJSON_UNLIKELY(codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+                        // high surrogate, check if followed by valid low surrogate
+                        if (RAPIDJSON_LIKELY(codepoint <= 0xDBFF)) {
+                            // Handle UTF-16 surrogate pair
+                            if (RAPIDJSON_UNLIKELY(!Consume(is, '\\') || !Consume(is, 'u')))
+                                RAPIDJSON_PARSE_ERROR(kParseErrorStringUnicodeSurrogateInvalid, escapeOffset);
+                            unsigned codepoint2 = ParseHex4(is, escapeOffset);
+                            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+                            if (RAPIDJSON_UNLIKELY(codepoint2 < 0xDC00 || codepoint2 > 0xDFFF))
+                                RAPIDJSON_PARSE_ERROR(kParseErrorStringUnicodeSurrogateInvalid, escapeOffset);
+                            codepoint = (((codepoint - 0xD800) << 10) | (codepoint2 - 0xDC00)) + 0x10000;
+                        }
+                        // single low surrogate
+                        else
+                        {
                             RAPIDJSON_PARSE_ERROR(kParseErrorStringUnicodeSurrogateInvalid, escapeOffset);
-                        unsigned codepoint2 = ParseHex4(is, escapeOffset);
-                        RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
-                        if (RAPIDJSON_UNLIKELY(codepoint2 < 0xDC00 || codepoint2 > 0xDFFF))
-                            RAPIDJSON_PARSE_ERROR(kParseErrorStringUnicodeSurrogateInvalid, escapeOffset);
-                        codepoint = (((codepoint - 0xD800) << 10) | (codepoint2 - 0xDC00)) + 0x10000;
+                        }
                     }
                     TEncoding::Encode(os, codepoint);
                 }
@@ -1252,12 +1265,12 @@ private:
             bool escaped = false;
             if (low == 0) {
                 if (high != 0) {
-                    uint32_t lz = RAPIDJSON_CLZLL(high);
+                    uint32_t lz = internal::clzll(high);
                     length = 8 + (lz >> 3);
                     escaped = true;
                 }
             } else {
-                uint32_t lz = RAPIDJSON_CLZLL(low);
+                uint32_t lz = internal::clzll(low);
                 length = lz >> 3;
                 escaped = true;
             }
@@ -1322,12 +1335,12 @@ private:
             bool escaped = false;
             if (low == 0) {
                 if (high != 0) {
-                    uint32_t lz = RAPIDJSON_CLZLL(high);
+                    uint32_t lz = internal::clzll(high);
                     length = 8 + (lz >> 3);
                     escaped = true;
                 }
             } else {
-                uint32_t lz = RAPIDJSON_CLZLL(low);
+                uint32_t lz = internal::clzll(low);
                 length = lz >> 3;
                 escaped = true;
             }
@@ -1376,12 +1389,12 @@ private:
 
             if (low == 0) {
                 if (high != 0) {
-                    uint32_t lz = RAPIDJSON_CLZLL(high);
+                    uint32_t lz = internal::clzll(high);
                     p += 8 + (lz >> 3);
                     break;
                 }
             } else {
-                uint32_t lz = RAPIDJSON_CLZLL(low);
+                uint32_t lz = internal::clzll(low);
                 p += lz >> 3;
                 break;
             }
@@ -1391,11 +1404,11 @@ private:
     }
 #endif // RAPIDJSON_NEON
 
-    template<typename InputStream, bool backup, bool pushOnTake>
+    template<typename InputStream, typename StackCharacter, bool backup, bool pushOnTake>
     class NumberStream;
 
-    template<typename InputStream>
-    class NumberStream<InputStream, false, false> {
+    template<typename InputStream, typename StackCharacter>
+    class NumberStream<InputStream, StackCharacter, false, false> {
     public:
         typedef typename InputStream::Ch Ch;
 
@@ -1408,7 +1421,7 @@ private:
 
         size_t Tell() { return is.Tell(); }
         size_t Length() { return 0; }
-        const char* Pop() { return 0; }
+        const StackCharacter* Pop() { return 0; }
 
     protected:
         NumberStream& operator=(const NumberStream&);
@@ -1416,45 +1429,47 @@ private:
         InputStream& is;
     };
 
-    template<typename InputStream>
-    class NumberStream<InputStream, true, false> : public NumberStream<InputStream, false, false> {
-        typedef NumberStream<InputStream, false, false> Base;
+    template<typename InputStream, typename StackCharacter>
+    class NumberStream<InputStream, StackCharacter, true, false> : public NumberStream<InputStream, StackCharacter, false, false> {
+        typedef NumberStream<InputStream, StackCharacter, false, false> Base;
     public:
-        NumberStream(GenericReader& reader, InputStream& is) : Base(reader, is), stackStream(reader.stack_) {}
+        NumberStream(GenericReader& reader, InputStream& s) : Base(reader, s), stackStream(reader.stack_) {}
 
         RAPIDJSON_FORCEINLINE Ch TakePush() {
-            stackStream.Put(static_cast<char>(Base::is.Peek()));
+            stackStream.Put(static_cast<StackCharacter>(Base::is.Peek()));
             return Base::is.Take();
         }
 
-        RAPIDJSON_FORCEINLINE void Push(char c) {
+        RAPIDJSON_FORCEINLINE void Push(StackCharacter c) {
             stackStream.Put(c);
         }
 
         size_t Length() { return stackStream.Length(); }
 
-        const char* Pop() {
+        const StackCharacter* Pop() {
             stackStream.Put('\0');
             return stackStream.Pop();
         }
 
     private:
-        StackStream<char> stackStream;
+        StackStream<StackCharacter> stackStream;
     };
 
-    template<typename InputStream>
-    class NumberStream<InputStream, true, true> : public NumberStream<InputStream, true, false> {
-        typedef NumberStream<InputStream, true, false> Base;
+    template<typename InputStream, typename StackCharacter>
+    class NumberStream<InputStream, StackCharacter, true, true> : public NumberStream<InputStream, StackCharacter, true, false> {
+        typedef NumberStream<InputStream, StackCharacter, true, false> Base;
     public:
-        NumberStream(GenericReader& reader, InputStream& is) : Base(reader, is) {}
+        NumberStream(GenericReader& reader, InputStream& s) : Base(reader, s) {}
 
         RAPIDJSON_FORCEINLINE Ch Take() { return Base::TakePush(); }
     };
 
     template<unsigned parseFlags, typename InputStream, typename Handler>
     void ParseNumber(InputStream& is, Handler& handler) {
+        typedef typename internal::SelectIf<internal::BoolType<(parseFlags & kParseNumbersAsStringsFlag) != 0>, typename TargetEncoding::Ch, char>::Type NumberCharacter;
+
         internal::StreamLocalCopy<InputStream> copy(is);
-        NumberStream<InputStream,
+        NumberStream<InputStream, NumberCharacter,
             ((parseFlags & kParseNumbersAsStringsFlag) != 0) ?
                 ((parseFlags & kParseInsituFlag) == 0) :
                 ((parseFlags & kParseFullPrecisionFlag) != 0),
@@ -1679,10 +1694,10 @@ private:
             }
             else {
                 SizeType numCharsToCopy = static_cast<SizeType>(s.Length());
-                StringStream srcStream(s.Pop());
+                GenericStringStream<UTF8<NumberCharacter> > srcStream(s.Pop());
                 StackStream<typename TargetEncoding::Ch> dstStream(stack_);
                 while (numCharsToCopy--) {
-                    Transcoder<UTF8<>, TargetEncoding>::Transcode(srcStream, dstStream);
+                    Transcoder<UTF8<typename TargetEncoding::Ch>, TargetEncoding>::Transcode(srcStream, dstStream);
                 }
                 dstStream.Put('\0');
                 const typename TargetEncoding::Ch* str = dstStream.Pop();
@@ -1692,7 +1707,7 @@ private:
         }
         else {
            size_t length = s.Length();
-           const char* decimal = s.Pop();  // Pop stack no matter if it will be used or not.
+           const NumberCharacter* decimal = s.Pop();  // Pop stack no matter if it will be used or not.
 
            if (useDouble) {
                int p = exp + expFrac;

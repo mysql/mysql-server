@@ -2,12 +2,12 @@
 .\"     Title: mysqlrouter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/22/2022
+.\"      Date: 03/03/2023
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "MYSQLROUTER" "1" "11/22/2022" "MySQL 8\&.0" "MySQL Router"
+.TH "MYSQLROUTER" "1" "03/03/2023" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -96,7 +96,7 @@ Displays the version number and related information of the application, and exit
 .\}
 .nf
 $> \fBmysqlrouter \-\-version\fR
-MySQL Router v8\&.0\&.31 on Linux (64\-bit) (GPL community edition)
+MySQL Router v8\&.0\&.32 on Linux (64\-bit) (GPL community edition)
 .fi
 .if n \{\
 .RE
@@ -246,18 +246,7 @@ The
 \fB\-\-user\fR
 option is required if executing a bootstrap with a super user (uid=0)\&. Although not recommended, forcing the super user is possible by passing its name as an argument such as
 \fI\-\-user=root\fR\&.
-.if n \{\
 .sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
 The minimum GRANT permissions required to execute
 \fB\-\-boostrap\fR
 are:
@@ -276,8 +265,7 @@ GRANT SELECT ON performance_schema\&.global_variables TO \*(Aq\fIbootstrapuser\f
 .if n \{\
 .RE
 .\}
-.sp .5v
-.RE
+.sp
 Using
 \fB\-\-bootstrap\fR
 adds default values to the generated MySQL Router configuration file, and some of these default values depend on other conditions\&. Listed below are some of the conditions that affect the generated default values, where default is defined by passing in
@@ -522,7 +510,8 @@ Example usage:
 .RS 4
 .\}
 .nf
-$> mysqlrouter \-\-bootstrap=127\&.0\&.0\&.1:3310 \-\-master\-key\-reader=\&./reader\&.sh \-\-master\-key\-writer=\&./writer\&.sh
+$> mysqlrouter \-\-bootstrap=127\&.0\&.0\&.1:3310 \-\-master\-key\-reader=\&./reader\&.sh 
+  \-\-master\-key\-writer=\&./writer\&.sh
 .fi
 .if n \{\
 .RE
@@ -623,7 +612,8 @@ Example usage:
 .RS 4
 .\}
 .nf
-$> mysqlrouter \-\-bootstrap=127\&.0\&.0\&.1:3310 \-\-master\-key\-reader=\&./reader\&.sh \-\-master\-key\-writer=\&./writer\&.sh
+$> mysqlrouter \-\-bootstrap=127\&.0\&.0\&.1:3310 \-\-master\-key\-reader=\&./reader\&.sh 
+  # Or, multiple hosts\-\-master\-key\-writer=\&./writer\&.sh
 .fi
 .if n \{\
 .RE
@@ -922,7 +912,8 @@ Examples:
 # One host
 $> mysqlrouter \-\-bootstrap localhost:3310 \-\-account\-host host1
 # Or, multiple hosts
-$> mysqlrouter \-\-bootstrap localhost:3310 \-\-account\-host host1 \-\-account\-host host2 \-\-account\-host host3
+$> mysqlrouter \-\-bootstrap localhost:3310 \-\-account\-host host1 \-\-account\-host host2 
+  \-\-account\-host host3
 .fi
 .if n \{\
 .RE
@@ -2474,7 +2465,7 @@ at bootstrap\&. It defaults to 8443\&. Availability of the port is not checked\&
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2022, Oracle and/or its affiliates.
+Copyright \(co 2006, 2023, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

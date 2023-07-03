@@ -51,9 +51,8 @@ FLUSH RELAY LOGS;
 CALL mtr.add_suppression("@@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON");
 CALL mtr.add_suppression("When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK");
 CALL mtr.add_suppression("Cannot execute the current event group");
-CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
-CALL mtr.add_suppression("Error writing relay log configuration.*");
-CALL mtr.add_suppression("Error reading relay log event for channel.*");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+
 --source include/stop_slave.inc
 
 ###################################################
@@ -113,12 +112,12 @@ if (`SELECT @@BINLOG_FORMAT = 'STATEMENT'`)
 #           GTID_STATEMENT_CANCEL. If a transaction is started without
 #           executing it's GTID_NEXT, it will complain with error
 #           ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
-#           or ER_MTS_CANT_PARALLEL (incase of MTS enabled server).
+#           or ER_MTA_CANT_PARALLEL (incase of MTS enabled server).
 ###############################################################################
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE='slave-relay-bin.000005', RELAY_LOG_POS=4;
 START REPLICA SQL_THREAD;
 --let $sts_error= convert_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON)
---let $mts_error= convert_error(ER_MTS_CANT_PARALLEL)
+--let $mts_error= convert_error(ER_MTA_CANT_PARALLEL)
 --let $slave_sql_errno= $sts_error, $mts_error
 --source include/wait_for_slave_sql_error.inc
 

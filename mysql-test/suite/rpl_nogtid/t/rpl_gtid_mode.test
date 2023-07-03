@@ -46,20 +46,20 @@
 
 --echo ==== Initialize ====
 
-call mtr.add_suppression("Slave I/O for channel '': The replication receiver thread cannot start");
-call mtr.add_suppression("Slave I/O for channel '': The slave IO thread stops");
-call mtr.add_suppression("Slave I/O for channel '': Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
-call mtr.add_suppression("Slave I/O for channel '': Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
+call mtr.add_suppression("Replica I/O for channel '': The replication receiver thread cannot start");
+call mtr.add_suppression("Replica I/O for channel '': The replica IO thread stops");
+call mtr.add_suppression("Replica I/O for channel '': Got fatal error 1236 from source when reading data from binary log: 'Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
+call mtr.add_suppression("Replica I/O for channel '': Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF");
 call mtr.add_suppression("GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected in an event stream after a GTID_LOG_EVENT or an ANONYMOUS_GTID_LOG_EVENT.");
-call mtr.add_suppression("An unexpected event sequence was detected by the IO thread while queuing the event received from master");
+call mtr.add_suppression("An unexpected event sequence was detected by the IO thread while queuing the event received from source");
 call mtr.add_suppression("Detected misconfiguration: replication channel '' was configured with AUTO_POSITION = 1, but the server was started with --gtid-mode=off.");
-call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: could not queue event from master");
-call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON");
-call mtr.add_suppression("Slave I/O for channel '': Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON");
-call mtr.add_suppression("Slave I/O for channel '': Cannot replicate anonymous transaction when AUTO_POSITION = 1");
-call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate anonymous transaction when AUTO_POSITION = 1,");
-call mtr.add_suppression("Slave I/O for channel '': The master uses an unknown GTID_MODE 'on_something'. Treating it as 'ON'.");
-call mtr.add_suppression("Slave I/O for channel '': The master uses an unknown GTID_MODE 'off_something'. Treating it as 'OFF'.");
+call mtr.add_suppression("Replica I/O for channel '': Relay log write failure: could not queue event from source");
+call mtr.add_suppression("Got fatal error 1236 from source when reading data from binary log: 'Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON");
+call mtr.add_suppression("Replica I/O for channel '': Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON");
+call mtr.add_suppression("Replica I/O for channel '': Cannot replicate anonymous transaction when AUTO_POSITION = 1");
+call mtr.add_suppression("Got fatal error 1236 from source when reading data from binary log: 'Cannot replicate anonymous transaction when AUTO_POSITION = 1,");
+call mtr.add_suppression("Replica I/O for channel '': The source uses an unknown GTID_MODE 'on_something'. Treating it as 'ON'.");
+call mtr.add_suppression("Replica I/O for channel '': The source uses an unknown GTID_MODE 'off_something'. Treating it as 'OFF'.");
 call mtr.add_suppression("Could not open .* for logging.*. Turning logging off for the whole duration of the MySQL server process.");
 
 --let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`
@@ -142,7 +142,7 @@ while ($master_gtid_mode <= 3)
     }
     if (!$gtid_modes_compatible)
     {
-      --let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+      --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
       --source include/wait_for_slave_io_error.inc
     }
 
@@ -160,7 +160,7 @@ while ($master_gtid_mode <= 3)
       START SLAVE IO_THREAD;
       if ($master_gtid_mode != 3)
       {
-        --let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+        --let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
         --source include/wait_for_slave_io_error.inc
       }
       if ($master_gtid_mode == 3)
@@ -242,7 +242,7 @@ START SLAVE IO_THREAD;
 --let $assert_text= Receiver thread should report - Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select= Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF
---let $assert_only_after= Slave I/O thread for channel '': connected to master
+--let $assert_only_after= Replica I/O thread for channel '': connected to source
 --let $assert_count= 2
 --source include/assert_grep.inc
 
@@ -275,17 +275,17 @@ CREATE TABLE t2(a int);
 --source include/rpl_connection_slave.inc
 
 # Errors in queue_event() are overwritten in SHOW SLAVE STATUS/P_S
-# by (13122 ER_SLAVE_RELAY_LOG_WRITE_FAILURE).
+# by (13122 ER_REPLICA_RELAY_LOG_WRITE_FAILURE).
 # So the only place where old error exists is slave error log.
 # Grep error log to look for old error.
 
---let $slave_io_errno= 13122 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+--let $slave_io_errno= 13122 # ER_REPLICA_RELAY_LOG_WRITE_FAILURE
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= Receiver thread should report - Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select= Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF
---let $assert_only_after= Slave I/O thread for channel '': connected to master
+--let $assert_only_after= Replica receiver thread for channel '': connected to source
 --let $assert_count= 1
 --source include/assert_grep.inc
 
@@ -370,14 +370,14 @@ START SLAVE IO_THREAD;
 --let $assert_text= While gtid-mode=on, slave expects an anonymous event to get ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select= Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON
---let $assert_only_after= Slave I/O thread for channel '': connected to master
+--let $assert_only_after= Replica receiver thread for channel '': connected to source
 --let $assert_count= 2
 --source include/assert_grep.inc
 
 --source include/rpl_connection_master.inc
 DROP TABLE t3;
 
---let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_SOURCE_FATAL_ERROR_READING_BINLOG)
 --source include/rpl_reset.inc
 
 --echo #
@@ -393,13 +393,13 @@ CREATE TABLE t4(a int);
 
 --source include/rpl_connection_slave.inc
 
---let $slave_io_errno= 13122 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+--let $slave_io_errno= 13122 # ER_REPLICA_RELAY_LOG_WRITE_FAILURE
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= While gtid-mode=on, slave expects an anonymous event to get ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON.
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_select= Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON
---let $assert_only_after= Slave I/O thread for channel '': connected to master
+--let $assert_only_after= Replica receiver thread for channel '': connected to source
 --let $assert_count= 1
 --source include/assert_grep.inc
 
@@ -557,7 +557,7 @@ INSERT INTO t6 VALUES(1);  # anonymous transaction
 CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 START SLAVE IO_THREAD;
 
---let $slave_io_errno= 13122 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+--let $slave_io_errno= 13122 # ER_REPLICA_RELAY_LOG_WRITE_FAILURE
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= While AUTO_POSITION is enabled, Master sends an anonymous transaction resulting into ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION.
@@ -661,7 +661,7 @@ RESET MASTER;
 RESET SLAVE;
 SET @@GLOBAL.DEBUG= '+d,simulate_source_has_unknown_gtid_mode';
 START SLAVE IO_THREAD;
---let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $slave_io_errno= convert_error(ER_REPLICA_FATAL_ERROR)
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
 SET @@GLOBAL.DEBUG= @debug_saved;

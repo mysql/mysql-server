@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ void install_default_setup(PSI_thread_bootstrap *thread_boot) {
 
   const char *pfs_category = "performance_schema";
 
-  PSI_thread_service_t *psi = (PSI_thread_service_t *)service;
+  auto *psi = (PSI_thread_service_t *)service;
 
   psi->register_thread(pfs_category, &thread_info, 1);
   PSI_thread *psi_thread = psi->new_thread(thread_key, 0, nullptr, 0);

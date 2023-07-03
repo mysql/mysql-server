@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,7 +139,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "sql/sql_cmd_srs.h"
 #include "sql/sql_connect.h"
-#include "sql/sql_component.h"
+#include "sql/sql_component.h"                     // Sql_cmd_uninstall_component
 #include "sql/sql_error.h"
 #include "sql/sql_exchange.h"
 #include "sql/sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
@@ -494,6 +494,19 @@ void warn_about_deprecated_binary(THD *thd)
 {
   push_deprecated_warn(thd, "BINARY as attribute of a type",
   "a CHARACTER SET clause with _bin collation");
+}
+
+void warn_on_deprecated_user_defined_collation(
+    THD *thd, const LEX_STRING collation_name) {
+  if (collation_name.length == 0)
+    return;
+  CHARSET_INFO *collation = mysqld_collation_get_by_name(collation_name.str);
+  if (collation && !(collation->state & MY_CS_COMPILED)) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS,
+                        ER_THD(thd, ER_WARN_DEPRECATED_USER_DEFINED_COLLATIONS),
+                        collation->m_coll_name);
+  }
 }
 
 %}
@@ -1569,6 +1582,7 @@ void warn_about_deprecated_binary(THD *thd)
         param_or_var
         in_expression_user_variable_assignment
         rvalue_system_or_user_variable
+        install_set_rvalue
 
 %type <item_string> window_name opt_existing_window_name
 
@@ -1591,7 +1605,8 @@ void warn_about_deprecated_binary(THD *thd)
         row_value_explicit
 
 %type <var_type>
-        option_type opt_var_type opt_rvalue_system_variable_type opt_set_var_ident_type
+        option_type opt_var_type opt_rvalue_system_variable_type
+        opt_set_var_ident_type install_option_type
 
 %type <key_type>
         opt_unique constraint_key_type
@@ -1938,6 +1953,7 @@ void warn_about_deprecated_binary(THD *thd)
         simple_statement
         truncate_stmt
         update_stmt
+        install_stmt
 
 %type <table_ident> table_ident_opt_wild
 
@@ -2171,6 +2187,9 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <load_set_list> load_data_set_list opt_load_data_set_spec
 
+%type <install_component_set_list> install_set_value_list opt_install_set_value_list
+%type <install_component_set_element>  install_set_value
+
 %type <num> opt_array_cast
 %type <sql_cmd_srs_attributes> srs_attributes
 
@@ -2363,7 +2382,7 @@ simple_statement:
         | help                          { $$= nullptr; }
         | import_stmt                   { $$= nullptr; }
         | insert_stmt
-        | install                       { $$= nullptr; }
+        | install_stmt
         | kill                          { $$= nullptr; }
         | load_stmt
         | lock                          { $$= nullptr; }
@@ -3044,7 +3063,7 @@ source_def:
             Lex->mi.password = $3.str;
             if (strlen($3.str) > 32)
             {
-              my_error(ER_CHANGE_MASTER_PASSWORD_LENGTH, MYF(0));
+              my_error(ER_CHANGE_SOURCE_PASSWORD_LENGTH, MYF(0));
               MYSQL_YYABORT;
             }
             Lex->contains_plaintext_password= true;
@@ -3067,7 +3086,7 @@ source_def:
             if ($3 > MASTER_DELAY_MAX)
             {
               const char *msg= YYTHD->strmake(@3.cpp.start, @3.cpp.end - @3.cpp.start);
-              my_error(ER_MASTER_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
+              my_error(ER_SOURCE_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
                        msg, MASTER_DELAY_MAX);
             }
             else
@@ -3138,22 +3157,22 @@ source_def:
                const char format[]= "%d";
                char buf[4*sizeof(SLAVE_MAX_HEARTBEAT_PERIOD) + sizeof(format)];
                sprintf(buf, format, SLAVE_MAX_HEARTBEAT_PERIOD);
-               my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE, MYF(0), buf);
+               my_error(ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE, MYF(0), buf);
                MYSQL_YYABORT;
             }
             if (Lex->mi.heartbeat_period > replica_net_timeout)
             {
               push_warning(YYTHD, Sql_condition::SL_WARNING,
-                           ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
-                           ER_THD(YYTHD, ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
+                           ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                           ER_THD(YYTHD, ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
             }
             if (Lex->mi.heartbeat_period < 0.001)
             {
               if (Lex->mi.heartbeat_period != 0.0)
               {
                 push_warning(YYTHD, Sql_condition::SL_WARNING,
-                             ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
-                             ER_THD(YYTHD, ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
+                             ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
+                             ER_THD(YYTHD, ER_REPLICA_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
                 Lex->mi.heartbeat_period= 0.0;
               }
               Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_DISABLE;
@@ -9305,7 +9324,7 @@ start_replica_stmt:
                  Lex->slave_connection.plugin_auth ||
                  Lex->slave_connection.plugin_dir))
             {
-              my_error(ER_SQLTHREAD_WITH_SECURE_SLAVE, MYF(0));
+              my_error(ER_SQLTHREAD_WITH_SECURE_REPLICA, MYF(0));
               MYSQL_YYABORT;
             }
           }
@@ -9465,7 +9484,7 @@ opt_replica_until:
                   || lex->mi.relay_log_pos || lex->mi.gtid)
                  && lex->mi.until_after_gaps))
             {
-               my_error(ER_BAD_SLAVE_UNTIL_COND, MYF(0));
+               my_error(ER_BAD_REPLICA_UNTIL_COND, MYF(0));
                MYSQL_YYABORT;
             }
             lex->mi.slave_until= true;
@@ -10470,6 +10489,7 @@ simple_expr:
         | function_call_conflict
         | simple_expr COLLATE_SYM ident_or_text %prec NEG
           {
+            warn_on_deprecated_user_defined_collation(YYTHD, $3);
             $$= NEW_PTN Item_func_set_collation(@$, $1, $3);
           }
         | literal_or_null
@@ -14266,7 +14286,7 @@ source_reset_options:
           {
             if ($2 == 0 || $2 > MAX_ALLOWED_FN_EXT_RESET_MASTER)
             {
-              my_error(ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE, MYF(0),
+              my_error(ER_RESET_SOURCE_TO_VALUE_OUT_OF_RANGE, MYF(0),
                        $2, MAX_ALLOWED_FN_EXT_RESET_MASTER);
               MYSQL_YYABORT;
             }
@@ -18013,18 +18033,63 @@ opt_suspend:
           { $$= XA_FOR_MIGRATE; }
         ;
 
-install:
+install_option_type:
+        /* empty */ { $$=OPT_GLOBAL; }
+        | GLOBAL_SYM  { $$=OPT_GLOBAL; }
+        | PERSIST_SYM { $$=OPT_PERSIST; }
+        ;
+
+install_set_rvalue:
+          expr
+        | ON_SYM
+          {
+            $$= NEW_PTN Item_string(@$, "ON", 2, system_charset_info);
+          }
+        ;
+
+install_set_value:
+        install_option_type lvalue_variable equal install_set_rvalue
+        {
+          $$ = NEW_PTN PT_install_component_set_element {$1, $2, $4};
+        }
+        ;
+
+install_set_value_list:
+        install_set_value
+          {
+            $$ = NEW_PTN List<PT_install_component_set_element>;
+            if (!$$)
+              MYSQL_YYABORT; // OOM
+            if ($$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | install_set_value_list ',' install_set_value
+          {
+            $$ = $1;
+            if ($$->push_back($3))
+              MYSQL_YYABORT; // OOM
+          }
+        ;
+
+opt_install_set_value_list:
+        /* empty */
+          {
+            $$ = NEW_PTN List<PT_install_component_set_element>;
+          }
+        | SET_SYM install_set_value_list { $$ = $2; }
+        ;
+
+install_stmt:
           INSTALL_SYM PLUGIN_SYM ident SONAME_SYM TEXT_STRING_sys
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
             lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_install_plugin(to_lex_cstring($3), $5);
+            $$ = nullptr;
           }
-        | INSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
+        | INSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list opt_install_set_value_list
           {
-            LEX *lex= Lex;
-            lex->sql_command= SQLCOM_INSTALL_COMPONENT;
-            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_install_component($3);
+            $$ = NEW_PTN PT_install_component(YYTHD, $3, $4);
           }
         ;
 

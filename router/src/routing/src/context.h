@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@
 #include "mysqlrouter/destination.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/base_protocol.h"
+#include "routing_config.h"
 #include "shared_quarantine_handler.h"
 #include "ssl_mode.h"
 #include "tcp_address.h"
@@ -56,32 +57,14 @@
  */
 class MySQLRoutingContext {
  public:
-  MySQLRoutingContext(BaseProtocol::Type protocol, std::string name,
-                      unsigned int net_buffer_length,
-                      std::chrono::milliseconds destination_connect_timeout,
-                      std::chrono::milliseconds client_connect_timeout,
-                      mysql_harness::TCPAddress bind_address,
-                      mysql_harness::Path bind_named_socket,
-                      unsigned long long max_connect_errors,
-                      SslMode client_ssl_mode, TlsServerContext *client_ssl_ctx,
-                      SslMode server_ssl_mode,
-                      DestinationTlsContext *dest_tls_context,
-                      bool connection_sharing,
-                      std::chrono::milliseconds connection_sharing_delay)
-      : protocol_(protocol),
+  MySQLRoutingContext(const RoutingConfig &routing_config, std::string name,
+                      TlsServerContext *client_ssl_ctx,
+                      DestinationTlsContext *dest_tls_context)
+      : routing_config_(routing_config),
         name_(std::move(name)),
-        net_buffer_length_(net_buffer_length),
-        destination_connect_timeout_(destination_connect_timeout),
-        client_connect_timeout_(client_connect_timeout),
-        bind_address_(std::move(bind_address)),
-        bind_named_socket_(std::move(bind_named_socket)),
-        client_ssl_mode_{client_ssl_mode},
         client_ssl_ctx_{client_ssl_ctx},
-        server_ssl_mode_{server_ssl_mode},
         destination_tls_context_{dest_tls_context},
-        blocked_endpoints_{max_connect_errors},
-        connection_sharing_{connection_sharing},
-        connection_sharing_delay_{connection_sharing_delay} {}
+        blocked_endpoints_{routing_config.max_connect_errors} {}
 
   BlockedEndpoints &blocked_endpoints() { return blocked_endpoints_; }
   const BlockedEndpoints &blocked_endpoints() const {
@@ -98,7 +81,7 @@ class MySQLRoutingContext {
     return blocked_endpoints().max_connect_errors();
   }
 
-  BaseProtocol::Type get_protocol() { return protocol_; }
+  BaseProtocol::Type get_protocol() { return routing_config_.protocol; }
 
   const std::string &get_name() const { return name_; }
 
@@ -115,26 +98,33 @@ class MySQLRoutingContext {
     return name_.substr(pos + 1);
   }
 
-  unsigned int get_net_buffer_length() const { return net_buffer_length_; }
+  unsigned int get_net_buffer_length() const {
+    return routing_config_.net_buffer_length;
+  }
 
   std::chrono::milliseconds get_destination_connect_timeout() const {
-    return destination_connect_timeout_;
+    return std::chrono::milliseconds{routing_config_.connect_timeout * 1000};
   }
 
   std::chrono::milliseconds get_client_connect_timeout() const {
-    return client_connect_timeout_;
+    return std::chrono::milliseconds{routing_config_.client_connect_timeout *
+                                     1000};
   }
 
   const mysql_harness::TCPAddress &get_bind_address() const {
-    return bind_address_;
+    return routing_config_.bind_address;
   }
 
   const mysql_harness::Path &get_bind_named_socket() const {
-    return bind_named_socket_;
+    return routing_config_.named_socket;
   }
 
-  SslMode source_ssl_mode() const noexcept { return client_ssl_mode_; }
-  SslMode dest_ssl_mode() const noexcept { return server_ssl_mode_; }
+  SslMode source_ssl_mode() const noexcept {
+    return routing_config_.source_ssl_mode;
+  }
+  SslMode dest_ssl_mode() const noexcept {
+    return routing_config_.dest_ssl_mode;
+  }
 
   /**
    * get the SSL context for the client side of the route.
@@ -144,15 +134,17 @@ class MySQLRoutingContext {
   /**
    * get the SSL context for the server side of the route.
    *
-   * @param dest_id id of the destination
+   * @param dest_id  unique id of the destination
+   * @param hostname name of the destination host
    *
    * @returns a TlsClientContext for the destination.
    * @retval nullptr if creating tls-context failed.
    */
-  TlsClientContext *dest_ssl_ctx(const std::string &dest_id) {
+  TlsClientContext *dest_ssl_ctx(const std::string &dest_id,
+                                 const std::string &hostname) {
     if (destination_tls_context_ == nullptr) return nullptr;
 
-    return destination_tls_context_->get(dest_id);
+    return destination_tls_context_->get(dest_id, hostname);
   }
 
   SharedQuarantineHandler &shared_quarantine() {
@@ -163,49 +155,25 @@ class MySQLRoutingContext {
     return shared_quarantine_handler_;
   }
 
-  bool connection_sharing() const { return connection_sharing_; }
+  bool connection_sharing() const { return routing_config_.connection_sharing; }
 
   std::chrono::milliseconds connection_sharing_delay() const {
-    return connection_sharing_delay_;
+    return routing_config_.connection_sharing_delay;
   }
 
  private:
-  /** protocol type. */
-  BaseProtocol::Type protocol_;
+  const RoutingConfig routing_config_;
 
   /** @brief Descriptive name of the connection routing */
   const std::string name_;
-
-  /** @brief Size of buffer to store receiving packets */
-  unsigned int net_buffer_length_;
-
-  /** @brief Timeout connecting to destination
-   *
-   * This timeout is used when trying to connect with a destination
-   * server. When the timeout is reached, another server will be
-   * tried. It is good to leave this time out 1 second or higher
-   * if using an unstable network.
-   */
-  std::chrono::milliseconds destination_connect_timeout_;
-
-  /** @brief Timeout waiting for handshake response from client */
-  std::chrono::milliseconds client_connect_timeout_;
-
-  /** @brief IP address and TCP port for setting up TCP service */
-  const mysql_harness::TCPAddress bind_address_;
-
-  /** @brief Path to named socket for setting up named socket service */
-  const mysql_harness::Path bind_named_socket_;
 
   mutable std::mutex mutex_conn_errors_;
 
   /** @brief memory in kilobytes allocated for thread's stack */
   size_t thread_stack_size_ = mysql_harness::kDefaultStackSizeInKiloBytes;
 
-  SslMode client_ssl_mode_{SslMode::kPreferred};
   TlsServerContext *client_ssl_ctx_{};
 
-  SslMode server_ssl_mode_{SslMode::kPreferred};
   DestinationTlsContext *destination_tls_context_{};
 
   /**
@@ -215,10 +183,6 @@ class MySQLRoutingContext {
   SharedQuarantineHandler shared_quarantine_handler_;
 
   BlockedEndpoints blocked_endpoints_;
-
-  bool connection_sharing_;
-
-  std::chrono::milliseconds connection_sharing_delay_;
 
  public:
   /** @brief Number of active routes */

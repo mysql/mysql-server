@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, Oracle and/or its affiliates.
+  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 
 #include <openssl/ssl.h>
 
-#include "classic_connection.h"
+#include "classic_connection_base.h"
 #include "mysql/harness/stdx/expected.h"
 
 template <class T>
@@ -67,7 +67,7 @@ class AuthBase {
   static std::string_view strip_trailing_null(std::string_view s);
 
   static bool connection_has_public_key(
-      MysqlRoutingClassicConnection *connection);
+      MysqlRoutingClassicConnectionBase *connection);
 };
 
 #endif

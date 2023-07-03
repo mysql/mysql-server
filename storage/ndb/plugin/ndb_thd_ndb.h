@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,16 @@
 #ifndef NDB_THD_NDB_H
 #define NDB_THD_NDB_H
 
+#include <memory>
+#include <vector>
+
 #include "map_helpers.h"
+#include "storage/ndb/plugin/ndb_applier.h"
 #include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 
 class THD;
+class Relay_log_info;
 
 /*
   Class for ndbcluster thread specific data
@@ -39,7 +44,6 @@ class Thd_ndb {
 
   Thd_ndb(THD *);
   ~Thd_ndb();
-  const bool m_slave_thread;  // cached value of thd->slave_thread
 
   uint32 options;
   uint32 trans_options;
@@ -166,12 +170,6 @@ class Thd_ndb {
   };
 
   enum Trans_options {
-    /*
-       Remember that statement has written to ndb_apply_status and subsequent
-       writes need to do updates
-    */
-    TRANS_INJECTED_APPLY_STATUS = 1 << 0,
-
     /*
        Indicates that no logging is performed by this MySQL Server and thus
        the anyvalue should have the nologging bit turned on
@@ -332,8 +330,6 @@ class Thd_ndb {
   bool valid_ndb(void) const;
   bool recycle_ndb(void);
 
-  bool is_slave_thread(void) const { return m_slave_thread; }
-
   const THD *get_thd() const { return m_thd; }
 
   int sql_command() const { return thd_sql_command(m_thd); }
@@ -391,6 +387,37 @@ class Thd_ndb {
     @brief Destroy the Ndb_DDL_transaction_ctx instance.
   */
   void clear_ddl_transaction_ctx();
+
+ private:
+  std::unique_ptr<Ndb_applier> m_applier;
+
+  /**
+     @brief Check if this Thd_ndb will do applier work and need to be
+     extended with Ndb_applier state.
+
+     This means:
+      1) The SQL thread when not using workers
+      2) The SQL worker thread(s)
+
+    @return true this Thd_ndb will do applier work
+  */
+  bool will_do_applier_work() const;
+
+ public:
+  /**
+     @brief Initialize the Applier state for Thd_ndb which is replication
+     applier.
+
+     @return true for success
+   */
+  bool init_applier();
+
+  /**
+     @brief Get pointer to Applier state
+
+     @return pointer to Ndb_applier for Thd_ndb which is replication applier
+   */
+  Ndb_applier *get_applier() const { return m_applier.get(); }
 };
 
 #endif

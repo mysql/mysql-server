@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,10 @@
 
 #include <gtest/gtest.h>
 #include "libbinlogevents/include/binary_log.h"
-#include "libbinlogevents/include/compression/none.h"
-#include "libbinlogevents/include/compression/zstd.h"
+#include "libbinlogevents/include/compression/none_comp.h"
+#include "libbinlogevents/include/compression/none_dec.h"
+#include "libbinlogevents/include/compression/zstd_comp.h"
+#include "libbinlogevents/include/compression/zstd_dec.h"
 
 namespace binary_log {
 namespace transaction {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 Copyright (c) 2009, Google Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -157,7 +157,7 @@ static void log_wait_for_checkpoint(const log_t &log, lsn_t lsn);
 in flush lists to provided value. This should force page cleaners
 to perform the sync-flush in which case the innodb_max_io_capacity
 is not respected. This should be called when we are close to running
-out of space in redo log (close to free_check_limit_sn).
+out of space in redo log (close to free_check_limit_lsn).
 @param[in]  log         redo log
 @param[in]  new_oldest  oldest_lsn to stop flush at (or greater)
 @retval  true   requested page flushing
@@ -280,7 +280,7 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
 
 static void log_update_available_for_checkpoint_lsn(log_t &log) {
   /* Note: log.m_allow_checkpoints is set to true after recovery is finished,
-  and changes gathered in srv_dict_metadata are applied to dict_table_t
+  and changes gathered in recv_sys->metadata_recover are applied to dict_table_t
   objects; or in log_start() if recovery was not needed. We can't trust
   flush lists until recovery is finished, so we must not update lsn available
   for checkpoint (as update would be based on what we can see inside them). */
@@ -537,7 +537,6 @@ dberr_t log_files_write_first_data_block_low(log_t &log,
 
   std::memcpy(log.buf + block_lsn % log.buf_size, block,
               OS_FILE_LOG_BLOCK_SIZE);
-  ut_d(log.first_block_is_correct_for_lsn = checkpoint_lsn);
 
   /* Write the first empty log block to the file. */
   const os_offset_t block_offset = Log_file::offset(block_lsn, file_start_lsn);
@@ -759,7 +758,7 @@ static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
 
 lsn_t log_sync_flush_lsn(log_t &log) {
   /* Note: log.m_allow_checkpoints is set to true after recovery is finished,
-  and changes gathered in srv_dict_metadata are applied to dict_table_t
+  and changes gathered in recv_sys->metadata_recover are applied to dict_table_t
   objects; or in log_start() if recovery was not needed. Until that happens
   checkpoints are disallowed, so sync flush decisions (based on checkpoint age)
   should be postponed. */
@@ -863,7 +862,7 @@ static bool log_should_checkpoint(log_t &log) {
 #endif /* UNIV_DEBUG */
 
   /* Note: log.allow_checkpoints is set to true after recovery is finished,
-  and changes gathered in srv_dict_metadata are applied to dict_table_t
+  and changes gathered in recv_sys->metadata_recover are applied to dict_table_t
   objects; or in log_start() if recovery was not needed. We can't reclaim
   free space in redo log until DD dynamic metadata records are safe. */
   if (!log.m_allow_checkpoints.load(std::memory_order_acquire)) {
@@ -1196,7 +1195,7 @@ void log_update_limits_low(log_t &log) {
 
   if (log.m_writer_inside_extra_margin) {
     /* Stop all new incoming user threads at safe place. */
-    log.free_check_limit_sn.store(0);
+    log.free_check_limit_lsn.store(0);
     return;
   }
 
@@ -1204,10 +1203,8 @@ void log_update_limits_low(log_t &log) {
 
   const lsn_t limit_lsn = log.last_checkpoint_lsn.load() + log_capacity;
 
-  const sn_t limit_sn = log_translate_lsn_to_sn(limit_lsn);
-
-  if (log.free_check_limit_sn.load() < limit_sn) {
-    log.free_check_limit_sn.store(limit_sn);
+  if (log.free_check_limit_lsn.load() < limit_lsn) {
+    log.free_check_limit_lsn.store(limit_lsn);
   }
 }
 
@@ -1260,10 +1257,8 @@ void log_free_check_wait(log_t &log) {
     log_limits_mutex_exit(log);
   }
 
-  const sn_t current_sn = log_translate_lsn_to_sn(current_lsn);
-
-  auto stop_condition = [&log, current_sn](bool) {
-    return current_sn <= log.free_check_limit_sn.load();
+  auto stop_condition = [&log, current_lsn](bool) {
+    return current_lsn <= log.free_check_limit_lsn.load();
   };
 
   const auto wait_stats =

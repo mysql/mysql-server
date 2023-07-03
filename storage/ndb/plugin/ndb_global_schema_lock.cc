@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -337,6 +337,10 @@ static int ndbcluster_global_schema_lock(THD *thd,
                                          bool report_cluster_disconnected,
                                          bool record_gsl, bool *victimized) {
   Ndb *ndb = check_ndb_in_thd(thd);
+  if (ndb == nullptr) {
+    return -1;
+  }
+
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   NdbError ndb_error;
   *victimized = false;

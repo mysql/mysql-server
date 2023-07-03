@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -120,8 +120,8 @@ struct PFS_events_waits : public PFS_events {
 #define STATE_FLAG_DIGEST (1 << 3)
 /** CPU bit in the state flags bitfield. */
 #define STATE_FLAG_CPU (1 << 4)
-/** SECONDARY_ENGINE bit in the state flags bitfield. */
-#define STATE_FLAG_SECONDARY (1 << 5)
+/** BASE bit in the state flags bitfield. */
+#define STATE_FLAG_BASE (1 << 5)
 
 void insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait);
 

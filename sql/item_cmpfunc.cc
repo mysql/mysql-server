@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -798,8 +798,8 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
       if (cmp_collation.set((*left)->collation, (*right)->collation,
                             MY_COLL_CMP_CONV) ||
           cmp_collation.derivation == DERIVATION_NONE) {
-        my_coll_agg_error((*left)->collation, (*right)->collation,
-                          owner->func_name());
+        const char *func_name = owner ? owner->func_name() : "";
+        my_coll_agg_error((*left)->collation, (*right)->collation, func_name);
         return true;
       }
       if (cmp_collation.collation == &my_charset_bin) {
@@ -1696,7 +1696,10 @@ int Arg_comparator::compare_json() {
 
   // Get the JSON value in the left Item.
   Json_wrapper aw;
-  if (get_json_arg(*left, &value1, &tmp, &aw, &json_scalar)) return 1;
+  if (get_json_arg(*left, &value1, &tmp, &aw, &json_scalar)) {
+    if (set_null) owner->null_value = true;
+    return 1;
+  }
 
   bool a_is_null = (*left)->null_value;
   if (a_is_null) {
@@ -1706,7 +1709,10 @@ int Arg_comparator::compare_json() {
 
   // Get the JSON value in the right Item.
   Json_wrapper bw;
-  if (get_json_arg(*right, &value1, &tmp, &bw, &json_scalar)) return 1;
+  if (get_json_arg(*right, &value1, &tmp, &bw, &json_scalar)) {
+    if (set_null) owner->null_value = true;
+    return 1;
+  }
 
   bool b_is_null = (*right)->null_value;
   if (b_is_null) {
@@ -1824,10 +1830,16 @@ int Arg_comparator::compare_real_fixed() {
 
 int Arg_comparator::compare_int_signed() {
   longlong val1 = (*left)->val_int();
-  if (current_thd->is_error()) return 0;
+  if (current_thd->is_error()) {
+    if (set_null) owner->null_value = true;
+    return 0;
+  }
   if (!(*left)->null_value) {
     longlong val2 = (*right)->val_int();
-    if (current_thd->is_error()) return 0;
+    if (current_thd->is_error()) {
+      if (set_null) owner->null_value = true;
+      return 0;
+    }
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 < val2) return -1;
@@ -1880,10 +1892,16 @@ int Arg_comparator::compare_time_packed() {
 
 int Arg_comparator::compare_int_unsigned() {
   ulonglong val1 = (*left)->val_int();
-  if (current_thd->is_error()) return 0;
+  if (current_thd->is_error()) {
+    if (set_null) owner->null_value = true;
+    return 0;
+  }
   if (!(*left)->null_value) {
     ulonglong val2 = (*right)->val_int();
-    if (current_thd->is_error()) return 0;
+    if (current_thd->is_error()) {
+      if (set_null) owner->null_value = true;
+      return 0;
+    }
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 < val2) return -1;
@@ -2118,59 +2136,61 @@ longlong Item_func_truth::val_int() {
 }
 
 bool Item_in_optimizer::fix_left(THD *thd, Item **) {
-  /*
-    Refresh this pointer as left_expr may have been substituted
-    during resolving.
-  */
-  args[0] = ((Item_in_subselect *)args[1])->left_expr;
-
-  if (!args[0]->fixed && args[0]->fix_fields(thd, args)) return true;
-
-  left_original = args[0];
+  Item *left = down_cast<Item_in_subselect *>(args[0])->left_expr;
   /*
     Because get_cache() depends on type of left arg, if this arg is a PS param
     we must decide of its type now. We cannot wait until we know the type of
     the subquery's SELECT list.
+    @todo: This may actually be changed later, INSPECT.
   */
-  if (param_type_is_default(thd, 0, 1)) return true;
+  if (left->propagate_type(thd, MYSQL_TYPE_VARCHAR)) return true;
 
-  if (!cache && !(cache = Item_cache::get_cache(args[0]))) return true;
+  assert(cache == nullptr);
+  cache = Item_cache::get_cache(left);
+  if (cache == nullptr) return true;
 
-  cache->setup(args[0]);
-  used_tables_cache = args[0]->used_tables();
+  cache->setup(left);
+  used_tables_cache = left->used_tables();
+
+  /*
+    Propagate used tables information to the cache objects.
+    Since the cache objects will be used in synthesized predicates that are
+    added to the subquery's query expression, we need to add extra references
+    to them, since on removal these will be decremented twice.
+  */
   if (cache->cols() == 1) {
+    left->real_item()->increment_ref_count();
     cache->set_used_tables(used_tables_cache);
   } else {
     uint n = cache->cols();
     for (uint i = 0; i < n; i++) {
-      ((Item_cache *)cache->element_index(i))
-          ->set_used_tables(args[0]->element_index(i)->used_tables());
+      Item_cache *const element =
+          down_cast<Item_cache *>(cache->element_index(i));
+      element->set_used_tables(left->element_index(i)->used_tables());
+      element->real_item()->increment_ref_count();
     }
   }
-  not_null_tables_cache = args[0]->not_null_tables();
-  add_accum_properties(args[0]);
-  if (const_item()) cache->store(args[0]);
-
-  // The cache is a permanent structure:
-  cache->keep_array();
+  not_null_tables_cache = left->not_null_tables();
+  add_accum_properties(left);
+  if (const_item()) cache->store(left);
 
   return false;
 }
 
 bool Item_in_optimizer::fix_fields(THD *thd, Item **) {
   assert(!fixed);
-  if (args[0]->is_nullable()) set_nullable(true);
+  Item_in_subselect *subqpred = down_cast<Item_in_subselect *>(args[0]);
 
-  if (!args[1]->fixed && args[1]->fix_fields(thd, args + 1)) return true;
-  Item_in_subselect *sub = (Item_in_subselect *)args[1];
-  if (args[0]->cols() != sub->unit_cols()) {
-    my_error(ER_OPERAND_COLUMNS, MYF(0), args[0]->cols());
+  if (!subqpred->fixed && subqpred->fix_fields(thd, nullptr)) return true;
+  if (subqpred->left_expr->cols() != subqpred->unit_cols()) {
+    assert(false);
+    my_error(ER_OPERAND_COLUMNS, MYF(0), subqpred->left_expr->cols());
     return true;
   }
-  if (args[1]->is_nullable()) set_nullable(true);
-  add_accum_properties(args[1]);
-  used_tables_cache |= args[1]->used_tables();
-  not_null_tables_cache |= args[1]->not_null_tables();
+  if (subqpred->is_nullable()) set_nullable(true);
+  add_accum_properties(subqpred);
+  used_tables_cache |= subqpred->used_tables();
+  not_null_tables_cache |= subqpred->not_null_tables();
 
   /*
     not_null_tables_cache is to hold any table which, if its row is NULL,
@@ -2186,9 +2206,9 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **) {
     Right argument doesn't need to be handled, as
     Item_subselect::not_null_tables() is always 0.
   */
-  if (sub->abort_on_null && sub->value_transform == BOOL_IS_TRUE) {
+  if (subqpred->abort_on_null && subqpred->value_transform == BOOL_IS_TRUE) {
   } else {
-    not_null_tables_cache &= ~args[0]->not_null_tables();
+    not_null_tables_cache &= ~subqpred->left_expr->not_null_tables();
   }
   fixed = true;
   return false;
@@ -2200,11 +2220,27 @@ void Item_in_optimizer::fix_after_pullout(Query_block *parent_query_block,
   not_null_tables_cache = 0;
 
   args[0]->fix_after_pullout(parent_query_block, removed_query_block);
-  args[1]->fix_after_pullout(parent_query_block, removed_query_block);
 
-  used_tables_cache |= args[0]->used_tables() | args[1]->used_tables();
-  not_null_tables_cache |=
-      args[0]->not_null_tables() | args[1]->not_null_tables();
+  used_tables_cache |= args[0]->used_tables();
+  not_null_tables_cache |= args[0]->not_null_tables();
+}
+
+void Item_in_optimizer::split_sum_func(THD *thd, Ref_item_array ref_item_array,
+                                       mem_root_deque<Item *> *fields) {
+  args[0]->split_sum_func2(thd, ref_item_array, fields, args, true);
+  Item **left = &down_cast<Item_in_subselect *>(args[0])->left_expr;
+  (*left)->split_sum_func2(thd, ref_item_array, fields, left, true);
+}
+
+void Item_in_optimizer::print(const THD *thd, String *str,
+                              enum_query_type query_type) const {
+  str->append(func_name());
+  str->append('(');
+  down_cast<Item_in_subselect *>(args[0])->left_expr->print(thd, str,
+                                                            query_type);
+  str->append(',');
+  print_args(thd, str, 0, query_type);
+  str->append(')');
 }
 
 /**
@@ -2282,11 +2318,10 @@ void Item_in_optimizer::fix_after_pullout(Query_block *parent_query_block,
  */
 
 longlong Item_in_optimizer::val_int() {
-  bool tmp;
-  assert(fixed == 1);
-  Item_in_subselect *const item_subs = down_cast<Item_in_subselect *>(args[1]);
+  assert(fixed);
+  Item_in_subselect *const subqpred = down_cast<Item_in_subselect *>(args[0]);
 
-  cache->store(args[0]);
+  cache->store(subqpred->left_expr);
   cache->cache_value();
 
   if (cache->null_value) {
@@ -2295,7 +2330,7 @@ longlong Item_in_optimizer::val_int() {
       "<outer_value_list> [NOT] IN (SELECT <inner_value_list>...)"
       where one or more of the outer values is NULL.
     */
-    if (item_subs->abort_on_null) {
+    if (subqpred->abort_on_null) {
       /*
         We're evaluating a top level item, e.g.
         "<outer_value_list> IN (SELECT <inner_value_list>...)",
@@ -2325,13 +2360,13 @@ longlong Item_in_optimizer::val_int() {
       */
       for (uint i = 0; i < ncols; i++) {
         if (cache->element_index(i)->null_value)
-          item_subs->set_cond_guard_var(i, false);
+          subqpred->set_cond_guard_var(i, false);
         else
           all_left_cols_null = false;
       }
 
       if (all_left_cols_null && result_for_null_param != UNKNOWN &&
-          !item_subs->dependent_before_in2exists()) {
+          !subqpred->dependent_before_in2exists()) {
         /*
            This subquery was originally not correlated. The IN->EXISTS
            transformation may have made it correlated, but only to the left
@@ -2342,28 +2377,27 @@ longlong Item_in_optimizer::val_int() {
         null_value = result_for_null_param;
       } else {
         /* The subquery has to be evaluated */
-        (void)item_subs->val_bool_naked();
-        if (!item_subs->value)
-          null_value = item_subs->null_value;
+        (void)subqpred->val_bool_naked();
+        if (!subqpred->value)
+          null_value = subqpred->null_value;
         else
           null_value = true;
         if (all_left_cols_null) result_for_null_param = null_value;
       }
 
       /* Turn all predicates back on */
-      for (uint i = 0; i < ncols; i++) item_subs->set_cond_guard_var(i, true);
+      for (uint i = 0; i < ncols; i++) subqpred->set_cond_guard_var(i, true);
     }
-    cache->store(left_original);
-    return item_subs->translate(null_value, false);
+    cache->store(subqpred->left_expr);
+    return subqpred->translate(null_value, false);
   }
-  tmp = item_subs->val_bool_naked();
-  null_value = item_subs->null_value;
-  cache->store(left_original);
-  return item_subs->translate(null_value, tmp);
+  bool result = subqpred->val_bool_naked();
+  null_value = subqpred->null_value;
+  cache->store(subqpred->left_expr);
+  return subqpred->translate(null_value, result);
 }
 
 void Item_in_optimizer::cleanup() {
-  DBUG_TRACE;
   Item_bool_func::cleanup();
   result_for_null_param = UNKNOWN;
 }
@@ -2373,118 +2407,14 @@ bool Item_in_optimizer::is_null() {
   return null_value;
 }
 
-/**
-  Transform an Item_in_optimizer and its arguments with a callback function.
-
-  @details
-    Recursively transform the left and the right operand of this Item. The
-    Right operand is an Item_in_subselect or its subclass. To avoid the
-    creation of new Items, we use the fact the the left operand of the
-    Item_in_subselect is the same as the one of 'this', so instead of
-    transforming its operand, we just assign the left operand of the
-    Item_in_subselect to be equal to the left operand of 'this'.
-    The transformation is not applied further to the subquery operand
-    if the IN predicate.
-*/
-
-Item *Item_in_optimizer::transform(Item_transformer transformer,
-                                   uchar *argument) {
-  assert(arg_count == 2);
-
-  // Transform the left IN operand
-  args[0] = args[0]->transform(transformer, argument);
-  if (args[0] == nullptr) return nullptr; /* purecov: inspected */
-
-  /*
-    Transform the right IN operand which should be an Item_in_subselect or a
-    subclass of it. The left operand of the IN must be the same as the left
-    operand of this Item_in_optimizer, so in this case there is no further
-    transformation, we only make both operands the same.
-    TODO: is it the way it should be?
-  */
-  assert(
-      (args[1])->type() == Item::SUBSELECT_ITEM &&
-      (((Item_subselect *)(args[1]))->substype() == Item_subselect::IN_SUBS ||
-       ((Item_subselect *)(args[1]))->substype() == Item_subselect::ALL_SUBS ||
-       ((Item_subselect *)(args[1]))->substype() == Item_subselect::ANY_SUBS));
-
-  Item_in_subselect *in_arg = (Item_in_subselect *)args[1];
-
-  in_arg->left_expr = args[0];
-
-  return (this->*transformer)(argument);
-}
-
-/**
-  Compile an Item_in_optimizer and its arguments with a callback function.
-
-  @details
-    Recursively compile the left and the right operand of this Item. The
-    Right operand is an Item_in_subselect or its subclass. To avoid the
-    creation of new Items, we use the fact the the left operand of the
-    Item_in_subselect is the same as the one of 'this', so instead of
-    transforming its operand, we just assign the left operand of the
-    Item_in_subselect to be equal to the left operand of 'this'.
-    The transformation is not applied further to the subquery operand
-    if the IN predicate.
-*/
-
-Item *Item_in_optimizer::compile(Item_analyzer analyzer, uchar **arg_p,
-                                 Item_transformer transformer, uchar *arg_t) {
-  assert(arg_count == 2);
-
-  if (!(this->*analyzer)(arg_p)) return this;
-
-  // Compile the left expression of the IN subquery
-  Item *new_item = args[0]->compile(analyzer, arg_p, transformer, arg_t);
-  if (new_item == nullptr) return nullptr; /* purecov: inspected */
-  if (new_item != args[0]) current_thd->change_item_tree(args, new_item);
-
-  /*
-    Transform the right IN operand which should be an Item_in_subselect or a
-    subclass of it. The left operand of the IN must be the same as the left
-    operand of this Item_in_optimizer, so in this case there is no further
-    transformation, we only make both operands the same.
-    TODO: is it the way it should be?
-  */
-  assert(args[1]->type() == Item::SUBSELECT_ITEM &&
-         (down_cast<Item_subselect *>(args[1])->substype() ==
-              Item_subselect::IN_SUBS ||
-          down_cast<Item_subselect *>(args[1])->substype() ==
-              Item_subselect::ALL_SUBS ||
-          down_cast<Item_subselect *>(args[1])->substype() ==
-              Item_subselect::ANY_SUBS));
-
-  Item_in_subselect *in_arg = down_cast<Item_in_subselect *>(args[1]);
-
-  if (in_arg->left_expr != args[0])
-    current_thd->change_item_tree(&in_arg->left_expr, args[0]);
-
-  // Compile the IN subquery object
-  new_item = args[1]->compile(analyzer, arg_p, transformer, arg_t);
-  if (new_item == nullptr) return nullptr; /* purecov: inspected */
-  if (new_item != args[1]) current_thd->change_item_tree(args + 1, new_item);
-
-  return (this->*transformer)(arg_t);
-}
-
-void Item_in_optimizer::set_arg_resolve(THD *thd, uint i [[maybe_unused]],
-                                        Item *newp) {
-  assert(i == 0);
-  // Maintain the invariant described in this class's comment
-  Item_in_subselect *ss = down_cast<Item_in_subselect *>(args[1]);
-  ss->left_expr = newp;
-  fix_left(thd, nullptr);
-}
-
 void Item_in_optimizer::update_used_tables() {
   Item_func::update_used_tables();
 
   // See explanation for this logic in Item_in_optimizer::fix_fields
-  Item_in_subselect *sub = (Item_in_subselect *)args[1];
-  if (sub->abort_on_null && sub->value_transform == BOOL_IS_TRUE) {
+  Item_in_subselect *subqpred = down_cast<Item_in_subselect *>(args[0]);
+  if (subqpred->abort_on_null && subqpred->value_transform == BOOL_IS_TRUE) {
   } else {
-    not_null_tables_cache &= ~args[0]->not_null_tables();
+    not_null_tables_cache &= subqpred->left_expr->not_null_tables();
   }
 }
 
@@ -3567,13 +3497,17 @@ bool Item_func_if::val_json(Json_wrapper *wr) {
 bool Item_func_if::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
   assert(fixed == 1);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
-  return (null_value = arg->get_date(ltime, fuzzydate));
+  if (arg->get_date(ltime, fuzzydate)) return error_date();
+  null_value = arg->null_value;
+  return false;
 }
 
 bool Item_func_if::get_time(MYSQL_TIME *ltime) {
   assert(fixed == 1);
   Item *arg = args[0]->val_bool() ? args[1] : args[2];
-  return (null_value = arg->get_time(ltime));
+  if (arg->get_time(ltime)) return error_time();
+  null_value = arg->null_value;
+  return false;
 }
 
 bool Item_func_nullif::resolve_type(THD *thd) {
@@ -3729,6 +3663,9 @@ Item *Item_func_case::find_item(String *) {
       assert(cmp_items[(uint)cmp_type]);
       if (!(value_added_map & (1U << (uint)cmp_type))) {
         cmp_items[(uint)cmp_type]->store_value(args[first_expr_num]);
+        if (current_thd->is_error()) {
+          return nullptr;
+        }
         if ((null_value = args[first_expr_num]->null_value))
           return else_expr_num != -1 ? args[else_expr_num] : nullptr;
         value_added_map |= 1U << (uint)cmp_type;
@@ -3841,8 +3778,13 @@ bool Item_func_case::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
   char buff[MAX_FIELD_WIDTH];
   String dummy_str(buff, sizeof(buff), default_charset());
   Item *item = find_item(&dummy_str);
-  if (!item) return (null_value = true);
-  return (null_value = item->get_date(ltime, fuzzydate));
+  if (!item) {
+    null_value = is_nullable();
+    return true;
+  }
+  if (item->get_date(ltime, fuzzydate)) return error_date();
+  null_value = item->null_value;
+  return false;
 }
 
 bool Item_func_case::get_time(MYSQL_TIME *ltime) {
@@ -3850,8 +3792,13 @@ bool Item_func_case::get_time(MYSQL_TIME *ltime) {
   char buff[MAX_FIELD_WIDTH];
   String dummy_str(buff, sizeof(buff), default_charset());
   Item *item = find_item(&dummy_str);
-  if (!item) return (null_value = true);
-  return (null_value = item->get_time(ltime));
+  if (!item) {
+    null_value = is_nullable();
+    return true;
+  }
+  if (item->get_time(ltime)) return error_time();
+  null_value = item->null_value;
+  return false;
 }
 
 bool Item_func_case::fix_fields(THD *thd, Item **ref) {
@@ -6025,12 +5972,11 @@ longlong Item_cond_or::val_int() {
 }
 
 void Item_func_isnull::update_used_tables() {
+  args[0]->update_used_tables();
+  set_accum_properties(args[0]);
   if (!args[0]->is_nullable()) {
     used_tables_cache = 0;
   } else {
-    args[0]->update_used_tables();
-    set_accum_properties(args[0]);
-
     used_tables_cache = args[0]->used_tables();
     if (!const_item()) cache_used = false;
   }
@@ -7041,6 +6987,11 @@ longlong Item_equal::val_int() {
   return 1;
 }
 
+Item_equal::~Item_equal() {
+  destroy(eval_item);
+  eval_item = nullptr;
+}
+
 bool Item_equal::resolve_type(THD *thd) {
   Item *item;
   // As such item is created during optimization, types of members are known:
@@ -7440,10 +7391,9 @@ bool Item_eq_base::contains_only_equi_join_condition() const {
     return false;
   }
 
-  // We may have conditions like (1 = (t1.c = t2.c)), so check that both sides
-  // refer to at most one table.
-  if (my_count_bits(left_arg_used_tables) > 1 ||
-      my_count_bits(right_arg_used_tables) > 1) {
+  // We may have conditions like (t1.x = t1.y + t2.x) which cannot be used as an
+  // equijoin condition because t1 is referenced on both sides of the equality.
+  if (Overlaps(left_arg_used_tables, right_arg_used_tables)) {
     return false;
   }
 

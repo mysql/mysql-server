@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -237,8 +237,8 @@ inline bool log_free_check_is_required(const log_t &log) {
   if (srv_read_only_mode) {
     return false;
   }
-  const sn_t sn = log_get_sn(log);
-  return sn > log.free_check_limit_sn.load();
+  const lsn_t lsn = log_get_lsn(log);
+  return lsn > log.free_check_limit_lsn.load();
 }
 
 /** Checks if log_free_check() call should better be executed.
@@ -281,11 +281,11 @@ bytes of redo log records. That's because that is the margin in redo log we
 reserve by calling this function.
 
 @remarks
-Checks if current log.sn exceeds log.free_check_limit_sn, in which case
-waits (until it does not exceed). This function is called before starting
-a mini-transaction, because thread must not hold block latches when calling
-this function. It is also important that the caller does NOT hold any latch,
-that might be tried to be acquired:
+Checks if lsn corresponding to current log.sn exceeds log.free_check_limit_lsn,
+in which case waits (until it does not exceed). This function is called before
+starting a mini-transaction, because thread must not hold block latches when
+calling this function. It is also important that the caller does NOT hold any
+latch, that might be tried to be acquired:
   - by the page cleaner (e.g. page/block latches),
   - or by the log flush process (e.g. file space latches),
   - or by any other thread, which might at that time already hold another
@@ -322,7 +322,7 @@ inline void log_free_check() {
 
 /** @{ */
 
-/** Updates log.free_check_limit_sn in the log. The log_limits_mutex
+/** Updates log.free_check_limit_lsn in the log. The log_limits_mutex
 must be acquired before a call (unless srv_is_being_started is true).
 @param[in,out]  log   redo log */
 void log_update_limits_low(log_t &log);

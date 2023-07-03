@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -675,9 +675,8 @@ public:
     void state_send();
     void str_state(char* str) const override;
     RelayState::State m_relaystate;
-    uchar* m_xfrmalloc;
-    uchar* m_xfrmbuf;
-    uint m_xfrmbuflen;
+    std::unique_ptr<uint64[]> m_xfrmbuf;
+    uint m_xfrmbuflen = 0;
     RowList m_rows;     // rows received
     RowList* m_rows_exec[g_max_ndb_nodes];      // sorted to per-node
   };

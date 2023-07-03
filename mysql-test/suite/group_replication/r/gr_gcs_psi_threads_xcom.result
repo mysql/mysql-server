@@ -1,7 +1,7 @@
 include/group_replication.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection server1]
 
 ############################################################
@@ -10,7 +10,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    table immediately after plugin installation
 #    (before starting the GR).
 SELECT * FROM performance_schema.threads WHERE NAME LIKE '%THD_Gcs_%';
-THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED	HISTORY	CONNECTION_TYPE	THREAD_OS_ID	RESOURCE_GROUP	EXECUTION_ENGINE	CONTROLLED_MEMORY	MAX_CONTROLLED_MEMORY	TOTAL_MEMORY	MAX_TOTAL_MEMORY
+THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED	HISTORY	CONNECTION_TYPE	THREAD_OS_ID	RESOURCE_GROUP	EXECUTION_ENGINE	CONTROLLED_MEMORY	MAX_CONTROLLED_MEMORY	TOTAL_MEMORY	MAX_TOTAL_MEMORY	TELEMETRY_ACTIVE
 include/assert.inc ['There should be no GCS instrumented threads entries in the threads table before starting the GR']
 
 ############################################################
@@ -32,7 +32,7 @@ include/stop_group_replication.inc
 #    instrumented GCS threads remain in the threads table
 #    after stopping the GR.
 SELECT * FROM performance_schema.threads WHERE NAME LIKE '%THD_Gcs_%';
-THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED	HISTORY	CONNECTION_TYPE	THREAD_OS_ID	RESOURCE_GROUP	EXECUTION_ENGINE	CONTROLLED_MEMORY	MAX_CONTROLLED_MEMORY	TOTAL_MEMORY	MAX_TOTAL_MEMORY
+THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED	HISTORY	CONNECTION_TYPE	THREAD_OS_ID	RESOURCE_GROUP	EXECUTION_ENGINE	CONTROLLED_MEMORY	MAX_CONTROLLED_MEMORY	TOTAL_MEMORY	MAX_TOTAL_MEMORY	TELEMETRY_ACTIVE
 include/assert.inc ['There should be no extra psi keys added after starting the GR']
 
 ############################################################

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -675,8 +675,12 @@ public:
          ATTRIBUTE_FORMAT(printf, 2, 3);
   void setThreadPrefix(const char* prefix);
   const char* getThreadPrefix() const;
+  void set_print_timestamp(bool print_TS);
+  bool get_print_timestamp();
 private:
   NdbMutex *m_mutex;
+  char timestamp[64];
+  bool print_timestamp;
 };
 
 NdbOut& operator<<(NdbOut& ndbout, const TableS&);

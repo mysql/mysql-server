@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -82,10 +82,25 @@ BuildRequires:  cmake3 >= 3.6.1
 %endif
 %{?el6:BuildRequires:  devtoolset-8-gcc}
 %{?el6:BuildRequires:  devtoolset-8-gcc-c++}
+%ifarch aarch64
 %{?el7:BuildRequires:  devtoolset-10-gcc}
 %{?el7:BuildRequires:  devtoolset-10-gcc-c++}
-%{?el8:BuildRequires:  gcc-toolset-10-gcc}
-%{?el8:BuildRequires:  gcc-toolset-10-gcc-c++}
+%{?el7:BuildRequires:  devtoolset-10-binutils}
+%else
+%{?el7:BuildRequires:  devtoolset-11-gcc}
+%{?el7:BuildRequires:  devtoolset-11-gcc-c++}
+%{?el7:BuildRequires:  devtoolset-11-binutils}
+%endif
+%{?el8:BuildRequires:  gcc-toolset-12-annobin-annocheck}
+%{?el8:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
+%{?el8:BuildRequires:  gcc-toolset-12-binutils}
+%{?el8:BuildRequires:  gcc-toolset-12-gcc-c++}
+%{?el8:BuildRequires:  gcc-toolset-12-gcc}
+%{?el9:BuildRequires:  gcc-toolset-12-annobin-annocheck}
+%{?el9:BuildRequires:  gcc-toolset-12-annobin-plugin-gcc}
+%{?el9:BuildRequires:  gcc-toolset-12-binutils}
+%{?el9:BuildRequires:  gcc-toolset-12-gcc-c++}
+%{?el9:BuildRequires:  gcc-toolset-12-gcc}
 BuildRequires:  bison >= 2.1
 BuildRequires:  elfutils
 BuildRequires:  time
@@ -267,11 +282,13 @@ for p in \
          component_test_component_deinit.so \
          component_test_global_priv_registration.so \
          component_test_mysql_command_services.so \
+         component_test_mysql_thd_store_service.so \
          test_services_command_services.so \
          component_test_page_track_component.so \
          component_test_pfs_notification.so \
          component_test_pfs_resource_group.so \
          component_test_sensitive_system_variables.so \
+         component_test_server_telemetry_traces.so \
          component_test_status_var_service_int.so \
          component_test_status_var_service_reg_only.so \
          component_test_status_var_service.so \
@@ -333,7 +350,6 @@ rm -rf %{buildroot}%{_libdir}/mysql/libndbclient.so
 %endif
 
 # Remove files pages we explicitly do not want to package
-rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
 
@@ -512,11 +528,15 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_oci.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_enterprise_encryption.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_masking.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_masking_functions.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %endif # aws_sdk
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(644, root, root) %{_datadir}/mysql-*/firewall_profile_migration.sql
+%attr(644, root, root) %{_datadir}/mysql-*/masking_functions_install.sql
+%attr(644, root, root) %{_datadir}/mysql-*/masking_functions_uninstall.sql
 %endif
 
 %dir %attr(750, mysql, mysql) /var/lib/mysql
@@ -525,6 +545,13 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Thu Oct 13 2022 Miroslav Rajcic <miroslav.rajcic@oracle.com> - 8.0.33-1
+- Added component_test_server_telemetry_traces, component_test_mysql_thd_store_service test components
+
+* Tue Oct 11 2022 Michal Jankowski <michal.jankowski@oracle.com> - 8.0.33-1
+- Added component_masking.so component
+- Added component_masking_functions.so component
+
 * Tue Jun 28 2022 Samar Pratap Singh <samar.pratap.singh@oracle.com> - 8.0.31-1
 - Added component_keyring_oci
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,22 +51,10 @@ struct Ndb_dd_handle {
   }
   bool valid() const { return spi != dd::INVALID_OBJECT_ID; }
 
-#ifndef NDEBUG
-  static constexpr const char *spi_copy = "se_private_id=";
-  static constexpr const char *version_copy = "version=";
-  std::string m_str;
-
-  const char *c_str() {
-    m_str.clear();
-    m_str += spi_copy;
-    m_str += std::to_string(spi);
-    m_str += " ";
-    m_str += version_copy;
-    m_str += std::to_string(version);
-
-    return m_str.c_str();
+  std::string to_string() const {
+    return {"se_private_id=" + std::to_string(spi) +
+            " version=" + std::to_string(version)};
   }
-#endif
 };
 
 /* Functions operating on dd::Table*, prefixed with ndb_dd_table_ */

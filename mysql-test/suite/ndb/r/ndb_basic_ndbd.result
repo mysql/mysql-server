@@ -176,6 +176,7 @@ ndb_log_fail_terminate	#
 ndb_log_orig	#
 ndb_log_transaction_compression	#
 ndb_log_transaction_compression_level_zstd	#
+ndb_log_transaction_dependency	#
 ndb_log_transaction_id	#
 ndb_log_update_as_write	#
 ndb_log_update_minimal	#

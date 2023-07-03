@@ -1,12 +1,12 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Slave SQL.*Can.t find record in .t[12].* Error_code: 1032");
-call mtr.add_suppression("Slave SQL.*Cannot delete or update a parent row: a foreign key constraint fails .* Error_code: 1451");
-call mtr.add_suppression("Slave SQL.*Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
-call mtr.add_suppression("Slave SQL.*Could not execute Write_rows event on table test.* Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
+call mtr.add_suppression("Replica SQL.*Can.t find record in .t[12].* Error_code: 1032");
+call mtr.add_suppression("Replica SQL.*Cannot delete or update a parent row: a foreign key constraint fails .* Error_code: 1451");
+call mtr.add_suppression("Replica SQL.*Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
+call mtr.add_suppression("Replica SQL.*Could not execute Write_rows event on table test.* Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (-1),(-2),(-3);

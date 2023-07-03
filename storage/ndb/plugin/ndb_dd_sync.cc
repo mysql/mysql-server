@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -212,9 +212,8 @@ bool Ndb_dd_sync::remove_deleted_tables() const {
     }
 
     // Fetch list of tables in NDB. The util tables are skipped since the
-    // ndb_schema, ndb_schema_result, and ndb_sql_metadata tables are handled
-    // separately during binlog setup. The index stat tables are not installed
-    // in the DD.
+    // ndb_schema, ndb_schema_result, ndb_apply_status, ndb_sql_metadata
+    // and index stat tables are handled separately during binlog setup.
     std::unordered_set<std::string> tables_in_NDB;
     std::unordered_set<std::string> temp_tables_in_NDB;
     if (!ndb_get_table_names_in_schema(m_thd_ndb->ndb->getDictionary(),
@@ -1326,22 +1325,10 @@ bool Ndb_dd_sync::synchronize_schema(const char *schema_name) const {
   std::unordered_set<std::string> ndb_tables_in_NDB;
   NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
   /*
-    Fetch list of tables in NDB. The util tables are skipped since the
-    ndb_schema, ndb_schema_result, and ndb_sql_metadata tables are handled
-    separately during binlog setup. The index stat tables are not installed in
-    the DD. This is due to an issue after an initial system restart. The binlog
-    thread of the first MySQL Server connecting to the Cluster post an initial
-    restart pokes the index stat thread to create the index stat tables in NDB.
-    This happens only after the synchronization phase during binlog setup which
-    means that the tables aren't synced to the DD of the first MySQL Server
-    connecting to the Cluster. If there are multiple MySQL Servers connecting to
-    the Cluster, there's a race condition where the index stat tables could be
-    synchronized during subsequent MySQL Server connections depending on when
-    the index stat thread creates them in NDB. If the creation occurs in the
-    middle of the sync during binlog setup of a Server, it opens the door to
-    errors in the sync. The contents of these tables are incomprehensible
-    without some kind of parsing and are thus not exposed to the MySQL Server.
-    They remain visible and accessible via the ndb_select_all tool.
+    Fetch list of tables in NDB.
+    The util tables are skipped since the ndb_schema, ndb_schema_result,
+    ndb_apply_status, ndb_sql_metadata and index stat tables are handled
+    separately during binlog setup.
   */
   if (!ndb_get_table_names_in_schema(dict, schema_name, &ndb_tables_in_NDB)) {
     log_NDB_error(dict->getNdbError());

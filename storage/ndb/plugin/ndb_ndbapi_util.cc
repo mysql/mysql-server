@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 */
 
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
+
+#include <charconv>
 
 #include <string.h>  // memcpy
 
@@ -279,6 +281,7 @@ bool ndb_get_table_names_in_schema(
     if (schema_name == "mysql" &&
         (strcmp(elmt.name, "ndb_schema") == 0 ||
          strcmp(elmt.name, "ndb_schema_result") == 0 ||
+         strcmp(elmt.name, "ndb_apply_status") == 0 ||
          strcmp(elmt.name, "ndb_sql_metadata") == 0 ||
          strcmp(elmt.name, "ndb_index_stat_head") == 0 ||
          strcmp(elmt.name, "ndb_index_stat_sample") == 0)) {
@@ -519,6 +522,36 @@ bool ndb_table_index_count(const NdbDictionary::Dictionary *dict,
   return true;
 }
 
+bool ndb_table_have_unique_or_fk(const NdbDictionary::Dictionary *dict,
+                                 const NdbDictionary::Table *ndbtab,
+                                 bool &found) {
+  DBUG_TRACE;
+  NdbDictionary::Dictionary::List list;
+  if (dict->listDependentObjects(list, *ndbtab) != 0) {
+    // List dependent failed
+    return false;
+  }
+  for (uint i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+    DBUG_PRINT("info", ("elmt[%d]: %d '%s'", i, elmt.type, elmt.name));
+
+    if (elmt.type == NdbDictionary::Object::UniqueHashIndex) {
+      DBUG_PRINT("info", ("Found UniqueHashIndex"));
+      found = true;
+      return true;
+    }
+
+    if (elmt.type == NdbDictionary::Object::ForeignKey) {
+      DBUG_PRINT("info", ("Found ForeignKey"));
+      found = true;
+      return true;
+    }
+  }
+
+  DBUG_PRINT("info", ("No unique or fk found"));
+  return true;
+}
+
 bool ndb_table_scan_and_delete_rows(
     Ndb *ndb, const THD *thd, const NdbDictionary::Table *ndb_table,
     NdbError &ndb_err,
@@ -600,3 +633,74 @@ bool ndb_table_scan_and_delete_rows(
 
   return ndb_trans_retry(ndb, thd, ndb_err, scan_and_delete_func);
 }
+
+bool ndb_get_parent_table_ids_in_dictionary(
+    const NdbDictionary::Dictionary *dict,
+    std::unordered_set<unsigned> &table_ids) {
+  DBUG_TRACE;
+
+  NdbDictionary::Dictionary::List list;
+  if (dict->listObjects(list, NdbDictionary::Object::ForeignKey) != 0) {
+    // List objects failed
+    return false;
+  }
+
+  for (unsigned i = 0; i < list.count; i++) {
+    const NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+    DBUG_PRINT("info", ("elmt[%d]: %d '%s'", i, elmt.id, elmt.name));
+
+    // Extract parent_id from name format "<parent_id>/<child_id>/<name>"
+    unsigned parent_id = 0;
+    std::from_chars(elmt.name, elmt.name + 10, parent_id);
+    if (parent_id == 0) {
+      // unexpected format, skip
+      assert(false);
+      continue;
+    }
+
+    DBUG_PRINT("info", ("parent_id: %d", parent_id));
+    table_ids.insert(parent_id);
+  }
+  return true;
+}
+
+#ifndef NDEBUG
+#include "storage/ndb/plugin/ndb_table_guard.h"
+
+bool ndb_dump_NDB_tables(Ndb *ndb) {
+  // Get list of tables from NDB and read database names
+
+  NdbDictionary::Dictionary::List list;
+  if (ndb->getDictionary()->listObjects(list,
+                                        NdbDictionary::Object::UserTable) != 0)
+    return true;
+
+  fprintf(stderr, "ndb_dump_NDB_tables\n");
+  fprintf(stderr, "| table_id | db_name | table_name | object_version |\n");
+
+  for (uint i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+    DBUG_PRINT("info", ("elmt[%d]: %d '%s'", i, elmt.id, elmt.name));
+
+    const int table_id = elmt.id;
+    const char *table_database = elmt.database;
+    assert(elmt.schema == std::string("def"));  // always "<db>/def/<name>"
+    const char *table_name = elmt.name;
+
+    Ndb_table_guard ndbtab_g(ndb, table_database, table_name);
+    const NdbDictionary::Table *ndbtab = ndbtab_g.get_table();
+    if (!ndbtab) {
+      DBUG_PRINT("info",
+                 ("failed to open table %s.%s", table_database, table_name));
+      // skip tables that cannot be opened with Ndb_table_guard from server
+      continue;
+    }
+    assert(table_id == ndbtab->getObjectId());  // same as listed
+    const unsigned table_version = ndbtab->getObjectVersion();
+
+    fprintf(stderr, "| %d | %s | %s | %u |\n", table_id, table_database,
+            table_name, table_version);
+  }
+  return false;
+}
+#endif

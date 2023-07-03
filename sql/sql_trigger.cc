@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -419,6 +419,15 @@ bool Sql_cmd_create_trigger::execute(THD *thd) {
   MDL_ticket *mdl_ticket = nullptr;
   TABLE *table = open_and_lock_subj_table(thd, m_trigger_table, &mdl_ticket);
   if (table == nullptr) return true;
+
+  /* We don't allow creating triggers on external tables */
+  if ((table->file->ht->flags & HTON_NO_TRIGGER_SUPPORT) != 0U) {
+    std::string errorMsg =
+        "by " + std::string(ha_resolve_storage_engine_name(table->file->ht));
+    my_error(ER_FEATURE_UNSUPPORTED, MYF(0), "TRIGGER", errorMsg.c_str());
+    restore_original_mdl_state(thd, mdl_ticket);
+    return true;
+  }
 
   if (acquire_exclusive_mdl_for_trigger(thd, thd->lex->spname->m_db.str,
                                         thd->lex->spname->m_name.str)) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,15 +36,9 @@
 using tls_channels = std::vector<TLS_channel_property_iterator *>;
 
 /**
-  Global structure to store all instrumented TLS channels registered with PFS
+  Returns structure to store all instrumented TLS channels registered with PFS
 */
-extern tls_channels g_instrumented_tls_channels;
-
-/**
-  RW lock that protects list of instrumented TLS channels.
-  @sa g_instrumented_tls_channels
-*/
-extern mysql_rwlock_t LOCK_pfs_tls_channels;
+tls_channels &pfs_get_instrumented_tls_channels();
 
 /**
   Register a TLS channel for instrumentation with PFS
@@ -69,5 +63,15 @@ void init_pfs_tls_channels_instrumentation();
   Deinitialize internal data structures to instrument TLS channels
 */
 void cleanup_pfs_tls_channels_instrumentation();
+
+/**
+  Lock internal rwlock for reading
+*/
+void pfs_tls_channels_lock_for_read();
+
+/**
+  Unlock internal rwlock
+*/
+void pfs_tls_channels_unlock();
 
 #endif  // !PFS_TLS_CHANNEL_H

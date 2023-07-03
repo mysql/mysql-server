@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -490,18 +490,19 @@ Ndb::computeHash(Uint32 *retval,
     sumlen += len;
   }
 
-  if (!buf)
+  while (true)
   {
-    bufLen = sumlen;
-    bufLen += sizeof(Uint64); /* add space for potential alignment */
-    buf = malloc(bufLen);
-    if (unlikely(buf == nullptr))
-      return 4000;
-    malloced_buf = buf; /* Remember to free */
-    assert(bufLen > sumlen);
-  }
+    if (buf == nullptr)
+    {
+      bufLen = sumlen;
+      bufLen += sizeof(Uint64); /* add space for potential alignment */
+      buf = malloc(bufLen);
+      if (unlikely(buf == nullptr))
+        return 4000;
+      malloced_buf = buf; /* Remember to free */
+      assert(bufLen > sumlen);
+    }
 
-  {
     /* Get 64-bit aligned ptr required for hashing */
     assert(bufLen != 0);
     UintPtr org = UintPtr(buf);
@@ -510,8 +511,10 @@ Ndb::computeHash(Uint32 *retval,
     buf = (void*)use;
     bufLen -= Uint32(use - org);
 
-    if (unlikely(sumlen > bufLen))
-      goto ebuftosmall;
+    if (likely(sumlen <= bufLen))
+      break;
+    require(malloced_buf == nullptr);
+    buf = nullptr;
   }
 
   pos= (unsigned char*) buf;
@@ -582,9 +585,6 @@ emissingnullptr:
 elentosmall:
   return 4277;
 
-ebuftosmall:
-  return 4278;
-
 emalformedstring:
   if (malloced_buf)
     free(malloced_buf);
@@ -594,6 +594,8 @@ emalformedstring:
 emalformedkey:
   return 4280;
 }
+
+static inline Uint32 pad4(Uint32 len) { return (len + 3)/4*4; }
 
 int
 Ndb::computeHash(Uint32 *retval,
@@ -691,13 +693,21 @@ Ndb::computeHash(Uint32 *retval,
                                          pos, bufEnd-pos,
                                          src, len, maxlen);
       if (unlikely(n == -1))
+      {
+        if (NdbSqlUtil::strnxfrm_hash_len(cs, maxlen) > bufEnd - pos)
+          goto ebuftosmall;
         goto emalformedstring;
+      }
       len = n;
+      if (unlikely(pad4(len) > bufEnd - pos))
+        goto ebuftosmall;
     }
     else
     {
       if (keyAttr.flags & NdbRecord::IsVar1ByteLen)
       {
+        if (unlikely(pad4(len + 1) > bufEnd - pos))
+          goto ebuftosmall;
         *pos= (unsigned char)len;
         memcpy(pos+1, src, len);
         len += 1;
@@ -705,10 +715,16 @@ Ndb::computeHash(Uint32 *retval,
       else if (keyAttr.flags & NdbRecord::IsVar2ByteLen)
       {
         len += 2;
+        if (unlikely(pad4(len) > bufEnd - pos))
+          goto ebuftosmall;
         memcpy(pos, src-2, len);
       }
       else
+      {
+        if (unlikely(pad4(len) > bufEnd - pos))
+          goto ebuftosmall;
         memcpy(pos, src, len);
+      }
     }
     while (len & 3)
     {
@@ -718,6 +734,7 @@ Ndb::computeHash(Uint32 *retval,
   }
   len = Uint32(UintPtr(pos) - UintPtr(buf));
   assert((len & 3) == 0);
+  require(len <= bufLen);
 
   Uint32 values[4];
   md5_hash(values, (const Uint64*)buf, len >> 2);
@@ -735,7 +752,9 @@ Ndb::computeHash(Uint32 *retval,
 euserdeftable:
   return 4544;
 
-  
+ebuftosmall:
+  return 4278;
+
 emalformedstring:
   if (malloced_buf)
     free(malloced_buf);

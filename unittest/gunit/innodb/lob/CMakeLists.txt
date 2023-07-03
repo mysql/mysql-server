@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,11 @@ SET(PLOB_SRC_FILES
   ut0dbg.cc
   lob0int.cc)
 
-MYSQL_ADD_EXECUTABLE(lot0lot-t ${PLOB_SRC_FILES} SKIP_INSTALL)
+MYSQL_ADD_EXECUTABLE(lot0lot-t ${PLOB_SRC_FILES}
+  SKIP_INSTALL
+  ENABLE_EXPORTS
+  LINK_LIBRARIES ext::zlib ${GTEST_LIBRARIES} gunit_small
+  )
 MYSQL_ADD_EXECUTABLE(ut0plist-t
   lot0buf.cc
   mtr0log.cc
@@ -63,16 +67,13 @@ MYSQL_ADD_EXECUTABLE(ut0frags-t
   ut0frags.cc
   zlob0int.cc
   SKIP_INSTALL
+  LINK_LIBRARIES ext::zlib
   )
-MYSQL_ADD_EXECUTABLE(zlob0int-t ${ZLOB_SRC_FILES} SKIP_INSTALL)
-
-TARGET_LINK_LIBRARIES(zlob0int-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
-TARGET_LINK_LIBRARIES(lot0lot-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
-TARGET_LINK_LIBRARIES(ut0frags-t ${ZLIB_LIBRARY})
-
-# These executables get their main() from gunit_small, and have stack trace.
-SET_TARGET_PROPERTIES(lot0lot-t PROPERTIES ENABLE_EXPORTS TRUE)
-SET_TARGET_PROPERTIES(zlob0int-t PROPERTIES ENABLE_EXPORTS TRUE)
+MYSQL_ADD_EXECUTABLE(zlob0int-t ${ZLOB_SRC_FILES}
+  SKIP_INSTALL
+  ENABLE_EXPORTS
+  LINK_LIBRARIES ext::zlib ${GTEST_LIBRARIES} gunit_small
+  )
 
 # Don't run these by default, run manually
 # ADD_TEST(lot0lot  lot0lot-t)

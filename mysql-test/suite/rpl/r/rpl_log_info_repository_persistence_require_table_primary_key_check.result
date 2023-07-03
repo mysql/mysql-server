@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 
 # 0. Check if a privilege checks user exists and adapt the test if so.
@@ -73,7 +73,7 @@ DROP TABLE relay_log_info_content;
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start]
 START REPLICA;
-ERROR HY000: Slave failed to initialize relay log info structure from the repository
+ERROR HY000: Replica failed to initialize applier metadata structure from the repository
 
 # 3.1 Upgrade the server to Table repositories from File repositories
 #     Start the server using a file repository that has no Require_table_primary_key_check
@@ -132,17 +132,17 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_TABLE_PRIMARY_KEY_
 include/assert.inc [Check entry for default channel "" in mysql.slave_relay_log_info]
 SET @@GLOBAL.DEBUG = '+d,rpl_rli_clear_info_error';
 RESET REPLICA;
-ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
+ERROR HY000: Could not initialize connection metadata structure; more error messages can be found in the MySQL error log
 include/assert.inc [Check entry for default channel "" is unchanged in mysql.slave_relay_log_info]
 
 # 7. Cleanup
 SET @@GLOBAL.DEBUG = '-d,rpl_rli_clear_info_error';
 RESET REPLICA ALL;
 CALL mtr.add_suppression("Error reading relay log configuration.");
-CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel ''; its record may still be present in 'mysql.slave_master_info' table*");
+CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel ''; its record may still be present in the applier metadata repository*");
 CALL mtr.add_suppression("Failed to create or recover replication info repositories.");
-CALL mtr.add_suppression("Slave SQL for channel '': Slave failed to initialize relay log info structure from the repository,*");
+CALL mtr.add_suppression("Replica SQL for channel '': Replica failed to initialize applier metadata structure from the repository,*");
 CALL mtr.add_suppression("Replication configuration appears to be corrupted. On Group Replication channel 'group_replication_recovery'*");
-CALL mtr.add_suppression("Slave: Failed to initialize the master info structure for channel 'group_replication_recovery'*");
+CALL mtr.add_suppression("Replica: Failed to initialize the connection metadata structure for channel 'group_replication_recovery'*");
 START REPLICA;
 include/rpl_end.inc

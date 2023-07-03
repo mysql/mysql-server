@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,9 @@
 #ifndef MYSQL_ROUTER_CLASSIC_PROTOCOL_CODEC_BASE_H_
 #define MYSQL_ROUTER_CLASSIC_PROTOCOL_CODEC_BASE_H_
 
-#include <cstddef>       // size_t
-#include <cstdint>       // uint8_t
+#include <cstddef>  // size_t
+#include <cstdint>  // uint8_t
+#include <limits>
 #include <system_error>  // error_code
 #include <type_traits>
 #include <utility>  // move
@@ -34,8 +35,8 @@
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/stdx/bit.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_constants.h"
-#include "mysqlrouter/partial_buffer_sequence.h"
 
 namespace classic_protocol {
 
@@ -63,7 +64,6 @@ static_assert(bytes_per_bits(9) == 2);
  * requirements for T:
  * - size_t size()
  * - stdx::expected<size_t, std::error_code> encode(net::mutable_buffer);
- * - static size_t max_size();
  * - static stdx::expected<T, std::error_code> decode(buffer_sequence,
  *   capabilities);
  */
@@ -106,30 +106,49 @@ stdx::expected<size_t, std::error_code> encode(const T &v,
 }
 
 /**
- * decode a message from a buffer sequence.
+ * decode a message from a buffer.
  *
- * @param buffers buffer sequence to read from
+ * @param buffer buffer to read from
  * @param caps protocol capabilities
+ * @tparam T the message class
  * @returns number of bytes read from 'buffers' and a T on success, or
  * std::error_code on error
  */
-template <class T, class ConstBufferSequence>
+template <class T>
 stdx::expected<std::pair<size_t, T>, std::error_code> decode(
-    const ConstBufferSequence &buffers, capabilities::value_type caps) {
-  static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                "buffers MUST be a const buffer sequence");
+    const net::const_buffer &buffer, capabilities::value_type caps) {
+  return Codec<T>::decode(buffer, caps);
+}
 
-  return Codec<T>::decode(buffers, caps);
+/**
+ * decode a message from a buffer.
+ *
+ * @param buffer buffer to read from
+ * @param caps protocol capabilities
+ * @param args arguments that shall be forwarded to T's decode()
+ * @tparam T the message class
+ * @tparam Args Types of the extra arguments to be forwarded to T's decode()
+ * function.
+ * @returns number of bytes read from 'buffers' and a T on success, or
+ * std::error_code on error
+ */
+template <class T, class... Args>
+stdx::expected<std::pair<size_t, T>, std::error_code> decode(
+    const net::const_buffer &buffer, capabilities::value_type caps,
+    // clang-format off
+    Args &&... args
+    // clang-format on
+) {
+  return Codec<T>::decode(buffer, caps, std::forward<Args>(args)...);
 }
 
 namespace impl {
 
 /**
- * Generator of decoded Types of a buffer-sequence.
+ * Generator of decoded Types of a buffer.
  *
  * - .step<wire::VarInt>()
  */
-template <class ConstBufferSequence>
 class DecodeBufferAccumulator {
  public:
   using buffer_type = net::const_buffer;
@@ -138,29 +157,40 @@ class DecodeBufferAccumulator {
   /**
    * construct a DecodeBufferAccumulator.
    *
-   * @param buffers a ConstBufferSequence
+   * @param buffer a net::const_buffer
    * @param caps classic-protocol capabilities
    * @param consumed bytes to skip from the buffers
    */
-  DecodeBufferAccumulator(const ConstBufferSequence &buffers,
+  DecodeBufferAccumulator(const net::const_buffer &buffer,
                           capabilities::value_type caps, size_t consumed = 0)
-      : buffers_{buffers}, caps_{caps} {
-    static_assert(net::is_const_buffer_sequence<ConstBufferSequence>::value,
-                  "buffers MUST be a const buffer sequence");
-    buffers_.consume(consumed);
-  }
+      : buffer_(buffer), caps_(caps), consumed_(consumed) {}
 
   /**
    * decode a Type from the buffer sequence.
    *
-   * if it succeeds, moves position in buffer-sequence forward and returns
+   * if it succeeds, moves position in buffer forward and returns
    * decoded Type, otherwise returns error and updates the global error-code in
    * result()
+   *
+   * 'sz' is unlimited, the whole rest of the current buffer
+   * is passed to the decoder.
+   *
+   * If not, a slice of size 'sz' is taken. If there isn't at least 'sz' bytes
+   * in the buffer, it fails.
+   *
+   * @param sz limits the size of the current buffer.
    */
   template <class T>
   stdx::expected<typename Codec<T>::value_type, std::error_code> step(
-      size_t max_size = classic_protocol::Codec<T>::max_size()) {
-    return step_<T, false>(max_size);
+      size_t sz = std::numeric_limits<size_t>::max()) {
+    if (!res_) return stdx::make_unexpected(res_.error());
+
+    auto step_res = step_<T>(sz);
+
+    // capture the first failure
+    if (!step_res) res_ = stdx::make_unexpected(step_res.error());
+
+    return step_res;
   }
 
   /**
@@ -172,8 +202,10 @@ class DecodeBufferAccumulator {
    */
   template <class T>
   stdx::expected<typename Codec<T>::value_type, std::error_code> try_step(
-      size_t max_size = classic_protocol::Codec<T>::max_size()) {
-    return step_<T, true>(max_size);
+      size_t sz = std::numeric_limits<size_t>::max()) {
+    if (!res_) return stdx::make_unexpected(res_.error());
+
+    return step_<T>(sz);
   }
 
   /**
@@ -182,45 +214,37 @@ class DecodeBufferAccumulator {
    * if a step() failed, result is the error-code of the first failed step()
    *
    * @returns consumed bytes by all steps(), or error of first failed step()
-   *
    */
   result_type result() const {
-    if (!res_) {
-      return res_;
-    } else {
-      return buffers_.total_consumed();
-    }
+    if (!res_) return res_;
+
+    return consumed_;
   }
 
  private:
-  /**
-   * execute a step.
-   *
-   * Note: 'Try' is used a compile time selector for step() and try_step() only.
-   */
-  template <class T, bool Try>
+  template <class T>
   stdx::expected<typename Codec<T>::value_type, std::error_code> step_(
-      size_t max_size = std::numeric_limits<size_t>::max()) {
-    if (!res_) return stdx::make_unexpected(res_.error());
+      size_t sz) {
+    auto buf = buffer_ + consumed_;
 
-    stdx::expected<std::pair<size_t, typename Codec<T>::value_type>,
-                   std::error_code>
-        decode_res = Codec<T>::decode(buffers_.prepare(max_size), caps_);
-    if (decode_res) {
-      buffers_.consume(decode_res->first);
-
-      return decode_res->second;
-    } else {
-      if (!Try) {
-        // capture the first failure
-        res_ = stdx::make_unexpected(decode_res.error());
+    if (sz != std::numeric_limits<size_t>::max()) {
+      // not enough data.
+      if (buf.size() < sz) {
+        return stdx::make_unexpected(
+            make_error_code(codec_errc::not_enough_input));
       }
-      return stdx::make_unexpected(decode_res.error());
     }
+
+    auto decode_res = Codec<T>::decode(net::buffer(buf, sz), caps_);
+    if (!decode_res) return stdx::make_unexpected(decode_res.error());
+
+    consumed_ += decode_res->first;
+    return decode_res->second;
   }
 
-  PartialBufferSequence<ConstBufferSequence> buffers_;
+  net::const_buffer buffer_;
   const capabilities::value_type caps_;
+  size_t consumed_;
 
   result_type res_;
 };
@@ -240,7 +264,6 @@ class DecodeBufferAccumulator {
  */
 class EncodeBufferAccumulator {
  public:
-  using buffer_type = net::mutable_buffer;
   using result_type = stdx::expected<size_t, std::error_code>;
 
   /**
@@ -250,9 +273,9 @@ class EncodeBufferAccumulator {
    * @param caps protocol capabilities
    * @param consumed bytes already used in the in buffer
    */
-  EncodeBufferAccumulator(buffer_type buffer, capabilities::value_type caps,
-                          size_t consumed = 0)
-      : buffer_{std::move(buffer)}, caps_{caps}, consumed_{consumed} {}
+  EncodeBufferAccumulator(net::mutable_buffer buffer,
+                          capabilities::value_type caps, size_t consumed = 0)
+      : buffer_{buffer}, caps_{caps}, consumed_{consumed} {}
 
   /**
    * encode a T into the buffer and move position forward.
@@ -263,9 +286,11 @@ class EncodeBufferAccumulator {
   EncodeBufferAccumulator &step(const T &v) {
     if (!res_) return *this;
 
-    res_ = Codec<T>(v, caps_).encode(buffer_ + consumed_);
-    if (res_) {
-      consumed_ += res_.value();
+    auto res = Codec<T>(v, caps_).encode(buffer_ + consumed_);
+    if (!res) {  // it failed.
+      res_ = res;
+    } else {
+      consumed_ += *res;
     }
 
     return *this;
@@ -278,15 +303,13 @@ class EncodeBufferAccumulator {
    * failed.
    */
   result_type result() const {
-    if (!res_) {
-      return res_;
-    } else {
-      return {consumed_};
-    }
+    if (!res_) return res_;
+
+    return {consumed_};
   }
 
  private:
-  const buffer_type buffer_;
+  const net::mutable_buffer buffer_;
   const capabilities::value_type caps_;
   size_t consumed_{};
 
@@ -358,7 +381,7 @@ class EncodeBase {
   }
 
   stdx::expected<size_t, std::error_code> encode(
-      const net::mutable_buffer &buffer) const {
+      net::mutable_buffer buffer) const {
     return static_cast<const T *>(this)->accumulate_fields(
         EncodeBufferAccumulator(buffer, caps_));
   }

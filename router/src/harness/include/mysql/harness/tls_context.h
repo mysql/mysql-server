@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,6 @@ class HARNESS_TLS_EXPORT TlsLibraryContext {
  * - SSL_CTX_set_session_cache_mode()
  * - SSL_CTX_set_alpn_select_cb()
  * - SSL_CTX_set_tlsext_ticket_key_cb()
- * - SSL_CTX_set_session_id_context()
  * - SSL_CTX_set_tlsext_servername_callback() for SNI
  * - SSL_CTX_set_cert_verify_callback() vs. SSL_CTX_set_verify()
  *
@@ -218,6 +217,11 @@ class HARNESS_TLS_EXPORT TlsContext {
    * get security_level.
    */
   int security_level() const;
+
+  /**
+   * get session reuse cache hits number
+   */
+  long session_cache_hits() const;
 
  protected:
   std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)> ssl_ctx_{nullptr,

@@ -1,0 +1,83 @@
+CREATE DATABASE federated;
+CREATE DATABASE federated;
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+a int
+);
+INSERT INTO federated.t1 (a) VALUES (42);
+INSTALL COMPONENT 'file://component_query_attributes';
+INSTALL COMPONENT 'file://component_test_server_telemetry_traces';
+# check initial telemetry session refcount (should be 1)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+1
+# check telemetry session refcount on master server (variable should not exist)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+CREATE SERVER fedlink
+FOREIGN DATA WRAPPER mysql
+OPTIONS (
+HOST '127.0.0.1',
+PORT SLAVE_PORT,
+USER 'root',
+PASSWORD '',
+DATABASE 'federated');
+DROP TABLE IF EXISTS federated.t1;
+CREATE TABLE federated.t1 (
+a int
+) ENGINE="FEDERATED"
+    CONNECTION='fedlink/t1';
+SELECT * FROM federated.t1;
+a
+42
+# check telemetry session refcount before component uninstall (should be 2)
+SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions";
+variable_value
+2
+UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces';;
+SELECT * FROM federated.t1;
+a
+42
+UNINSTALL COMPONENT 'file://component_query_attributes';
+Component logs:
+test_server_telemetry_traces_component_init init:
+ - System variables registered.
+ - Status variables registered.
+ - Telemetry per-session data slot registered.
+ - Telemetry session callbacks registered.
+ - Telemetry statement callbacks registered.
+End of init
+ tm_session_create: telemetry session started, increase refcount by user=root to 1
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions"')
+ tm_session_connect: client session started (user=root)
+ tm_session_create: telemetry session started, increase refcount by user=root to 2
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=federated, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT `a` FROM `t1` WHERE 1=0')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=federated, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW TABLE STATUS LIKE 't1'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=federated, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SHOW TABLE STATUS LIKE 't1'')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=federated, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT `a` FROM `t1`')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='SELECT variable_value FROM performance_schema.global_status WHERE variable_name="test_server_telemetry_traces.live_sessions"')
+> tm_stmt_start: proceed further (depth=1, user=root, host=localhost, db=test, query='')
+ > tm_stmt_notify_qa: skip tracing, no qa (depth=1, with_qa=0, user=root, query='UNINSTALL COMPONENT 'file://component_test_server_telemetry_traces'')
+test_server_telemetry_traces_component_deinit:
+ - Telemetry statement callbacks unregistered.
+ tm_session_destroy: telemetry session ended, decrease refcount to 1
+ - Current session aborted.
+ tm_session_destroy: telemetry session ended, decrease refcount to 0
+ - Done waiting for telemetry sessions to finish (refcount = 0).
+ - Telemetry session callbacks unregistered.
+ - Telemetry per-session data slot unregistered.
+ - Status variables unregistered.
+ - System variables unregistered.
+End of deinit
+DROP TABLE IF EXISTS federated.t1;
+DROP SERVER fedlink;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE federated;

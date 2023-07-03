@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2041,6 +2041,30 @@ class Item : public Parse_tree_node {
   double error_real() {
     null_value = m_nullable;
     return 0.0;
+  }
+
+  /**
+    Get the value to return from get_date() in case of errors.
+
+    @see Item::error_bool
+
+    @return The true: the function failed.
+  */
+  bool error_date() {
+    null_value = m_nullable;
+    return true;
+  }
+
+  /**
+    Get the value to return from get_time() in case of errors.
+
+    @see Item::error_bool
+
+    @return The true: the function failed.
+  */
+  bool error_time() {
+    null_value = m_nullable;
+    return true;
   }
 
  public:
@@ -5745,7 +5769,7 @@ class Item_ref : public Item_ident {
     return 0;
   }
   void update_used_tables() override {
-    if (depended_from != nullptr) ref_item()->update_used_tables();
+    if (depended_from == nullptr) ref_item()->update_used_tables();
     /*
       Reset all flags except rollup, since we do not mark the rollup expression
       itself.
@@ -5841,7 +5865,9 @@ class Item_ref : public Item_ident {
   }
   bool get_time(MYSQL_TIME *ltime) override {
     assert(fixed);
-    return ref_item()->get_time(ltime);
+    bool result = ref_item()->get_time(ltime);
+    null_value = ref_item()->null_value;
+    return result;
   }
 
   bool basic_const_item() const override { return false; }
@@ -6646,7 +6672,6 @@ class Item_cache : public Item_basic_constant {
   static Item_cache *get_cache(const Item *item);
   static Item_cache *get_cache(const Item *item, const Item_result type);
   table_map used_tables() const override { return used_table_map; }
-  virtual void keep_array() {}
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool eq_def(const Field *field) {

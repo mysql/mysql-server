@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,10 +33,7 @@ TARGET_COMPILE_DEFINITIONS(metadata_cache_export_all
 SET(TEST_MODULE metadata_cache)
 FOREACH(test_file
     test_cache_plugin.cc
-    test_failover.cc
     test_instance_attributes.cc
-    test_metadata.cc
-    test_metadata_cache.cc
     )
   ADD_TEST_FILE(
     ${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
@@ -60,6 +57,7 @@ ADD_TEST_FILE(test_plugin_config.cc
   LIB_DEPENDS
     metadata_cache
     test-helpers
+    extra::rapidjson
   )
 ROUTERTEST_GET_TARGET(T "test_plugin_config.cc" "${TEST_MODULE}")
 TARGET_COMPILE_DEFINITIONS(${T}

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -780,10 +780,52 @@ encountered in crash recovery.  If the transaction already was
 committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back.
 Note: this is done in a background thread. */
-void trx_recovery_rollback_thread() {
-  THD *thd = create_internal_thd();
-
+void trx_recovery_rollback(THD *thd) {
+  std::vector<MDL_ticket *> shared_mdl_list;
   ut_ad(!srv_read_only_mode);
+
+  // Take MDL locks
+  /* During this stage the server is not open for external connections, and
+   * there will not be any concurrent threads requesting MDL, hence we don't
+   * have risk of hitting a deadlock.
+   * TODO: We can improvize code by following some order while taking MDL locks.
+   */
+  for (const auto &element : to_rollback_trx_tables) {
+    trx_id_t trx_id = element.first;
+    table_id_t table_id = element.second;
+
+    /* Passing false as we only intend to validate if the transaction is already
+     * committed/rolled back during other stages of recovery. */
+    auto trx = trx_rw_is_active(trx_id, false);
+
+    /* Ignore transactions that has already finished. */
+    if (trx == nullptr) {
+      /* Currently these recovered transactions are not expected to finish
+       * earlier. Assert in Debug mode. */
+      ut_ad(false);
+      continue;
+    }
+    auto table = dd_table_open_on_id(table_id, nullptr, nullptr, false, true);
+    if (table == nullptr) {
+      continue;
+    }
+    std::string table_name;
+    std::string schema_name;
+    table->get_table_name(schema_name, table_name);
+    MDL_ticket *mdl_ticket;
+    if (dd_mdl_acquire(thd, &mdl_ticket, schema_name.data(),
+                       table_name.data())) {
+      ut_error;
+    }
+    shared_mdl_list.push_back(mdl_ticket);
+    lock_table_ix_resurrect(table, trx);
+    ib::info(ER_IB_RESURRECT_ACQUIRE_TABLE_LOCK, ulong(table->id),
+             table->name.m_name);
+    dd_table_close(table, nullptr, nullptr, false);
+  }
+
+  /* Let the startup thread proceed now */
+  os_event_set(recovery_lock_taken);
 
   while (DBUG_EVALUATE_IF("pause_rollback_on_recovery", true, false)) {
     if (srv_shutdown_state.load() >= SRV_SHUTDOWN_RECOVERY_ROLLBACK) {
@@ -793,6 +835,22 @@ void trx_recovery_rollback_thread() {
   }
 
   trx_rollback_or_clean_recovered(true);
+
+  // Release MDL locks
+  for (auto mdl_ticket : shared_mdl_list) {
+    dd_release_mdl(mdl_ticket);
+  }
+}
+
+/** Rollback or clean up any incomplete transactions which were
+encountered in crash recovery.  If the transaction already was
+committed, then we clean up a possible insert undo log. If the
+transaction was not yet committed, then we roll it back.
+Note: this is done in a background thread. */
+void trx_recovery_rollback_thread() {
+  THD *thd = create_internal_thd();
+
+  trx_recovery_rollback(thd);
 
   destroy_internal_thd(thd);
 }

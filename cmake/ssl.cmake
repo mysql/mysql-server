@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -743,23 +743,13 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       MESSAGE(STATUS "HAVE_CRYPTO_DLL ${HAVE_CRYPTO_DLL}")
       MESSAGE(STATUS "HAVE_OPENSSL_DLL ${HAVE_OPENSSL_DLL}")
       IF(HAVE_CRYPTO_DLL AND HAVE_OPENSSL_DLL)
-        GET_FILENAME_COMPONENT(CRYPTO_DLL_NAME "${HAVE_CRYPTO_DLL}" NAME)
-        GET_FILENAME_COMPONENT(OPENSSL_DLL_NAME "${HAVE_OPENSSL_DLL}" NAME)
-        ADD_CUSTOM_TARGET(copy_openssl_dlls ALL
-          COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          "${HAVE_CRYPTO_DLL}"
-          "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${CRYPTO_DLL_NAME}"
-          COMMAND ${CMAKE_COMMAND} -E copy_if_different
-          "${HAVE_OPENSSL_DLL}"
-          "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${OPENSSL_DLL_NAME}"
-          COMMAND "${CMAKE_COMMAND}" -E touch cmakefiles/copy_openssl_dlls
-          )
-        MESSAGE(STATUS "INSTALL ${HAVE_CRYPTO_DLL} to ${INSTALL_BINDIR}")
-        MESSAGE(STATUS "INSTALL ${HAVE_OPENSSL_DLL} to ${INSTALL_BINDIR}")
-        INSTALL(FILES
-          "${HAVE_CRYPTO_DLL}"
-          "${HAVE_OPENSSL_DLL}"
-          DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries)
+        COPY_CUSTOM_DLL("${HAVE_CRYPTO_DLL}" OUTPUT_CRYPTO_TARGET)
+        COPY_CUSTOM_DLL("${HAVE_OPENSSL_DLL}" OUTPUT_OPENSSL_TARGET)
+
+        ADD_CUSTOM_TARGET(copy_openssl_dlls ALL)
+        ADD_DEPENDENCIES(copy_openssl_dlls ${OUTPUT_CRYPTO_TARGET})
+        ADD_DEPENDENCIES(copy_openssl_dlls ${OUTPUT_OPENSSL_TARGET})
+
         COPY_OPENSSL_BINARY(${OPENSSL_EXECUTABLE} "" "" openssl_exe_target)
         ADD_DEPENDENCIES(${openssl_exe_target} copy_openssl_dlls)
       ELSE()
@@ -772,7 +762,7 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       ENDIF()
     ENDIF()
   ENDIF()
-ENDMACRO()
+ENDMACRO(MYSQL_CHECK_SSL_DLLS)
 
 # Downgrade OpenSSL 3 deprecation warnings.
 MACRO(DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS)

@@ -175,3 +175,9 @@ test_services_command_services    plugin_output_directory   no  TEST_SERVICES_CO
 
 # component test_status_var_reader
 component_test_status_var_reader  	        plugin_output_directory no TEST_STATUS_VAR_READER
+
+# component test_server_telemetry_traces
+component_test_server_telemetry_traces       plugin_output_directory no TEST_SERVER_TELEMETRY_TRACES_COMPONENT
+
+# component_test_mysql_thd_store_service
+component_test_mysql_thd_store_service 	        plugin_output_directory no COMPONENT_TEST_MYSQL_THD_STORE_SERVICE

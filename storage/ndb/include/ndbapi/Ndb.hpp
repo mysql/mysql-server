@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1542,6 +1542,11 @@ public:
    *       The transaction must be closed independent of its outcome, i.e.
    *       even if there is an error.
    *
+   * @note Hinting TC-selection by passing key data only works if key only
+   *       consists of 4-byte aligned values and not using character columns.
+   *       No failure will be returned if that is not the case, rather use the
+   *       startTransaction function that takes Key_part_ptr.
+   *
    * @param  table    Pointer to table object used for deciding
    *                  which node to run the Transaction Coordinator on
    * @param  keyData  Pointer to partition key corresponding to
@@ -1676,8 +1681,11 @@ public:
    *                  to calculate hashvalue
    * @param  xfrmbuflen Length of buffer
    *
-   * @note if xfrmbuf is null (default) malloc/free will be made
-   *       if xfrmbuf is not null but length is too short, method will fail
+   * @note if xfrmbuf is null (default) a big enough temporary buffer will be
+   *       allocated using malloc and free.
+   *       Since 8.0.33 if passed buffer is too small a temporay buffer will
+   *       be allocated as if no buffer was passed.  For older releases
+   *       function failed if buffer was to small.
    *
    * @return NdbTransaction object, or NULL on failure.
    */
@@ -1685,6 +1693,10 @@ public:
 				   const struct Key_part_ptr * keyData,
 				   void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /**
+   * Unlike startTransaction function above, this function will not try to
+   * allocate a bigger buffer using malloc/free if provided buffer is too small.
+   */
   NdbTransaction* startTransaction(const NdbRecord *keyRec, const char *keyData,
 				   void* xfrmbuf, Uint32 xfrmbuflen);
 #endif
@@ -1719,8 +1731,11 @@ public:
    *                  to calculate hashvalue
    * @param  xfrmbuflen Length of buffer
    *
-   * @note if xfrmbuf is null (default) malloc/free will be made
-   *       if xfrmbuf is not null but length is too short, method will fail
+   * @note if xfrmbuf is null (default) a big enough temporary buffer will be
+   *       allocated using malloc and free.
+   *       Since 8.0.33 if passed buffer is too small a temporay buffer will
+   *       be allocated as if no buffer was passed.  For older releases
+   *       function failed if buffer was to small.
    *       Only for use with natively partitioned tables.
    *
    * @return 0 - ok - hashvalueptr is set
@@ -1731,6 +1746,10 @@ public:
                          const struct Key_part_ptr * keyData,
                          void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /**
+   * Unlike computeHash function above, this function will not try to allocate
+   * a bigger buffer using malloc/free if provided buffer is too small.
+   */
   static int computeHash(Uint32* hashvalueptr,
                          const NdbRecord *keyRec, const char *keyData,
                          void* xfrmbuf, Uint32 xfrmbuflen);

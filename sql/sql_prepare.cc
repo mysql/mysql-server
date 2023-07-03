@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1876,7 +1876,7 @@ static void reset_stmt_parameters(Prepared_statement *stmt) {
 void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
                          ulong execute_flags, PS_PARAM *parameters) {
   DBUG_TRACE;
-
+  statement_id_to_session(thd);
 #if defined(ENABLED_PROFILING)
   thd->profiling->set_query_source(stmt->m_query_string.str,
                                    stmt->m_query_string.length);

@@ -1,10 +1,10 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key .*");
-call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+call mtr.add_suppression("Replica SQL for channel '': .*Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key .*");
+call mtr.add_suppression("Replica SQL for channel '': ... The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 call mtr.add_suppression("Error writing relay log configuration.");
 include/stop_slave.inc
 SET @save.replica_parallel_workers=@@global.replica_parallel_workers;
@@ -44,14 +44,14 @@ COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1062]
 include/stop_slave_io.inc
 CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS;
-ERROR HY000: CHANGE MASTER cannot be executed when the slave was stopped with an error or killed in MTS mode. Consider using RESET SLAVE or START SLAVE UNTIL.
+ERROR HY000: CHANGE REPLICATION SOURCE cannot be executed when the replica was stopped with an error or killed in MTA mode. Consider using RESET REPLICA or START REPLICA UNTIL.
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-replica-start]
 SELECT @@global.relay_log_recovery as 'must be ON';
 must be ON
 1
-call mtr.add_suppression("MTS recovery: automatic recovery failed.*");
-call mtr.add_suppression("Failed to initialize the master info structure");
+call mtr.add_suppression("MTA recovery: automatic recovery failed.*");
+call mtr.add_suppression("Failed to initialize the connection metadata structure");
 call mtr.add_suppression("Failed to create or recover replication info repositories.");
 call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible execution gaps. The value of --relay_log_info_repository is altered to one of the found Worker repositories");
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start]
@@ -101,14 +101,14 @@ include/stop_slave_io.inc
 FLUSH LOGS;
 [connection slave]
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = 'FILE', SOURCE_LOG_POS = POS ;
-ERROR HY000: CHANGE MASTER cannot be executed when the slave was stopped with an error or killed in MTS mode. Consider using RESET SLAVE or START SLAVE UNTIL.
+ERROR HY000: CHANGE REPLICATION SOURCE cannot be executed when the replica was stopped with an error or killed in MTA mode. Consider using RESET REPLICA or START REPLICA UNTIL.
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = 'FILE', SOURCE_LOG_POS = POS ;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;
 SET @@global.relay_log_info_repository= @save.relay_log_info_repository;
 include/start_slave.inc

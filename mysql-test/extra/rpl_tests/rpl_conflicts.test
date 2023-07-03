@@ -94,8 +94,8 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.replica_exec_mode = 'STR
   --let $errno= query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1)
   --eval SELECT "$errno" as 'Last_SQL_Errno'
 
-  call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .t1.PRIMARY.* Error_code: MY-001062");
-  call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+  call mtr.add_suppression("Replica SQL.*Duplicate entry .1. for key .t1.PRIMARY.* Error_code: MY-001062");
+  call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
   SELECT * FROM t1;
 
@@ -140,7 +140,7 @@ connection slave;
 # replication continues.
 if (`SELECT @@global.binlog_format = 'ROW' AND @@global.replica_exec_mode = 'STRICT'`) {
   --echo ---- Wait until slave stops with an error ----
-  call mtr.add_suppression("Slave SQL.*Can.t find record in .t1., Error_code: 1032");
+  call mtr.add_suppression("Replica SQL.*Can.t find record in .t1., Error_code: 1032");
 
   let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND);
   source include/wait_for_slave_sql_error.inc;

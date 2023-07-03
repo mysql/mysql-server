@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 SET @@session.binlog_direct_non_transactional_updates= FALSE;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -14,9 +14,9 @@ insert into tm set a=null;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 commit;
-call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
-call mtr.add_suppression("Slave SQL.*Slave SQL Thread stopped with incomplete event group having non-transactional changes");
-call mtr.add_suppression("Slave SQL.*The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression("Replica SQL.*Request to stop replica SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+call mtr.add_suppression("Replica SQL.*Replica SQL Thread stopped with incomplete event group having non-transactional changes");
+call mtr.add_suppression("Replica SQL.*The replica coordinator and worker threads are stopped.*");
 include/wait_for_slave_sql_to_stop.inc
 include/check_slave_no_error.inc
 include/assert.inc [Everything that was read, was executed]

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+Copyright (c) 2020, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -188,8 +188,9 @@ class MetadataHttpAuthTest : public RouterComponentTest {
       const uint16_t cluster_node_port, const bool error_on_md_query = false,
       const unsigned primary_id = 0, const uint64_t view_id = 0,
       const mysqlrouter::MetadataSchemaVersion md_version = {2, 0, 3}) const {
-    auto json_doc = mock_GR_metadata_as_json(
-        gr_id, {cluster_node_port}, primary_id, view_id, error_on_md_query);
+    auto json_doc = mock_GR_metadata_as_json(gr_id, {cluster_node_port}, 0,
+                                             {cluster_node_port}, primary_id,
+                                             view_id, error_on_md_query);
 
     JsonAllocator allocator;
     JsonValue nodes(rapidjson::kArrayType);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,7 @@ bool PFS_index_esmh_global::match_bucket(ulong bucket_index) {
 }
 
 PFS_engine_table *table_esmh_global::create(PFS_engine_table_share *) {
-  table_esmh_global *table = new table_esmh_global();
+  auto *table = new table_esmh_global();
   table->materialize();
   return table;
 }
@@ -95,7 +95,7 @@ int table_esmh_global::delete_all_rows() {
   return 0;
 }
 
-ha_rows table_esmh_global::get_row_count(void) { return NUMBER_OF_BUCKETS; }
+ha_rows table_esmh_global::get_row_count() { return NUMBER_OF_BUCKETS; }
 
 table_esmh_global::table_esmh_global()
     : PFS_engine_table(&m_share, &m_pos),
@@ -103,12 +103,12 @@ table_esmh_global::table_esmh_global()
       m_next_pos(0),
       m_materialized(false) {}
 
-void table_esmh_global::reset_position(void) {
+void table_esmh_global::reset_position() {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_esmh_global::rnd_next(void) {
+int table_esmh_global::rnd_next() {
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < NUMBER_OF_BUCKETS;
        m_pos.next()) {
     make_row(m_pos.m_index);
@@ -138,7 +138,7 @@ int table_esmh_global::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_esmh_global::index_next(void) {
+int table_esmh_global::index_next() {
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < NUMBER_OF_BUCKETS;
        m_pos.next()) {
     if (m_opened_index->match_bucket(m_pos.m_index)) {
@@ -188,13 +188,13 @@ int table_esmh_global::make_row(ulong bucket_index) {
   m_row.m_count_bucket_and_lower =
       m_materialized_histogram.m_buckets[bucket_index].m_count_bucket_and_lower;
 
-  ulonglong count_star =
+  const ulonglong count_star =
       m_materialized_histogram.m_buckets[NUMBER_OF_BUCKETS - 1]
           .m_count_bucket_and_lower;
 
   if (count_star > 0) {
-    double dividend = m_row.m_count_bucket_and_lower;
-    double divisor = count_star;
+    const double dividend = m_row.m_count_bucket_and_lower;
+    const double divisor = count_star;
     m_row.m_percentile = dividend / divisor; /* computed with double, not int */
   } else {
     m_row.m_percentile = 0.0;

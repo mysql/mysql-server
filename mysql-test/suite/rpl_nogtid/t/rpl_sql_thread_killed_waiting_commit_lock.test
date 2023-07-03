@@ -40,7 +40,7 @@
 --source include/have_debug_sync.inc
 
 call mtr.add_suppression("Query execution was interrupted.");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --echo # Let master and slave synced with t1 table created
 CREATE TABLE t1 (f INT) ENGINE= INNODB;

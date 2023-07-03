@@ -35,11 +35,11 @@
 --source include/have_debug.inc
 
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("Slave: failed in copying the global filters to its own per-channel filters on configuration for channel 'ch1'");
+call mtr.add_suppression("Replica: failed in copying the global filters to its own per-channel filters on configuration for channel 'ch1'");
 call mtr.add_suppression("Failed to add a replication filter into filter map for channel 'ch1'");
-call mtr.add_suppression("Slave: failed in creating filter for channel 'ch1'");
-call mtr.add_suppression(".*Failed to allocate memory for master info repositories..*");
-call mtr.add_suppression(".*Failed to allocate memory for the relay log info structure.*");
+call mtr.add_suppression("Replica: failed in creating filter for channel 'ch1'");
+call mtr.add_suppression(".*Failed to allocate memory for connection metadata repositories..*");
+call mtr.add_suppression(".*Failed to allocate memory for the applier metadata structure.*");
 
 STOP SLAVE SQL_THREAD FOR CHANNEL '';
 SET @saved_debug= @@GLOBAL.debug;
@@ -97,7 +97,7 @@ SET GLOBAL debug='-d,simulate_out_of_memory_on_copy_rewrite_db';
 SET GLOBAL debug='+d,simulate_out_of_memory_on_create_filter';
 --error ER_OUTOFMEMORY
 CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
---error ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+--error ER_REPLICA_CHANNEL_DOES_NOT_EXIST
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 
 --echo #

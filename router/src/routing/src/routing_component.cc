@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -208,6 +208,21 @@ uint64_t MySQLRoutingComponent::current_total_connections() {
     if (auto r = el.second.lock()) {
       result +=
           r->get_context().info_active_routes_.load(std::memory_order_relaxed);
+    }
+  }
+
+  return result;
+}
+
+MySQLRoutingConnectionBase *MySQLRoutingComponent::get_connection(
+    const std::string &client_endpoint) {
+  MySQLRoutingConnectionBase *result = nullptr;
+
+  std::lock_guard<std::mutex> lock(routes_mu_);
+
+  for (const auto &el : routes_) {
+    if (auto r = el.second.lock()) {
+      if ((result = r->get_connection(client_endpoint))) break;
     }
   }
 

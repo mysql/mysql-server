@@ -6,10 +6,9 @@
 #   1. Establish 5 connections and create 2 tables
 #   2. Lock a table so one query will block, this one is not counted
 #   3. Leave a transaction open without commit (counted)
-#   4. Leave a transaction stuck on commit
-#   5. Execute a DML query. A hook will count the transactions
-#   6. Execute a query that on a server hook will count the number of queries
-#   7. Clean up
+#   4. Leave a transaction stuck on after commit
+#   5. Execute a query that on a server hook will count the number of queries
+#   6. Clean up
 #
 ###############################################################################
 
@@ -26,6 +25,7 @@
 --connect(con3,localhost,root,,test)
 --connect(con4,localhost,root,,test)
 --connect(con5,localhost,root,,test)
+--connect(con6,localhost,root,,test)
 
 --let $rpl_connection_name= con1
 --source include/rpl_connection.inc
@@ -41,16 +41,13 @@ CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 LOCK TABLE t1 WRITE;
 
---echo
---echo # 3. Leave a transaction open without commit (counted)
-
 --let $rpl_connection_name= con3
 --source include/rpl_connection.inc
 
 --send INSERT INTO t1 VALUES (2);
 
 --echo
---echo # 4. Leave a transaction stuck on commit
+--echo # 3. Leave a transaction open without commit (counted)
 
 --let $rpl_connection_name= con4
 --source include/rpl_connection.inc
@@ -59,36 +56,45 @@ BEGIN;
 INSERT INTO t2 VALUES(1);
 
 --echo
---echo # 5. Execute a DML query. A hook will count the transactions
+--echo # 4. Leave a transaction stuck on after commit
 
 --let $rpl_connection_name= con5
 --source include/rpl_connection.inc
 
-SET @@GLOBAL.DEBUG='+d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG='+d,bgc_after_after_commit_stage';
 
 --send INSERT INTO t2 VALUES (3);
 
 --let $rpl_connection_name= con1
 --source include/rpl_connection.inc
 
-# Ensuring that the insert actually hangs at the before commit hook.
+# Ensuring that the insert actually hangs at the after commit hook (trans_after_commit).
 --let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
 --source include/wait_condition.inc
 
-SET @@GLOBAL.DEBUG='-d,group_replication_before_commit_hook_wait';
+SET @@GLOBAL.DEBUG='-d,bgc_after_after_commit_stage';
 
 --echo #
---echo # 6. Execute a query that on a server hook will count the number of
+--echo # 5. Execute a query that on a server hook will count the number of
 --echo #    queries
 
 # It should count 3, the 2 above stuck ones plus the one invoking the hook.
 
 SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_counts_transactions';
 
-INSERT INTO t2 VALUES (10);
+# The after hook inforced order prevents this transaction from returning, even if the transaction commits
+--send INSERT INTO t2 VALUES (10);
+
+--let $rpl_connection_name= con6
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '-d,validate_replication_observers_plugin_counts_transactions';
+
+--let $wait_condition=SELECT COUNT(*)=2 FROM test.t2
+--source include/wait_condition.inc
 
 --echo #
---echo # 7. Clean up
+--echo # 6. Clean up
 
 --let $rpl_connection_name= con2
 --source include/rpl_connection.inc
@@ -97,6 +103,13 @@ UNLOCK TABLES;
 
 --disconnect con2
 
+--let $rpl_connection_name= con4
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC='now SIGNAL continue_commit';
+
+COMMIT;
+
 --let $rpl_connection_name= con3
 --source include/rpl_connection.inc
 
@@ -104,12 +117,10 @@ UNLOCK TABLES;
 
 --disconnect con3
 
---let $rpl_connection_name= con4
+--let $rpl_connection_name= con1
 --source include/rpl_connection.inc
 
-COMMIT;
-
-SET DEBUG_SYNC='now SIGNAL continue_commit';
+--reap
 
 --disconnect con4
 

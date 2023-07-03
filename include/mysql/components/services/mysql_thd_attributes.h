@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2021, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Currently, following attributes are supported:
 
   - Query Digest Text
+  - Query Text
+  - Host or IP
+  - Schema
 
-  @section Initialization
+  @section thd_attributes_init Initialization
 
   The service can be instantiated using the registry service with the
   "mysql_thd_attributes" name.
@@ -50,7 +53,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   }
   @endcode
 
-  @section Query Digest Text
+  @section thd_attributes_query_digest_text Query Digest Text
 
   Query Digest represents converted SQL statement to normalized form. The code
   below demonstrates how query digest can be obtained from the service.
@@ -76,6 +79,27 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @code
   mysql_string_factory->destroy(str);
   @endcode
+
+  @section thd_attributes_query_text Query Text
+
+  Query text represents complete SQL text currently being executed within a
+  given session. The example code is identical to the one for Query Digest, the
+  only difference is that attribute name "sql_text" should be used in this
+  case.
+
+  @section thd_attributes_host_or_ip Host or IP
+
+  Host or IP text contains host or IP (if host unavailable) belonging to a
+  client associated with a given session. The example code is identical to the
+  one for Query Digest, the only difference is that attribute name "host_or_ip"
+  should be used in this case.
+
+  @section thd_attributes_schema Schema
+
+  Schema text contains a name of database currently in use by a
+  client associated with a given session. The example code is identical to the
+  one for Query Digest, the only difference is that attribute name "schema"
+  should be used in this case.
 */
 BEGIN_SERVICE_DEFINITION(mysql_thd_attributes)
 
@@ -84,7 +108,12 @@ BEGIN_SERVICE_DEFINITION(mysql_thd_attributes)
 
   Currently, following attributes are supported:
 
-  - Query Digest Text ("query_digest" of the returned my_h_string type).
+  - Query Digest Text ("query_digest" of the returned my_h_string type)
+  - Query Text ("sql_text" of the returned my_h_string type)
+  - Host or IP ("host_or_ip" of the returned my_h_string type)
+  - Schema ("schema" of the returned my_h_string type)
+  - Is Upgrade Thread ("is_upgrade_thread" of the returned bool type)
+  - Is Init File System Thread ("is_init_file_thread" of the returned bool type)
 
   @param      thd           Session THD object.
   @param      name          Name of the attribute to be set.

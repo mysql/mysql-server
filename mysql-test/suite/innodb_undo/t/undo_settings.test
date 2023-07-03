@@ -331,8 +331,8 @@ connection default;
 SELECT * FROM t1 ORDER BY a;
 SELECT COUNT(*) FROM t2;
 SELECT COUNT(*) FROM t3;
-let $restart_parameters = restart: --innodb_read_only  --innodb_rollback_segments=8;
---source include/restart_mysqld.inc
+let $extra_restart_parameters=--innodb_rollback_segments=8;
+--source include/restart_innodb_read_only.inc
 disconnect con1;
 --error ER_READ_ONLY_MODE
 CREATE UNDO TABLESPACE `undo_007` ADD DATAFILE 'undo_007.ibu';
@@ -457,8 +457,6 @@ SHOW VARIABLES LIKE 'innodb_rollback_segments';
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");
 call mtr.add_suppression("\\[Warning\\].*Cannot set innodb_rollback_segments to [8,3] when in read-only mode");
 call mtr.add_suppression("\\[Warning\\].*Cannot set innodb_rollback_segments to [8,3] when in innodb_force_recovery > 0");
-call mtr.add_suppression("\\[Warning\\].*Skip updating information_schema metadata in InnoDB read-only mode");
-call mtr.add_suppression("\\[Warning\\].*Skipped updating resource group metadata in InnoDB read only mode.");
 call mtr.add_suppression("\\[Warning\\].*Doublewrite page .* could not be restored. File name unknown for tablespace ID");
 --enable_query_log
 

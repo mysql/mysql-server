@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -592,6 +592,7 @@ g_errins_list[] = {
   { "stopall", "stop all jobs" },
   { "sighup", "trigger stopall via SIGHUP" },
   { "sigint", "trigger stopall via SIGINT" },
+  { "bug34917498", "use small buffer when calculate nodeid for row" },
   { 0, 0 }
 };
 
@@ -671,8 +672,8 @@ doerrins_c(void* data)
     sig = SIGHUP;
   if (strcmp(type, "sigint") == 0)
     sig = SIGINT;
-  require(sig != 0);
-  ::kill(pid, sig);
+  if (sig != 0)
+    ::kill(pid, sig);
 #else
   // TODO
 #endif

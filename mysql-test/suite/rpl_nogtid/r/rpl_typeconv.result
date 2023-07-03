@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 set @saved_replica_type_conversions = @@global.replica_type_conversions;
 CREATE TABLE type_conversions (
@@ -949,8 +949,8 @@ BIT(6)         	BIT(5)         	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 BIT(5)         	BIT(12)        	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 BIT(12)        	BIT(5)         	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 DROP TABLE type_conversions;
-call mtr.add_suppression("Slave SQL.*Column 1 of table .test.t1. cannot be converted from type.* Error_code: MY-013146");
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Replica SQL.*Column 1 of table .test.t1. cannot be converted from type.* Error_code: MY-013146");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 set global replica_type_conversions = @saved_replica_type_conversions;

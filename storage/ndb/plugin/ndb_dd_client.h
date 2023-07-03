@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+   Copyright (c) 2017, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -157,7 +157,7 @@ class Ndb_dd_client {
                     Ndb_referenced_tables_invalidator *invalidator = nullptr);
   bool remove_table(const char *schema_name, const char *table_name,
                     Ndb_referenced_tables_invalidator *invalidator = nullptr);
-  bool remove_table(const char *engine, dd::Object_id spi,
+  bool remove_table(const dd::Object_id spi,
                     Ndb_referenced_tables_invalidator *invalidator = nullptr);
   bool deserialize_table(const dd::sdi_t &sdi, dd::Table *table_def);
   bool install_table(const char *schema_name, const char *table_name,
@@ -230,6 +230,11 @@ class Ndb_dd_client {
                           bool fail_if_not_exists = true);
   bool get_schema_uuid(dd::String_type *value) const;
   bool update_schema_uuid(const char *value) const;
+
+  // Print all NDB tables registered in DD to stderr
+  bool dump_NDB_tables();
+  // Shuffle the se_private_id of all NDB tables installed in DD
+  bool dbug_shuffle_spi_for_NDB_tables();
 };
 
 #endif

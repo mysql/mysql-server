@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -218,7 +218,10 @@ IF (WITH_CLIENT_PROTOCOL_TRACING)
 
 ENDIF (WITH_CLIENT_PROTOCOL_TRACING)
 
-ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES} DEPENDENCIES GenError)
+ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES}
+  DEPENDENCIES GenError
+  LINK_LIBRARIES ext::zlib
+  )
 
 SET(LIBS_TO_MERGE
   clientlib mytime strings vio mysys
@@ -226,15 +229,15 @@ SET(LIBS_TO_MERGE
 SET(LIBS_TO_LINK ${LIBDL})
 
 IF(WITH_ZLIB STREQUAL "bundled")
-  LIST(APPEND LIBS_TO_MERGE ${ZLIB_LIBRARY})
+  LIST(APPEND LIBS_TO_MERGE zlib)
 ELSE()
-  LIST(APPEND LIBS_TO_LINK ${ZLIB_LIBRARY})
+  LIST(APPEND LIBS_TO_LINK ext::zlib)
 ENDIF()
 
 IF(WITH_ZSTD STREQUAL "bundled")
-  LIST(APPEND LIBS_TO_MERGE ${ZSTD_LIBRARY})
+  LIST(APPEND LIBS_TO_MERGE zstd)
 ELSE()
-  LIST(APPEND LIBS_TO_LINK ${ZSTD_LIBRARY})
+  LIST(APPEND LIBS_TO_LINK ext::zstd)
 ENDIF()
 
 LIST(APPEND LIBS_TO_LINK ${SSL_LIBRARIES})
@@ -427,8 +430,12 @@ IF(HAS_WARN_FLAG)
 ENDIF()
 
 # Verify that libmysql_api_test runs OK
-MY_ADD_CUSTOM_TARGET(run_libmysql_api_test ALL
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
   DEPENDS libmysql_api_test
   COMMAND libmysql_api_test
   > ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
+  )
+MY_ADD_CUSTOM_TARGET(run_libmysql_api_test ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
   )

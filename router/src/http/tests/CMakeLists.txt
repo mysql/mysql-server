@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2018, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     ../src/kdf_pbkdf2.cc
     ../src/mcf_error.cc
     COMPONENT Router
-    LINK_LIBRARIES ${SSL_LIBRARIES} metadata_cache
+    LINK_LIBRARIES ${SSL_LIBRARIES} metadata_cache extra::rapidjson
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     SKIP_INSTALL
     )

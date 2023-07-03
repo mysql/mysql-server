@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,6 @@ class METADATA_CACHE_EXPORT GRMetadataCache : public MetadataCache {
    * Initialize a connection to the MySQL Metadata server.
    *
    * @param router_id id of the router in the cluster metadata
-   * @param group_replication_id id of the replication group (if bootstrapped as
-   * a single Cluster, empty otherwise)
    * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
    * bootstrapped as a ClusterSet, empty otherwise)
    * @param metadata_servers The servers that store the metadata
@@ -52,8 +50,7 @@ class METADATA_CACHE_EXPORT GRMetadataCache : public MetadataCache {
    *                             for metadata refresh
    */
   GRMetadataCache(
-      const unsigned router_id, const std::string &group_replication_id,
-      const std::string &clusterset_id,
+      const unsigned router_id, const std::string &clusterset_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       std::shared_ptr<MetaData> cluster_metadata,
       const metadata_cache::MetadataCacheTTLConfig &ttl_config,
@@ -62,10 +59,10 @@ class METADATA_CACHE_EXPORT GRMetadataCache : public MetadataCache {
       const metadata_cache::RouterAttributes &router_attributes,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       bool use_gr_notifications = false)
-      : MetadataCache(router_id, group_replication_id, clusterset_id,
-                      metadata_servers, cluster_metadata, ttl_config,
-                      ssl_options, target_cluster, router_attributes,
-                      thread_stack_size, use_gr_notifications) {}
+      : MetadataCache(router_id, clusterset_id, metadata_servers,
+                      cluster_metadata, ttl_config, ssl_options, target_cluster,
+                      router_attributes, thread_stack_size,
+                      use_gr_notifications) {}
 
   bool refresh(bool needs_writable_node) override;
 
@@ -75,13 +72,6 @@ class METADATA_CACHE_EXPORT GRMetadataCache : public MetadataCache {
 
  private:
   void log_cluster_details() const;
-#ifdef FRIEND_TEST
-  FRIEND_TEST(FailoverTest, basics);
-  FRIEND_TEST(FailoverTest, primary_failover);
-  FRIEND_TEST(MetadataCacheTest2, basic_test);
-  FRIEND_TEST(MetadataCacheTest2, metadata_server_connection_failures);
-  friend class MetadataCacheTest;
-#endif
 };
 
 #endif  // METADATA_CACHE_METADATA_CACHE_GR_INCLUDED

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -45,9 +45,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /* log_encryption_header_{read,write} */
 #include "log0files_io.h"
 
-/* recv_recovery_on */
-#include "log0recv.h"
-
 /* log_t::m_encryption_metadata */
 #include "log0sys.h"
 
@@ -89,7 +86,6 @@ dberr_t log_encryption_read(log_t &log) {
 }
 
 dberr_t log_encryption_read(log_t &log, const Log_file &file) {
-  ut_a(recv_recovery_on);
   ut_a(srv_force_recovery < SRV_FORCE_NO_LOG_REDO);
   ut_a(log_sys != nullptr);
 

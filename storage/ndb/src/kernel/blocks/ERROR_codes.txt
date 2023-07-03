@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2003, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@ Next DBTUP 4039
 Next DBLQH 5109
 Next DBDICT 6223
 Next DBDIH 7249
-Next DBTC 8120
+Next DBTC 8123
 Next CMVMI 9000
 Next BACKUP 10055
 Next PGMAN 11010
@@ -499,6 +499,14 @@ DBTC TCINDXREQ TESTING
 DBTC Partitioning testing
 -------------------------
 8119: Simulate specific range scan pruning hash code 0xffffffff
+
+
+DBTC Api failure testing
+------------------------
+8120: Api disconnect during SCAN ZSTART_FRAG_SCANS CONTINUEB
+8121: Api disconnect early during SCAN ZSEND_FRAG_SCANS CONTINUEB
+8122: Api disconnect later during SCAN ZSEND_FRAG_SCANS CONTINUEB
+
 
 CMVMI
 -----

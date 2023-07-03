@@ -1,14 +1,14 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 SET @save_replica_parallel_workers= @@replica_parallel_workers;
 SET @save_default_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine='innodb';
 SET GLOBAL replica_parallel_workers= 4;
-call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-call mtr.add_suppression("Request to stop slave SQL Thread received while applying a group that has non-transactional changes");
+call mtr.add_suppression("The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Request to stop replica SQL Thread received while applying a group that has non-transactional changes");
 include/stop_slave.inc
 include/start_slave.inc
 SET @save_default_storage_engine=@@global.default_storage_engine;

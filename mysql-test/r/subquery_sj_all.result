@@ -4301,16 +4301,16 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` semi joi
 explain format=tree select * from t3 where a in
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 EXPLAIN
--> Nested loop inner join  (cost=420.25 rows=4000)
-    -> Filter: (t3.a is not null)  (cost=10.25 rows=100)
-        -> Table scan on t3  (cost=10.25 rows=100)
-    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (kp1=t3.a)  (cost=34.20..34.20 rows=1)
-        -> Materialize with deduplication  (cost=33.95..33.95 rows=40)
-            -> Filter: (t1.kp1 is not null)  (cost=29.95 rows=40)
-                -> Nested loop inner join  (cost=29.95 rows=40)
-                    -> Filter: (t1.c is not null)  (cost=15.95 rows=40)
-                        -> Index range scan on t1 using kp1 over (NULL < kp1 < 20), with index condition: (t1.kp1 < 20)  (cost=15.95 rows=40)
-                    -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.25 rows=1)
+-> Nested loop inner join  (cost=420 rows=4000)
+    -> Filter: (t3.a is not null)  (cost=10.2 rows=100)
+        -> Table scan on t3  (cost=10.2 rows=100)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (kp1=t3.a)  (cost=34.2..34.2 rows=1)
+        -> Materialize with deduplication  (cost=33.9..33.9 rows=40)
+            -> Filter: (t1.kp1 is not null)  (cost=29.9 rows=40)
+                -> Nested loop inner join  (cost=29.9 rows=40)
+                    -> Filter: (t1.c is not null)  (cost=15.9 rows=40)
+                        -> Index range scan on t1 using kp1 over (NULL < kp1 < 20), with index condition: (t1.kp1 < 20)  (cost=15.9 rows=40)
+                    -> Single-row covering index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.253 rows=1)
 
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
@@ -5895,19 +5895,19 @@ EXPLAIN FORMAT=tree SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
 LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
 EXPLAIN
--> Nested loop left join  (cost=40.50 rows=288)
-    -> Nested loop left join  (cost=11.45 rows=96)
+-> Nested loop left join  (cost=40.5 rows=288)
+    -> Nested loop left join  (cost=11.5 rows=96)
         -> Table scan on ot1  (cost=1.05 rows=8)
-        -> Nested loop inner join  (cost=2.60 rows=12)
+        -> Nested loop inner join  (cost=2.6 rows=12)
             -> Single-row index lookup on <subquery2> using <auto_distinct_key> (a=ot1.a)  (cost=1.15..1.15 rows=1)
                 -> Materialize with deduplication  (cost=0.85..0.85 rows=3)
                     -> Filter: (it3.a is not null)  (cost=0.55 rows=3)
                         -> Table scan on it3  (cost=0.55 rows=3)
-            -> Filter: (ot2.a = ot1.a)  (cost=0.08 rows=4)
-                -> Table scan on ot2  (cost=0.08 rows=4)
+            -> Filter: (ot2.a = ot1.a)  (cost=0.0813 rows=4)
+                -> Table scan on ot2  (cost=0.0813 rows=4)
     -> Nested loop inner join  (cost=9.92 rows=3)
-        -> Filter: (ot3.a = ot2.a)  (cost=0.02 rows=3)
-            -> Table scan on ot3  (cost=0.02 rows=3)
+        -> Filter: (ot3.a = ot2.a)  (cost=0.0172 rows=3)
+            -> Table scan on ot3  (cost=0.0172 rows=3)
         -> Filter: (`<subquery3>`.a = ot2.a)  (cost=3.23..3.23 rows=1)
             -> Single-row index lookup on <subquery3> using <auto_distinct_key> (a=ot3.a)  (cost=4.08..4.08 rows=1)
                 -> Materialize with deduplication  (cost=0.85..0.85 rows=3)
@@ -13172,18 +13172,18 @@ ORDER BY col_int_key
 ;
 EXPLAIN
 -> Sort: t4.col_int_key
-    -> Stream results (rows=7)
-        -> Remove duplicate t4 rows using temporary table (weedout) (rows=7)
-            -> Inner hash join (t4.col_int_key = t1.col_int_key) (rows=7)
-                -> Table scan on t4 (rows=6)
+    -> Stream results  (rows=7)
+        -> Remove duplicate t4 rows using temporary table (weedout)  (rows=7)
+            -> Inner hash join (t4.col_int_key = t1.col_int_key)  (rows=7)
+                -> Table scan on t4  (rows=6)
                 -> Hash
-                    -> Filter: (t3.col_int is null) (rows=7)
-                        -> Nested loop left join (rows=7)
-                            -> Index scan on t1 using col_int_key (rows=7)
-                            -> Nested loop inner join (rows=1)
-                                -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk) (rows=1)
-                                -> Filter: (t3.col_int_key = t2.col_int) (rows=1)
-                                    -> Table scan on t3 (rows=4)
+                    -> Filter: (t3.col_int is null)  (rows=7)
+                        -> Nested loop left join  (rows=7)
+                            -> Index scan on t1 using col_int_key  (rows=7)
+                            -> Nested loop inner join  (rows=1)
+                                -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (rows=1)
+                                -> Filter: (t3.col_int_key = t2.col_int)  (rows=1)
+                                    -> Table scan on t3  (rows=4)
 
 SELECT *
 FROM t4
@@ -13513,15 +13513,15 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
--> Remove duplicate t1 rows using temporary table (weedout)  (cost=6.20 rows=54)
-    -> Left hash join (no condition)  (cost=6.20 rows=54)
+-> Remove duplicate t1 rows using temporary table (weedout)  (cost=6.2 rows=54)
+    -> Left hash join (no condition)  (cost=6.2 rows=54)
         -> Left hash join (no condition)  (cost=2.14 rows=18)
-            -> Inner hash join (no condition)  (cost=1.30 rows=6)
-                -> Table scan on t1  (cost=0.28 rows=3)
+            -> Inner hash join (no condition)  (cost=1.3 rows=6)
+                -> Table scan on t1  (cost=0.275 rows=3)
                 -> Hash
                     -> Table scan on t2  (cost=0.45 rows=2)
             -> Hash
-                -> Table scan on t1  (cost=0.09 rows=3)
+                -> Table scan on t1  (cost=0.0917 rows=3)
         -> Hash
             -> Table scan on alias1  (cost=0.55 rows=3)
 

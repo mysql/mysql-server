@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -264,3 +264,18 @@ cmd: testNodeRestart
 args: -n WatchdogSlowShutdown T1
 max-time: 180
 
+cmd: test_event
+args: -n DelayedEventDrop T1
+max-time: 120
+
+cmd: testScan
+args : -n ScanApiDisconnect T1
+max-time: 120
+
+cmd: testIndex
+args: -n ScanOrderedIndexWithChurn T1
+max-time: 120
+
+cmd: testScan
+args: -n ScanOnDMLLateUnlock T1
+max-time : 120

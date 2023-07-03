@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("duplicate variable name");
 # Simple load test
@@ -10,12 +10,14 @@ SELECT VARIABLE_NAME, MIN_VALUE, MAX_VALUE FROM performance_schema.variables_inf
 WHERE VARIABLE_NAME LIKE '%component%'
        ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	MIN_VALUE	MAX_VALUE
+test_component.bool_ro_sys_var	0	0
 test_component.bool_sys_var	0	0
 test_component.enum_sys_var	0	0
 test_component.int_sys_var	0	1024
 test_component.long_sys_var	10	100
 test_component.longlong_sys_var	1000	8192819281928192
 test_component.str_sys_var	0	0
+test_component.str_sys_var_default	0	0
 test_component.uint_sys_var	10	10241024
 test_component.ulong_sys_var	1000	81928192
 test_component.ulonglong_sys_var	1000	8192819281928192
@@ -161,12 +163,14 @@ SELECT VARIABLE_NAME, MIN_VALUE, MAX_VALUE FROM performance_schema.variables_inf
 WHERE VARIABLE_NAME LIKE '%component%'
        ORDER BY VARIABLE_NAME;
 VARIABLE_NAME	MIN_VALUE	MAX_VALUE
+test_component.bool_ro_sys_var	0	0
 test_component.bool_sys_var	0	0
 test_component.enum_sys_var	0	0
 test_component.int_sys_var	0	1024
 test_component.long_sys_var	10	100
 test_component.longlong_sys_var	1000	8192819281928192
 test_component.str_sys_var	0	0
+test_component.str_sys_var_default	0	0
 test_component.uint_sys_var	10	10241024
 test_component.ulong_sys_var	1000	81928192
 test_component.ulonglong_sys_var	1000	8192819281928192

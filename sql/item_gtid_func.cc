@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,11 @@
 
 #include <algorithm>
 
-#include "sql/derror.h"     // ER_THD
-#include "sql/rpl_mi.h"     // Master_info
-#include "sql/rpl_msr.h"    // channel_map
-#include "sql/sql_class.h"  // THD
+#include "include/scope_guard.h"  //Scope_guard
+#include "sql/derror.h"           // ER_THD
+#include "sql/rpl_mi.h"           // Master_info
+#include "sql/rpl_msr.h"          // channel_map
+#include "sql/sql_class.h"        // THD
 #include "sql/sql_lex.h"
 
 using std::max;
@@ -92,7 +93,8 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
     return error_int();
   }
-
+  gtid_state->begin_gtid_wait();
+  Scope_guard x([&] { gtid_state->end_gtid_wait(); });
   if (wait_for_gtid_set.add_gtid_text(gtid_text->c_ptr_safe()) !=
       RETURN_STATUS_OK) {
     // Error has already been generated.
@@ -110,9 +112,7 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
     return error_int();
   }
 
-  gtid_state->begin_gtid_wait();
   bool result = gtid_state->wait_for_gtid_set(thd, &wait_for_gtid_set, timeout);
-  gtid_state->end_gtid_wait();
 
   null_value = false;
   return result;
@@ -198,7 +198,7 @@ longlong Item_master_gtid_set_wait::val_int() {
     if (channel_map.get_num_instances() > 1) {
       channel_map.unlock();
       mi = nullptr;
-      my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
+      my_error(ER_REPLICA_MULTIPLE_CHANNELS_CMD, MYF(0));
       return error_int();
     } else
       mi = channel_map.get_default_channel_mi();

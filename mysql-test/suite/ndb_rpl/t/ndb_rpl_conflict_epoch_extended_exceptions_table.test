@@ -49,7 +49,7 @@ eval replace into mysql.ndb_replication values
 #
 # Test illegal exception table definitions
 #
-call mtr.add_suppression("NDB Slave: exceptions table .* has wrong definition .*");
+call mtr.add_suppression("NDB Replica: exceptions table .* has wrong definition .*");
 call mtr.add_suppression("Exceptions table *");
 
 # Check that all mandatory columns need NDB$ suffix

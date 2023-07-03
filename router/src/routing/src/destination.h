@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -205,6 +205,10 @@ class RouteDestination : public DestinationNodesStateNotifier {
   RouteDestination(RouteDestination &&other) = delete;
   RouteDestination &operator=(const RouteDestination &other) = delete;
   RouteDestination &operator=(RouteDestination &&other) = delete;
+
+  /** @brief Return our routing strategy
+   */
+  virtual routing::RoutingStrategy get_strategy() = 0;
 
   /** @brief Adds a destination
    *

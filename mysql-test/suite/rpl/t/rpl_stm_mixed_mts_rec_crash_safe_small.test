@@ -12,7 +12,7 @@
 --source include/master-slave.inc
 
 call mtr.add_suppression('Attempting backtrace');
-call mtr.add_suppression("Recovery from master pos .*");
+call mtr.add_suppression("Recovery from source pos .*");
 call mtr.add_suppression(".*   Warning: allocated tablespace .*, old maximum was .*");
 
 --let $crash_safe_small= 1

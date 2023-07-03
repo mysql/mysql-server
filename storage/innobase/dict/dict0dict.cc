@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -233,7 +233,7 @@ static void dict_index_remove_from_cache_low(
 have some changed dynamic metadata in memory and have not been written
 back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
 to stop user threads when redo log is running out of space and they
-do not hold latches (log.free_check_limit_sn). */
+do not hold latches (log.free_check_limit_lsn). */
 static void dict_persist_update_log_margin(void);
 
 /** Removes a table object from the dictionary cache. */
@@ -1403,6 +1403,8 @@ void dict_table_move_from_non_lru_to_lru(dict_table_t *table) {
   table->can_be_evicted = true;
 }
 
+#ifndef UNIV_HOTBACKUP
+
 /** Look up an index in a table.
 @param[in]      table   table
 @param[in]      id      index identifier
@@ -1420,7 +1422,6 @@ static const dict_index_t *dict_table_find_index_on_id(
   return (nullptr);
 }
 
-#ifndef UNIV_HOTBACKUP
 const dict_index_t *dict_index_find(const index_id_t &id) {
   ut_ad(dict_sys_mutex_own());
 
@@ -3947,7 +3948,6 @@ static void dict_init_dynamic_metadata(dict_table_t *table,
 
   /* Will initialize other metadata here */
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Apply the persistent dynamic metadata read from redo logs or
 DDTableBuffer to corresponding table during recovery.
@@ -3955,7 +3955,7 @@ DDTableBuffer to corresponding table during recovery.
 @param[in]      metadata        structure of persistent metadata
 @return true if we do apply something to the in-memory table object,
 otherwise false */
-bool dict_table_apply_dynamic_metadata(
+static bool dict_table_apply_dynamic_metadata(
     dict_table_t *table, const PersistentTableMetadata *metadata) {
   bool get_dirty = false;
 
@@ -4025,7 +4025,6 @@ bool dict_table_apply_dynamic_metadata(
   return (get_dirty);
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Read persistent dynamic metadata stored in a buffer
 @param[in]      buffer          buffer to read
 @param[in]      size            size of data in buffer
@@ -4288,7 +4287,7 @@ void dict_persist_to_dd_table_buffer() {
 have some changed dynamic metadata in memory and have not been written
 back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
 to stop user threads when redo log is running out of space and they
-do not hold latches (log.free_check_limit_sn). */
+do not hold latches (log.free_check_limit_lsn). */
 static void dict_persist_update_log_margin() {
   /* Below variables basically considers only the AUTO_INCREMENT counter
   and a small margin for corrupted indexes. */

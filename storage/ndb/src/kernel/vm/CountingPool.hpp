@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ public:
   void release(Uint32 i)
   {
     Ptr<T> p;
-    getPtr(p, i);
+    require(getPtr(p, i));
     release(p);
   }
 
@@ -86,10 +86,12 @@ public:
     return P::getPtr(i);
   }
 
-  void getPtr(Ptr<T>& p, Uint32 i) const
+  bool getPtr(Ptr<T>& p, Uint32 i) const
   {
+    if (unlikely(i==RNIL)) return false;
     p.i = i;
     p.p = getPtr(i);
+    return likely(p.p != nullptr);
   }
 
   void getPtr(Ptr<T>& p) const
