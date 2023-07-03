@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -834,33 +834,14 @@ bool Item_field::collect_item_field_processor(uchar *arg) {
   return false;
 }
 
-/**
-   When collecting information about columns when transforming correlated
-   scalar subqueries using derived tables, we need to decide which duplicates,
-   if any, to retain:
-   - Local columns are collected once, duplicates are ignored.
-   - All columns that are outer references are included, regardless of being
-     duplicates. This is so we can properly reset outer status for all
-     occurences, cf. Query_block::decorrelate_derived_scalar_subquery_post
-     where we reset Item::depended_from.
-
-   @param arg A pointer to an object of type Collect_item_fields_or_refs,
-              a subclass of Item_tree_walker, which holds the already
-              collected columns.
-   @returns true on error
-*/
 bool Item_field::collect_item_field_or_ref_processor(uchar *arg) {
   auto *info = pointer_cast<Collect_item_fields_or_refs *>(arg);
   if (info->is_stopped(this)) return false;
 
-  List_iterator<Item> it(*info->m_items);
-  Item *already_collected;
-  while ((already_collected = it++)) {
-    if (is_outer_reference()) {
-      if (already_collected == this) return false;
-    } else {
-      if (already_collected->eq(this, true)) return false;
-    }
+  List_iterator<Item> item_list_it(*info->m_items);
+  Item *curr_item;
+  while ((curr_item = item_list_it++)) {
+    if (curr_item->eq(this, true)) return false; /* Already in the set. */
   }
   info->m_items->push_back(this);
   return false;
@@ -8824,11 +8805,8 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
     return true;
   }
 
-  // If it's a generated column or otherwise doesn't have a default
-  // value, fail.
   Item_field *const field_arg = down_cast<Item_field *>(real_arg);
-  if (field_arg->field->is_flag_set(NO_DEFAULT_VALUE_FLAG) ||
-      (field_arg->field->gcol_info != nullptr)) {
+  if (field_arg->field->is_flag_set(NO_DEFAULT_VALUE_FLAG)) {
     my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), field_arg->field->field_name);
     return true;
   }
@@ -9853,7 +9831,7 @@ String *Item_cache_json::val_str(String *tmp) {
 double Item_cache_json::val_real() {
   Json_wrapper wr;
 
-  if (val_json(&wr)) return error_real();
+  if (val_json(&wr)) return 0.0;
 
   if (null_value) return 0.0;
 
@@ -9863,9 +9841,9 @@ double Item_cache_json::val_real() {
 my_decimal *Item_cache_json::val_decimal(my_decimal *decimal_value) {
   Json_wrapper wr;
 
-  if (val_json(&wr)) return error_decimal(decimal_value);
+  if (val_json(&wr)) return decimal_value;
 
-  if (null_value) return error_decimal(decimal_value);
+  if (null_value) return decimal_value;
 
   return wr.coerce_decimal(decimal_value, whence(cached_field));
 }
@@ -9892,9 +9870,9 @@ bool Item_cache_json::get_time(MYSQL_TIME *ltime) {
 
 longlong Item_cache_json::val_int() {
   Json_wrapper wr;
-  if (val_json(&wr)) return error_int();
+  if (val_json(&wr)) return 0;
 
-  if (null_value) return 0;
+  if (null_value) return true;
 
   return wr.coerce_int(whence(cached_field));
 }

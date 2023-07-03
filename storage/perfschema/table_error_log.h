@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,8 @@ class PFS_key_error_log_logged : public PFS_key_ulonglong {
 
   ~PFS_key_error_log_logged() override = default;
 
-  void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) override {
+  virtual void read(PFS_key_reader &reader,
+                    enum ha_rkey_function find_flag) override {
     m_find_flag = reader.read_timestamp(find_flag, m_is_null, &m_key_value, 6);
   }
 
@@ -89,7 +90,7 @@ class PFS_index_error_log_by_logged : public PFS_index_error_log {
 
   ~PFS_index_error_log_by_logged() override = default;
 
-  bool match(log_sink_pfs_event *row) override;
+  virtual bool match(log_sink_pfs_event *row) override;
 
  private:
   PFS_key_error_log_logged m_key;
@@ -101,7 +102,7 @@ class PFS_key_error_log_thread_id : public PFS_key_ulonglong {
   explicit PFS_key_error_log_thread_id(const char *name)
       : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_error_log_thread_id() override = default;
+  ~PFS_key_error_log_thread_id() = default;
 
   bool match(const log_sink_pfs_event *row);
 };
@@ -114,7 +115,7 @@ class PFS_index_error_log_by_thread_id : public PFS_index_error_log {
 
   ~PFS_index_error_log_by_thread_id() override = default;
 
-  bool match(log_sink_pfs_event *row) override;
+  virtual bool match(log_sink_pfs_event *row) override;
 
  private:
   PFS_key_error_log_thread_id m_key;
@@ -143,7 +144,7 @@ class PFS_index_error_log_by_prio : public PFS_index_error_log {
 
   ~PFS_index_error_log_by_prio() override = default;
 
-  bool match(log_sink_pfs_event *row) override;
+  virtual bool match(log_sink_pfs_event *row) override;
 
  private:
   PFS_key_error_log_prio m_key;
@@ -157,7 +158,7 @@ class PFS_index_error_log_by_error_code : public PFS_index_error_log {
 
   ~PFS_index_error_log_by_error_code() override = default;
 
-  bool match(log_sink_pfs_event *row) override;
+  virtual bool match(log_sink_pfs_event *row) override;
 
  private:
   PFS_key_name m_key;
@@ -171,7 +172,7 @@ class PFS_index_error_log_by_subsys : public PFS_index_error_log {
 
   ~PFS_index_error_log_by_subsys() override = default;
 
-  bool match(log_sink_pfs_event *row) override;
+  virtual bool match(log_sink_pfs_event *row) override;
 
  private:
   PFS_key_name m_key;
@@ -187,20 +188,20 @@ class table_error_log : public cursor_by_error_log {
 
  protected:
   /** Fill in a row's fields from this class's buffer. */
-  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                      bool read_all) override;
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                              bool read_all) override;
 
  protected:
   table_error_log();
   /** Create an index for the column with the ordinal idx. */
-  int index_init(uint idx, bool sorted) override;
+  virtual int index_init(uint idx, bool sorted) override;
 
  public:
   ~table_error_log() override = default;
 
  private:
   /** Copy an event from the ring-buffer into this class's buffer. */
-  int make_row(log_sink_pfs_event *e) override;
+  virtual int make_row(log_sink_pfs_event *row) override;
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;

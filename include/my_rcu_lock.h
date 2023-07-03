@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <functional>
 
 #include "my_compiler.h"
-#include "my_systime.h"
 
 /**
   A class that implements a limited version of the Read-Copy-Update lock pattern
@@ -185,7 +184,8 @@ class MyRcuLock {
   */
   bool wait_for_no_readers() {
     bool stopped = false;
-    while (rcu_readers_.load(std::memory_order_relaxed) > 0) my_sleep(10000);
+    while (rcu_readers_.load(std::memory_order_relaxed) > 0)
+      ;
     return stopped;
   }
 

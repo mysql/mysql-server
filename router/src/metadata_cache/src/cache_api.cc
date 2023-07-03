@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,8 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  * @param cluster_type type of the cluster the metadata cache object will
  * represent (GR or ReplicaSet)
  * @param router_id id of the router in the cluster metadata
+ * @param cluster_type_specific_id (id of the replication group for GR,
+ * cluster_id for ReplicaSet)
  * @param clusterset_id UUID of the ClusterSet the Cluster belongs to (if
  * bootstrapped as a ClusterSet, empty otherwise)
  * @param metadata_servers The list of cluster metadata servers
@@ -80,6 +82,7 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  */
 void MetadataCacheAPI::cache_init(
     const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
+    const std::string &cluster_type_specific_id,
     const std::string &clusterset_id,
     const metadata_servers_list_t &metadata_servers,
     const MetadataCacheTTLConfig &ttl_config,
@@ -94,7 +97,7 @@ void MetadataCacheAPI::cache_init(
   switch (cluster_type) {
     case mysqlrouter::ClusterType::RS_V2:
       g_metadata_cache = std::make_unique<ARMetadataCache>(
-          router_id, metadata_servers,
+          router_id, cluster_type_specific_id, metadata_servers,
           instance_factory_(cluster_type, session_config, ssl_options,
                             use_cluster_notifications, view_id),
           ttl_config, ssl_options, target_cluster, router_attributes,
@@ -102,7 +105,7 @@ void MetadataCacheAPI::cache_init(
       break;
     default:
       g_metadata_cache = std::make_unique<GRMetadataCache>(
-          router_id, clusterset_id, metadata_servers,
+          router_id, cluster_type_specific_id, clusterset_id, metadata_servers,
           instance_factory_(cluster_type, session_config, ssl_options,
                             use_cluster_notifications, view_id),
           ttl_config, ssl_options, target_cluster, router_attributes,
@@ -120,6 +123,10 @@ std::string MetadataCacheAPI::instance_name() const {
 void MetadataCacheAPI::instance_name(const std::string &inst_name) {
   // set by metadata_cache_plugin's start()
   return inst_([&inst_name](auto &inst) { inst.name = inst_name; });
+}
+
+std::string MetadataCacheAPI::cluster_type_specific_id() const {
+  return g_metadata_cache->cluster_type_specific_id();
 }
 
 mysqlrouter::TargetCluster MetadataCacheAPI::target_cluster() const {

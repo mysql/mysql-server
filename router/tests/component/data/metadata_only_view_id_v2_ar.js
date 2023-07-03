@@ -4,7 +4,7 @@ var gr_memberships = require("gr_memberships");
 var gr_node_host = "127.0.0.1";
 
 if (mysqld.global.gr_id === undefined) {
-  mysqld.global.gr_id = "uuid";
+  mysqld.global.gr_id = "00-000";
 }
 
 if (mysqld.global.view_id === undefined) {

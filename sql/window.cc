@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -364,21 +364,15 @@ bool Window::setup_range_expressions(THD *thd) {
             Item_field *field = down_cast<Item_field *>(nr->real_item());
             if (field->field->real_type() == MYSQL_TYPE_ENUM ||
                 field->field->real_type() == MYSQL_TYPE_SET) {
-              if (comparators[i].set_cmp_func(/*owner_arg=*/nullptr, left_args,
-                                              right_args, /*set_null_arg=*/true,
-                                              INT_RESULT)) {
-                return true;
-              }
+              comparators[i].set_cmp_func(/*owner_arg=*/nullptr, left_args,
+                                          right_args, /*set_null_arg=*/true,
+                                          INT_RESULT);
               compare_func_set = true;
             }
           }
-          if (!compare_func_set) {
-            if (comparators[i].set_cmp_func(/*owner_arg=*/nullptr, left_args,
-                                            right_args,
-                                            /*set_null_arg=*/true)) {
-              return true;
-            }
-          }
+          if (!compare_func_set)
+            comparators[i].set_cmp_func(/*owner_arg=*/nullptr, left_args,
+                                        right_args, /*set_null_arg=*/true);
         }
         m_comparators[border == m_frame->m_to] = comparators;
         break;

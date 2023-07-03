@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,14 +79,14 @@ table_log_status::table_log_status()
 
 table_log_status::~table_log_status() = default;
 
-void table_log_status::reset_position() {
+void table_log_status::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
 ha_rows table_log_status::get_row_count() { return 1; }
 
-int table_log_status::rnd_next() {
+int table_log_status::rnd_next(void) {
   int res = HA_ERR_END_OF_FILE;
 
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < 1 && res != 0; m_pos.next()) {
@@ -115,8 +115,8 @@ struct st_register_hton_arg {
 };
 
 static bool iter_storage_engines_register(THD *, plugin_ref plugin, void *arg) {
-  auto *vargs = (st_register_hton_arg *)arg;
-  auto *hton = plugin_data<handlerton *>(plugin);
+  st_register_hton_arg *vargs = (st_register_hton_arg *)arg;
+  handlerton *hton = plugin_data<handlerton *>(plugin);
   bool result = false;
 
   assert(plugin_state(plugin) == PLUGIN_IS_READY);
@@ -126,8 +126,7 @@ static bool iter_storage_engines_register(THD *, plugin_ref plugin, void *arg) {
       hton->collect_hton_log_info) {
     Log_resource *resource;
     resource = Log_resource_factory::get_wrapper(hton, vargs->json);
-    result = !resource;
-    if (!result) {
+    if (!(result = !resource)) {
       vargs->resources->push_back(resource);
     }
   }
@@ -183,13 +182,12 @@ int table_log_status::make_row() {
     {
       Log_resource *res;
       res = Log_resource_factory::get_wrapper(mi, &json_replication_array);
-      error = DBUG_EVALUATE_IF("log_status_oom_mi", 1, !res);
-      if (error) {
+      if ((error = DBUG_EVALUATE_IF("log_status_oom_mi", 1, !res))) {
         char errfmt[] =
             "failed to allocate memory to collect "
             "information from replication channel '%s'";
         char errbuf[sizeof(errfmt) + CHANNEL_NAME_LENGTH];
-        (void)sprintf(errbuf, errfmt, mi->get_channel());
+        sprintf(errbuf, errfmt, mi->get_channel());
         my_error(ER_UNABLE_TO_COLLECT_LOG_STATUS, MYF(0), "REPLICATION",
                  errbuf);
         /* To please valgrind */
@@ -207,8 +205,7 @@ int table_log_status::make_row() {
   {
     Log_resource *res;
     res = Log_resource_factory::get_wrapper(&mysql_bin_log, &json_local);
-    error = DBUG_EVALUATE_IF("log_status_oom_binlog", 1, !res);
-    if (error) {
+    if ((error = DBUG_EVALUATE_IF("log_status_oom_binlog", 1, !res))) {
       my_error(ER_UNABLE_TO_COLLECT_LOG_STATUS, MYF(0), "LOCAL",
                "failed to allocate memory to collect "
                "binary log information");
@@ -226,8 +223,7 @@ int table_log_status::make_row() {
   {
     Log_resource *res;
     res = Log_resource_factory::get_wrapper(gtid_state, &json_local);
-    error = DBUG_EVALUATE_IF("log_status_oom_gtid", 1, !res);
-    if (error) {
+    if ((error = DBUG_EVALUATE_IF("log_status_oom_gtid", 1, !res))) {
       my_error(ER_UNABLE_TO_COLLECT_LOG_STATUS, MYF(0), "LOCAL",
                "failed to allocate memory to collect "
                "gtid_executed information");
@@ -265,10 +261,9 @@ int table_log_status::make_row() {
                        "continue_collecting_instance_logs_info");
 
   /* Collect all resources information (up to hitting some error) */
-  for (it = resources.begin(); it != resources.end(); ++it) {
-    error =
-        DBUG_EVALUATE_IF("log_status_oom_collecting", 1, (*it)->collect_info());
-    if (error) {
+  for (it = resources.begin(); it != resources.end(); ++it)
+    if ((error = DBUG_EVALUATE_IF("log_status_oom_collecting", 1,
+                                  (*it)->collect_info()))) {
       my_error(ER_UNABLE_TO_COLLECT_LOG_STATUS, MYF(0),
                (*it)->get_json() == &json_storage_engines
                    ? "STORAGE_ENGINES"
@@ -276,7 +271,6 @@ int table_log_status::make_row() {
                "failed to allocate memory to collect information");
       goto err_unlock;
     }
-  }
 
 err_unlock:
   /* Unlock all resources */
@@ -300,10 +294,9 @@ end:
 
   if (!error) {
     /* Populate m_row */
-    error = DBUG_EVALUATE_IF(
-        "log_status_oom_replication", 1,
-        json_replication.add_clone("channels", &json_replication_array));
-    if (error) {
+    if ((error = DBUG_EVALUATE_IF("log_status_oom_replication", 1,
+                                  json_replication.add_clone(
+                                      "channels", &json_replication_array)))) {
       my_error(ER_UNABLE_TO_COLLECT_LOG_STATUS, MYF(0), "REPLICATION",
                "failed to allocate memory to collect information");
     } else {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -226,7 +226,7 @@ int init_instruments(const PFS_global_param *param) {
 }
 
 /** Cleanup all the instruments buffers. */
-void cleanup_instruments() {
+void cleanup_instruments(void) {
   global_mutex_container.cleanup();
   global_rwlock_container.cleanup();
   global_cond_container.cleanup();
@@ -323,7 +323,7 @@ int init_file_hash(const PFS_global_param *param) {
 }
 
 /** Cleanup the file name hash. */
-void cleanup_file_hash() {
+void cleanup_file_hash(void) {
   if (filename_hash_inited) {
     lf_hash_destroy(&filename_hash);
     filename_hash_inited = false;
@@ -710,20 +710,14 @@ PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
       }
 
       /* Possible truncation */
-      (void)snprintf(pfs->m_os_name, PFS_MAX_OS_NAME_LENGTH - 1,
-                     klass->m_os_name, seqnum);
+      snprintf(pfs->m_os_name, PFS_MAX_OS_NAME_LENGTH - 1, klass->m_os_name,
+               seqnum);
     } else {
-      (void)snprintf(pfs->m_os_name, PFS_MAX_OS_NAME_LENGTH, "%s",
-                     klass->m_os_name);
+      snprintf(pfs->m_os_name, PFS_MAX_OS_NAME_LENGTH, "%s", klass->m_os_name);
     }
     pfs->m_os_name[PFS_MAX_OS_NAME_LENGTH - 1] = '\0';
 
     pfs->m_session_all_memory_stat.reset();
-
-#ifdef HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
-    pfs->m_telemetry = nullptr;
-    pfs->m_telemetry_session = nullptr;
-#endif /* HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE */
 
     pfs->m_lock.dirty_to_allocated(&dirty_state);
   }
@@ -826,16 +820,6 @@ void destroy_thread(PFS_thread *pfs) {
   pfs->reset_session_connect_attrs();
   pfs->m_thd = nullptr;
   pfs->m_cnt_thd = nullptr;
-
-#ifdef HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE
-  if (pfs->m_telemetry_session != nullptr) {
-    assert(pfs->m_telemetry != nullptr);
-    pfs->m_telemetry->m_tel_session_destroy(pfs->m_telemetry_session);
-  }
-
-  pfs->m_telemetry = nullptr;
-  pfs->m_telemetry_session = nullptr;
-#endif /* HAVE_PSI_SERVER_TELEMETRY_TRACES_INTERFACE */
 
   PFS_thread_class *klass = pfs->m_class;
   if (klass->is_singleton()) {
@@ -997,7 +981,7 @@ int normalize_filename(const char *filename, uint name_len,
     works properly for files that do not exist (yet) on the file system.
   */
   char dirbuffer[FN_REFLEN + 1];
-  const size_t dirlen = dirname_length(safe_filename);
+  size_t dirlen = dirname_length(safe_filename);
 
   if (dirlen == 0) {
     dirbuffer[0] = FN_CURLIB;
@@ -1134,7 +1118,7 @@ PFS_file *start_file_rename(PFS_thread *thread, const char *old_name) {
   assert(thread != nullptr);
   assert(old_name != nullptr);
 
-  const uint old_length = (uint)strlen(old_name);
+  uint old_length = (uint)strlen(old_name);
   PFS_file_name normalized_filename;
   int rc;
 
@@ -1151,7 +1135,7 @@ PFS_file *start_file_rename(PFS_thread *thread, const char *old_name) {
   }
 
   /* Find the file instrumentation by name. */
-  auto **entry = reinterpret_cast<PFS_file **>(lf_hash_search(
+  PFS_file **entry = reinterpret_cast<PFS_file **>(lf_hash_search(
       &filename_hash, pins, &normalized_filename, sizeof(normalized_filename)));
 
   PFS_file *pfs = nullptr;
@@ -1184,7 +1168,7 @@ int end_file_rename(PFS_thread *thread, PFS_file *pfs, const char *new_name,
   assert(pfs != nullptr);
   assert(new_name != nullptr);
 
-  const uint new_length = (uint)strlen(new_name);
+  uint new_length = (uint)strlen(new_name);
 
   if (likely(rename_result == 0)) {
     /*
@@ -1211,7 +1195,7 @@ int end_file_rename(PFS_thread *thread, PFS_file *pfs, const char *new_name,
   }
 
   /* Add the new filename or restore the old filename to the hash. */
-  const int res = lf_hash_insert(&filename_hash, pins, &pfs);
+  int res = lf_hash_insert(&filename_hash, pins, &pfs);
   lf_hash_search_unpin(pins);
 
   if (unlikely(res != 0)) {
@@ -1321,7 +1305,7 @@ PFS_table *create_table(PFS_table_share *share, PFS_thread *opening_thread,
   return pfs;
 }
 
-void PFS_table::sanitized_aggregate() {
+void PFS_table::sanitized_aggregate(void) {
   /*
     This thread could be a TRUNCATE on an aggregated summary table,
     and not own the table handle.
@@ -1339,7 +1323,7 @@ void PFS_table::sanitized_aggregate() {
   }
 }
 
-void PFS_table::sanitized_aggregate_io() {
+void PFS_table::sanitized_aggregate_io(void) {
   PFS_table_share *safe_share = sanitize_table_share(m_share);
   if (safe_share != nullptr && m_has_io_stats) {
     safe_aggregate_io(nullptr, &m_table_stat, safe_share);
@@ -1347,7 +1331,7 @@ void PFS_table::sanitized_aggregate_io() {
   }
 }
 
-void PFS_table::sanitized_aggregate_lock() {
+void PFS_table::sanitized_aggregate_lock(void) {
   PFS_table_share *safe_share = sanitize_table_share(m_share);
   if (safe_share != nullptr && m_has_lock_stats) {
     safe_aggregate_lock(&m_table_stat, safe_share);
@@ -1361,7 +1345,7 @@ void PFS_table::safe_aggregate_io(const TABLE_SHARE *optional_server_share,
   assert(table_stat != nullptr);
   assert(table_share != nullptr);
 
-  const uint key_count = sanitize_index_count(table_share->m_key_count);
+  uint key_count = sanitize_index_count(table_share->m_key_count);
 
   PFS_table_share_index *to_stat;
   PFS_table_io_stat *from_stat;
@@ -1518,7 +1502,7 @@ void destroy_socket(PFS_socket *pfs) {
     if (stat.m_count != 0) {
       PFS_single_stat *event_name_array;
       event_name_array = thread->write_instr_class_waits_stats();
-      const uint index = pfs->m_class->m_event_name_index;
+      uint index = pfs->m_class->m_event_name_index;
 
       event_name_array[index].aggregate(&stat);
     }
@@ -1567,7 +1551,7 @@ void destroy_metadata_lock(PFS_metadata_lock *pfs) {
 
 static void fct_reset_mutex_waits(PFS_mutex *pfs) { pfs->m_mutex_stat.reset(); }
 
-static void reset_mutex_waits_by_instance() {
+static void reset_mutex_waits_by_instance(void) {
   global_mutex_container.apply_all(fct_reset_mutex_waits);
 }
 
@@ -1575,19 +1559,19 @@ static void fct_reset_rwlock_waits(PFS_rwlock *pfs) {
   pfs->m_rwlock_stat.reset();
 }
 
-static void reset_rwlock_waits_by_instance() {
+static void reset_rwlock_waits_by_instance(void) {
   global_rwlock_container.apply_all(fct_reset_rwlock_waits);
 }
 
 static void fct_reset_cond_waits(PFS_cond *pfs) { pfs->m_cond_stat.reset(); }
 
-static void reset_cond_waits_by_instance() {
+static void reset_cond_waits_by_instance(void) {
   global_cond_container.apply_all(fct_reset_cond_waits);
 }
 
 static void fct_reset_file_waits(PFS_file *pfs) { pfs->m_file_stat.reset(); }
 
-static void reset_file_waits_by_instance() {
+static void reset_file_waits_by_instance(void) {
   global_file_container.apply_all(fct_reset_file_waits);
 }
 
@@ -1595,12 +1579,12 @@ static void fct_reset_socket_waits(PFS_socket *pfs) {
   pfs->m_socket_stat.reset();
 }
 
-static void reset_socket_waits_by_instance() {
+static void reset_socket_waits_by_instance(void) {
   global_socket_container.apply_all(fct_reset_socket_waits);
 }
 
 /** Reset the wait statistics per object instance. */
-void reset_events_waits_by_instance() {
+void reset_events_waits_by_instance(void) {
   reset_mutex_waits_by_instance();
   reset_rwlock_waits_by_instance();
   reset_cond_waits_by_instance();
@@ -1613,7 +1597,7 @@ static void fct_reset_file_io(PFS_file *pfs) {
 }
 
 /** Reset the I/O statistics per file instance. */
-void reset_file_instance_io() {
+void reset_file_instance_io(void) {
   global_file_container.apply_all(fct_reset_file_io);
 }
 
@@ -1622,7 +1606,7 @@ static void fct_reset_socket_io(PFS_socket *pfs) {
 }
 
 /** Reset the I/O statistics per socket instance. */
-void reset_socket_instance_io() {
+void reset_socket_instance_io(void) {
   global_socket_container.apply_all(fct_reset_socket_io);
 }
 
@@ -1950,14 +1934,16 @@ void aggregate_thread_status(PFS_thread *thread, PFS_account *safe_account,
   if (safe_host != nullptr) {
     safe_host->aggregate_status_stats(status_var);
   }
+
+  return;
 }
 
 static void aggregate_thread_stats(PFS_thread *thread,
                                    PFS_account *safe_account,
                                    PFS_user *safe_user, PFS_host *safe_host) {
-  const ulonglong controlled_memory =
+  ulonglong controlled_memory =
       thread->m_session_all_memory_stat.m_controlled.get_session_max();
-  const ulonglong total_memory =
+  ulonglong total_memory =
       thread->m_session_all_memory_stat.m_total.get_session_max();
 
   if (likely(safe_account != nullptr)) {
@@ -1974,6 +1960,7 @@ static void aggregate_thread_stats(PFS_thread *thread,
   }
 
   /* There is no global table for connections statistics. */
+  return;
 }
 
 void aggregate_thread(PFS_thread *thread, PFS_account *safe_account,

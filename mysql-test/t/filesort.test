@@ -1,4 +1,3 @@
---source include/elide_costs.inc
 
 --echo #
 --echo # Bug#24709595 WL#8741: ASSERTION `SORTORDER->NEED_STRXNFRM == 0' FAILED
@@ -94,7 +93,7 @@ ANALYZE TABLE t1;
 
 let $query = SELECT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) FROM t1 GROUP BY id ORDER BY id;
 eval $query;
---replace_regex $elide_metrics
+--replace_regex /  \(cost=.*//
 --skip_if_hypergraph  # Uses an index scan instead of a sort.
 eval EXPLAIN FORMAT=tree $query;
 
@@ -113,7 +112,7 @@ ANALYZE TABLE t1, t2;
 
 # Sets up a filesort on t1 which initially is not part of weedout,
 # but gets caught in one anyway later, and thus needs to be sorted by row ID.
---replace_regex $elide_metrics
+--replace_regex / *\(cost=\d+\.\d+\ rows=\d+\)//
 --skip_if_hypergraph  # Does not support weedout.
 EXPLAIN FORMAT=tree SELECT * FROM
   t1

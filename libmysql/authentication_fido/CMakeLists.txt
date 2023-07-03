@@ -1,4 +1,4 @@
-# Copyright (c) 2021, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,8 @@ ENDIF()
 
 INCLUDE(CheckIncludeFiles)
 
+MY_INCLUDE_SYSTEM_DIRECTORIES(FIDO)
+
 DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_PLUGIN(authentication_fido_client
@@ -46,7 +48,7 @@ MYSQL_ADD_PLUGIN(authentication_fido_client
   fido_assertion.cc
   fido_client_plugin.cc
   LINK_LIBRARIES
-  ext::fido
+  ${FIDO_LIBRARY}
   CLIENT_ONLY
   MODULE_ONLY
   MODULE_OUTPUT_NAME "authentication_fido_client")

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -69,21 +69,20 @@ inline bool log_files_governor_is_active() {
 @remarks
 Before creating the new log files, function asserts that there are no existing
 log files in the directory specified for the redo log.
-The flushed_lsn should be exactly at the beginning of its block body.
-The new set of log files starts at the beginning of this block.
+The new set of log files starts at the beginning of the first log block after
+the given lsn (block which start_lsn is greater than the given flushed_lsn).
 Checkpoint is written LOG_BLOCK_HDR_SIZE bytes after the beginning of that
-block, that is at flushed_lsn.
+block.
 The set is marked as initialized if this call succeeded and information about
 the initial LSN is emitted to the error log. In such case, a new value is
 generated and assigned to the log.m_log_uuid (identifying the new log files).
 @param[in,out]  log             redo log
 @param[in]      flushed_lsn     the new set of log files should start with log
-                                block in which flushed_lsn is located, and
-                                flushed_lsn should point right after this block
-                                header.
-
+                                block which first data byte is addressed by lsn
+                                greater or equal to this value
+@param[out]     checkpoint_lsn  lsn of the first created checkpoint
 @return DB_SUCCESS or error code */
-dberr_t log_files_create(log_t &log, lsn_t flushed_lsn);
+dberr_t log_files_create(log_t &log, lsn_t flushed_lsn, lsn_t &checkpoint_lsn);
 
 /** Removes all log files.
 @param[in,out] log  redo log */

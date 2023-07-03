@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,42 +30,7 @@
 
 namespace classic_protocol {
 
-namespace borrowable {
 namespace wire {
-
-template <bool Borrowed>
-class String {
- public:
-  using value_type =
-      std::conditional_t<Borrowed, std::string_view, std::string>;
-
-  constexpr String() = default;
-  constexpr String(value_type str) : str_{std::move(str)} {}
-
-  constexpr value_type value() const { return str_; }
-
- private:
-  value_type str_;
-};
-
-template <bool Borrowed>
-inline bool operator==(const String<Borrowed> &lhs,
-                       const String<Borrowed> &rhs) {
-  return lhs.value() == rhs.value();
-}
-
-template <bool Borrowed>
-class NulTermString : public String<Borrowed> {
- public:
-  using String<Borrowed>::String;
-};
-
-template <bool Borrowed>
-class VarString : public String<Borrowed> {
- public:
-  using String<Borrowed>::String;
-};
-
 // basic POD types of the mysql classic-protocol's wire encoding:
 //
 // - fixed size integers
@@ -75,92 +40,123 @@ class VarString : public String<Borrowed> {
 // - nul-terminated strings
 // - NULL
 
-template <class U>
-class BasicInt {
+class VarInt {
  public:
-  using value_type = U;
+  using value_type = int64_t;
 
-  constexpr BasicInt(value_type val) : val_{val} {}
+  constexpr VarInt(value_type v) : v_{v} {}
 
-  constexpr value_type value() const { return val_; }
+  constexpr value_type value() const noexcept { return v_; }
 
  private:
-  value_type val_;
+  value_type v_;
 };
 
-template <class U>
-constexpr bool operator==(const BasicInt<U> &lhs, const BasicInt<U> &rhs) {
-  return lhs.value() == rhs.value();
+constexpr bool operator==(const VarInt &a, const VarInt &b) {
+  return a.value() == b.value();
 }
 
-class VarInt : public BasicInt<int64_t> {
+class String {
  public:
-  using BasicInt::BasicInt;
+  String() : s_{} {}
+  String(std::string s) : s_{std::move(s)} {}
+
+  std::string value() const { return s_; }
+
+ private:
+  std::string s_;
+};
+
+inline bool operator==(const String &a, const String &b) {
+  return a.value() == b.value();
+}
+
+class NulTermString : public String {
+ public:
+  using String::String;
+};
+
+class VarString : public String {
+ public:
+  using String::String;
 };
 
 template <int Size>
 class FixedInt;
 
 template <>
-class FixedInt<1> : public BasicInt<uint8_t> {
+class FixedInt<1> {
  public:
-  using BasicInt::BasicInt;
+  using value_type = uint8_t;
+
+  constexpr FixedInt(value_type v) : v_{std::move(v)} {}
+
+  constexpr value_type value() const { return v_; }
+
+ private:
+  value_type v_;
+};
+
+template <int Size>
+constexpr bool operator==(const FixedInt<Size> &a, const FixedInt<Size> &b) {
+  return a.value() == b.value();
+}
+
+template <>
+class FixedInt<2> {
+ public:
+  using value_type = uint16_t;
+
+  constexpr FixedInt(value_type v) : v_{std::move(v)} {}
+
+  constexpr value_type value() const { return v_; }
+
+ private:
+  value_type v_;
 };
 
 template <>
-class FixedInt<2> : public BasicInt<uint16_t> {
+class FixedInt<3> {
  public:
-  using BasicInt::BasicInt;
+  using value_type = uint32_t;
+
+  constexpr FixedInt(value_type v) : v_{std::move(v)} {}
+
+  constexpr value_type value() const { return v_; }
+
+ private:
+  value_type v_;
 };
 
 template <>
-class FixedInt<3> : public BasicInt<uint32_t> {
+class FixedInt<4> {
  public:
-  using BasicInt::BasicInt;
+  using value_type = uint32_t;
+
+  constexpr FixedInt(value_type v) : v_{std::move(v)} {}
+
+  constexpr value_type value() const { return v_; }
+
+ private:
+  value_type v_;
 };
 
 template <>
-class FixedInt<4> : public BasicInt<uint32_t> {
+class FixedInt<8> {
  public:
-  using BasicInt::BasicInt;
-};
+  using value_type = uint64_t;
 
-template <>
-class FixedInt<8> : public BasicInt<uint64_t> {
- public:
-  using BasicInt::BasicInt;
+  constexpr FixedInt(value_type v) : v_{std::move(v)} {}
+
+  constexpr value_type value() const { return v_; }
+
+ private:
+  value_type v_;
 };
 
 class Null {};
+
 }  // namespace wire
-}  // namespace borrowable
-
-namespace borrowed {
-namespace wire {
-
-using String = borrowable::wire::String<true>;
-using NulTermString = borrowable::wire::NulTermString<true>;
-using VarString = borrowable::wire::VarString<true>;
-using Null = borrowable::wire::Null;
-template <int Size>
-using FixedInt = borrowable::wire::FixedInt<Size>;
-using VarInt = borrowable::wire::VarInt;
-}  // namespace wire
-}  // namespace borrowed
-
-namespace wire {
-
-using String = borrowable::wire::String<false>;
-using NulTermString = borrowable::wire::NulTermString<false>;
-using VarString = borrowable::wire::VarString<false>;
-using Null = borrowable::wire::Null;
-
-template <int Size>
-using FixedInt = borrowable::wire::FixedInt<Size>;
-
-using VarInt = borrowable::wire::VarInt;
-}  // namespace wire
-
 }  // namespace classic_protocol
 
 #endif

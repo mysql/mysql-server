@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2021, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2021, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -104,10 +104,8 @@ class SocketCloseTest : public RouterComponentTest {
                       .wait_for_rest_endpoint_ready());
 
       const auto primary_id = no_primary ? -1 : 0;
-      set_mock_metadata(node_http_ports[i], "",
-                        classic_ports_to_gr_nodes(node_ports), i,
-                        classic_ports_to_cluster_nodes(node_ports), primary_id,
-                        0, false, "localhost");
+      set_mock_metadata(node_http_ports[i], "", node_ports, primary_id, 0,
+                        false, "localhost", {}, {});
     }
   }
 
@@ -207,9 +205,7 @@ class SocketCloseTest : public RouterComponentTest {
 
   void toggle_auth_failure(const bool toggle, const uint16_t http_port,
                            const std::vector<uint16_t> &nodes) {
-    auto globals =
-        mock_GR_metadata_as_json("", classic_ports_to_gr_nodes(nodes), 0,
-                                 classic_ports_to_cluster_nodes(nodes));
+    auto globals = mock_GR_metadata_as_json("", nodes);
     JsonAllocator allocator;
 
     std::string auth_user = toggle ? custom_user : router_user;
@@ -246,9 +242,7 @@ class SocketCloseTest : public RouterComponentTest {
 
   void simulate_cluster_node_down(const std::vector<uint16_t> &node_ports,
                                   const uint16_t http_port) {
-    auto globals =
-        mock_GR_metadata_as_json("", classic_ports_to_gr_nodes(node_ports), 0,
-                                 classic_ports_to_cluster_nodes(node_ports));
+    auto globals = mock_GR_metadata_as_json("", node_ports);
     JsonAllocator allocator;
     globals.AddMember("transaction_count", 0, allocator);
     // Empty, node is not taken into account
@@ -263,9 +257,7 @@ class SocketCloseTest : public RouterComponentTest {
                                 const uint16_t http_port,
                                 const bool no_primary = false) {
     const auto primary_id = no_primary ? -1 : 0;
-    auto globals = mock_GR_metadata_as_json(
-        "", classic_ports_to_gr_nodes(node_ports), 0,
-        classic_ports_to_cluster_nodes(node_ports), primary_id);
+    auto globals = mock_GR_metadata_as_json("", node_ports, primary_id);
     JsonAllocator allocator;
     globals.AddMember("transaction_count", 0, allocator);
     globals.AddMember("cluster_type",
@@ -800,9 +792,8 @@ TEST_F(SocketCloseTest, StaticRoundRobin) {
   cluster_nodes.push_back(&launch_mysql_server_mock(
       json_metadata, node_ports[0], EXIT_SUCCESS, false, node_http_ports[0]));
 
-  set_mock_metadata(
-      node_http_ports[0], "", classic_ports_to_gr_nodes(node_ports), 0,
-      classic_ports_to_cluster_nodes(node_ports), 0, 0, false, "localhost");
+  set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
+                    "localhost", {}, {});
 
   SCOPED_TRACE("// check we can connect to tcp:" + router_rw_port_str +
                ", but get the other app.");
@@ -876,13 +867,10 @@ TEST_P(FailToOpenROSocketAfterStartup, ROportTaken) {
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// RO nodes hidden");
-  auto cluster_nodes = classic_ports_to_cluster_nodes(node_ports);
-  cluster_nodes[1].attributes = R"({"tags" : {"_hidden": true} })";
-  cluster_nodes[2].attributes = R"({"tags" : {"_hidden": true} })";
-  set_mock_metadata(node_http_ports[0], "",
-                    classic_ports_to_gr_nodes(node_ports), 0, cluster_nodes, 0,
-                    0, false, "127.0.0.1");
-
+  set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
+                    "127.0.0.1", {},
+                    {"", R"({"tags" : {"_hidden": true} })",
+                     R"({"tags" : {"_hidden": true} })"});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_FALSE(is_port_bindable(router_rw_port));
   EXPECT_TRUE(wait_for_port_unused(router_ro_port));
@@ -894,10 +882,9 @@ TEST_P(FailToOpenROSocketAfterStartup, ROportTaken) {
   socket_user.lock();
 
   SCOPED_TRACE("// Unhide one RO node");
-  cluster_nodes[2].attributes = "";
-  set_mock_metadata(node_http_ports[0], "",
-                    classic_ports_to_gr_nodes(node_ports), 0, cluster_nodes, 0,
-                    0, false, "127.0.0.1");
+  set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
+                    "127.0.0.1", {},
+                    {"", R"({"tags" : {"_hidden": true} })", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_rw_x_port));
@@ -952,11 +939,9 @@ TEST_P(FailToOpenRWSocketAfterStartup, RWportTaken) {
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
 
   SCOPED_TRACE("// RW node hidden");
-  auto cluster_nodes = classic_ports_to_cluster_nodes(node_ports);
-  cluster_nodes[0].attributes = R"({"tags" : {"_hidden": true} })";
-  set_mock_metadata(node_http_ports[0], "",
-                    classic_ports_to_gr_nodes(node_ports), 0, cluster_nodes, 0,
-                    0, false, "127.0.0.1");
+  set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
+                    "127.0.0.1", {},
+                    {R"({"tags" : {"_hidden": true} })", "", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_unused(router_rw_port));
   EXPECT_FALSE(is_port_bindable(router_ro_port));
@@ -968,10 +953,8 @@ TEST_P(FailToOpenRWSocketAfterStartup, RWportTaken) {
   socket_user.lock();
 
   SCOPED_TRACE("// Unhide RW node");
-  cluster_nodes[0].attributes = "";
-  set_mock_metadata(node_http_ports[0], "",
-                    classic_ports_to_gr_nodes(node_ports), 0, cluster_nodes, 0,
-                    0, false, "127.0.0.1");
+  set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
+                    "127.0.0.1", {}, {"", "", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_x_port));
@@ -1122,12 +1105,10 @@ TEST_P(RoundRobinFallback, RoundRobinFallbackTest) {
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// RO nodes hidden");
-  auto cluster_nodes = classic_ports_to_cluster_nodes(node_ports);
-  cluster_nodes[1].attributes = R"({"tags" : {"_hidden": true} })";
-  cluster_nodes[2].attributes = R"({"tags" : {"_hidden": true} })";
-  set_mock_metadata(node_http_ports[0], "",
-                    classic_ports_to_gr_nodes(node_ports), 0, cluster_nodes, 0,
-                    0, false, "127.0.0.1");
+  set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
+                    "127.0.0.1", {},
+                    {"", R"({"tags" : {"_hidden": true} })",
+                     R"({"tags" : {"_hidden": true} })"});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
 
   SCOPED_TRACE("// RW and RO sockets are listening");
@@ -1139,21 +1120,17 @@ TEST_P(RoundRobinFallback, RoundRobinFallbackTest) {
                                          router_user, router_password));
 
   SCOPED_TRACE("// Unhide RO nodes");
-  cluster_nodes[1].attributes = "";
-  cluster_nodes[2].attributes = "";
-  set_mock_metadata(node_http_ports[0], "",
-                    classic_ports_to_gr_nodes(node_ports), 0, cluster_nodes, 0,
-                    0, false, "127.0.0.1");
+  set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
+                    "127.0.0.1", {}, {"", "", ""});
   ASSERT_NO_FATAL_FAILURE(try_connection("127.0.0.1", router_ro_port,
                                          router_user, router_password));
   ASSERT_NO_FATAL_FAILURE(try_connection("127.0.0.1", router_rw_port,
                                          router_user, router_password));
 
   SCOPED_TRACE("// Hide primary node");
-  cluster_nodes[0].attributes = R"({"tags" : {"_hidden": true} })";
-  set_mock_metadata(node_http_ports[0], "",
-                    classic_ports_to_gr_nodes(node_ports), 0, cluster_nodes, 0,
-                    0, false, "127.0.0.1");
+  set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
+                    "127.0.0.1", {},
+                    {R"({"tags" : {"_hidden": true} })", "", ""});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_unused(router_rw_port));
   EXPECT_FALSE(is_port_bindable(router_ro_port));
@@ -1193,8 +1170,8 @@ TEST_P(FirstAvailableDestMetadataCache, FirstAvailableDestMetadataCacheTest) {
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Disable both secondary nodes");
-  set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, {node_ports[0]},
-                    0, 0, false, "localhost");
+  set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, 0, false,
+                    "localhost", {}, {});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
 
   SCOPED_TRACE("// RO socket is not used by the router");
@@ -1208,28 +1185,28 @@ TEST_P(FirstAvailableDestMetadataCache, FirstAvailableDestMetadataCacheTest) {
 
   SCOPED_TRACE("// Bring back first RO node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[1]}, 0,
-                    {node_ports[0], node_ports[1]}, 0, 0, false, "localhost");
+                    0, false, "localhost", {}, {});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Disable first RO node");
-  set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, {node_ports[0]},
-                    0, 0, false, "localhost");
+  set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, 0, false,
+                    "localhost", {}, {});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_unused(router_ro_port));
 
   SCOPED_TRACE("// Bring back second RO node");
   set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
-                    {node_ports[0], node_ports[2]}, 0, 0, false, "localhost");
+                    0, false, "localhost", {}, {});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_used(router_ro_port));
 
   SCOPED_TRACE("// Disable first RO node");
-  set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, {node_ports[0]},
-                    0, 0, false, "localhost");
+  set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, 0, false,
+                    "localhost", {}, {});
   EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 4));
   EXPECT_TRUE(wait_for_port_used(router_rw_port));
   EXPECT_TRUE(wait_for_port_unused(router_ro_port));

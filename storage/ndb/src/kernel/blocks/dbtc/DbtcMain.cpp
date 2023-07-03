@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -479,41 +479,31 @@ void Dbtc::execCONTINUEB(Signal* signal)
   case TcContinueB::ZSTART_FRAG_SCANS:
   {
     jam();
-    ApiConnectRecordPtr apiConnectptr;
-    apiConnectptr.i = Tdata0;
-    if (unlikely(! c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
-                 ! (apiConnectptr.p->transid[0] == Tdata1 &&
-                    apiConnectptr.p->transid[1] == Tdata2 &&
-                    apiConnectptr.p->apiConnectstate == CS_START_SCAN)))
-    {
-      jam();
-      return;
-    }
-
     ScanRecordPtr scanptr;
-    scanptr.i = apiConnectptr.p->apiScanRec;
-    scanRecordPool.getPtr(scanptr);
-    sendDihGetNodesLab(signal, scanptr, apiConnectptr);
+    scanptr.i = signal->theData[1];
+    if (likely(scanRecordPool.getUncheckedPtrRW(scanptr)))
+    {
+      ApiConnectRecordPtr apiConnectptr;
+      apiConnectptr.i = scanptr.p->scanApiRec;
+      ndbrequire(Magic::check_ptr(scanptr.p));
+      ndbrequire(c_apiConnectRecordPool.getValidPtr(apiConnectptr));
+      sendDihGetNodesLab(signal, scanptr, apiConnectptr);
+    }
     return;
   }
   case TcContinueB::ZSEND_FRAG_SCANS:
   {
     jam();
-    ApiConnectRecordPtr apiConnectptr;
-    apiConnectptr.i = Tdata0;
-    if (unlikely(! c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
-                 ! (apiConnectptr.p->transid[0] == Tdata1 &&
-                    apiConnectptr.p->transid[1] == Tdata2 &&
-                    apiConnectptr.p->apiConnectstate == CS_START_SCAN)))
-    {
-      jam();
-      return;
-    }
-
     ScanRecordPtr scanptr;
-    scanptr.i = apiConnectptr.p->apiScanRec;
-    scanRecordPool.getPtr(scanptr);
-    sendFragScansLab(signal, scanptr, apiConnectptr);
+    scanptr.i = signal->theData[1];
+    if (likely(scanRecordPool.getUncheckedPtrRW(scanptr)))
+    {
+      ApiConnectRecordPtr apiConnectptr;
+      apiConnectptr.i = scanptr.p->scanApiRec;
+      ndbrequire(Magic::check_ptr(scanptr.p));
+      ndbrequire(c_apiConnectRecordPool.getValidPtr(apiConnectptr));
+      sendFragScansLab(signal, scanptr, apiConnectptr);
+    }
     return;
   }
 #ifdef ERROR_INSERT
@@ -14218,27 +14208,12 @@ void Dbtc::sendDihGetNodesLab(Signal* signal,
      * one signal to ensure we keep the rules of not executing
      * for more than 5-10 microseconds per signal.
      */
-    if (fragCnt >= DiGetNodesReq::MAX_DIGETNODESREQS ||
-        ERROR_INSERTED(8120))
+    if (fragCnt >= DiGetNodesReq::MAX_DIGETNODESREQS)
     {
       jam();
       signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
-      signal->theData[1] = apiConnectptr.i;
-      signal->theData[2] = apiConnectptr.p->transid[0];
-      signal->theData[3] = apiConnectptr.p->transid[1];
-      if (ERROR_INSERTED(8120))
-      {
-        jam();
-        // Delay CONTINUEB
-        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 4);
-
-        // Disconnect API
-        signal->theData[0] = 900;
-        signal->theData[1] = refToNode(apiConnectptr.p->ndbapiBlockref);
-        sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 2, JBA);
-        return;
-      }
-      sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+      signal->theData[1] = scanptr.i;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
       return;
     }
 
@@ -14769,31 +14744,12 @@ void Dbtc::sendFragScansLab(Signal* signal,
            * A max fanout of 1::4 of consumed::produced signals are allowed.
            * If we are about to produce more, we have to continue later.
            */
-	  if ((cntLocSignals > 4) ||
-              (ERROR_INSERTED(8121)) ||
-              (ERROR_INSERTED(8122) && fragCnt >= 1))
+	  if (cntLocSignals > 4)
           {
             jam();
             signal->theData[0] = TcContinueB::ZSEND_FRAG_SCANS;
-            signal->theData[1] = apiConnectptr.i;
-            signal->theData[2] = apiConnectptr.p->transid[0];
-            signal->theData[3] = apiConnectptr.p->transid[1];
-
-            if (ERROR_INSERTED(8121) ||
-                ERROR_INSERTED(8122))
-            {
-              jam();
-              /* Delay CONTINUEB */
-              sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 4);
-
-              // Disconnect API
-              signal->theData[0] = 900;
-              signal->theData[1] = refToNode(apiConnectptr.p->ndbapiBlockref);
-              sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 2, JBA);
-              return;
-            }
-
-            sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+            signal->theData[1] = scanptr.i;
+            sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
             return;
           }
           if (fragCnt > 0 &&
@@ -14802,10 +14758,8 @@ void Dbtc::sendFragScansLab(Signal* signal,
           {
             jam();
             signal->theData[0] = TcContinueB::ZSEND_FRAG_SCANS;
-            signal->theData[1] = apiConnectptr.i;
-            signal->theData[2] = apiConnectptr.p->transid[0];
-            signal->theData[3] = apiConnectptr.p->transid[1];
-            sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
+            signal->theData[1] = scanptr.i;
+            sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2, 10);
             return;
           }
 
@@ -17846,13 +17800,6 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
         c_theFiredTriggerPool.getUsedHi(),
         { CFG_DB_NO_TRIGGER_OPS, 0, 0, 0 },
         RT_DBTC_FIRED_TRIGGER_DATA},
-      { "Foreign Key Record",
-        c_fk_pool.getUsed(),
-        c_fk_pool.getSize(),
-        c_fk_pool.getEntrySize(),
-        c_fk_pool.getUsedHi(),
-        { 0, 0, 0, 0 },
-        RT_DBDICT_FILE},
       { "GCP Record",
         c_gcpRecordPool.getUsed(),
         c_gcpRecordPool.getSize(),

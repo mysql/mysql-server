@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,6 @@
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
-#include "CountingPool.hpp"
 #include <RWPool.hpp>
 #include <DLHashTable.hpp>
 #include <IntrusiveList.hpp>
@@ -753,7 +752,7 @@ public:
     }
   };
 
-  typedef CountingPool<RecordPool<RWPool<TcFKData>>> FK_pool;
+  typedef RecordPool<RWPool<TcFKData> > FK_pool;
   typedef KeyTable<FK_pool> FK_hash;
 
   FK_pool c_fk_pool;

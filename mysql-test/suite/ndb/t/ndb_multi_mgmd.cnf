@@ -1,4 +1,0 @@
-!include ../my.cnf
-
-[cluster_config.1]
-ndb_mgmd=,

@@ -1,5 +1,3 @@
---source include/elide_costs.inc
-
 # WL15040: Add system variable to control EXPLAIN format
 
 # Save the original explain_format value.
@@ -63,10 +61,10 @@ explain select 1;
 # Analyze should work with both traditional and traditional_strict, regardless
 # of hypergraph.
 set explain_format=traditional;
---replace_regex $elide_time
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
 explain analyze select 1;
 set explain_format=traditional_strict;
---replace_regex $elide_time
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
 explain analyze select 1;
 
 # But explicit use of unsupported format should error out.

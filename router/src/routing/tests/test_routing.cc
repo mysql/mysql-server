@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -85,12 +85,8 @@ TEST_F(RoutingTests, Defaults) {
 TEST_F(RoutingTests, set_destinations_from_uri) {
   using mysqlrouter::URI;
 
-  RoutingConfig conf;
-  conf.routing_strategy = routing::RoutingStrategy::kFirstAvailable;
-  conf.bind_address = mysql_harness::TCPAddress{"0.0.0.0", 7001};
-  conf.protocol = Protocol::Type::kXProtocol;
-  conf.connect_timeout = 1;
-  MySQLRouting routing(conf, io_ctx_);
+  MySQLRouting routing(io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
+                       Protocol::Type::kXProtocol);
 
   // valid metadata-cache uri
   {
@@ -130,12 +126,8 @@ TEST_F(RoutingTests, set_destinations_from_uri) {
 }
 
 TEST_F(RoutingTests, set_destinations_from_cvs) {
-  RoutingConfig conf;
-  conf.routing_strategy = routing::RoutingStrategy::kNextAvailable;
-  conf.bind_address = mysql_harness::TCPAddress{"0.0.0.0", 7001};
-  conf.protocol = Protocol::Type::kXProtocol;
-  conf.connect_timeout = 1;
-  MySQLRouting routing(conf, io_ctx_);
+  MySQLRouting routing(io_ctx_, routing::RoutingStrategy::kNextAvailable, 7001,
+                       Protocol::Type::kXProtocol);
 
   // valid address list
   {
@@ -145,12 +137,8 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
 
   // no routing strategy, should go with default
   {
-    RoutingConfig conf_inv;
-    conf_inv.routing_strategy = routing::RoutingStrategy::kUndefined;
-    conf_inv.bind_address = mysql_harness::TCPAddress{"0.0.0.0", 7001};
-    conf_inv.protocol = Protocol::Type::kXProtocol;
-    conf_inv.connect_timeout = 1;
-    MySQLRouting routing_inv(conf_inv, io_ctx_);
+    MySQLRouting routing_inv(io_ctx_, routing::RoutingStrategy::kUndefined,
+                             7001, Protocol::Type::kXProtocol);
     const std::string csv = "127.0.0.1:2002,127.0.0.1:2004";
     EXPECT_NO_THROW(routing_inv.set_destinations_from_csv(csv));
   }
@@ -174,13 +162,10 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
   // an exception if these are the same
   {
     const std::string address = "127.0.0.1";
-    RoutingConfig conf_classic;
-    conf_classic.routing_strategy = routing::RoutingStrategy::kNextAvailable;
-    conf_classic.bind_address = mysql_harness::TCPAddress{address, 3306};
-    conf_classic.mode = routing::AccessMode::kReadWrite;
-    conf_classic.protocol = Protocol::Type::kClassicProtocol;
-    conf_classic.connect_timeout = 1;
-    MySQLRouting routing_classic(conf_classic, io_ctx_);
+    MySQLRouting routing_classic(io_ctx_,
+                                 routing::RoutingStrategy::kNextAvailable, 3306,
+                                 Protocol::Type::kClassicProtocol,
+                                 routing::AccessMode::kReadWrite, address);
     EXPECT_THROW(routing_classic.set_destinations_from_csv("127.0.0.1"),
                  std::runtime_error);
     EXPECT_THROW(routing_classic.set_destinations_from_csv("127.0.0.1:3306"),
@@ -188,13 +173,9 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
     EXPECT_NO_THROW(
         routing_classic.set_destinations_from_csv("127.0.0.1:33060"));
 
-    RoutingConfig conf_x;
-    conf_x.routing_strategy = routing::RoutingStrategy::kNextAvailable;
-    conf_x.bind_address = mysql_harness::TCPAddress{address, 33060};
-    conf_x.mode = routing::AccessMode::kReadWrite;
-    conf_x.protocol = Protocol::Type::kXProtocol;
-    conf_x.connect_timeout = 1;
-    MySQLRouting routing_x(conf_x, io_ctx_);
+    MySQLRouting routing_x(io_ctx_, routing::RoutingStrategy::kNextAvailable,
+                           33060, Protocol::Type::kXProtocol,
+                           routing::AccessMode::kReadWrite, address);
     EXPECT_THROW(routing_x.set_destinations_from_csv("127.0.0.1"),
                  std::runtime_error);
     EXPECT_THROW(routing_x.set_destinations_from_csv("127.0.0.1:33060"),

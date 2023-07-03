@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include "basic_protocol_splicer.h"
 #include "tracer.h"
 
-class MysqlRoutingClassicConnectionBase;
+class MysqlRoutingClassicConnection;
 class ClassicProtocolState;
 
 /**
@@ -68,18 +68,18 @@ class BasicProcessor {
     Void,
   };
 
-  BasicProcessor(MysqlRoutingClassicConnectionBase *conn) : conn_(conn) {}
+  BasicProcessor(MysqlRoutingClassicConnection *conn) : conn_(conn) {}
 
   virtual ~BasicProcessor() = default;
 
-  const MysqlRoutingClassicConnectionBase *connection() const { return conn_; }
+  const MysqlRoutingClassicConnection *connection() const { return conn_; }
 
-  MysqlRoutingClassicConnectionBase *connection() { return conn_; }
+  MysqlRoutingClassicConnection *connection() { return conn_; }
 
   virtual stdx::expected<Result, std::error_code> process() = 0;
 
  private:
-  MysqlRoutingClassicConnectionBase *conn_;
+  MysqlRoutingClassicConnection *conn_;
 };
 
 /**
@@ -122,11 +122,30 @@ class Processor : public BasicProcessor {
   static void log_fatal_error_code(const char *msg, std::error_code ec);
 
   // see MysqlClassicConnection::trace()
-  [[deprecated(
-      "use 'if (auto &tr = tracer()) { tr.trace(...); } instead")]] void
-  trace(Tracer::Event e);
+  void trace(Tracer::Event e);
 
-  Tracer &tracer();
+  /**
+   * forward the current packet from the server-side to the client-side.
+   *
+   * use 'noflush' if the next message is from the server side too to allow
+   * merging of multiple server-side packets into one "send-to-client".
+   *
+   * Useful for resultsets which is split into multiple packets.
+   *
+   * Pushes a ServerToClientForwarder to the processor-stack.
+   *
+   * @param noflush if true, it isn't required to wait until the packet is sent
+   * to the client.
+   */
+  stdx::expected<Result, std::error_code> forward_server_to_client(
+      bool noflush = false);
+
+  /**
+   * forward the current packet from the client-side to the server-side.
+   *
+   * Pushes a ClientToServerForwarder to the processor-stack.
+   */
+  stdx::expected<Result, std::error_code> forward_client_to_server();
 };
 
 #endif

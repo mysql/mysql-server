@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -205,13 +205,6 @@ char Encryption::s_uuid[Encryption::SERVER_UUID_LEN + 1] = {0};
 
 /** Tablespaces whose key needs to be reencrypted */
 std::vector<space_id_t> Encryption::s_tablespaces_to_reencrypt;
-
-void Encryption::set(const Encryption_metadata &metadata) noexcept {
-  set_type(metadata.m_type);
-  set_key(metadata.m_key);
-  set_key_length(metadata.m_key_len);
-  set_initial_vector(metadata.m_iv);
-}
 
 const char *Encryption::to_string(Type type) noexcept {
   switch (type) {
@@ -768,18 +761,14 @@ bool Encryption::is_encrypted_log(const byte *block) noexcept {
   return (log_block_get_encrypt_bit(block));
 }
 
-bool Encryption::encrypt_log_block(byte *src_ptr,
-                                   byte *dst_ptr) const noexcept {
+bool Encryption::encrypt_log_block(const IORequest &, byte *src_ptr,
+                                   byte *dst_ptr) noexcept {
   ulint len = 0;
   ulint data_len;
   ulint main_len;
   ulint remain_len;
   byte remain_buf[MY_AES_BLOCK_SIZE * 2];
-  /* in-place encryption is not supported */
-  ut_a(src_ptr != dst_ptr);
-  /* the buffers can't even overlap */
-  ut_ad(src_ptr + OS_FILE_LOG_BLOCK_SIZE <= dst_ptr ||
-        dst_ptr + OS_FILE_LOG_BLOCK_SIZE <= src_ptr);
+
 #ifdef UNIV_ENCRYPT_DEBUG
   {
     std::ostringstream msg;
@@ -793,14 +782,15 @@ bool Encryption::encrypt_log_block(byte *src_ptr,
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
-  /* This is data size to encrypt. */
+  /* This is data size which need to encrypt. */
   data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE;
   main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
   remain_len = data_len - main_len;
 
   /* Encrypt the block. */
   /* Copy the header as is. */
-  memcpy(dst_ptr, src_ptr, LOG_BLOCK_HDR_SIZE);
+  memmove(dst_ptr, src_ptr, LOG_BLOCK_HDR_SIZE);
+  ut_ad(memcmp(src_ptr, dst_ptr, LOG_BLOCK_HDR_SIZE) == 0);
 
   switch (m_type) {
     case NONE:
@@ -827,7 +817,7 @@ bool Encryption::encrypt_log_block(byte *src_ptr,
              OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE - len);
 
       /* Encrypt the remain bytes. Since my_aes_encrypt
-      request the content to encrypt is
+      request the content which need to encrypt is
       multiple of MY_AES_BLOCK_SIZE, but the block
       content is possibly not, so, we need to handle
       the tail bytes first. */
@@ -863,11 +853,15 @@ bool Encryption::encrypt_log_block(byte *src_ptr,
     os << std::endl;
     ib::info() << os.str();
 
-    byte check_buf[OS_FILE_LOG_BLOCK_SIZE];
+    byte *check_buf = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, OS_FILE_LOG_BLOCK_SIZE));
+    byte *buf2 = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, OS_FILE_LOG_BLOCK_SIZE));
 
     memcpy(check_buf, dst_ptr, OS_FILE_LOG_BLOCK_SIZE);
     log_block_set_encrypt_bit(check_buf, true);
-    dberr_t err = decrypt_log(check_buf, OS_FILE_LOG_BLOCK_SIZE);
+    dberr_t err = decrypt_log(type, check_buf, OS_FILE_LOG_BLOCK_SIZE, buf2,
+                              OS_FILE_LOG_BLOCK_SIZE);
     if (err != DB_SUCCESS ||
         memcmp(src_ptr, check_buf, OS_FILE_LOG_BLOCK_SIZE) != 0) {
       std::ostringstream msg{};
@@ -876,8 +870,10 @@ bool Encryption::encrypt_log_block(byte *src_ptr,
 
       msg.seekp(0);
       ut_print_buf_hex(msg, check_buf, OS_FILE_LOG_BLOCK_SIZE);
-      ib::fatal(UT_LOCATION_HERE) << msg.str();
+      ib::fatal() << msg.str();
     }
+    ut::free(buf2);
+    ut::free(check_buf);
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -887,22 +883,22 @@ bool Encryption::encrypt_log_block(byte *src_ptr,
   return (true);
 }
 
-bool Encryption::encrypt_log(byte *src, size_t src_len,
-                             byte *dst) const noexcept {
-  /* in-place encryption is not supported */
-  ut_a(src != dst);
-  /* the buffers can't even overlap */
-  ut_ad(src + src_len <= dst || dst + src_len <= src);
+byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
+                              byte *dst, ulint *dst_len) noexcept {
   byte *src_ptr = src;
   byte *dst_ptr = dst;
+
+  ut_ad(type.is_log());
   ut_ad(src_len % OS_FILE_LOG_BLOCK_SIZE == 0);
   ut_ad(m_type != NONE);
 
   /* Encrypt the log blocks one by one. */
   while (src_ptr != src + src_len) {
-    if (!encrypt_log_block(src_ptr, dst_ptr)) {
-      ib::error{ER_IB_MSG_CANT_ENCRYPT_REDO_LOG_DATA};
-      return false;
+    if (!encrypt_log_block(type, src_ptr, dst_ptr)) {
+      *dst_len = src_len;
+      ib::error(ER_IB_MSG_843) << " Can't encrypt data of"
+                               << " redo log";
+      return (src);
     }
 
     src_ptr += OS_FILE_LOG_BLOCK_SIZE;
@@ -913,9 +909,12 @@ bool Encryption::encrypt_log(byte *src, size_t src_len,
   {
     byte *check_buf = static_cast<byte *>(
         ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
+    byte *buf2 = static_cast<byte *>(
+        ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, src_len));
+
     memcpy(check_buf, dst, src_len);
 
-    dberr_t err = decrypt_log(check_buf, src_len);
+    dberr_t err = decrypt_log(type, check_buf, src_len, buf2, src_len);
     if (err != DB_SUCCESS || memcmp(src, check_buf, src_len) != 0) {
       std::ostringstream msg{};
       ut_print_buf_hex(msg, src, src_len);
@@ -923,23 +922,24 @@ bool Encryption::encrypt_log(byte *src, size_t src_len,
 
       msg.seekp(0);
       ut_print_buf_hex(msg, check_buf, src_len);
-      ib::fatal(UT_LOCATION_HERE) << msg.str();
+      ib::fatal() << msg.str();
     }
+    ut::free(buf2);
     ut::free(check_buf);
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
-  return true;
+  return (dst);
 }
 
 bool Encryption::encrypt_low(byte *src, ulint src_len, byte *dst,
-                             ulint *dst_len) const noexcept {
+                             ulint *dst_len) noexcept {
   const uint16_t page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
 
   /* Shouldn't encrypt an already encrypted page. */
   ut_ad(!is_encrypted_page(src));
 
-  /* This is data size to encrypt. */
+  /* This is data size which need to encrypt. */
   auto src_enc_len = src_len;
 
   /* In FIL_PAGE_VERSION_2, we encrypt the actual compressed data length. */
@@ -1056,21 +1056,20 @@ bool Encryption::encrypt_low(byte *src, ulint src_len, byte *dst,
 }
 
 byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
-                          byte *dst, ulint *dst_len) const noexcept {
+                          byte *dst, ulint *dst_len) noexcept {
   /* For encrypting redo log, take another way. */
   ut_ad(!type.is_log());
 
 #ifdef UNIV_ENCRYPT_DEBUG
+  {
+    ulint space_id = mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+    ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
 
-  const auto space_id =
-      mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-  const auto page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
-
-  fprintf(stderr, "Encrypting page:%" PRIu32 ".%" PRIu32 " len: " ULINTPF "\n ",
-          space_id, page_no, src_len);
-  ut_print_buf(stderr, m_key, 32);
-  ut_print_buf(stderr, m_iv, 32);
-
+    fprintf(stderr, "Encrypting page:%lu.%lu len:%lu\n", space_id, page_no,
+            src_len);
+    ut_print_buf(stderr, m_key, 32);
+    ut_print_buf(stderr, m_iv, 32);
+  }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
   ut_ad(m_type != NONE);
@@ -1099,74 +1098,69 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
     ut::free(buf2);
     ut::free(check_buf);
 
-    fprintf(stderr, "Encrypted page:%" PRIu32 ".%" PRIu32 "\n", space_id,
-            page_no);
+    fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
   return dst;
 }
 
-dberr_t Encryption::decrypt_log_block(byte *const buf) const noexcept {
-  /* This is the data we have to decrypt */
-  byte *const data = buf + LOG_BLOCK_HDR_SIZE;
-  /* This is data size to decrypt. */
-  constexpr size_t data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE;
-  /* Temporary storage for the data part of the block, into which we put the
-  originally encrypted data (after decrypting the "remainder" if necessary). */
-  byte tmp[data_len];
-  /* This is the number of full blocks encrypted with AES in the tmp. */
-  constexpr size_t main_len =
-      (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
-  /* This is the number of unencrypted bytes at the end of the tmp. */
-  constexpr size_t remain_len = data_len - main_len;
+dberr_t Encryption::decrypt_log_block(const IORequest &, byte *src,
+                                      byte *dst) noexcept {
+  ulint data_len;
+  ulint main_len;
+  ulint remain_len;
+  byte remain_buf[MY_AES_BLOCK_SIZE * 2];
+  byte *ptr = src;
 
+  /* This is data size which need to encrypt. */
+  data_len = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE;
+  main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
+  remain_len = data_len - main_len;
+
+  ptr += LOG_BLOCK_HDR_SIZE;
   switch (m_type) {
     case AES: {
-      int elen;
+      lint elen;
 
       /* First decrypt the last 2 blocks data of data, since
-      data is not block aligned. */
-      if constexpr (remain_len != 0) {
+      data is no block aligned. */
+      if (remain_len != 0) {
         ut_ad(m_klen == KEY_LEN);
 
-        byte two_blocks[MY_AES_BLOCK_SIZE * 2];
-
-        static_assert(remain_len <= sizeof(two_blocks));
-        static_assert(sizeof(two_blocks) <= data_len);
+        remain_len = MY_AES_BLOCK_SIZE * 2;
 
         /* Copy the last 2 blocks. */
-        memcpy(two_blocks, data + data_len - sizeof(two_blocks),
-               sizeof(two_blocks));
+        memcpy(remain_buf, ptr + data_len - remain_len, remain_len);
 
-        elen = my_aes_decrypt(
-            two_blocks, static_cast<uint32>(sizeof(two_blocks)),
-            tmp + data_len - sizeof(two_blocks), m_key,
-            static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv, false);
+        elen = my_aes_decrypt(remain_buf, static_cast<uint32>(remain_len),
+                              dst + data_len - remain_len, m_key,
+                              static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
+                              false);
         if (elen == MY_AES_BAD_DATA) {
           return (DB_IO_DECRYPT_FAIL);
         }
 
         /* Copy the other data bytes to temp area. */
-        memcpy(tmp, data, data_len - sizeof(two_blocks));
+        memcpy(dst, ptr, data_len - remain_len);
       } else {
         ut_ad(data_len == main_len);
 
         /* Copy the data bytes to temp area. */
-        memcpy(tmp, data, data_len);
+        memcpy(dst, ptr, data_len);
       }
 
       /* Then decrypt the main data */
-      elen = my_aes_decrypt(tmp, static_cast<uint32>(main_len), data, m_key,
+      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr, m_key,
                             static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
                             false);
       if (elen == MY_AES_BAD_DATA) {
         return (DB_IO_DECRYPT_FAIL);
       }
 
-      ut_ad(elen == static_cast<int>(main_len));
+      ut_ad(static_cast<ulint>(elen) == main_len);
 
-      /* Copy the remaining bytes. */
-      memcpy(data + main_len, tmp + main_len, remain_len);
+      /* Copy the remain bytes. */
+      memcpy(ptr + main_len, dst + main_len, data_len - main_len);
 
       break;
     }
@@ -1177,27 +1171,43 @@ dberr_t Encryption::decrypt_log_block(byte *const buf) const noexcept {
       return (DB_UNSUPPORTED);
   }
 
+  ptr -= LOG_BLOCK_HDR_SIZE;
+
 #ifdef UNIV_ENCRYPT_DEBUG
   {
     std::ostringstream msg{};
-    msg << "Decrypted block " << log_block_get_hdr_no(buf) << "." << std::endl;
-    ut_print_buf_hex(msg, buf, OS_FILE_LOG_BLOCK_SIZE);
+    msg << "Decrypted block " << log_block_get_hdr_no(ptr) << "." << std::endl;
+    ut_print_buf_hex(msg, ptr, OS_FILE_LOG_BLOCK_SIZE);
     msg << std::endl;
     ib::info() << msg.str();
   }
 #endif
 
   /* Reset the encrypted flag. */
-  log_block_set_encrypt_bit(buf, false);
+  log_block_set_encrypt_bit(ptr, false);
 
   return (DB_SUCCESS);
 }
 
-dberr_t Encryption::decrypt_log(byte *buf, size_t buf_len) const noexcept {
+dberr_t Encryption::decrypt_log(const IORequest &type, byte *src, ulint src_len,
+                                byte *dst) noexcept {
+  file::Block *block;
+  byte *ptr = src;
   dberr_t ret;
 
+  /* Do nothing if it's not a log request. */
+  ut_ad(type.is_log());
+
+  /* The caller doesn't know what to expect */
+  if (dst == nullptr) {
+    block = os_alloc_block();
+    dst = block->m_ptr;
+  } else {
+    block = nullptr;
+  }
+
   /* Encrypt the log blocks one by one. */
-  for (byte *ptr = buf; ptr != buf + buf_len; ptr += OS_FILE_LOG_BLOCK_SIZE) {
+  while (ptr != src + src_len) {
 #ifdef UNIV_ENCRYPT_DEBUG
     {
       std::ostringstream msg;
@@ -1213,21 +1223,32 @@ dberr_t Encryption::decrypt_log(byte *buf, size_t buf_len) const noexcept {
 
     /* If it's not an encrypted block, skip it. */
     if (!is_encrypted_log(ptr)) {
+      ptr += OS_FILE_LOG_BLOCK_SIZE;
       continue;
     }
 
     /* Decrypt block */
-    ret = decrypt_log_block(ptr);
+    ret = decrypt_log_block(type, ptr, dst);
     if (ret != DB_SUCCESS) {
+      if (block != nullptr) {
+        os_free_block(block);
+      }
+
       return (ret);
     }
+
+    ptr += OS_FILE_LOG_BLOCK_SIZE;
+  }
+
+  if (block != nullptr) {
+    os_free_block(block);
   }
 
   return (DB_SUCCESS);
 }
 
 dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
-                            byte *tmp, ulint tmp_len) const noexcept {
+                            byte *dst, ulint) noexcept {
   ulint data_len;
   ulint main_len;
   ulint remain_len;
@@ -1293,11 +1314,10 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
   byte *ptr = src + FIL_PAGE_DATA;
 
   /* The caller doesn't know what to expect */
-  if (tmp == nullptr) {
+  if (dst == nullptr) {
     block = os_alloc_block();
-    tmp = block->m_ptr;
+    dst = block->m_ptr;
   } else {
-    ut_a(src_len <= tmp_len);
     block = nullptr;
   }
 
@@ -1320,7 +1340,7 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
         memcpy(remain_buf, ptr + data_len - remain_len, remain_len);
 
         elen = my_aes_decrypt(remain_buf, static_cast<uint32>(remain_len),
-                              tmp + data_len - remain_len, m_key,
+                              dst + data_len - remain_len, m_key,
                               static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
                               false);
 
@@ -1335,16 +1355,16 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
         ut_ad(static_cast<ulint>(elen) == remain_len);
 
         /* Copy the other data bytes to temp area. */
-        memcpy(tmp, ptr, data_len - remain_len);
+        memcpy(dst, ptr, data_len - remain_len);
       } else {
         ut_ad(data_len == main_len);
 
         /* Copy the data bytes to temp area. */
-        memcpy(tmp, ptr, data_len);
+        memcpy(dst, ptr, data_len);
       }
 
       /* Then decrypt the main data */
-      elen = my_aes_decrypt(tmp, static_cast<uint32>(main_len), ptr, m_key,
+      elen = my_aes_decrypt(dst, static_cast<uint32>(main_len), ptr, m_key,
                             static_cast<uint32>(m_klen), my_aes_256_cbc, m_iv,
                             false);
       if (elen == MY_AES_BAD_DATA) {
@@ -1358,7 +1378,7 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
       ut_ad(static_cast<ulint>(elen) == main_len);
 
       /* Copy the remain bytes. */
-      memcpy(ptr + main_len, tmp + main_len, data_len - main_len);
+      memcpy(ptr + main_len, dst + main_len, data_len - main_len);
 
       break;
     }

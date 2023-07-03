@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -227,14 +227,16 @@ const char *PFS_instr_name::str() const {
   if (m_private_old_name != nullptr &&
       terminology_use_previous::is_older_required(m_private_version))
     return m_private_old_name;
-  return m_private_name;
+  else
+    return m_private_name;
 }
 
 uint PFS_instr_name::length() const {
   if (m_private_old_name != nullptr &&
       terminology_use_previous::is_older_required(m_private_version))
     return m_private_old_name_length;
-  return m_private_name_length;
+  else
+    return m_private_name_length;
 }
 
 /**
@@ -258,7 +260,7 @@ static uint safe_strlen(const char *s, uint max_len) {
 void PFS_instr_name::set(PFS_class_type class_type, const char *name,
                          uint max_length_arg) {
   // Copy the given name to the member.
-  const uint length = safe_strlen(name, std::min(max_length, max_length_arg));
+  uint length = safe_strlen(name, std::min(max_length, max_length_arg));
   memcpy(m_private_name, name, length);
   m_private_name[length] = '\0';
   m_private_name_length = length;
@@ -384,7 +386,7 @@ int init_sync_class(uint mutex_class_sizing, uint rwlock_class_sizing,
 }
 
 /** Cleanup the instrument synch class buffers. */
-void cleanup_sync_class() {
+void cleanup_sync_class(void) {
   unsigned int i;
 
   if (mutex_class_array != nullptr) {
@@ -448,7 +450,7 @@ int init_thread_class(uint thread_class_sizing) {
 }
 
 /** Cleanup the thread class buffers. */
-void cleanup_thread_class() {
+void cleanup_thread_class(void) {
   unsigned int i;
 
   if (thread_class_array != nullptr) {
@@ -478,7 +480,7 @@ int init_table_share(uint table_share_sizing) {
 }
 
 /** Cleanup the table share buffers. */
-void cleanup_table_share() { global_table_share_container.cleanup(); }
+void cleanup_table_share(void) { global_table_share_container.cleanup(); }
 
 /** get_key function for @c table_share_hash. */
 static const uchar *table_share_hash_get_key(const uchar *entry,
@@ -559,7 +561,7 @@ int init_table_share_hash(const PFS_global_param *param) {
 }
 
 /** Cleanup the table share hash table. */
-void cleanup_table_share_hash() {
+void cleanup_table_share_hash(void) {
   if (table_share_hash_inited) {
     lf_hash_destroy(&table_share_hash);
     table_share_hash_inited = false;
@@ -610,7 +612,7 @@ static void set_table_share_key(PFS_table_share_key *key, bool temporary,
   @return a table share lock.
 */
 PFS_table_share_lock *PFS_table_share::find_lock_stat() const {
-  auto *that = const_cast<PFS_table_share *>(this);
+  PFS_table_share *that = const_cast<PFS_table_share *>(this);
   return that->m_race_lock_stat.load();
 }
 
@@ -754,10 +756,11 @@ PFS_table_share_lock *create_table_share_lock_stat() {
 void release_table_share_lock_stat(PFS_table_share_lock *pfs) {
   pfs->m_owner = nullptr;
   global_table_share_lock_container.deallocate(pfs);
+  return;
 }
 
 /** Cleanup the table stat buffers. */
-void cleanup_table_share_lock_stat() {
+void cleanup_table_share_lock_stat(void) {
   global_table_share_lock_container.cleanup();
 }
 
@@ -792,7 +795,7 @@ PFS_table_share_index *create_table_share_index_stat(
       pfs->m_key.m_name_length = 0;
     } else {
       KEY *key_info = server_share->key_info + server_index;
-      const size_t len = strlen(key_info->name);
+      size_t len = strlen(key_info->name);
 
       memcpy(pfs->m_key.m_name, key_info->name, len);
       pfs->m_key.m_name_length = len;
@@ -812,10 +815,11 @@ PFS_table_share_index *create_table_share_index_stat(
 void release_table_share_index_stat(PFS_table_share_index *pfs) {
   pfs->m_owner = nullptr;
   global_table_share_index_container.deallocate(pfs);
+  return;
 }
 
 /** Cleanup the table stat buffers. */
-void cleanup_table_share_index_stat() {
+void cleanup_table_share_index_stat(void) {
   global_table_share_index_container.cleanup();
 }
 
@@ -825,6 +829,7 @@ void cleanup_table_share_index_stat() {
   @return 0 on success
 */
 int init_file_class(uint file_class_sizing) {
+  int result = 0;
   file_class_dirty_count = file_class_allocated_count = 0;
   file_class_max = file_class_sizing;
   file_class_lost = 0;
@@ -840,11 +845,11 @@ int init_file_class(uint file_class_sizing) {
     file_class_array = nullptr;
   }
 
-  return 0;
+  return result;
 }
 
 /** Cleanup the file class buffers. */
-void cleanup_file_class() {
+void cleanup_file_class(void) {
   unsigned int i;
 
   if (file_class_array != nullptr) {
@@ -866,6 +871,7 @@ void cleanup_file_class() {
   @return 0 on success
 */
 int init_stage_class(uint stage_class_sizing) {
+  int result = 0;
   stage_class_dirty_count = stage_class_allocated_count = 0;
   stage_class_max = stage_class_sizing;
   stage_class_lost = 0;
@@ -881,11 +887,11 @@ int init_stage_class(uint stage_class_sizing) {
     stage_class_array = nullptr;
   }
 
-  return 0;
+  return result;
 }
 
 /** Cleanup the stage class buffers. */
-void cleanup_stage_class() {
+void cleanup_stage_class(void) {
   unsigned int i;
 
   if (stage_class_array != nullptr) {
@@ -907,6 +913,7 @@ void cleanup_stage_class() {
   @return 0 on success
 */
 int init_statement_class(uint statement_class_sizing) {
+  int result = 0;
   statement_class_dirty_count = statement_class_allocated_count = 0;
   statement_class_max = statement_class_sizing;
   statement_class_lost = 0;
@@ -922,11 +929,11 @@ int init_statement_class(uint statement_class_sizing) {
     statement_class_array = nullptr;
   }
 
-  return 0;
+  return result;
 }
 
 /** Cleanup the statement class buffers. */
-void cleanup_statement_class() {
+void cleanup_statement_class(void) {
   unsigned int i;
 
   if (statement_class_array != nullptr) {
@@ -948,6 +955,7 @@ void cleanup_statement_class() {
   @return 0 on success
 */
 int init_socket_class(uint socket_class_sizing) {
+  int result = 0;
   socket_class_dirty_count = socket_class_allocated_count = 0;
   socket_class_max = socket_class_sizing;
   socket_class_lost = 0;
@@ -963,11 +971,11 @@ int init_socket_class(uint socket_class_sizing) {
     socket_class_array = nullptr;
   }
 
-  return 0;
+  return result;
 }
 
 /** Cleanup the socket class buffers. */
-void cleanup_socket_class() {
+void cleanup_socket_class(void) {
   unsigned int i;
 
   if (socket_class_array != nullptr) {
@@ -989,6 +997,7 @@ void cleanup_socket_class() {
   @return 0 on success
 */
 int init_memory_class(uint memory_class_sizing) {
+  int result = 0;
   memory_class_dirty_count = memory_class_allocated_count = 0;
   memory_class_max = memory_class_sizing;
   memory_class_lost = 0;
@@ -1004,11 +1013,11 @@ int init_memory_class(uint memory_class_sizing) {
     memory_class_array = nullptr;
   }
 
-  return 0;
+  return result;
 }
 
 /** Cleanup the memory class buffers. */
-void cleanup_memory_class() {
+void cleanup_memory_class(void) {
   unsigned int i;
 
   if (memory_class_array.load() != nullptr) {
@@ -1384,8 +1393,8 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
       */
       assert(strlen(info->m_os_name) < PFS_MAX_OS_NAME_LENGTH - 3);
 
-      (void)snprintf(entry->m_os_name, PFS_MAX_OS_NAME_LENGTH, "%s-%%d",
-                     info->m_os_name);
+      snprintf(entry->m_os_name, PFS_MAX_OS_NAME_LENGTH, "%s-%%d",
+               info->m_os_name);
     } else {
       assert(strlen(info->m_os_name) < PFS_MAX_OS_NAME_LENGTH);
       strncpy(entry->m_os_name, info->m_os_name, PFS_MAX_OS_NAME_LENGTH);
@@ -1785,7 +1794,7 @@ static int compare_keys(PFS_table_share *pfs, const TABLE_SHARE *share) {
 
   size_t len;
   uint index = 0;
-  const uint key_count = share->keys;
+  uint key_count = share->keys;
   KEY *key_info = share->key_info;
   PFS_table_share_index *index_stat;
 
@@ -1826,9 +1835,9 @@ PFS_table_share *find_or_create_table_share(PFS_thread *thread, bool temporary,
   }
 
   const char *schema_name = share->db.str;
-  const size_t schema_name_length = share->db.length;
+  size_t schema_name_length = share->db.length;
   const char *table_name = share->table_name.str;
-  const size_t table_name_length = share->table_name.length;
+  size_t table_name_length = share->table_name.length;
 
   set_table_share_key(&key, temporary, schema_name, schema_name_length,
                       table_name, table_name_length);
@@ -1920,9 +1929,9 @@ search:
   return nullptr;
 }
 
-void PFS_table_share::aggregate_io() {
+void PFS_table_share::aggregate_io(void) {
   uint index;
-  const uint safe_key_count = sanitize_index_count(m_key_count);
+  uint safe_key_count = sanitize_index_count(m_key_count);
   PFS_table_share_index *from_stat;
   PFS_table_io_stat sum_io;
 
@@ -1980,7 +1989,7 @@ void PFS_table_share::sum(PFS_single_stat *result, uint key_count) {
   sum_lock(result);
 }
 
-void PFS_table_share::aggregate_lock() {
+void PFS_table_share::aggregate_lock(void) {
   PFS_table_share_lock *lock_stat;
   lock_stat = find_lock_stat();
   if (lock_stat != nullptr) {
@@ -2049,7 +2058,7 @@ void reset_events_waits_by_class() {
 }
 
 /** Reset the I/O statistics per file class. */
-void reset_file_class_io() {
+void reset_file_class_io(void) {
   PFS_file_class *pfs = file_class_array;
   PFS_file_class *pfs_last = file_class_array + file_class_max;
 
@@ -2059,7 +2068,7 @@ void reset_file_class_io() {
 }
 
 /** Reset the I/O statistics per socket class. */
-void reset_socket_class_io() {
+void reset_socket_class_io(void) {
   PFS_socket_class *pfs = socket_class_array;
   PFS_socket_class *pfs_last = socket_class_array + socket_class_max;
 

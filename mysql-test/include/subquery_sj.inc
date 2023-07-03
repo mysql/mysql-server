@@ -1,7 +1,6 @@
 #
 # Nested Loops semi-join subquery evaluation tests
 #
---source include/elide_costs.inc
 
 # This portion of the file vas developed when subquery materialization
 # was rule-based; to preserve the intended test scenarios, we switch
@@ -7093,7 +7092,7 @@ eval explain $query;
 # where we can't use NestedLoopSemiJoinWithDuplicateRemovalIterator since we
 # have a table that is both firstmatch (semijoin) _and_ outer join.
 --skip_if_hypergraph  # Depends on query plan.
---replace_regex $elide_costs
+--replace_regex /  \(cost=[\ 0-9.*0-9\ ]*/\ (/
 eval explain format=tree $query;
 
 eval $query;

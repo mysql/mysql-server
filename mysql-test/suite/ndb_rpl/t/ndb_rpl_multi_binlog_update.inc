@@ -143,7 +143,6 @@ connection srv_master;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_replica_updates';
-let $show_binlog_events_mask_columns=2,5; # Show server_id
 --source include/show_binlog_events.inc
 let $BINLOG_FILENAME=master-bin;
 --source suite/ndb_rpl/t/ndb_rpl_get_binlog_events.inc
@@ -157,8 +156,7 @@ connection srv_master1;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_replica_updates';
-# Binlogging disabled, show it's empty
-show binlog events;
+--source include/show_binlog_events.inc
 
 connection srv_master2;
 --echo 
@@ -168,7 +166,6 @@ connection srv_master2;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_replica_updates';
-let $show_binlog_events_mask_columns=2,5; # Show server_id
 --source include/show_binlog_events.inc
 let $BINLOG_FILENAME=master-bin;
 --source suite/ndb_rpl/t/ndb_rpl_get_binlog_events.inc
@@ -181,8 +178,7 @@ connection srv_slave;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_replica_updates';
-# Binlogging disabled, show it's empty
-show binlog events;
+--source include/show_binlog_events.inc
 
 connection srv_slave1;
 --echo 
@@ -192,7 +188,6 @@ connection srv_slave1;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_replica_updates';
-let $show_binlog_events_mask_columns=2,5; # Show server_id
 --source include/show_binlog_events.inc
 let $BINLOG_FILENAME=slave-master-bin;
 --source suite/ndb_rpl/t/ndb_rpl_get_binlog_events.inc
@@ -205,7 +200,6 @@ connection srv_slave2;
 show variables like 'server_id';
 show variables like 'log_bin';
 show variables like 'log_replica_updates';
-let $show_binlog_events_mask_columns=2,5; # Show server_id
 --source include/show_binlog_events.inc
 let $BINLOG_FILENAME=slave-master-bin;
 --source suite/ndb_rpl/t/ndb_rpl_get_binlog_events.inc

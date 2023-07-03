@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ PFS_engine_table *table_data_locks::create(PFS_engine_table_share *) {
   return new table_data_locks();
 }
 
-ha_rows table_data_locks::get_row_count() {
+ha_rows table_data_locks::get_row_count(void) {
   // FIXME
   return 99999;
 }
@@ -121,7 +121,7 @@ void table_data_locks::destroy_iterators() {
 
 table_data_locks::~table_data_locks() { destroy_iterators(); }
 
-void table_data_locks::reset_position() {
+void table_data_locks::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
   m_pk_pos.reset();
@@ -129,12 +129,12 @@ void table_data_locks::reset_position() {
   destroy_iterators();
 }
 
-int table_data_locks::rnd_next() {
+int table_data_locks::rnd_next(void) {
   row_data_lock *data;
 
   for (m_pos.set_at(&m_next_pos); m_pos.has_more_engine();
        m_pos.next_engine()) {
-    const unsigned int index = m_pos.m_index_1;
+    unsigned int index = m_pos.m_index_1;
 
     if (m_iterator[index] == nullptr) {
       if (g_data_lock_inspector[index] == nullptr) {
@@ -211,7 +211,7 @@ int table_data_locks::rnd_pos(const void *pos) {
   */
   static_assert(COUNT_DATA_LOCK_ENGINES == 1,
                 "We don't support multiple engines yet.");
-  const unsigned int index = 0;
+  unsigned int index = 0;
 
   if (m_iterator[index] == nullptr) {
     if (g_data_lock_inspector[index] == nullptr) {

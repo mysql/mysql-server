@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,11 @@
 #ifndef ROUTING_CLASSIC_COMMAND_INCLUDED
 #define ROUTING_CLASSIC_COMMAND_INCLUDED
 
-#include "forwarding_processor.h"
+#include "processor.h"
 
-class CommandProcessor : public ForwardingProcessor {
+class CommandProcessor : public Processor {
  public:
-  using ForwardingProcessor::ForwardingProcessor;
+  using Processor::Processor;
 
   enum class Stage {
     IsAuthed,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -121,7 +121,7 @@ decode_frame_header(const net::const_buffer &recv_buf) {
 
 static stdx::expected<size_t, std::error_code> ensure_frame_header(
     Channel *src_channel, XProtocolState *src_protocol) {
-  auto &recv_buf = src_channel->recv_plain_view();
+  auto &recv_buf = src_channel->recv_plain_buffer();
 
   size_t min_size{4};
   auto cur_size = recv_buf.size();
@@ -180,7 +180,7 @@ static stdx::expected<void, std::error_code> ensure_has_msg_prefix(
 
     const size_t msg_type_pos = 4 - current_frame.forwarded_frame_size_;
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     if (msg_type_pos >= recv_buf.size()) {
       // read some more data.
       auto read_res = src_channel->read_to_plain(1);
@@ -209,7 +209,7 @@ static stdx::expected<void, std::error_code> ensure_has_msg_prefix(
 static stdx::expected<void, std::error_code> ensure_has_full_frame(
     Channel *src_channel, XProtocolState *src_protocol) {
   auto &current_frame = src_protocol->current_frame().value();
-  auto &recv_buf = src_channel->recv_plain_view();
+  auto &recv_buf = src_channel->recv_plain_buffer();
 
   const auto min_size = current_frame.frame_size_;
   const auto cur_size = recv_buf.size();
@@ -229,12 +229,12 @@ static void discard_current_msg(Channel *src_channel,
 
   auto &current_frame = *opt_current_frame;
 
-  auto &recv_buf = src_channel->recv_plain_view();
+  auto &recv_buf = src_channel->recv_plain_buffer();
 
   harness_assert(current_frame.frame_size_ <= recv_buf.size());
   harness_assert(current_frame.forwarded_frame_size_ == 0);
 
-  src_channel->consume_plain(current_frame.frame_size_);
+  net::dynamic_buffer(recv_buf).consume(current_frame.frame_size_);
 
   // unset current frame and also current-msg
   src_protocol->current_frame().reset();
@@ -297,16 +297,6 @@ MysqlRoutingXConnection::encode_error_packet(std::vector<uint8_t> &error_frame,
   return xproto_frame_encode(err_msg, error_frame);
 }
 
-void MysqlRoutingXConnection::client_con_close() {
-  Mysqlx::Ok msg_ok;
-  msg_ok.set_msg("bye!");
-  std::vector<uint8_t> out_buf;
-  xproto_frame_encode(msg_ok, out_buf);
-
-  return async_send_client_buffer(net::buffer(out_buf),
-                                  Function::kWaitClientClose);
-}
-
 void MysqlRoutingXConnection::async_run() {
   this->accepted();
 
@@ -315,6 +305,9 @@ void MysqlRoutingXConnection::async_run() {
   // passthrough + as_client
   // preferred   + as_client
   greeting_from_router_ = !(source_ssl_mode() == SslMode::kPassthrough);
+
+  socket_splicer()->client_conn().channel()->recv_plain_buffer().reserve(16 *
+                                                                         1024);
 
   if (greeting_from_router_) {
     client_send_server_greeting_from_router();
@@ -541,7 +534,8 @@ void MysqlRoutingXConnection::client_recv_cmd() {
   if (server_connection_state_ok) {
     switch (msg) {
       case Msg::kConClose:
-        return client_con_close();
+        // wait for the client to close the connection.
+        return async_recv_client(Function::kWaitClientClose);
       case Msg::kConCapGet:
         return client_cap_get();
       case Msg::kConCapSet:
@@ -590,7 +584,7 @@ void MysqlRoutingXConnection::client_recv_cmd() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -612,7 +606,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
 
   auto &current_frame = src_protocol->current_frame().value();
 
-  auto &recv_buf = src_channel->recv_plain_view();
+  auto &recv_buf = src_channel->recv_plain_buffer();
   // forward the (rest of the) payload.
 
   const size_t rest_of_frame_size =
@@ -638,7 +632,7 @@ static stdx::expected<bool, std::error_code> forward_frame_from_channel(
     size_t transferred = write_res.value();
     current_frame.forwarded_frame_size_ += transferred;
 
-    src_channel->consume_plain(transferred);
+    net::dynamic_buffer(recv_buf).consume(transferred);
   }
 
   dst_channel->flush_to_send_buf();
@@ -805,7 +799,7 @@ void MysqlRoutingXConnection::connect() {
     // close the server side.
     this->connector().socket().close();
 
-    if (ec == DestinationsErrc::kNoDestinations) {
+    if (ec == std::errc::no_such_file_or_directory) {
       MySQLRoutingComponent::get_instance()
           .api(context().get_id())
           .stop_socket_acceptors();
@@ -848,6 +842,9 @@ void MysqlRoutingXConnection::connect() {
 
   this->connected();
 
+  socket_splicer()->server_conn().channel()->recv_plain_buffer().reserve(16 *
+                                                                         1024);
+
   return server_init_tls();
 }
 
@@ -881,7 +878,7 @@ void MysqlRoutingXConnection::client_cap_get() {
     return async_recv_client(Function::kClientCapGet);
   }
 
-  const auto &recv_buf = src_channel->recv_plain_view();
+  const auto &recv_buf = src_channel->recv_plain_buffer();
 
   auto msg_payload =
       net::buffer(recv_buf, src_protocol->current_frame()->frame_size_) + 5;
@@ -958,7 +955,7 @@ void MysqlRoutingXConnection::server_recv_switch_tls_response() {
 
   ensure_has_full_frame(src_channel, src_protocol);
 
-  const auto &recv_buf = src_channel->recv_plain_view();
+  const auto &recv_buf = src_channel->recv_plain_buffer();
 
   switch (Msg{msg_type}) {
     case Msg::kNotice:
@@ -1022,7 +1019,7 @@ void MysqlRoutingXConnection::server_recv_switch_tls_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -1071,7 +1068,7 @@ void MysqlRoutingXConnection::server_recv_switch_tls_response_passthrough() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -1105,12 +1102,13 @@ void MysqlRoutingXConnection::
 
 stdx::expected<void, std::error_code> MysqlRoutingXConnection::forward_tls(
     Channel *src_channel, Channel *dst_channel) {
-  const auto &plain = src_channel->recv_plain_view();
+  auto &plain = src_channel->recv_plain_buffer();
   src_channel->read_to_plain(5);
 
+  auto plain_buf = net::dynamic_buffer(plain);
   // at least the TLS record header.
   const size_t tls_header_size{5};
-  while (plain.size() >= tls_header_size) {
+  while (plain_buf.size() >= tls_header_size) {
     // plain is TLS traffic.
     const uint8_t tls_content_type = plain[0];
     const uint16_t tls_payload_size = (plain[3] << 8) | plain[4];
@@ -1124,18 +1122,18 @@ stdx::expected<void, std::error_code> MysqlRoutingXConnection::forward_tls(
                   static_cast<TlsContentType>(tls_content_type))
                   .c_str());
 #endif
-    if (plain.size() < tls_header_size + tls_payload_size) {
+    if (plain_buf.size() < tls_header_size + tls_payload_size) {
       src_channel->read_to_plain(tls_header_size + tls_payload_size -
-                                 plain.size());
+                                 plain_buf.size());
     }
 
-    if (plain.size() < tls_header_size + tls_payload_size) {
+    if (plain_buf.size() < tls_header_size + tls_payload_size) {
       // there isn't the full frame yet.
       return stdx::make_unexpected(make_error_code(TlsErrc::kWantRead));
     }
 
     const auto write_res = dst_channel->write(
-        net::buffer(plain.subspan(0, tls_header_size + tls_payload_size)));
+        plain_buf.data(0, tls_header_size + tls_payload_size));
     if (!write_res) {
       return stdx::make_unexpected(make_error_code(TlsErrc::kWantWrite));
     }
@@ -1147,8 +1145,7 @@ stdx::expected<void, std::error_code> MysqlRoutingXConnection::forward_tls(
       src_channel->is_tls(false);
       dst_channel->is_tls(false);
     }
-
-    src_channel->consume_plain(*write_res);
+    plain_buf.consume(write_res.value());
   }
 
   dst_channel->flush_to_send_buf();
@@ -1204,9 +1201,8 @@ void MysqlRoutingXConnection::forward_tls_init() {
 static stdx::expected<SSL_CTX *, std::error_code> get_dest_ssl_ctx(
     MySQLRoutingContext &ctx, const std::string &id) {
   return mysql_harness::make_tcp_address(id).and_then(
-      [&ctx,
-       &id](const auto &addr) -> stdx::expected<SSL_CTX *, std::error_code> {
-        return ctx.dest_ssl_ctx(id, addr.address())->get();
+      [&ctx](const auto &addr) -> stdx::expected<SSL_CTX *, std::error_code> {
+        return ctx.dest_ssl_ctx(addr.address())->get();
       });
 }
 
@@ -1321,7 +1317,7 @@ void MysqlRoutingXConnection::server_recv_cap_get_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -1394,7 +1390,7 @@ void MysqlRoutingXConnection::client_cap_set() {
     return async_recv_client(Function::kClientCapSet);
   }
 
-  const auto &recv_buf = src_channel->recv_plain_view();
+  const auto &recv_buf = src_channel->recv_plain_buffer();
 
   auto msg_payload =
       net::buffer(recv_buf, src_protocol->current_frame()->frame_size_) + 5;
@@ -1747,7 +1743,7 @@ void MysqlRoutingXConnection::server_recv_check_caps_response() {
 
       return server_recv_check_caps_response();
     case Msg::kCaps: {
-      const auto &recv_buf = src_channel->recv_plain_view();
+      const auto &recv_buf = src_channel->recv_plain_buffer();
 
       auto msg_payload =
           net::buffer(recv_buf, src_protocol->current_frame()->frame_size_) + 5;
@@ -1775,7 +1771,7 @@ void MysqlRoutingXConnection::server_recv_check_caps_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -1821,7 +1817,7 @@ void MysqlRoutingXConnection::server_recv_cap_set_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -1905,7 +1901,7 @@ void MysqlRoutingXConnection::server_recv_auth_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -1984,7 +1980,7 @@ void MysqlRoutingXConnection::server_recv_stmt_execute_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2053,7 +2049,7 @@ void MysqlRoutingXConnection::server_recv_crud_find_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2116,7 +2112,7 @@ void MysqlRoutingXConnection::server_recv_crud_delete_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2179,7 +2175,7 @@ void MysqlRoutingXConnection::server_recv_crud_insert_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2242,7 +2238,7 @@ void MysqlRoutingXConnection::server_recv_crud_update_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2305,7 +2301,7 @@ void MysqlRoutingXConnection::server_recv_prepare_prepare_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2370,7 +2366,7 @@ void MysqlRoutingXConnection::server_recv_prepare_deallocate_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2443,7 +2439,7 @@ void MysqlRoutingXConnection::server_recv_prepare_execute_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2508,7 +2504,7 @@ void MysqlRoutingXConnection::server_recv_expect_open_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2571,7 +2567,7 @@ void MysqlRoutingXConnection::server_recv_expect_close_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2634,7 +2630,7 @@ void MysqlRoutingXConnection::server_recv_crud_create_view_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2699,7 +2695,7 @@ void MysqlRoutingXConnection::server_recv_crud_modify_view_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2764,7 +2760,7 @@ void MysqlRoutingXConnection::server_recv_crud_drop_view_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2832,7 +2828,7 @@ void MysqlRoutingXConnection::server_recv_cursor_open_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2901,7 +2897,7 @@ void MysqlRoutingXConnection::server_recv_cursor_fetch_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -2964,7 +2960,7 @@ void MysqlRoutingXConnection::server_recv_cursor_close_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -3027,7 +3023,7 @@ void MysqlRoutingXConnection::server_recv_session_close_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -3091,7 +3087,7 @@ void MysqlRoutingXConnection::server_recv_session_reset_response() {
   {
     ensure_has_full_frame(src_channel, src_protocol);
 
-    auto &recv_buf = src_channel->recv_plain_view();
+    auto &recv_buf = src_channel->recv_plain_buffer();
     log_debug("%s: %s", __FUNCTION__, hexify(recv_buf).c_str());
   }
 
@@ -3141,12 +3137,10 @@ void MysqlRoutingXConnection::finish() {
   }
   if (active_work_ == 0) {
     if (server_socket.is_open()) {
-      server_tls_shutdown();
       (void)server_socket.shutdown(net::socket_base::shutdown_send);
       (void)server_socket.close();
     }
     if (client_socket.is_open()) {
-      client_tls_shutdown();
       (void)client_socket.shutdown(net::socket_base::shutdown_send);
       (void)client_socket.close();
     }
@@ -3161,17 +3155,3 @@ void MysqlRoutingXConnection::wait_client_close() { finish(); }
 //
 // removes the connection from the connection-container.
 void MysqlRoutingXConnection::done() { this->disassociate(); }
-
-void MysqlRoutingXConnection::server_tls_shutdown() {
-  auto *channel = this->socket_splicer()->server_channel();
-  if (channel->ssl()) {
-    (void)channel->tls_shutdown();
-  }
-}
-
-void MysqlRoutingXConnection::client_tls_shutdown() {
-  auto *channel = this->socket_splicer()->client_channel();
-  if (channel->ssl()) {
-    (void)channel->tls_shutdown();
-  }
-}

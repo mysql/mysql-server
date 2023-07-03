@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,6 @@ SET(MYSYS_SOURCES
   mf_wcomp.cc
   mulalloc.cc
   my_access.cc
-  my_aligned_malloc.cc
   my_alloc.cc
   my_bit.cc
   my_bitmap.cc
@@ -185,8 +184,8 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   LINK_LIBRARIES
   mytime
   strings
-  ext::zlib
-  ext::zstd
+  ${ZLIB_LIBRARY}
+  ${ZSTD_LIBRARY}
   ${LIBNSL}
   ${LIBM}
   ${LIBRT}

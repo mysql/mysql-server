@@ -1,6 +1,6 @@
 #ifndef SYS_VARS_H_INCLUDED
 #define SYS_VARS_H_INCLUDED
-/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -396,75 +396,93 @@ class Sys_var_alias : public sys_var {
 
   sys_var &get_base_var() { return m_base_var; }
 
-  void cleanup() override { m_base_var.cleanup(); }
-  sys_var_pluginvar *cast_pluginvar() override {
+  virtual void cleanup() override { m_base_var.cleanup(); }
+  virtual sys_var_pluginvar *cast_pluginvar() override {
     return m_base_var.cast_pluginvar();
   }
-  void update_default(longlong new_def_value) override {
+  virtual void update_default(longlong new_def_value) override {
     m_base_var.update_default(new_def_value);
   }
-  longlong get_default() override { return m_base_var.get_default(); }
-  longlong get_min_value() override { return m_base_var.get_min_value(); }
-  ulonglong get_max_value() override { return m_base_var.get_max_value(); }
-  ulong get_var_type() override { return m_base_var.get_var_type(); }
-  void set_arg_source(get_opt_arg_source *arg_source) override {
+  virtual longlong get_default() override { return m_base_var.get_default(); }
+  virtual longlong get_min_value() override {
+    return m_base_var.get_min_value();
+  }
+  virtual ulonglong get_max_value() override {
+    return m_base_var.get_max_value();
+  }
+  virtual ulong get_var_type() override { return m_base_var.get_var_type(); }
+  virtual void set_arg_source(get_opt_arg_source *arg_source) override {
     m_base_var.set_arg_source(arg_source);
   }
-  void set_is_plugin(bool is_plugin) override {
+  virtual void set_is_plugin(bool is_plugin) override {
     m_base_var.set_is_plugin(is_plugin);
   }
-  bool is_non_persistent() override { return m_base_var.is_non_persistent(); }
-  void saved_value_to_string(THD *thd, set_var *var, char *def_val) override {
+  virtual bool is_non_persistent() override {
+    return m_base_var.is_non_persistent();
+  }
+  virtual void saved_value_to_string(THD *thd, set_var *var,
+                                     char *def_val) override {
     return m_base_var.saved_value_to_string(thd, var, def_val);
   }
-  bool check_update_type(Item_result type) override {
+  virtual bool check_update_type(Item_result type) override {
     return m_base_var.check_update_type(type);
   }
-  enum_variable_source get_source() override { return m_base_var.get_source(); }
-  const char *get_source_name() override {
+  virtual enum_variable_source get_source() override {
+    return m_base_var.get_source();
+  }
+  virtual const char *get_source_name() override {
     return m_base_var.get_source_name();
   }
-  void set_source(enum_variable_source src) override {
+  virtual void set_source(enum_variable_source src) override {
     m_base_var.set_source(src);
   }
-  bool set_source_name(const char *path) override {
+  virtual bool set_source_name(const char *path) override {
     return m_base_var.set_source_name(path);
   }
-  bool set_user(const char *usr) override { return m_base_var.set_user(usr); }
-  const char *get_user() override { return m_base_var.get_user(); }
-  const char *get_host() override { return m_base_var.get_host(); }
-  bool set_host(const char *hst) override { return m_base_var.set_host(hst); }
-  ulonglong get_timestamp() const override {
+  virtual bool set_user(const char *usr) override {
+    return m_base_var.set_user(usr);
+  }
+  virtual const char *get_user() override { return m_base_var.get_user(); }
+  virtual const char *get_host() override { return m_base_var.get_host(); }
+  virtual bool set_host(const char *hst) override {
+    return m_base_var.set_host(hst);
+  }
+  virtual ulonglong get_timestamp() const override {
     return m_base_var.get_timestamp();
   }
-  void set_user_host(THD *thd) override { m_base_var.set_user_host(thd); }
-  void set_timestamp() override { m_base_var.set_timestamp(); }
-  void set_timestamp(ulonglong ts) override { m_base_var.set_timestamp(ts); }
+  virtual void set_user_host(THD *thd) override {
+    m_base_var.set_user_host(thd);
+  }
+  virtual void set_timestamp() override { m_base_var.set_timestamp(); }
+  virtual void set_timestamp(ulonglong ts) override {
+    m_base_var.set_timestamp(ts);
+  }
 
  private:
-  bool do_check(THD *thd, set_var *var) override {
+  virtual bool do_check(THD *thd, set_var *var) override {
     return m_base_var.do_check(thd, var);
   }
-  void session_save_default(THD *thd, set_var *var) override {
+  virtual void session_save_default(THD *thd, set_var *var) override {
     return m_base_var.session_save_default(thd, var);
   }
-  void global_save_default(THD *thd, set_var *var) override {
+  virtual void global_save_default(THD *thd, set_var *var) override {
     return m_base_var.global_save_default(thd, var);
   }
-  bool session_update(THD *thd, set_var *var) override {
+  virtual bool session_update(THD *thd, set_var *var) override {
     return m_base_var.session_update(thd, var);
   }
-  bool global_update(THD *thd, set_var *var) override {
+  virtual bool global_update(THD *thd, set_var *var) override {
     return m_base_var.global_update(thd, var);
   }
 
  protected:
-  const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
-                                 std::string_view keycache_name) override {
+  virtual const uchar *session_value_ptr(
+      THD *running_thd, THD *target_thd,
+      std::string_view keycache_name) override {
     return m_base_var.session_value_ptr(running_thd, target_thd, keycache_name);
   }
-  const uchar *global_value_ptr(THD *thd,
-                                std::string_view keycache_name) override {
+  virtual const uchar *global_value_ptr(
+      THD *thd, std::string_view keycache_name) override {
     return m_base_var.global_value_ptr(thd, keycache_name);
   }
 };

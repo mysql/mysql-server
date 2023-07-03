@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <ndb_global.h>
 
 #include <OutputStream.hpp>
+#include <socket_io.h>
 #include <LogBuffer.hpp>
 #include <BaseString.hpp>
 
@@ -103,8 +104,8 @@ FileOutputStream::write(const void * buf, size_t len)
   return (int)fwrite(buf, len, 1, f);
 }
 
-SecureSocketOutputStream::SecureSocketOutputStream(const NdbSocket & socket,
-                                                   unsigned write_timeout_ms) :
+SocketOutputStream::SocketOutputStream(ndb_socket_t socket,
+				       unsigned write_timeout_ms) :
   m_socket(socket),
   m_timeout_ms(write_timeout_ms),
   m_timedout(false),
@@ -113,7 +114,7 @@ SecureSocketOutputStream::SecureSocketOutputStream(const NdbSocket & socket,
 }
 
 int
-SecureSocketOutputStream::print(const char * fmt, ...){
+SocketOutputStream::print(const char * fmt, ...){
   va_list ap;
   char buf[1000];
   char *buf2 = buf;
@@ -147,7 +148,7 @@ SecureSocketOutputStream::print(const char * fmt, ...){
 }
 
 int
-SecureSocketOutputStream::println(const char * fmt, ...){
+SocketOutputStream::println(const char * fmt, ...){
   va_list ap;
   char buf[1000];
   char *buf2 = buf;
@@ -179,13 +180,14 @@ SecureSocketOutputStream::println(const char * fmt, ...){
 }
 
 int
-SecureSocketOutputStream::write(const void * buf, size_t len)
+SocketOutputStream::write(const void * buf, size_t len)
 {
   if (timedout())
     return -1;
 
   int time = 0;
-  int ret = m_socket.write(m_timeout_ms, &time, (const char*)buf, (int)len);
+  int ret = write_socket(m_socket, m_timeout_ms, &time,
+                         (const char*)buf, (int)len);
   if (ret >= 0)
   {
     m_timeout_remain -= time;
@@ -201,20 +203,20 @@ SecureSocketOutputStream::write(const void * buf, size_t len)
 
 #include <UtilBuffer.hpp>
 
-BufferedSecureOutputStream::BufferedSecureOutputStream
-    (const NdbSocket & socket, unsigned write_timeout_ms) :
-  SecureSocketOutputStream(socket, write_timeout_ms),
+BufferedSockOutputStream::BufferedSockOutputStream(ndb_socket_t socket,
+                                                   unsigned write_timeout_ms) :
+  SocketOutputStream(socket, write_timeout_ms),
   m_buffer(*new UtilBuffer)
 {
 }
 
-BufferedSecureOutputStream::~BufferedSecureOutputStream()
+BufferedSockOutputStream::~BufferedSockOutputStream()
 {
   delete &m_buffer;
 }
 
 int
-BufferedSecureOutputStream::print(const char * fmt, ...){
+BufferedSockOutputStream::print(const char * fmt, ...){
   char buf[1];
   va_list ap;
   int len;
@@ -246,7 +248,7 @@ BufferedSecureOutputStream::print(const char * fmt, ...){
 }
 
 int
-BufferedSecureOutputStream::println(const char * fmt, ...){
+BufferedSockOutputStream::println(const char * fmt, ...){
   char buf[1];
   va_list ap;
   int len;
@@ -274,16 +276,15 @@ BufferedSecureOutputStream::println(const char * fmt, ...){
 }
 
 int
-BufferedSecureOutputStream::write(const void * buf, size_t len)
+BufferedSockOutputStream::write(const void * buf, size_t len)
 {
   return m_buffer.append(buf, len);
 }
 
-void BufferedSecureOutputStream::flush(){
-  if(m_buffer.length() == 0) return;
+void BufferedSockOutputStream::flush(){
   int elapsed = 0;
-  if (m_socket.write(m_timeout_ms, &elapsed, (const char*)m_buffer.get_data(),
-                     m_buffer.length()) != 0)
+  if (write_socket(m_socket, m_timeout_ms, &elapsed,
+                   (const char*)m_buffer.get_data(), m_buffer.length()) != 0)
   {
     fprintf(stderr, "Failed to flush buffer to socket, errno: %d\n", errno);
   }

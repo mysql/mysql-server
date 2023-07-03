@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
 #include "template_utils.h"
 #include "thr_cond.h"
 
-static constexpr int STRING_BUFFER = 1024 * 4;
+#define STRING_BUFFER 1024
 
 static const char *sep =
     "======================================================\n";

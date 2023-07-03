@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -732,17 +732,19 @@ String *Item_func_random_bytes::val_str(String *) {
   null_value = args[0]->null_value;
 
   if (null_value) return nullptr;
-  if (current_thd->is_error()) return error_str();
 
   str_value.set_charset(&my_charset_bin);
 
   if (n_bytes == 0 || n_bytes > MAX_RANDOM_BYTES_BUFFER) {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "length", func_name());
-    return error_str();
+    null_value = true;
+    return nullptr;
   }
 
   if (str_value.alloc(n_bytes)) {
-    return error_str();
+    my_error(ER_OUTOFMEMORY, n_bytes);
+    null_value = true;
+    return nullptr;
   }
 
   str_value.set_charset(&my_charset_bin);
@@ -750,7 +752,8 @@ String *Item_func_random_bytes::val_str(String *) {
   if (my_rand_buffer((unsigned char *)str_value.ptr(), n_bytes)) {
     my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0), func_name(),
              "SSL library can't generate random bytes");
-    return error_str();
+    null_value = true;
+    return nullptr;
   }
 
   str_value.length(n_bytes);
@@ -2723,7 +2726,7 @@ String *Item_func_rpad::val_str(String *str) {
 
   /* must be longlong to avoid truncation */
   longlong count = args[1]->val_int();
-  if (args[1]->null_value || current_thd->is_error()) return error_str();
+  if (args[1]->null_value) return error_str();
 
   if ((count < 0) && !args[1]->unsigned_flag) {
     return null_return_str();
@@ -2930,7 +2933,7 @@ String *Item_func_lpad::val_str(String *str) {
 
   /* must be longlong to avoid truncation */
   longlong count = args[1]->val_int();
-  if (args[1]->null_value || current_thd->is_error()) return error_str();
+  if (args[1]->null_value) return error_str();
 
   if (count < 0 && !args[1]->unsigned_flag) {
     return null_return_str();

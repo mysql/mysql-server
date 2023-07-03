@@ -221,6 +221,7 @@ innodb/clone_gtid_thread	BACKGROUND
 innodb/dict_stats_thread	BACKGROUND
 innodb/fts_optimize_thread	BACKGROUND
 innodb/io_ibuf_thread	BACKGROUND
+innodb/io_log_thread	BACKGROUND
 innodb/io_read_thread	BACKGROUND
 innodb/io_read_thread	BACKGROUND
 innodb/io_read_thread	BACKGROUND
@@ -272,6 +273,7 @@ innodb/clone_gtid_thread	BACKGROUND
 innodb/dict_stats_thread	BACKGROUND
 innodb/fts_optimize_thread	BACKGROUND
 innodb/io_ibuf_thread	BACKGROUND
+innodb/io_log_thread	BACKGROUND
 innodb/io_read_thread	BACKGROUND
 innodb/io_read_thread	BACKGROUND
 innodb/io_read_thread	BACKGROUND

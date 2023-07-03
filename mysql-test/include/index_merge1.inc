@@ -16,7 +16,6 @@
 #               old name was t/index_merge.test
 #               main code went into include/index_merge1.inc
 #
---source include/elide_costs.inc
 
 --echo #---------------- Index merge test 1 -------------------------------------------
 --echo # (Start of test file: index_merge1.inc)
@@ -621,7 +620,7 @@ explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 
 # Demonstrates printing index merge in EXPLAIN FORMAT=tree.
 --skip_if_hypergraph   # Different query plan.
---replace_regex $elide_costs
+--replace_regex /\(cost=[0-9. ]*/(/
 explain format=tree select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 
 if ($index_merge_random_rows_in_EXPLAIN)

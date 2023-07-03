@@ -52,10 +52,13 @@ SET @ssl_cipher_save= @@GLOBAL.ssl_cipher;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 SET @@GLOBAL.group_replication_ssl_mode= REQUIRED;
 
+--let $tls_version_recovery_save_s1=
+--let $tls_ciphersuites_recovery_save_s1=
+--let $ssl_cipher_recovery_save_s1=
 if($have_mysql_stack) {
-  SET @tls_version_recovery_save= @@GLOBAL.group_replication_recovery_tls_version;
-  SET @tls_ciphersuites_recovery_save= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
-  SET @ssl_cipher_recovery_save= @@GLOBAL.group_replication_recovery_ssl_cipher;
+  --let $tls_version_recovery_save_s1= @@GLOBAL.group_replication_recovery_tls_version;
+  --let $tls_ciphersuites_recovery_save_s1= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
+  --let $ssl_cipher_recovery_save_s1= @@GLOBAL.group_replication_recovery_ssl_cipher;
 }
 
 --let $rpl_connection_name= server2
@@ -66,10 +69,13 @@ SET @ssl_cipher_save= @@GLOBAL.ssl_cipher;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 SET @@GLOBAL.group_replication_ssl_mode= REQUIRED;
 
+--let $tls_version_recovery_save_s2=
+--let $tls_ciphersuites_recovery_save_s2=
+--let $ssl_cipher_recovery_save_s2=
 if($have_mysql_stack) {
-  SET @tls_version_recovery_save= @@GLOBAL.group_replication_recovery_tls_version;
-  SET @tls_ciphersuites_recovery_save= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
-  SET @ssl_cipher_recovery_save= @@GLOBAL.group_replication_recovery_ssl_cipher;
+  --let $tls_version_recovery_save_s2= @@GLOBAL.group_replication_recovery_tls_version;
+  --let $tls_ciphersuites_recovery_save_s2= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
+  --let $ssl_cipher_recovery_save_s2= @@GLOBAL.group_replication_recovery_ssl_cipher;
 }
 
 SET SESSION sql_log_bin= 0;
@@ -210,9 +216,9 @@ SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
 SET @@GLOBAL.ssl_cipher = @ssl_cipher_save;
 if($have_mysql_stack) {
-  SET @@GLOBAL.group_replication_recovery_tls_version= @tls_version_recovery_save;
-  SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @tls_ciphersuites_recovery_save;
-  SET @@GLOBAL.group_replication_recovery_ssl_cipher= @ssl_cipher_recovery_save;
+  SET @@GLOBAL.group_replication_recovery_tls_version= $tls_version_recovery_save_s1;
+  SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= $tls_ciphersuites_recovery_save_s1;
+  SET @@GLOBAL.group_replication_recovery_ssl_cipher= $ssl_cipher_recovery_save_s1;
 }
 ALTER INSTANCE RELOAD TLS;
 
@@ -223,9 +229,9 @@ SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
 SET @@GLOBAL.ssl_cipher = @ssl_cipher_save;
 if($have_mysql_stack) {
-  SET @@GLOBAL.group_replication_recovery_tls_version= @tls_version_recovery_save;
-  SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @tls_ciphersuites_recovery_save;
-  SET @@GLOBAL.group_replication_recovery_ssl_cipher= @ssl_cipher_recovery_save;
+  SET @@GLOBAL.group_replication_recovery_tls_version= $tls_version_recovery_save_s2;
+  SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= $tls_ciphersuites_recovery_save_s2;
+  SET @@GLOBAL.group_replication_recovery_ssl_cipher= $ssl_cipher_recovery_save_s2;
 }
 ALTER INSTANCE RELOAD TLS;
 

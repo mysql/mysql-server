@@ -1,5 +1,0 @@
-!include suite/ndb_rpl/my.cnf
-
-[mysqld]
-# Turn on dependency tracking for ndb_binlog thread
-ndb-log-transaction-dependency=ON

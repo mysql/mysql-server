@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -608,9 +608,14 @@ bool JOIN::optimize(bool finalize_access_paths) {
   if (thd->lex->using_hypergraph_optimizer) {
     // Get the WHERE and HAVING clauses with the IN-to-EXISTS predicates
     // removed, so that we can plan both with and without the IN-to-EXISTS
-    // conversion.
-    Item *where_cond_no_in2exists = remove_in2exists_conds(where_cond);
-    Item *having_cond_no_in2exists = remove_in2exists_conds(having_cond);
+    // conversion. We need to make a copy of the AND/OR structure because
+    // remove_eq_cond() may leave some items in a degenerate state if the
+    // entire condition can be removed, and this would cause problems in
+    // the replanning, if the same structure was used again.
+    Item *where_cond_no_in2exists =
+        remove_in2exists_conds(thd, where_cond, /*copy=*/true);
+    Item *having_cond_no_in2exists =
+        remove_in2exists_conds(thd, having_cond, /*copy=*/true);
 
     std::string trace_str;
     std::string *trace_ptr = thd->opt_trace.is_started() ? &trace_str : nullptr;
@@ -853,6 +858,22 @@ bool JOIN::optimize(bool finalize_access_paths) {
   for (ORDER *ord = group_list.order; ord != nullptr; ord = ord->next) {
     (*ord->item)
         ->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
+  }
+
+  if (rollup_state != RollupState::NONE) {
+    /*
+      Fields may have been replaced by Item_rollup_group_item, so
+      recalculate the number of fields and functions for this query block.
+    */
+
+    // JOIN::optimize_rollup() may set allow_group_via_temp_table = false,
+    // and we must not undo that.
+    const bool save_allow_group_via_temp_table =
+        tmp_table_param.allow_group_via_temp_table;
+
+    count_field_types(query_block, &tmp_table_param, *fields, false, false);
+    tmp_table_param.allow_group_via_temp_table =
+        save_allow_group_via_temp_table;
   }
 
   // See if this subquery can be evaluated with subselect_indexsubquery_engine
@@ -1468,7 +1489,7 @@ bool JOIN::optimize_distinct_group_order() {
     order = ORDER_with_src(
         remove_const(order.order, where_cond, rollup_state == RollupState::NONE,
                      &simple_order, false),
-        order.src, /*const_optimized=*/true);
+        order.src);
     if (thd->is_error()) {
       error = 1;
       DBUG_PRINT("error", ("Error from remove_const"));
@@ -1606,7 +1627,8 @@ bool JOIN::optimize_distinct_group_order() {
   group_list = ORDER_with_src(
       remove_const(group_list.order, where_cond,
                    rollup_state == RollupState::NONE, &simple_group, true),
-      group_list.src, /*const_optimized=*/true);
+      group_list.src);
+
   if (thd->is_error()) {
     error = 1;
     DBUG_PRINT("error", ("Error from remove_const"));
@@ -1817,14 +1839,12 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
     const Field *field = down_cast<const Item_field *>(real_itm)->field;
 
     /*
-      Skip key parts that are constants in the WHERE clause if these are
-      already removed in the ORDER expression by check_field_is_const().
+      Skip key parts that are constants in the WHERE clause.
+      These are already skipped in the ORDER BY by check_field_is_const()
     */
-    if (order_src->is_const_optimized()) {
-      for (; const_key_parts & 1 && key_part < key_part_end;
-           const_key_parts >>= 1)
-        key_part++;
-    }
+    for (; const_key_parts & 1 && key_part < key_part_end;
+         const_key_parts >>= 1)
+      key_part++;
 
     /* Avoid usage of prefix index for sorting a partition table */
     if (table->part_info && key_part != table->key_info[idx].key_part &&
@@ -1847,15 +1867,9 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
             table->key_info[table->s->primary_key].user_defined_key_parts;
         const_key_parts = table->const_key_parts[table->s->primary_key];
 
-        /*
-          Skip key parts that are constants in the WHERE clause if these are
-          already removed in the ORDER expression by check_field_is_const().
-        */
-        if (order_src->is_const_optimized()) {
-          for (; const_key_parts & 1 && key_part < key_part_end;
-               const_key_parts >>= 1)
-            key_part++;
-        }
+        for (; const_key_parts & 1 && key_part < key_part_end;
+             const_key_parts >>= 1)
+          key_part++;
         /*
          The primary and secondary key parts were all const (i.e. there's
          one row).  The sorting doesn't matter.
@@ -3181,17 +3195,14 @@ bool JOIN::get_best_combination() {
         ::destroy(tab->range_scan());
         tab->set_range_scan(nullptr);
       }
-      if (table->is_intersect() || table->is_except()) {
-        tab->set_type(JT_ALL);  // INTERSECT, EXCEPT can't use ref access yet
-      } else if (!pos->key) {
+      if (!pos->key) {
         if (tab->range_scan())
           tab->set_type(calc_join_type(tab->range_scan()));
         else
           tab->set_type(JT_ALL);
-      } else {
+      } else
         // REF or RANGE, clarify later when prefix tables are set for JOIN_TABs
         tab->set_type(JT_REF);
-      }
     }
     assert(tab->type() != JT_UNKNOWN);
 
@@ -3947,11 +3958,6 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
         // comparison are very different.
         if ((field_item->data_type() == MYSQL_TYPE_JSON) !=
             (const_item->data_type() == MYSQL_TYPE_JSON)) {
-          return false;
-        }
-        // Similarly, strings and temporal types have different semantics for
-        // equality comparison.
-        if (const_item->is_temporal() && !field_item->is_temporal()) {
           return false;
         }
       }
@@ -5840,8 +5846,6 @@ double find_worst_seeks(const TABLE *table, double num_rows,
 /**
   Estimate the number of matched rows for each joined table.
   Set up range scan for tables that have proper predicates.
-  Eliminate tables that have filter conditions that are always false based on
-  analysis performed in resolver phase or analysis of range scan predicates.
 
   @returns false if success, true if error
 */
@@ -5884,85 +5888,90 @@ bool JOIN::estimate_rowcount() {
     */
     add_loose_index_scan_and_skip_scan_keys(this, tab);
 
-    // Perform range analysis if the table has keys that can be used.
-    Table_ref *const tl = tab->table_ref;
-    Item *condition = nullptr;
     /*
-      For an inner table of an outer join, the join condition is either
-      attached to the actual table, or to the embedding join nest.
-      For tables that are inner-joined or semi-joined, the join condition
-      is taken from the WHERE condition.
+      Perform range analysis if there are keys it could use (1).
+      Don't do range analysis if on the inner side of an outer join (2).
+      Do range analysis if on the inner side of a semi-join (3).
+      Do range analysis if embedding a derived table (4).
     */
-    if (tl->is_inner_table_of_outer_join()) {
-      for (Table_ref *t = tl; t != nullptr; t = t->embedding) {
-        if (t->join_cond() != nullptr) {
-          condition = t->join_cond();
-          break;
-        }
-      }
-      assert(condition != nullptr);
-    } else {
-      condition = where_cond;
-    }
-    bool always_false_cond = false, range_analysis_done = false;
-    if (!tab->const_keys.is_clear_all() ||
-        !tab->skip_scan_keys.is_clear_all()) {
+    Table_ref *const tl = tab->table_ref;
+    if ((!tab->const_keys.is_clear_all() ||
+         !tab->skip_scan_keys.is_clear_all()) &&  // (1)
+        (tl->embedding == nullptr ||              // (2)
+         tl->embedding->is_sj_or_aj_nest() ||     // (3)
+         tl->embedding->is_derived()))            // (4)
+    {
+      Item *condition = nullptr;
+      bool embedding_derived_range = false;
       /*
-        This call fills tab->range_scan() with the best range access method
+        For an inner table of an outer join, the join condition is either
+        attached to the actual table, or to the embedding join nest.
+        For tables that are inner-joined or semi-joined, the join condition
+        is taken from the WHERE condition.
+      */
+      if (tl->is_inner_table_of_outer_join()) {
+        for (Table_ref *t = tl; t != nullptr; t = t->embedding) {
+          if (t->join_cond() != nullptr) {
+            condition = t->join_cond();
+            // true if the join condition is from a derived embedding table
+            embedding_derived_range = (t != tl && t->is_derived());
+            break;
+          }
+        }
+        assert(condition != nullptr);
+      } else {
+        condition = where_cond;
+      }
+      /*
+        This call fills tab->range_scan() with the best QUICK access method
         possible for this table, and only if it's better than table scan.
         It also fills tab->needed_reg.
       */
       ha_rows records = get_quick_record_count(thd, tab, row_limit, condition);
 
       if (records == 0 && thd->is_error()) return true;
-      if (records == 0 && tab->table()->reginfo.impossible_range)
-        always_false_cond = true;
+
+      /*
+        Check for "always false" and mark table as "const". Skip
+        "const" marking (i) of semi-joined tables (only semi-joined
+        tables that are functionally dependent can be marked "const",
+        and subsequently pulled out of their semi-join nests (ii) if
+        the condition used for the range check is of the embedding
+        derived table.
+      */
+      if (records == 0 && tab->table()->reginfo.impossible_range &&
+          (!(tl->embedding && tl->embedding->is_sj_or_aj_nest())) &&
+          !embedding_derived_range) {
+        /*
+          Impossible WHERE condition or join condition
+          In case of join cond, mark that one empty NULL row is matched.
+          In case of WHERE, don't set found_const_table_map to get the
+          caller to abort with a zero row result.
+        */
+        mark_const_table(tab, nullptr);
+        tab->set_type(JT_CONST);  // Override setting made in mark_const_table()
+        if (tab->join_cond()) {
+          // Generate an empty row
+          trace_table.add("returning_empty_null_row", true)
+              .add_alnum("cause", "impossible_on_condition");
+          found_const_table_map |= tl->map();
+          tab->table()->set_null_row();  // All fields are NULL
+        } else {
+          trace_table.add("rows", 0).add_alnum("cause",
+                                               "impossible_where_condition");
+        }
+      }
       if (records != HA_POS_ERROR) {
         tab->found_records = records;
         tab->read_time = tab->range_scan() ? tab->range_scan()->cost : 0.0;
       }
-      range_analysis_done = true;
-    } else if (tab->join_cond() != nullptr && tab->join_cond()->const_item() &&
-               tab->join_cond()->val_int() == 0) {
-      always_false_cond = true;
-    }
-
-    /*
-      Check for "always false" and mark table as "const".
-      Exclude outer-joined tables unless the table is the single outer-joined
-      table in the query block (this also eliminates tables inside
-      outer-joined derived tables).
-      Exclude semi-joined and anti-joined tables (only those tables that are
-      functionally dependent can be marked "const", and subsequently pulled
-      out of their semi-join nests).
-    */
-    if (always_false_cond &&
-        (!tl->is_inner_table_of_outer_join() || tl->embedding == nullptr) &&
-        (!(tl->embedding != nullptr && tl->embedding->is_sj_or_aj_nest()))) {
-      /*
-        Always false WHERE condition or (outer) join condition.
-        In case of outer join, mark that one empty NULL row is matched.
-        In case of WHERE, don't set found_const_table_map to get the
-        caller to abort with a zero row result.
-      */
-      mark_const_table(tab, nullptr);
-      tab->set_type(JT_CONST);  // Override setting made in mark_const_table()
-      if (tab->join_cond() != nullptr) {
-        // Generate an empty row
-        trace_table.add("returning_empty_null_row", true)
-            .add_alnum("cause", "always_false_outer_join_condition");
-        found_const_table_map |= tl->map();
-        tab->table()->set_null_row();  // All fields are NULL
-      } else {
-        trace_table.add("rows", 0).add_alnum("cause",
-                                             "impossible_where_condition");
-      }
-    } else if (!range_analysis_done) {
+    } else {
       Opt_trace_object(trace, "table_scan")
           .add("rows", tab->found_records)
           .add("cost", tab->read_time);
     }
   }
+
   return false;
 }
 
@@ -8822,7 +8831,7 @@ static Item *part_of_refkey(TABLE *table, Index_lookup *ref,
 }
 
 bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
-                                    bool can_evaluate, bool *subsumes) {
+                                    bool *subsumes) {
   *subsumes = false;
   right_item = right_item->real_item();
   if (right_item->type() == Item::FIELD_ITEM) {
@@ -8834,10 +8843,8 @@ bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
     return false;
   }
   bool right_is_null = true;
-  if (can_evaluate) {
-    assert(evaluate_during_optimization(right_item,
-                                        thd->lex->current_query_block()));
-    right_is_null = right_item->is_nullable() && right_item->is_null();
+  if (right_item->const_for_execution()) {
+    right_is_null = right_item->is_null();
     if (thd->is_error()) return true;
   }
   if (!right_is_null) {
@@ -8876,7 +8883,6 @@ bool ref_lookup_subsumes_comparison(THD *thd, Field *field, Item *right_item,
         !(field->type() == MYSQL_TYPE_FLOAT && field->decimals() > 0))  // 2
     {
       *subsumes = !right_item->save_in_field_no_warnings(field, true);
-      if (thd->is_error()) return true;
     }
   }
   return false;
@@ -8922,9 +8928,7 @@ static bool test_if_ref(THD *thd, Item_field *left_item, Item *right_item,
       (join_tab->type() != JT_REF_OR_NULL)) {
     Item *ref_item = part_of_refkey(field->table, &join_tab->ref(), field);
     if (ref_item != nullptr && ref_item->eq(right_item, true)) {
-      if (ref_lookup_subsumes_comparison(thd, field, right_item,
-                                         right_item->const_for_execution(),
-                                         redundant)) {
+      if (ref_lookup_subsumes_comparison(thd, field, right_item, redundant)) {
         return true;
       }
     }
@@ -11639,31 +11643,4 @@ double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
       });
 
   return rows;
-}
-
-bool IsHashEquijoinCondition(const Item_eq_base *item, table_map left_side,
-                             table_map right_side) {
-  // We are not able to create hash join conditions from row values consisting
-  // of multiple columns, so let them be added as extra conditions instead.
-  if (item->get_comparator()->get_child_comparator_count() > 1) {
-    return false;
-  }
-
-  table_map left_arg_tables = item->get_arg(0)->used_tables();
-  table_map right_arg_tables = item->get_arg(1)->used_tables();
-
-  // The equality is commutative. If the left side of the equality doesn't
-  // reference any table on the left side of the join, swap left and right to
-  // see if it's satisfied the other way around.
-  if (!Overlaps(left_arg_tables, left_side)) {
-    std::swap(left_arg_tables, right_arg_tables);
-  }
-
-  // One side of the equality should reference tables on one side of the join,
-  // and the other side of the equality should reference the other side of the
-  // join.
-  return Overlaps(left_arg_tables, left_side) &&
-         !Overlaps(left_arg_tables, right_side) &&
-         Overlaps(right_arg_tables, right_side) &&
-         !Overlaps(right_arg_tables, left_side);
 }

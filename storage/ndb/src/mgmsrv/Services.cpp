@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <ndb_global.h>
 
+#include <socket_io.h>
 #include <util/version.h>
 #include <mgmapi.h>
 #include <EventLogger.hpp>
@@ -348,17 +349,13 @@ extern int g_errorInsert;
 
 #define SLEEP_ERROR_INSERTED(x) if(ERROR_INSERTED(x)){NdbSleep_SecSleep(10);}
 
-MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, ndb_socket_t sock,
-                             Uint64 session_id)
-  : SocketServer::Session(sock),
-    m_mgmsrv(mgm),
-    m_session_id(session_id),
-    m_name("unknown:0")
+MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, ndb_socket_t sock, Uint64 session_id)
+  : SocketServer::Session(sock), m_mgmsrv(mgm),
+    m_session_id(session_id), m_name("unknown:0")
 {
   DBUG_ENTER("MgmApiSession::MgmApiSession");
-  m_secure_socket.init_from_new(sock);
-  m_input = new SecureSocketInputStream(m_secure_socket, SOCKET_TIMEOUT);
-  m_output = new BufferedSecureOutputStream(m_secure_socket, SOCKET_TIMEOUT);
+  m_input = new SocketInputStream(sock, SOCKET_TIMEOUT);
+  m_output = new BufferedSockOutputStream(sock, SOCKET_TIMEOUT);
   m_parser = new Parser_t(commands, *m_input);
   m_stopSelf= 0;
   m_ctx= NULL;
@@ -394,10 +391,10 @@ MgmApiSession::~MgmApiSession()
     delete m_output;
   if (m_parser)
     delete m_parser;
-  if(m_secure_socket.is_valid())
+  if(ndb_socket_valid(m_socket))
   {
-    m_secure_socket.close();
-    m_secure_socket.invalidate();
+    ndb_socket_close(m_socket);
+    ndb_socket_invalidate(&m_socket);
   }
   if(m_stopSelf < 0)
     g_RestartServer= true;
@@ -489,10 +486,10 @@ MgmApiSession::runSession()
 
   NdbMutex_Lock(m_mutex);
   m_ctx= NULL;
-  if(m_secure_socket.is_valid())
+  if(ndb_socket_valid(m_socket))
   {
-    m_secure_socket.close();
-    m_secure_socket.invalidate();
+    ndb_socket_close(m_socket);
+    ndb_socket_invalidate(&m_socket);
   }
   NdbMutex_Unlock(m_mutex);
 
@@ -557,7 +554,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 
   struct sockaddr_in6 client_addr;
   {
-    int r = ndb_getpeername(m_secure_socket.ndb_socket(), &client_addr);
+    int r = ndb_getpeername(m_socket, &client_addr);
     if (r != 0 )
     {
       m_output->println("result: getpeername() failed, err= %d",
@@ -1794,7 +1791,7 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
 
   Ndb_mgmd_event_service::Event_listener le;
   le.m_parsable = parsable;
-  le.m_socket = m_secure_socket.ndb_socket();
+  le.m_socket = m_socket;
 
   Vector<BaseString> list;
   param.trim();
@@ -1860,7 +1857,7 @@ done:
   {
     m_mgmsrv.m_event_listner.add_listener(le);
     m_stop = true;
-    m_secure_socket.invalidate();
+    ndb_socket_invalidate(&m_socket);
   }
 }
 
@@ -1893,22 +1890,17 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
 				   Properties const &args)
 {
   bool close_with_reset = true;
-  bool log_failure = false;
   BaseString errormsg;
-  if (!m_mgmsrv.transporter_connect(m_secure_socket.ndb_socket(), errormsg,
-                                    close_with_reset, log_failure))
+  if (!m_mgmsrv.transporter_connect(m_socket, errormsg, close_with_reset))
   {
     // Connection not allowed or failed
-    if (log_failure)
-    {
-      g_eventLogger->warning("Failed to convert connection "
-                             "from '%s' to transporter: %s",
-                             name(),
-                             errormsg.c_str());
-    }
+    g_eventLogger->warning("Failed to convert connection "
+                           "from '%s' to transporter: %s",
+                           name(),
+                           errormsg.c_str());
     // Close the socket to indicate failure to client
-    m_secure_socket.close_with_reset(close_with_reset);
-    m_secure_socket.invalidate(); // Already closed
+    ndb_socket_close_with_reset(m_socket, close_with_reset);
+    ndb_socket_invalidate(&m_socket); // Already closed
   }
   else
   {
@@ -1918,7 +1910,7 @@ MgmApiSession::transporter_connect(Parser_t::Context &ctx,
       but don't close the socket, it's been taken over
       by the transporter
     */
-    m_secure_socket.invalidate();  // so nobody closes it
+    ndb_socket_invalidate(&m_socket);   // so nobody closes it
   }
 
   m_stop= true; // Stop the session
@@ -2224,9 +2216,10 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx,
     int r = 0;
     size_t start = 0;
     do {
-      if((r= m_secure_socket.read(SOCKET_TIMEOUT,
-                                  &buf64[start],
-                                  (int)(len64-start))) < 1)
+      if((r= read_socket(m_socket,
+                         SOCKET_TIMEOUT,
+                         &buf64[start],
+                         (int)(len64-start))) < 1)
       {
         delete[] buf64;
         result.assfmt("read_socket failed, errno: %d", errno);

@@ -1,5 +1,0 @@
-!include suite/ndb_binlog/my.cnf
-
-[mysqld]
-ndb-log-transaction-dependency=ON
-binlog-transaction-dependency-tracking=WRITESET

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,19 +22,57 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "common.h"
+#include <cassert>
+#include <cstring>
+#include <fstream>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <system_error>
 
+#include "common.h"
 #include "harness_assert.h"
+
+#include "my_thread.h"
+
+#ifndef _WIN32
+#include <pthread.h>
+#include <sys/stat.h>
+#endif
 
 namespace mysql_harness {
 
-std::string truncate_string(const std::string &str, size_t max_len) {
+static inline const std::string &truncate_string_backend(
+    const std::string &input, std::string &output, size_t max_len) {
+  // to keep code simple, we don't support unlikely use cases
+  harness_assert(
+      max_len >=
+      6);  // 3 (to fit the first 3 chars) + 3 (to fit "..."), allowing:
+           // "foo..."
+           // ^--- arbitrarily-reasonable number, could be even 0 if we wanted
+
   // no truncation needed, so just return the original
-  if (str.size() <= max_len) return str;
+  if (input.size() <= max_len) return input;
 
-  if (max_len < 3) return str.substr(0, max_len);
+  // we truncate and overwrite last three characters with "..."
+  // ("foobarbaz" becomes "foobar...")
+  output.assign(input, 0, max_len);
+  output[max_len - 3] = '.';
+  output[max_len - 2] = '.';
+  output[max_len - 1] = '.';
+  return output;
+}
 
-  return str.substr(0, max_len - 3).append("...");
+const std::string &truncate_string(const std::string &input,
+                                   size_t max_len /*= 80*/) {
+  thread_local std::string output;
+  return truncate_string_backend(input, output, max_len);
+}
+
+std::string truncate_string_r(const std::string &input,
+                              size_t max_len /*= 80*/) {
+  std::string output;
+  return truncate_string_backend(input, output, max_len);
 }
 
 }  // namespace mysql_harness

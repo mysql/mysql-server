@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,10 +67,9 @@ static double getopt_double(const char *, bool, const my_option *, int *);
 static void init_variables(const struct my_option *, init_func_p);
 static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
-static int setval(const struct my_option *, void *, const char *, bool, bool);
+static int setval(const struct my_option *, void *, const char *, bool);
 static void setval_source(const struct my_option *, void *);
 static char *check_struct_option(char *cur_arg, char *key_name);
-static bool get_bool_int_argument(const char *argument, bool *error);
 
 /*
   The following three variables belong to same group and the number and
@@ -236,32 +235,13 @@ double getopt_ulonglong2double(ulonglong v) {
   @param [in] ignore_unknown_option When set to true, options are continued to
                                     be read even when unknown options are
                                     encountered.
-  @param [in] boolean_as_int        Parse boolean as integer value.
-                                    Mimic the logic of parsing booleans at
-  runtime: Instead of parsing
-  @code
-  bool_val = (str_val == '1' || str_val = 'ON') ?
-                true :
-                (str_val == '0' || str_val = 'OFF') ?
-                  false :
-                  false;
-  @endcode
-  do:
-  @code
-  bool_val == (str_val == 'OFF') ?
-                false :
-                ((str_val == 'ON') ?
-                  true :
-                  atoi(str_val) != 0)
-  @endcode
+
   @return error in case of ambiguous or unknown options,
           0 on success.
 */
-int my_handle_options2(int *argc, char ***argv,
-                       const struct my_option *longopts,
-                       my_get_one_option get_one_option,
-                       const char **command_list, bool ignore_unknown_option,
-                       bool boolean_as_int) {
+int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
+                      my_get_one_option get_one_option,
+                      const char **command_list, bool ignore_unknown_option) {
   uint argvpos = 0, length;
   bool end_of_options = false, must_be_var, set_maximum_value, option_is_loose;
   char **pos, **pos_end, *optend, *opt_str, key_name[FN_REFLEN];
@@ -386,10 +366,7 @@ int my_handle_options2(int *argc, char ***argv,
 
           if (!is_key_cache_variable_suffix(tmp_name.c_str())) {
             opt_str = cur_arg;
-            if (optend)
-              length = (uint)((optend - opt_str) - 1);
-            else
-              length = strlen(opt_str);
+            length = (uint)((optend - opt_str) - 1);
           }
         }
         /*
@@ -514,8 +491,7 @@ int my_handle_options2(int *argc, char ***argv,
             else {
               bool ret = false;
               bool error = false;
-              ret = boolean_as_int ? get_bool_int_argument(optend, &error)
-                                   : get_bool_argument(optend, &error);
+              ret = get_bool_argument(optend, &error);
               if (error) {
                 my_getopt_error_reporter(WARNING_LEVEL,
                                          EE_OPTION_IGNORED_DUE_TO_INVALID_VALUE,
@@ -605,8 +581,8 @@ int my_handle_options2(int *argc, char ***argv,
                 }
               }
               int error;
-              if ((error = setval(optp, optp->value, argument,
-                                  set_maximum_value, boolean_as_int)))
+              if ((error =
+                       setval(optp, optp->value, argument, set_maximum_value)))
                 return error;
               if (get_one_option && get_one_option(optp->id, optp, argument))
                 return EXIT_UNSPECIFIED_ERROR;
@@ -647,8 +623,7 @@ int my_handle_options2(int *argc, char ***argv,
         continue;
       }
       int error;
-      if ((error = setval(optp, value, argument, set_maximum_value,
-                          boolean_as_int)))
+      if ((error = setval(optp, value, argument, set_maximum_value)))
         return error;
       if (get_one_option && get_one_option(optp->id, optp, argument))
         return EXIT_UNSPECIFIED_ERROR;
@@ -682,13 +657,6 @@ done:
   */
   (*argv)[argvpos] = nullptr;
   return 0;
-}
-
-int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
-                      my_get_one_option get_one_option,
-                      const char **command_list, bool ignore_unknown_option) {
-  return my_handle_options2(argc, argv, longopts, get_one_option, command_list,
-                            ignore_unknown_option, false);
 }
 
 /**
@@ -772,35 +740,6 @@ bool get_bool_argument(const char *argument, bool *error) {
 }
 
 /**
-   Parse a boolean command line argument as the SQL interpreter does
-
-   "ON" and "TRUE" will return true,
-   "OFF" and FALSE" will return false;
-
-   Non-zero numeric values will return true, zero will return false.
-
-   @param argument The value argument
-   @param [out] error Error indicator
-   @return boolean value
-*/
-
-static bool get_bool_int_argument(const char *argument, bool *error) {
-  if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
-      !my_strcasecmp(&my_charset_latin1, argument, "on"))
-    return true;
-
-  if (!my_strcasecmp(&my_charset_latin1, argument, "false") ||
-      !my_strcasecmp(&my_charset_latin1, argument, "off"))
-    return false;
-
-  if (!strchr("0123456789+-", argument[0])) {
-    *error = true;
-    return false;
-  }
-  return atoi(argument) != 0;
-}
-
-/**
   Will set the source and file name from where this options is set in
   my_option struct.
 */
@@ -815,8 +754,7 @@ static void setval_source(const struct my_option *opts, void *value) {
 */
 
 static int setval(const struct my_option *opts, void *value,
-                  const char *argument, bool set_maximum_value,
-                  bool boolean_as_int) {
+                  const char *argument, bool set_maximum_value) {
   int err = 0, res = 0;
   ulong var_type = opts->var_type & GET_TYPE_MASK;
 
@@ -854,9 +792,7 @@ static int setval(const struct my_option *opts, void *value,
     switch (var_type) {
       case GET_BOOL: /* If argument differs from 0, enable option, else disable
                       */
-        *((bool *)value) = boolean_as_int
-                               ? get_bool_int_argument(argument, &error)
-                               : get_bool_argument(argument, &error);
+        *((bool *)value) = get_bool_argument(argument, &error);
         if (error)
           my_getopt_error_reporter(WARNING_LEVEL,
                                    EE_INCORRECT_BOOLEAN_VALUE_FOR_OPTION,

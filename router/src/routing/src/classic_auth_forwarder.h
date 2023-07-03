@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,16 +25,23 @@
 #ifndef ROUTING_CLASSIC_AUTH_FORWARDER_INCLUDED
 #define ROUTING_CLASSIC_AUTH_FORWARDER_INCLUDED
 
-#include "forwarding_processor.h"
+#include <memory>  // unique_ptr
+#include <string_view>
+#include <system_error>
+
+#include <openssl/ssl.h>
+
+#include "classic_connection.h"
+#include "mysql/harness/stdx/expected.h"
 
 /**
  * forward authentication between a client and server.
  *
  * started from the server after AuthSwitch
  */
-class AuthForwarder : public ForwardingProcessor {
+class AuthForwarder : public Processor {
  public:
-  using ForwardingProcessor::ForwardingProcessor;
+  using Processor::Processor;
 
   enum class Stage {
     Init,

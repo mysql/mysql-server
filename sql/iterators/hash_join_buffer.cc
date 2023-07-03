@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,8 +155,9 @@ bool HashJoinRowBuffer::Init() {
   return false;
 }
 
-StoreRowResult HashJoinRowBuffer::StoreRow(THD *thd,
-                                           bool reject_duplicate_keys) {
+StoreRowResult HashJoinRowBuffer::StoreRow(
+    THD *thd, bool reject_duplicate_keys,
+    bool store_rows_with_null_in_condition) {
   bool full = false;
 
   // Make the key from the join conditions.
@@ -172,12 +173,9 @@ StoreRowResult HashJoinRowBuffer::StoreRow(THD *thd,
       return StoreRowResult::FATAL_ERROR;
     }
 
-    if (null_in_join_condition) {
-      // One of the components of the join key had a NULL value, and
-      // that component was part of an equality predicate (=), *not* a
-      // NULL-safe equality predicate, so it can never match a row in
-      // the other table. There's no need to store the row in the hash
-      // table. Skip it.
+    if (null_in_join_condition && !store_rows_with_null_in_condition) {
+      // SQL NULL values will never match in an inner join or semijoin, so skip
+      // the row.
       return StoreRowResult::ROW_STORED;
     }
   }

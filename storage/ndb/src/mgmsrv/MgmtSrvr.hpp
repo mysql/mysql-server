@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -357,8 +357,7 @@ public:
 
   bool transporter_connect(ndb_socket_t sockfd,
                            BaseString& errormsg,
-                           bool& close_with_reset,
-                           bool& log_failure);
+                           bool& close_with_reset);
 
   SocketServer *get_socket_server() { return &m_socket_server; }
 

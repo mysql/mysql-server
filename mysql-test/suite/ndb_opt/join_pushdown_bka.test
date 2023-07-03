@@ -13,8 +13,6 @@ if (!`select locate('batched_key_access', @@global.optimizer_switch) > 0`)
   skip Need batched_key_access;
 }
 
---source ../../include/elide_costs.inc
-
 set @@global.optimizer_switch='batched_key_access=on';
 
 --source join_pushdown.inc
@@ -59,7 +57,7 @@ SELECT * FROM f AS table2
   STRAIGHT_JOIN p AS table4 ON table4.col_int IS NULL
                            AND table4.col_int_unique = table2.col_int_key;
 
---replace_regex $elide_costs_and_rows
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -70,7 +68,7 @@ SELECT * FROM f AS table2
   STRAIGHT_JOIN p AS table4 ON table4.col_int = 1
                            AND table4.col_int_unique = table2.col_int_key;
 
---replace_regex $elide_costs_and_rows
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -82,7 +80,7 @@ let $query=
 SELECT * FROM f AS table2
   STRAIGHT_JOIN p AS table4 ON table4.col_int <=> table2.col_int_key
                            AND table4.col_int_unique = table2.col_int_key;
---replace_regex $elide_costs_and_rows
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -91,7 +89,7 @@ let $query=
 SELECT * FROM f AS table2
   STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
                            AND table4.col_int_unique <=> table2.col_int_key;
---replace_regex $elide_costs_and_rows
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -100,7 +98,7 @@ let $query=
 SELECT * FROM f AS table2
   STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
                            AND table4.col_int_unique = table2.col_int_key;
---replace_regex $elide_costs_and_rows
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;

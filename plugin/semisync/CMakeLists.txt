@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2022, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Repl")
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="semisync")
-MSVC_CPPCHECK_DISABLE()
 
 DISABLE_MISSING_PROFILE_WARNING()
 
@@ -35,7 +34,6 @@ MYSQL_ADD_PLUGIN(semisync_source
   MODULE_ONLY
   MODULE_OUTPUT_NAME "semisync_source"
   VISIBILITY_HIDDEN
-  LINK_LIBRARIES extra::rapidjson
   )
 
 MYSQL_ADD_PLUGIN(semisync_replica
@@ -45,7 +43,6 @@ MYSQL_ADD_PLUGIN(semisync_replica
   MODULE_ONLY
   MODULE_OUTPUT_NAME "semisync_replica"
   VISIBILITY_HIDDEN
-  LINK_LIBRARIES extra::rapidjson
   )
 
 MYSQL_ADD_PLUGIN(semisync_master
@@ -56,7 +53,6 @@ MYSQL_ADD_PLUGIN(semisync_master
   MODULE_ONLY
   MODULE_OUTPUT_NAME "semisync_master"
   VISIBILITY_HIDDEN
-  LINK_LIBRARIES extra::rapidjson
   )
 
 MYSQL_ADD_PLUGIN(semisync_slave
@@ -66,5 +62,4 @@ MYSQL_ADD_PLUGIN(semisync_slave
   MODULE_ONLY
   MODULE_OUTPUT_NAME "semisync_slave"
   VISIBILITY_HIDDEN
-  LINK_LIBRARIES extra::rapidjson
   )

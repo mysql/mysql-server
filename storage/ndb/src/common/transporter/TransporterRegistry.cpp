@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@
 #include "NdbSpin.h"
 #include "InputStream.hpp"
 #include "OutputStream.hpp"
+#include "socket_io.h"
 #include "portlib/NdbTCP.h"
 
 #include <mgmapi/mgmapi.h>
@@ -114,32 +115,25 @@ TransporterRegistry::get_bytes_received(NodeId node_id) const
 
 SocketServer::Session * TransporterService::newSession(ndb_socket_t sockfd)
 {
-  /* The connection is currently running over a plain network socket.
-     If m_auth is a TlsAuthenticator, it might get upgraded to a TLS socket
-     in server_authenticate().
-  */
-  NdbSocket secureSocket;
-  secureSocket.init_from_new(sockfd);
-
   DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
   DEBUG_FPRINTF((stderr, "New session created\n"));
-  if (m_auth && !m_auth->server_authenticate(secureSocket))
+  if (m_auth && !m_auth->server_authenticate(sockfd))
   {
     DEBUG_FPRINTF((stderr, "Failed to authenticate new session\n"));
-    secureSocket.close_with_reset(true); // Close with reset
+    ndb_socket_close_with_reset(sockfd, true); // Close with reset
     DBUG_RETURN(0);
   }
 
   BaseString msg;
   bool close_with_reset = true;
   bool log_failure = false;
-  if (!m_transporter_registry->connect_server(secureSocket,
+  if (!m_transporter_registry->connect_server(sockfd,
                                               msg,
                                               close_with_reset,
                                               log_failure))
   {
     DEBUG_FPRINTF((stderr, "New session failed in connect_server\n"));
-    secureSocket.close_with_reset(close_with_reset);
+    ndb_socket_close_with_reset(sockfd, close_with_reset);
     if (log_failure)
     {
       g_eventLogger->warning("TR : %s", msg.c_str());
@@ -475,7 +469,7 @@ TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
 }
 
 bool
-TransporterRegistry::connect_server(NdbSocket & socket,
+TransporterRegistry::connect_server(ndb_socket_t sockfd,
                                     BaseString & msg,
                                     bool& close_with_reset,
                                     bool& log_failure)
@@ -486,7 +480,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
 
   // Read "hello" that consists of node id and other info
   // from client
-  SecureSocketInputStream s_input(socket);
+  SocketInputStream s_input(sockfd);
   char buf[256]; // <int> <int> <int> <int> <..expansion..>
   if (s_input.gets(buf, sizeof(buf)) == nullptr) {
     /* Could be spurious connection, need not log */
@@ -747,7 +741,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
     */
 
     // Avoid TIME_WAIT on server by requesting client to close connection
-    SecureSocketOutputStream s_output(socket);
+    SocketOutputStream s_output(sockfd);
     if (s_output.println("BYE") < 0)
     {
       // Failed to request client close
@@ -757,7 +751,8 @@ TransporterRegistry::connect_server(NdbSocket & socket,
 
     // Wait for to close connection by reading EOF(i.e read returns 0)
     const int read_eof_timeout = 1000; // Fairly short timeout
-    if (socket.read(read_eof_timeout, buf, sizeof(buf)) == 0)
+    if (read_socket(sockfd, read_eof_timeout,
+                    buf, sizeof(buf)) == 0)
     {
       // Client gracefully closed connection, turn off close_with_reset
       close_with_reset = false;
@@ -769,7 +764,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
   }
 
   // Send reply to client
-  SecureSocketOutputStream s_output(socket);
+  SocketOutputStream s_output(sockfd);
   if (s_output.println("%d %d", t->getLocalNodeId(), t->m_type) < 0)
   {
     /* Strange, log it */
@@ -783,7 +778,7 @@ TransporterRegistry::connect_server(NdbSocket & socket,
   // Setup transporter (transporter responsible for closing sockfd)
   DEBUG_FPRINTF((stderr, "connect_server for trp_id %u\n",
                  t->getTransporterIndex()));
-  DBUG_RETURN(t->connect_server(socket, msg));
+  DBUG_RETURN(t->connect_server(sockfd, msg));
 }
 
 void

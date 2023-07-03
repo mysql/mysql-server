@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include <mgmapi_internal.h>
 #include <mgmapi_debug.h>
 #include "mgmapi_configuration.hpp"
+#include <socket_io.h>
 #include <version.h>
 
 #include <NdbOut.hpp>
@@ -84,9 +85,12 @@
 class ParserDummy : private SocketServer::Session 
 {
 public:
-  ParserDummy(const NdbSocket & sock) :
-    SocketServer::Session(sock.ndb_socket()) {}
+  ParserDummy(ndb_socket_t sock);
 };
+
+ParserDummy::ParserDummy(ndb_socket_t sock) : SocketServer::Session(sock)
+{
+}
 
 typedef Parser<ParserDummy> Parser_t;
 
@@ -101,8 +105,9 @@ struct ndb_mgm_handle {
   char last_error_desc[NDB_MGM_MAX_ERR_DESC_SIZE];
   unsigned int timeout;
 
+  ndb_socket_t socket;
+
   LocalConfig cfg;
-  NdbSocket socket;
 
 #ifdef MGMAPI_LOG
   FILE* logfile;
@@ -244,6 +249,7 @@ ndb_mgm_create_handle()
   h->connected       = 0;
   h->last_error      = 0;
   h->last_error_line = 0;
+  ndb_socket_initialize(&(h->socket));
   h->timeout         = 60000;
   h->cfg_i           = -1;
   h->errstream       = stdout;
@@ -256,7 +262,6 @@ ndb_mgm_create_handle()
 
   new (&(h->cfg)) LocalConfig;
   h->cfg.init(nullptr, nullptr);
-  new (&(h->socket)) NdbSocket;
 
 #ifdef MGMAPI_LOG
   h->logfile = 0;
@@ -487,9 +492,9 @@ ndb_mgm_call(NdbMgmHandle handle,
 {
   DBUG_ENTER("ndb_mgm_call");
   DBUG_PRINT("enter",("handle->socket: %s, cmd: %s",
-                      handle->socket.to_string().c_str(), cmd));
-  SecureSocketOutputStream out(handle->socket, handle->timeout);
-  SecureSocketInputStream in(handle->socket, handle->timeout);
+                      ndb_socket_to_string(handle->socket).c_str(), cmd));
+  SocketOutputStream out(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
 
   out.println("%s", cmd);
 #ifdef MGMAPI_LOG
@@ -673,11 +678,11 @@ int ndb_mgm_is_connected(NdbMgmHandle handle)
 
   if(handle->connected)
   {
-    if(handle->socket.check_hup())
+    if(Ndb_check_socket_hup(handle->socket))
     {
       handle->connected= 0;
-      handle->socket.close();
-      handle->socket.invalidate();
+      ndb_socket_close(handle->socket);
+      ndb_socket_invalidate(&handle->socket);
     }
   }
   return handle->connected;
@@ -966,7 +971,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   }
   handle->cfg_i = i;
   
-  handle->socket.init_from_new(sockfd);
+  handle->socket    = sockfd;
   handle->connected = 1;
 
   // Version of the connected ndb_mgmd is not yet known
@@ -986,7 +991,7 @@ extern "C"
 socket_t
 ndb_mgm_get_fd(NdbMgmHandle handle)
 {
-  return handle->socket.native_socket();
+  return ndb_socket_get_native(handle->socket);
 }
 
 /**
@@ -994,11 +999,12 @@ ndb_mgm_get_fd(NdbMgmHandle handle)
  * Should be used internally only.
  * e.g. on timeout, we leave NdbMgmHandle disconnected
  */
+extern "C"
 int
 ndb_mgm_disconnect_quiet(NdbMgmHandle handle)
 {
-  handle->socket.close();
-  handle->socket.invalidate();
+  ndb_socket_close(handle->socket);
+  ndb_socket_invalidate(&(handle->socket));
   handle->connected = 0;
 
   return 0;
@@ -1282,8 +1288,8 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
     }
   }
   
-  SecureSocketOutputStream out(handle->socket, handle->timeout);
-  SecureSocketInputStream in(handle->socket, handle->timeout);
+  SocketOutputStream out(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
 
   const char *get_status_str = "get status";
   out.println("%s", get_status_str);
@@ -1516,8 +1522,8 @@ ndb_mgm_get_status3(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
     }
   }
 
-  SecureSocketOutputStream out(handle->socket, handle->timeout);
-  SecureSocketInputStream in(handle->socket, handle->timeout);
+  SocketOutputStream out(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
 
   const char *get_status_str = "get status";
   out.println("%s", get_status_str);
@@ -2469,23 +2475,19 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
     args.put("filter", tmp.c_str());
   }
 
-  {
-    ndb_mgm_handle * tmp_handle = ndb_mgm_create_handle();
-    tmp_handle->socket.init_from_new(sockfd);
+  ndb_socket_t tmp = handle->socket;
+  handle->socket = sockfd;
 
-    const Properties *reply;
-    reply = ndb_mgm_call(tmp_handle, stat_reply, "listen event", &args);
+  const Properties *reply;
+  reply = ndb_mgm_call(handle, stat_reply, "listen event", &args);
 
-    if(reply == nullptr) {
-      ndb_socket_close(sockfd);
-      CHECK_REPLY(tmp_handle, reply, -1)
-    } else {
-      delete reply;
-      tmp_handle->connected = 0;  // so that destroy_handle() doesn't close it.
-    }
+  handle->socket = tmp;
 
-    ndb_mgm_destroy_handle(&tmp_handle);
+  if(reply == nullptr) {
+    ndb_socket_close(sockfd);
+    CHECK_REPLY(handle, reply, -1);
   }
+  delete reply;
 
   *sock= sockfd;
   DBUG_RETURN(1);
@@ -3017,6 +3019,7 @@ ndb_mgm_abort_backup(NdbMgmHandle handle, unsigned int backupId,
   DBUG_RETURN(0);
 }
 
+extern "C"
 struct ndb_mgm_configuration *
 ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
                            enum ndb_mgm_node_type nodetype, int from_node)
@@ -3113,8 +3116,8 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     int read = 0;
     size_t start = 0;
     do {
-      if((read = handle->socket.read(handle->timeout,
-                                     &buf64[start], (int)(len-start))) < 1) {
+      if((read = read_socket(handle->socket, handle->timeout,
+			     &buf64[start], (int)(len-start))) < 1){
 	delete[] buf64;
 	buf64 = nullptr;
         if(read==0)
@@ -3480,8 +3483,8 @@ ndb_mgm_check_connection(NdbMgmHandle handle)
   DBUG_ENTER("ndb_mgm_check_connection");
   CHECK_HANDLE(handle, -1);
   CHECK_CONNECTED(handle, -1);
-  SecureSocketOutputStream out(handle->socket, handle->timeout);
-  SecureSocketInputStream in(handle->socket, handle->timeout);
+  SocketOutputStream out(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
   char buf[32];
   if (out.println("check connection"))
     goto ndb_mgm_check_connection_error;
@@ -3508,6 +3511,7 @@ ndb_mgm_check_connection_error:
   DBUG_RETURN(-1);
 }
 
+extern "C"
 int
 ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
 				     int node1,
@@ -3550,6 +3554,7 @@ ndb_mgm_set_connection_int_parameter(NdbMgmHandle handle,
   DBUG_RETURN(res);
 }
 
+extern "C"
 int
 ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
 				     int node1,
@@ -3596,6 +3601,7 @@ ndb_mgm_get_connection_int_parameter(NdbMgmHandle handle,
   DBUG_RETURN(res);
 }
 
+extern "C"
 ndb_socket_t
 ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
 {
@@ -3616,15 +3622,8 @@ ndb_mgm_convert_to_transporter(NdbMgmHandle *handle)
     DBUG_RETURN(s);
   }
 
-  if ((*handle)->socket.has_tls())
-  {
-    SET_ERROR(*handle, NDB_MGM_CANNOT_CONVERT_TO_TRANSPORTER, "");
-    ndb_socket_invalidate(&s);
-    DBUG_RETURN(s);
-  }
-
   (*handle)->connected= 0;   // we pretend we're disconnected
-  s= (*handle)->socket.ndb_socket();
+  s= (*handle)->socket;
 
   SocketOutputStream s_output(s, (*handle)->timeout);
   s_output.println("transporter connect");
@@ -3707,12 +3706,12 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
   CHECK_HANDLE(handle, -1);
   CHECK_CONNECTED(handle, -1);
 
-  SecureSocketOutputStream s_output(handle->socket, handle->timeout);
+  SocketOutputStream s_output(handle->socket, handle->timeout);
   const char *end_session_str = "end session";
   s_output.println("%s", end_session_str);
   s_output.println("%s", "");
 
-  SecureSocketInputStream in(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
   char buf[32];
   in.gets(buf, sizeof(buf));
   CHECK_TIMEDOUT_RET(handle, in, s_output, -1, end_session_str);
@@ -3880,6 +3879,7 @@ err:
   DBUG_RETURN(retval);
 }
 
+extern "C"
 int
 ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
 {
@@ -4042,7 +4042,7 @@ int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
 
 ndb_socket_t _ndb_mgm_get_socket(NdbMgmHandle h)
 {
-  return h->socket.ndb_socket();
+  return h->socket;
 }
 
 
@@ -4251,6 +4251,7 @@ set_dynamic_ports_batched(NdbMgmHandle handle, int nodeid,
 }
 
 
+extern "C"
 int
 ndb_mgm_set_dynamic_ports(NdbMgmHandle handle, int nodeid,
                           struct ndb_mgm_dynamic_port* ports,

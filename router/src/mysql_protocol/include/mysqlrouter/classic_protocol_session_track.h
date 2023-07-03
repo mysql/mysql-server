@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@
 
 namespace classic_protocol {
 
-namespace borrowable {
 namespace session_track {
 
 /**
@@ -39,25 +38,19 @@ namespace session_track {
  *
  * used in server::Ok and server::Eof
  */
-template <bool Borrowed>
 class Field {
  public:
-  using string_type =
-      std::conditional_t<Borrowed, std::string_view, std::string>;
+  Field(uint8_t type, std::string data) : type_{type}, data_{std::move(data)} {}
 
-  constexpr Field(uint8_t type, string_type data)
-      : type_{type}, data_{std::move(data)} {}
-
-  constexpr uint8_t type() const noexcept { return type_; }
-  constexpr string_type data() const noexcept { return data_; }
+  uint8_t type() const noexcept { return type_; }
+  std::string data() const noexcept { return data_; }
 
  private:
   uint8_t type_;
-  string_type data_;
+  std::string data_;
 };
 
-template <bool Borrowed>
-inline bool operator==(const Field<Borrowed> &a, const Field<Borrowed> &b) {
+inline bool operator==(const Field &a, const Field &b) {
   return (a.type() == b.type()) && (a.data() == b.data());
 }
 
@@ -66,25 +59,20 @@ inline bool operator==(const Field<Borrowed> &a, const Field<Borrowed> &b) {
  *
  * see: session_track_system_variable
  */
-template <bool Borrowed>
 class SystemVariable {
  public:
-  using string_type =
-      std::conditional_t<Borrowed, std::string_view, std::string>;
-  constexpr SystemVariable(string_type key, string_type value)
+  SystemVariable(std::string key, std::string value)
       : key_{std::move(key)}, value_{std::move(value)} {}
 
-  constexpr string_type key() const noexcept { return key_; }
-  constexpr string_type value() const noexcept { return value_; }
+  std::string key() const noexcept { return key_; }
+  std::string value() const noexcept { return value_; }
 
  private:
-  string_type key_;
-  string_type value_;
+  std::string key_;
+  std::string value_;
 };
 
-template <bool Borrowed>
-inline bool operator==(const SystemVariable<Borrowed> &a,
-                       const SystemVariable<Borrowed> &b) {
+inline bool operator==(const SystemVariable &a, const SystemVariable &b) {
   return (a.key() == b.key()) && (a.value() == b.value());
 }
 
@@ -93,22 +81,17 @@ inline bool operator==(const SystemVariable<Borrowed> &a,
  *
  * see: session_track_schema
  */
-template <bool Borrowed>
 class Schema {
  public:
-  using string_type =
-      std::conditional_t<Borrowed, std::string_view, std::string>;
+  Schema(std::string schema) : schema_{std::move(schema)} {}
 
-  constexpr Schema(string_type schema) : schema_{std::move(schema)} {}
-
-  constexpr string_type schema() const noexcept { return schema_; }
+  std::string schema() const noexcept { return schema_; }
 
  private:
-  string_type schema_;
+  std::string schema_;
 };
 
-template <bool Borrowed>
-inline bool operator==(const Schema<Borrowed> &a, const Schema<Borrowed> &b) {
+inline bool operator==(const Schema &a, const Schema &b) {
   return (a.schema() == b.schema());
 }
 
@@ -140,24 +123,19 @@ constexpr inline bool operator==(const State &a, const State &b) {
  *
  * see: session_track_gtid
  */
-template <bool Borrowed>
 class Gtid {
  public:
-  using string_type =
-      std::conditional_t<Borrowed, std::string_view, std::string>;
-  constexpr Gtid(uint8_t spec, string_type gtid)
-      : spec_{spec}, gtid_{std::move(gtid)} {}
+  Gtid(uint8_t spec, std::string gtid) : spec_{spec}, gtid_{std::move(gtid)} {}
 
-  constexpr uint8_t spec() const noexcept { return spec_; }
-  constexpr string_type gtid() const { return gtid_; }
+  uint8_t spec() const noexcept { return spec_; }
+  std::string gtid() const { return gtid_; }
 
  private:
   uint8_t spec_;
-  string_type gtid_;
+  std::string gtid_;
 };
 
-template <bool Borrowed>
-inline bool operator==(const Gtid<Borrowed> &a, const Gtid<Borrowed> &b) {
+inline bool operator==(const Gtid &a, const Gtid &b) {
   return (a.spec() == b.spec()) && (a.gtid() == b.gtid());
 }
 
@@ -243,53 +221,23 @@ inline bool operator==(const TransactionState &a, const TransactionState &b) {
  *
  * see: session_track_transaction_info
  */
-template <bool Borrowed>
 class TransactionCharacteristics {
  public:
-  using string_type =
-      std::conditional_t<Borrowed, std::string_view, std::string>;
-
-  constexpr TransactionCharacteristics(string_type characteristics)
+  TransactionCharacteristics(std::string characteristics)
       : characteristics_{std::move(characteristics)} {}
 
-  constexpr string_type characteristics() const { return characteristics_; }
+  std::string characteristics() const { return characteristics_; }
 
  private:
-  string_type characteristics_;
+  std::string characteristics_;
 };
 
-template <bool Borrowed>
-inline bool operator==(const TransactionCharacteristics<Borrowed> &a,
-                       const TransactionCharacteristics<Borrowed> &b) {
+inline bool operator==(const TransactionCharacteristics &a,
+                       const TransactionCharacteristics &b) {
   return (a.characteristics() == b.characteristics());
 }
-}  // namespace session_track
-}  // namespace borrowable
 
-namespace borrowed {
-namespace session_track {
-using Field = borrowable::session_track::Field<true>;
-using TransactionCharacteristics =
-    borrowable::session_track::TransactionCharacteristics<true>;
-using TransactionState = borrowable::session_track::TransactionState;
-using SystemVariable = borrowable::session_track::SystemVariable<true>;
-using Schema = borrowable::session_track::Schema<true>;
-using State = borrowable::session_track::State;
-using Gtid = borrowable::session_track::Gtid<true>;
 }  // namespace session_track
-}  // namespace borrowed
-
-namespace session_track {
-using Field = borrowable::session_track::Field<false>;
-using TransactionCharacteristics =
-    borrowable::session_track::TransactionCharacteristics<false>;
-using TransactionState = borrowable::session_track::TransactionState;
-using SystemVariable = borrowable::session_track::SystemVariable<false>;
-using Schema = borrowable::session_track::Schema<false>;
-using State = borrowable::session_track::State;
-using Gtid = borrowable::session_track::Gtid<false>;
-}  // namespace session_track
-
 }  // namespace classic_protocol
 
 #endif

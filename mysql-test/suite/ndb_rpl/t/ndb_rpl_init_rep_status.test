@@ -28,6 +28,7 @@ start slave;
 --connection master
 --sync_slave_with_master
 --connection slave
+--replace_column 3 # 4 # 5 #
 select server_id from mysql.ndb_apply_status order by server_id;
 --source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
 
@@ -40,12 +41,13 @@ start slave;
 --connection master
 --sync_slave_with_master
 --connection slave
+--replace_column 3 # 4 # 5 #
 select server_id from mysql.ndb_apply_status order by server_id;
 --source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
 
 drop table test.t1;
 
---echo Check that reset slave resets Ndb_slave_max_replicated_epoch to zero
+--echo Check that reset slave resets Ndb_slave_max_replicated_epoch
 stop slave;
 --source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
 reset slave;
@@ -65,6 +67,7 @@ start slave;
 --connection master
 --sync_slave_with_master
 --connection slave
+--replace_column 3 # 4 # 5 #
 select server_id from mysql.ndb_apply_status order by server_id;
 --source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
 

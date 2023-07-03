@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -145,6 +145,8 @@
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_user.h"
 
+using std::string;
+
 typedef std::vector<SHOW_VAR> Status_var_array;
 
 /* Number of system variable elements to preallocate. */
@@ -215,7 +217,7 @@ class Status_variable {
         m_charset(nullptr),
         m_initialized(false) {}
 
-  Status_variable(const SHOW_VAR *show_var, System_status_var *status_vars,
+  Status_variable(const SHOW_VAR *show_var, System_status_var *status_array,
                   enum_var_type query_scope);
 
   bool is_null() const { return !m_initialized; }
@@ -231,7 +233,7 @@ class Status_variable {
 
  private:
   bool m_initialized;
-  void init(const SHOW_VAR *show_var, System_status_var *status_vars,
+  void init(const SHOW_VAR *show_var, System_status_var *status_array,
             enum_var_type query_scope);
 };
 
@@ -266,13 +268,13 @@ class PFS_variable_cache {
     Build array of SHOW_VARs from the external variable source.
     Filter using session scope.
   */
-  bool initialize_session();
+  bool initialize_session(void);
 
   /**
     Build array of SHOW_VARs suitable for aggregation by user, host or account.
     Filter using session scope.
   */
-  bool initialize_client_session();
+  bool initialize_client_session(void);
 
   /**
     Build cache of GLOBAL system or status variables.
@@ -318,7 +320,7 @@ class PFS_variable_cache {
   /**
     True if variables have been materialized.
   */
-  bool is_materialized() { return m_materialized; }
+  bool is_materialized(void) { return m_materialized; }
 
   /**
     True if variables have been materialized for given THD.
@@ -392,9 +394,9 @@ class PFS_variable_cache {
   uint size() { return (uint)m_cache.size(); }
 
  private:
-  virtual bool do_initialize_global() { return true; }
-  virtual bool do_initialize_session() { return true; }
-  virtual int do_materialize_global() { return 1; }
+  virtual bool do_initialize_global(void) { return true; }
+  virtual bool do_initialize_session(void) { return true; }
+  virtual int do_materialize_global(void) { return 1; }
   virtual int do_materialize_all(THD *) { return 1; }
   virtual int do_materialize_session(THD *) { return 1; }
   virtual int do_materialize_session(PFS_thread *) { return 1; }
@@ -489,7 +491,7 @@ THD_ptr PFS_variable_cache<Var_type>::get_THD(PFS_thread *pfs_thread) {
   Filter using session scope.
 */
 template <class Var_type>
-bool PFS_variable_cache<Var_type>::initialize_session() {
+bool PFS_variable_cache<Var_type>::initialize_session(void) {
   if (m_initialized) {
     return false;
   }
@@ -502,7 +504,7 @@ bool PFS_variable_cache<Var_type>::initialize_session() {
   Filter using session scope.
 */
 template <class Var_type>
-bool PFS_variable_cache<Var_type>::initialize_client_session() {
+bool PFS_variable_cache<Var_type>::initialize_client_session(void) {
   if (m_initialized) {
     return false;
   }
@@ -606,14 +608,14 @@ class PFS_system_variable_cache : public PFS_variable_cache<System_variable> {
  public:
   explicit PFS_system_variable_cache(bool external_init);
   bool match_scope(int scope);
-  ulonglong get_sysvar_hash_version() { return m_version; }
+  ulonglong get_sysvar_hash_version(void) { return m_version; }
   ~PFS_system_variable_cache() override { free_mem_root(); }
 
  private:
-  bool do_initialize_session() override;
+  bool do_initialize_session(void) override;
 
   /* Global */
-  int do_materialize_global() override;
+  int do_materialize_global(void) override;
   /* Session - THD */
   int do_materialize_session(THD *thd) override;
   /* Session -  PFS_thread */
@@ -630,11 +632,11 @@ class PFS_system_variable_cache : public PFS_variable_cache<System_variable> {
   /* Pointer to temporary mem_root. */
   MEM_ROOT *m_mem_sysvar_ptr;
   /* Allocate and/or assign temporary mem_root. */
-  void set_mem_root();
+  void set_mem_root(void);
   /* Mark all memory blocks as free in temporary mem_root. */
-  void clear_mem_root();
+  void clear_mem_root(void);
   /* Free mem_root memory. */
-  void free_mem_root();
+  void free_mem_root(void);
 
  protected:
   /* Build SHOW_var array. */
@@ -682,7 +684,7 @@ class PFS_status_variable_cache : public PFS_variable_cache<Status_variable> {
   int materialize_host(PFS_host *pfs_host);
   int materialize_account(PFS_account *pfs_account);
 
-  ulonglong get_status_array_version() { return m_version; }
+  ulonglong get_status_array_version(void) { return m_version; }
 
  protected:
   /* Get PFS_user, account or host associated with a PFS_thread. Implemented by
@@ -693,9 +695,9 @@ class PFS_status_variable_cache : public PFS_variable_cache<Status_variable> {
   bool m_show_command;
 
  private:
-  bool do_initialize_session() override;
+  bool do_initialize_session(void) override;
 
-  int do_materialize_global() override;
+  int do_materialize_global(void) override;
   /* Global and Session - THD */
   int do_materialize_all(THD *thd) override;
   int do_materialize_session(THD *thd) override;
@@ -735,11 +737,11 @@ class PFS_status_variable_cache : public PFS_variable_cache<Status_variable> {
 
   /* For the current THD, use initial_status_vars taken from before the query
    * start. */
-  System_status_var *set_status_vars();
+  System_status_var *set_status_vars(void);
 
   /* Build the list of status variables from SHOW_VAR array. */
   void manifest(THD *thd, const SHOW_VAR *show_var_array,
-                System_status_var *status_vars, const char *prefix,
+                System_status_var *status_var_array, const char *prefix,
                 bool nested_array, bool strict);
 };
 
@@ -751,7 +753,7 @@ void sum_account_status(PFS_client *pfs_account,
                         System_status_var *status_totals);
 
 /* Warnings issued if the global system or status variables change mid-query. */
-void system_variable_warning();
-void status_variable_warning();
+void system_variable_warning(void);
+void status_variable_warning(void);
 
 #endif

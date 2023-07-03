@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -502,12 +502,8 @@ std::optional<Destinations> DestMetadataCacheGroup::refresh_destinations(
       auto const *primary_member = dynamic_cast<MetadataCacheDestination *>(
           previous_dests.begin()->get());
 
-      const auto err = primary_member->last_error_code();
-      log_debug("refresh_destinations(): %s:%s", err.category().name(),
-                err.message().c_str());
-
-      if (err == make_error_condition(std::errc::timed_out) ||
-          err == make_error_condition(std::errc::no_such_file_or_directory)) {
+      if (primary_member->last_error_code() ==
+          make_error_condition(std::errc::timed_out)) {
         return std::nullopt;
       }
 

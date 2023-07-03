@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -304,7 +304,7 @@ int table_events_statements_common::make_row_part_1(
     PFS_events_statements *statement, sql_digest_storage *digest) {
   ulonglong timer_end;
 
-  auto *unsafe = (PFS_statement_class *)statement->m_class;
+  PFS_statement_class *unsafe = (PFS_statement_class *)statement->m_class;
   PFS_statement_class *klass = sanitize_statement_class(unsafe);
   if (unlikely(klass == nullptr)) {
     return HA_ERR_RECORD_DELETED;
@@ -394,7 +394,7 @@ int table_events_statements_common::make_row_part_2(
   /*
     Filling up statement digest information.
   */
-  const size_t safe_byte_count = digest->m_byte_count;
+  size_t safe_byte_count = digest->m_byte_count;
   if (safe_byte_count > 0 && safe_byte_count <= pfs_max_digest_length) {
     /* Generate the DIGEST string from the digest */
     DIGEST_HASH_TO_STRING(digest->m_hash, m_row.m_digest.m_digest);
@@ -645,14 +645,14 @@ PFS_engine_table *table_events_statements_current::create(
 table_events_statements_current::table_events_statements_current()
     : table_events_statements_common(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
-void table_events_statements_current::reset_position() {
+void table_events_statements_current::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
 
 int table_events_statements_current::rnd_init(bool) { return 0; }
 
-int table_events_statements_current::rnd_next() {
+int table_events_statements_current::rnd_next(void) {
   PFS_thread *pfs_thread;
   PFS_events_statements *statement;
   bool has_more_thread = true;
@@ -660,8 +660,7 @@ int table_events_statements_current::rnd_next() {
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     pfs_thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (pfs_thread != nullptr) {
-      const uint safe_events_statements_count =
-          pfs_thread->m_events_statements_count;
+      uint safe_events_statements_count = pfs_thread->m_events_statements_count;
 
       if (safe_events_statements_count == 0) {
         /* Display the last top level statement, when completed */
@@ -693,8 +692,7 @@ int table_events_statements_current::rnd_pos(const void *pos) {
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != nullptr) {
-    const uint safe_events_statements_count =
-        pfs_thread->m_events_statements_count;
+    uint safe_events_statements_count = pfs_thread->m_events_statements_count;
 
     if (safe_events_statements_count == 0) {
       /* Display the last top level statement, when completed */
@@ -720,7 +718,7 @@ int table_events_statements_current::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_statements_current::index_next() {
+int table_events_statements_current::index_next(void) {
   PFS_thread *pfs_thread;
   PFS_events_statements *statement;
   bool has_more_thread = true;
@@ -730,7 +728,7 @@ int table_events_statements_current::index_next() {
     if (pfs_thread != nullptr) {
       if (m_opened_index->match(pfs_thread)) {
         do {
-          const uint safe_events_statements_count =
+          uint safe_events_statements_count =
               pfs_thread->m_events_statements_count;
           if (safe_events_statements_count == 0) {
             /* Display the last top level statement, when completed */
@@ -787,12 +785,12 @@ int table_events_statements_current::make_row(
   return table_events_statements_common::make_row_part_2(&digest);
 }
 
-int table_events_statements_current::delete_all_rows() {
+int table_events_statements_current::delete_all_rows(void) {
   reset_events_statements_current();
   return 0;
 }
 
-ha_rows table_events_statements_current::get_row_count() {
+ha_rows table_events_statements_current::get_row_count(void) {
   return global_thread_container.get_row_count() * statement_stack_max;
 }
 
@@ -814,14 +812,14 @@ PFS_engine_table *table_events_statements_history::create(
 table_events_statements_history::table_events_statements_history()
     : table_events_statements_common(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
-void table_events_statements_history::reset_position() {
+void table_events_statements_history::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
 
 int table_events_statements_history::rnd_init(bool) { return 0; }
 
-int table_events_statements_history::rnd_next() {
+int table_events_statements_history::rnd_next(void) {
   PFS_thread *pfs_thread;
   PFS_events_statements *statement;
   bool has_more_thread = true;
@@ -882,7 +880,7 @@ int table_events_statements_history::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_statements_history::index_next() {
+int table_events_statements_history::index_next(void) {
   PFS_thread *pfs_thread;
   PFS_events_statements *statement;
   bool has_more_thread = true;
@@ -946,12 +944,12 @@ int table_events_statements_history::make_row(
   return table_events_statements_common::make_row_part_2(&digest);
 }
 
-int table_events_statements_history::delete_all_rows() {
+int table_events_statements_history::delete_all_rows(void) {
   reset_events_statements_history();
   return 0;
 }
 
-ha_rows table_events_statements_history::get_row_count() {
+ha_rows table_events_statements_history::get_row_count(void) {
   return events_statements_history_per_thread *
          global_thread_container.get_row_count();
 }
@@ -976,14 +974,14 @@ table_events_statements_history_long::table_events_statements_history_long()
       m_pos(0),
       m_next_pos(0) {}
 
-void table_events_statements_history_long::reset_position() {
+void table_events_statements_history_long::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
 int table_events_statements_history_long::rnd_init(bool) { return 0; }
 
-int table_events_statements_history_long::rnd_next() {
+int table_events_statements_history_long::rnd_next(void) {
   PFS_events_statements *statement;
   size_t limit;
 
@@ -1052,11 +1050,11 @@ int table_events_statements_history_long::make_row(
   return table_events_statements_common::make_row_part_2(&digest);
 }
 
-int table_events_statements_history_long::delete_all_rows() {
+int table_events_statements_history_long::delete_all_rows(void) {
   reset_events_statements_history_long();
   return 0;
 }
 
-ha_rows table_events_statements_history_long::get_row_count() {
+ha_rows table_events_statements_history_long::get_row_count(void) {
   return events_statements_history_long_size;
 }

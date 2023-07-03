@@ -11,20 +11,16 @@ if (mysqld.global.changed === undefined) {
   gr_node_host = "[broken]";
 }
 
-var group_replication_members_online = gr_memberships.single_host(
+var group_replication_membership_online = gr_memberships.single_host(
     gr_node_host, [[mysqld.session.port, "ONLINE"]], "uuid");
 
-var cluster_nodes = gr_memberships.single_host_cluster_nodes(
-    gr_node_host, [[mysqld.session.port]], "uuid");
-
 var options = {
-  group_replication_members: group_replication_members_online,
-  innodb_cluster_instances: cluster_nodes,
+  group_replication_membership: group_replication_membership_online,
 };
 
 // first node is PRIMARY
 options.group_replication_primary_member =
-    options.group_replication_members[0][0];
+    options.group_replication_membership[0][0];
 
 var common_responses = common_stmts.prepare_callable_statement_responses(
     [
@@ -38,8 +34,6 @@ var common_responses = common_stmts.prepare_callable_statement_responses(
       "router_select_schema_version",
       "router_select_cluster_type_v2",
       "router_select_metadata_v2_gr",
-      "router_check_member_state",
-      "router_select_members_count",
       "router_select_group_replication_primary_member",
       "router_select_group_membership_with_primary_mode",
       "router_update_last_check_in_v2",

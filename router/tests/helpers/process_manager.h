@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -312,7 +312,6 @@ class ProcessManager {
    * @param wait_for_notify_ready if >=0 time in milliseconds - how long the
    * launching command should wait for the process to notify it is ready.
    * Otherwise the caller does not want to wait for the notification.
-   * @param enable_ssl enable SSL connections to the mock server.
    *
    * @returns handle to the launched process
    */
@@ -322,8 +321,7 @@ class ProcessManager {
       const std::string &module_prefix = "",
       const std::string &bind_address = "0.0.0.0",
       std::chrono::milliseconds wait_for_notify_ready =
-          std::chrono::seconds(30),
-      bool enable_ssl = false);
+          std::chrono::seconds(30));
 
   /**
    * launch mysql_server_mock from cmdline args.
@@ -340,7 +338,7 @@ class ProcessManager {
   std::vector<std::string> mysql_server_mock_cmdline_args(
       const std::string &json_file, uint16_t port, uint16_t http_port = 0,
       uint16_t x_port = 0, const std::string &module_prefix = "",
-      const std::string &bind_address = "0.0.0.0", bool enable_ssl = false);
+      const std::string &bind_address = "0.0.0.0");
 
   /** @brief Launches a process.
    *

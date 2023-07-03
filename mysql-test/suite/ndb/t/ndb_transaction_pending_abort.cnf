@@ -1,3 +1,0 @@
-!include ../my.cnf
-[cluster_config]
-MaxNoOfConcurrentOperations=32K

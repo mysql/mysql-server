@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,11 @@
 #ifndef MGMAPI_SERVICE_HPP
 #define MGMAPI_SERVICE_HPP
 
-#include "util/SocketServer.hpp"
-#include "NdbSleep.h"
-#include "Parser.hpp"
-#include "util/OutputStream.hpp"
-#include "util/InputStream.hpp"
-#include "util/NdbSocket.h"
+#include <SocketServer.hpp>
+#include <NdbSleep.h>
+#include <Parser.hpp>
+#include <OutputStream.hpp>
+#include <InputStream.hpp>
 
 #include "MgmtSrvr.hpp"
 
@@ -41,7 +40,6 @@ class MgmApiSession : public SocketServer::Session
 private:
   typedef Parser<MgmApiSession> Parser_t;
 
-  NdbSocket m_secure_socket;
   class MgmtSrvr & m_mgmsrv;
   InputStream *m_input;
   OutputStream *m_output;

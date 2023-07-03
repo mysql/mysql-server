@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2022, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -54,12 +54,7 @@ ENDIF()
 
 DISABLE_MISSING_PROFILE_WARNING()
 
-IF(SASL_WITHOUT_KERBEROS)
-  MESSAGE(WARNING "Bad custom SASL library")
-  MESSAGE(STATUS
-    "Building authentication_ldap_sasl_client WITHOUT Kerberos")
-  UNSET(LDAP_KERBEROS_LIBS)
-ELSEIF(KERBEROS_FOUND AND (NOT WIN32))
+IF(KERBEROS_FOUND AND (NOT WIN32))
   MESSAGE(STATUS
     "Building authentication_ldap_sasl_client with Kerberos")
   IF(KERBEROS_INCLUDE_DIR)
@@ -84,6 +79,8 @@ MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
   log_client.cc
   LINK_LIBRARIES
   ${SASL_LIBRARY}
+  # Uncomment to verify that all symbols are found.
+  # ${LINK_FLAG_NO_UNDEFINED}
   ${LDAP_KERBEROS_LIBS}
   ${SSL_LIBRARIES}
   ${LIBDL}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -100,12 +100,12 @@ PFS_engine_table *table_esgs_by_thread_by_event_name::create(
   return new table_esgs_by_thread_by_event_name();
 }
 
-int table_esgs_by_thread_by_event_name::delete_all_rows() {
+int table_esgs_by_thread_by_event_name::delete_all_rows(void) {
   reset_events_stages_by_thread();
   return 0;
 }
 
-ha_rows table_esgs_by_thread_by_event_name::get_row_count() {
+ha_rows table_esgs_by_thread_by_event_name::get_row_count(void) {
   return global_thread_container.get_row_count() * stage_class_max;
 }
 
@@ -114,14 +114,14 @@ table_esgs_by_thread_by_event_name::table_esgs_by_thread_by_event_name()
   m_normalizer = time_normalizer::get_stage();
 }
 
-void table_esgs_by_thread_by_event_name::reset_position() {
+void table_esgs_by_thread_by_event_name::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
 
 int table_esgs_by_thread_by_event_name::rnd_init(bool) { return 0; }
 
-int table_esgs_by_thread_by_event_name::rnd_next() {
+int table_esgs_by_thread_by_event_name::rnd_next(void) {
   PFS_thread *thread;
   PFS_stage_class *stage_class;
   bool has_more_thread = true;
@@ -165,7 +165,7 @@ int table_esgs_by_thread_by_event_name::index_init(uint idx [[maybe_unused]],
   return 0;
 }
 
-int table_esgs_by_thread_by_event_name::index_next() {
+int table_esgs_by_thread_by_event_name::index_next(void) {
   PFS_thread *thread;
   PFS_stage_class *stage_class;
   bool has_more_thread = true;

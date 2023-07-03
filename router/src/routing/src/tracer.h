@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+  Copyright (c) 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,8 +50,7 @@ class Tracer {
   using clock_type = std::chrono::steady_clock;
 
   Tracer() = default;
-
-  explicit Tracer(bool enabled) : enabled_{enabled} {
+  Tracer(bool enabled) : enabled_{enabled} {
     if (!enabled_) return;
 
     last_ = start_ = clock_type::now();
@@ -158,8 +157,6 @@ class Tracer {
 
     last_ = now;
   }
-
-  explicit operator bool() const { return enabled_; }
 
  private:
   bool enabled_{false};

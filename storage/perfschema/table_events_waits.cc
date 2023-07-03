@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -252,8 +252,7 @@ int table_events_waits_common::make_table_object_columns(
 
     /* INDEX NAME */
     safe_index = wait->m_index;
-    const uint safe_key_count =
-        sanitize_index_count(safe_table_share->m_key_count);
+    uint safe_key_count = sanitize_index_count(safe_table_share->m_key_count);
     if (safe_index < safe_key_count) {
       PFS_table_share_index *index_stat;
       index_stat = safe_table_share->find_index_stat(safe_index);
@@ -346,8 +345,7 @@ int table_events_waits_common::make_socket_object_columns(
                                     safe_socket->m_addr_len);
 
     /* Convert port number to a string (length includes ':') */
-    const size_t port_len =
-        longlong10_to_str(port, (port_str + 1), 10) - port_str;
+    size_t port_len = longlong10_to_str(port, (port_str + 1), 10) - port_str;
 
     /* OBJECT NAME */
     m_row.m_object_name_length = ip_len + port_len;
@@ -917,7 +915,7 @@ PFS_engine_table *table_events_waits_current::create(PFS_engine_table_share *) {
 table_events_waits_current::table_events_waits_current()
     : table_events_waits_common(&m_share, &m_pos), m_pos() {}
 
-void table_events_waits_current::reset_position() {
+void table_events_waits_current::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
@@ -969,7 +967,7 @@ PFS_events_waits *table_events_waits_current::get_wait(PFS_thread *pfs_thread,
   return wait;
 }
 
-int table_events_waits_current::rnd_next() {
+int table_events_waits_current::rnd_next(void) {
   PFS_thread *pfs_thread;
   PFS_events_waits *wait;
   bool has_more_thread = true;
@@ -1016,7 +1014,7 @@ int table_events_waits_current::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_events_waits_current::index_next() {
+int table_events_waits_current::index_next(void) {
   PFS_thread *pfs_thread;
   PFS_events_waits *wait;
   bool has_more_thread = true;
@@ -1063,12 +1061,12 @@ int table_events_waits_current::make_row(PFS_thread *thread,
   return 0;
 }
 
-int table_events_waits_current::delete_all_rows() {
+int table_events_waits_current::delete_all_rows(void) {
   reset_events_waits_current();
   return 0;
 }
 
-ha_rows table_events_waits_current::get_row_count() {
+ha_rows table_events_waits_current::get_row_count(void) {
   return WAIT_STACK_SIZE * global_thread_container.get_row_count();
 }
 
@@ -1079,7 +1077,7 @@ PFS_engine_table *table_events_waits_history::create(PFS_engine_table_share *) {
 table_events_waits_history::table_events_waits_history()
     : table_events_waits_common(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
-void table_events_waits_history::reset_position() {
+void table_events_waits_history::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
@@ -1107,7 +1105,7 @@ PFS_events_waits *table_events_waits_history::get_wait(PFS_thread *pfs_thread,
   return wait;
 }
 
-int table_events_waits_history::rnd_next() {
+int table_events_waits_history::rnd_next(void) {
   PFS_thread *pfs_thread;
   PFS_events_waits *wait;
   bool has_more_thread = true;
@@ -1160,7 +1158,7 @@ int table_events_waits_history::index_init(uint idx [[maybe_unused]], bool) {
   return 0;
 }
 
-int table_events_waits_history::index_next() {
+int table_events_waits_history::index_next(void) {
   PFS_thread *pfs_thread;
   PFS_events_waits *wait;
   bool has_more_thread = true;
@@ -1211,12 +1209,12 @@ int table_events_waits_history::make_row(PFS_thread *thread,
   return 0;
 }
 
-int table_events_waits_history::delete_all_rows() {
+int table_events_waits_history::delete_all_rows(void) {
   reset_events_waits_history();
   return 0;
 }
 
-ha_rows table_events_waits_history::get_row_count() {
+ha_rows table_events_waits_history::get_row_count(void) {
   return events_waits_history_per_thread *
          global_thread_container.get_row_count();
 }
@@ -1229,12 +1227,12 @@ PFS_engine_table *table_events_waits_history_long::create(
 table_events_waits_history_long::table_events_waits_history_long()
     : table_events_waits_common(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-void table_events_waits_history_long::reset_position() {
+void table_events_waits_history_long::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_events_waits_history_long::rnd_next() {
+int table_events_waits_history_long::rnd_next(void) {
   PFS_events_waits *wait;
   uint limit;
 
@@ -1290,11 +1288,11 @@ int table_events_waits_history_long::rnd_pos(const void *pos) {
   return make_row(wait);
 }
 
-int table_events_waits_history_long::delete_all_rows() {
+int table_events_waits_history_long::delete_all_rows(void) {
   reset_events_waits_history_long();
   return 0;
 }
 
-ha_rows table_events_waits_history_long::get_row_count() {
+ha_rows table_events_waits_history_long::get_row_count(void) {
   return events_waits_history_long_size;
 }

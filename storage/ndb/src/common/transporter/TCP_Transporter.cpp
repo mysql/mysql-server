@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,6 +121,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
   // Initialize member variables
+  ndb_socket_initialize(&theSocket);
+
   sockOptNodelay    = 1;
   setIf(sockOptRcvBufSize, conf->tcp.tcpRcvBufSize, 0);
   setIf(sockOptSndBufSize, conf->tcp.tcpSndBufSize, 0);
@@ -185,7 +187,7 @@ TCP_Transporter::configure_derived(const TransporterConfiguration* conf)
 TCP_Transporter::~TCP_Transporter() {
   
   // Disconnect
-  if (theSocket.is_valid())
+  if (ndb_socket_valid(theSocket))
     doDisconnect();
   
   // Delete receive buffer!!
@@ -201,25 +203,25 @@ TCP_Transporter::resetBuffers()
   send_checksum_state.init();
 }
 
-bool TCP_Transporter::connect_server_impl(NdbSocket & socket)
+bool TCP_Transporter::connect_server_impl(ndb_socket_t sockfd)
 {
   DBUG_ENTER("TCP_Transpporter::connect_server_impl");
-  DBUG_RETURN(connect_common(socket));
+  DBUG_RETURN(connect_common(sockfd));
 }
 
-bool TCP_Transporter::connect_client_impl(NdbSocket & socket)
+bool TCP_Transporter::connect_client_impl(ndb_socket_t sockfd)
 {
   DBUG_ENTER("TCP_Transpporter::connect_client_impl");
-  DBUG_RETURN(connect_common(socket));
+  DBUG_RETURN(connect_common(sockfd));
 }
 
-bool TCP_Transporter::connect_common(NdbSocket & socket)
+bool TCP_Transporter::connect_common(ndb_socket_t sockfd)
 {
-  setSocketOptions(socket.ndb_socket());
-  socket.set_nonblocking(true);
+  setSocketOptions(sockfd);
+  setSocketNonBlocking(sockfd);
 
   get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
-  NdbSocket::transfer(theSocket, socket);
+  theSocket = sockfd;
   send_checksum_state.init();
   get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 
@@ -292,7 +294,7 @@ bool TCP_Transporter::setSocketNonBlocking(ndb_socket_t socket)
 bool
 TCP_Transporter::send_is_possible(int timeout_millisec) const
 {
-  return send_is_possible(theSocket.ndb_socket(), timeout_millisec);
+  return send_is_possible(theSocket, timeout_millisec);
 }
 
 bool
@@ -367,7 +369,7 @@ TCP_Transporter::doSend(bool need_wakeup)
         require(false);
       }
     }
-    int nBytesSent = (int)theSocket.writev(iov+pos, iovcnt);
+    int nBytesSent = (int)ndb_socket_writev(theSocket, iov+pos, iovcnt);
     assert(nBytesSent <= (int)remain);
 
     if (checksumUsed && check_send_checksum)
@@ -401,12 +403,6 @@ TCP_Transporter::doSend(bool need_wakeup)
       remain = sum - sum_sent;
       //g_eventLogger->info("Sent %d bytes on trp %u", nBytesSent, getTransporterIndex());
       break;
-    }
-    else if (nBytesSent == TLS_BUSY_TRY_AGAIN)
-    {
-      // TLS is doing protocol layer stuff. We need to keep polling and
-      // trying to send until it is done.
-      return true;
     }
     else if (nBytesSent > 0)           //Sent some, more pending
     {
@@ -525,12 +521,12 @@ TCP_Transporter::doSend(bool need_wakeup)
 void
 TCP_Transporter::shutdown()
 {
-  if (theSocket.is_valid())
+  if (ndb_socket_valid(theSocket))
   {
     DEB_MULTI_TRP(("Close socket for trp %u",
                    getTransporterIndex()));
-    theSocket.close();
-    theSocket.invalidate();
+    ndb_socket_close(theSocket);
+    ndb_socket_invalidate(&theSocket);
   }
   else
   {
@@ -551,11 +547,10 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
   {
     do
     {
-      const int nBytesRead = (int)theSocket.recv(
-          receiveBuffer.insertPtr,
-          size < maxReceiveSize ? size : maxReceiveSize);
-
-      if(nBytesRead == TLS_BUSY_TRY_AGAIN) return TLS_BUSY_TRY_AGAIN;
+      const int nBytesRead = (int)ndb_recv(theSocket,
+				  receiveBuffer.insertPtr,
+				  size < maxReceiveSize ? size : maxReceiveSize,
+				  0);
 
       if (nBytesRead > 0)
       {
@@ -676,17 +671,20 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
 void
 TCP_Transporter::disconnectImpl()
 {
-  NdbSocket sock;
-
   get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
-  NdbSocket::transfer(sock, theSocket);
+
+  ndb_socket_t sock = theSocket;
+  ndb_socket_invalidate(&theSocket);
+
   get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 
-  if(sock.is_valid())
+  if(ndb_socket_valid(sock))
   {
-    DEB_MULTI_TRP(("Disconnect socket for trp %u", getTransporterIndex()));
-    if(sock.close() < 0) {
+    DEB_MULTI_TRP(("Disconnect socket for trp %u",
+                   getTransporterIndex()));
+    if(ndb_socket_close(sock) < 0){
       report_error(TE_ERROR_CLOSING_SOCKET);
     }
+    ndb_socket_invalidate(&sock);
   }
 }

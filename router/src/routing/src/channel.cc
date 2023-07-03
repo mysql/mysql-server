@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, 2023, Oracle and/or its affiliates.
+Copyright (c) 2020, 2022, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "channel.h"
 
-#include <cassert>
-
-#include <openssl/bio.h>
 #include <openssl/ssl.h>
 
-#include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/tls_error.h"
 
@@ -67,23 +63,80 @@ stdx::expected<bool, std::error_code> Channel::tls_shutdown() {
     return stdx::make_unexpected(make_tls_ssl_error(ssl, res));
   }
 
-  if (res == 0) {
-    // shutdown not finished yet, flush the alert to the send-buffer.
-    flush_to_send_buf();
-  }
-
   return {res == 1};
 }
 
 stdx::expected<size_t, std::error_code> Channel::write_plain(
     const net::const_buffer &b) {
-  // append to write_buffer
-  auto dyn_buf = net::dynamic_buffer(send_plain_buffer());
+  if (ssl_) {
+    const auto res = SSL_write(ssl_.get(), b.data(), b.size());
+    if (res <= 0) {
+      return stdx::make_unexpected(make_tls_ssl_error(ssl_.get(), res));
+    }
 
-  auto orig_size = dyn_buf.size();
-  dyn_buf.grow(b.size());
+    return res;
+  } else {
+    // append to write_buffer
+    auto dyn_buf = net::dynamic_buffer(this->send_buffer());
 
-  return net::buffer_copy(dyn_buf.data(orig_size, b.size()), b);
+    auto orig_size = dyn_buf.size();
+    dyn_buf.grow(b.size());
+
+    return net::buffer_copy(dyn_buf.data(orig_size, b.size()), b);
+  }
+}
+
+stdx::expected<size_t, std::error_code> Channel::read_encrypted(
+    const net::mutable_buffer &b) {
+  if (ssl_) {
+    auto wbio = SSL_get_wbio(ssl_.get());
+
+    const auto res = BIO_read(wbio, b.data(), b.size());
+    if (res < 0) {
+      if (BIO_should_retry(wbio)) {
+        return stdx::make_unexpected(
+            make_error_code(std::errc::operation_would_block));
+      } else {
+        return stdx::make_unexpected(
+            make_error_code(std::errc::invalid_argument));
+      }
+    }
+
+    return res;
+  } else {
+    // read from send_buffer
+    auto dyn_buf = net::dynamic_buffer(this->send_buffer());
+
+    auto orig_size = dyn_buf.size();
+    dyn_buf.grow(b.size());
+
+    net::buffer_copy(dyn_buf.data(orig_size, b.size()), b);
+
+    return b.size();
+  }
+}
+
+stdx::expected<size_t, std::error_code> Channel::write_encrypted(
+    const net::const_buffer &b) {
+  if (ssl_) {
+    auto rbio = SSL_get_rbio(ssl_.get());
+
+    const auto res = BIO_write(rbio, b.data(), b.size());
+    if (res < 0) {
+      return stdx::make_unexpected(
+          make_error_code(std::errc::operation_would_block));
+    }
+
+    return res;
+  } else {
+    // append to recv-buffer
+    auto dyn_buf = net::dynamic_buffer(this->recv_buffer());
+
+    auto orig_size = dyn_buf.size();
+    dyn_buf.grow(b.size());
+
+    return net::buffer_copy(dyn_buf.data(orig_size, b.size()), b);
+  }
 }
 
 stdx::expected<size_t, std::error_code> Channel::read_plain(
@@ -95,51 +148,43 @@ stdx::expected<size_t, std::error_code> Channel::read_plain(
     }
 
     return res;
+  } else {
+    if (recv_buffer().empty()) {
+      return stdx::make_unexpected(
+          make_error_code(std::errc::operation_would_block));
+    }
+
+    auto dyn_buf = net::dynamic_buffer(recv_buffer());
+
+    auto transferred = net::buffer_copy(b, dyn_buf.data(0, b.size()));
+
+    dyn_buf.consume(transferred);
+
+    return transferred;
   }
-
-  if (recv_view_.empty()) {
-    return stdx::make_unexpected(
-        make_error_code(std::errc::operation_would_block));
-  }
-
-  auto transferred = net::buffer_copy(
-      b, net::buffer(recv_view_.first(std::min(b.size(), recv_view_.size()))));
-
-  consume_raw(transferred);
-
-  return transferred;
 }
 
 stdx::expected<size_t, std::error_code> Channel::flush_from_recv_buf() {
   if (ssl_) {
     auto &recv_buf = recv_buffer();
 
-    view_discard_raw();
-
-    auto rbio = SSL_get_rbio(ssl_.get());
-
     size_t transferred{};
 
     auto dyn_buf = net::dynamic_buffer(recv_buf);
     while (dyn_buf.size() != 0) {
       const auto orig_size = dyn_buf.size();
+      const auto res = write_encrypted(dyn_buf.data(0, orig_size));
 
-      auto buf = dyn_buf.data(0, orig_size);
-
-      const auto bio_res = BIO_write(rbio, buf.data(), buf.size());
-      if (bio_res < 0) {
-        if (transferred != 0) return transferred;
-
-        return stdx::make_unexpected(
-            make_error_code(std::errc::operation_would_block));
+      if (!res) {
+        if (res.error() == std::errc::operation_would_block &&
+            transferred != 0) {
+          return transferred;
+        }
+        return res;
       }
+      dyn_buf.consume(res.value());
 
-      dyn_buf.consume(bio_res);
-
-      transferred += bio_res;
-
-      // recv-buffer changed, update the view.
-      view_sync_raw();
+      transferred += res.value();
     }
 
     return transferred;
@@ -149,87 +194,50 @@ stdx::expected<size_t, std::error_code> Channel::flush_from_recv_buf() {
 }
 
 stdx::expected<size_t, std::error_code> Channel::flush_to_send_buf() {
-  // if this is non-ssl channel, no bytes get copied from send_plain_buffer() to
-  // send_buffer()
-  if (!ssl_) return 0;
-
-  //
-  // if there is plaintext data, encrypt it ...
-  //
-
-  if (!this->send_plain_buffer_.empty()) {
-    // encode the plaintext data
-    auto &buf = this->send_plain_buffer_;
-
-    const auto spn = net::buffer(buf);
-
-    const auto res = SSL_write(ssl_.get(), spn.data(), spn.size());
-    if (res <= 0) {
-      return stdx::make_unexpected(make_tls_ssl_error(ssl_.get(), res));
-    }
-
-    // remove the data that has been sent.
-    net::dynamic_buffer(buf).consume(res);
-  }
-
-  //
-  // ... and if there is encrypted data, move it to the socket's send-buffer.
-  //
-
-  auto *wbio = SSL_get_wbio(ssl_.get());
-
-  size_t transferred{};
-
-  // check if there is encrypted data waiting.
-  while (const auto pending = BIO_pending(wbio)) {
+  if (ssl_) {
     auto dyn_buf = net::dynamic_buffer(this->send_buffer());
-    const auto orig_size = dyn_buf.size();
-    const auto grow_size = pending;
 
-    // append encrypted data to the send-buffer.
-    dyn_buf.grow(grow_size);
-    auto buf = dyn_buf.data(orig_size, grow_size);
+    size_t transferred{};
 
-    const auto bio_res = BIO_read(wbio, buf.data(), buf.size());
-    if (bio_res < 0) {
-      dyn_buf.shrink(grow_size);
+    while (true) {
+      const auto orig_size = dyn_buf.size();
+      const auto grow_size = 16 * 1024;  // a TLS frame
 
-      if (!BIO_should_retry(wbio)) {
-        return stdx::make_unexpected(
-            make_error_code(std::errc::invalid_argument));
+      dyn_buf.grow(grow_size);
+
+      const auto res = read_encrypted(dyn_buf.data(orig_size, grow_size));
+      if (!res) {
+        dyn_buf.shrink(grow_size);
+        if ((res.error() ==
+             make_error_condition(std::errc::operation_would_block)) &&
+            transferred != 0) {
+          return transferred;
+        }
+        return res;
       }
+      dyn_buf.shrink(grow_size - res.value());
 
-      if (transferred != 0) return transferred;
-
-      return stdx::make_unexpected(
-          make_error_code(std::errc::operation_would_block));
+      transferred += res.value();
     }
-
-    assert(bio_res != 0);
-
-    dyn_buf.shrink(grow_size - bio_res);
-
-    transferred += bio_res;
+  } else {
+    return this->send_buffer().size();
   }
-
-  return transferred;
 }
 
 stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
-  if (!ssl_) {
-    // as the connection is plaintext, use the recv-buffer directly.
-    return std::min(sz, recv_view_.size());
-  }
+  auto &plain_buf = recv_plain_buffer();
 
   {
     const auto flush_res = flush_from_recv_buf();
-    if (!flush_res) return stdx::make_unexpected(flush_res.error());
+    if (!flush_res) {
+      return flush_res.get_unexpected();
+    } else {
+#if defined(DEBUG_SSL)
+      std::cerr << __LINE__ << ": " << from << "::ssl->" << from << "::enc"
+                << ": " << flush_res.value() << std::endl;
+#endif
+    }
   }
-
-  auto &plain_buf = recv_plain_buffer_;
-
-  // consume all data that was consumed via the view already.
-  view_discard_plain();
 
   size_t bytes_read{};
   // decrypt from src-ssl into the ssl-plain-buf
@@ -239,12 +247,15 @@ stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
     // append to the plain buffer
     const auto read_res = read(dyn_buf, sz);
     if (read_res) {
+#if defined(DEBUG_SSL)
+      std::cerr << __LINE__ << ": " << from << "::ssl->" << from << "::dec"
+                << ": " << read_res.value() << std::endl;
+#endif
+
       const size_t transferred = read_res.value();
 
       sz -= transferred;
       bytes_read += transferred;
-
-      view_sync_plain();
     } else {
       // read from client failed.
 
@@ -263,57 +274,6 @@ stdx::expected<size_t, std::error_code> Channel::read_to_plain(size_t sz) {
 
   return bytes_read;
 }
-
-Channel::Ssl Channel::release_ssl() {
-  if (ssl_) SSL_set_info_callback(ssl_.get(), nullptr);
-
-  return std::exchange(ssl_, {});
-}
-
-Channel::recv_buffer_type &Channel::send_plain_buffer() {
-  return ssl_ ? send_plain_buffer_ : send_buffer_;
-}
-
-const Channel::recv_view_type &Channel::recv_view() const { return recv_view_; }
-
-const Channel::recv_view_type &Channel::recv_plain_view() const {
-  return ssl_ ? recv_plain_view_ : recv_view_;
-}
-
-void Channel::consume_raw(size_t count) {
-  assert(count <= recv_view_.size());
-
-  recv_view_ = {recv_view_.data() + count, recv_view_.size() - count};
-}
-
-void Channel::consume_plain(size_t count) {
-  if (ssl_) {
-    assert(count <= recv_plain_view_.size());
-
-    recv_plain_view_ = {recv_plain_view_.data() + count,
-                        recv_plain_view_.size() - count};
-  } else {
-    consume_raw(count);
-  }
-}
-
-void Channel::view_discard_raw() {
-  net::dynamic_buffer(recv_buffer_)
-      .consume(recv_buffer_.size() - recv_view_.size());
-}
-
-void Channel::view_discard_plain() {
-  if (ssl_) {
-    net::dynamic_buffer(recv_plain_buffer_)
-        .consume(recv_plain_buffer_.size() - recv_plain_view_.size());
-  } else {
-    view_discard_raw();
-  }
-}
-
-void Channel::view_sync_raw() { recv_view_ = recv_buffer_; }
-
-void Channel::view_sync_plain() { recv_plain_view_ = recv_plain_buffer_; }
 
 #if 0
 size_t Channel::plain_pending() const {
