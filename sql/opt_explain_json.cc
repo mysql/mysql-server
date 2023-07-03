@@ -1911,6 +1911,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
              // subqueries:
              current_context->type == CTX_SELECT_LIST ||
              current_context->type == CTX_UPDATE_VALUE ||
+             current_context->type == CTX_INSERT_VALUES ||
              current_context->type == CTX_DERIVED ||
              current_context->type == CTX_OPTIMIZED_AWAY_SUBQUERY ||
              current_context->type == CTX_WHERE ||
