@@ -200,7 +200,9 @@ TEST_P(RouterRoutingConnectTimeoutTest, ConnectTimeout) {
   std::vector<std::pair<std::string, std::string>> routing_section_options{
       {"bind_port", std::to_string(router_port)},
       {"mode", "read-write"},
-      {"destinations", "example.org:81"}};
+      // we use example.org's IP here to avoid DNS resolution which on PB2
+      // often takes too long and causes the test timeout assumption to fail
+      {"destinations", "93.184.216.34:81"}};
 
   if (!GetParam().config_file_timeout.empty()) {
     routing_section_options.emplace_back("connect_timeout",
@@ -277,7 +279,7 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarly) {
       {{"bind_port", std::to_string(router_port)},
        {"mode", "read-write"},
        {"connect_timeout", std::to_string(connect_timeout.count())},
-       {"destinations", "example.org:81"}});
+       {"destinations", "93.184.216.34:81"}});
 
   TempDirectory conf_dir("conf");
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
@@ -377,7 +379,9 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarlyXProtocol) {
        {"mode", "read-write"},
        {"connect_timeout", std::to_string(connect_timeout.count())},
        {"protocol", "x"},
-       {"destinations", "example.org:81"}});
+       // we use example.org's IP here to avoid DNS resolution which on PB2
+       // often takes too long and causes the test timeout assumption to fail
+       {"destinations", "93.184.216.34:81"}});
 
   TempDirectory conf_dir("conf");
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
@@ -404,14 +408,10 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarlyXProtocol) {
 
   const auto start = clock_type::now();
 
-  // give the connect thread enough time to:
-  //
-  // - resolve example.org (may take ~200ms)
-  // - start a connect() to its IP
-  //
-  // there is no better way to ensure that the connect() has been started
-  // and is still blocked other then waiting.
-
+  // give the connect thread chance to initiate the connection, even if it
+  // sometimes does not it should be fine, we just test a different scenario
+  // then
+  std::this_thread::sleep_for(200ms);
   std::this_thread::sleep_for(500ms);
   // now force shutdown the router
   const auto kill_res = router.kill();
