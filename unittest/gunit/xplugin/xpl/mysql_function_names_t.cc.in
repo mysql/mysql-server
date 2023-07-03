@@ -598,7 +598,6 @@ Param_mysql_functions documentation_mysql_functions_param[] = {
     {"VARIANCE", PASS},
     {"VERSION", PASS},
     {"WAIT_FOR_EXECUTED_GTID_SET", PASS},
-    {"WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS", PASS},
     {"WEEK", PASS},
     {"WEEKDAY", PASS},
     {"WEEKOFYEAR", PASS},

@@ -80,8 +80,6 @@ include/gtid_step_assert.inc [count=0, only_count=0]
 include/stop_slave.inc
 START SLAVE UNTIL SQL_BEFORE_GTIDS='332ceb83-f759-11ea-9e3a-5076afc0021b:1-5';
 ERROR HY000: The SQL_AFTER_GTIDS or SQL_BEFORE_GTIDS clauses for START REPLICA cannot be used when the replication channel is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>.
-SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('server_uuid:1-2');
-ERROR HY000: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS cannot be used on a channel configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>
 TC3. Test with assign_gtids_to_anonymous_transactions = <UUID>
 CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SOURCE_LOG_FILE = "BINLOG_FILE", SOURCE_LOG_POS = BINLOG_POS;
 ERROR HY000: Incorrect UUID value: 'aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'

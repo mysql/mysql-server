@@ -66,31 +66,6 @@ class Item_wait_for_executed_gtid_set final : public Item_int_func {
   }
 };
 
-class Item_master_gtid_set_wait final : public Item_int_func {
-  typedef Item_int_func super;
-
-  String gtid_value;
-  String channel_value;
-
- public:
-  Item_master_gtid_set_wait(const POS &pos, Item *a);
-  Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b);
-  Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b, Item *c);
-
-  bool do_itemize(Parse_context *pc, Item **res) override;
-  longlong val_int() override;
-  const char *func_name() const override {
-    return "wait_until_sql_thread_after_gtids";
-  }
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, 1)) return true;
-    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
-    if (param_type_is_default(thd, 2, 3)) return true;
-    set_nullable(true);
-    return false;
-  }
-};
-
 class Item_func_gtid_subset final : public Item_int_func {
   String buf1;
   String buf2;

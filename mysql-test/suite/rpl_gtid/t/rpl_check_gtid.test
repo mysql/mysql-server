@@ -42,9 +42,9 @@
 #
 # Property 4.1 - When MASTER_AUTO_POSITION is specified only missing data
 #                transactions on the slave are retrieved from the master.
-#          
+#
 # We check if the aforementioned properties hold after generating a set
-# of transactions and rotating logs through different methods: 
+# of transactions and rotating logs through different methods:
 #
 # 1. On both master and slave, rotate logs through FLUSH LOGS.
 # 2. On the slave, generate spreaded events by rotating the relay log using
@@ -164,7 +164,7 @@ while ($i != 5)
     --let $gtid_end= `SELECT $i`
   }
   --source extra/rpl_tests/rpl_check_gtid.inc
-  
+
   # Check property 1.3 and 2.2.
   --let $binlog= relaylog
   --let $server_uuid= $master_uuid
@@ -366,7 +366,7 @@ while ($i != 5)
 
   #  3.2 - Makes the slave to retrieve and apply these transactions.
   --source include/sync_slave_sql_with_master.inc
- 
+
   # Check property 1.2 and 2.1.
   --connection slave
   --let $binlog= binlog
@@ -414,7 +414,7 @@ while ($i != 5)
   --disable_warnings
   --source include/start_slave.inc
   --enable_warnings
-  
+
   #  3.4 - Rotates both the binary logs on the slave and master.
   FLUSH LOGS;
   --connection master
@@ -477,7 +477,7 @@ while ($i != 5)
 
   #  4.2 - Makes the slave to retrieve and apply these transactions.
   --source include/sync_slave_sql_with_master.inc
- 
+
   # Check property 1.2 and 2.1.
   --connection slave
   --let $binlog= binlog
@@ -527,7 +527,7 @@ while ($i != 5)
   --disable_warnings
   --source include/start_slave.inc
   --enable_warnings
-  
+
   #  4.4 - Rotates both the binary logs on the slave and master.
   FLUSH LOGS;
   --connection master
@@ -661,11 +661,11 @@ while ($i != 5)
     --connection slave
     --replace_result $master_uuid MASTER_UUID $replica_uuid SLAVE_UUID
     --disable_result_log
-    --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_first', 300)
+    --eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$wait_gtids_first', 300)
     --enable_result_log
     --replace_result $master_uuid MASTER_UUID $replica_uuid SLAVE_UUID
     --disable_result_log
-    --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_second', 300)
+    --eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$wait_gtids_second', 300)
     --enable_result_log
   }
 
@@ -674,11 +674,11 @@ while ($i != 5)
     --connection slave
     --replace_result $master_uuid MASTER_UUID $replica_uuid SLAVE_UUID
     --disable_result_log
-    --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_first')
+    --eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$wait_gtids_first')
     --enable_result_log
     --replace_result $master_uuid MASTER_UUID $replica_uuid SLAVE_UUID
     --disable_result_log
-    --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_second')
+    --eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$wait_gtids_second')
     --enable_result_log
   }
 
@@ -815,7 +815,7 @@ while ($i != 5)
 
   #  8.2 - Makes the slave to retrieve and apply these transactions.
   --source include/sync_slave_sql_with_master.inc
- 
+
   # Check property 1.2 and 2.1.
   --connection slave
   --let $binlog= binlog
@@ -913,7 +913,7 @@ while ($i != 5)
 
   #  9.2 - Makes the slave to retrieve and apply these transactions.
   --source include/sync_slave_sql_with_master.inc
- 
+
   # Check property 1.2 and 2.1.
   --connection slave
   --let $binlog= binlog

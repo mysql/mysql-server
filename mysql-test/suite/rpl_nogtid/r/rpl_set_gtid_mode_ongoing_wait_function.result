@@ -10,28 +10,26 @@ SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = ON;
-SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10') * 0;
+SET @@SESSION.DEBUG_SYNC = 'begin_wait_for_executed_gtid_set SIGNAL reached_wait_function';
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:20');
+SET @@SESSION.DEBUG_SYNC = 'now WAIT_FOR reached_wait_function';
 SET GLOBAL GTID_MODE = ON;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF;
-ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing calls to WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set @@GLOBAL.GTID_MODE = OFF, ensure that no other client is waiting for GTID-transactions to be committed.
-SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10';
+ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing calls to WAIT_FOR_EXECUTED_GTID_SET. Before you set @@GLOBAL.GTID_MODE = OFF, ensure that no other client is waiting for GTID-transactions to be committed.
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:20';
 COMMIT;
 SET GTID_NEXT = 'AUTOMATIC';
-include/sync_slave_sql_with_master.inc
-WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10') * 0
+WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:20')
 0
-Warnings:
-Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
 SET GLOBAL GTID_MODE = OFF;
 ==== Iteration 1 ====
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = ON;
-SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11') * 0;
 SET @@SESSION.DEBUG_SYNC = 'begin_wait_for_executed_gtid_set SIGNAL reached_wait_function';
 SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:21');
 SET @@SESSION.DEBUG_SYNC = 'now WAIT_FOR reached_wait_function';
@@ -41,41 +39,11 @@ SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF;
-ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing calls to WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set @@GLOBAL.GTID_MODE = OFF, ensure that no other client is waiting for GTID-transactions to be committed.
-SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11';
-COMMIT;
-SET GTID_NEXT = 'AUTOMATIC';
-include/sync_slave_sql_with_master.inc
-WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11') * 0
-0
-Warnings:
-Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
-SET GLOBAL GTID_MODE = OFF;
-ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing calls to WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set @@GLOBAL.GTID_MODE = OFF, ensure that no other client is waiting for GTID-transactions to be committed.
+ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing calls to WAIT_FOR_EXECUTED_GTID_SET. Before you set @@GLOBAL.GTID_MODE = OFF, ensure that no other client is waiting for GTID-transactions to be committed.
 SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:21';
 COMMIT;
 SET GTID_NEXT = 'AUTOMATIC';
 WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:21')
-0
-SET GLOBAL GTID_MODE = OFF;
-==== Iteration 2 ====
-SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
-SET GLOBAL GTID_MODE = ON_PERMISSIVE;
-SET GLOBAL GTID_MODE = ON;
-SET @@SESSION.DEBUG_SYNC = 'begin_wait_for_executed_gtid_set SIGNAL reached_wait_function';
-SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:22');
-SET @@SESSION.DEBUG_SYNC = 'now WAIT_FOR reached_wait_function';
-SET GLOBAL GTID_MODE = ON;
-SET GLOBAL GTID_MODE = ON_PERMISSIVE;
-SET GLOBAL GTID_MODE = ON_PERMISSIVE;
-SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
-SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
-SET GLOBAL GTID_MODE = OFF;
-ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing calls to WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set @@GLOBAL.GTID_MODE = OFF, ensure that no other client is waiting for GTID-transactions to be committed.
-SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:22';
-COMMIT;
-SET GTID_NEXT = 'AUTOMATIC';
-WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:22')
 0
 SET GLOBAL GTID_MODE = OFF;
 SET GLOBAL GTID_MODE = OFF;

@@ -28,19 +28,6 @@ SET debug_sync = "begin_source_pos_wait SIGNAL wait_func_begin WAIT_FOR wait_fun
 
 --source extra/rpl_tests/rpl_reset_slave_all_thread_safe.inc
 
---echo #
---echo # Case 2: Verify wait_for_gtid_set can block RESET SLAVE ALL
---echo #
---source include/rpl_connection_slave.inc
---source include/start_slave.inc
-
-# Just wait immediately after entering the function. RESET SLAVE ALL
-# should be blocked by it.
-SET debug_sync = "begin_wait_for_gtid_set SIGNAL wait_func_begin WAIT_FOR wait_func_continue";
---send SELECT wait_until_sql_thread_after_gtids(CONCAT(@@GLOBAL.server_uuid, ":100"))
-
---source extra/rpl_tests/rpl_reset_slave_all_thread_safe.inc
-
 # Cleanup
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

@@ -84,16 +84,13 @@ ERROR HY000: Multiple channels exist on the replica. Please provide channel name
 ===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
-===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
-SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
-ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
 ===== Executing few basic commands on channel ''.
-===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT().
 [connection server_1]
 [connection server_4]
 include/assert.inc [SOURCE_POS_WAIT should return NULL for channel '' and position POSITION.]
@@ -132,7 +129,7 @@ RESET SLAVE ALL FOR CHANNEL '';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_2'.
-===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT().
 [connection server_2]
 [connection server_4]
 include/assert.inc [SOURCE_POS_WAIT should return 0 for channel 'channel_2' and position POSITION.]
@@ -175,7 +172,7 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_3'.
-===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT().
 [connection server_3]
 [connection server_4]
 include/assert.inc [SOURCE_POS_WAIT should return 0 for channel 'channel_3' and position POSITION.]
@@ -293,16 +290,13 @@ ERROR HY000: Multiple channels exist on the replica. Please provide channel name
 ===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
-===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
-SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
-ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
 ===== Executing few basic commands on channel ''.
-===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT().
 [connection server_1]
 [connection server_4]
 include/assert.inc [SOURCE_POS_WAIT should return 0 for channel '' and position POSITION.]
@@ -345,7 +339,7 @@ RESET SLAVE ALL FOR CHANNEL '';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_2'.
-===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT().
 [connection server_2]
 [connection server_4]
 include/assert.inc [SOURCE_POS_WAIT should return NULL for channel 'channel_2' and position POSITION.]
@@ -384,7 +378,7 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_3'.
-===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT().
 [connection server_3]
 [connection server_4]
 include/assert.inc [SOURCE_POS_WAIT should return 0 for channel 'channel_3' and position POSITION.]
@@ -502,16 +496,13 @@ ERROR HY000: Multiple channels exist on the replica. Please provide channel name
 ===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
-===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
-SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
-ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 ===== FLUSH RELAY LOGS without 'FOR CHANNEL' clause.
 FLUSH RELAY LOGS;
 ===== Executing few basic commands on channel ''.
-===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT().
 [connection server_1]
 [connection server_4]
 include/assert.inc [SOURCE_POS_WAIT should return 0 for channel '' and position POSITION.]
@@ -554,7 +545,7 @@ RESET SLAVE ALL FOR CHANNEL '';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_2'.
-===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT().
 [connection server_2]
 [connection server_4]
 include/assert.inc [SOURCE_POS_WAIT should return 0 for channel 'channel_2' and position POSITION.]
@@ -597,7 +588,7 @@ RESET SLAVE ALL FOR CHANNEL 'channel_2';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 ===== Executing few basic commands on channel 'channel_3'.
-===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+===== Executing SOURCE_POS_WAIT().
 [connection server_3]
 [connection server_4]
 include/assert.inc [SOURCE_POS_WAIT should return NULL for channel 'channel_3' and position POSITION.]

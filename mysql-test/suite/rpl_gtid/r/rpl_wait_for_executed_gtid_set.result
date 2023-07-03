@@ -86,6 +86,22 @@ SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:9999');
 include/wait_for_wait_for_executed_gtid_set.inc
 include/kill_wait_for_executed_gtid_set.inc
 [connection master]
+---- 1.7. Function should return error if timeout value is invalid ----
+Test WAIT_FOR_EXECUTED_GTID_SET function with negative timeout
+value. When SQL_MODE is strict, then it will throw
+WRONG_ARGUMENTS error.
+SET @save_sql_mode=@@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:100', -1);;
+ERROR HY000: Incorrect arguments to WAIT_FOR_EXECUTED_GTID_SET.
+When SQL_MODE is non-strict mode the function executes
+same as in strict SQL_MODE and generates WRONG_ARGUMENTS error.
+SET @@SESSION.SQL_MODE="";
+SELECT WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:100', -1);;
+ERROR HY000: Incorrect arguments to WAIT_FOR_EXECUTED_GTID_SET.
+SET @@SESSION.SQL_MODE=@save_sql_mode;
 ==== 2. Wait set is already part of GTID_EXECUTED ====
 ---- 2.1. No GTID ----
 SELECT WAIT_FOR_EXECUTED_GTID_SET('');
@@ -600,5 +616,13 @@ SET GTID_NEXT = 'AUTOMATIC';
 WAIT_FOR_EXECUTED_GTID_SET('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1,bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:1,cccccccc-cccc-cccc-cccc-cccccccccccc:1')
 0
 [connection master]
-==== 10. Clean up ====
+==== 10. Passing a fractional timeout ====
+---- 10.1 ----
+
+When passing a fractional timeout, < 0.5, timeout value should be
+parsed as a double value and WAIT_FOR_EXECUTED_GTID_SET should
+return 1 if timeout has been reached
+
+include/assert.inc [WAIT_FOR_EXECUTED_GTID_SET returns 1 if the timeout has been exceeded.]
+==== Clean up ====
 include/rpl_end.inc

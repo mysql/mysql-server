@@ -2910,24 +2910,6 @@ prepare s from 'select WAIT_FOR_EXECUTED_GTID_SET(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["VARCHAR", "DOUBLE"]]
-prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?)';
-Warnings:
-Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
-select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
-json_extract(trace,"$.steps[*].statement_parameters")
-[["VARCHAR"]]
-prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,?)';
-Warnings:
-Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
-select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
-json_extract(trace,"$.steps[*].statement_parameters")
-[["VARCHAR", "DOUBLE"]]
-prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,?,?)';
-Warnings:
-Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
-select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
-json_extract(trace,"$.steps[*].statement_parameters")
-[["VARCHAR", "DOUBLE", "VARCHAR"]]
 prepare s from 'select WEEK(?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")

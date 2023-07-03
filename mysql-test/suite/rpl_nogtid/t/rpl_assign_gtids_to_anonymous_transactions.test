@@ -30,7 +30,6 @@
 #      8) Test assign_gtids_to_anonymous_transactions with sql_replica_skip_counter and verify that
 #         it works and the correct warning is emitted.
 #      9) Try starting slave with SQL_BEFORE_GTIDS/SQL_AFTER_GTIDS and check for error
-#      10) Execute the function WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS and check for error
 #
 # TC3. Test with assign_gtids_to_anonymous_transactions = <UUID>
 #
@@ -225,14 +224,6 @@ INSERT INTO t VALUES(12);
 
 --error ER_CANT_SET_SQL_AFTER_OR_BEFORE_GTIDS_WITH_ANONYMOUS_TO_GTID
 START SLAVE UNTIL SQL_BEFORE_GTIDS='332ceb83-f759-11ea-9e3a-5076afc0021b:1-5';
-
-# 10) Execute the function WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS and check for error
-
---let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
---replace_result $server_uuid server_uuid
-
---error ER_CANT_SET_ANONYMOUS_TO_GTID_AND_WAIT_UNTIL_SQL_THD_AFTER_GTIDS
---eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$server_uuid:1-2')
 
 --echo  TC3. Test with assign_gtids_to_anonymous_transactions = <UUID>
 

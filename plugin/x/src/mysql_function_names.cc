@@ -291,7 +291,6 @@ const char *const native_mysql_functions[] = {
     "VALIDATE_PASSWORD_STRENGTH",
     "VERSION",
     "WAIT_FOR_EXECUTED_GTID_SET",
-    "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS",
     "WEEKDAY",
     "WEEKOFYEAR",
     "YEARWEEK",

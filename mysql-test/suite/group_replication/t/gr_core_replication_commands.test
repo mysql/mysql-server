@@ -1,8 +1,7 @@
 ###########################################################################################################
 # This test checks the behavior of following functions on GR channels:
 # SELECT SOURCE_POS_WAIT()
-# WAIT_FOR_EXECUTED_GTID_SET()
-# WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+# WAIT_FOR_EXECUTED_GTID_SET().
 #
 # Test :
 # 0. This test requires 3 servers.
@@ -17,7 +16,7 @@
 #    function when channels are not present.
 # 7. Create a table t2 on server2 and insert 50 records.
 # 8. Start the group replication on server3.
-# 9. Use the WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS and WAIT_FOR_EXECUTED_GTID_SET
+# 9. Use the WAIT_FOR_EXECUTED_GTID_SET
 #    function calls to make sure data is synced (which is inserted in step6).
 # 10. Check the status of all the nodes and validate the records in server2 and
 #     server3.
@@ -199,13 +198,13 @@ SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 --let $group_replication_member_state= RECOVERING
 --source include/gr_wait_for_member_state.inc
 
-# Call and wait for 20 seconds, for gtid set to reach 126 using WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS()
+# Call and wait for 20 seconds, for gtid set to reach 126 using WAIT_FOR_EXECUTED_GTID_SET()
 # Result log has been disabled because, it prints the difference of gtids synced.
 # which may not be same across different runs
 
 --disable_result_log
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
-eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:126", 20, "group_replication_recovery");
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET("$group_replication_group_name:126", 20);
 --enable_result_log
 
 # Call and wait for 10 seconds, for gtid set to reach 136 using WAIT_FOR_EXECUTED_GTID_SET()
@@ -221,12 +220,12 @@ eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-136',10)
 # which may not be same across different runs
 --disable_result_log
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
-eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1-155", 0, "group_replication_recovery");
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET("$group_replication_group_name:1-155", 0);
 --enable_result_log
 
-# Check the gtid executed using WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS on group
+# Check the gtid executed using WAIT_FOR_EXECUTED_GTID_SET on group
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
-eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1-155", 10, "group_replication_applier");
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET("$group_replication_group_name:1-155", 10);
 
 # Resume appliers on server1 and server2 to assist server3 come out of recovery
 # Wait till all the servers are online

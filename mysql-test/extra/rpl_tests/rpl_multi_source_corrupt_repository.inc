@@ -192,17 +192,7 @@ SHOW RELAYLOG EVENTS;
 SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 
 ###############################################################################
-# Step-3.5: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS function without 3rd argument
-#           (channel name argument) when we have multiple channels, should
-#           throw error ER_REPLICA_MULTIPLE_CHANNELS_CMD.
-###############################################################################
-
---echo ===== SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(...) without 'FOR CHANNEL' argument should throw error.
---error ER_REPLICA_MULTIPLE_CHANNELS_CMD
-SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1', 1);
-
-###############################################################################
-# Step-3.6: CHANGE MASTER TO without 'FOR CHANNEL' clause when we have multiple
+# Step-3.5: CHANGE MASTER TO without 'FOR CHANNEL' clause when we have multiple
 #           channels, should throw error ER_REPLICA_MULTIPLE_CHANNELS_CMD.
 ###############################################################################
 
@@ -211,7 +201,7 @@ SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1
 CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 
 ###############################################################################
-# Step-3.7: Flush relay logs without empty channel acts on all replication
+# Step-3.6: Flush relay logs without empty channel acts on all replication
 #           channels.
 ###############################################################################
 
@@ -234,8 +224,8 @@ while ($i <= $number_of_channels)
   }
 
   ##############################################################################
-  # Step-4.1: Check SOURCE_POS_WAIT and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS
-  #           functions. We need two iterations here.
+  # Step-4.1: Check SOURCE_POS_WAIT function.
+  #           We need two iterations here.
   #           > j ==1 : Test with past position/gtid (already executed)
   #                     Return value for corrupted channel: NULL
   #                     Return value for good channel: 0
@@ -245,19 +235,17 @@ while ($i <= $number_of_channels)
   ##############################################################################
 
   --echo ===== Executing few basic commands on channel $channel_name.
-  --echo ===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+  --echo ===== Executing SOURCE_POS_WAIT().
   --let $j=1
   while ($j <=2)
   {
     --let $rpl_connection_name= server_$i
     --source include/rpl_connection.inc
-    --let $master_executed_gtid=`SELECT @@GLOBAL.gtid_executed`
     --let $position=query_get_value("SHOW MASTER STATUS", Position, 1)
     --let $masked_position= POSITION
     --let $query_expected_result= 0
     if ($j == 2)
     {
-      --let $master_executed_gtid= `SELECT concat(@@GLOBAL.gtid_executed, ':100')`
       --let $position= `SELECT $position + 1`
       --let $masked_position= POSITION+1
       --let $query_expected_result= -1
@@ -274,17 +262,6 @@ while ($i <= $number_of_channels)
     --let $assert_cond= "$query_result" = "$query_expected_result"
     --source include/assert.inc
 
-    if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
-    {
-      --let $query_result= query_get_value("SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$master_executed_gtid', 1, $channel_name) AS VALUE", VALUE, 1)
-      --let $assert_text= WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS should return $query_expected_result for channel $channel_name and position $masked_position.
-      --let $assert_cond= "$query_result" = "$query_expected_result"
-      # GTID_MODE OFF/ON, .result file should be same. Hence disabling the query
-      # log for the following test.
-      --let $include_silent= 1
-      --source include/assert.inc
-      --let $include_silent=
-    }
     --inc $j
   }
 

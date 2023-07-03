@@ -2947,15 +2947,6 @@ eval $show_trace;
 prepare s from 'select WAIT_FOR_EXECUTED_GTID_SET(?,?)';
 eval $show_trace;
 
-# WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS
-
-prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?)';
-eval $show_trace;
-prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,?)';
-eval $show_trace;
-prepare s from 'select WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,?,?)';
-eval $show_trace;
-
 # WEEK
 
 prepare s from 'select WEEK(?)';

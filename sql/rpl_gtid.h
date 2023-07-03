@@ -2977,7 +2977,7 @@ class Gtid_state {
 
   /**
     Increase the global counter when starting a call to
-    WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+    WAIT_FOR_EXECUTED_GTID_SET.
   */
   void begin_gtid_wait() {
     DBUG_TRACE;
@@ -2994,7 +2994,7 @@ class Gtid_state {
 
   /**
     Decrease the global counter when ending a call to
-    WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+    WAIT_FOR_EXECUTED_GTID_SET.
   */
   void end_gtid_wait() {
     DBUG_TRACE;
@@ -3011,7 +3011,7 @@ class Gtid_state {
 
   /**
     Return the number of clients that have an ongoing call to
-    WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+    WAIT_FOR_EXECUTED_GTID_SET.
   */
   int32 get_gtid_wait_count() { return atomic_gtid_wait_count; }
 
@@ -3416,7 +3416,7 @@ class Gtid_state {
   /// The number of GTID-violating transactions that use GTID_NEXT=AUTOMATIC.
   std::atomic<int32> atomic_anonymous_gtid_violation_count{0};
   /// The number of clients that are executing
-  /// WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+  /// WAIT_FOR_EXECUTED_GTID_SET.
   std::atomic<int32> atomic_gtid_wait_count{0};
 
   /// Used by unit tests that need to access private members.

@@ -9518,7 +9518,7 @@ ER_SQL_REPLICA_SKIP_COUNTER_USED_WITH_GTID_MODE_ON
 ER_USING_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_AS_LOCAL_OR_UUID
   eng "Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation."
 
-ER_CANT_SET_ANONYMOUS_TO_GTID_AND_WAIT_UNTIL_SQL_THD_AFTER_GTIDS
+OBSOLETE_ER_SET_GTID_TO_ANON_AND_WAIT_UNTIL_SQL_THD_AFTER_GTIDS
   eng "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS cannot be used on a channel configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>"
 
 ER_CANT_SET_SQL_AFTER_OR_BEFORE_GTIDS_WITH_ANONYMOUS_TO_GTID

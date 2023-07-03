@@ -20,7 +20,7 @@ SELECT SOURCE_POS_WAIT("dummy-bin.000001", 4);
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 START SLAVE UNTIL SOURCE_LOG_FILE = "dummy-bin.0000001", SOURCE_LOG_POS = 1729
 #--error ER_REPLICA_MULTIPLE_CHANNELS_CMD
-#SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("1111-1111-1111-1111:1");
+#SELECT WAIT_FOR_EXECUTED_GTID_SET("1111-1111-1111-1111:1");
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
 START SLAVE UNTIL SOURCE_LOG_FILE = "dummy-bin.000001", SOURCE_LOG_POS = 4;
 ERROR HY000: Multiple channels exist on the replica. Please provide channel name as an argument.
@@ -41,11 +41,6 @@ ERROR HY000: Replica channel 'non_existent' does not exist.
 SELECT SOURCE_POS_WAIT("dummy-bin.00001",4, 3, "non_existtent");
 SOURCE_POS_WAIT("dummy-bin.00001",4, 3, "non_existtent")
 NULL
-SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("1111-1111-1111-1111:1", 2, "non_existent");
-WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("1111-1111-1111-1111:1", 2, "non_existent")
-NULL
-Warnings:
-Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
 #
 #  3a) Test that proper error messages are sent out when invalid
 #      channel names are given for change master command.

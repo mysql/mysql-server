@@ -3,7 +3,7 @@
 # This file does the same as the built-in command sync_with_master,
 # but more flexible. In particular:
 #  - Can use a custom timeout.
-#  - Can use WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS instead of SOURCE_POS_WAIT.
+#  - Can use WAIT_FOR_EXECUTED_GTID_SET instead of SOURCE_POS_WAIT.
 #  - The position can be set by the user, it is not restricted to
 #    save_master_pos
 #
@@ -14,7 +14,6 @@
 # --connection slave
 # [--let $slave_timeout= X]
 # [--let $use_gtids= 1]
-# [--let $wait_for_executed_gtid_set= 1]
 # [--let $ignore_gtids_on_sync= 1]
 # --source include/sync_slave.inc
 #
@@ -30,8 +29,6 @@
 #     This might be used if the slave will not have all the GTIDs of the master
 #     but have to read and apply all master events to the end.
 #
-#   $wait_for_executed_gtid_set
-#     See include/sync_slave_sql_with_master.inc
 
 --let $include_filename= sync_slave_sql.inc
 --source include/begin_include_file.inc
@@ -60,7 +57,7 @@ if ($rpl_debug)
 #
 # Verify if the SQL thread is already updated by the master position
 # regardless the use if GTIDs. If the SQL thread is already updated,
-# we can reduce the slave timeout of WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS
+# we can reduce the slave timeout of WAIT_FOR_EXECUTED_GTID_SET
 # to a minimum because there in nothing else to sync.
 # As there is a possibility of missing GTIDs on slave, this reduced
 # timeout will make mtr throw an error almost promptly, without having
@@ -102,22 +99,11 @@ if ($ignore_gtids_on_sync)
 if ($_sync_with_gtids)
 {
   --source include/assert_gtid_mode_on.inc
-  if ($wait_for_executed_gtid_set)
+  if ($rpl_debug)
   {
-    if ($rpl_debug)
-    {
-      --echo debug: WAIT_FOR_EXECUTED_GTID_SET('$_saved_gtids', $_sss_slave_timeout)
-    }
-    --let $_sss_result= `SELECT -WAIT_FOR_EXECUTED_GTID_SET('$_saved_gtids', $_sss_slave_timeout)`
+    --echo debug: WAIT_FOR_EXECUTED_GTID_SET('$_saved_gtids', $_sss_slave_timeout)
   }
-  if (!$wait_for_executed_gtid_set)
-  {
-    if ($rpl_debug)
-    {
-      --echo debug: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout$_sss_channel_param)
-    }
-    --let $_sss_result= `SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout$_sss_channel_param)`
-  }
+  --let $_sss_result= `SELECT -WAIT_FOR_EXECUTED_GTID_SET('$_saved_gtids', $_sss_slave_timeout)`
 }
 
 if (!$_sync_with_gtids)
@@ -136,7 +122,7 @@ if (!$_sync_with_gtids)
 if ($_sss_result == '')
 {
   --let $_sss_result = -2
-  --let $error_type= The slave SQL thread was not started, the slave's master information was not initialized, the arguments were incorrect, or an error occurred.
+  --let $error_type= An error occurred during waiting
 }
 if ($_sss_result == -1)
 {

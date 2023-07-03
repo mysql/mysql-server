@@ -1,0 +1,19 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/stop_slave.inc
+
+# Test case 1:
+#   Check that the WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS function
+#   is no longer available
+
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1');
+ERROR 42000: FUNCTION test.WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS does not exist
+#
+# Clean-up
+#
+include/start_slave.inc
+include/rpl_end.inc
