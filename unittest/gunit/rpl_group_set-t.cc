@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -629,18 +637,40 @@ TEST_F(GroupTest, Group_containers) {
     END_LOOP_A;
 
     // Add groups to Group_caches.
+<<<<<<< HEAD
     BEGIN_LOOP_B {
       if (verbose) {
         printf("======== stage=%d combination=%d ========\n", stage_i,
                combination_i);
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+#ifndef DBUG_OFF
+=======
+    BEGIN_LOOP_B
+    {
+      if (verbose)
+      {
+        printf("======== stage=%d combination=%d ========\n",
+               stage_i, combination_i);
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         printf("group log state:\n");
         group_log_state.print();
         printf("trx cache:\n");
         trx_cache.print(sid_maps[0]);
         printf("stmt cache:\n");
         stmt_cache.print(sid_maps[0]);
+<<<<<<< HEAD
 #endif  // ifdef NDEBUG
+=======
+<<<<<<< HEAD
+#endif  // ifdef DBUG_OFF
+=======
+#endif // ifdef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
 
       Gtid_set ended_groups(sid_maps[0]);
@@ -765,12 +795,30 @@ TEST_F(GroupTest, Group_containers) {
           }
         }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
         if (verbose) {
           printf("stmt_cache:\n");
           stmt_cache.print(sid_maps[0]);
         }
+<<<<<<< HEAD
 #endif  // ifndef NDEBUG
+=======
+#endif  // ifndef DBUG_OFF
+=======
+#ifndef NDEBUG
+        if (verbose)
+        {
+          printf("stmt_cache:\n");
+          stmt_cache.print(sid_maps[0]);
+        }
+#endif // ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         if (!stmt_cache.is_empty())
           gtid_flush_group_cache(
               thd, &lock, &group_log_state, nullptr /*group log*/, &stmt_cache,
@@ -784,8 +832,18 @@ TEST_F(GroupTest, Group_containers) {
           // execute a COMMIT statement
           thd->variables.gtid_has_ongoing_super_group = 0;
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
           if (verbose) {
+=======
+#ifndef NDEBUG
+          if (verbose)
+          {
+>>>>>>> upstream/cluster-7.6
             printf("trx_cache:\n");
             trx_cache.print(sid_maps[0]);
             printf(
@@ -794,7 +852,15 @@ TEST_F(GroupTest, Group_containers) {
                 trx_cache.is_empty(), trx_cache.get_n_subgroups(),
                 trx_contains_logged_subgroup);
           }
+<<<<<<< HEAD
 #endif  // ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#endif  // ifndef DBUG_OFF
+=======
+#endif // ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
           if (!trx_cache.is_empty())
             gtid_flush_group_cache(

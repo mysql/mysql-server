@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +35,102 @@
 
 #include "storage/perfschema/pfs_engine_table.h"
 
+<<<<<<< HEAD
 #include <string.h>
 #include <algorithm>
+=======
+#include "table_events_waits.h"
+#include "table_setup_actors.h"
+#include "table_setup_consumers.h"
+#include "table_setup_instruments.h"
+#include "table_setup_objects.h"
+#include "table_setup_timers.h"
+#include "table_performance_timers.h"
+#include "table_events_waits_summary.h"
+#include "table_ews_by_thread_by_event_name.h"
+#include "table_ews_global_by_event_name.h"
+#include "table_host_cache.h"
+#include "table_os_global_by_type.h"
+#include "table_sync_instances.h"
+#include "table_file_instances.h"
+#include "table_file_summary_by_instance.h"
+#include "table_file_summary_by_event_name.h"
+#include "table_threads.h"
+#include "table_processlist.h"
+
+#include "table_ews_by_host_by_event_name.h"
+#include "table_ews_by_user_by_event_name.h"
+#include "table_ews_by_account_by_event_name.h"
+#include "table_tiws_by_index_usage.h"
+#include "table_tiws_by_table.h"
+#include "table_tlws_by_table.h"
+
+#include "table_events_stages.h"
+#include "table_esgs_by_thread_by_event_name.h"
+#include "table_esgs_by_host_by_event_name.h"
+#include "table_esgs_by_user_by_event_name.h"
+#include "table_esgs_by_account_by_event_name.h"
+#include "table_esgs_global_by_event_name.h"
+
+#include "table_events_statements.h"
+#include "table_esms_by_thread_by_event_name.h"
+#include "table_esms_by_host_by_event_name.h"
+#include "table_esms_by_user_by_event_name.h"
+#include "table_esms_by_account_by_event_name.h"
+#include "table_esms_global_by_event_name.h"
+#include "table_esms_by_digest.h"
+#include "table_esms_by_program.h"
+
+#include "table_events_transactions.h"
+#include "table_ets_by_thread_by_event_name.h"
+#include "table_ets_by_host_by_event_name.h"
+#include "table_ets_by_user_by_event_name.h"
+#include "table_ets_by_account_by_event_name.h"
+#include "table_ets_global_by_event_name.h"
+
+#include "table_users.h"
+#include "table_accounts.h"
+#include "table_hosts.h"
+
+#include "table_socket_instances.h"
+#include "table_socket_summary_by_instance.h"
+#include "table_socket_summary_by_event_name.h"
+#include "table_session_connect_attrs.h"
+#include "table_session_account_connect_attrs.h"
+#include "table_mems_global_by_event_name.h"
+#include "table_mems_by_account_by_event_name.h"
+#include "table_mems_by_host_by_event_name.h"
+#include "table_mems_by_thread_by_event_name.h"
+#include "table_mems_by_user_by_event_name.h"
+
+/* For replication related perfschema tables. */
+#include "table_replication_connection_configuration.h"
+#include "table_replication_group_members.h"
+#include "table_replication_connection_status.h"
+#include "table_replication_applier_configuration.h"
+#include "table_replication_applier_status.h"
+#include "table_replication_applier_status_by_coordinator.h"
+#include "table_replication_applier_status_by_worker.h"
+#include "table_replication_group_member_stats.h"
+
+#include "table_prepared_stmt_instances.h"
+
+#include "table_md_locks.h"
+#include "table_table_handles.h"
+
+#include "table_uvar_by_thread.h"
+
+#include "table_status_by_account.h"
+#include "table_status_by_host.h"
+#include "table_status_by_thread.h"
+#include "table_status_by_user.h"
+#include "table_global_status.h"
+#include "table_session_status.h"
+
+#include "table_variables_by_thread.h"
+#include "table_global_variables.h"
+#include "table_session_variables.h"
+>>>>>>> upstream/cluster-7.6
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -478,6 +580,109 @@
   @{
 */
 
+<<<<<<< HEAD
+=======
+bool PFS_table_context::initialize(void) {
+  if (m_restore) {
+    /* Restore context from TLS. */
+<<<<<<< HEAD
+    PFS_table_context *context = THR_PFS_contexts[m_thr_key];
+    DBUG_ASSERT(context != NULL);
+
+    if (context) {
+      m_last_version = context->m_current_version;
+      m_map = context->m_map;
+      DBUG_ASSERT(m_map_size == context->m_map_size);
+      m_map_size = context->m_map_size;
+      m_word_size = context->m_word_size;
+=======
+    PFS_table_context *context= static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
+    assert(context != NULL);
+
+    if(context)
+    {
+      m_last_version= context->m_current_version;
+      m_map= context->m_map;
+      assert(m_map_size == context->m_map_size);
+      m_map_size= context->m_map_size;
+      m_word_size= context->m_word_size;
+>>>>>>> upstream/cluster-7.6
+    }
+  } else {
+    /* Check that TLS is not in use. */
+<<<<<<< HEAD
+    PFS_table_context *context = THR_PFS_contexts[m_thr_key];
+=======
+    PFS_table_context *context= static_cast<PFS_table_context *>(my_get_thread_local(m_thr_key));
+    //assert(context == NULL);
+>>>>>>> upstream/cluster-7.6
+
+    context = this;
+
+    /* Initialize a new context, store in TLS. */
+    m_last_version = m_current_version;
+    m_map = NULL;
+    m_word_size = sizeof(ulong) * 8;
+
+    /* Write to TLS. */
+    THR_PFS_contexts[m_thr_key] = context;
+  }
+
+  m_initialized = (m_map_size > 0) ? (m_map != NULL) : true;
+
+  return m_initialized;
+}
+
+/* Constructor for global or single thread tables, map size = 0.  */
+PFS_table_context::PFS_table_context(ulonglong current_version, bool restore,
+                                     THR_PFS_key key)
+    : m_thr_key(key),
+      m_current_version(current_version),
+      m_last_version(0),
+      m_map(NULL),
+      m_map_size(0),
+      m_word_size(sizeof(ulong)),
+      m_restore(restore),
+      m_initialized(false),
+      m_last_item(0) {
+  initialize();
+}
+
+/* Constructor for by-thread or aggregate tables, map size = max
+ * thread/user/host/account. */
+PFS_table_context::PFS_table_context(ulonglong current_version, ulong map_size,
+                                     bool restore, THR_PFS_key key)
+    : m_thr_key(key),
+      m_current_version(current_version),
+      m_last_version(0),
+      m_map(NULL),
+      m_map_size(map_size),
+      m_word_size(sizeof(ulong)),
+      m_restore(restore),
+      m_initialized(false),
+      m_last_item(0) {
+  initialize();
+}
+
+PFS_table_context::~PFS_table_context(void) {}
+
+void PFS_table_context::set_item(ulong n) {
+  if (n == m_last_item) {
+    return;
+  }
+  ulong word = n / m_word_size;
+  ulong bit = n % m_word_size;
+  m_map[word] |= (1UL << bit);
+  m_last_item = n;
+}
+
+bool PFS_table_context::is_item_set(ulong n) {
+  ulong word = n / m_word_size;
+  ulong bit = n % m_word_size;
+  return (m_map[word] & (1UL << bit));
+}
+
+>>>>>>> pr/231
 static PFS_engine_table_share *all_shares[] = {
     &table_cond_instances::m_share,
     &table_error_log::m_share,
@@ -599,10 +804,22 @@ static PFS_engine_table_share *all_shares[] = {
     &table_variables_info::m_share,
     &table_persisted_variables::m_share,
     &table_user_defined_functions::m_share,
+<<<<<<< HEAD
     &table_binary_log_transaction_compression_stats::m_share,
     &table_tls_channel_status::m_share,
     &table_keyring_component_status::m_share,
     nullptr};
+=======
+
+<<<<<<< HEAD
+    NULL};
+=======
+  &table_processlist::m_share,
+
+  NULL
+};
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 static PSI_mutex_key key_LOCK_pfs_share_list;
 static PSI_mutex_info info_LOCK_pfs_share_list = {
@@ -630,9 +847,146 @@ PFS_dynamic_table_shares pfs_external_table_shares;
 void PFS_engine_table_share::get_all_tables(List<const Plugin_table> *tables) {
   PFS_engine_table_share **current;
 
+<<<<<<< HEAD
   for (current = &all_shares[0]; (*current) != nullptr; current++) {
+=======
+<<<<<<< HEAD
+  for (current = &all_shares[0]; (*current) != NULL; current++) {
+>>>>>>> pr/231
     tables->push_back((*current)->m_table_def);
   }
+=======
+  DBUG_EXECUTE_IF("tampered_perfschema_table1",
+                  {
+                    /* Hack SETUP_INSTRUMENT, incompatible change. */
+                    all_shares[20]->m_field_def->count++;
+                  });
+
+  for (current= &all_shares[0]; (*current) != NULL; current++)
+    (*current)->check_one_table(thd);
+}
+
+/** Error reporting for schema integrity checks. */
+class PFS_check_intact : public Table_check_intact
+{
+protected:
+  virtual void report_error(uint code, const char *fmt, ...);
+
+public:
+  PFS_check_intact()
+  {}
+
+  ~PFS_check_intact()
+  {}
+};
+
+void PFS_check_intact::report_error(uint code, const char *fmt, ...)
+{
+  va_list args;
+  char buff[MYSQL_ERRMSG_SIZE];
+
+  va_start(args, fmt);
+  my_vsnprintf(buff, sizeof(buff), fmt, args);
+  va_end(args);
+
+  /*
+    This is an install/upgrade issue:
+    - do not report it in the user connection, there is none in main(),
+    - report it in the server error log.
+  */
+  sql_print_error("%s", buff);
+}
+
+/** Error reporting for schema integrity checks. */
+class PFS_silent_check_intact : public Table_check_intact
+{
+protected:
+  virtual void report_error(uint code, const char *fmt, ...) {}
+
+public:
+  PFS_silent_check_intact()
+  {}
+
+  ~PFS_silent_check_intact()
+  {}
+};
+
+
+/**
+  Check integrity of the actual table schema.
+  The actual table schema (.frm) is compared to the expected schema.
+  @param thd              current thread
+*/
+void PFS_engine_table_share::check_one_table(THD *thd)
+{
+  TABLE_LIST tables;
+
+  tables.init_one_table(PERFORMANCE_SCHEMA_str.str,
+                        PERFORMANCE_SCHEMA_str.length,
+                        m_name.str, m_name.length,
+                        m_name.str, TL_READ);
+  TABLE_LIST *tl = &tables;
+  uint count = 1;
+
+  /* Work around until Bug#32115 is backported. */
+  LEX dummy_lex;
+  LEX *old_lex= thd->lex;
+  thd->lex= &dummy_lex;
+  lex_start(thd);
+
+  if (! open_tables(thd, &tl, &count, MYSQL_LOCK_IGNORE_TIMEOUT))
+  {
+    PFS_check_intact checker;
+
+    if (!checker.check(tables.table, m_field_def)) {
+      m_state->m_checked= true;
+    }
+    close_thread_tables(thd);
+  }
+  else
+  {
+    if (m_optional) {
+      /*
+        TABLE performance_schema.PROCESSLIST is:
+        - a backport from 8.0
+        - a native table
+        - an optional table, not created by upgrade scripts
+      */
+      sql_print_warning(ER(ER_WARN_WRONG_NATIVE_TABLE_STRUCTURE),
+                        PERFORMANCE_SCHEMA_str.str, m_name.str);
+    } else {
+      sql_print_error(ER(ER_WRONG_NATIVE_TABLE_STRUCTURE),
+                      PERFORMANCE_SCHEMA_str.str, m_name.str);
+    }
+  }
+
+  lex_end(&dummy_lex);
+  thd->lex= old_lex;
+>>>>>>> upstream/cluster-7.6
+}
+
+bool PFS_engine_table_share::is_table_checked(TABLE *table) const {
+  if (! m_state->m_checked) {
+    if (m_optional) {
+      /*
+        For optional tables (i.e., processlist),
+        the DBA can add the table with CREATE TABLE
+        at any time.
+        The m_checked flag can be still false if the
+        table was missing during server bootstrap.
+        We do not want to force a server shutdown + restart
+        to re-evaluate this flag for an upgraded instance,
+        so perform a last chance check dynamically here.
+      */
+      PFS_silent_check_intact checker;
+
+      if (! checker.check(table, m_field_def)) {
+        m_state->m_checked= true;
+      }
+    }
+  }
+
+  return m_state->m_checked;
 }
 
 /** Initialize all the table share locks. */
@@ -662,7 +1016,25 @@ int PFS_engine_table_share::write_row(PFS_engine_table *pfs_table, TABLE *table,
                                       Field **fields) const {
   my_bitmap_map *org_bitmap;
 
+<<<<<<< HEAD
   if (m_write_row == nullptr) {
+=======
+<<<<<<< HEAD
+  if (m_write_row == NULL) {
+=======
+  /*
+    Make sure the table structure is as expected before mapping
+    hard wired columns in m_write_row.
+  */
+  if (! is_table_checked(table))
+  {
+    return HA_ERR_TABLE_NEEDS_UPGRADE;
+  }
+
+  if (m_write_row == NULL)
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -736,6 +1108,18 @@ int PFS_engine_table::read_row(TABLE *table, unsigned char *buf,
   Field *f;
   Field **fields_reset;
 
+<<<<<<< HEAD
+=======
+  /*
+    Make sure the table structure is as expected before mapping
+    hard wired columns in read_row_values.
+  */
+  if (! m_share_ptr->is_table_checked(table))
+  {
+    return HA_ERR_TABLE_NEEDS_UPGRADE;
+  }
+
+>>>>>>> upstream/cluster-7.6
   /* We must read all columns in case a table is opened for update */
   bool read_all = !bitmap_is_clear_all(table->write_set);
 
@@ -770,6 +1154,18 @@ int PFS_engine_table::update_row(TABLE *table, const unsigned char *old_buf,
                                  unsigned char *new_buf, Field **fields) {
   my_bitmap_map *org_bitmap;
 
+<<<<<<< HEAD
+=======
+  /*
+    Make sure the table structure is as expected before mapping
+    hard wired columns in update_row_values.
+  */
+  if (! m_share_ptr->is_table_checked(table))
+  {
+    return HA_ERR_TABLE_NEEDS_UPGRADE;
+  }
+
+>>>>>>> upstream/cluster-7.6
   /* We internally read from Fields to support the write interface */
   org_bitmap = dbug_tmp_use_all_columns(table, table->read_set);
   int result = update_row_values(table, old_buf, new_buf, fields);
@@ -782,6 +1178,18 @@ int PFS_engine_table::delete_row(TABLE *table, const unsigned char *buf,
                                  Field **fields) {
   my_bitmap_map *org_bitmap;
 
+<<<<<<< HEAD
+=======
+  /*
+    Make sure the table structure is as expected before mapping
+    hard wired columns in delete_row_values.
+  */
+  if (! m_share_ptr->is_table_checked(table))
+  {
+    return HA_ERR_TABLE_NEEDS_UPGRADE;
+  }
+
+>>>>>>> upstream/cluster-7.6
   /* We internally read from Fields to support the delete interface */
   org_bitmap = dbug_tmp_use_all_columns(table, table->read_set);
   int result = delete_row_values(table, buf, fields);
@@ -811,8 +1219,148 @@ void PFS_engine_table::set_position(const void *ref) {
   memcpy(m_pos_ptr, ref, m_share_ptr->m_ref_length);
 }
 
+<<<<<<< HEAD
 int PFS_engine_table::update_row_values(TABLE *, const unsigned char *,
                                         unsigned char *, Field **) {
+=======
+/**
+  Get the timer normalizer and class type for the current row.
+  @param [in] instr_class    class
+*/
+void PFS_engine_table::get_normalizer(PFS_instr_class *instr_class)
+{
+  if (instr_class->m_type != m_class_type)
+  {
+    m_normalizer= time_normalizer::get(*instr_class->m_timer);
+    m_class_type= instr_class->m_type;
+  }
+}
+
+void PFS_engine_table::set_field_long(Field *f, long value)
+{
+  assert(f->real_type() == MYSQL_TYPE_LONG);
+  Field_long *f2= (Field_long*) f;
+  f2->store(value, false);
+}
+
+void PFS_engine_table::set_field_ulong(Field *f, ulong value)
+{
+  assert(f->real_type() == MYSQL_TYPE_LONG);
+  Field_long *f2= (Field_long*) f;
+  f2->store(value, true);
+}
+
+void PFS_engine_table::set_field_longlong(Field *f, longlong value)
+{
+  assert(f->real_type() == MYSQL_TYPE_LONGLONG);
+  Field_longlong *f2= (Field_longlong*) f;
+  f2->store(value, false);
+}
+
+void PFS_engine_table::set_field_ulonglong(Field *f, ulonglong value)
+{
+  assert(f->real_type() == MYSQL_TYPE_LONGLONG);
+  Field_longlong *f2= (Field_longlong*) f;
+  f2->store(value, true);
+}
+
+void PFS_engine_table::set_field_char_utf8(Field *f, const char* str,
+                                           uint len)
+{
+  assert(f->real_type() == MYSQL_TYPE_STRING);
+  Field_string *f2= (Field_string*) f;
+  f2->store(str, len, &my_charset_utf8_bin);
+}
+
+void PFS_engine_table::set_field_varchar(Field *f,
+                                         const CHARSET_INFO *cs,
+                                         const char* str,
+                                         uint len)
+{
+  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, len, cs);
+}
+
+void PFS_engine_table::set_field_varchar_utf8(Field *f, const char* str,
+                                              uint len)
+{
+  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, len, &my_charset_utf8_bin);
+}
+
+void PFS_engine_table::set_field_longtext_utf8(Field *f, const char* str,
+                                               uint len)
+{
+  assert(f->real_type() == MYSQL_TYPE_BLOB);
+  Field_blob *f2= (Field_blob*) f;
+  f2->store(str, len, &my_charset_utf8_bin);
+}
+
+void PFS_engine_table::set_field_blob(Field *f, const char* val,
+                                      uint len)
+{
+  assert(f->real_type() == MYSQL_TYPE_BLOB);
+  Field_blob *f2= (Field_blob*) f;
+  f2->store(val, len, &my_charset_utf8_bin);
+}
+
+void PFS_engine_table::set_field_enum(Field *f, ulonglong value)
+{
+  assert(f->real_type() == MYSQL_TYPE_ENUM);
+  Field_enum *f2= (Field_enum*) f;
+  f2->store_type(value);
+}
+
+void PFS_engine_table::set_field_timestamp(Field *f, ulonglong value)
+{
+  struct timeval tm;
+  tm.tv_sec= (long)(value / 1000000);
+  tm.tv_usec= (long)(value % 1000000);
+  assert(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
+  Field_timestampf *f2= (Field_timestampf*) f;
+  f2->store_timestamp(& tm);
+}
+
+void PFS_engine_table::set_field_double(Field *f, double value)
+{
+  assert(f->real_type() == MYSQL_TYPE_DOUBLE);
+  Field_double *f2= (Field_double*) f;
+  f2->store(value);
+}
+
+ulonglong PFS_engine_table::get_field_enum(Field *f)
+{
+  assert(f->real_type() == MYSQL_TYPE_ENUM);
+  Field_enum *f2= (Field_enum*) f;
+  return f2->val_int();
+}
+
+String*
+PFS_engine_table::get_field_char_utf8(Field *f, String *val)
+{
+  assert(f->real_type() == MYSQL_TYPE_STRING);
+  Field_string *f2= (Field_string*) f;
+  val= f2->val_str(NULL, val);
+  return val;
+}
+
+String*
+PFS_engine_table::get_field_varchar_utf8(Field *f, String *val)
+{
+  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  val= f2->val_str(NULL, val);
+  return val;
+}
+
+int PFS_engine_table::update_row_values(TABLE *,
+                                        const unsigned char *,
+                                        unsigned char *,
+                                        Field **)
+{
+>>>>>>> upstream/cluster-7.6
   return HA_ERR_WRONG_COMMAND;
 }
 
@@ -1006,7 +1554,15 @@ void initialize_performance_schema_acl(bool bootstrap) {
   }
 }
 
+<<<<<<< HEAD
 static bool allow_drop_table_privilege() {
+=======
+<<<<<<< HEAD
+static bool allow_drop_privilege() {
+=======
+static bool allow_drop_table_privilege() {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
     The same DROP_ACL privilege is used for different statements,
     in particular:
@@ -1016,20 +1572,43 @@ static bool allow_drop_table_privilege() {
     Here, we want to prevent DROP / ALTER  while allowing TRUNCATE.
     Note that we must also allow GRANT to transfer the truncate privilege.
   */
+<<<<<<< HEAD
   THD *thd = current_thd;
+<<<<<<< HEAD
   if (thd == nullptr) {
     return false;
   }
 
   assert(thd->lex != nullptr);
+=======
+=======
+  THD *thd= current_thd;
+>>>>>>> upstream/cluster-7.6
+  if (thd == NULL) {
+    return false;
+  }
+
+<<<<<<< HEAD
+  DBUG_ASSERT(thd->lex != NULL);
+>>>>>>> pr/231
   if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
       (thd->lex->sql_command != SQLCOM_GRANT)) {
+=======
+  assert(thd->lex != NULL);
+  if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
+      (thd->lex->sql_command != SQLCOM_GRANT) &&
+      (thd->lex->sql_command != SQLCOM_REVOKE)) {
+>>>>>>> upstream/cluster-7.6
     return false;
   }
 
   return true;
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> upstream/cluster-7.6
 PFS_readonly_acl pfs_readonly_acl;
 
 ACL_internal_access_result PFS_readonly_acl::check(
@@ -1064,6 +1643,7 @@ ACL_internal_access_result PFS_readonly_acl::check(
 
 PFS_readonly_world_acl pfs_readonly_world_acl;
 
+<<<<<<< HEAD
 ACL_internal_access_result PFS_readonly_world_acl::check(
     ulong want_access, ulong *save_priv, bool any_combination_will_do) const {
   ACL_internal_access_result res =
@@ -1071,6 +1651,44 @@ ACL_internal_access_result PFS_readonly_world_acl::check(
   if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT) {
     res = ACL_INTERNAL_ACCESS_GRANTED;
   }
+=======
+ACL_internal_access_result
+PFS_readonly_world_acl::check(ulong want_access, ulong *save_priv) const
+{
+  ACL_internal_access_result res= PFS_readonly_acl::check(want_access, save_priv);
+  if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
+  {
+    if (want_access == SELECT_ACL)
+      res= ACL_INTERNAL_ACCESS_GRANTED;
+  }
+  return res;
+}
+
+PFS_readonly_processlist_acl pfs_readonly_processlist_acl;
+
+ACL_internal_access_result PFS_readonly_processlist_acl::check(
+    ulong want_access, ulong *save_priv) const {
+  ACL_internal_access_result res =
+      PFS_readonly_acl::check(want_access, save_priv);
+
+  if ((res == ACL_INTERNAL_ACCESS_CHECK_GRANT) && (want_access == SELECT_ACL)) {
+    THD *thd = current_thd;
+    if (thd != NULL) {
+      if (thd->lex->sql_command == SQLCOM_SHOW_PROCESSLIST ||
+          thd->lex->sql_command == SQLCOM_SELECT) {
+        /*
+          For compatibility with the historical
+          SHOW PROCESSLIST command,
+          SHOW PROCESSLIST does not require a
+          SELECT privilege on table performance_schema.processlist,
+          when rewriting the query using table processlist.
+        */
+        return ACL_INTERNAL_ACCESS_GRANTED;
+      }
+    }
+  }
+
+>>>>>>> upstream/cluster-7.6
   return res;
 }
 
@@ -1128,12 +1746,28 @@ ACL_internal_access_result PFS_truncatable_acl::check(
 
 PFS_truncatable_world_acl pfs_truncatable_world_acl;
 
+<<<<<<< HEAD
 ACL_internal_access_result PFS_truncatable_world_acl::check(
     ulong want_access, ulong *save_priv, bool any_combination_will_do) const {
   ACL_internal_access_result res = PFS_truncatable_acl::check(
       want_access, save_priv, any_combination_will_do);
   if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT) {
     res = ACL_INTERNAL_ACCESS_GRANTED;
+=======
+ACL_internal_access_result
+PFS_truncatable_world_acl::check(ulong want_access, ulong *save_priv) const
+{
+  ACL_internal_access_result res= PFS_truncatable_acl::check(want_access, save_priv);
+  if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
+  {
+    if (want_access == DROP_ACL)
+    {
+      if (allow_drop_table_privilege())
+        res= ACL_INTERNAL_ACCESS_GRANTED;
+    }
+    else if (want_access == SELECT_ACL)
+      res= ACL_INTERNAL_ACCESS_GRANTED;
+>>>>>>> upstream/cluster-7.6
   }
   return res;
 }

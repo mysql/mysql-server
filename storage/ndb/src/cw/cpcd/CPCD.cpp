@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,9 +120,15 @@ CPCD::defineProcess(const class Properties &args, const uintptr_t sessionid,
     }
   }
   
+<<<<<<< HEAD
   m_processes.push_back(proc, false);
   logger.debug("Process %s:%s:%d defined",
                 proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
+=======
+  m_processes.push_back(arg, false);
+  logger.debug("Process %s:%s:%d defined",
+                arg->m_group.c_str(), arg->m_name.c_str(), arg->m_id);
+>>>>>>> pr/231
 
   notifyChanges();
   return true;
@@ -448,7 +458,11 @@ CPCD::loadProcessList(){
     logger.debug("Loading Process %s:%s:%d with pid %d ",
                   proc->m_group.c_str(), proc->m_name.c_str(),
                   proc->m_id, proc->getPid());
+<<<<<<< HEAD
     if(proc->m_type == ProcessType::TEMPORARY){
+=======
+    if(proc->m_processType == TEMPORARY){
+>>>>>>> pr/231
       temporary.push_back(proc->m_id);
     }
   }

@@ -1,7 +1,16 @@
 #!/bin/bash
 
+<<<<<<< HEAD
 # Copyright (c) 2003, 2022, Oracle and/or its affiliates.
 # Use is subject to license terms
+=======
+<<<<<<< HEAD
+# Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+# Use is subject to license terms
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +69,11 @@ for file in ${LOGFILES} ; do
   oks=`grep -c 'NDBT_ProgramExit: .*OK' "${file}"`
   skips=`grep -c 'NDBT_ProgramExit: .*Skipped' "${file}"`
   fails=`grep -c 'NDBT_ProgramExit: .*Failed' "${file}"`
+<<<<<<< HEAD
   if [ $oks -gt 0 ] || [ $skips -gt 0 ] || [ $fails -gt 0 ]; then
+=======
+  if [ $oks -gt 0 ] ; then
+>>>>>>> pr/231
     OK=`expr ${OK} + ${oks}`
     SKIP=`expr ${SKIP} + ${skips}`
     FAIL=`expr ${FAIL} + ${fails}`

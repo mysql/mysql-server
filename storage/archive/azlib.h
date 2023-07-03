@@ -3,7 +3,16 @@
      -Brian Aker
 
   This file was modified by Oracle on 02-08-2016.
+<<<<<<< HEAD
   Modifications Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Modifications copyright (c) 2016, Oracle and/or its affiliates. All rights
+  reserved.
+=======
+  Modifications Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 */
 
 /* zlib.h -- interface of the 'zlib' general purpose compression library

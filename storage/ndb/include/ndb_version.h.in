@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -194,6 +198,88 @@ ndbd_supports_processinfo(Uint32 x)
   return 1;
 }
 
+<<<<<<< HEAD
+=======
+
+#define NDBD_ISOLATE_ORD_72 NDB_MAKE_VERSION(7,2,19)
+#define NDBD_ISOLATE_ORD_73 NDB_MAKE_VERSION(7,3,8)
+#define NDBD_ISOLATE_ORD_74 NDB_MAKE_VERSION(7,4,3)
+
+
+static
+inline
+int
+ndbd_isolate_ord(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 2)
+    {
+      return 0;
+    }
+    else if (minor == 2)
+    {
+      return x >= NDBD_ISOLATE_ORD_72;
+    }
+    else if (minor == 3)
+    {
+      return x >= NDBD_ISOLATE_ORD_73;
+    }
+    else if (minor == 4)
+    {
+      return x >= NDBD_ISOLATE_ORD_74;
+    }
+  }
+  return 1;
+}
+
+// New limitations from WL#12757
+
+#define NDBD_80_PROTOCOL_ACCEPT_74 NDB_MAKE_VERSION(7,4,6)
+#define NDBD_80_PROTOCOL_ACCEPT_75 NDB_MAKE_VERSION(7,5,4)
+#define NDBD_80_PROTOCOL_ACCEPT_76 NDB_MAKE_VERSION(7,6,4)
+
+static
+inline
+int
+ndbd_protocol_accepted_by_8_0(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 4)
+    {
+      return 0;
+    }
+    else if (minor == 4)
+    {
+      return x >= NDBD_80_PROTOCOL_ACCEPT_74;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_80_PROTOCOL_ACCEPT_75;
+    }
+    else if (minor == 6)
+    {
+      return x >= NDBD_80_PROTOCOL_ACCEPT_76;
+    }
+  }
+  return 1;
+}
+
+>>>>>>> pr/231
 /**
  * Support for NDB_TABLE=PARTITION_BALANCE=...
  * This is a table property that can change the number of fragments per
@@ -335,13 +421,22 @@ int
 ndbd_enable_redo_control(Uint32 x)
 {
   const Uint32 major = (x >> 16) & 0xFF;
+<<<<<<< HEAD
   if (major < 8)
+=======
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+>>>>>>> pr/231
   {
     return x >= NDBD_ENABLE_REDO_CONTROL_76;
   }
   return x >= NDBD_ENABLE_REDO_CONTROL_80;
 }
 
+<<<<<<< HEAD
 /**
  * Drop6 version, have impact on some file formats.
  */
@@ -591,6 +686,8 @@ ndbd_send_active_bitmask(Uint32 x)
 }
 
 
+=======
+>>>>>>> pr/231
 
 #define NDBD_WAITGCP_SHUTDOWNSYNC_73 NDB_MAKE_VERSION(7,3,30)
 #define NDBD_WAITGCP_SHUTDOWNSYNC_74 NDB_MAKE_VERSION(7,4,29)
@@ -639,6 +736,7 @@ ndbd_support_waitgcp_shutdownsync(Uint32 x)
   return 1;
 }
 
+<<<<<<< HEAD
 /*
  * Data Node sends minimum API version connected to cluster
  * as a part of ApiRegConf reply since 8.0.21
@@ -730,4 +828,6 @@ ndbd_interpreted_write_supported(Uint32 v)
   return v >= NDBD_INTERPRETED_WRITE;
 }
 
+=======
+>>>>>>> pr/231
 #endif

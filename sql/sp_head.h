@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,12 +204,49 @@ class sp_parser_data {
 
   ///////////////////////////////////////////////////////////////////////
 
+<<<<<<< HEAD
   const char *get_current_stmt_start_ptr() const {
     return m_current_stmt_start_ptr;
   }
 
   void set_current_stmt_start_ptr(const char *stmt_start_ptr) {
     m_current_stmt_start_ptr = stmt_start_ptr;
+=======
+  /**
+    Retrieve expression start pointer in the query string.
+
+    This function is named 'pop' to highlight that it changes the internal
+    state, and two subsequent calls may not return same value.
+
+    @note It's true only in the debug mode, but this check is very useful in
+    the parser to ensure we "pop" every "pushed" pointer, because we have
+    lots of branches, and it's pretty easy to forget something somewhere.
+  */
+  const char *pop_expr_start_ptr()
+  {
+#ifndef NDEBUG
+    assert(m_expr_start_ptr);
+    const char *p= m_expr_start_ptr;
+    m_expr_start_ptr= NULL;
+    return p;
+#else
+    return m_expr_start_ptr;
+#endif
+  }
+
+  /**
+    Remember expression start pointer in the query string.
+
+    This function is named 'push' to highlight that the pointer must be
+    retrieved (pop) later.
+
+    @sa the note for pop_expr_start_ptr().
+  */
+  void push_expr_start_ptr(const char *expr_start_ptr)
+  {
+    assert(!m_expr_start_ptr);
+    m_expr_start_ptr= expr_start_ptr;
+>>>>>>> upstream/cluster-7.6
   }
 
   ///////////////////////////////////////////////////////////////////////

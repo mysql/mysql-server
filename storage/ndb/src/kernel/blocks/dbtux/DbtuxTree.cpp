@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +60,11 @@ Dbtux::treeAdd(TuxCtx& ctx, Frag& frag, TreePos treePos, TreeEnt ent)
     }
     thrjamDebug(ctx.jamBuffer);
     insertNode(ctx, node);
+<<<<<<< HEAD
     nodePushUp(ctx, node, 0, ent, RNIL, 0);
+=======
+    nodePushUp(ctx, node, 0, ent, RNIL);
+>>>>>>> pr/231
     node.setSide(2);
     tree.m_root = node.m_loc;
     break;
@@ -562,7 +570,11 @@ Dbtux::treeRotateSingle(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
   }
   else
   {
+<<<<<<< HEAD
     ndbabort();
+=======
+    ndbrequire(false);
+>>>>>>> pr/231
   }//if
   /*
   Set node to 3 as return parameter for enabling caller to continue
@@ -790,7 +802,11 @@ Dbtux::treeRotateDouble(TuxCtx& ctx, Frag& frag, NodeHandle& node, unsigned i)
   }
   else
   {
+<<<<<<< HEAD
     ndbabort();
+=======
+    ndbrequire(false);
+>>>>>>> pr/231
   }
   // new top node
   node = node4;

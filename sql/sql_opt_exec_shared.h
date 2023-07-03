@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -164,8 +168,18 @@ struct Index_lookup {
     @return true if there are guarded conditions, false otherwise
   */
 
+<<<<<<< HEAD
   bool has_guarded_conds() const {
+<<<<<<< HEAD
     assert(key_parts == 0 || cond_guards != nullptr);
+=======
+    DBUG_ASSERT(key_parts == 0 || cond_guards != NULL);
+=======
+  bool has_guarded_conds() const
+  {
+    assert(key_parts == 0 || cond_guards != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     for (uint i = 0; i < key_parts; i++) {
       if (cond_guards[i]) return true;
@@ -263,6 +277,7 @@ class QEP_shared {
   */
 
   JOIN *join() const { return m_join; }
+<<<<<<< HEAD
   void set_join(JOIN *j) { m_join = j; }
   plan_idx idx() const {
     assert(m_idx >= 0);  // Index must be valid
@@ -271,6 +286,18 @@ class QEP_shared {
   void set_idx(plan_idx i) {
     assert(m_idx == NO_PLAN_IDX);  // Index should not change in lifetime
     m_idx = i;
+=======
+  void set_join(JOIN *j) { m_join= j; }
+  plan_idx idx() const
+  {
+    assert(m_idx >= 0);                    // Index must be valid
+    return m_idx;
+  }
+  void set_idx(plan_idx i)
+  {
+    assert(m_idx == NO_PLAN_IDX);      // Index should not change in lifetime
+    m_idx= i;
+>>>>>>> upstream/cluster-7.6
   }
   TABLE *table() const { return m_table; }
   void set_table(TABLE *t) { m_table = t; }
@@ -480,10 +507,14 @@ class QEP_shared_owner {
 
   /// Instructs to share the QEP_shared with another owner
   void share_qs(QEP_shared_owner *other) { other->set_qs(m_qs); }
+<<<<<<< HEAD
   void set_qs(QEP_shared *q) {
     assert(!m_qs);
     m_qs = q;
   }
+=======
+  void set_qs(QEP_shared *q) { assert(!m_qs); m_qs= q; }
+>>>>>>> upstream/cluster-7.6
 
   // Getters/setters forwarding to QEP_shared:
 

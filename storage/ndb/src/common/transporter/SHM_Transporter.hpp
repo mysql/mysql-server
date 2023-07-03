@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +60,7 @@ public:
 		  bool preSendChecksum,
                   Uint32 spintime,
                   Uint32 send_buffer_size);
+<<<<<<< HEAD
 
   SHM_Transporter(TransporterRegistry &,
                   const SHM_Transporter*);
@@ -64,14 +69,27 @@ public:
    * SHM destructor
    */
   ~SHM_Transporter() override;
+=======
+  
+  /**
+   * SHM destructor
+   */
+  virtual ~SHM_Transporter();
+>>>>>>> pr/231
 
   /**
    * Clear any data buffered in the transporter.
    * Should only be called in a disconnected state.
    */
+<<<<<<< HEAD
   void resetBuffers() override;
 
   bool configure_derived(const TransporterConfiguration* conf) override;
+=======
+  virtual void resetBuffers();
+
+  virtual bool configure_derived(const TransporterConfiguration* conf);
+>>>>>>> pr/231
 
   /**
    * Do initialization
@@ -94,6 +112,11 @@ protected:
    * -# marks the segment for removal
    */
   void disconnectImpl() override;
+
+  /**
+   * Disconnect socket that was used for wakeup services.
+   */
+  void disconnect_socket();
 
   /**
    * Disconnect socket that was used for wakeup services.
@@ -132,7 +155,11 @@ protected:
   bool ndb_shm_get();
   bool ndb_shm_attach();
   void ndb_shm_destroy();
+<<<<<<< HEAD
   void set_socket(ndb_socket_t);
+=======
+  void set_socket(NDB_SOCKET_TYPE);
+>>>>>>> pr/231
 
   /**
    * Check if there are two processes attached to the segment (a connection)
@@ -149,7 +176,11 @@ protected:
   /**
    * doSend (i.e signal receiver)
    */
+<<<<<<< HEAD
   bool doSend(bool need_wakeup = true) override;
+=======
+  bool doSend(bool need_wakeup = true);
+>>>>>>> pr/231
   void doReceive();
   void wakeup();
 
@@ -174,6 +205,11 @@ protected:
   int m_remote_pid;
   Uint32 m_signal_threshold;
 
+  Uint32 m_spintime;
+  Uint32 get_spintime()
+  {
+    return m_spintime;
+  }
 private:
   bool _shmSegCreated;
   bool _attached;
@@ -224,7 +260,11 @@ private:
   {
     return ((Uint32)bufsize >= m_signal_threshold);
   }
+<<<<<<< HEAD
   bool send_is_possible(int timeout_millisec) const override;
+=======
+  bool send_is_possible(int timeout_millisec) const;
+>>>>>>> pr/231
   void detach_shm(bool rep_error);
 };
 

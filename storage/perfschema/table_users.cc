@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +95,34 @@ bool PFS_index_users_by_user::match(PFS_user *pfs) {
   return true;
 }
 
+<<<<<<< HEAD
 PFS_engine_table *table_users::create(PFS_engine_table_share *) {
+=======
+PFS_engine_table_share_state
+table_users::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_users::m_share=
+{
+  { C_STRING_WITH_LEN("users") },
+  &pfs_truncatable_acl,
+  table_users::create,
+  NULL, /* write_row */
+  table_users::delete_all_rows,
+  cursor_by_user::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_users::create()
+{
+>>>>>>> upstream/cluster-7.6
   return new table_users();
 }
 
@@ -153,7 +188,12 @@ int table_users::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -169,7 +209,31 @@ int table_users::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_connection_stat.set_field(f->field_index() - 1, f);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* USER */
+        m_row.m_user.set_field(f);
+        break;
+      case 1: /* CURRENT_CONNECTIONS */
+      case 2: /* TOTAL_CONNECTIONS */
+        m_row.m_connection_stat.set_field(f->field_index - 1, f);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

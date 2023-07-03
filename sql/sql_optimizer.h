@@ -1,7 +1,15 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -424,6 +432,7 @@ class JOIN {
   */
   mem_root_deque<Item *> *tmp_fields = nullptr;
 
+<<<<<<< HEAD
   int error{0};  ///< set in optimize(), exec(), prepare_result()
 
   /**
@@ -432,6 +441,57 @@ class JOIN {
     (since outer references may have changed).
    */
   uint64_t hash_table_generation{0};
+=======
+<<<<<<< HEAD
+  int error;  ///< set in optimize(), exec(), prepare_result()
+=======
+    /**
+      Type-safe NULL assignment
+
+      See a commentary for the "null" type above.
+    */
+    ORDER_with_src &operator=(null *) { clean(); return *this; }
+
+    /**
+      Type-safe constructor from NULL
+
+      See a commentary for the "null" type above.
+    */
+    ORDER_with_src(null *) { clean(); }
+
+    /**
+      Transparent access to the wrapped order list
+
+      These operators are safe, since we don't do any conversion of
+      ORDER_with_src value, but just an access to the wrapped
+      ORDER pointer value. 
+      We can use ORDER_with_src objects instead ORDER pointers in
+      a transparent way without accessor functions.
+
+      @note     This operator also implements safe "operator bool()"
+                functionality.
+    */
+    operator       ORDER *()       { return order; }
+    operator const ORDER *() const { return order; }
+
+    ORDER* operator->() const { return order; }
+ 
+    void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
+
+    void set_flag(Explain_sort_property flag)
+    {
+      assert(order);
+      flags|= flag;
+    }
+    void reset_flag(Explain_sort_property flag) { flags&= ~flag; }
+    bool get_flag(Explain_sort_property flag) const {
+      assert(order);
+      return flags & flag;
+    }
+    int get_flags() const { assert(order); return flags; }
+  };
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /**
     ORDER BY and GROUP BY lists, to transform with prepare,optimize and exec
@@ -629,6 +689,7 @@ class JOIN {
      In the normal case, dst and src have the same size().
      However: the rollup slices may have smaller size than slice_sz.
    */
+<<<<<<< HEAD
   void copy_ref_item_slice(uint dst_slice, uint src_slice) {
     copy_ref_item_slice(ref_items[dst_slice], ref_items[src_slice]);
   }
@@ -638,6 +699,14 @@ class JOIN {
     const void *src = src_arr.array();
     if (!src_arr.is_null())
       memcpy(dest, src, src_arr.size() * src_arr.element_size());
+=======
+  void copy_ref_ptr_array(Ref_ptr_array dst_arr, Ref_ptr_array src_arr)
+  {
+    assert(dst_arr.size() >= src_arr.size());
+    void *dest= dst_arr.array();
+    const void *src= src_arr.array();
+    memcpy(dest, src, src_arr.size() * src_arr.element_size());
+>>>>>>> upstream/cluster-7.6
   }
 
   /**
@@ -751,7 +820,20 @@ class JOIN {
     @return Cost model object for the join
   */
 
+<<<<<<< HEAD
   const Cost_model_server *cost_model() const;
+=======
+<<<<<<< HEAD
+  const Cost_model_server *cost_model() const {
+    DBUG_ASSERT(thd != NULL);
+=======
+  const Cost_model_server* cost_model() const
+  {
+    assert(thd != NULL);
+>>>>>>> upstream/cluster-7.6
+    return thd->cost_model();
+  }
+>>>>>>> pr/231
 
   /**
     Check if FTS index only access is possible

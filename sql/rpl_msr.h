@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,6 +155,7 @@ class Multisource_info {
 
  public:
   /* Constructor for this class.*/
+<<<<<<< HEAD
   Multisource_info() {
     /*
       This class should be a singleton.
@@ -158,6 +163,16 @@ class Multisource_info {
     */
 #ifndef NDEBUG
     static int instance_count = 0;
+=======
+  Multisource_info()
+  {
+    /*
+      This class should be a singleton.
+      The assert below is to prevent it to be instantiated more than once.
+    */
+#ifndef NDEBUG
+    static int instance_count= 0;
+>>>>>>> upstream/cluster-7.6
     instance_count++;
     assert(instance_count == 1);
 #endif
@@ -218,14 +233,26 @@ class Multisource_info {
     @note this requires the caller to hold the mi->channel_wrlock.
     If the method succeeds the master info object is deleted and the lock
     is released. If the an error occurs and the method return true, the {mi}
+<<<<<<< HEAD
     object won't be deleted and the caller should release the channel_wrlock.
+=======
+    object wont be deleted and the caller should release the channel_wrlock.
+>>>>>>> pr/231
 
     @param[in]    channel_name     Name of the channel for a Master_info
                                    object which must exist.
 
     @return true if an error occurred, false otherwise
   */
+<<<<<<< HEAD
   bool delete_mi(const char *channel_name);
+=======
+<<<<<<< HEAD
+  void delete_mi(const char *channel_name);
+=======
+  bool delete_mi(const char* channel_name);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /**
     Get the default channel for this multisourced_slave;

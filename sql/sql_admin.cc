@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1067,7 +1075,15 @@ static bool mysql_admin_table(
           require upgrade. So we don't need to pre-open them before calling
           mysql_recreate_table().
         */
+<<<<<<< HEAD
         assert(!table->table->s->tmp_table);
+=======
+<<<<<<< HEAD
+        DBUG_ASSERT(!table->table->s->tmp_table);
+=======
+        assert(! table->table->s->tmp_table);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
         trans_rollback_stmt(thd);
         trans_rollback(thd);
@@ -1401,6 +1417,53 @@ static bool mysql_admin_table(
         fatal_error = true;
         break;
       }
+<<<<<<< HEAD
+=======
+      /* Start a new row for the final status row */
+      protocol->start_row();
+      protocol->store(table_name, system_charset_info);
+      protocol->store(operator_name, system_charset_info);
+      if (result_code) // either mysql_recreate_table or analyze failed
+      {
+        assert(thd->is_error() || thd->killed);
+        if (thd->is_error())
+        {
+          const char *err_msg= thd->get_stmt_da()->message_text();
+          if (!thd->get_protocol()->connection_alive())
+          {
+            sql_print_error("%s", err_msg);
+          }
+          else
+          {
+            /* Hijack the row already in-progress. */
+            protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+            protocol->store(err_msg, system_charset_info);
+            if (protocol->end_row())
+              goto err;
+            /* Start off another row for HA_ADMIN_FAILED */
+            protocol->start_row();
+            protocol->store(table_name, system_charset_info);
+            protocol->store(operator_name, system_charset_info);
+          }
+          thd->clear_error();
+        }
+        /* Make sure this table instance is not reused after the operation. */
+        if (table->table)
+          table->table->m_needs_reopen= true;
+      }
+      result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
+      table->next_local= save_next_local;
+      table->next_global= save_next_global;
+      goto send_result_message;
+    }
+    case HA_ADMIN_WRONG_CHECKSUM:
+    {
+      protocol->store(STRING_WITH_LEN("note"), system_charset_info);
+      protocol->store(ER(ER_VIEW_CHECKSUM), strlen(ER(ER_VIEW_CHECKSUM)),
+                      system_charset_info);
+      break;
+    }
+>>>>>>> upstream/cluster-7.6
 
       case HA_ADMIN_STATS_UPD_ERR:
         protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);

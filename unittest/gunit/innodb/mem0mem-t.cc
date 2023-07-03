@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +30,24 @@
 
 /* See http://code.google.com/p/googletest/wiki/Primer */
 
+<<<<<<< HEAD
+=======
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+
+<<<<<<< HEAD
+=======
+#include "univ.i"
+
+#include "mem0mem.h"
+#include "os0event.h"
+#include "srv0conc.h"
+#include "srv0srv.h"
+
+#include "handler.h"
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #include <gtest/gtest.h>
 #include <stddef.h>
 
@@ -35,16 +61,39 @@
 namespace innodb_mem0mem_unittest {
 
 class mem0mem : public ::testing::Test {
+<<<<<<< HEAD
  protected:
   static void SetUpTestCase() {
     srv_max_n_threads = srv_sync_array_size + 1;
     os_event_global_init();
     sync_check_init(srv_max_n_threads);
   }
+<<<<<<< HEAD
   static void TearDownTestCase() {
     sync_check_close();
     os_event_global_destroy();
   }
+=======
+  static void TearDownTestCase() { sync_check_close(); }
+=======
+protected:
+	static
+	void
+	SetUpTestCase()
+	{
+		srv_max_n_threads = srv_sync_array_size + 1;
+		os_event_global_init();
+		sync_check_init();
+	}
+	static
+	void
+	TearDownTestCase()
+	{
+		sync_check_close();
+		os_event_global_destroy();
+	}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /* test mem_heap_is_top() */

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1690,7 +1694,10 @@ LocalProxy::execAPI_FAILREQ(Signal* signal)
 void
 LocalProxy::sendAPI_FAILREQ(Signal* signal, Uint32 nodeId, SectionHandle*)
 {
+<<<<<<< HEAD
   jam();
+=======
+>>>>>>> pr/231
   Ss_API_FAILREQ& ss = ssFind<Ss_API_FAILREQ>(nodeId);
 
   /*
@@ -1713,7 +1720,11 @@ LocalProxy::sendAPI_FAILREQ(Signal* signal, Uint32 nodeId, SectionHandle*)
    *                                     \       /
    *                                       Proxy
    *
+<<<<<<< HEAD
    * Depending on the order the queues are processed, the
+=======
+   * Depening on the order the queues are processed, the
+>>>>>>> pr/231
    * API_FAILREQ may then be processed by the Block-instance
    * before a API-request from the failed node - Which is
    * not what we want.
@@ -1721,7 +1732,11 @@ LocalProxy::sendAPI_FAILREQ(Signal* signal, Uint32 nodeId, SectionHandle*)
    * Thus we let any proxies receiving a API_FAILREQ, route it
    * back to the recv/TRPMAN. There it will be inserted in
    * the same queue as the API-requests, and thus remove the
+<<<<<<< HEAD
    * possibilities for being overtaken:
+=======
+   * posibilities for being overtaken:
+>>>>>>> pr/231
    *
    *  Routed-API_FAILREQ: recv/TRPMAN-thread
    *                                     \

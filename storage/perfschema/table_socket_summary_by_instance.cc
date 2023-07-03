@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -117,8 +125,35 @@ bool PFS_index_socket_summary_by_instance_by_event_name::match(
   return true;
 }
 
+<<<<<<< HEAD
 PFS_engine_table *table_socket_summary_by_instance::create(
     PFS_engine_table_share *) {
+=======
+PFS_engine_table_share_state
+table_socket_summary_by_instance::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_socket_summary_by_instance::m_share=
+{
+  { C_STRING_WITH_LEN("socket_summary_by_instance") },
+  &pfs_readonly_acl,
+  table_socket_summary_by_instance::create,
+  NULL, /* write_row */
+  table_socket_summary_by_instance::delete_all_rows,
+  table_socket_summary_by_instance::get_row_count,
+  sizeof(PFS_simple_index),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_socket_summary_by_instance::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_socket_summary_by_instance();
 }
 
@@ -307,6 +342,7 @@ int table_socket_summary_by_instance::read_row_values(TABLE *table,
           set_field_ulonglong(f, m_row.m_io_stat.m_write.m_bytes);
           break;
 
+<<<<<<< HEAD
         case 19: /* COUNT_MISC */
           set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_count);
           break;
@@ -325,6 +361,26 @@ int table_socket_summary_by_instance::read_row_values(TABLE *table,
         default:
           assert(false);
           break;
+=======
+      case 19: /* COUNT_MISC */
+        set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_count);
+        break;
+      case 20: /* SUM_TIMER_MISC */
+        set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_sum);
+        break;
+      case 21: /* MIN_TIMER_MISC */
+        set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_min);
+        break;
+      case 22: /* AVG_TIMER_MISC */
+        set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_avg);
+        break;
+      case 23: /* MAX_TIMER_MISC */
+        set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_max);
+        break;
+      default:
+        assert(false);
+        break;
+>>>>>>> upstream/cluster-7.6
       }
     }
   }

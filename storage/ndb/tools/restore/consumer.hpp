@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,8 +60,11 @@ public:
   virtual bool createSystable(const TableS &){ return true;}
   virtual bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart)
     {return true;}
+<<<<<<< HEAD
   virtual bool delete_epoch_tuple()
     {return true;}
+=======
+>>>>>>> pr/231
   virtual bool report_started(unsigned backup_id, unsigned node_id)
     {return true;}
   virtual bool report_meta_data(unsigned backup_id, unsigned node_id)

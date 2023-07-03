@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -210,8 +218,18 @@ class KEY {
     @return true if records per key estimate is available, false otherwise
   */
 
+<<<<<<< HEAD
   bool has_records_per_key(uint key_part_no) const {
+<<<<<<< HEAD
     assert(key_part_no < actual_key_parts);
+=======
+    DBUG_ASSERT(key_part_no < actual_key_parts);
+=======
+  bool has_records_per_key(uint key_part_no) const
+  {
+    assert(key_part_no < actual_key_parts);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return ((rec_per_key_float &&
              rec_per_key_float[key_part_no] != REC_PER_KEY_UNKNOWN) ||
@@ -232,8 +250,18 @@ class KEY {
       @retval != REC_PER_KEY_UNKNOWN record per key estimate
   */
 
+<<<<<<< HEAD
   rec_per_key_t records_per_key(uint key_part_no) const {
+<<<<<<< HEAD
     assert(key_part_no < actual_key_parts);
+=======
+    DBUG_ASSERT(key_part_no < actual_key_parts);
+=======
+  rec_per_key_t records_per_key(uint key_part_no) const
+  {
+    assert(key_part_no < actual_key_parts);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     /*
       If the storage engine has provided rec per key estimates as float
@@ -258,10 +286,26 @@ class KEY {
     @param rec_per_key_est new records per key estimate
   */
 
+<<<<<<< HEAD
   void set_records_per_key(uint key_part_no, rec_per_key_t rec_per_key_est) {
+<<<<<<< HEAD
     assert(key_part_no < actual_key_parts);
     assert(rec_per_key_est == REC_PER_KEY_UNKNOWN || rec_per_key_est >= 1.0);
     assert(rec_per_key_float != nullptr);
+=======
+    DBUG_ASSERT(key_part_no < actual_key_parts);
+    DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN ||
+                rec_per_key_est >= 1.0);
+    DBUG_ASSERT(rec_per_key_float != NULL);
+=======
+  void set_records_per_key(uint key_part_no, rec_per_key_t rec_per_key_est)
+  {
+    assert(key_part_no < actual_key_parts);
+    assert(rec_per_key_est == REC_PER_KEY_UNKNOWN ||
+           rec_per_key_est >= 1.0);
+    assert(rec_per_key_float != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     rec_per_key_float[key_part_no] = rec_per_key_est;
   }
@@ -332,9 +376,21 @@ class KEY {
       @retval != IN_MEMORY_ESTIMATE_UNKNOWN estimate
   */
 
+<<<<<<< HEAD
   double in_memory_estimate() const {
+<<<<<<< HEAD
     assert(m_in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
            (m_in_memory_estimate >= 0.0 && m_in_memory_estimate <= 1.0));
+=======
+    DBUG_ASSERT(m_in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+                (m_in_memory_estimate >= 0.0 && m_in_memory_estimate <= 1.0));
+=======
+  double in_memory_estimate() const
+  {
+    assert(m_in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+           (m_in_memory_estimate >= 0.0 && m_in_memory_estimate <= 1.0));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return m_in_memory_estimate;
   }
@@ -347,9 +403,21 @@ class KEY {
     IN_MEMORY_ESTIMATE_UNKNOWN.
   */
 
+<<<<<<< HEAD
   void set_in_memory_estimate(double in_memory_estimate) {
+<<<<<<< HEAD
     assert(in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
            (in_memory_estimate >= 0.0 && in_memory_estimate <= 1.0));
+=======
+    DBUG_ASSERT(in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+                (in_memory_estimate >= 0.0 && in_memory_estimate <= 1.0));
+=======
+  void set_in_memory_estimate(double in_memory_estimate)
+  {
+    assert(in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+           (in_memory_estimate >= 0.0 && in_memory_estimate <= 1.0));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     m_in_memory_estimate = in_memory_estimate;
   }

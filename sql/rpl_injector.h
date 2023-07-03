@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,9 +154,216 @@ class injector {
       TABLE *get_table() const { return m_table; }
       bool is_transactional() const { return m_is_transactional; }
 
+<<<<<<< HEAD
      private:
       TABLE *m_table;
       bool m_is_transactional;
+=======
+      transaction() : m_thd(NULL) { }
+      transaction(transaction const&);
+      ~transaction();
+
+      /* Clear transaction, i.e., make calls to 'good()' return false. */
+      void clear() { m_thd= NULL; }
+
+      /* Is the transaction in a good state? */
+      bool good() const { return m_thd != NULL; }
+
+      /* Default assignment operator: standard implementation */
+      transaction& operator=(transaction t) {
+        swap(t);
+        return *this;
+      }
+      
+      /*
+
+        DESCRIPTION
+
+          Register table for use within the transaction.  All tables
+          that are going to be used need to be registered before being
+          used below.  The member function will fail with an error if
+          use_table() is called after any *_row() function has been
+          called for the transaction.
+
+        RETURN VALUE
+
+          0         All OK
+          >0        Failure
+
+       */
+      int use_table(server_id_type sid, table tbl);
+
+      /*
+        Add a 'write row' entry to the transaction.
+      */
+      int write_row (server_id_type sid, table tbl, 
+                     MY_BITMAP const *cols, size_t colcnt,
+                     record_type record,
+                     const uchar* extra_row_info);
+      int write_row (server_id_type sid, table tbl,
+                      MY_BITMAP const *cols, size_t colcnt,
+                      record_type record);
+
+      /*
+        Add a 'delete row' entry to the transaction.
+      */
+      int delete_row(server_id_type sid, table tbl, 
+                     MY_BITMAP const *cols, size_t colcnt,
+                     record_type record,
+                     const uchar* extra_row_info);
+      int delete_row(server_id_type sid, table tbl,
+                     MY_BITMAP const *cols, size_t colcnt,
+                     record_type record);
+      /*
+        Add an 'update row' entry to the transaction.
+      */
+      int update_row(server_id_type sid, table tbl, 
+                     MY_BITMAP const *before_cols,
+                     MY_BITMAP const *after_cols,
+                     size_t colcnt,
+                     record_type before, record_type after,
+                     const uchar* extra_row_info);
+      int update_row(server_id_type sid, table tbl,
+                     MY_BITMAP const *cols, size_t colcnt,
+                     record_type before, record_type after);
+
+      /*
+        Commit a transaction.
+
+        This member function will clean up after a sequence of *_row calls by,
+        for example, releasing resource and unlocking files.
+      */
+      int commit();
+
+      /*
+        Rollback a transaction.
+
+        This member function will clean up after a sequence of *_row calls by,
+        for example, releasing resource and unlocking files.
+      */
+      int rollback();
+
+      /*
+        Get the position for the start of the transaction.
+
+        This is the current 'tail of Binlog' at the time the transaction
+        was started.  The first event recorded by the transaction may
+        be at this, or some subsequent position.  The first event recorded
+        by the transaction will not be before this position.
+      */
+      binlog_pos start_pos() const;
+
+      /*
+        Get the next position after the end of the transaction
+
+        This call is only valid after a transaction has been committed.
+        It returns the next Binlog position after the committed transaction.
+        It is guaranteed that no other events will be recorded between the
+        COMMIT event of the Binlog transaction, and this position.
+        Note that this position may be in a different log file to the COMMIT
+        event.
+
+        If the commit had an error, or the transaction was empty and nothing
+        was binlogged then the next_pos will have a NULL file_name(), and
+        0 file_pos().
+
+      */
+      binlog_pos next_pos() const;
+
+    private:
+      /* Only the injector may construct these object */
+      transaction(MYSQL_BIN_LOG *, THD *);
+
+      void swap(transaction& o) {
+        /* std::swap(m_start_pos, o.m_start_pos); */
+        {
+          binlog_pos const tmp= m_start_pos;
+          m_start_pos= o.m_start_pos;
+          o.m_start_pos= tmp;
+        }
+
+        /* std::swap(m_end_pos, o.m_end_pos); */
+        {
+          binlog_pos const tmp= m_next_pos;
+          m_next_pos= o.m_next_pos;
+          o.m_next_pos= tmp;
+        }
+
+        /* std::swap(m_thd, o.m_thd); */
+        {
+          THD* const tmp= m_thd;
+          m_thd= o.m_thd;
+          o.m_thd= tmp;
+        }
+        {
+          enum_state const tmp= m_state;
+          m_state= o.m_state;
+          o.m_state= tmp;
+        }
+      }
+
+      enum enum_state
+      {
+        START_STATE,                            /* Start state */
+        TABLE_STATE,      /* At least one table has been registered */
+        ROW_STATE,          /* At least one row has been registered */
+        STATE_COUNT               /* State count and sink state */
+      } m_state;
+
+      /*
+        Check and update the state.
+
+        PARAMETER(S)
+
+          target_state
+              The state we are moving to: TABLE_STATE if we are
+              writing a table and ROW_STATE if we are writing a row.
+
+        DESCRIPTION
+
+          The internal state will be updated to the target state if
+          and only if it is a legal move.  The only legal moves are:
+
+              START_STATE -> START_STATE
+              START_STATE -> TABLE_STATE
+              TABLE_STATE -> TABLE_STATE
+              TABLE_STATE -> ROW_STATE
+
+          That is:
+          - It is not possible to write any row before having written at
+            least one table
+          - It is not possible to write a table after at least one row
+            has been written
+
+        RETURN VALUE
+
+           0    All OK
+          -1    Incorrect call sequence
+       */
+      int check_state(enum_state const target_state)
+      {
+#ifndef NDEBUG
+        static char const *state_name[] = {
+          "START_STATE", "TABLE_STATE", "ROW_STATE", "STATE_COUNT"
+        };
+
+        assert(0 <= target_state && target_state <= STATE_COUNT);
+        DBUG_PRINT("info", ("In state %s", state_name[m_state]));
+#endif
+
+        if (m_state <= target_state && target_state <= m_state + 1 &&
+            m_state < STATE_COUNT)
+          m_state= target_state;
+        else
+          m_state= STATE_COUNT;
+        return m_state == STATE_COUNT ? 1 : 0;
+      }
+
+
+      binlog_pos m_start_pos;
+      binlog_pos m_next_pos;
+      THD *m_thd;
+>>>>>>> upstream/cluster-7.6
     };
 
     /*

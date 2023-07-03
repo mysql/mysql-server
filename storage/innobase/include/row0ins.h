@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -127,6 +151,7 @@ columns in row.
 dberr_t row_ins_index_entry_set_vals(const dict_index_t *index, dtuple_t *entry,
                                      const dtuple_t *row);
 
+<<<<<<< HEAD
 /** Inserts an entry into a clustered index. Tries first optimistic,
  then pessimistic descent down the tree. If the entry matches enough
  to a delete marked record, performs the insert by updating or delete
@@ -189,6 +214,103 @@ struct ins_node_t {
   uint32_t ins_multi_val_pos;
 
   ulint magic_n;
+=======
+/***************************************************************//**
+Tries to insert the externally stored fields (off-page columns)
+of a clustered index entry.
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+dberr_t
+row_ins_index_entry_big_rec_func(
+/*=============================*/
+	const dtuple_t*		entry,	/*!< in/out: index entry to insert */
+	const big_rec_t*	big_rec,/*!< in: externally stored fields */
+	ulint*			offsets,/*!< in/out: rec offsets */
+	mem_heap_t**		heap,	/*!< in/out: memory heap */
+	dict_index_t*		index,	/*!< in: index */
+	const char*		file,	/*!< in: file name of caller */
+#ifndef NDEBUG
+	const void*		thd,	/*!< in: connection, or NULL */
+#endif /* NDEBUG */
+	ulint			line)	/*!< in: line number of caller */
+	MY_ATTRIBUTE((nonnull(1,2,3,4,5,6), warn_unused_result));
+#ifdef NDEBUG
+# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
+	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,line)
+#else /* NDEBUG */
+# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
+	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,thd,line)
+#endif /* NDEBUG */
+/***************************************************************//**
+Inserts an entry into a clustered index. Tries first optimistic,
+then pessimistic descent down the tree. If the entry matches enough
+to a delete marked record, performs the insert by updating or delete
+unmarking the delete marked record.
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+dberr_t
+row_ins_clust_index_entry(
+/*======================*/
+	dict_index_t*	index,	/*!< in: clustered index */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
+	que_thr_t*	thr,	/*!< in: query thread */
+	ulint		n_ext,	/*!< in: number of externally stored columns */
+	bool		dup_chk_only)
+				/*!< in: if true, just do duplicate check
+				and return. don't execute actual insert. */
+	MY_ATTRIBUTE((warn_unused_result));
+/***************************************************************//**
+Inserts an entry into a secondary index. Tries first optimistic,
+then pessimistic descent down the tree. If the entry matches enough
+to a delete marked record, performs the insert by updating or delete
+unmarking the delete marked record.
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+dberr_t
+row_ins_sec_index_entry(
+/*====================*/
+	dict_index_t*	index,	/*!< in: secondary index */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
+	que_thr_t*	thr,	/*!< in: query thread */
+	bool		dup_chk_only)
+				/*!< in: if true, just do duplicate check
+				and return. don't execute actual insert. */
+	MY_ATTRIBUTE((warn_unused_result));
+/***********************************************************//**
+Inserts a row to a table. This is a high-level function used in
+SQL execution graphs.
+@return query thread to run next or NULL */
+que_thr_t*
+row_ins_step(
+/*=========*/
+	que_thr_t*	thr);	/*!< in: query thread */
+
+/* Insert node structure */
+
+struct ins_node_t{
+	que_common_t	common;	/*!< node type: QUE_NODE_INSERT */
+	ulint		ins_type;/* INS_VALUES, INS_SEARCHED, or INS_DIRECT */
+	dtuple_t*	row;	/*!< row to insert */
+	dict_table_t*	table;	/*!< table where to insert */
+	sel_node_t*	select;	/*!< select in searched insert */
+	que_node_t*	values_list;/* list of expressions to evaluate and
+				insert in an INS_VALUES insert */
+	ulint		state;	/*!< node execution state */
+	dict_index_t*	index;	/*!< NULL, or the next index where the index
+				entry should be inserted */
+	dtuple_t*	entry;	/*!< NULL, or entry to insert in the index;
+				after a successful insert of the entry,
+				this should be reset to NULL */
+	UT_LIST_BASE_NODE_T(dtuple_t)
+			entry_list;/* list of entries, one for each index */
+	byte*		row_id_buf;/* buffer for the row id sys field in row */
+	trx_id_t	trx_id;	/*!< trx id or the last trx which executed the
+				node */
+	byte*		trx_id_buf;/* buffer for the trx id sys field in row */
+	mem_heap_t*	entry_sys_heap;
+				/* memory heap used as auxiliary storage;
+				entry_list and sys fields are stored here;
+				if this is NULL, entry list should be created
+				and buffers for sys fields in row allocated */
+	ulint		magic_n;
+>>>>>>> upstream/cluster-7.6
 };
 
 constexpr uint32_t INS_NODE_MAGIC_N = 15849075;

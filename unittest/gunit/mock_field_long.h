@@ -1,6 +1,14 @@
 #ifndef MOCK_FIELD_LONG_INCLUDED
 #define MOCK_FIELD_LONG_INCLUDED
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +30,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD
 #include "sql/field.h"
+=======
+#include "m_string.h"
+#include "field.h"
+>>>>>>> upstream/cluster-7.6
 
 /**
   Base class for creating mock Field objects.
@@ -36,11 +49,31 @@ class Mock_field_long : public Field_long {
   Mock_field_long(bool is_unsigned)
       : Mock_field_long("field_name", true, is_unsigned) {}
 
+<<<<<<< HEAD
   /**
     Creates a nullable column.
     @param name The column name.
   */
+<<<<<<< HEAD
   Mock_field_long(const char *name) : Mock_field_long(name, true, false) {}
+=======
+  Mock_field_long(const char *name) : Mock_field_long(name, true) {}
+=======
+  void initialize(const char *name)
+  {
+    ptr= buffer;
+    memset(buffer, 0, PACK_LENGTH);
+    static const char *table_name_buf= "table_name";
+    table_name= &table_name_buf;
+    if (name)
+    {
+      my_snprintf(m_name, sizeof(m_name), "%.1023s", name);
+      field_name= m_name;
+    }
+  }
+public:
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /**
     Creates a nullable column.

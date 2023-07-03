@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -292,6 +300,7 @@ TAPTEST(Bitmask)
     OK(b.count() == 153);
     b.setRange(0, 0);
     OK(b.count() == 153);
+<<<<<<< HEAD
 
     // Check functioning of bitmask "length"
 
@@ -307,6 +316,8 @@ TAPTEST(Bitmask)
     OK(mask_length_test.getPackedLengthInWords() == 8);
     mask_length_test.clear();
     OK(mask_length_test.getPackedLengthInWords() == 0);
+=======
+>>>>>>> pr/231
 
     return 1; // OK
 }

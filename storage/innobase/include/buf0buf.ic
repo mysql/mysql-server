@@ -1,6 +1,14 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -9,6 +17,7 @@ briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -24,6 +33,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -194,11 +220,39 @@ static inline bool buf_page_peek_if_too_old(const buf_page_t *bpage) {
       return true;
     }
 
+<<<<<<< HEAD
     buf_pool->stat.n_pages_not_made_young++;
     return false;
   } else {
     return (!buf_page_peek_if_young(bpage));
   }
+=======
+	if (buf_pool->freed_page_clock == 0) {
+		/* If eviction has not started yet, do not update the
+		statistics or move blocks in the LRU list.  This is
+		either the warm-up phase or an in-memory workload. */
+		return(FALSE);
+	} else if (buf_LRU_old_threshold_ms && bpage->old) {
+		unsigned	access_time = buf_page_is_accessed(bpage);
+
+		/* It is possible that the below comparison returns an
+		unexpected result. 2^32 milliseconds pass in about 50 days,
+		so if the difference between ut_time_monotonic_ms() and
+		access_time is e.g. 50 days + 15 ms, then the below will behave
+		as if it is 15 ms. This is known and fixing it would require to
+		increase buf_page_t::access_time from 32 to 64 bits. */
+		if (access_time > 0
+		    && ((ib_uint32_t) (ut_time_monotonic_ms() - access_time))
+		    >= buf_LRU_old_threshold_ms) {
+			return(TRUE);
+		}
+
+		buf_pool->stat.n_pages_not_made_young++;
+		return(FALSE);
+	} else {
+		return(!buf_page_peek_if_young(bpage));
+	}
+>>>>>>> upstream/cluster-7.6
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -558,8 +612,23 @@ static inline void buf_page_set_old(buf_page_t *bpage, bool old) {
   bpage->old = old;
 }
 
+<<<<<<< HEAD
 static inline std::chrono::steady_clock::time_point buf_page_is_accessed(
     const buf_page_t *bpage) {
+=======
+<<<<<<< HEAD
+/** Determine the time of first access of a block in the buffer pool.
+ @return ut_time_ms() at the time of first access, 0 if not accessed */
+=======
+/*********************************************************************//**
+Determine the time of first access of a block in the buffer pool.
+@return ut_time_monotonic_ms() at the time of first access, 0 if not accessed
+*/
+>>>>>>> upstream/cluster-7.6
+UNIV_INLINE
+unsigned buf_page_is_accessed(const buf_page_t *bpage) /*!< in: control block */
+{
+>>>>>>> pr/231
   ut_ad(buf_page_in_file(bpage));
 
   return (bpage->access_time);
@@ -573,10 +642,42 @@ static inline void buf_page_set_accessed(
 
   ut_a(buf_page_in_file(bpage));
 
+<<<<<<< HEAD
   if (bpage->access_time == std::chrono::steady_clock::time_point{}) {
+=======
+<<<<<<< HEAD
+  if (bpage->access_time == 0) {
+>>>>>>> pr/231
     /* Make this the time of the first access. */
     bpage->access_time = std::chrono::steady_clock::now();
   }
+=======
+	if (bpage->access_time == 0) {
+		/* Make this the time of the first access. */
+		bpage->access_time = static_cast<uint>(ut_time_monotonic_ms());
+	}
+}
+
+/*********************************************************************//**
+Gets the buf_block_t handle of a buffered file block if an uncompressed
+page frame exists, or NULL.
+@return control block, or NULL */
+UNIV_INLINE
+buf_block_t*
+buf_page_get_block(
+/*===============*/
+	buf_page_t*	bpage)	/*!< in: control block, or NULL */
+{
+	if (bpage != NULL) {
+		ut_ad(buf_page_in_file(bpage));
+
+		if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
+			return((buf_block_t*) bpage);
+		}
+	}
+
+	return(NULL);
+>>>>>>> upstream/cluster-7.6
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -803,6 +904,14 @@ static inline ulint buf_block_unfix(buf_block_t *block) {
 static inline void buf_block_buf_fix_dec(
     buf_block_t *block) /*!< in/out: block to bufferunfix */
 {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  buf_block_unfix(block);
+
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #ifdef UNIV_DEBUG
   /* No debug latch is acquired if block belongs to system temporary.
   Debug latch is not of much help if access to block is single
@@ -812,7 +921,11 @@ static inline void buf_block_buf_fix_dec(
   }
 #endif /* UNIV_DEBUG */
 
+<<<<<<< HEAD
   buf_block_unfix(block);
+=======
+	buf_block_unfix(block);
+>>>>>>> pr/231
 }
 
 /** Returns the buffer pool instance given a page id.
@@ -1100,6 +1213,20 @@ static inline buf_block_t *buf_get_nth_chunk_block(
   return (chunk->blocks);
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+/** Verify the possibility that a stored page is not in buffer pool.
+@param[in]	withdraw_clock	withdraw clock when stored the page
+@retval true	if the page might be relocated */
+UNIV_INLINE
+bool buf_pool_is_obsolete(ulint withdraw_clock) {
+  return (buf_pool_withdrawing || buf_withdraw_clock != withdraw_clock);
+}
+
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /** Calculate aligned buffer pool size based on srv_buf_pool_chunk_unit,
 if needed.
 @param[in]      size    size in bytes

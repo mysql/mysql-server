@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -643,19 +667,41 @@ void trx_sys_close(void) {
   ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
   ut_a(UT_LIST_GET_LEN(trx_sys->serialisation_list) == 0);
 
+<<<<<<< HEAD
   for (auto &shard : trx_sys->shards) {
     shard.~Trx_shard();
   }
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   /* We used placement new to create this mutex. Call the destructor. */
   mutex_free(&trx_sys->serialisation_mutex);
   mutex_free(&trx_sys->mutex);
 
   trx_sys->rw_trx_ids.~trx_ids_t();
+=======
+	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		trx_rseg_t*	rseg;
+>>>>>>> upstream/cluster-7.6
 
   ut::free(trx_sys);
 
+<<<<<<< HEAD
   trx_sys = nullptr;
+=======
+<<<<<<< HEAD
+  ut_free(trx_sys);
+=======
+		if (rseg != NULL) {
+			trx_rseg_mem_free(rseg,
+				trx_sys->pending_purge_rseg_array);
+		}
+	}
+>>>>>>> upstream/cluster-7.6
+
+  trx_sys = NULL;
+>>>>>>> pr/231
 }
 
 void trx_sys_before_pre_dd_shutdown_validate() {

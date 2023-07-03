@@ -1,5 +1,14 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:storage/myisam/sp_key.cc
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+   
+>>>>>>> upstream/cluster-7.6:storage/myisam/sp_key.c
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -69,13 +78,31 @@ uint sp_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
     uint length = keyseg->length, start = keyseg->start;
     double val;
 
+<<<<<<< HEAD
     assert(length == sizeof(double));
     assert(!(start % sizeof(double)));
     assert(start < sizeof(mbr));
     assert(keyseg->type == HA_KEYTYPE_DOUBLE);
+=======
+<<<<<<< HEAD:storage/myisam/sp_key.cc
+    DBUG_ASSERT(length == sizeof(double));
+    DBUG_ASSERT(!(start % sizeof(double)));
+    DBUG_ASSERT(start < sizeof(mbr));
+    DBUG_ASSERT(keyseg->type == HA_KEYTYPE_DOUBLE);
+>>>>>>> pr/231
 
     val = mbr[start / sizeof(double)];
     if (std::isnan(val)) {
+=======
+    assert(length == sizeof(double));
+    assert(!(start % sizeof(double)));
+    assert(start < sizeof(mbr));
+    assert(keyseg->type == HA_KEYTYPE_DOUBLE);
+    
+    val= mbr[start / sizeof (double)];
+    if (my_isnan(val))
+    {
+>>>>>>> upstream/cluster-7.6:storage/myisam/sp_key.c
       memset(key, 0, length);
       key += length;
       len += length;

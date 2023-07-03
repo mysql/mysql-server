@@ -1,7 +1,11 @@
 /* -*- mode: c++; c-basic-offset: 4; indent-tabs-mode: nil; -*-
  *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
  *
+<<<<<<< HEAD
  *  Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+ *  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License, version 2.0,

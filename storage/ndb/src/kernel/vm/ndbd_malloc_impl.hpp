@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,8 +216,11 @@ class Resource_limits
   void dec_resource_spare(Uint32 id, Uint32 cnt);
   void dec_spare(Uint32 cnt);
   Uint32 get_resource_in_use(Uint32 resource) const;
+<<<<<<< HEAD
   Uint32 get_resource_lent(Uint32 id) const;
   Uint32 get_resource_borrowed(Uint32 id) const;
+=======
+>>>>>>> pr/231
   void inc_free_reserved(Uint32 cnt);
   void inc_in_use(Uint32 cnt);
   void inc_resource_in_use(Uint32 id, Uint32 cnt);
@@ -281,8 +288,11 @@ public:
   Uint32 get_allocated() const;
   Uint32 get_reserved() const;
   Uint32 get_shared() const;
+<<<<<<< HEAD
   Uint32 get_free_shared() const;
   Uint32 get_free_shared_nolock() const;
+=======
+>>>>>>> pr/231
   Uint32 get_spare() const;
   Uint32 get_in_use() const;
   Uint32 get_reserved_in_use() const;
@@ -293,7 +303,11 @@ public:
   void init_resource_spare(Uint32 id, Uint32 pct);
   void* get_memroot() const;
   
+<<<<<<< HEAD
   void dump(bool locked) const ;
+=======
+  void dump() const ;
+>>>>>>> pr/231
   void dump_on_alloc_fail(bool on);
 
   enum AllocZone
@@ -371,6 +385,7 @@ private:
   Uint32 m_buddy_lists[ZONE_COUNT][16];
   Resource_limits m_resource_limits;
   Alloc_page * m_base_page;
+<<<<<<< HEAD
 #ifdef NDBD_RANDOM_START_PAGE
   Uint32 m_random_start_page_id;
 #endif
@@ -407,6 +422,10 @@ private:
    */
   Uint32 m_mapped_pages_new_count;
 
+=======
+  bool m_dump_on_alloc_fail;
+  
+>>>>>>> pr/231
   void release_impl(Uint32 zone, Uint32 start, Uint32 cnt);  
   void insert_free_list(Uint32 zone, Uint32 start, Uint32 cnt);
   Uint32 remove_free_list(Uint32 zone, Uint32 start, Uint32 list);
@@ -507,7 +526,16 @@ Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
   Uint32 limit = rl.m_max - (rl.m_curr + rl.m_spare + spare_res + rl.m_lent);
   if (free_shr > limit)
   {
+<<<<<<< HEAD
     free_shr = limit;
+=======
+    assert(rl.m_max >= rl.m_curr + rl.m_spare + spare_res);
+    Uint32 limit = rl.m_max - rl.m_curr - rl.m_spare - spare_res;
+    if (free_shr > limit)
+    {
+      free_shr = limit;
+    }
+>>>>>>> pr/231
   }
   Uint32 spare_shr = (free_shr > spare_need) ? spare_need : free_shr;
   spare_need -= spare_shr;
@@ -522,8 +550,15 @@ Uint32 Resource_limits::alloc_resource_spare(Uint32 id, Uint32 cnt)
 
   // TODO if spare_need > 0, mark out of memory in some way
 
+<<<<<<< HEAD
   require(rl.m_max >= rl.m_curr + rl.m_spare);
 
+=======
+  if (rl.m_max > 0)
+  {
+    require(rl.m_max >= rl.m_curr + rl.m_spare);
+  }
+>>>>>>> pr/231
   return spare_take;
 }
 
@@ -582,11 +617,15 @@ Uint32 Resource_limits::get_reserved() const
 inline
 Uint32 Resource_limits::get_shared() const
 {
+<<<<<<< HEAD
   const Uint32 reserved = get_reserved();
   const Uint32 allocated = get_allocated();
   if (allocated < reserved)
     return 0;
   return allocated - reserved;
+=======
+  return get_allocated() - get_reserved();
+>>>>>>> pr/231
 }
 
 inline
@@ -616,6 +655,18 @@ inline
 Uint32 Resource_limits::get_in_use() const
 {
   return m_in_use + m_untaken;
+}
+
+inline
+Uint32 Resource_limits::get_reserved_in_use() const
+{
+  return get_reserved() - get_free_reserved();
+}
+
+inline
+Uint32 Resource_limits::get_shared_in_use() const
+{
+  return get_shared() - get_free_shared();
 }
 
 inline

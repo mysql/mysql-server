@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -188,13 +196,24 @@ Global_THD_manager::Global_THD_manager()
 
 Global_THD_manager::~Global_THD_manager() {
   thread_ids.erase_unique(reserved_thread_id);
+<<<<<<< HEAD
   for (int i = 0; i < NUM_PARTITIONS; i++) {
     assert(thd_list[i].empty());
     mysql_mutex_destroy(&LOCK_thd_list[i]);
     mysql_mutex_destroy(&LOCK_thd_remove[i]);
     mysql_cond_destroy(&COND_thd_list[i]);
   }
+<<<<<<< HEAD
   assert(thread_ids.empty());
+=======
+  DBUG_ASSERT(thread_ids.empty());
+=======
+  assert(thd_list.empty());
+  assert(thread_ids.empty());
+  mysql_mutex_destroy(&LOCK_thd_list);
+  mysql_mutex_destroy(&LOCK_thd_remove);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   mysql_mutex_destroy(&LOCK_thread_ids);
 }
 
@@ -216,15 +235,33 @@ void Global_THD_manager::destroy_instance() {
 void Global_THD_manager::add_thd(THD *thd) {
   DBUG_PRINT("info", ("Global_THD_manager::add_thd %p", thd));
   // Should have an assigned ID before adding to the list.
+<<<<<<< HEAD
   assert(thd->thread_id() != reserved_thread_id);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(thd->thread_id() != reserved_thread_id);
+>>>>>>> pr/231
   const int partition = thd_partition(thd->thread_id());
   MUTEX_LOCK(lock_list, &LOCK_thd_list[partition]);
+=======
+  assert(thd->thread_id() != reserved_thread_id);
+  mysql_mutex_lock(&LOCK_thd_list);
+>>>>>>> upstream/cluster-7.6
   // Technically it is not supported to compare pointers, but it works.
   std::pair<THD_array::iterator, bool> insert_result =
       thd_list[partition].insert_unique(thd);
   if (insert_result.second) ++atomic_global_thd_count;
   // Adding the same THD twice is an error.
+<<<<<<< HEAD
   assert(insert_result.second);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(insert_result.second);
+=======
+  assert(insert_result.second);
+  mysql_mutex_unlock(&LOCK_thd_list);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 void Global_THD_manager::remove_thd(THD *thd) {
@@ -233,7 +270,16 @@ void Global_THD_manager::remove_thd(THD *thd) {
   MUTEX_LOCK(lock_remove, &LOCK_thd_remove[partition]);
   MUTEX_LOCK(lock_list, &LOCK_thd_list[partition]);
 
+<<<<<<< HEAD
   assert(unit_test || thd->release_resources_done());
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(unit_test || thd->release_resources_done());
+=======
+  if (!unit_test)
+    assert(thd->release_resources_done());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     Used by binlog_reset_master.  It would be cleaner to use
@@ -245,8 +291,19 @@ void Global_THD_manager::remove_thd(THD *thd) {
   const size_t num_erased = thd_list[partition].erase_unique(thd);
   if (num_erased == 1) --atomic_global_thd_count;
   // Removing a THD that was never added is an error.
+<<<<<<< HEAD
   assert(1 == num_erased);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(1 == num_erased);
+>>>>>>> pr/231
   mysql_cond_broadcast(&COND_thd_list[partition]);
+=======
+  assert(1 == num_erased);
+  mysql_mutex_unlock(&LOCK_thd_remove);
+  mysql_cond_broadcast(&COND_thd_list);
+  mysql_mutex_unlock(&LOCK_thd_list);
+>>>>>>> upstream/cluster-7.6
 }
 
 my_thread_id Global_THD_manager::get_new_thread_id() {
@@ -267,10 +324,19 @@ void Global_THD_manager::release_thread_id(my_thread_id thread_id) {
   assert(1 == num_erased);
 }
 
+<<<<<<< HEAD
 void Global_THD_manager::set_thread_id_counter(my_thread_id new_id) {
   assert(unit_test == true);
   MUTEX_LOCK(lock, &LOCK_thread_ids);
   thread_id_counter = new_id;
+=======
+
+void Global_THD_manager::set_thread_id_counter(my_thread_id new_id)
+{
+  assert(unit_test == true);
+  Mutex_lock lock(&LOCK_thread_ids);
+  thread_id_counter= new_id;
+>>>>>>> upstream/cluster-7.6
 }
 
 void Global_THD_manager::wait_till_no_thd() {

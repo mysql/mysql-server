@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -550,9 +558,22 @@ class sp_instr_set : public sp_lex_instr {
 
   void invalidate() override { m_value_item = nullptr; }
 
+<<<<<<< HEAD
   bool on_after_expr_parsing(THD *thd) override {
     m_value_item = thd->lex->query_block->single_visible_field();
     assert(m_value_item != nullptr);
+=======
+<<<<<<< HEAD
+  virtual bool on_after_expr_parsing(THD *thd) {
+    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+=======
+  virtual bool on_after_expr_parsing(THD *thd)
+  {
+    assert(thd->lex->select_lex->item_list.elements == 1);
+>>>>>>> upstream/cluster-7.6
+
+    m_value_item = thd->lex->select_lex->item_list.head();
+>>>>>>> pr/231
 
     return false;
   }
@@ -683,9 +704,23 @@ class sp_instr_freturn : public sp_lex_instr {
     m_expr_item = nullptr;
   }
 
+<<<<<<< HEAD
   bool on_after_expr_parsing(THD *thd) override {
     m_expr_item = thd->lex->query_block->single_visible_field();
     assert(m_expr_item != nullptr);
+=======
+<<<<<<< HEAD
+  virtual bool on_after_expr_parsing(THD *thd) {
+    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+=======
+  virtual bool on_after_expr_parsing(THD *thd)
+  {
+    assert(thd->lex->select_lex->item_list.elements == 1);
+>>>>>>> upstream/cluster-7.6
+
+    m_expr_item = thd->lex->select_lex->item_list.head();
+
+>>>>>>> pr/231
     return false;
   }
 
@@ -760,8 +795,17 @@ class sp_instr_jump : public sp_instr, public sp_branch_instr {
 
   void backpatch(uint dest) override {
     /* Calling backpatch twice is a logic flaw in jump resolution. */
+<<<<<<< HEAD
     assert(m_dest == 0);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(m_dest == 0);
+>>>>>>> pr/231
     m_dest = dest;
+=======
+    assert(m_dest == 0);
+    m_dest= dest;
+>>>>>>> upstream/cluster-7.6
   }
 
  protected:
@@ -844,8 +888,17 @@ class sp_lex_branch_instr : public sp_lex_instr, public sp_branch_instr {
 
   void backpatch(uint dest) override {
     /* Calling backpatch twice is a logic flaw in jump resolution. */
+<<<<<<< HEAD
     assert(m_dest == 0);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(m_dest == 0);
+>>>>>>> pr/231
     m_dest = dest;
+=======
+    assert(m_dest == 0);
+    m_dest= dest;
+>>>>>>> upstream/cluster-7.6
   }
 
   void adjust_sql_command(LEX *lex) override {
@@ -899,7 +952,22 @@ class sp_instr_jump_if_not : public sp_lex_branch_instr {
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
+<<<<<<< HEAD
   bool exec_core(THD *thd, uint *nextp) override;
+=======
+  virtual bool exec_core(THD *thd, uint *nextp);
+
+<<<<<<< HEAD
+  virtual bool on_after_expr_parsing(THD *thd) {
+    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+=======
+  virtual bool on_after_expr_parsing(THD *thd)
+  {
+    assert(thd->lex->select_lex->item_list.elements == 1);
+>>>>>>> upstream/cluster-7.6
+
+    m_expr_item = thd->lex->select_lex->item_list.head();
+>>>>>>> pr/231
 
   bool on_after_expr_parsing(THD *thd) override {
     m_expr_item = thd->lex->query_block->single_visible_field();
@@ -972,7 +1040,22 @@ class sp_instr_set_case_expr : public sp_lex_branch_instr {
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
+<<<<<<< HEAD
   bool exec_core(THD *thd, uint *nextp) override;
+=======
+  virtual bool exec_core(THD *thd, uint *nextp);
+
+<<<<<<< HEAD
+  virtual bool on_after_expr_parsing(THD *thd) {
+    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+=======
+  virtual bool on_after_expr_parsing(THD *thd)
+  {
+    assert(thd->lex->select_lex->item_list.elements == 1);
+>>>>>>> upstream/cluster-7.6
+
+    m_expr_item = thd->lex->select_lex->item_list.head();
+>>>>>>> pr/231
 
   bool on_after_expr_parsing(THD *thd) override {
     m_expr_item = thd->lex->query_block->single_visible_field();
@@ -1076,9 +1159,25 @@ class sp_instr_jump_case_when : public sp_lex_branch_instr {
 // SQL-condition handler instructions.
 ///////////////////////////////////////////////////////////////////////////
 
+<<<<<<< HEAD
 class sp_instr_hpush_jump : public sp_instr_jump {
  public:
   sp_instr_hpush_jump(uint ip, sp_pcontext *ctx, sp_handler *handler);
+=======
+class sp_instr_hpush_jump : public sp_instr_jump
+{
+public:
+  sp_instr_hpush_jump(uint ip,
+                      sp_pcontext *ctx,
+                      sp_handler *handler)
+   :sp_instr_jump(ip, ctx),
+    m_handler(handler),
+    m_opt_hpop(0),
+    m_frame(ctx->current_var_count())
+  {
+    assert(m_handler->condition_values.elements == 0);
+  }
+>>>>>>> upstream/cluster-7.6
 
   ~sp_instr_hpush_jump() override;
 
@@ -1107,8 +1206,19 @@ class sp_instr_hpush_jump : public sp_instr_jump {
   // sp_branch_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
+<<<<<<< HEAD
   void backpatch(uint dest) override {
     assert(!m_dest || !m_opt_hpop);
+=======
+<<<<<<< HEAD
+  virtual void backpatch(uint dest) {
+    DBUG_ASSERT(!m_dest || !m_opt_hpop);
+=======
+  virtual void backpatch(uint dest)
+  {
+    assert(!m_dest || !m_opt_hpop);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     if (!m_dest)
       m_dest = dest;
     else

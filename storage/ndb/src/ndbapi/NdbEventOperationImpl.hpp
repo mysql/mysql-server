@@ -61,6 +61,7 @@ typedef enum ndb_logevent_event_buffer_status_report_reason ReportReason;
 class NdbEventOperationImpl;
 class EpochData;
 class EventBufDataHead;
+<<<<<<< HEAD
 
 /////////////////////////////////
 
@@ -90,6 +91,8 @@ class EventBufAllocator
 };
 
 /////////////////////////////////
+=======
+>>>>>>> pr/231
 
 class EventBufData
 {
@@ -114,6 +117,12 @@ public:
   };
   EventBufData *m_next_blob; // First part in next blob
   EventBufDataHead *m_main; // Head of set of events
+<<<<<<< HEAD
+=======
+
+  EventBufData *m_next_hash; // Next in per-GCI hash
+  Uint32 m_pkhash; // PK hash (without op) for fast compare
+>>>>>>> pr/231
 
   EventBufData()
     : memory(nullptr),
@@ -283,6 +292,7 @@ private:
 class EventBufData_hash
 {
 public:
+<<<<<<< HEAD
   EventBufData_hash(NdbEventBuffer *event_buffer);
 
   void clear();
@@ -299,6 +309,20 @@ public:
   void append(const Pos hpos);
   EventBufData* search(Pos& hpos, NdbEventOperationImpl* op,
                        const LinearSectionPtr ptr[3]);
+=======
+  struct Pos { // search result
+    Uint32 index;         // index into hash array
+    union {               // hash either blob_data or main_data
+      EventBufData* data; // non-zero if found
+      EventBufDataHead* main_data;
+    };
+    Uint32 pkhash;        // PK hash
+  };
+
+  static Uint32 getpkhash(NdbEventOperationImpl* op, LinearSectionPtr ptr[3]);
+  static bool getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3],
+                         LinearSectionPtr ptr2[3]);
+>>>>>>> pr/231
 
 private:
   // Allocate and move into a larger m_hash[]
@@ -534,7 +558,11 @@ public:
     if (epoch != nullptr)
     {
       EventBufDataHead *data = epoch->m_data;
+<<<<<<< HEAD
       if (data != nullptr)
+=======
+      if (data != NULL)
+>>>>>>> pr/231
         m_head->m_data = data->m_next_main;
       return data;
     }
@@ -929,7 +957,13 @@ public:
   int get_main_data(Gci_container* bucket,
                     EventBufData_hash::Pos& hpos,
                     EventBufData* blob_data);
+<<<<<<< HEAD
   void add_blob_data(EventBufDataHead *main_data, EventBufData *blob_data);
+=======
+  void add_blob_data(Gci_container* bucket,
+                     EventBufDataHead* main_data,
+                     EventBufData* blob_data);
+>>>>>>> pr/231
 
   void *alloc(Uint32 sz);
   Uint32 get_free_data_sz() const;

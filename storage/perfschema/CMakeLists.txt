@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -18,8 +26,19 @@
 # GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
+<<<<<<< HEAD
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+=======
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
+                    ${CMAKE_SOURCE_DIR}/sql
+                    ${CMAKE_BINARY_DIR}/sql
+                    ${CMAKE_SOURCE_DIR}/regex
+                    ${SSL_INCLUDE_DIRS})
+>>>>>>> upstream/cluster-7.6
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
@@ -98,6 +117,11 @@ table_esms_by_account_by_event_name.h
 table_esms_by_digest.h
 table_esms_by_host_by_event_name.h
 table_esms_by_program.h
+<<<<<<< HEAD
+=======
+table_prepared_stmt_instances.h
+table_processlist.h
+>>>>>>> pr/231
 table_esms_by_thread_by_event_name.h
 table_esms_by_user_by_event_name.h
 table_esms_global_by_event_name.h
@@ -263,6 +287,11 @@ table_esms_by_account_by_event_name.cc
 table_esms_by_digest.cc
 table_esms_by_host_by_event_name.cc
 table_esms_by_program.cc
+<<<<<<< HEAD
+=======
+table_prepared_stmt_instances.cc
+table_processlist.cc
+>>>>>>> pr/231
 table_esms_by_thread_by_event_name.cc
 table_esms_by_user_by_event_name.cc
 table_esms_global_by_event_name.cc

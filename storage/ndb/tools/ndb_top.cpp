@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +47,17 @@
 #include "mysql/service_mysql_alloc.h"
 #include <signal.h>
 #include "../../../client/client_priv.h"
+<<<<<<< HEAD
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+<<<<<<< HEAD
 #include "my_default.h"
 #include "map_helpers.h"
+=======
+=======
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "my_default.h"
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #define require(a) \
   if (!(a)) \
@@ -85,8 +97,16 @@ unsigned int opt_port_number = 0;
 char *opt_host = (char*)"localhost";
 char *opt_user = (char*)"root";
 char *opt_password = 0;
+<<<<<<< HEAD
 char *opt_socket = 0;
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 bool tty_password = 0;
+=======
+char *opt_socket = 0;
+my_bool tty_password = 0;
+>>>>>>> upstream/cluster-7.6
 char *db_name = (char *)"ndbinfo";
 unsigned int opt_node_id = 0;
 unsigned int opt_sleep_time = 0;
@@ -280,6 +300,7 @@ void resize_window(int dummy)
 static struct my_option
 my_long_options[] =
 {
+<<<<<<< HEAD
   {"host", 'h', "Hostname of MySQL Server",
    &opt_host, nullptr, nullptr, GET_STR, REQUIRED_ARG,
    0, 0, 0, nullptr, 0, nullptr},
@@ -324,6 +345,68 @@ my_long_options[] =
    &opt_help, nullptr, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr}
+=======
+  {"host", 'h',
+   "Hostname of MySQL Server",
+   (uchar**) &opt_host, (uchar**) &opt_host, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"port", 'P',
+   "Port of MySQL Server",
+   &opt_port_number, &opt_port_number, 0, GET_UINT,
+   REQUIRED_ARG, 3306, 0, 0, 0, 0, 0},
+  {"socket", 'S', "The socket file to use for connection.",
+   &opt_socket, &opt_socket, 0, GET_STR_ALLOC,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u',
+   "Username to log into MySQL Server",
+   (uchar**) &opt_user, (uchar**) &opt_user, 0, GET_STR,
+<<<<<<< HEAD
+   OPT_ARG, 0, 0, 0, 0, 0, 0},
+=======
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+>>>>>>> upstream/cluster-7.6
+  {"password", 'p',
+   "Password to log into MySQL Server (default is NULL)",
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"node_id", 'n',
+   "Node id of data node to watch",
+   &opt_node_id, &opt_node_id, 0, GET_UINT,
+   REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"sleep_time", 's',
+   "Sleep time between each refresh of statistics",
+   &opt_sleep_time, &opt_sleep_time, 0, GET_UINT,
+   REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"measured_load", 'm',
+   "Show measured load by thread",
+   &opt_measured_load, &opt_measured_load, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"os_load", 'o',
+   "Show load measured by OS",
+   &opt_os_load, &opt_os_load, 0, GET_BOOL,
+   NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"color", 'c',
+   "Use color in ASCII graphs",
+   &opt_color, &opt_color, 0, GET_BOOL,
+   NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"text", 't',
+   "Use text to represent data",
+   &opt_text, &opt_text, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"graph", 'g',
+   "Use ASCII graphs to represent data",
+   &opt_graph, &opt_graph, 0, GET_BOOL,
+   NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"sort", 'r',
+   "Sort threads after highest measured usage",
+   &opt_sort, &opt_sort, 0, GET_BOOL,
+   NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"help", '?',
+   "Print usage",
+   &opt_help, &opt_help, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+
+>>>>>>> pr/231
 };
 
 static void short_usage_sub()
@@ -502,6 +585,8 @@ int main(int argc, char **argv)
   MY_INIT("ndb_top");
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, &alloc, NULL);
+
+  my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, NULL);
 
   ret = handle_options(&argc, &argv, my_long_options, get_one_option);
   if (ret != 0)

@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -2239,8 +2263,14 @@ dberr_t trx_undo_report_row_operation(
     page_t *undo_page;
     ulint offset;
 
+<<<<<<< HEAD
     undo_page = buf_block_get_frame(undo_block);
     ut_ad(page_no == undo_block->page.id.page_no());
+=======
+	undo_block = buf_page_get_gen(
+		page_id_t(undo->space, page_no), undo->page_size, RW_X_LATCH,
+		undo->guess_block, BUF_GET, __FILE__, __LINE__,&mtr);
+>>>>>>> upstream/cluster-7.6
 
     switch (op_type) {
       case TRX_UNDO_INSERT_OP:
@@ -2301,10 +2331,23 @@ dberr_t trx_undo_report_row_operation(
       undo->top_offset = offset;
       undo->top_undo_no = trx->undo_no;
 
+<<<<<<< HEAD
       trx->undo_no++;
       trx->undo_rseg_space = undo_ptr->rseg->space_id;
 
       mutex_exit(&trx->undo_mutex);
+=======
+			mtr_commit(&mtr);
+		} else {
+			/* Success */
+			undo->guess_block = undo_block;
+			mtr_commit(&mtr);
+
+			undo->empty = FALSE;
+			undo->top_page_no = page_no;
+			undo->top_offset  = offset;
+			undo->top_undo_no = trx->undo_no;
+>>>>>>> upstream/cluster-7.6
 
       *roll_ptr =
           trx_undo_build_roll_ptr(op_type == TRX_UNDO_INSERT_OP,
@@ -2384,8 +2427,12 @@ err_exit:
 
   mtr_start(&mtr);
 
+<<<<<<< HEAD
   undo_page = trx_undo_page_get_s_latched(page_id_t(space_id, page_no),
                                           page_size, &mtr);
+=======
+	undo_rec = trx_undo_rec_copy(undo_page, offset, heap);
+>>>>>>> upstream/cluster-7.6
 
   undo_rec = trx_undo_rec_copy(undo_page, static_cast<uint32_t>(offset), heap);
 
@@ -2576,14 +2623,38 @@ bool trx_undo_prev_version_build(
     those fields that update updates to become externally stored
     fields. Store the info: */
 
+<<<<<<< HEAD
     entry = row_rec_to_index_entry(rec, index, offsets, heap);
+=======
+<<<<<<< HEAD
+    entry = row_rec_to_index_entry(rec, index, offsets, &n_ext, heap);
+    n_ext += lob::btr_push_update_extern_fields(entry, update, heap);
+>>>>>>> pr/231
     /* The page containing the clustered index record
     corresponding to entry is latched in mtr.  Thus the
     following call is safe. */
     row_upd_index_replace_new_col_vals(entry, index, update, heap);
 
     buf = static_cast<byte *>(
+<<<<<<< HEAD
         mem_heap_alloc(heap, rec_get_converted_size(index, entry)));
+=======
+        mem_heap_alloc(heap, rec_get_converted_size(index, entry, n_ext)));
+=======
+		entry = row_rec_to_index_entry(
+			rec, index, offsets, &n_ext, heap);
+		/* The page containing the clustered index record
+		corresponding to entry is latched in mtr.  Thus the
+		following call is safe. */
+		row_upd_index_replace_new_col_vals(entry, index, update, heap);
+
+		/* Get number of externally stored columns in updated record */
+		n_ext = entry->get_n_ext();
+
+		buf = static_cast<byte*>(mem_heap_alloc(
+			heap, rec_get_converted_size(index, entry, n_ext)));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     *old_vers = rec_convert_dtuple_to_rec(buf, index, entry);
   } else {

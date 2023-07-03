@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,9 +39,16 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbConfig.hpp>
 #include <BlockNumbers.h>
+<<<<<<< HEAD
 #include <NdbHost.h>
+<<<<<<< HEAD
 #include <NdbMgmd.hpp>
 #include <NdbSleep.h>
+=======
+=======
+#include <NdbMgmd.hpp>
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #define CHK1(b) \
   if (!(b)) { \
@@ -3696,7 +3707,7 @@ runDeleteNdbInFlight(NDBT_Context* ctx, NDBT_Step* step)
   HugoOperations *h_op3 = new HugoOperations(*tab3);
   h_op3->startTransaction(newNdb3);
   h_op3->scanReadRecords(newNdb3, NdbScanOperation::LM_Exclusive, rows);
-  h_op3->execute_NoCommit(newNdb1);
+  h_op3->execute_NoCommit(newNdb3);
   delete newNdb3;
 
   h_op1->setTransaction(NULL, true);
@@ -4829,6 +4840,7 @@ TESTCASE("AbortRace",
   STEP(testAbortRace);
   FINALIZER(runClearTable);
 }
+<<<<<<< HEAD
 TESTCASE("CheckCompletedLCPStats",
         "Check if the LCP'd #records is equal to "
          "nReplicas * #records inserted" )
@@ -4849,6 +4861,8 @@ TESTCASE("ParallelReadUpdate",
   STEP(runTimer);
   FINALIZER(runClearTable);
 }
+=======
+>>>>>>> pr/231
 TESTCASE("AbortIgnoreError",
          "Cause an operation in a multi-operation transaction "
          "to rollback from a replica")
@@ -4857,7 +4871,17 @@ TESTCASE("AbortIgnoreError",
   STEP(testAbortIgnoreError);
   FINALIZER(runClearTable);
 }
+<<<<<<< HEAD
 NDBT_TESTSUITE_END(testBasic)
+=======
+TESTCASE("CheckCompletedLCPStats",
+        "Check if the LCP'd #records is equal to "
+         "nReplicas * #records inserted" )
+{
+  STEP(runCheckLCPStats);
+}
+NDBT_TESTSUITE_END(testBasic);
+>>>>>>> pr/231
 
 #if 0
 TESTCASE("ReadConsistency",

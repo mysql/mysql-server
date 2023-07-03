@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +29,10 @@
 #ifndef __NDB_TUP_PAGE_HPP
 #define __NDB_TUP_PAGE_HPP
 
+<<<<<<< HEAD
 #include "util/require.h"
+=======
+>>>>>>> pr/231
 #include <pc.hpp>
 #include <ndb_types.h>
 #include "../diskpage.hpp"
@@ -144,6 +151,7 @@ struct Tup_fixsize_page
    * also scans deleted rows to ensure that any deleted rows since last LCP
    * are tracked.
    */
+<<<<<<< HEAD
   static constexpr Uint32 FREE_RECORD = 0xeeffffff;
   static constexpr Uint32 HEADER_WORDS = 32;
   static constexpr Uint32 DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
@@ -151,6 +159,15 @@ struct Tup_fixsize_page
   static constexpr Uint32 FIRST_BIT_CHANGE_MAP = 24;
   static constexpr Uint32 PAGE_CHANGED_WHILE_LCP_SCAN_BIT = 23;
   static constexpr Uint32 PAGE_IS_BEING_LCP_SCANNED_BIT = 22;
+=======
+  STATIC_CONST( FREE_RECORD = 0xeeffffff );
+  STATIC_CONST( HEADER_WORDS = 32 );
+  STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
+                             HEADER_WORDS );
+  STATIC_CONST( FIRST_BIT_CHANGE_MAP = 24);
+  STATIC_CONST( PAGE_CHANGED_WHILE_LCP_SCAN_BIT = 23);
+  STATIC_CONST( PAGE_IS_BEING_LCP_SCANNED_BIT = 22);
+>>>>>>> pr/231
   
   Uint32 m_data[DATA_WORDS];
   
@@ -407,7 +424,11 @@ struct Tup_fixsize_page
     {
       Uint32 sum_small_maps =
         m_change_map[0] + m_change_map[1] + m_change_map[2] + m_change_map[3];
+<<<<<<< HEAD
       require(sum_small_maps == 0);
+=======
+      assert(sum_small_maps == 0);
+>>>>>>> pr/231
     }
 #endif
     return (map_val != 0);

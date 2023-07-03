@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -78,9 +86,46 @@ PFS_engine_table_share table_setup_objects::m_share = {
     false /* m_in_purgatory */
 };
 
+<<<<<<< HEAD
 static int update_derived_flags() {
   PFS_thread *thread = PFS_thread::get_current_thread();
+<<<<<<< HEAD
   if (unlikely(thread == nullptr)) {
+=======
+  if (unlikely(thread == NULL)) {
+=======
+TABLE_FIELD_DEF
+table_setup_objects::m_field_def=
+{ 5, field_types };
+
+PFS_engine_table_share_state
+table_setup_objects::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_setup_objects::m_share=
+{
+  { C_STRING_WITH_LEN("setup_objects") },
+  &pfs_editable_acl,
+  table_setup_objects::create,
+  table_setup_objects::write_row,
+  table_setup_objects::delete_all_rows,
+  table_setup_objects::get_row_count,
+  sizeof(PFS_simple_index),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+int update_derived_flags()
+{
+  PFS_thread *thread= PFS_thread::get_current_thread();
+  if (unlikely(thread == NULL))
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -130,6 +175,7 @@ int table_setup_objects::write_row(PFS_engine_table *, TABLE *table,
   bool enabled = true;
   bool timed = true;
 
+<<<<<<< HEAD
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
@@ -149,7 +195,36 @@ int table_setup_objects::write_row(PFS_engine_table *, TABLE *table,
           timed_value = (enum_yes_no)get_field_enum(f);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  for (; (f= *fields) ; fields++)
+  {
+    if (bitmap_is_set(table->write_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* OBJECT_TYPE */
+        object_type= (enum_object_type) get_field_enum(f);
+        break;
+      case 1: /* OBJECT_SCHEMA */
+        object_schema= get_field_varchar_utf8(f, &object_schema_data);
+        break;
+      case 2: /* OBJECT_NAME */
+        object_name= get_field_varchar_utf8(f, &object_name_data);
+        break;
+      case 3: /* ENABLED */
+        enabled_value= (enum_yes_no) get_field_enum(f);
+        break;
+      case 4: /* TIMED */
+        timed_value= (enum_yes_no) get_field_enum(f);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -294,7 +369,12 @@ int table_setup_objects::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -326,7 +406,47 @@ int table_setup_objects::read_row_values(TABLE *table, unsigned char *buf,
           set_field_enum(f, (*m_row.m_timed_ptr) ? ENUM_YES : ENUM_NO);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* OBJECT_TYPE */
+        set_field_enum(f, m_row.m_object_type);
+        break;
+      case 1: /* OBJECT_SCHEMA */
+        if (m_row.m_schema_name_length)
+          set_field_varchar_utf8(f, m_row.m_schema_name,
+                                 m_row.m_schema_name_length);
+        else
+          f->set_null();
+        break;
+      case 2: /* OBJECT_NAME */
+        if (m_row.m_object_name_length)
+          set_field_varchar_utf8(f, m_row.m_object_name,
+                                 m_row.m_object_name_length);
+        else
+          f->set_null();
+        break;
+      case 3: /* ENABLED */
+        set_field_enum(f, (*m_row.m_enabled_ptr) ? ENUM_YES : ENUM_NO);
+        break;
+      case 4: /* TIMED */
+        set_field_enum(f, (*m_row.m_timed_ptr) ? ENUM_YES : ENUM_NO);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -340,6 +460,7 @@ int table_setup_objects::update_row_values(TABLE *table, const unsigned char *,
   Field *f;
   enum_yes_no value;
 
+<<<<<<< HEAD
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
@@ -360,7 +481,39 @@ int table_setup_objects::update_row_values(TABLE *table, const unsigned char *,
           *m_row.m_timed_ptr = (value == ENUM_YES) ? true : false;
           break;
         default:
+<<<<<<< HEAD
           return HA_ERR_WRONG_COMMAND;
+=======
+          DBUG_ASSERT(false);
+=======
+  for (; (f= *fields) ; fields++)
+  {
+    if (bitmap_is_set(table->write_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* OBJECT_TYPE */
+      case 1: /* OBJECT_SCHEMA */
+      case 2: /* OBJECT_NAME */
+        return HA_ERR_WRONG_COMMAND;
+      case 3: /* ENABLED */
+        value= (enum_yes_no) get_field_enum(f);
+        /* Reject illegal enum values in ENABLED */
+        if ((value != ENUM_YES) && (value != ENUM_NO))
+          return HA_ERR_NO_REFERENCED_ROW;
+        *m_row.m_enabled_ptr= (value == ENUM_YES) ? true : false;
+        break;
+      case 4: /* TIMED */
+        value= (enum_yes_no) get_field_enum(f);
+        /* Reject illegal enum values in TIMED */
+        if ((value != ENUM_YES) && (value != ENUM_NO))
+          return HA_ERR_NO_REFERENCED_ROW;
+        *m_row.m_timed_ptr= (value == ENUM_YES) ? true : false;
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -369,10 +522,30 @@ int table_setup_objects::update_row_values(TABLE *table, const unsigned char *,
   return result;
 }
 
+<<<<<<< HEAD
 int table_setup_objects::delete_row_values(TABLE *, const unsigned char *,
                                            Field **) {
+<<<<<<< HEAD
   int result = delete_setup_object(m_row.m_object_type, &m_row.m_schema_name,
                                    &m_row.m_object_name);
+=======
+  CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
+  enum_object_type object_type = m_row.m_object_type;
+=======
+int table_setup_objects::delete_row_values(TABLE *table,
+                                           const unsigned char *buf,
+                                           Field **fields)
+{
+  assert(m_row_exists);
+
+  CHARSET_INFO *cs= &my_charset_utf8_bin;
+  enum_object_type object_type= OBJECT_TYPE_TABLE;
+>>>>>>> upstream/cluster-7.6
+  String object_schema(m_row.m_schema_name, m_row.m_schema_name_length, cs);
+  String object_name(m_row.m_object_name, m_row.m_object_name_length, cs);
+
+  int result = delete_setup_object(object_type, &object_schema, &object_name);
+>>>>>>> pr/231
 
   if (result == 0) {
     result = update_derived_flags();

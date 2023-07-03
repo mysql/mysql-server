@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/*  Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -250,9 +258,18 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
   Parser_state parser_state;
   if (parser_state.init(thd, query.str, query.length)) return 1;
 
+<<<<<<< HEAD
   parser_state.m_input.m_has_digest = true;
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   parser_state.m_input.m_compute_digest = true;
   thd->m_digest = &thd->m_digest_state;
+=======
+  parser_state.m_input.m_has_digest = true;
+  parser_state.m_input.m_compute_digest= true;
+  thd->m_digest= &thd->m_digest_state;
+>>>>>>> upstream/cluster-7.6
   thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
   if (is_prepared) {

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +28,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD
+=======
+/* variable declarations are in sys_vars.cc now !!! */
+
+<<<<<<< HEAD
+>>>>>>> pr/231
 #include "sql/set_var.h"
+=======
+#include "debug_sync.h"
+#include "set_var.h"
+>>>>>>> upstream/cluster-7.6
 
 #include <sys/types.h>
 
@@ -140,7 +158,11 @@ int sys_var_init() {
   DBUG_TRACE;
 
   /* Must be already initialized. */
+<<<<<<< HEAD
   assert(system_charset_info != nullptr);
+=======
+  assert(system_charset_info != NULL);
+>>>>>>> pr/231
 
   static_system_variable_hash = new collation_unordered_map<string, sys_var *>(
       system_charset_info, PSI_INSTRUMENT_ME);
@@ -270,6 +292,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  SHOW_TYPE show_val_type_arg, longlong def_val, PolyLock *lock,
                  enum binlog_status_enum binlog_status_arg,
                  on_check_function on_check_func,
+<<<<<<< HEAD
                  on_update_function on_update_func, const char *substitute,
                  int parse_flag, sys_var *persisted_alias,
                  bool is_persisted_deprecated)
@@ -287,6 +310,18 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
       on_update(on_update_func),
       deprecation_substitute(substitute),
       is_os_charset(false) {
+=======
+                 on_update_function on_update_func,
+                 const char *substitute, int parse_flag) :
+  next(0),
+  binlog_status(binlog_status_arg),
+  flags(flags_arg), m_parse_flag(parse_flag), show_val_type(show_val_type_arg),
+  guard(lock), offset(off), on_check(on_check_func),
+  pre_update(0), on_update(on_update_func),
+  deprecation_substitute(substitute),
+  is_os_charset(FALSE)
+{
+>>>>>>> upstream/cluster-7.6
   /*
     There is a limitation in handle_options() related to short options:
     - either all short options should be declared when parsing in multiple
@@ -298,13 +333,26 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
     See handle_options() for details.
   */
   assert(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
+<<<<<<< HEAD
 
   // the is_persist_deprecated flag is only applicable for aliases
   if (!persisted_alias) assert(!is_persisted_deprecated);
+=======
+>>>>>>> pr/231
 
+<<<<<<< HEAD
   name.str = name_arg;  // ER_NO_DEFAULT relies on 0-termination of name_arg
   name.length = strlen(name_arg);  // and so does this.
+<<<<<<< HEAD
   assert(name.length <= NAME_CHAR_LEN);
+=======
+  DBUG_ASSERT(name.length <= NAME_CHAR_LEN);
+=======
+  name.str= name_arg;     // ER_NO_DEFAULT relies on 0-termination of name_arg
+  name.length= strlen(name_arg);                // and so does this.
+  assert(name.length <= NAME_CHAR_LEN);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   memset(&option, 0, sizeof(option));
   option.name = name_arg;
@@ -333,6 +381,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   chain->last = this;
 }
 
+<<<<<<< HEAD
 bool sys_var::update(THD *thd, set_var *var) {
   /*
     Invoke preparatory step for updating a system variable. Doing this action
@@ -343,6 +392,21 @@ bool sys_var::update(THD *thd, set_var *var) {
 
   enum_var_type type = var->type;
   if (type == OPT_GLOBAL || type == OPT_PERSIST || scope() == GLOBAL) {
+=======
+bool sys_var::update(THD *thd, set_var *var)
+{
+  /*
+    Invoke preparatory step for updating a system variable. Doing this action
+    before we have acquired any locks allows to invoke code which acquires other
+    locks without introducing deadlocks.
+  */
+  if (pre_update && pre_update(this, thd, var))
+    return true;
+
+  enum_var_type type= var->type;
+  if (type == OPT_GLOBAL || scope() == GLOBAL)
+  {
+>>>>>>> upstream/cluster-7.6
     /*
       Yes, both locks need to be taken before an update, just as
       both are taken to get a value. If we'll take only 'guard' here,
@@ -447,8 +511,91 @@ bool sys_var::set_default(THD *thd, set_var *var) {
     session_save_default(thd, var);
 
   bool ret = check(thd, var) || update(thd, var);
+<<<<<<< HEAD
   return ret;
+=======
+  DBUG_RETURN(ret);
 }
+
+<<<<<<< HEAD
+bool sys_var::is_default(THD *, set_var *var) {
+  DBUG_ENTER("sys_var::is_default");
+  bool ret = false;
+  longlong def = option.def_value;
+  switch (get_var_type()) {
+    case GET_INT:
+    case GET_UINT:
+    case GET_LONG:
+    case GET_ULONG:
+    case GET_LL:
+    case GET_ULL:
+    case GET_BOOL:
+    case GET_ENUM:
+    case GET_SET:
+    case GET_FLAGSET:
+    case GET_ASK_ADDR:
+      if (def == (longlong)var->save_result.ulonglong_value) ret = true;
+      break;
+    case GET_DOUBLE:
+      if ((double)def == (double)var->save_result.double_value) ret = true;
+      break;
+    case GET_STR_ALLOC:
+    case GET_STR:
+    case GET_NO_ARG:
+    case GET_PASSWORD:
+      if ((def == (longlong)var->save_result.string_value.str) ||
+          (((char *)def) &&
+           !strcmp((char *)def, var->save_result.string_value.str)))
+        ret = true;
+      break;
+  }
+  DBUG_RETURN(ret);
+>>>>>>> pr/231
+}
+=======
+Sys_var_tracker::Sys_var_tracker(sys_var *var)
+{
+  m_is_dynamic = (var->cast_pluginvar() != NULL);
+  m_name = (m_is_dynamic ? current_thd->strmake(var->name) : var->name);
+  m_var = (m_is_dynamic ? NULL : var);
+}
+
+sys_var *Sys_var_tracker::bind_system_variable(THD *thd) {
+  if (!m_is_dynamic ||                                               // (1)
+      (m_var != NULL &&                                              // (2)
+       thd->state == Query_arena::STMT_INITIALIZED_FOR_SP))          // (3)
+  {
+    /*
+      Return a previous cached value of a system variable:
+
+      - if this is a static variable (1) then always return its cached value.
+
+      - if SP body evaluation is in the process (3), and if this is not
+        a resolver phase (2): the resolver phase caches the value and the
+        executor phase reuses it; this can work since SQL statements
+        referencing SP calls don't release plugins acquired by those SP
+        calls until the SPs removed from the server memory.
+    */
+    return m_var;
+  }
+
+  m_var= find_sys_var(thd, m_name.str, m_name.length);
+  if (m_var == NULL)
+  {
+    my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), m_name.str);
+    return NULL;
+  }
+
+  return m_var;
+}
+
+void sys_var::do_deprecated_warning(THD *thd)
+{
+  if (deprecation_substitute != NULL)
+  {
+    char buf1[NAME_CHAR_LEN + 3];
+    strxnmov(buf1, sizeof(buf1)-1, "@@", name.str, 0);
+>>>>>>> upstream/cluster-7.6
 
 void sys_var::set_user_host(THD *thd) {
   memset(user, 0, sizeof(user));
@@ -974,6 +1121,7 @@ bool add_dynamic_system_variable_chain(sys_var *first) {
 
   @returns false on success, otherwise true.
 */
+<<<<<<< HEAD
 bool add_static_system_variable_chain(sys_var *first) {
   assert(static_system_variable_hash->empty());
 
@@ -985,6 +1133,60 @@ bool add_static_system_variable_chain(sys_var *first) {
       for (; first != var; first = first->next)
         dynamic_system_variable_hash->erase(to_string(first->name));
       return true;
+=======
+<<<<<<< HEAD
+bool enumerate_sys_vars(Show_var_array *show_var_array, bool sort,
+                        enum enum_var_type query_scope, bool strict) {
+  DBUG_ASSERT(show_var_array != NULL);
+  DBUG_ASSERT(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
+  int count = system_variable_hash->size();
+
+=======
+bool enumerate_sys_vars(THD *thd, Show_var_array *show_var_array,
+                        bool sort,
+                        enum enum_var_type query_scope,
+                        bool strict)
+{
+  assert(show_var_array != NULL);
+  assert(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
+  int count= system_variable_hash.records;
+  
+>>>>>>> upstream/cluster-7.6
+  /* Resize array if necessary. */
+  if (show_var_array->reserve(count + 1)) return true;
+
+  if (show_var_array) {
+    for (const auto &key_and_value : *system_variable_hash) {
+      sys_var *sysvar = key_and_value.second;
+
+      if (strict) {
+        /*
+          Strict scope match (5.7). Success if this is a:
+            - global query and the variable scope is GLOBAL or SESSION, OR
+            - session query and the variable scope is SESSION or ONLY_SESSION.
+        */
+        if (!sysvar->check_scope(query_scope)) continue;
+      } else {
+        /*
+          Non-strict scope match (5.6). Success if this is a:
+            - global query and the variable scope is GLOBAL or SESSION, OR
+            - session query and the variable scope is GLOBAL, SESSION or
+          ONLY_SESSION.
+        */
+        if (query_scope == OPT_GLOBAL && !sysvar->check_scope(query_scope))
+          continue;
+      }
+
+      /* Don't show non-visible variables. */
+      if (sysvar->not_visible()) continue;
+
+      SHOW_VAR show_var;
+      show_var.name = sysvar->name.str;
+      show_var.value = (char *)sysvar;
+      show_var.type = SHOW_SYS;
+      show_var.scope = SHOW_SCOPE_UNDEF; /* not used for sys vars */
+      show_var_array->push_back(show_var);
+>>>>>>> pr/231
     }
   }
 
@@ -1467,11 +1669,25 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
   }
 
 err:
+<<<<<<< HEAD
   for (set_var_base &v : *var_list) {
     v.cleanup();
   }
   free_underlaid_joins(thd->lex->query_block);
   return error;
+=======
+<<<<<<< HEAD
+  free_underlaid_joins(thd->lex->select_lex);
+=======
+  it.rewind();
+  while ((var= it++))
+  {
+    var->cleanup();
+  }
+  free_underlaid_joins(thd, thd->lex->select_lex);
+>>>>>>> upstream/cluster-7.6
+  DBUG_RETURN(error);
+>>>>>>> pr/231
 }
 
 /**
@@ -1497,6 +1713,7 @@ bool keyring_access_test() {
   Functions to handle SET mysql_internal_variable=const_expr
 *****************************************************************************/
 
+<<<<<<< HEAD
 /**
   global X509 subject name to require from the client session
   to allow SET PERSIST[_ONLY] on sys_var::NOTPERSIST variables
@@ -1562,6 +1779,34 @@ done:
   if (ptr) OPENSSL_free(ptr);
   if (cert) X509_free(cert);
   return result;
+=======
+set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
+                 const LEX_STRING *base_name_arg, Item *value_arg)
+<<<<<<< HEAD
+    : var(var_arg), type(type_arg), base(*base_name_arg) {
+=======
+  :var(NULL), type(type_arg), base(*base_name_arg), var_tracker(var_arg)
+{
+>>>>>>> upstream/cluster-7.6
+  /*
+    If the set value is a field, change it to a string to allow things like
+    SET table_type=MYISAM;
+  */
+  if (value_arg && value_arg->type() == Item::FIELD_ITEM) {
+    Item_field *item = (Item_field *)value_arg;
+    if (item->field_name) {
+      if (!(value = new Item_string(item->field_name, strlen(item->field_name),
+                                    system_charset_info)))  // names are utf8
+        value = value_arg; /* Give error message later */
+    } else {
+      /* Both Item_field and Item_insert_value will return the type as
+         Item::FIELD_ITEM. If the item->field_name is NULL, we assume the
+         object to be Item_insert_value. */
+      value = value_arg;
+    }
+  } else
+    value = value_arg;
+>>>>>>> pr/231
 }
 
 /**
@@ -1657,8 +1902,41 @@ int set_var::resolve(THD *thd) {
 */
 
 int set_var::check(THD *thd) {
+<<<<<<< HEAD
   DBUG_TRACE;
   DEBUG_SYNC(thd, "after_error_checking");
+=======
+  DBUG_ENTER("set_var::check");
+<<<<<<< HEAD
+=======
+  DEBUG_SYNC(current_thd, "after_error_checking");
+
+  assert(var == NULL);
+  var= var_tracker.bind_system_variable(thd);
+  if (var == NULL)
+  {
+    DBUG_RETURN(-1);
+  }
+
+  var->do_deprecated_warning(thd);
+  if (var->is_readonly())
+  {
+    my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str, "read only");
+    DBUG_RETURN(-1);
+  }
+  if (!var->check_scope(type))
+  {
+    int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
+    my_error(err, MYF(0), var->name.str);
+    DBUG_RETURN(-1);
+  }
+  if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
+    DBUG_RETURN(1);
+  /* value is a NULL pointer if we are using SET ... = DEFAULT */
+  if (!value)
+    DBUG_RETURN(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (value == nullptr) {
@@ -1699,7 +1977,9 @@ int set_var::check(THD *thd) {
   @retval
     -1   ERROR, message not sent
 */
+<<<<<<< HEAD
 int set_var::light_check(THD *thd) {
+<<<<<<< HEAD
   auto f = [this](const System_variable_tracker &, sys_var *var) -> bool {
     if (!var->check_scope(type)) {
       int err = (is_global_persist()) ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
@@ -1709,6 +1989,25 @@ int set_var::light_check(THD *thd) {
     return false;
   };
   if (m_var_tracker.access_system_variable<bool>(thd, f).value_or(true)) {
+=======
+  if (!var->check_scope(type)) {
+    int err = (is_global_persist()) ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
+    my_error(err, MYF(0), var->name.str);
+=======
+int set_var::light_check(THD *thd)
+{
+  var= var_tracker.bind_system_variable(thd);
+  if (var == NULL)
+  {
+    return 1;
+  }
+
+  if (!var->check_scope(type))
+  {
+    int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
+    my_error(err, MYF(0), var->name);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return -1;
   }
   Security_context *sctx = thd->security_context();
@@ -1768,7 +2067,9 @@ void set_var::update_source_user_host_timestamp(THD *thd, sys_var *var) {
   Consider set_var::check() method if there is a need to return
   an error due to logics.
 */
+<<<<<<< HEAD
 int set_var::update(THD *thd) {
+<<<<<<< HEAD
   auto f = [this, thd](const System_variable_tracker &, sys_var *var) -> bool {
     bool ret = false;
     /* for persist only syntax do not update the value */
@@ -1794,6 +2095,32 @@ int set_var::update(THD *thd) {
                  .value_or(true)
              ? 1
              : 0;
+=======
+  int ret = 0;
+  /* for persist only syntax do not update the value */
+  if (type != OPT_PERSIST_ONLY) {
+    if (value)
+      ret = (int)var->update(thd, this);
+    else
+      ret = (int)var->set_default(thd, this);
+  }
+  /*
+   For PERSIST_ONLY syntax we dont change the value of the variable
+   for the current session, thus we should not change variables
+   source/timestamp/user/host.
+  */
+  if (ret == 0 && type != OPT_PERSIST_ONLY) {
+    update_source_user_host_timestamp(thd);
+  }
+  return ret;
+=======
+int set_var::update(THD *thd)
+{
+  assert(var != NULL);
+
+  return value ? var->update(thd, this) : var->set_default(thd, this);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 void set_var::print_short(const THD *thd, String *str) {

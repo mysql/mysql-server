@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +24,20 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+<<<<<<< HEAD
 SET(BROKEN_JAVAC
+=======
+SET ( JAVA_SOURCE_DIRS
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/domaintypehandler
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/util
+ ${CMAKE_CURRENT_SOURCE_DIR}/../clusterj-unit/src/main/java/junit/framework
+ ${CMAKE_CURRENT_SOURCE_DIR}/../clusterj-unit/src/main/java/junit/textui
+ ${CMAKE_CURRENT_SOURCE_DIR}/../clusterj-unit/src/main/java/org/junit)
+
+SET ( BROKEN_JAVAC
+>>>>>>> pr/231
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/*.java
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/domaintypehandler/*.java
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model/*.java
@@ -228,6 +245,7 @@ SET(CLASSPATH
   ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
   ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-core/target/classes)
 
+<<<<<<< HEAD
 SET(CLUSTERJ_TEST_EXPORTS
   junit.framework
   junit.textui
@@ -239,6 +257,10 @@ SET(CLUSTERJ_TEST_EXPORTS
   testsuite.clusterj.util
   )
 CREATE_MANIFEST(manifest.mf "${CLUSTERJ_TEST_EXPORTS}" clusterj-test)
+=======
+SET(CLUSTERJ_TEST_EXPORTS regression,testsuite.clusterj,testsuite.clusterj.model,testsuite.clusterj.domaintypehandler,testsuite.clusterj.util,junit.framework,junit.textui,org.junit)
+CREATE_MANIFEST(manifest.mf ${CLUSTERJ_TEST_EXPORTS} clusterj-test)
+>>>>>>> pr/231
 
 CREATE_JAR(clusterj-test ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}

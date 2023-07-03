@@ -1,6 +1,14 @@
 /***********************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
+=======
+Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -13,6 +21,14 @@ as designated in a particular file or component or in included license
 documentation.  The authors of MySQL hereby grant you an additional
 permission to link the program and your derivative works with the
 separately licensed software that they have included with MySQL.
+<<<<<<< HEAD
+=======
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -795,6 +811,7 @@ inline void monitor_set(monitor_id_t monitor, mon_type_t value, bool set_max,
 /** Add time difference between now and input "value" to the monitor counter
 @param monitor monitor to update for the time difference
 @param value the start time value */
+<<<<<<< HEAD
 #define MONITOR_INC_TIME(monitor, value) monitor_inc_time(monitor, value)
 
 inline void monitor_inc_time(monitor_id_t monitor,
@@ -809,6 +826,25 @@ inline void monitor_inc_time(monitor_id_t monitor,
     MONITOR_VALUE(monitor).store(new_value, std::memory_order_relaxed);
   }
 }
+=======
+<<<<<<< HEAD
+#define MONITOR_INC_TIME_IN_MICRO_SECS(monitor, value)        \
+  MONITOR_CHECK_DEFINED(value);                               \
+  if (MONITOR_IS_ON(monitor)) {                               \
+    uintmax_t old_time = (value);                             \
+    value = ut_time_us(NULL);                                 \
+    MONITOR_VALUE(monitor) += (mon_type_t)(value - old_time); \
+  }
+=======
+#define	MONITOR_INC_TIME_IN_MICRO_SECS(monitor, value)			\
+	MONITOR_CHECK_DEFINED(value);					\
+	if (MONITOR_IS_ON(monitor)) {					\
+		uint64_t	old_time = (value);			\
+		value = ut_time_monotonic_us(); 			\
+		MONITOR_VALUE(monitor) += (mon_type_t) (value - old_time);\
+	}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /** This macro updates 3 counters in one call. However, it only checks the
 main/first monitor counter 'monitor', to see it is on or off to decide

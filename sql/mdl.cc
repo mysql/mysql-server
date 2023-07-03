@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -353,10 +361,23 @@ class Deadlock_detection_visitor : public MDL_wait_for_graph_visitor {
   @retval  false OK.
 */
 
+<<<<<<< HEAD
 bool Deadlock_detection_visitor::enter_node(MDL_context *node) {
   m_found_deadlock = ++m_current_search_depth >= MAX_SEARCH_DEPTH;
   if (m_found_deadlock) {
+<<<<<<< HEAD
     assert(!m_victim);
+=======
+    DBUG_ASSERT(!m_victim);
+=======
+bool Deadlock_detection_visitor::enter_node(MDL_context *node)
+{
+  m_found_deadlock= ++m_current_search_depth >= MAX_SEARCH_DEPTH;
+  if (m_found_deadlock)
+  {
+    assert(! m_victim);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     opt_change_victim_to(node);
   }
   return m_found_deadlock;
@@ -920,7 +941,21 @@ class MDL_lock {
     which enforces locking and other invariants.
   */
   bool fast_path_state_cas(fast_path_state_t *old_state,
+<<<<<<< HEAD
                            fast_path_state_t new_state) {
+<<<<<<< HEAD
+=======
+  /*
+    IS_DESTROYED, HAS_OBTRUSIVE and HAS_SLOW_PATH flags can be set or
+    cleared only while holding MDL_lock::m_rwlock lock.
+    If HAS_SLOW_PATH flag is set all changes to m_fast_path_state
+    should happen under protection of MDL_lock::m_rwlock ([INV1]).
+  */
+#if !defined(DBUG_OFF)
+=======
+                           fast_path_state_t new_state)
+  {
+>>>>>>> pr/231
     /*
       IS_DESTROYED, HAS_OBTRUSIVE and HAS_SLOW_PATH flags can be set or
       cleared only while holding MDL_lock::m_rwlock lock.
@@ -928,6 +963,10 @@ class MDL_lock {
       should happen under protection of MDL_lock::m_rwlock ([INV1]).
     */
 #if !defined(NDEBUG)
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     if (((*old_state & (IS_DESTROYED | HAS_OBTRUSIVE | HAS_SLOW_PATH)) !=
          (new_state & (IS_DESTROYED | HAS_OBTRUSIVE | HAS_SLOW_PATH))) ||
         *old_state & HAS_OBTRUSIVE) {
@@ -938,7 +977,15 @@ class MDL_lock {
       We should not change state of destroyed object
       (fast_path_state_reset() being exception).
     */
+<<<<<<< HEAD
     assert(!(*old_state & IS_DESTROYED));
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(!(*old_state & IS_DESTROYED));
+=======
+    assert(! (*old_state & IS_DESTROYED));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return atomic_compare_exchange_strong(&m_fast_path_state, old_state,
                                           new_state);
@@ -963,7 +1010,15 @@ class MDL_lock {
       We should not change state of destroyed object
       (fast_path_state_reset() being exception).
     */
+<<<<<<< HEAD
     assert(!(old_state & IS_DESTROYED));
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(!(old_state & IS_DESTROYED));
+=======
+    assert(! (old_state & IS_DESTROYED));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return old_state;
   }
 
@@ -1068,9 +1123,16 @@ static const uchar *mdl_locks_key(const uchar *record, size_t *length) {
   subsystem and are private to it.
 */
 
+<<<<<<< HEAD
 void mdl_init() {
   assert(!mdl_initialized);
   mdl_initialized = true;
+=======
+void mdl_init()
+{
+  assert(! mdl_initialized);
+  mdl_initialized= TRUE;
+>>>>>>> upstream/cluster-7.6
 
 #ifdef HAVE_PSI_INTERFACE
   init_mdl_psi_keys();
@@ -1454,8 +1516,20 @@ MDL_context::MDL_context()
   that all tables are closed before a connection is destroyed.
 */
 
+<<<<<<< HEAD
 void MDL_context::destroy() {
+<<<<<<< HEAD
   assert(m_ticket_store.is_empty());
+=======
+  DBUG_ASSERT(m_ticket_store.is_empty());
+=======
+void MDL_context::destroy()
+{
+  assert(m_tickets[MDL_STATEMENT].is_empty());
+  assert(m_tickets[MDL_TRANSACTION].is_empty());
+  assert(m_tickets[MDL_EXPLICIT].is_empty());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   mysql_prlock_destroy(&m_LOCK_waiting_for);
   if (m_pins) lf_hash_put_pins(m_pins);
@@ -1664,7 +1738,12 @@ bool MDL_lock::needs_hton_notification(
 */
 
 MDL_ticket *MDL_ticket::create(MDL_context *ctx_arg, enum_mdl_type type_arg
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
                                ,
                                enum_mdl_duration duration_arg
 #endif
@@ -1673,6 +1752,17 @@ MDL_ticket *MDL_ticket::create(MDL_context *ctx_arg, enum_mdl_type type_arg
 #ifndef NDEBUG
                                        ,
                                        duration_arg
+=======
+#ifndef NDEBUG
+                               , enum_mdl_duration duration_arg
+#endif
+                               )
+{
+  return new (std::nothrow)
+             MDL_ticket(ctx_arg, type_arg
+#ifndef NDEBUG
+                        , duration_arg
+>>>>>>> upstream/cluster-7.6
 #endif
   );
 }
@@ -2814,7 +2904,11 @@ bool MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   bool force_slow;
   bool pinned;
 
+<<<<<<< HEAD
   assert(mdl_request->ticket == nullptr);
+=======
+  assert(mdl_request->ticket == NULL);
+>>>>>>> pr/231
 
   /* Don't take chances in production. */
   mdl_request->ticket = nullptr;
@@ -2824,9 +2918,21 @@ bool MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     Check whether the context already holds a shared lock on the object,
     and if so, grant the request.
   */
+<<<<<<< HEAD
   if ((ticket = find_ticket(mdl_request, &found_duration))) {
+<<<<<<< HEAD
     assert(ticket->m_lock);
     assert(ticket->has_stronger_or_equal_type(mdl_request->type));
+=======
+    DBUG_ASSERT(ticket->m_lock);
+    DBUG_ASSERT(ticket->has_stronger_or_equal_type(mdl_request->type));
+=======
+  if ((ticket= find_ticket(mdl_request, &found_duration)))
+  {
+    assert(ticket->m_lock);
+    assert(ticket->has_stronger_or_equal_type(mdl_request->type));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     /*
       If the request is for a transactional lock, and we found
       a transactional lock, just reuse the found ticket.
@@ -2863,10 +2969,16 @@ bool MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   */
   if (fix_pins()) return true;
 
+<<<<<<< HEAD
   if (!(ticket = MDL_ticket::create(this, mdl_request->type
 #ifndef NDEBUG
                                     ,
                                     mdl_request->duration
+=======
+  if (!(ticket= MDL_ticket::create(this, mdl_request->type
+#ifndef NDEBUG
+                                   , mdl_request->duration
+>>>>>>> upstream/cluster-7.6
 #endif
                                     )))
     return true;
@@ -2893,10 +3005,24 @@ bool MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   */
   if (!unobtrusive_lock_increment) materialize_fast_path_locks();
 
+<<<<<<< HEAD
   assert(ticket->m_psi == nullptr);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(ticket->m_psi == NULL);
+>>>>>>> pr/231
   ticket->m_psi = mysql_mdl_create(
       ticket, key, mdl_request->type, mdl_request->duration,
       MDL_ticket::PENDING, mdl_request->m_src_file, mdl_request->m_src_line);
+=======
+  assert(ticket->m_psi == NULL);
+  ticket->m_psi= mysql_mdl_create(ticket, key,
+                                  mdl_request->type,
+                                  mdl_request->duration,
+                                  MDL_ticket::PENDING,
+                                  mdl_request->m_src_file,
+                                  mdl_request->m_src_line);
+>>>>>>> upstream/cluster-7.6
 
   /*
     We need to notify/get permission from storage engines before acquiring
@@ -3187,18 +3313,39 @@ bool MDL_context::clone_ticket(MDL_request *mdl_request) {
     we effectively downgrade the cloned lock to the level of
     the request.
   */
+<<<<<<< HEAD
   if (!(ticket = MDL_ticket::create(this, mdl_request->type
 #ifndef NDEBUG
                                     ,
                                     mdl_request->duration
+=======
+  if (!(ticket= MDL_ticket::create(this, mdl_request->type
+#ifndef NDEBUG
+                                   , mdl_request->duration
+>>>>>>> upstream/cluster-7.6
 #endif
                                     )))
     return true;
 
+<<<<<<< HEAD
   assert(ticket->m_psi == nullptr);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(ticket->m_psi == NULL);
+>>>>>>> pr/231
   ticket->m_psi = mysql_mdl_create(
       ticket, &mdl_request->key, mdl_request->type, mdl_request->duration,
       MDL_ticket::PENDING, mdl_request->m_src_file, mdl_request->m_src_line);
+=======
+  assert(ticket->m_psi == NULL);
+  ticket->m_psi= mysql_mdl_create(ticket,
+                                  &mdl_request->key,
+                                  mdl_request->type,
+                                  mdl_request->duration,
+                                  MDL_ticket::PENDING,
+                                  mdl_request->m_src_file,
+                                  mdl_request->m_src_line);
+>>>>>>> upstream/cluster-7.6
 
   /* clone() is not supposed to be used to get a stronger lock. */
   assert(mdl_request->ticket->has_stronger_or_equal_type(ticket->m_type));
@@ -3209,8 +3356,18 @@ bool MDL_context::clone_ticket(MDL_request *mdl_request) {
     to situation when lock acquired.
   */
   if (mdl_request->type == MDL_EXCLUSIVE &&
+<<<<<<< HEAD
       MDL_lock::needs_hton_notification(mdl_request->key.mdl_namespace())) {
+<<<<<<< HEAD
     assert(mdl_request->ticket->m_hton_notified);
+=======
+    DBUG_ASSERT(mdl_request->ticket->m_hton_notified);
+=======
+      MDL_lock::needs_hton_notification(mdl_request->key.mdl_namespace()))
+  {
+    assert(mdl_request->ticket->m_hton_notified);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     mysql_mdl_set_status(ticket->m_psi, MDL_ticket::PRE_ACQUIRE_NOTIFY);
 
@@ -3355,9 +3512,20 @@ void MDL_lock::object_lock_notify_conflicting_locks(MDL_context *ctx,
   @retval  true    Failure (Out of resources or waiting is aborted),
 */
 
+<<<<<<< HEAD
 bool MDL_context::acquire_lock(MDL_request *mdl_request,
+<<<<<<< HEAD
                                Timeout_type lock_wait_timeout) {
   if (lock_wait_timeout == 0) {
+=======
+                               ulong lock_wait_timeout) {
+=======
+bool
+MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
+{
+  if (lock_wait_timeout == 0)
+  {
+>>>>>>> pr/231
     /*
       Resort to try_acquire_lock() in case of zero timeout.
 
@@ -3367,9 +3535,17 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
       invariants by updating MDL_lock::fast_path_state and obtrusive locks
       count. It also performs SE notification if needed.
     */
+<<<<<<< HEAD
     if (try_acquire_lock(mdl_request)) return true;
 
     if (!mdl_request->ticket) {
+=======
+    if (try_acquire_lock(mdl_request))
+      return true;
+
+    if (!mdl_request->ticket)
+    {
+>>>>>>> pr/231
       /* We have failed to acquire lock instantly. */
       DEBUG_SYNC(get_thd(), "mdl_acquire_lock_wait");
       my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
@@ -3380,6 +3556,10 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
 
   /* Normal, non-zero timeout case. */
 
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   MDL_lock *lock;
   MDL_ticket *ticket = nullptr;
   struct timespec abs_timeout;
@@ -3399,6 +3579,38 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
   }
 
   /*
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    Return early if we did not get the lock and are not willing to wait.
+    This way we avoid reporting "fake" deadlock for lock_wait_timeout == 0.
+  */
+  if (lock_wait_timeout == 0) {
+    /*
+      Lock acquired inside try_acquire_lock_impl(). Release before
+      leaving scope.
+    */
+    mysql_prlock_unlock(&ticket->m_lock->m_rwlock);
+
+    /*
+      If SEs were notified about impending lock acquisition, the failure
+      to acquire it requires the same notification as lock release.
+    */
+    if (ticket->m_hton_notified) {
+      mysql_mdl_set_status(ticket->m_psi, MDL_ticket::POST_RELEASE_NOTIFY);
+      m_owner->notify_hton_post_release_exclusive(&mdl_request->key);
+    }
+    DEBUG_SYNC(get_thd(), "mdl_acquire_lock_wait");
+
+    MDL_ticket::destroy(ticket);
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+    return true;
+  }
+
+  /*
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     Our attempt to acquire lock without waiting has failed.
     As a result of this attempt we got MDL_ticket with m_lock
     member pointing to the corresponding MDL_lock object which
@@ -3546,6 +3758,7 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
     }
 
     MDL_ticket::destroy(ticket);
+<<<<<<< HEAD
     switch (wait_status) {
       case MDL_wait::VICTIM:
         my_error(ER_LOCK_DEADLOCK, MYF(0));
@@ -3562,6 +3775,25 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
       default:
         assert(0);
         break;
+=======
+    switch (wait_status)
+    {
+    case MDL_wait::VICTIM:
+      my_error(ER_LOCK_DEADLOCK, MYF(0));
+      break;
+    case MDL_wait::TIMEOUT:
+      my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+      break;
+    case MDL_wait::KILLED:
+      if (get_owner()->is_killed() == ER_QUERY_TIMEOUT)
+        my_error(ER_QUERY_TIMEOUT, MYF(0));
+      else
+        my_error(ER_QUERY_INTERRUPTED, MYF(0));
+      break;
+    default:
+      assert(0);
+      break;
+>>>>>>> upstream/cluster-7.6
     }
     return true;
   }
@@ -3827,7 +4059,15 @@ bool MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
     SE notification and it turns out that we already have lock of this type
     associated with different ticket.
   */
+<<<<<<< HEAD
   assert(is_new_ticket || !mdl_new_lock_request.ticket->m_hton_notified);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(is_new_ticket || !mdl_new_lock_request.ticket->m_hton_notified);
+=======
+  assert(is_new_ticket || ! mdl_new_lock_request.ticket->m_hton_notified);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   mdl_ticket->m_hton_notified = mdl_new_lock_request.ticket->m_hton_notified;
 
@@ -4200,8 +4440,18 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket) {
 
 */
 
+<<<<<<< HEAD
 void MDL_context::release_lock(MDL_ticket *ticket) {
+<<<<<<< HEAD
   assert(ticket->m_duration == MDL_EXPLICIT);
+=======
+  DBUG_ASSERT(ticket->m_duration == MDL_EXPLICIT);
+=======
+void MDL_context::release_lock(MDL_ticket *ticket)
+{
+  assert(ticket->m_duration == MDL_EXPLICIT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   release_lock(MDL_EXPLICIT, ticket);
 }
@@ -4252,9 +4502,17 @@ void MDL_context::release_all_locks_for_name(MDL_ticket *name) {
   MDL_ticket_store::List_iterator it_ticket =
       m_ticket_store.list_iterator(MDL_EXPLICIT);
 
+<<<<<<< HEAD
   while ((ticket = it_ticket++)) {
     assert(ticket->m_lock);
     if (ticket->m_lock == lock) release_lock(MDL_EXPLICIT, ticket);
+=======
+  while ((ticket= it_ticket++))
+  {
+    assert(ticket->m_lock);
+    if (ticket->m_lock == lock)
+      release_lock(MDL_EXPLICIT, ticket);
+>>>>>>> upstream/cluster-7.6
   }
 }
 
@@ -4271,9 +4529,17 @@ void MDL_context::release_locks(MDL_release_locks_visitor *visitor) {
   MDL_ticket_store::List_iterator it_ticket =
       m_ticket_store.list_iterator(MDL_EXPLICIT);
 
+<<<<<<< HEAD
   while ((ticket = it_ticket++)) {
     assert(ticket->m_lock);
     if (visitor->release(ticket)) release_lock(MDL_EXPLICIT, ticket);
+=======
+  while ((ticket= it_ticket++))
+  {
+    assert(ticket->m_lock);
+    if (visitor->release(ticket))
+      release_lock(MDL_EXPLICIT, ticket);
+>>>>>>> upstream/cluster-7.6
   }
 }
 
@@ -4298,7 +4564,16 @@ void MDL_ticket::downgrade_lock(enum_mdl_type new_type) {
   if (m_type == new_type || !has_stronger_or_equal_type(new_type)) return;
 
   /* Only allow downgrade from EXCLUSIVE and SHARED_NO_WRITE. */
+<<<<<<< HEAD
   assert(m_type == MDL_EXCLUSIVE || m_type == MDL_SHARED_NO_WRITE);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(m_type == MDL_EXCLUSIVE || m_type == MDL_SHARED_NO_WRITE);
+=======
+  assert(m_type == MDL_EXCLUSIVE ||
+         m_type == MDL_SHARED_NO_WRITE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Below we assume that we always downgrade "obtrusive" locks. */
   assert(m_lock->is_obtrusive_lock(m_type));
@@ -4401,7 +4676,11 @@ bool MDL_context::owns_equal_or_stronger_lock(
                    MDL_TRANSACTION);
   MDL_ticket *ticket = find_ticket(&mdl_request, &not_used);
 
+<<<<<<< HEAD
   assert(ticket == nullptr || ticket->m_lock);
+=======
+  assert(ticket == NULL || ticket->m_lock);
+>>>>>>> pr/231
 
   return ticket;
 }
@@ -4595,6 +4874,7 @@ bool MDL_context::has_locks_waited_for() const {
 */
 
 void MDL_context::set_lock_duration(MDL_ticket *mdl_ticket,
+<<<<<<< HEAD
                                     enum_mdl_duration duration) {
   assert(mdl_ticket->m_duration == MDL_TRANSACTION &&
          duration != MDL_TRANSACTION);
@@ -4603,6 +4883,17 @@ void MDL_context::set_lock_duration(MDL_ticket *mdl_ticket,
 
 #ifndef NDEBUG
   mdl_ticket->m_duration = duration;
+=======
+                                    enum_mdl_duration duration)
+{
+  assert(mdl_ticket->m_duration == MDL_TRANSACTION &&
+         duration != MDL_TRANSACTION);
+
+  m_tickets[MDL_TRANSACTION].remove(mdl_ticket);
+  m_tickets[duration].push_front(mdl_ticket);
+#ifndef NDEBUG
+  mdl_ticket->m_duration= duration;
+>>>>>>> upstream/cluster-7.6
 #endif
 
   /*
@@ -4811,8 +5102,17 @@ void MDL_ticket_store::move_all_to_explicit_duration() {
     }
   }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   List_iterator exp_it(m_durations[MDL_EXPLICIT].m_ticket_list);
+=======
+#ifndef NDEBUG
+  Ticket_iterator exp_it(m_tickets[MDL_EXPLICIT]);
+>>>>>>> upstream/cluster-7.6
 
   while ((ticket = exp_it++)) {
     ticket->set_duration(MDL_EXPLICIT);
@@ -4839,8 +5139,17 @@ void MDL_ticket_store::move_explicit_to_transaction_duration() {
     locks with transactional duration.
   */
 
+<<<<<<< HEAD
   assert(m_durations[MDL_STATEMENT].m_ticket_list.is_empty());
   assert(m_durations[MDL_STATEMENT].m_mat_front == nullptr);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(m_durations[MDL_STATEMENT].m_ticket_list.is_empty());
+  DBUG_ASSERT(m_durations[MDL_STATEMENT].m_mat_front == nullptr);
+=======
+  assert(m_tickets[MDL_STATEMENT].is_empty());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   m_durations[MDL_TRANSACTION].m_ticket_list.swap(
       m_durations[MDL_EXPLICIT].m_ticket_list);
@@ -4862,8 +5171,17 @@ void MDL_ticket_store::move_explicit_to_transaction_duration() {
     MDL_context::materialize_fast_path_locks() runs.
   */
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   List_iterator trans_it(m_durations[MDL_TRANSACTION].m_ticket_list);
+=======
+#ifndef NDEBUG
+  Ticket_iterator trans_it(m_tickets[MDL_TRANSACTION]);
+>>>>>>> upstream/cluster-7.6
 
   while ((ticket = trans_it++)) {
     ticket->set_duration(MDL_TRANSACTION);

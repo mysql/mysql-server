@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,9 +57,12 @@
 #include <EventLogger.hpp>
 #include "../backup/BackupFormat.hpp"
 #include <portlib/ndb_prefetch.h>
+<<<<<<< HEAD
 #include "util/ndb_math.h"
 #include "TransientPool.hpp"
 #include "TransientSlotPool.hpp"
+=======
+>>>>>>> pr/231
 
 #define JAM_FILE_ID 414
 
@@ -185,7 +192,10 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZOP_AFTER_REFRESH_ERROR 920
 #define ZNO_COPY_TUPLE_MEMORY_ERROR 921
 #define ZNO_UNDO_BUFFER_MEMORY_ERROR 923
+<<<<<<< HEAD
 #define ZOUT_OF_STORED_PROC_MEMORY_ERROR 924
+=======
+>>>>>>> pr/231
 
 #define ZINVALID_CHAR_FORMAT 744
 #define ZROWID_ALLOCATED 899
@@ -277,7 +287,11 @@ typedef bool (* ReadFunction)(Uint8*,
 typedef bool (* UpdateFunction)(Uint32*,
                                 KeyReqStruct*,
                                 Uint64);
+<<<<<<< HEAD
   void prepare_scan_ctx(Uint32 scanPtrI) override;
+=======
+  void prepare_scan_ctx(Uint32 scanPtrI);
+>>>>>>> pr/231
 private:
   
   typedef Tup_fixsize_page Fix_page;
@@ -558,7 +572,10 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   void releaseScanOp(ScanOpPtr& scanPtr);
 
   struct Tuple_header;
+<<<<<<< HEAD
   struct Fragrecord;
+=======
+>>>>>>> pr/231
 
   Uint32 prepare_lcp_scan_page(ScanOp& scan,
                                Local_key& key,
@@ -570,8 +587,12 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   Uint32 handle_scan_change_page_rows(ScanOp& scan,
                                       Fix_page *fix_page,
                                       Tuple_header* tuple_header_ptr,
+<<<<<<< HEAD
                                       Uint32 & foundGCI,
                                       Fragrecord *fragPtrP);
+=======
+                                      Uint32 & foundGCI);
+>>>>>>> pr/231
   Uint32 setup_change_page_for_scan(ScanOp& scan,
                                     Fix_page *fix_page,
                                     Local_key& key,
@@ -1083,6 +1104,7 @@ struct Operationrec {
   typedef TransientPool<Operationrec> Operationrec_pool;
   OperationrecPtr prepare_oper_ptr;
 
+  OperationrecPtr prepare_oper_ptr;
   /* ************* TRIGGER DATA ************* */
   /* THIS RECORD FORMS LISTS OF ACTIVE       */
   /* TRIGGERS FOR EACH TABLE.                 */
@@ -1271,8 +1293,14 @@ TupTriggerData_pool c_triggerPool;
     /**
      * Aggregates
      */
+<<<<<<< HEAD
     Uint16 m_no_of_extra_columns; // "Hidden" columns
     Uint16 m_dyn_null_bits[2];
+=======
+    Uint16 m_no_of_attributes;
+    Uint16 m_no_of_real_disk_attributes;
+    Uint16 m_no_of_disk_attributes;
+>>>>>>> pr/231
     Uint16 noOfKeyAttr;
     Uint16 noOfCharsets;
     Uint16 m_no_of_real_disk_attributes;
@@ -1392,7 +1420,11 @@ TupTriggerData_pool c_triggerPool;
 
     State tableStatus;
     Local_key m_default_value_location;
+<<<<<<< HEAD
   };
+=======
+  };  
+>>>>>>> pr/231
   Uint32
     m_read_ctl_file_data[BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS];
   /*
@@ -1705,6 +1737,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
      rows. This information would be useful for reads since they'd know the
      proper state of the row. (Related Bug #27584165)
     */
+<<<<<<< HEAD
     static constexpr Uint32 TUP_VERSION_MASK = 0xFFFF;
     static constexpr Uint32 COPY_TUPLE = 0x00010000; // Is this a copy tuple
     static constexpr Uint32 DISK_PART = 0x00020000; // Is there a disk part
@@ -1719,6 +1752,22 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     static constexpr Uint32 REORG_MOVE = 0x08000000; // Tuple will be moved in reorg
     static constexpr Uint32 LCP_DELETE = 0x10000000; // Tuple deleted at LCP start
     static constexpr Uint32 DELETE_WAIT = 0x20000000; // Waiting for delete tuple page
+=======
+    STATIC_CONST( TUP_VERSION_MASK = 0xFFFF );
+    STATIC_CONST( COPY_TUPLE  = 0x00010000 ); // Is this a copy tuple
+    STATIC_CONST( DISK_PART   = 0x00020000 ); // Is there a disk part
+    STATIC_CONST( DISK_ALLOC  = 0x00040000 ); // Is disk part allocated
+    STATIC_CONST( DISK_INLINE = 0x00080000 ); // Is disk inline
+    STATIC_CONST( ALLOC       = 0x00100000 ); // Is record allocated now
+    STATIC_CONST( NOT_USED_BIT= 0x00200000 ); //
+    STATIC_CONST( MM_GROWN    = 0x00400000 ); // Has MM part grown
+    STATIC_CONST( FREE        = 0x00800000 ); // Is free
+    STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
+    STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
+    STATIC_CONST( REORG_MOVE  = 0x08000000 ); // Tuple will be moved in reorg
+    STATIC_CONST( LCP_DELETE  = 0x10000000 ); // Tuple deleted at LCP start
+    STATIC_CONST( DELETE_WAIT = 0x20000000 ); // Waiting for delete tuple page
+>>>>>>> pr/231
 
     Tuple_header() {}
     Uint32 get_tuple_version() const { 
@@ -1772,10 +1821,13 @@ typedef Ptr<HostBuffer> HostBufferPtr;
 
     const Uint32* get_disk_ref_ptr(const Tablerec* tabPtrP) const {
       return m_first_words + tabPtrP->m_offsets[MM].m_disk_ref_offset;
+<<<<<<< HEAD
     }
 
     static Uint32 get_mm_gci_pos(const Tablerec* tabPtrP) {
       return Tuple_header::HeaderSize + tabPtrP->get_checksum_length();
+=======
+>>>>>>> pr/231
     }
 
     Uint32 *get_mm_gci(const Tablerec* tabPtrP){
@@ -1855,6 +1907,33 @@ struct KeyReqStruct {
   KeyReqStruct(EmulatedJamBuffer * _jamBuffer) :
     changeMask(false)
   {
+<<<<<<< HEAD
+=======
+#if defined VM_TRACE || defined ERROR_INSERT
+    memset(this, 0xf3, sizeof(* this));
+#endif
+    jamBuffer = _jamBuffer;
+    m_when = KRS_PREPARE;
+    m_deferred_constraints = true;
+    m_disable_fk_checks = false;
+  }
+
+  KeyReqStruct(Dbtup* tup) :
+    changeMask(false)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    memset(this, 0xf3, sizeof(* this));
+#endif
+    jamBuffer = tup->jamBuffer();
+    m_when = KRS_PREPARE;
+    m_deferred_constraints = true;
+    m_disable_fk_checks = false;
+  }
+
+  KeyReqStruct(Dbtup* tup, When when) :
+    changeMask()
+  {
+>>>>>>> pr/231
 #if defined VM_TRACE || defined ERROR_INSERT
     std::memset(this, 0xf3, sizeof(* this));
 #endif
@@ -2556,10 +2635,15 @@ public:
                         Uint32 frag_id);
   void prepare_scanTUPKEYREQ(Uint32 page_id, Uint32 page_idx);
   void prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx);
+<<<<<<< HEAD
   void prepare_op_pointer(Uint32 opPtrI,
                           Dbtup::Operationrec *opPtrP);
   void prepare_tab_pointers(Uint32 fragPtrI);
   void prepare_tab_pointers_acc(Uint32 table_id, Uint32 frag_id);
+=======
+  void prepare_op_pointer(Uint32 opPtrI);
+  void prepare_tab_pointers(Uint32 fragPtrI);
+>>>>>>> pr/231
   void get_all_tup_ptrs(Uint32 indexFragPtrI,
                         Uint32 tableFragPtrI,
                         Uint32** index_fragptr,
@@ -3141,12 +3225,18 @@ private:
   void flush_read_buffer(KeyReqStruct *, const Uint32* outBuf,
 			 Uint32 resultRef, Uint32 resultData, Uint32 routeRef);
 public:
+<<<<<<< HEAD
   Uint32 copyAttrinfo(Uint32 storedProcId,
                       bool interpretedFlag);
   void copyAttrinfo(Uint32 expectedLen,
                     Uint32 attrInfoIVal);
 
   void nextAttrInfoParam(Uint32 storedProcId);
+=======
+  Uint32 copyAttrinfo(Uint32 storedProcId);
+  void copyAttrinfo(Uint32 expectedLen,
+                    Uint32 attrInfoIVal);
+>>>>>>> pr/231
   /**
    * Used by Restore...
    */
@@ -3186,10 +3276,20 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
+<<<<<<< HEAD
   bool prepareActiveOpList(OperationrecPtr, KeyReqStruct* req_struct);
   void insertActiveOpList(OperationrecPtr,
                           KeyReqStruct* req_struct,
                           Tuple_header* tuple_header);
+=======
+  void getStoredProcAttrInfo(Uint32 storedId,
+                             KeyReqStruct* req_struct,
+                             Uint32& attrInfoIVal);
+
+//------------------------------------------------------------------
+//------------------------------------------------------------------
+  bool insertActiveOpList(OperationrecPtr, KeyReqStruct* req_struct);
+>>>>>>> pr/231
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -4415,6 +4515,7 @@ public:
   Operationrec* getOperationPtrP(Uint32 opPtrI);
 };
 
+<<<<<<< HEAD
 inline void
 Dbtup::prepare_op_pointer(Uint32 opPtrI,
                           Dbtup::Operationrec *opPtrP)
@@ -4453,6 +4554,8 @@ inline void Dbtup::checkPoolShrinkNeed(const Uint32 pool_index,
   }
 }
 
+=======
+>>>>>>> pr/231
 inline
 Uint32
 Dbtup::get_current_frag_page_id()
@@ -4767,11 +4870,19 @@ Dbtup::tuxGetNode(Uint32 attrDataOffset,
                   Uint32*& node)
 {
   PagePtr pagePtr;
+<<<<<<< HEAD
   ndbrequire(c_page_pool.getPtr(pagePtr, pageId));
+=======
+  c_page_pool.getPtr(pagePtr, pageId);
+>>>>>>> pr/231
   node= ((Fix_page*)pagePtr.p)->
     get_ptr(pageOffset, tuxFixHeaderSize) + attrDataOffset;
   NDB_PREFETCH_READ((void*)node);
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 
 inline
 Dbtup::Operationrec*

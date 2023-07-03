@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1123,6 +1127,7 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
   BaseString typestring;
   bool include_single_user_state = false;
 
+<<<<<<< HEAD
   /**
    * Check whether MGMAPI client version info is known
    * and whether it understands the single user mode info
@@ -1139,6 +1144,8 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
     }
   }
 
+=======
+>>>>>>> pr/231
   enum ndb_mgm_node_type types[NDB_MGM_NODE_TYPE_MAX+1];
   if (args.get("types", typestring))
   {

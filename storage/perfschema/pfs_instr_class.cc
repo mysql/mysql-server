@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -488,6 +496,7 @@ static const uchar *table_share_hash_get_key(const uchar *entry,
   const PFS_table_share *const *typed_entry;
   const PFS_table_share *share;
   const void *result;
+<<<<<<< HEAD
   typed_entry = reinterpret_cast<const PFS_table_share *const *>(entry);
   assert(typed_entry != nullptr);
   share = *typed_entry;
@@ -495,6 +504,15 @@ static const uchar *table_share_hash_get_key(const uchar *entry,
   *length = sizeof(share->m_key);
   result = &share->m_key;
   return reinterpret_cast<const uchar *>(result);
+=======
+  typed_entry= reinterpret_cast<const PFS_table_share* const *> (entry);
+  assert(typed_entry != NULL);
+  share= *typed_entry;
+  assert(share != NULL);
+  *length= share->m_key.m_key_length;
+  result= &share->m_key.m_hash_key[0];
+  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+>>>>>>> upstream/cluster-7.6
 }
 
 static uint table_share_hash_func(const LF_HASH *, const uchar *key,
@@ -592,13 +610,30 @@ static LF_PINS *get_table_share_hash_pins(PFS_thread *thread) {
   @param table_name The table name.
   @param table_name_length The table name length.
 */
+<<<<<<< HEAD
 static void set_table_share_key(PFS_table_share_key *key, bool temporary,
                                 const char *schema_name,
                                 size_t schema_name_length,
                                 const char *table_name,
                                 size_t table_name_length) {
+<<<<<<< HEAD
   assert(schema_name_length <= NAME_LEN);
   assert(table_name_length <= NAME_LEN);
+=======
+  DBUG_ASSERT(schema_name_length <= NAME_LEN);
+  DBUG_ASSERT(table_name_length <= NAME_LEN);
+=======
+static void set_table_share_key(PFS_table_share_key *key,
+                                bool temporary,
+                                const char *schema_name, size_t schema_name_length,
+                                const char *table_name, size_t table_name_length)
+{
+  assert(schema_name_length <= NAME_LEN);
+  assert(table_name_length <= NAME_LEN);
+>>>>>>> upstream/cluster-7.6
+  char *saved_schema_name;
+  char *saved_table_name;
+>>>>>>> pr/231
 
   key->m_type = (temporary ? OBJECT_TYPE_TEMPORARY_TABLE : OBJECT_TYPE_TABLE);
 
@@ -658,8 +693,19 @@ void PFS_table_share::destroy_lock_stat() {
   Find an existing table share index instrumentation.
   @return a table share index
 */
+<<<<<<< HEAD
 PFS_table_share_index *PFS_table_share::find_index_stat(uint index) const {
+<<<<<<< HEAD
   assert(index <= MAX_INDEXES);
+=======
+  DBUG_ASSERT(index <= MAX_INDEXES);
+=======
+PFS_table_share_index*
+PFS_table_share::find_index_stat(uint index) const
+{
+  assert(index <= MAX_INDEXES);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return this->m_race_index_stat[index].load();
 }
@@ -670,9 +716,20 @@ PFS_table_share_index *PFS_table_share::find_index_stat(uint index) const {
   @param index the index
   @return a table share index, or NULL
 */
+<<<<<<< HEAD
 PFS_table_share_index *PFS_table_share::find_or_create_index_stat(
     const TABLE_SHARE *server_share, uint index) {
+<<<<<<< HEAD
   assert(index <= MAX_INDEXES);
+=======
+  DBUG_ASSERT(index <= MAX_INDEXES);
+=======
+PFS_table_share_index*
+PFS_table_share::find_or_create_index_stat(const TABLE_SHARE *server_share, uint index)
+{
+  assert(index <= MAX_INDEXES);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* (1) Atomic Load */
   PFS_table_share_index *pfs = this->m_race_index_stat[index].load();
@@ -781,9 +838,20 @@ int init_table_share_index_stat(uint index_stat_sizing) {
   Create a table share index instrumentation.
   @return table share index instrumentation, or NULL
 */
+<<<<<<< HEAD
 PFS_table_share_index *create_table_share_index_stat(
     const TABLE_SHARE *server_share, uint server_index) {
+<<<<<<< HEAD
   assert((server_share != nullptr) || (server_index == MAX_INDEXES));
+=======
+  DBUG_ASSERT((server_share != NULL) || (server_index == MAX_INDEXES));
+=======
+PFS_table_share_index*
+create_table_share_index_stat(const TABLE_SHARE *server_share, uint server_index)
+{
+  assert((server_share != NULL) || (server_index == MAX_INDEXES));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   PFS_table_share_index *pfs = nullptr;
   pfs_dirty_state dirty_state;
@@ -1033,6 +1101,7 @@ void cleanup_memory_class(void) {
   memory_class_max = 0;
 }
 
+<<<<<<< HEAD
 static void init_instr_class(PFS_instr_class *klass, const char *name,
                              uint name_length, int flags, int volatility,
                              const char *documentation,
@@ -1066,6 +1135,23 @@ static void init_instr_class(PFS_instr_class *klass, const char *name,
           my_strdup(PSI_NOT_INSTRUMENTED, documentation, 0);
     }
   }
+=======
+static void init_instr_class(PFS_instr_class *klass,
+                             const char *name,
+                             uint name_length,
+                             int flags,
+                             PFS_class_type class_type)
+{
+  assert(name_length <= PFS_MAX_INFO_NAME_LENGTH);
+  memset(klass, 0, sizeof(PFS_instr_class));
+  memcpy(klass->m_name, name, name_length);
+  klass->m_name_length= name_length;
+  klass->m_flags= flags;
+  klass->m_enabled= true;
+  klass->m_timed= true;
+  klass->m_type= class_type;
+  klass->m_timer= class_timers[class_type];
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -1105,9 +1191,21 @@ static void configure_instr_class(PFS_instr_class *entry) {
 #define REGISTER_CLASS_BODY_PART(INDEX, ARRAY, MAX, NAME, NAME_LENGTH) \
   for (INDEX = 0; INDEX < MAX; ++INDEX) {                              \
     entry = &ARRAY[INDEX];                                             \
+<<<<<<< HEAD
     if ((entry->m_name.length() == NAME_LENGTH) &&                     \
         (strncmp(entry->m_name.str(), NAME, NAME_LENGTH) == 0)) {      \
       assert(entry->m_flags == info->m_flags);                         \
+=======
+    if ((entry->m_name_length == NAME_LENGTH) &&                       \
+<<<<<<< HEAD
+        (strncmp(entry->m_name, NAME, NAME_LENGTH) == 0)) {            \
+      DBUG_ASSERT(entry->m_flags == info->m_flags);                    \
+=======
+        (strncmp(entry->m_name, NAME, NAME_LENGTH) == 0))              \
+    {                                                                  \
+      assert(entry->m_flags == flags);                                 \
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       return (INDEX + 1);                                              \
     }                                                                  \
   }
@@ -1366,6 +1464,7 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
 
   index = thread_class_dirty_count++;
 
+<<<<<<< HEAD
   if (index < thread_class_max) {
     entry = &thread_class_array[index];
 
@@ -1381,6 +1480,7 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
 
     configure_instr_class(entry);
     ++thread_class_allocated_count;
+<<<<<<< HEAD
 
     entry->m_seqnum.store(1);
 
@@ -1401,6 +1501,18 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
     }
     entry->m_os_name[PFS_MAX_OS_NAME_LENGTH - 1] = '\0';
 
+=======
+=======
+  if (index < thread_class_max)
+  {
+    entry= &thread_class_array[index];
+    assert(name_length <= PFS_MAX_INFO_NAME_LENGTH);
+    strncpy(entry->m_name, name, name_length);
+    entry->m_name_length= name_length;
+    entry->m_enabled= true;
+    PFS_atomic::add_u32(&thread_class_allocated_count, 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return (index + 1);
   }
 
@@ -1999,8 +2111,18 @@ void PFS_table_share::aggregate_lock(void) {
   }
 }
 
+<<<<<<< HEAD
 void release_table_share(PFS_table_share *pfs) {
+<<<<<<< HEAD
   assert(pfs->get_refcount() > 0);
+=======
+  DBUG_ASSERT(pfs->get_refcount() > 0);
+=======
+void release_table_share(PFS_table_share *pfs)
+{
+  assert(pfs->get_refcount() > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   pfs->dec_refcount();
 }
 

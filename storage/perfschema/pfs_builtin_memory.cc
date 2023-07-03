@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +28,7 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD
 /**
   @file storage/perfschema/pfs_builtin_memory.cc
   Performance schema built in memory instrumentation.
@@ -30,6 +39,12 @@
 #include <assert.h>
 
 #include "storage/perfschema/pfs_global.h"
+=======
+#include "my_global.h"
+#include "m_string.h"
+#include "pfs_global.h"
+#include "pfs_builtin_memory.h"
+>>>>>>> upstream/cluster-7.6
 
 PFS_builtin_memory_class builtin_memory_mutex;
 PFS_builtin_memory_class builtin_memory_rwlock;
@@ -121,6 +136,7 @@ PFS_builtin_memory_class builtin_memory_prepared_stmt;
 
 PFS_builtin_memory_class builtin_memory_scalable_buffer;
 
+<<<<<<< HEAD
 static void init_builtin_memory_class(PFS_builtin_memory_class *klass,
                                       const char *name,
                                       const char *documentation) {
@@ -131,8 +147,28 @@ static void init_builtin_memory_class(PFS_builtin_memory_class *klass,
   klass->m_class.m_volatility = PSI_VOLATILITY_PERMANENT;
   klass->m_class.m_documentation = const_cast<char *>(documentation);
   klass->m_class.m_event_name_index = 0;
+<<<<<<< HEAD
   klass->m_class.m_name.set(PFS_CLASS_MEMORY, name);
   assert(klass->m_class.m_name.length() <= klass->m_class.m_name.max_length);
+=======
+  strncpy(klass->m_class.m_name, name, sizeof(klass->m_class.m_name));
+  klass->m_class.m_name_length = (uint)strlen(name);
+  DBUG_ASSERT(klass->m_class.m_name_length < sizeof(klass->m_class.m_name));
+=======
+static void init_builtin_memory_class(PFS_builtin_memory_class *klass, const char* name)
+{
+  klass->m_class.m_type= PFS_CLASS_MEMORY;
+  klass->m_class.m_enabled= true; /* Immutable */
+  klass->m_class.m_timed= false; /* Immutable */
+  klass->m_class.m_flags= PSI_FLAG_GLOBAL;
+  klass->m_class.m_event_name_index= 0;
+  my_snprintf(klass->m_class.m_name, sizeof(klass->m_class.m_name), "%.*s",
+              PFS_MAX_INFO_NAME_LENGTH - 1, name);
+  klass->m_class.m_name_length= strlen(name);
+  assert(klass->m_class.m_name_length < sizeof(klass->m_class.m_name));
+  klass->m_class.m_timer= NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   klass->m_stat.reset();
 }

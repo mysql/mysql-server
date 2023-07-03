@@ -2300,7 +2300,11 @@ void
 SimulatedBlock::executeFunction_async(GlobalSignalNumber gsn,
                                       Signal *signal)
 {
+<<<<<<< HEAD
   FunctionAndScope& fas = theSignalHandlerArray[gsn];
+=======
+  ExecFunction f = theExecArray[gsn];
+>>>>>>> pr/231
   if (unlikely(gsn > MAX_GSN))
   {
     handle_execute_error(gsn);

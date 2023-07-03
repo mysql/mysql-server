@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -952,9 +960,21 @@ int ha_archive::get_row(azio_stream *file_to_read, uchar *buf) {
 
 /* Reallocate buffer if needed */
 bool ha_archive::fix_rec_buff(unsigned int length) {
+<<<<<<< HEAD
   DBUG_TRACE;
   DBUG_PRINT("ha_archive", ("Fixing %u for %u", length, record_buffer->length));
   assert(record_buffer->buffer);
+=======
+  DBUG_ENTER("ha_archive::fix_rec_buff");
+<<<<<<< HEAD
+  DBUG_PRINT("ha_archive", ("Fixing %u for %u", length, record_buffer->length));
+  DBUG_ASSERT(record_buffer->buffer);
+=======
+  DBUG_PRINT("ha_archive", ("Fixing %u for %u", 
+                            length, record_buffer->length));
+  assert(record_buffer->buffer);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (length > record_buffer->length) {
     uchar *newptr;

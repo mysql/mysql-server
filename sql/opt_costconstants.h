@@ -2,7 +2,15 @@
 #define OPT_COSTCONSTANTS_INCLUDED
 
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +32,22 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD
 #include <assert.h>
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
 
 #include "prealloced_array.h"
+=======
+#include "my_dbug.h"                            // assert
+#include "handler.h"                            // MAX_HA
+#include "m_string.h"                           // LEX_CSTRING
+>>>>>>> upstream/cluster-7.6
 
 class THD;
 struct TABLE;
@@ -361,10 +378,24 @@ class Cost_model_se_info {
   */
 
   void set_cost_constants(SE_cost_constants *cost_constants,
+<<<<<<< HEAD
                           unsigned int storage_class) {
+<<<<<<< HEAD
     assert(cost_constants != nullptr);
     assert(storage_class < MAX_STORAGE_CLASSES);
     assert(m_se_cost_constants[storage_class] == nullptr);
+=======
+    DBUG_ASSERT(cost_constants != NULL);
+    DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
+    DBUG_ASSERT(m_se_cost_constants[storage_class] == NULL);
+=======
+                          unsigned int storage_class)
+  {
+    assert(cost_constants != NULL);
+    assert(storage_class < MAX_STORAGE_CLASSES);
+    assert(m_se_cost_constants[storage_class] == NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     m_se_cost_constants[storage_class] = cost_constants;
   }
@@ -377,10 +408,22 @@ class Cost_model_se_info {
                          used for
   */
 
+<<<<<<< HEAD
   const SE_cost_constants *get_cost_constants(
       unsigned int storage_class) const {
+<<<<<<< HEAD
     assert(storage_class < MAX_STORAGE_CLASSES);
     assert(m_se_cost_constants[storage_class] != nullptr);
+=======
+    DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
+    DBUG_ASSERT(m_se_cost_constants[storage_class] != NULL);
+=======
+  const SE_cost_constants *get_cost_constants(unsigned int storage_class) const
+  {
+    assert(storage_class < MAX_STORAGE_CLASSES);
+    assert(m_se_cost_constants[storage_class] != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return m_se_cost_constants[storage_class];
   }
@@ -393,9 +436,21 @@ class Cost_model_se_info {
                          used for
   */
 
+<<<<<<< HEAD
   SE_cost_constants *get_cost_constants(unsigned int storage_class) {
+<<<<<<< HEAD
     assert(storage_class < MAX_STORAGE_CLASSES);
     assert(m_se_cost_constants[storage_class] != nullptr);
+=======
+    DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
+    DBUG_ASSERT(m_se_cost_constants[storage_class] != NULL);
+=======
+  SE_cost_constants *get_cost_constants(unsigned int storage_class)
+  {
+    assert(storage_class < MAX_STORAGE_CLASSES);
+    assert(m_se_cost_constants[storage_class] != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return m_se_cost_constants[storage_class];
   }
@@ -499,8 +554,18 @@ class Cost_model_constants {
     @return the updated reference count
   */
 
+<<<<<<< HEAD
   unsigned int dec_ref_count() {
+<<<<<<< HEAD
     assert(m_ref_counter > 0);
+=======
+    DBUG_ASSERT(m_ref_counter > 0);
+=======
+  unsigned int dec_ref_count()
+  {
+    assert(m_ref_counter > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     m_ref_counter--;
     return m_ref_counter;
@@ -549,6 +614,14 @@ class Cost_model_constants {
 
   /// Reference counter for this set of cost constants.
   unsigned int m_ref_counter;
+<<<<<<< HEAD
+=======
+
+#if !defined(NDEBUG)
+  /// Version number for this cost constant set. Not used. Will likely remove
+  unsigned int version_no;
+#endif
+>>>>>>> upstream/cluster-7.6
 };
 
 #endif /* OPT_COSTCONSTANTS_INCLUDEDED */

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,9 +99,21 @@ static const uint NO_CC_RENAME = 1 << 5;
 handlerton *get_viable_handlerton_for_create(THD *thd, const char *table_name,
                                              const HA_CREATE_INFO &ci);
 
+<<<<<<< HEAD
 size_t filename_to_tablename(const char *from, char *to, size_t to_length,
+<<<<<<< HEAD
                              bool stay_quiet = false,
                              bool *has_errors = nullptr);
+=======
+                             bool stay_quiet = false);
+=======
+size_t filename_to_tablename(const char *from, char *to, size_t to_length
+#ifndef NDEBUG
+                           , bool stay_quiet = false
+#endif /* NDEBUG */
+                           );
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 size_t tablename_to_filename(const char *from, char *to, size_t to_length);
 size_t build_table_filename(char *buff, size_t bufflen, const char *db,
                             const char *table, const char *ext, uint flags,

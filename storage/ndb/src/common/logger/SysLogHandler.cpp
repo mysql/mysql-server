@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +84,11 @@ SysLogHandler::is_open()
 
 void 
 SysLogHandler::writeHeader(const char* pCategory, Logger::LoggerLevel level,
+<<<<<<< HEAD
                            time_t /*now*/)
+=======
+                           time_t now)
+>>>>>>> pr/231
 {
   // Save category to be used by writeMessage...
   m_pCategory = pCategory;

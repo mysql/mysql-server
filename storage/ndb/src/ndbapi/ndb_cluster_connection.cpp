@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1512,7 +1516,11 @@ void Ndb_cluster_connection_impl::connect_thread()
     if ((r = connect(0,0,0)) == 0)
       break;
     if (r == -1) {
+<<<<<<< HEAD
       g_eventLogger->info("Ndb_cluster_connection::connect_thread error");
+=======
+      printf("Ndb_cluster_connection::connect_thread error\n");
+>>>>>>> pr/231
       assert(false);
       m_run_connect_thread= 0;
     }

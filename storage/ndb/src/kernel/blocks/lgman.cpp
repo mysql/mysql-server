@@ -52,7 +52,10 @@
 //#define DEBUG_LGMAN 1
 //#define DEBUG_DROP_LG 1
 //#define DEBUG_LGMAN_LCP 1
+<<<<<<< HEAD
 //#define DEBUG_UNDO_SPACE 1
+=======
+>>>>>>> pr/231
 #endif
 
 #ifdef DEBUG_LGMAN
@@ -67,12 +70,15 @@
 #define DEB_LGMAN_LCP(arglist) do { } while (0)
 #endif
 
+<<<<<<< HEAD
 #ifdef DEBUG_UNDO_SPACE
 #define DEB_UNDO_SPACE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_UNDO_SPACE(arglist) do { } while (0)
 #endif
 
+=======
+>>>>>>> pr/231
 #ifdef DEBUG_DROP_LG
 #define DEB_DROP_LG(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -1815,6 +1821,7 @@ Lgman::execFSOPENREF(Signal* signal)
 void
 Lgman::execFSOPENCONF(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   Ptr<Undofile> file_ptr;
 

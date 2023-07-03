@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,6 +96,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   DBUG_ENTER("Transporter::Transporter");
 
   // Initialize member variables
+<<<<<<< HEAD
   ndb_socket_initialize(&theSocket);
   m_multi_transporter_instance = 0;
   m_recv_thread_idx = 0;
@@ -107,6 +112,12 @@ Transporter::Transporter(TransporterRegistry &t_reg,
              << "'. Update configuration." << endl;
       exit(-1);
     }
+=======
+  my_socket_invalidate(&theSocket);
+
+  if (rHostName && strlen(rHostName) > 0){
+    strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
+>>>>>>> pr/231
   }
   else
   {
@@ -263,7 +274,11 @@ Transporter::connect_server(ndb_socket_t sockfd,
 bool
 Transporter::connect_client()
 {
+<<<<<<< HEAD
   ndb_socket_t sockfd;
+=======
+  NDB_SOCKET_TYPE sockfd;
+>>>>>>> pr/231
   DBUG_ENTER("Transporter::connect_client");
 
   require(!isMultiTransporter());
@@ -292,15 +307,21 @@ Transporter::connect_client()
   {
     if (!m_socket_client->init())
     {
+<<<<<<< HEAD
       DEBUG_FPRINTF((stderr, "m_socket_client->init failed, node: %u\n",
                              getRemoteNodeId()));
+=======
+>>>>>>> pr/231
       DBUG_RETURN(false);
     }
 
     if (pre_connect_options(m_socket_client->m_sockfd) != 0)
     {
+<<<<<<< HEAD
       DEBUG_FPRINTF((stderr, "pre_connect_options failed, node: %u\n",
                              getRemoteNodeId()));
+=======
+>>>>>>> pr/231
       DBUG_RETURN(false);
     }
 
@@ -308,8 +329,11 @@ Transporter::connect_client()
     {
       if (m_socket_client->bind(localHostName, 0) != 0)
       {
+<<<<<<< HEAD
         DEBUG_FPRINTF((stderr, "m_socket_client->bind failed, node: %u\n",
                                getRemoteNodeId()));
+=======
+>>>>>>> pr/231
         DBUG_RETURN(false);
       }
     }
@@ -322,7 +346,11 @@ Transporter::connect_client()
 }
 
 bool
+<<<<<<< HEAD
 Transporter::connect_client(ndb_socket_t sockfd)
+=======
+Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
+>>>>>>> pr/231
 {
   DBUG_ENTER("Transporter::connect_client(sockfd)");
 
@@ -358,6 +386,7 @@ Transporter::connect_client(ndb_socket_t sockfd)
    *   type          0..4   :  1 char
    *   space                :  1 char
    *   nodeId      0..255   :  3 chars
+<<<<<<< HEAD
    *   space                :  1 char
    *   instance id  0..32   :  2 chars
    *   ------------------------------
@@ -370,6 +399,17 @@ Transporter::connect_client(ndb_socket_t sockfd)
                                             m_type,
                                             remoteNodeId,
                                             m_multi_transporter_instance);
+=======
+   *   ------------------------------
+   *   total                :  9 chars
+   */
+  char helloBuf[256];
+  const int helloLen = BaseString::snprintf(helloBuf, sizeof(helloBuf),
+                                            "%d %d %d",
+                                            localNodeId,
+                                            m_type,
+                                            remoteNodeId);
+>>>>>>> pr/231
   if (helloLen < 0)
   {
     DBUG_PRINT("error", ("Failed to buffer hello %d", helloLen));
@@ -385,13 +425,21 @@ Transporter::connect_client(ndb_socket_t sockfd)
   if (unlikely(helloLen > OldMaxHandshakeBytesLimit))
   {
     /* Cannot send this many bytes to older versions */
+<<<<<<< HEAD
     g_eventLogger->info("Failed handshake string length %u : \"%s\"", helloLen,
                         helloBuf);
+=======
+    ndbout_c("Failed handshake string length %u : \"%s\"",
+             helloLen, helloBuf);
+>>>>>>> pr/231
     abort();
   }
 
   DBUG_PRINT("info", ("Sending hello : %s", helloBuf));
+<<<<<<< HEAD
   DEBUG_FPRINTF((stderr, "Sending hello : %s\n"));
+=======
+>>>>>>> pr/231
 
   SocketOutputStream s_output(sockfd);
   if (s_output.println("%s", helloBuf) < 0)
@@ -458,6 +506,7 @@ Transporter::connect_client(ndb_socket_t sockfd)
   m_connect_count++;
   resetCounters();
 
+<<<<<<< HEAD
 #ifdef DEBUG_FPRINTF
   if (isPartOfMultiTransporter())
   {
@@ -468,6 +517,9 @@ Transporter::connect_client(ndb_socket_t sockfd)
   m_transporter_registry.lockMultiTransporters();
   update_connect_state(true);
   m_transporter_registry.unlockMultiTransporters();
+=======
+  update_connect_state(true);
+>>>>>>> pr/231
   DBUG_RETURN(true);
 }
 
@@ -574,6 +626,39 @@ Transporter::set_get(ndb_socket_t fd,
   }
   
   if ((ndb_getsockopt(fd, level, optval, &actual) == 0) && actual != val)
+  {
+#ifdef DEBUG_TRANSPORTER
+    g_eventLogger->error("setsockopt(%s, %d) - actual %d default: %d",
+                         optname, val, actual, defval);
+#endif
+  }
+}
+
+void
+Transporter::set_get(NDB_SOCKET_TYPE fd,
+                     int level,
+                     int optval,
+                     const char *optname, 
+                     int val)
+{
+  int actual = 0, defval = 0;
+  socket_len_t len = sizeof(actual);
+
+  my_getsockopt(fd, level, optval, (char*)&defval, &len);
+
+  if (my_setsockopt(fd, level, optval,
+                    (char*)&val, sizeof(val)) < 0)
+  {
+#ifdef DEBUG_TRANSPORTER
+    g_eventLogger->error("setsockopt(%s, %d) errno: %d %s",
+                         optname, val, errno, strerror(errno));
+#endif
+  }
+  
+  len = sizeof(actual);
+  if ((my_getsockopt(fd, level, optval,
+                     (char*)&actual, &len) == 0) &&
+      actual != val)
   {
 #ifdef DEBUG_TRANSPORTER
     g_eventLogger->error("setsockopt(%s, %d) - actual %d default: %d",

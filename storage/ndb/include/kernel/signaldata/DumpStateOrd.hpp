@@ -126,6 +126,10 @@ public:
     NdbfsDumpOpenFiles = 402,
     NdbfsDumpIdleFiles = 403,
     NdbfsDumpRequests = 406,
+<<<<<<< HEAD
+=======
+    NdbfsErrorInsert = 407,
+>>>>>>> pr/231
     CmvmiSchedulerExecutionTimer = 502,
     CmvmiRealtimeScheduler = 503,
     CmvmiExecuteLockCPU = 504,

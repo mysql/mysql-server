@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,15 +118,22 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      conf->checksum,
 	      conf->signalId,
 	      conf->tcp.sendBufferSize,
+<<<<<<< HEAD
 	      conf->preSendChecksum,
               conf->tcp.tcpSpintime),
+=======
+	      conf->preSendChecksum),
+>>>>>>> pr/231
   receiveBuffer()
 {
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
+<<<<<<< HEAD
   // Initialize member variables
   ndb_socket_initialize(&theSocket);
 
+=======
+>>>>>>> upstream/cluster-7.6
   sockOptNodelay    = 1;
   setIf(sockOptRcvBufSize, conf->tcp.tcpRcvBufSize, 0);
   setIf(sockOptSndBufSize, conf->tcp.tcpSndBufSize, 0);
@@ -249,6 +260,43 @@ TCP_Transporter::initTransporter() {
   return true;
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+static
+void
+set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname, 
+	int val)
+{
+  int actual = 0, defval = 0;
+  ndb_socket_len_t len = sizeof(actual);
+
+  ndb_getsockopt(fd, level, optval, (char*)&defval, &len);
+
+  if (ndb_setsockopt(fd, level, optval,
+                    (char*)&val, sizeof(val)) < 0)
+  {
+#ifdef DEBUG_TRANSPORTER
+    g_eventLogger->error("setsockopt(%s, %d) errno: %d %s",
+                         optname, val, errno, strerror(errno));
+#endif
+  }
+  
+  len = sizeof(actual);
+  if ((ndb_getsockopt(fd, level, optval,
+                     (char*)&actual, &len) == 0) &&
+      actual != val)
+  {
+#ifdef DEBUG_TRANSPORTER
+    g_eventLogger->error("setsockopt(%s, %d) - actual %d default: %d",
+                         optname, val, actual, defval);
+#endif
+  }
+}
+
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 int
 TCP_Transporter::pre_connect_options(ndb_socket_t sockfd)
 {
@@ -298,7 +346,11 @@ TCP_Transporter::send_is_possible(int timeout_millisec) const
 }
 
 bool
+<<<<<<< HEAD
 TCP_Transporter::send_is_possible(ndb_socket_t fd,
+=======
+TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,
+>>>>>>> pr/231
                                   int timeout_millisec) const
 {
   ndb_socket_poller poller;

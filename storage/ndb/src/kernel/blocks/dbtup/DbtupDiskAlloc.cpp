@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -225,7 +229,11 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   }
 }
 
+<<<<<<< HEAD
 #define ddrequire(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbabort(); } } while(0)
+=======
+#define ddrequire(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbrequire(false); } } while(0)
+>>>>>>> pr/231
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
 #define ddassert(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbabort(); } } while(0)
 #else
@@ -1425,9 +1433,22 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
       
       Uint32 free = pagePtr.p->free_space;
       Uint32 used = pagePtr.p->uncommitted_used_space;
+<<<<<<< HEAD
       ddrequire(free >= used);
       ddrequire(alloc.calc_page_free_bits(free - used) == idx);
       
+=======
+<<<<<<< HEAD
+      ddassert(free >= used);
+      ddassert(alloc.calc_page_free_bits(free - used) == idx);
+#endif
+
+=======
+      ddrequire(free >= used);
+      ddrequire(alloc.calc_page_free_bits(free - used) == idx);
+      
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       D("Tablespace_client - disk_page_unmap_callback");
       Tablespace_client tsman(0, this, c_tsman,
                     fragPtr.p->fragTableId,
@@ -1509,6 +1530,23 @@ Dbtup::disk_page_alloc(Signal* signal,
   if (tabPtrP->m_attributes[DD].m_no_of_varsize == 0)
   {
     jam();
+<<<<<<< HEAD
+=======
+    DEB_PGMAN((
+      "(%u)disk_page_alloc: tab(%u,%u):%u,page(%u,%u).%u.%u,gci: %u,"
+      "row_id(%u,%u)",
+                instance(),
+                pagePtr.p->m_table_id,
+                pagePtr.p->m_fragment_id,
+                pagePtr.p->m_create_table_version,
+                key->m_file_no,
+                key->m_page_no,
+                key->m_page_idx,
+                pagePtr.i,
+                gci,
+                row_id->m_page_no,
+                row_id->m_page_idx));
+>>>>>>> pr/231
     ddrequire(pagePtr.p->uncommitted_used_space > 0);
     pagePtr.p->uncommitted_used_space--;
     key->m_page_idx= ((Fix_page*)pagePtr.p)->alloc_record();
@@ -1596,9 +1634,13 @@ Dbtup::disk_page_free(Signal *signal,
                  pagePtr.i,
                  gci,
                  row_id->m_page_no,
+<<<<<<< HEAD
                  row_id->m_page_idx,
                  *src,
                  *(src + 1));
+=======
+                 row_id->m_page_idx);
+>>>>>>> pr/231
       ndbrequire(((*(src + 1)) < Tup_page::DATA_WORDS));
     }
     lsn= disk_page_undo_free(signal,
@@ -2002,8 +2044,12 @@ Dbtup::disk_restart_undo(Signal* signal,
                             fragId,
                             Fragrecord::UC_LCP,
                             lcpId,
+<<<<<<< HEAD
                             localLcpId,
                             lsn);
+=======
+                            localLcpId);
+>>>>>>> pr/231
     }
     if (!isNdbMtLqh())
       disk_restart_undo_next(signal);
@@ -2280,11 +2326,19 @@ Dbtup::disk_restart_lcp_id(Uint32 tableId,
   if (lcpId == RNIL)
   {
     jam();
+<<<<<<< HEAD
     disk_restart_undo_lcp(tableId, fragId, Fragrecord::UC_NO_LCP, 0, 0, 0);
     DEB_UNDO_LCP(("(%u)mark_no_lcp tab(%u,%u), UC_NO_LCP",
                   instance(),
                   tableId,
                   fragId));
+=======
+    disk_restart_undo_lcp(tableId, fragId, Fragrecord::UC_NO_LCP, 0, 0);
+    DEB_UNDO(("(%u)mark_no_lcp tab(%u,%u), UC_NO_LCP",
+              instance(),
+              tableId,
+              fragId));
+>>>>>>> pr/231
   }
   else
   {

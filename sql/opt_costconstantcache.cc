@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +25,30 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD
 #include "sql/opt_costconstantcache.h"
+=======
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+#include <stddef.h>
+#include "sql_const.h"                          // MAX_FIELD_WIDTH
+#include "field.h"                              // Field
+#include "log.h"                                // sql_print_warning
+#include "m_string.h"                           // LEX_CSTRING
+#include "my_dbug.h"                            // assert
+#include "opt_costconstants.h"
+#include "opt_costconstantcache.h"
+#include "template_utils.h"                     // pointer_cast
+#include "records.h"                            // READ_RECORD
+#include "sql_base.h"                           // open_and_lock_tables
+#include "sql_class.h"                          // THD
+#include "sql_lex.h"                      // lex_start/lex_end
+#include "sql_string.h"                         // String
+#include "table.h"                              // TABLE
+#include "thr_lock.h"                           // TL_READ
+#include "transaction.h"
+#include "sql_tmp_table.h"                // init_cache_tmp_engine_properties
+>>>>>>> upstream/cluster-7.6
 
 #include <memory>
 
@@ -64,7 +91,11 @@ Cost_constant_cache::Cost_constant_cache()
 
 Cost_constant_cache::~Cost_constant_cache() {
   // Verify that close has been called
+<<<<<<< HEAD
   assert(current_cost_constants == nullptr);
+=======
+  assert(current_cost_constants == NULL);
+>>>>>>> pr/231
   assert(m_inited == false);
 }
 
@@ -108,8 +139,17 @@ void Cost_constant_cache::close() {
 }
 
 void Cost_constant_cache::reload() {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(m_inited = true);
+=======
+  DBUG_ENTER("Cost_constant_cache::reload");
+<<<<<<< HEAD
+  DBUG_ASSERT(m_inited = true);
+=======
+  assert(m_inited= true);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   // Create cost constants from the constants defined in the source code
   Cost_model_constants *cost_constants = create_defaults();
@@ -170,6 +210,7 @@ void Cost_constant_cache::update_current_cost_constants(
 
 static void report_server_cost_warnings(const LEX_CSTRING &cost_name,
                                         double value,
+<<<<<<< HEAD
                                         cost_constant_error error) {
   switch (error) {
     case UNKNOWN_COST_NAME:
@@ -181,7 +222,27 @@ static void report_server_cost_warnings(const LEX_CSTRING &cost_name,
              value);
       break;
     default:
+<<<<<<< HEAD
       assert(false); /* purecov: inspected */
+=======
+      DBUG_ASSERT(false); /* purecov: inspected */
+=======
+                                        cost_constant_error error)
+{
+  switch(error)
+  {
+  case UNKNOWN_COST_NAME:
+    sql_print_warning("Unknown cost constant \"%s\" in mysql.server_cost table\n",
+                      cost_name.str);
+    break;
+  case INVALID_COST_VALUE:
+    sql_print_warning("Invalid value for cost constant \"%s\" in mysql.server_cost table: %.1f\n",
+                      cost_name.str, value);
+    break;
+  default:
+    assert(false);                         /* purecov: inspected */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 }
 
@@ -201,6 +262,7 @@ static void report_engine_cost_warnings(const LEX_CSTRING &se_name,
                                         int storage_category,
                                         const LEX_CSTRING &cost_name,
                                         double value,
+<<<<<<< HEAD
                                         cost_constant_error error) {
   switch (error) {
     case UNKNOWN_COST_NAME:
@@ -220,7 +282,35 @@ static void report_engine_cost_warnings(const LEX_CSTRING &se_name,
              cost_name.str, se_name.str, storage_category, value);
       break;
     default:
+<<<<<<< HEAD
       assert(false); /* purecov: inspected */
+=======
+      DBUG_ASSERT(false); /* purecov: inspected */
+=======
+                                        cost_constant_error error)
+{
+  switch(error)
+  {
+  case UNKNOWN_COST_NAME:
+    sql_print_warning("Unknown cost constant \"%s\" in mysql.engine_cost table\n",
+                      cost_name.str);
+    break;
+  case UNKNOWN_ENGINE_NAME:
+    sql_print_warning("Unknown storage engine \"%s\" in mysql.engine_cost table\n",
+                      se_name.str);
+    break;
+  case INVALID_DEVICE_TYPE:
+    sql_print_warning("Invalid device type %d for \"%s\" storage engine for cost constant \"%s\" in mysql.engine_cost table\n",
+                      storage_category, se_name.str, cost_name.str);
+    break;
+  case INVALID_COST_VALUE:
+    sql_print_warning("Invalid value for cost constant \"%s\" for \"%s\" storage engine and device type %d in mysql.engine_cost table: %.1f\n",
+                      cost_name.str, se_name.str, storage_category, value);
+    break;
+  default:
+    assert(false);                         /* purecov: inspected */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 }
 
@@ -385,9 +475,15 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
   THD *orig_thd = current_thd;
 
   // Create and initialize a new THD.
+<<<<<<< HEAD
   THD *thd = new THD;
   assert(thd);
   thd->thread_stack = pointer_cast<char *>(&thd);
+=======
+  THD *thd= new THD;
+  assert(thd);
+  thd->thread_stack= pointer_cast<char*>(&thd);
+>>>>>>> upstream/cluster-7.6
   thd->store_globals();
   lex_start(thd);
 
@@ -396,9 +492,21 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
   tables[0].next_global = tables[0].next_local =
       tables[0].next_name_resolution_table = &tables[1];
 
+<<<<<<< HEAD
   if (!open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT)) {
+<<<<<<< HEAD
     assert(tables[0].table != nullptr);
     assert(tables[1].table != nullptr);
+=======
+    DBUG_ASSERT(tables[0].table != NULL);
+    DBUG_ASSERT(tables[1].table != NULL);
+=======
+  if (!open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
+  {
+    assert(tables[0].table != NULL);
+    assert(tables[1].table != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     // Read the server constants table
     read_server_cost_constants(thd, tables[0].table, cost_constants);
@@ -434,9 +542,17 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
   if (orig_thd) orig_thd->store_globals();
 }
 
+<<<<<<< HEAD
 void init_optimizer_cost_module(bool enable_plugins) {
   assert(cost_constant_cache == nullptr);
   cost_constant_cache = new Cost_constant_cache();
+=======
+
+void init_optimizer_cost_module(bool enable_plugins)
+{
+  assert(cost_constant_cache == NULL);
+  cost_constant_cache= new Cost_constant_cache();
+>>>>>>> upstream/cluster-7.6
   cost_constant_cache->init();
   /*
     Initialize max_key_length and max_key_part_length for internal temporary

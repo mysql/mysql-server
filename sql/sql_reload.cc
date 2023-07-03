@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -198,6 +206,7 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
     if (reopen_error_log()) result = true;
   }
 
+<<<<<<< HEAD
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log &&
       (log_output_options & LOG_FILE))
     if (query_logger.reopen_log_file(QUERY_LOG_SLOW)) result = true;
@@ -205,6 +214,15 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
   if ((options & REFRESH_GENERAL_LOG) && opt_general_log &&
       (log_output_options & LOG_FILE))
     if (query_logger.reopen_log_file(QUERY_LOG_GENERAL)) result = true;
+=======
+  if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
+    if (query_logger.reopen_log_file(QUERY_LOG_SLOW))
+      result= 1;
+
+  if ((options & REFRESH_GENERAL_LOG) && opt_general_log)
+    if (query_logger.reopen_log_file(QUERY_LOG_GENERAL))
+      result= 1;
+>>>>>>> pr/231
 
   if (options & REFRESH_ENGINE_LOG) {
     if (ha_flush_logs()) {
@@ -245,12 +263,31 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
     }
   }
 
+<<<<<<< HEAD
   assert(!thd || thd->locked_tables_mode || !thd->mdl_context.has_locks() ||
          !thd->handler_tables_hash.empty() ||
          thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
          thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
          thd->mdl_context.has_locks(MDL_key::BACKUP_LOCK) ||
          thd->global_read_lock.is_acquired());
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!thd || thd->locked_tables_mode ||
+              !thd->mdl_context.has_locks() ||
+              !thd->handler_tables_hash.empty() ||
+              thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
+              thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
+              thd->mdl_context.has_locks(MDL_key::BACKUP_LOCK) ||
+              thd->global_read_lock.is_acquired());
+=======
+  assert(!thd || thd->locked_tables_mode ||
+         !thd->mdl_context.has_locks() ||
+         thd->handler_tables_hash.records ||
+         thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
+         thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
+         thd->global_read_lock.is_acquired());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     Note that if REFRESH_READ_LOCK bit is set then REFRESH_TABLES is set too
@@ -342,6 +379,7 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
   if (thd && (options & REFRESH_STATUS)) refresh_status();
   if (options & REFRESH_THREADS)
     Per_thread_connection_handler::kill_blocked_pthreads();
+<<<<<<< HEAD
   if (options & REFRESH_MASTER) {
     assert(thd);
     tmp_write_to_binlog = 0;
@@ -354,6 +392,16 @@ bool handle_reload_request(THD *thd, unsigned long options, Table_ref *tables,
       in reset_master().
     */
     if (reset_master(thd, options & REFRESH_READ_LOCK)) {
+=======
+#endif
+#ifdef HAVE_REPLICATION
+  if (options & REFRESH_MASTER)
+  {
+    assert(thd);
+    tmp_write_to_binlog= 0;
+    if (reset_master(thd))
+    {
+>>>>>>> upstream/cluster-7.6
       /* NOTE: my_error() has been already called by reset_master(). */
       result = true;
     }

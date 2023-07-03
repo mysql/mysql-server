@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1062,9 +1086,19 @@ struct st_mysql_plugin i_s_innodb_cmp_reset = {
     /* int (*)(void*); */
     STRUCT_FLD(deinit, i_s_common_deinit),
 
+<<<<<<< HEAD
     /* plugin version (for SHOW PLUGINS) */
     /* unsigned int */
+<<<<<<< HEAD
     STRUCT_FLD(version, i_s_innodb_plugin_version),
+=======
+    STRUCT_FLD(version, INNODB_VERSION_SHORT),
+=======
+		if (reset) {
+			new (zip_stat) page_zip_stat_t;
+		}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     /* SHOW_VAR* */
     STRUCT_FLD(status_vars, nullptr),
@@ -2065,7 +2099,169 @@ static int i_s_metrics_fill(
     OK(schema_table_store_record(thd, table_to_fill));
   }
 
+<<<<<<< HEAD
   return 0;
+=======
+<<<<<<< HEAD
+  DBUG_RETURN(0);
+=======
+			/* If monitor is enabled, the TIME_ELAPSED is the
+			time difference between current and time when monitor
+			is enabled. Otherwise, it is the time difference
+			between time when monitor is enabled and time
+			when it is disabled */
+			if (MONITOR_IS_ON(count)) {
+				time_diff = difftime(time(NULL),
+					MONITOR_FIELD(count, mon_start_time));
+			} else {
+				time_diff =  difftime(
+					MONITOR_FIELD(count, mon_stop_time),
+					MONITOR_FIELD(count, mon_start_time));
+			}
+
+			OK(fields[METRIC_TIME_ELAPSED]->store(
+				time_diff));
+			fields[METRIC_TIME_ELAPSED]->set_notnull();
+		} else {
+			fields[METRIC_START_TIME]->set_null();
+			fields[METRIC_TIME_ELAPSED]->set_null();
+			time_diff = 0;
+		}
+
+		/* Unless MONITOR_NO_AVERAGE is marked, we will need
+		to calculate the average value. If this is a monitor set
+		owner marked by MONITOR_SET_OWNER, divide
+		the value by another counter (number of calls) designated
+		by monitor_info->monitor_related_id.
+		Otherwise average the counter value by the time between the
+		time that the counter is enabled and time it is disabled
+		or time it is sampled. */
+		if (!(monitor_info->monitor_type & MONITOR_NO_AVERAGE)
+		    && (monitor_info->monitor_type & MONITOR_SET_OWNER)
+		    && monitor_info->monitor_related_id) {
+			mon_type_t	value_start
+				 = MONITOR_VALUE_SINCE_START(
+					monitor_info->monitor_related_id);
+
+			if (value_start) {
+				OK(fields[METRIC_AVG_VALUE_START]->store(
+					MONITOR_VALUE_SINCE_START(count)
+					/ value_start, FALSE));
+
+				fields[METRIC_AVG_VALUE_START]->set_notnull();
+			} else {
+				fields[METRIC_AVG_VALUE_START]->set_null();
+			}
+
+			if (MONITOR_VALUE(monitor_info->monitor_related_id)) {
+				OK(fields[METRIC_AVG_VALUE_RESET]->store(
+					MONITOR_VALUE(count)
+					/ MONITOR_VALUE(
+					monitor_info->monitor_related_id),
+					FALSE));
+				fields[METRIC_AVG_VALUE_RESET]->set_notnull();
+			} else {
+				fields[METRIC_AVG_VALUE_RESET]->set_null();
+			}
+		} else if (!(monitor_info->monitor_type & MONITOR_NO_AVERAGE)
+			   && !(monitor_info->monitor_type
+				& MONITOR_DISPLAY_CURRENT)) {
+			if (time_diff) {
+				OK(fields[METRIC_AVG_VALUE_START]->store(
+					(double) MONITOR_VALUE_SINCE_START(
+						count) / time_diff));
+				fields[METRIC_AVG_VALUE_START]->set_notnull();
+			} else {
+				fields[METRIC_AVG_VALUE_START]->set_null();
+			}
+
+			if (MONITOR_FIELD(count, mon_reset_time)) {
+				/* calculate the time difference since last
+				reset */
+				if (MONITOR_IS_ON(count)) {
+					time_diff = difftime(
+						time(NULL), MONITOR_FIELD(
+							count, mon_reset_time));
+				} else {
+					time_diff =  difftime(
+					MONITOR_FIELD(count, mon_stop_time),
+					MONITOR_FIELD(count, mon_reset_time));
+				}
+			} else {
+				time_diff = 0;
+			}
+
+			if (time_diff) {
+				OK(fields[METRIC_AVG_VALUE_RESET]->store(
+					static_cast<double>(
+						MONITOR_VALUE(count) / time_diff)));
+				fields[METRIC_AVG_VALUE_RESET]->set_notnull();
+			} else {
+				fields[METRIC_AVG_VALUE_RESET]->set_null();
+			}
+		} else {
+			fields[METRIC_AVG_VALUE_START]->set_null();
+			fields[METRIC_AVG_VALUE_RESET]->set_null();
+		}
+
+
+		if (MONITOR_IS_ON(count)) {
+			/* If monitor is on, the stop time will set to NULL */
+			fields[METRIC_STOP_TIME]->set_null();
+
+			/* Display latest Monitor Reset Time only if Monitor
+			counter is on. */
+			if (MONITOR_FIELD(count, mon_reset_time)) {
+				OK(field_store_time_t(
+					fields[METRIC_RESET_TIME],
+					(time_t)MONITOR_FIELD(
+						count, mon_reset_time)));
+				fields[METRIC_RESET_TIME]->set_notnull();
+			} else {
+				fields[METRIC_RESET_TIME]->set_null();
+			}
+
+			/* Display the monitor status as "enabled" */
+			OK(field_store_string(fields[METRIC_STATUS],
+					      "enabled"));
+		} else {
+			if (MONITOR_FIELD(count, mon_stop_time)) {
+				OK(field_store_time_t(fields[METRIC_STOP_TIME],
+				(time_t)MONITOR_FIELD(count, mon_stop_time)));
+				fields[METRIC_STOP_TIME]->set_notnull();
+			} else {
+				fields[METRIC_STOP_TIME]->set_null();
+			}
+
+			fields[METRIC_RESET_TIME]->set_null();
+
+			OK(field_store_string(fields[METRIC_STATUS],
+					      "disabled"));
+		}
+
+		if (monitor_info->monitor_type & MONITOR_DISPLAY_CURRENT) {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "value"));
+		} else if (monitor_info->monitor_type & MONITOR_EXISTING) {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "status_counter"));
+		} else if (monitor_info->monitor_type & MONITOR_SET_OWNER) {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "set_owner"));
+		} else if ( monitor_info->monitor_type & MONITOR_SET_MEMBER) {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "set_member"));
+		} else {
+			OK(field_store_string(fields[METRIC_TYPE],
+					      "counter"));
+		}
+
+		OK(schema_table_store_record(thd, table_to_fill));
+	}
+
+	DBUG_RETURN(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /** Function to fill information schema metrics tables.
@@ -2458,7 +2654,86 @@ static int i_s_fts_being_deleted_fill(
 {
   DBUG_TRACE;
 
+<<<<<<< HEAD
   return i_s_fts_deleted_generic_fill(thd, tables, true);
+=======
+<<<<<<< HEAD
+  DBUG_RETURN(i_s_fts_deleted_generic_fill(thd, tables, TRUE));
+=======
+	DBUG_ENTER("i_s_fts_deleted_generic_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	mysql_mutex_lock(&LOCK_global_system_variables);
+
+	if (!fts_internal_tbl_name) {
+		mysql_mutex_unlock(&LOCK_global_system_variables);
+		DBUG_RETURN(0);
+	}
+
+	std::string fts_table_name(fts_internal_tbl_name);
+	mysql_mutex_unlock(&LOCK_global_system_variables);
+
+	if(!fts_table_name.c_str()) {
+		DBUG_RETURN(0);
+	}
+
+	/* Prevent DDL to drop fts aux tables. */
+	rw_lock_s_lock(dict_operation_lock);
+
+	user_table = dict_table_open_on_name(
+				fts_table_name.c_str(),
+				FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+
+	if (!user_table) {
+		rw_lock_s_unlock(dict_operation_lock);
+
+		DBUG_RETURN(0);
+	} else if (!dict_table_has_fts_index(user_table)) {
+		dict_table_close(user_table, FALSE, FALSE);
+
+		rw_lock_s_unlock(dict_operation_lock);
+
+		DBUG_RETURN(0);
+	}
+
+	deleted = fts_doc_ids_create();
+
+	trx = trx_allocate_for_background();
+	trx->op_info = "Select for FTS DELETE TABLE";
+
+	FTS_INIT_FTS_TABLE(&fts_table,
+			   (being_deleted) ? "BEING_DELETED" : "DELETED",
+			   FTS_COMMON_TABLE, user_table);
+
+	fts_table_fetch_doc_ids(trx, &fts_table, deleted);
+
+	fields = table->field;
+
+	for (ulint j = 0; j < ib_vector_size(deleted->doc_ids); ++j) {
+		doc_id_t	doc_id;
+
+		doc_id = *(doc_id_t*) ib_vector_get_const(deleted->doc_ids, j);
+
+		OK(fields[I_S_FTS_DOC_ID]->store(doc_id, true));
+
+		OK(schema_table_store_record(thd, table));
+	}
+
+	trx_free_for_background(trx);
+
+	fts_doc_ids_free(deleted);
+
+	dict_table_close(user_table, FALSE, FALSE);
+
+	rw_lock_s_unlock(dict_operation_lock);
+
+	DBUG_RETURN(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /** Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED
@@ -2897,7 +3172,101 @@ static dberr_t i_s_fts_index_table_fill_selected(
     error = DB_FTS_EXCEED_RESULT_CACHE_LIMIT;
   }
 
+<<<<<<< HEAD
   return (error);
+=======
+					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
+						   doc_id, true));
+
+					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
+						   pos, true));
+
+					OK(schema_table_store_record(
+						   thd, table));
+				}
+
+				++ptr;
+
+				decoded = ptr - (byte*) node->ilist;
+			}
+		}
+	}
+
+	ut_free(conv_str.f_str);
+
+	DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHED
+@return 0 on success, 1 on failure */
+static
+int
+i_s_fts_index_cache_fill(
+/*=====================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (ignored) */
+{
+	dict_table_t*		user_table;
+	fts_cache_t*		cache;
+
+	DBUG_ENTER("i_s_fts_index_cache_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+        mysql_mutex_lock(&LOCK_global_system_variables);
+
+        if (!fts_internal_tbl_name) {
+                mysql_mutex_unlock(&LOCK_global_system_variables);
+                DBUG_RETURN(0);
+        }
+
+	std::string fts_table_name(fts_internal_tbl_name);
+	mysql_mutex_unlock(&LOCK_global_system_variables);
+
+        if(!fts_table_name.c_str()) {
+                DBUG_RETURN(0);
+        }
+
+	user_table = dict_table_open_on_name(
+		fts_table_name.c_str(), FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+
+	if (!user_table) {
+		DBUG_RETURN(0);
+	}
+
+	if (user_table->fts == NULL || user_table->fts->cache == NULL) {
+		dict_table_close(user_table, FALSE, FALSE);
+
+		DBUG_RETURN(0);
+	}
+
+	cache = user_table->fts->cache;
+
+	ut_a(cache);
+
+	/* Check if cache is being synced.
+	Note: we wait till cache is being synced. */
+	while (cache->sync->in_progress) {
+		os_event_wait(cache->sync->event);
+	}
+
+	for (ulint i = 0; i < ib_vector_size(cache->indexes); i++) {
+		fts_index_cache_t*      index_cache;
+
+		index_cache = static_cast<fts_index_cache_t*> (
+			ib_vector_get(cache->indexes, i));
+
+		i_s_fts_index_cache_fill_one_index(index_cache, thd, tables);
+	}
+
+	dict_table_close(user_table, FALSE, FALSE);
+
+	DBUG_RETURN(0);
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Free words. */
@@ -3085,12 +3454,166 @@ static int i_s_fts_index_table_fill_one_index(
       ret = i_s_fts_index_table_fill_one_fetch(index_charset, thd, tables,
                                                words, &conv_str, has_more);
 
+<<<<<<< HEAD
       if (ret != 0) {
         i_s_fts_index_table_free_one_fetch(words);
         goto func_exit;
       }
     } while (has_more);
   }
+=======
+		word->text.f_str[word->text.f_len] = 0;
+
+		/* Convert word from index charset to system_charset_info */
+		if (index_charset->cset != system_charset_info->cset) {
+			conv_str->f_n_char = my_convert(
+				reinterpret_cast<char*>(conv_str->f_str),
+				static_cast<uint32>(conv_str->f_len),
+				system_charset_info,
+				reinterpret_cast<char*>(word->text.f_str),
+				static_cast<uint32>(word->text.f_len),
+				index_charset, &dummy_errors);
+			ut_ad(conv_str->f_n_char <= conv_str->f_len);
+			conv_str->f_str[conv_str->f_n_char] = 0;
+			word_str = reinterpret_cast<char*>(conv_str->f_str);
+		} else {
+			word_str = reinterpret_cast<char*>(word->text.f_str);
+		}
+
+		/* Decrypt the ilist, and display Dod ID and word position */
+		for (ulint i = 0; i < ib_vector_size(word->nodes); i++) {
+			fts_node_t*	node;
+			byte*		ptr;
+			ulint		decoded = 0;
+			doc_id_t	doc_id = 0;
+
+			node = static_cast<fts_node_t*> (ib_vector_get(
+				word->nodes, i));
+
+			ptr = node->ilist;
+
+			while (decoded < node->ilist_size) {
+				ulint	pos = fts_decode_vlc(&ptr);
+
+				doc_id += pos;
+
+				/* Get position info */
+				while (*ptr) {
+					pos = fts_decode_vlc(&ptr);
+
+					OK(field_store_string(
+						   fields[I_S_FTS_WORD],
+						   word_str));
+
+					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
+						   node->first_doc_id, true));
+
+					OK(fields[I_S_FTS_LAST_DOC_ID]->store(
+						   node->last_doc_id, true));
+
+					OK(fields[I_S_FTS_DOC_COUNT]->store(
+						   node->doc_count, true));
+
+					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
+						   doc_id, true));
+
+					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
+						   pos, true));
+
+					OK(schema_table_store_record(
+						   thd, table));
+				}
+
+				++ptr;
+
+				decoded = ptr - (byte*) node->ilist;
+			}
+		}
+	}
+
+	i_s_fts_index_table_free_one_fetch(words);
+
+	DBUG_RETURN(ret);
+}
+
+/*******************************************************************//**
+Go through a FTS index and its auxiliary tables, fetch rows in each table
+and fill INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE.
+@return 0 on success, 1 on failure */
+static
+int
+i_s_fts_index_table_fill_one_index(
+/*===============================*/
+	dict_index_t*		index,		/*!< in: FTS index */
+	THD*			thd,		/*!< in: thread */
+	TABLE_LIST*		tables)		/*!< in/out: tables to fill */
+{
+	ib_vector_t*		words;
+	mem_heap_t*		heap;
+	CHARSET_INFO*		index_charset;
+	fts_string_t		conv_str;
+	dberr_t			error;
+	int			ret = 0;
+
+	DBUG_ENTER("i_s_fts_index_table_fill_one_index");
+	assert(!dict_index_is_online_ddl(index));
+
+	heap = mem_heap_create(1024);
+
+	words = ib_vector_create(ib_heap_allocator_create(heap),
+				 sizeof(fts_word_t), 256);
+
+	index_charset = fts_index_get_charset(index);
+	conv_str.f_len = system_charset_info->mbmaxlen
+		* FTS_MAX_WORD_LEN_IN_CHAR;
+	conv_str.f_str = static_cast<byte*>(ut_malloc_nokey(conv_str.f_len));
+	conv_str.f_n_char = 0;
+
+	/* Iterate through each auxiliary table as described in
+	fts_index_selector */
+	for (ulint selected = 0; selected < FTS_NUM_AUX_INDEX; selected++) {
+		fts_string_t	word;
+		bool		has_more = false;
+
+		word.f_str = NULL;
+		word.f_len = 0;
+		word.f_n_char = 0;
+
+		do {
+			/* Fetch from index */
+			error = i_s_fts_index_table_fill_selected(
+				index, words, selected, &word);
+
+			if (error == DB_SUCCESS) {
+				has_more = false;
+			} else if (error == DB_FTS_EXCEED_RESULT_CACHE_LIMIT) {
+				has_more = true;
+			} else {
+				i_s_fts_index_table_free_one_fetch(words);
+				ret = 1;
+				goto func_exit;
+			}
+
+			if (has_more) {
+				fts_word_t*	last_word;
+
+				/* Prepare start point for next fetch */
+				last_word = static_cast<fts_word_t*>(ib_vector_last(words));
+				ut_ad(last_word != NULL);
+				fts_string_dup(&word, &last_word->text, heap);
+			}
+
+			/* Fill into tables */
+			ret = i_s_fts_index_table_fill_one_fetch(
+				index_charset, thd, tables, words, &conv_str, has_more);
+
+			if (ret != 0) {
+				i_s_fts_index_table_free_one_fetch(words);
+				goto func_exit;
+			}
+		} while (has_more);
+	}
+>>>>>>> upstream/cluster-7.6
 
 func_exit:
   ut::free(conv_str.f_str);
@@ -3117,17 +3640,47 @@ static int i_s_fts_index_table_fill(
     return 0;
   }
 
+<<<<<<< HEAD
   mysql_mutex_lock(&LOCK_global_system_variables);
+=======
+<<<<<<< HEAD
+  /* Prevent DDL to drop fts aux tables. */
+  rw_lock_s_lock(dict_operation_lock);
+=======
+        mysql_mutex_lock(&LOCK_global_system_variables);
+
+        if (!fts_internal_tbl_name) {
+                mysql_mutex_unlock(&LOCK_global_system_variables);
+                DBUG_RETURN(0);
+        }
+
+	std::string fts_table_name(fts_internal_tbl_name);
+	mysql_mutex_unlock(&LOCK_global_system_variables);
+
+        if(!fts_table_name.c_str()) {
+                DBUG_RETURN(0);
+        }
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
   if (!fts_internal_tbl_name) {
     mysql_mutex_unlock(&LOCK_global_system_variables);
     return 0;
   }
 
+<<<<<<< HEAD
   ut_strcpy(local_name, fts_internal_tbl_name);
+<<<<<<< HEAD
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /* Prevent DDL to drop fts aux tables. */
   rw_lock_s_lock(dict_operation_lock, UT_LOCATION_HERE);
+=======
+=======
+	user_table = dict_table_open_on_name(
+		fts_table_name.c_str(), FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   user_table =
       dd_table_open_on_name(thd, &mdl, local_name, false, DICT_ERR_IGNORE_NONE);
@@ -3280,9 +3833,25 @@ static int i_s_fts_config_fill(THD *thd,          /*!< in: thread */
 
   fields = table->field;
 
+<<<<<<< HEAD
   if (innobase_strcasecmp(local_name, "default") == 0) {
     return 0;
   }
+=======
+        mysql_mutex_lock(&LOCK_global_system_variables);
+
+        if (!fts_internal_tbl_name) {
+                mysql_mutex_unlock(&LOCK_global_system_variables);
+                DBUG_RETURN(0);
+        }
+
+	std::string fts_table_name(fts_internal_tbl_name);
+	mysql_mutex_unlock(&LOCK_global_system_variables);
+
+        if(!fts_table_name.c_str()) {
+                DBUG_RETURN(0);
+        }
+>>>>>>> upstream/cluster-7.6
 
   /* Prevent DDL to drop fts aux tables. */
   rw_lock_s_lock(dict_operation_lock, UT_LOCATION_HERE);
@@ -3293,9 +3862,18 @@ static int i_s_fts_config_fill(THD *thd,          /*!< in: thread */
   if (!user_table) {
     rw_lock_s_unlock(dict_operation_lock);
 
+<<<<<<< HEAD
     return 0;
+=======
+<<<<<<< HEAD
+    DBUG_RETURN(0);
+>>>>>>> pr/231
   } else if (!dict_table_has_fts_index(user_table)) {
     dd_table_close(user_table, thd, &mdl, false);
+=======
+	user_table = dict_table_open_on_name(
+		fts_table_name.c_str(), FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+>>>>>>> upstream/cluster-7.6
 
     rw_lock_s_unlock(dict_operation_lock);
 
@@ -3318,7 +3896,15 @@ static int i_s_fts_config_fill(THD *thd,          /*!< in: thread */
     char *key_name;
     ulint allocated = false;
 
+<<<<<<< HEAD
     value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
+=======
+	if (!ib_vector_is_empty(user_table->fts->indexes)) {
+		index = (dict_index_t*) ib_vector_getp_const(
+				user_table->fts->indexes, 0);
+		assert(!dict_index_is_online_ddl(index));
+	}
+>>>>>>> upstream/cluster-7.6
 
     value.f_str = str;
 

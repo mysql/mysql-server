@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -111,6 +135,7 @@ struct fts_stopword_t {
 /** The SYNC state of the cache. There is one instance of this struct
 associated with each ADD thread. */
 struct fts_sync_t {
+<<<<<<< HEAD
   trx_t *trx;           /*!< The transaction used for SYNCing
                         the cache to disk */
   dict_table_t *table;  /*!< Table with FTS index(es) */
@@ -129,12 +154,46 @@ struct fts_sync_t {
   doc_id_t max_doc_id;  /*!< The doc id at which the cache was
                         noted as being full, we use this to
                         set the upper_limit field */
+<<<<<<< HEAD
   std::chrono::steady_clock::time_point start_time;
   /*!< SYNC start time */
   bool in_progress;  /*!< flag whether sync is in progress.*/
   bool unlock_cache; /*!< flag whether unlock cache when
                      write fts node */
   os_event_t event;  /*!< sync finish event */
+=======
+  ib_time_t start_time; /*!< SYNC start time */
+  bool in_progress;     /*!< flag whether sync is in progress.*/
+  bool unlock_cache;    /*!< flag whether unlock cache when
+                        write fts node */
+  os_event_t event;     /*!< sync finish event */
+=======
+	trx_t*		trx;		/*!< The transaction used for SYNCing
+					the cache to disk */
+	dict_table_t*	table;		/*!< Table with FTS index(es) */
+	ulint		max_cache_size;	/*!< Max size in bytes of the cache */
+	ibool		cache_full;	/*!< flag, when true it indicates that
+					we need to sync the cache to disk */
+	ulint		lower_index;	/*!< the start index of the doc id
+					vector from where to start adding
+					documents to the FTS cache */
+	ulint		upper_index;	/*!< max index of the doc id vector to
+					add to the FTS cache */
+	ibool		interrupted;	/*!< TRUE if SYNC was interrupted */
+	doc_id_t	min_doc_id;	/*!< The smallest doc id added to the
+					cache. It should equal to
+					doc_ids[lower_index] */
+	doc_id_t	max_doc_id;	/*!< The doc id at which the cache was
+					noted as being full, we use this to
+					set the upper_limit field */
+	ib_time_monotonic_t	start_time;
+	/*!< SYNC start time */
+	bool		in_progress;	/*!< flag whether sync is in progress.*/
+	bool		unlock_cache;	/*!< flag whether unlock cache when
+					write fts node */
+	os_event_t	event;		/*!< sync finish event */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /** The cache for the FTS system. It is a memory-based inverted index
@@ -169,6 +228,7 @@ struct fts_cache_t {
                          the document from the table. Each
                          element is of type fts_doc_t */
 
+<<<<<<< HEAD
   ulint total_size;                /*!< total size consumed by the ilist
                                    field of all nodes. SYNC is run
                                    whenever this gets too big */
@@ -180,6 +240,32 @@ struct fts_cache_t {
                                    and deleted_doc_ids, ie. transient
                                    objects, they are recreated after
                                    a SYNC is completed */
+=======
+<<<<<<< HEAD
+  ulint total_size;      /*!< total size consumed by the ilist
+                         field of all nodes. SYNC is run
+                         whenever this gets too big */
+  fts_sync_t *sync;      /*!< sync structure to sync data to
+                         disk */
+  ib_alloc_t *sync_heap; /*!< The heap allocator, for indexes
+                         and deleted_doc_ids, ie. transient
+                         objects, they are recreated after
+                         a SYNC is completed */
+=======
+	ulint		total_size;	/*!< total size consumed by the ilist
+					field of all nodes. SYNC is run
+					whenever this gets too big */
+	uint64_t	total_size_before_sync;
+	/*!< total size of fts cache, when last SYNC request was sent */
+
+	fts_sync_t*	sync;		/*!< sync structure to sync data to
+					disk */
+	ib_alloc_t*	sync_heap;	/*!< The heap allocator, for indexes
+					and deleted_doc_ids, ie. transient
+					objects, they are recreated after
+					a SYNC is completed */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   ib_alloc_t *self_heap; /*!< This heap is the heap out of
                          which an instance of the cache itself

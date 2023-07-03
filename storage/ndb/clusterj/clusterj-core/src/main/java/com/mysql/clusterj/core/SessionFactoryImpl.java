@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,11 +101,17 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     /** Connection pool size obtained from the property PROPERTY_CONNECTION_POOL_SIZE */
     int connectionPoolSize;
 
+<<<<<<< HEAD
     /** Boolean flag indicating if connection pool is disabled or not */
     boolean connectionPoolDisabled = false;
 
     /** Map of Proxy Interfaces to Domain Class */
     final private Map<String, Class<?>> proxyInterfacesToDomainClassMap = new HashMap<String, Class<?>>();
+=======
+    /** Map of Proxy Interfaces to Domain Class */
+    // TODO make this non-static
+    static private Map<String, Class<?>> proxyInterfacesToDomainClass = new HashMap<String, Class<?>>();
+>>>>>>> pr/231
 
     /** Map of Domain Class to DomainTypeHandler. */
     final private Map<Class<?>, DomainTypeHandler<?>> typeToHandlerMap =
@@ -534,7 +544,11 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                 Class<?>[] proxyInterfaces = domainTypeHandler.getProxyInterfaces();
                 if (proxyInterfaces != null) {
                     String key = generateProxyInterfacesKey(proxyInterfaces);
+<<<<<<< HEAD
                     proxyInterfacesToDomainClassMap.put(key, cls);
+=======
+                    proxyInterfacesToDomainClass.put(key, cls);
+>>>>>>> pr/231
                 }
             }
             return domainTypeHandler;
@@ -558,7 +572,11 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param object the object
      * @return the Domain class of the object
      */
+<<<<<<< HEAD
     protected <T> Class<T> getClassForProxy(T object) {
+=======
+    protected static <T> Class<T> getClassForProxy(T object) {
+>>>>>>> pr/231
         Class<?> cls = object.getClass();
         if (java.lang.reflect.Proxy.isProxyClass(cls)) {
             // The underlying class is a Proxy. Retrieve the interfaces implemented
@@ -566,7 +584,11 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             // proxyInterfacesToDomainClass map.
             Class<?>[] proxyInterfaces = cls.getInterfaces();
             String key = generateProxyInterfacesKey(proxyInterfaces);
+<<<<<<< HEAD
             cls = proxyInterfacesToDomainClassMap.get(key);
+=======
+            cls = proxyInterfacesToDomainClass.get(key);
+>>>>>>> pr/231
         }
         return (Class<T>)cls;
     }
@@ -844,8 +866,12 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             factory.pooledConnections.clear();
             // remove all DomainTypeHandlers, as they embed references to
             // Ndb dictionary objects which have been removed
+<<<<<<< HEAD
             factory.typeToHandlerMap.clear();
             factory.proxyInterfacesToDomainClassMap.clear();
+=======
+            typeToHandlerMap.clear();
+>>>>>>> pr/231
 
             logger.warn(local.message("WARN_Reconnect_creating"));
             factory.createClusterConnectionPool();

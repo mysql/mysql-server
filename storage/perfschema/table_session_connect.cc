@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -311,7 +319,12 @@ int table_session_connect::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -340,7 +353,44 @@ int table_session_connect::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulong(f, m_row.m_ordinal_position);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case FO_PROCESS_ID:
+        if (m_row.m_process_id != 0)
+          set_field_ulong(f, m_row.m_process_id);
+        else
+          f->set_null();
+        break;
+      case FO_ATTR_NAME:
+        set_field_varchar_utf8(f, m_row.m_attr_name,
+                               m_row.m_attr_name_length);
+        break;
+      case FO_ATTR_VALUE:
+        if (m_row.m_attr_value_length)
+          set_field_varchar_utf8(f, m_row.m_attr_value,
+                                 m_row.m_attr_value_length);
+        else
+          f->set_null();
+        break;
+      case FO_ORDINAL_POSITION:
+        set_field_ulong(f, m_row.m_ordinal_position);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

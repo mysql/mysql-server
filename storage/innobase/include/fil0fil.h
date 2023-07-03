@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -147,6 +171,7 @@ struct fil_space_t;
 
 /** File node of a tablespace or the log data space */
 struct fil_node_t {
+<<<<<<< HEAD
   /** Returns true if the file can be closed. */
   bool can_be_closed() const;
   /** Returns true if the file is flushed. */
@@ -157,7 +182,52 @@ struct fil_node_t {
   /** Sets file to flushed state. */
   void set_flushed() { flush_counter = modification_counter; }
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   using List_node = UT_LIST_NODE_T(fil_node_t);
+=======
+	/** tablespace containing this file */
+	fil_space_t*	space;
+	/** file name; protected by fil_system->mutex and log_sys->mutex. */
+	char*		name;
+	/** whether this file is open */
+	bool		is_open;
+	/** file handle (valid if is_open) */
+	pfs_os_file_t	handle;
+	/** event that groups and serializes calls to fsync */
+	os_event_t	sync_event;
+	/** whether the file actually is a raw device or disk partition */
+	bool		is_raw_disk;
+	/** size of the file in database pages (0 if not known yet);
+	the possible last incomplete megabyte may be ignored
+	if space->id == 0 */
+	ulint		size;
+
+	/** Size of the file when last flushed, used to force the flush when file
+	grows to keep the filesystem metadata synced when using O_DIRECT_NO_FSYNC */
+	ulint		flush_size;
+
+	/** initial size of the file in database pages;
+	FIL_IBD_FILE_INITIAL_SIZE by default */
+	ulint		init_size;
+	/** maximum size of the file in database pages (0 if unlimited) */
+	ulint		max_size;
+	/** count of pending i/o's; is_open must be true if nonzero */
+	ulint		n_pending;
+	/** count of pending flushes; is_open must be true if nonzero */
+	ulint		n_pending_flushes;
+	/** whether the file is currently being extended */
+	bool		being_extended;
+	/** number of writes to the file since the system was started */
+	int64_t		modification_counter;
+	/** the modification_counter of the latest flush to disk */
+	int64_t		flush_counter;
+	/** link to other files in this tablespace */
+	UT_LIST_NODE_T(fil_node_t) chain;
+	/** link to the fil_system->LRU list (keeping track of open files) */
+	UT_LIST_NODE_T(fil_node_t) LRU;
+>>>>>>> upstream/cluster-7.6
 
   /** tablespace containing this file */
   fil_space_t *space;

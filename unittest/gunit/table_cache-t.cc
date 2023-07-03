@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,13 +131,23 @@ class Mock_share : public TABLE_SHARE {
   MEM_ROOT m_mem_root;
   Table_cache_element *cache_element_arr[Table_cache_manager::MAX_TABLE_CACHES];
 
+<<<<<<< HEAD
  public:
+<<<<<<< HEAD
   Mock_share(const char *key)
       :  // Assertion in some of Table_cache methods check that the
          // version of the share is up-to-date, so make sure it's set.
         TABLE_SHARE(refresh_version, false),
         // MEM_ROOT is used for constructing ha_example() instances.
         m_mem_root(PSI_NOT_INSTRUMENTED, 1024) {
+=======
+  Mock_share(const char *key) {
+=======
+public:
+  Mock_share(const char *key)
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     /*
       Both table_cache_key and cache_element array are used by
       Table_cache code.
@@ -149,7 +167,12 @@ class Mock_share : public TABLE_SHARE {
         (TABLE *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(TABLE), MYF(0));
     new (result) TABLE;
 
+<<<<<<< HEAD
     result->s = this;
+=======
+    ::new(result) TABLE;
+    result->s= this;
+>>>>>>> upstream/cluster-7.6
     // We create TABLE which is already marked as used
     result->in_use = thd;
     /*
@@ -749,10 +772,22 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   // There should be assert failure since we are trying
   // to free all tables for share_1, while some tables
   // are in use.
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   EXPECT_DEATH_IF_SUPPORTED(
       table_cache_manager.free_table(thd_1, TDC_RT_REMOVE_ALL, &share_1),
       ".*Assertion.*is_empty.*");
+=======
+#ifndef NDEBUG
+  EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
+                                                           TDC_RT_REMOVE_ALL,
+                                                           &share_1),
+                            ".*Assertion.*is_empty.*");
+>>>>>>> upstream/cluster-7.6
 #endif
 
   table_cache_1->release_table(thd_1, table_1);
@@ -787,10 +822,22 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   // There should be assert failure since we are trying
   // to free all not own TABLEs for share_1, while thd_2
   // has a TABLE object for it in used
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   EXPECT_DEATH_IF_SUPPORTED(
       table_cache_manager.free_table(thd_1, TDC_RT_REMOVE_NOT_OWN, &share_1),
       ".*Assertion.*0.*");
+=======
+#ifndef NDEBUG
+  EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
+                                                           TDC_RT_REMOVE_NOT_OWN,
+                                                           &share_1),
+                            ".*Assertion.*0.*");
+>>>>>>> upstream/cluster-7.6
 #endif
 
   table_cache_2->release_table(thd_2, table_4);

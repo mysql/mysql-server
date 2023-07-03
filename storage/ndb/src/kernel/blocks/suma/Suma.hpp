@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -453,10 +457,13 @@ public:
                                  Local_Subscriber_list& list);
   
   Uint32 getFirstGCI(Signal* signal);
+<<<<<<< HEAD
   void sendBatchedSUB_TABLE_DATA(Signal* signal,
                                  Subscriber_list::Head subscriber,
                                  LinearSectionPtr ptr[],
                                  Uint32 nptr);
+=======
+>>>>>>> pr/231
   void send_fragmented_SUB_TABLE_DATA_callback(Signal* signal,
                                                Uint32 inflight_index,
                                                Uint32 returnCode);
@@ -796,7 +803,11 @@ private:
   */
   Uint32 m_max_gcp_rep_counter_index;
 
+<<<<<<< HEAD
   static constexpr Uint32 MAX_LDM_EPOCH_LAG = 50;
+=======
+  STATIC_CONST(MAX_LDM_EPOCH_LAG = 50);
+>>>>>>> pr/231
   SubGcpCompleteCounter m_gcp_rep_counter[MAX_LDM_EPOCH_LAG];
 
   Uint32 m_oldest_gcp_inflight_index;

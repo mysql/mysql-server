@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,10 +131,17 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint)
     {
+<<<<<<< HEAD
       tuxDebugOut << treePos << (! ok ? " - error" : "") << endl;
     }
 #endif
     if (unlikely(! ok))
+=======
+      debugOut << treePos << (! ok ? " - error" : "") << endl;
+    }
+#endif
+    if (! ok)
+>>>>>>> pr/231
     {
       jam();
       // there is no "Building" state so this will have to do
@@ -173,10 +184,17 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint)
     {
+<<<<<<< HEAD
       tuxDebugOut << treePos << (! ok ? " - error" : "") << endl;
     }
 #endif
     if (unlikely(! ok))
+=======
+      debugOut << treePos << (! ok ? " - error" : "") << endl;
+    }
+#endif
+    if (! ok)
+>>>>>>> pr/231
     {
       jam();
       // there is no "Building" state so this will have to do
@@ -199,7 +217,11 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
 #ifdef VM_TRACE
   if (debugFlags & DebugTree)
   {
+<<<<<<< HEAD
     printTree(signal, frag, tuxDebugOut);
+=======
+    printTree(signal, frag, debugOut);
+>>>>>>> pr/231
   }
 #endif
   // copy back

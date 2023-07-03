@@ -1,6 +1,14 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -10,6 +18,7 @@ briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -25,6 +34,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -141,6 +167,7 @@ extern mysql_pfs_key_t temp_space_rseg_mutex_key;
 extern mysql_pfs_key_t undo_space_rseg_mutex_key;
 extern mysql_pfs_key_t trx_sys_rseg_mutex_key;
 extern mysql_pfs_key_t page_zip_stat_per_index_mutex_key;
+<<<<<<< HEAD
 #ifdef UNIV_DEBUG
 extern mysql_pfs_key_t rw_lock_debug_mutex_key;
 #endif /* UNIV_DEBUG */
@@ -177,9 +204,46 @@ extern mysql_pfs_key_t master_key_id_mutex_key;
 extern mysql_pfs_key_t clone_sys_mutex_key;
 extern mysql_pfs_key_t clone_task_mutex_key;
 extern mysql_pfs_key_t clone_snapshot_mutex_key;
+<<<<<<< HEAD
 extern mysql_pfs_key_t parallel_read_mutex_key;
 extern mysql_pfs_key_t dblwr_mutex_key;
 extern mysql_pfs_key_t ahi_enabled_mutex_key;
+=======
+=======
+# ifdef UNIV_DEBUG
+extern mysql_pfs_key_t	rw_lock_debug_mutex_key;
+# endif /* UNIV_DEBUG */
+extern mysql_pfs_key_t	rw_lock_list_mutex_key;
+extern mysql_pfs_key_t	rw_lock_mutex_key;
+extern mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
+extern mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
+extern mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
+extern mysql_pfs_key_t	srv_monitor_file_mutex_key;
+# ifdef UNIV_DEBUG
+extern mysql_pfs_key_t	sync_thread_mutex_key;
+# endif /* UNIV_DEBUG */
+extern mysql_pfs_key_t	buf_dblwr_mutex_key;
+extern mysql_pfs_key_t	trx_undo_mutex_key;
+extern mysql_pfs_key_t	trx_mutex_key;
+extern mysql_pfs_key_t	trx_pool_mutex_key;
+extern mysql_pfs_key_t	trx_pool_manager_mutex_key;
+extern mysql_pfs_key_t	lock_mutex_key;
+extern mysql_pfs_key_t	lock_wait_mutex_key;
+extern mysql_pfs_key_t	trx_sys_mutex_key;
+extern mysql_pfs_key_t	srv_sys_mutex_key;
+extern mysql_pfs_key_t	srv_threads_mutex_key;
+# ifndef PFS_SKIP_EVENT_MUTEX
+extern mysql_pfs_key_t	event_mutex_key;
+extern mysql_pfs_key_t	event_manager_mutex_key;
+# endif /* PFS_SKIP_EVENT_MUTEX */
+extern mysql_pfs_key_t	sync_array_mutex_key;
+extern mysql_pfs_key_t	thread_mutex_key;
+extern mysql_pfs_key_t  zip_pad_mutex_key;
+extern mysql_pfs_key_t  row_drop_list_mutex_key;
+extern mysql_pfs_key_t	master_key_id_mutex_key;
+extern mysql_pfs_key_t	analyze_index_mutex_key;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_PFS_RWLOCK

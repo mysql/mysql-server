@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +92,39 @@ PFS_engine_table_share table_session_variables::m_share = {
     false /* m_in_purgatory */
 };
 
+<<<<<<< HEAD
 PFS_engine_table *table_session_variables::create(PFS_engine_table_share *) {
+=======
+TABLE_FIELD_DEF
+table_session_variables::m_field_def=
+{ 2, field_types };
+
+PFS_engine_table_share_state
+table_session_variables::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_session_variables::m_share=
+{
+  { C_STRING_WITH_LEN("session_variables") },
+  &pfs_readonly_world_acl,
+  table_session_variables::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_session_variables::get_row_count,
+  sizeof(pos_t),
+  &m_table_lock,
+  &m_field_def,
+  true, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table*
+table_session_variables::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_session_variables();
 }
 
@@ -148,7 +188,12 @@ int table_session_variables::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
+<<<<<<< HEAD
 int table_session_variables::index_init(uint idx [[maybe_unused]], bool) {
+=======
+<<<<<<< HEAD
+int table_session_variables::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+>>>>>>> pr/231
   /*
     Build a cache of system variables for this thread.
   */
@@ -161,6 +206,17 @@ int table_session_variables::index_init(uint idx [[maybe_unused]], bool) {
   m_index = result;
 
   return 0;
+=======
+void table_session_variables
+::make_row(const System_variable *system_var)
+{
+  m_row_exists= false;
+  if (system_var->is_null() || system_var->is_ignored())
+    return;
+  m_row.m_variable_name.make_row(system_var->m_name, system_var->m_name_length);
+  m_row.m_variable_value.make_row(system_var);
+  m_row_exists= true;
+>>>>>>> upstream/cluster-7.6
 }
 
 int table_session_variables::index_next(void) {
@@ -200,7 +256,12 @@ int table_session_variables::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -214,7 +275,30 @@ int table_session_variables::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_variable_value.set_field(f);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* VARIABLE_NAME */
+        set_field_varchar_utf8(f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
+        break;
+      case 1: /* VARIABLE_VALUE */
+        m_row.m_variable_value.set_field(f);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

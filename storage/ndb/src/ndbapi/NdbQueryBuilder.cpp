@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2746,6 +2750,7 @@ int NdbQueryPKLookupOperationDefImpl ::serializeOperation(
   serializedDef.alloc(QN_LookupNode::NodeSize);
   Uint32 requestInfo = 0;
 
+<<<<<<< HEAD
   if (getMatchType() & NdbQueryOptions::MatchNonNull)
   {
     requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
@@ -2760,6 +2765,12 @@ int NdbQueryPKLookupOperationDefImpl ::serializeOperation(
   {
     requestInfo |= DABits::NI_ANTI_JOIN;
   }
+=======
+  if (getMatchType() == NdbQueryOptions::MatchNonNull)
+  {
+    requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
+  }
+>>>>>>> pr/231
 
   /**
    * NOTE: Order of sections within the optional part is fixed as:
@@ -2826,6 +2837,7 @@ int NdbQueryIndexOperationDefImpl ::serializeOperation(
     serializedDef.alloc(QN_LookupNode::NodeSize);
     Uint32 requestInfo = QN_LookupNode::L_UNIQUE_INDEX;
 
+<<<<<<< HEAD
     if (getMatchType() & NdbQueryOptions::MatchNonNull)
     {
       requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
@@ -2841,6 +2853,12 @@ int NdbQueryIndexOperationDefImpl ::serializeOperation(
     {
       requestInfo |= DABits::NI_ANTI_JOIN;
     }
+=======
+    if (getMatchType() == NdbQueryOptions::MatchNonNull)
+    {
+      requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
+    }
+>>>>>>> pr/231
 
     // Optional part1: Make list of parent nodes.
     assert (getInternalOpNo() > 0);
@@ -2978,6 +2996,7 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
   serializedDef.alloc(QN_ScanFragNode::NodeSize);
   Uint32 requestInfo = 0;
 
+<<<<<<< HEAD
   if (!isRoot &&
       (getMatchType() & NdbQueryOptions::MatchNonNull) == 0)
   {
@@ -2998,6 +3017,12 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
   {
     requestInfo |= DABits::NI_ANTI_JOIN;
   }
+=======
+  if (getMatchType() == NdbQueryOptions::MatchNonNull)
+  {
+    requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
+  }
+>>>>>>> pr/231
 
   // Optional part1: Make list of parent nodes.
   requestInfo |= appendParentList (serializedDef);

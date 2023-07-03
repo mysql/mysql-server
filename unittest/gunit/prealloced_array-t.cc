@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +85,15 @@ TEST_F(PreallocedArrayDeathTest, EmptyErase) {
   EXPECT_DEATH_IF_SUPPORTED(int_10.erase(ix), ".*Assertion .*ix < size.*");
 }
 
+<<<<<<< HEAD
 #endif  // NDEBUG
+=======
+<<<<<<< HEAD
+#endif  // DBUG_OFF
+=======
+#endif // NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 TEST_F(PreallocedArrayTest, Insert5) {
   for (int ix = 0; ix < 5; ++ix) int_10.push_back(ix);

@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +38,7 @@
 
 #define JAM_FILE_ID 365
 
+<<<<<<< HEAD
 Dbtux::Dbtux(Block_context& ctx,
              Uint32 instanceNumber,
              Uint32 blockNo) :
@@ -41,6 +46,12 @@ Dbtux::Dbtux(Block_context& ctx,
   c_tup(0),
   c_lqh(0),
   c_acc(0),
+=======
+Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
+  SimulatedBlock(DBTUX, ctx, instanceNumber),
+  c_tup(0),
+  c_lqh(0),
+>>>>>>> pr/231
   c_descPageList(RNIL),
 #ifdef VM_TRACE
   debugFile(0),
@@ -273,6 +284,7 @@ Dbtux::execSTTOR(Signal* signal)
   case 1:
     jam();
     CLEAR_ERROR_INSERT_VALUE;
+<<<<<<< HEAD
     m_my_scan_instance = get_my_scan_instance();
     if (m_is_query_block)
     {
@@ -292,6 +304,12 @@ Dbtux::execSTTOR(Signal* signal)
       c_acc = (Dbacc*)globalData.getBlock(DBACC, instance());
       ndbrequire(c_acc != 0);
     }
+=======
+    c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
+    ndbrequire(c_tup != 0);
+    c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance());
+    ndbrequire(c_lqh != 0);
+>>>>>>> pr/231
     c_signal_bug32040 = signal;
     break;
   case 3:

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1074,4 +1082,15 @@ int fill_optimizer_trace_info(THD *thd, Table_ref *tables, Item *);
   object_level1.add_select_number(select_number);                \
   object_level1.add_alnum("from", from).add_alnum("to", to);
 
+<<<<<<< HEAD
+=======
+/*
+  A debug binary without optimizer trace compiled in, will miss some
+  debugging info, be less useful, so:
+*/
+#if !defined(NDEBUG) && !defined(OPTIMIZER_TRACE)
+#error debug binaries must support optimizer trace
+#endif
+
+>>>>>>> upstream/cluster-7.6
 #endif /* OPT_TRACE_INCLUDED */

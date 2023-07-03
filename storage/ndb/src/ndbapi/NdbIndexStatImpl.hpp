@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +75,10 @@ public:
   NdbPack::Type* m_valueSpecBuf;
   NdbPack::Data m_keyData;
   NdbPack::Data m_valueData;
-  Uint8* m_keyDataBuf;
-  Uint8* m_valueDataBuf;
+  // full length buffers with 2 bytes for
+  // length bytes rounded up to nearest word
+  Uint8 m_keyDataBuf[((MaxKeyBytes + 2 + 3)/4) * 4];
+  Uint8 m_valueDataBuf[((MaxValueCBytes + 2 + 3)/4) * 4];
   Cache* m_cacheBuild;
   Cache* m_cacheQuery;
   Cache* m_cacheClean;

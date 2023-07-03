@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -569,6 +593,7 @@ byte *btr_rec_copy_externally_stored_field_func(
     const page_size_t &page_size, ulint no, ulint *len, size_t *lob_version,
     IF_DEBUG(bool is_sdi, ) mem_heap_t *heap);
 
+<<<<<<< HEAD
 /** Sets a secondary index record's delete mark to the given value. This
  function is only used by the insert buffer merge mechanism. */
 void btr_cur_set_deleted_flag_for_ibuf(
@@ -580,12 +605,37 @@ void btr_cur_set_deleted_flag_for_ibuf(
     mtr_t *mtr);              /*!< in/out: mini-transaction */
 
 /** The following function is used to set the deleted bit of a record.
+<<<<<<< HEAD
 @param[in,out]  rec             physical record
 @param[in,out]  page_zip        compressed page (or NULL)
 @param[in]      flag            nonzero if delete marked */
 static inline void btr_rec_set_deleted_flag(rec_t *rec,
                                             page_zip_des_t *page_zip,
                                             bool flag);
+=======
+@param[in,out]	rec		physical record
+@param[in,out]	page_zip	compressed page (or NULL)
+@param[in]	flag		nonzero if delete marked */
+=======
+/***********************************************************//**
+Sets a secondary index record's delete mark to the given value. This
+function is only used by the insert buffer merge mechanism. */
+void
+btr_cur_set_deleted_flag_for_ibuf(
+/*==============================*/
+	rec_t*		rec,		/*!< in/out: record */
+	page_zip_des_t*	page_zip,	/*!< in/out: compressed page
+					corresponding to rec, or NULL
+					when the tablespace is uncompressed */
+	ibool		val,		/*!< in: value to set */
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+
+/******************************************************//**
+The following function is used to set the deleted bit of a record. */
+>>>>>>> upstream/cluster-7.6
+UNIV_INLINE
+void btr_rec_set_deleted_flag(rec_t *rec, page_zip_des_t *page_zip, ulint flag);
+>>>>>>> pr/231
 
 /** Latches the leaf page or pages requested.
 @param[in]      block           Leaf page where the search converged
@@ -665,6 +715,7 @@ enum btr_cur_method {
 /** The tree cursor: the definition appears here only for the compiler
 to know struct size! */
 struct btr_cur_t {
+<<<<<<< HEAD
   /** Index on which the cursor is positioned. */
   dict_index_t *index{nullptr};
   /** Page cursor. */
@@ -736,6 +787,144 @@ struct btr_cur_t {
 
   /** If cursor is used in a scan or simple page fetch. */
   Page_fetch m_fetch_mode{Page_fetch::NORMAL};
+=======
+<<<<<<< HEAD
+  dict_index_t *index{nullptr};      /*!< index where positioned */
+  page_cur_t page_cur;               /*!< page cursor */
+  purge_node_t *purge_node{nullptr}; /*!< purge node, for BTR_DELETE */
+  buf_block_t *left_block{nullptr};  /*!< this field is used to store
+                             a pointer to the left neighbor
+                             page, in the cases
+                             BTR_SEARCH_PREV and
+                             BTR_MODIFY_PREV */
+  /*------------------------------*/
+  que_thr_t *thr{nullptr}; /*!< this field is only used
+                           when btr_cur_search_to_nth_level
+                           is called for an index entry
+                           insertion: the calling query
+                           thread is passed here to be
+                           used in the insert buffer */
+  /*------------------------------*/
+  /** The following fields are used in
+  btr_cur_search_to_nth_level to pass information: */
+  /* @{ */
+  btr_cur_method flag{BTR_CUR_UNSET}; /*!< Search method used */
+  ulint tree_height{0};               /*!< Tree height if the search is done
+                                      for a pessimistic insert or update
+                                      operation */
+  ulint up_match{0};                  /*!< If the search mode was PAGE_CUR_LE,
+                                      the number of matched fields to the
+                                      the first user record to the right of
+                                      the cursor record after
+                                      btr_cur_search_to_nth_level;
+                                      for the mode PAGE_CUR_GE, the matched
+                                      fields to the first user record AT THE
+                                      CURSOR or to the right of it;
+                                      NOTE that the up_match and low_match
+                                      values may exceed the correct values
+                                      for comparison to the adjacent user
+                                      record if that record is on a
+                                      different leaf page! (See the note in
+                                      row_ins_duplicate_error_in_clust.) */
+  ulint up_bytes{0};                  /*!< number of matched bytes to the
+                                      right at the time cursor positioned;
+                                      only used internally in searches: not
+                                      defined after the search */
+  ulint low_match{0};                 /*!< if search mode was PAGE_CUR_LE,
+                                      the number of matched fields to the
+                                      first user record AT THE CURSOR or
+                                      to the left of it after
+                                      btr_cur_search_to_nth_level;
+                                      NOT defined for PAGE_CUR_GE or any
+                                      other search modes; see also the NOTE
+                                      in up_match! */
+  ulint low_bytes{0};                 /*!< number of matched bytes to the
+                                      left at the time cursor positioned;
+                                      only used internally in searches: not
+                                      defined after the search */
+  ulint n_fields{0};                  /*!< prefix length used in a hash
+                                      search if hash_node != NULL */
+  ulint n_bytes{0};                   /*!< hash prefix bytes if hash_node !=
+                                      NULL */
+  ulint fold{0};                      /*!< fold value used in the search if
+                                      flag is BTR_CUR_HASH */
+  /* @} */
+  btr_path_t *path_arr{nullptr}; /*!< in estimating the number of
+                         rows in range, we store in this array
+                         information of the path through
+                         the tree */
+  rtr_info_t *rtr_info{nullptr}; /*!< rtree search info */
+=======
+	btr_cur_t() { memset(this, 0, sizeof(*this)); }
+
+	dict_index_t*	index;		/*!< index where positioned */
+	page_cur_t	page_cur;	/*!< page cursor */
+	purge_node_t*	purge_node;	/*!< purge node, for BTR_DELETE */
+	buf_block_t*	left_block;	/*!< this field is used to store
+					a pointer to the left neighbor
+					page, in the cases
+					BTR_SEARCH_PREV and
+					BTR_MODIFY_PREV */
+	/*------------------------------*/
+	que_thr_t*	thr;		/*!< this field is only used
+					when btr_cur_search_to_nth_level
+					is called for an index entry
+					insertion: the calling query
+					thread is passed here to be
+					used in the insert buffer */
+	/*------------------------------*/
+	/** The following fields are used in
+	btr_cur_search_to_nth_level to pass information: */
+	/* @{ */
+	enum btr_cur_method	flag;	/*!< Search method used */
+	ulint		tree_height;	/*!< Tree height if the search is done
+					for a pessimistic insert or update
+					operation */
+	ulint		up_match;	/*!< If the search mode was PAGE_CUR_LE,
+					the number of matched fields to the
+					the first user record to the right of
+					the cursor record after
+					btr_cur_search_to_nth_level;
+					for the mode PAGE_CUR_GE, the matched
+					fields to the first user record AT THE
+					CURSOR or to the right of it;
+					NOTE that the up_match and low_match
+					values may exceed the correct values
+					for comparison to the adjacent user
+					record if that record is on a
+					different leaf page! (See the note in
+					row_ins_duplicate_error_in_clust.) */
+	ulint		up_bytes;	/*!< number of matched bytes to the
+					right at the time cursor positioned;
+					only used internally in searches: not
+					defined after the search */
+	ulint		low_match;	/*!< if search mode was PAGE_CUR_LE,
+					the number of matched fields to the
+					first user record AT THE CURSOR or
+					to the left of it after
+					btr_cur_search_to_nth_level;
+					NOT defined for PAGE_CUR_GE or any
+					other search modes; see also the NOTE
+					in up_match! */
+	ulint		low_bytes;	/*!< number of matched bytes to the
+					left at the time cursor positioned;
+					only used internally in searches: not
+					defined after the search */
+	ulint		n_fields;	/*!< prefix length used in a hash
+					search if hash_node != NULL */
+	ulint		n_bytes;	/*!< hash prefix bytes if hash_node !=
+					NULL */
+	ulint		fold;		/*!< fold value used in the search if
+					flag is BTR_CUR_HASH */
+	/* @} */
+	btr_path_t*	path_arr;	/*!< in estimating the number of
+					rows in range, we store in this array
+					information of the path through
+					the tree */
+	rtr_info_t*	rtr_info;	/*!< rtree search info */
+					/* default values */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /** The following function is used to set the deleted bit of a record.

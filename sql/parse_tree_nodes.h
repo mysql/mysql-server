@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +31,32 @@
 #ifndef PARSE_TREE_NODES_INCLUDED
 #define PARSE_TREE_NODES_INCLUDED
 
+<<<<<<< HEAD
 #include <assert.h>
 #include <sys/types.h>  // TODO: replace with cstdint
 
 #include <cctype>  // std::isspace
 #include <cstddef>
 #include <memory>
+=======
+<<<<<<< HEAD
+#include <stddef.h>
+#include <sys/types.h>
+#include <cctype>  // std::isspace
+#include <limits>
+=======
+#include "my_global.h"
+#include "parse_tree_helpers.h"      // PT_item_list
+#include "parse_tree_hints.h"
+#include "sp_head.h"                 // sp_head
+#include "sql_class.h"               // THD
+#include "sql_lex.h"                 // LEX
+#include "sql_parse.h"               // add_join_natural
+#include "sql_update.h"              // Sql_cmd_update
+#include "sql_admin.h"               // Sql_cmd_shutdown etc.
+#include "sql_cmd_show.h"            // Sql_cmd_show_processlist
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #include "lex_string.h"
 #include "my_alloc.h"
@@ -186,11 +214,42 @@ inline PT_table_ddl_stmt_base::~PT_table_ddl_stmt_base() = default;
   For internal use in the contextualization code.
 */
 struct Table_ddl_parse_context final : public Parse_context {
+<<<<<<< HEAD
   Table_ddl_parse_context(THD *thd_arg, Query_block *select_arg,
                           Alter_info *alter_info);
+=======
+  Table_ddl_parse_context(THD *thd, SELECT_LEX *select, Alter_info *alter_info)
+      : Parse_context(thd, select),
+        create_info(thd->lex->create_info),
+        alter_info(alter_info),
+        key_create_info(&thd->lex->key_create_info) {}
+
+<<<<<<< HEAD
+>>>>>>> pr/231
   HA_CREATE_INFO *const create_info;
   Alter_info *const alter_info;
   KEY_CREATE_INFO *const key_create_info;
+=======
+    Parse_context inner_pc(pc->thd, child);
+    if (query_expression_body->contextualize(&inner_pc))
+      return true;
+
+    lex->pop_context();
+    pc->select->n_child_sum_items += child->n_sum_items;
+    /*
+      A subquery (and all the subsequent query blocks in a UNION) can add
+      columns to an outer query block. Reserve space for them.
+    */
+    for (SELECT_LEX *temp = child; temp != NULL;
+         temp = temp->next_select())
+    {
+      pc->select->select_n_where_fields+= temp->select_n_where_fields;
+      pc->select->select_n_having_items+= temp->select_n_having_items;
+    }
+    value= query_expression_body->value;
+    return false;
+  }
+>>>>>>> upstream/cluster-7.6
 };
 
 /**
@@ -394,8 +453,43 @@ class PT_limit_clause : public Parse_tree_node {
   PT_limit_clause(const Limit_options &limit_options_arg)
       : limit_options(limit_options_arg) {}
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
   friend class PT_query_expression;
+=======
+  virtual bool contextualize(Parse_context *pc) {
+    if (super::contextualize(pc)) return true;
+
+<<<<<<< HEAD
+    if (pc->select->master_unit()->is_union() && !pc->select->braces) {
+      pc->select = pc->select->master_unit()->fake_select_lex;
+      DBUG_ASSERT(pc->select != NULL);
+=======
+    if (pc->select->master_unit()->is_union() && !pc->select->braces)
+    {
+      pc->select= pc->select->master_unit()->fake_select_lex;
+      assert(pc->select != NULL);
+>>>>>>> upstream/cluster-7.6
+    }
+
+    if (limit_options.is_offset_first && limit_options.opt_offset != NULL &&
+        limit_options.opt_offset->itemize(pc, &limit_options.opt_offset))
+      return true;
+
+    if (limit_options.limit->itemize(pc, &limit_options.limit)) return true;
+
+    if (!limit_options.is_offset_first && limit_options.opt_offset != NULL &&
+        limit_options.opt_offset->itemize(pc, &limit_options.opt_offset))
+      return true;
+
+    pc->select->select_limit = limit_options.limit;
+    pc->select->offset_limit = limit_options.opt_offset;
+    pc->select->explicit_limit = true;
+
+    pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+    return false;
+  }
+>>>>>>> pr/231
 };
 
 class PT_cross_join;
@@ -536,9 +630,17 @@ class PT_joined_table : public PT_table_reference {
     static_assert(is_single_bit(JTT_LEFT), "not a single bit");
     static_assert(is_single_bit(JTT_RIGHT), "not a single bit");
 
+<<<<<<< HEAD
     assert(type == JTT_INNER || type == JTT_STRAIGHT_INNER ||
            type == JTT_NATURAL_INNER || type == JTT_NATURAL_LEFT ||
            type == JTT_NATURAL_RIGHT || type == JTT_LEFT || type == JTT_RIGHT);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(type == JTT_INNER || type == JTT_STRAIGHT_INNER ||
+                type == JTT_NATURAL_INNER || type == JTT_NATURAL_LEFT ||
+                type == JTT_NATURAL_RIGHT || type == JTT_LEFT ||
+                type == JTT_RIGHT);
+>>>>>>> pr/231
   }
 
   /**
@@ -548,6 +650,26 @@ class PT_joined_table : public PT_table_reference {
   PT_joined_table *add_cross_join(PT_cross_join *cj) override {
     m_left_pt_table = m_left_pt_table->add_cross_join(cj);
     return this;
+=======
+public:
+  PT_join_table(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
+                PT_table_list *tab2_node_arg)
+  : tab1_node(tab1_node_arg), join_pos(join_pos_arg), tab2_node(tab2_node_arg),
+    tr1(NULL), tr2(NULL)
+  {
+    assert(dbug_exclusive_flags(JTT_NORMAL | JTT_STRAIGHT | JTT_NATURAL));
+    assert(dbug_exclusive_flags(JTT_LEFT | JTT_RIGHT));
+  }
+
+#ifndef NDEBUG
+  bool dbug_exclusive_flags(unsigned int mask)
+  {
+#ifdef __GNUC__
+    return __builtin_popcount(Type & mask) <= 1;
+#else
+    return true;
+#endif
+>>>>>>> upstream/cluster-7.6
   }
 
   /// Adds the table reference as the right-hand side of this join.
@@ -556,7 +678,38 @@ class PT_joined_table : public PT_table_reference {
     m_right_pt_table = table;
   }
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
+=======
+  bool contextualize(Parse_context *pc) {
+    if (super::contextualize(pc) || contextualize_tabs(pc)) return true;
+
+    if (m_type & (JTT_LEFT | JTT_RIGHT)) {
+      if (m_type & JTT_LEFT)
+        tr2->outer_join |= JOIN_TYPE_LEFT;
+      else {
+        TABLE_LIST *inner_table = pc->select->convert_right_join();
+        if (inner_table == NULL) return true;
+        /* swap tr1 and tr2 */
+<<<<<<< HEAD
+        DBUG_ASSERT(inner_table == tr1);
+        tr1 = tr2;
+        tr2 = inner_table;
+=======
+        assert(inner_table == tr1);
+        tr1= tr2;
+        tr2= inner_table;
+>>>>>>> upstream/cluster-7.6
+      }
+    }
+
+    if (m_type & JTT_NATURAL) tr1->add_join_natural(tr2);
+
+    if (m_type & JTT_STRAIGHT) tr2->straight = true;
+
+    return false;
+  }
+>>>>>>> pr/231
 
   /// This class is being inherited, it should thus be abstract.
   ~PT_joined_table() override = 0;
@@ -589,7 +742,90 @@ class PT_joined_table_on : public PT_joined_table {
                      PT_table_reference *tab2_node_arg, Item *on_arg)
       : super(tab1_node_arg, join_pos_arg, type, tab2_node_arg), on(on_arg) {}
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
+=======
+  virtual bool contextualize(Parse_context *pc) {
+    if (this->contextualize_tabs(pc)) return true;
+
+    if (push_new_name_resolution_context(pc, this->tr1, this->tr2)) {
+      this->error(pc, this->join_pos);
+      return true;
+    }
+
+    SELECT_LEX *sel = pc->select;
+    sel->parsing_place = CTX_ON;
+
+<<<<<<< HEAD
+    if (super::contextualize(pc) || on->itemize(pc, &on)) return true;
+    DBUG_ASSERT(sel == pc->select);
+
+    add_join_on(this->tr2, on);
+    pc->thd->lex->pop_context();
+    DBUG_ASSERT(sel->parsing_place == CTX_ON);
+    sel->parsing_place = CTX_NONE;
+    value = pc->select->nest_last_join(pc->thd);
+=======
+    if (super::contextualize(pc) || on->itemize(pc, &on))
+      return true;
+    assert(sel == pc->select);
+
+    add_join_on(this->tr2, on);
+    pc->thd->lex->pop_context();
+    assert(sel->parsing_place == CTX_ON);
+    sel->parsing_place= CTX_NONE;
+    return false;
+  }
+};
+
+
+template<PT_join_table_type Type>
+class PT_join_table_using : public PT_join_table<Type>
+{
+  typedef PT_join_table<Type> super;
+
+  List<String> *using_fields;
+
+public:
+  PT_join_table_using(PT_table_list *tab1_node_arg, const POS &join_pos_arg,
+                      PT_table_list *tab2_node_arg,
+                       List<String> *using_fields_arg)
+  : super(tab1_node_arg, join_pos_arg, tab2_node_arg),
+    using_fields(using_fields_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+
+    add_join_natural(this->tr1, this->tr2, using_fields, pc->select);
+    return false;
+  }
+};
+
+
+class PT_table_ref_join_table : public PT_table_list
+{
+  typedef PT_table_list super;
+
+  Parse_tree_node *join_table;
+
+public:
+  explicit PT_table_ref_join_table(Parse_tree_node *join_table_arg)
+  : join_table(join_table_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc) || join_table->contextualize(pc))
+      return true;
+
+    value= pc->select->nest_last_join(pc->thd);
+>>>>>>> upstream/cluster-7.6
+    return value == NULL;
+  }
+>>>>>>> pr/231
 };
 
 class PT_joined_table_using : public PT_joined_table {
@@ -611,7 +847,45 @@ class PT_joined_table_using : public PT_joined_table {
       : PT_joined_table_using(tab1_node_arg, join_pos_arg, type, tab2_node_arg,
                               nullptr) {}
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
+=======
+  virtual bool contextualize(Parse_context *pc) {
+    if (super::contextualize(pc)) return true;
+
+    tr1->add_join_natural(tr2);
+    value = pc->select->nest_last_join(pc->thd);
+    if (value == NULL) return true;
+    value->join_using_fields = using_fields;
+
+<<<<<<< HEAD
+=======
+    THD *thd= pc->thd;
+    SELECT_LEX *select= pc->select;
+
+    select->parsing_place= CTX_SELECT_LIST;
+
+    if (select->validate_base_options(thd->lex, opt_query_spec_options))
+      return true;
+    select->set_base_options(opt_query_spec_options);
+    if (opt_query_spec_options & SELECT_HIGH_PRIORITY)
+    {
+      Yacc_state *yyps= &thd->m_parser_state->m_yacc;
+      yyps->m_lock_type= TL_READ_HIGH_PRIORITY;
+      yyps->m_mdl_type= MDL_SHARED_READ;
+    }
+
+    if (select_item_list->contextualize(pc))
+      return true;
+    assert(select == pc->select);
+
+    // Ensure we're resetting parsing place of the right select
+    assert(select->parsing_place == CTX_SELECT_LIST);
+    select->parsing_place= CTX_NONE;
+>>>>>>> upstream/cluster-7.6
+    return false;
+  }
+>>>>>>> pr/231
 };
 
 class PT_group : public Parse_tree_node {
@@ -774,7 +1048,605 @@ class PT_query_expression_body : public Parse_tree_node {
   virtual PT_insert_values_list *get_row_value_list() const = 0;
 };
 
+<<<<<<< HEAD
 class PT_set_scoped_system_variable : public Parse_tree_node {
+=======
+<<<<<<< HEAD
+class PT_internal_variable_name : public Parse_tree_node {
+ public:
+=======
+
+class PT_union_order_or_limit : public Parse_tree_node
+{
+  typedef Parse_tree_node super;
+
+  Parse_tree_node *order_or_limit;
+
+public:
+  PT_union_order_or_limit(Parse_tree_node *order_or_limit_arg)
+  : order_or_limit(order_or_limit_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+
+    assert(pc->select->linkage != GLOBAL_OPTIONS_TYPE);
+    SELECT_LEX *fake= pc->select->master_unit()->fake_select_lex;
+    if (fake)
+    {
+      fake->no_table_names_allowed= true;
+      pc->select= fake;
+    }
+    pc->thd->where= "global ORDER clause";
+
+    if (order_or_limit->contextualize(pc))
+      return true;
+
+    pc->select->no_table_names_allowed= 0;
+    pc->thd->where= "";
+    return false;
+  }
+};
+
+
+class PT_table_expression : public Parse_tree_node
+{
+  typedef Parse_tree_node super;
+
+  Parse_tree_node *opt_from_clause;
+  Item *opt_where;
+  PT_group *opt_group;
+  Item *opt_having;
+  PT_order *opt_order;
+  PT_limit_clause *opt_limit;
+  PT_procedure_analyse *opt_procedure_analyse;
+  Select_lock_type opt_select_lock_type;
+
+public:
+  PT_table_expression(Parse_tree_node *opt_from_clause_arg,
+                      Item *opt_where_arg,
+                      PT_group *opt_group_arg,
+                      Item *opt_having_arg,
+                      PT_order *opt_order_arg,
+                      PT_limit_clause *opt_limit_arg,
+                      PT_procedure_analyse *opt_procedure_analyse_arg,
+                      const Select_lock_type &opt_select_lock_type_arg)
+   : opt_from_clause(opt_from_clause_arg),
+     opt_where(opt_where_arg),
+     opt_group(opt_group_arg),
+     opt_having(opt_having_arg),
+     opt_order(opt_order_arg),
+     opt_limit(opt_limit_arg),
+     opt_procedure_analyse(opt_procedure_analyse_arg),
+     opt_select_lock_type(opt_select_lock_type_arg)
+    {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc) ||
+        (opt_from_clause != NULL && opt_from_clause->contextualize(pc)) ||
+        (opt_where != NULL && opt_where->itemize(pc, &opt_where)) ||
+        (opt_group != NULL && opt_group->contextualize(pc)) ||
+        (opt_having != NULL && opt_having->itemize(pc, &opt_having)))
+      return true;
+
+    pc->select->set_where_cond(opt_where);
+    pc->select->set_having_cond(opt_having);
+
+    if ((opt_order != NULL && opt_order->contextualize(pc)) ||
+        (opt_limit != NULL && opt_limit->contextualize(pc)) ||
+        (opt_procedure_analyse != NULL &&
+         opt_procedure_analyse->contextualize(pc)))
+      return true;
+
+    /*
+      @todo: explain should not affect how we construct the query data
+      structure. Instead, consider to let lock_tables() adjust lock
+      requests according to the explain flag.
+    */
+    if (opt_select_lock_type.is_set && !pc->thd->lex->is_explain())
+    {
+      pc->select->set_lock_for_tables(opt_select_lock_type.lock_type);
+      pc->thd->lex->safe_to_cache_query=
+        opt_select_lock_type.is_safe_to_cache_query;
+    }
+    return false;
+  }
+};
+
+
+class PT_table_factor_select_sym : public PT_table_list
+{
+  typedef PT_table_list super;
+
+  POS pos;
+  PT_hint_list *opt_hint_list;
+  Query_options select_options;
+  PT_item_list *select_item_list;
+  PT_table_expression *table_expression;
+
+public:
+  PT_table_factor_select_sym(const POS &pos,
+                             PT_hint_list *opt_hint_list_arg,
+                             Query_options select_options_arg,
+                             PT_item_list *select_item_list_arg,
+                             PT_table_expression *table_expression_arg)
+  : pos(pos),
+    opt_hint_list(opt_hint_list_arg),
+    select_options(select_options_arg),
+    select_item_list(select_item_list_arg),
+    table_expression(table_expression_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+
+class PT_select_derived_union_select : public PT_table_list
+{
+  typedef PT_table_list super;
+
+  PT_table_list *select_derived;
+  Parse_tree_node *opt_union_order_or_limit;
+  POS union_or_limit_pos;
+
+public:
+  PT_select_derived_union_select(PT_table_list *select_derived_arg,
+                                 Parse_tree_node *opt_union_order_or_limit_arg,
+                                 const POS &union_or_limit_pos_arg)
+  : select_derived(select_derived_arg),
+    opt_union_order_or_limit(opt_union_order_or_limit_arg),
+    union_or_limit_pos(union_or_limit_pos_arg)
+  {}
+
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc) ||
+        select_derived->contextualize(pc) ||
+        (opt_union_order_or_limit != NULL &&
+         opt_union_order_or_limit->contextualize(pc)))
+      return true;
+
+    if (select_derived->value != NULL && opt_union_order_or_limit != NULL)
+    {
+      error(pc, union_or_limit_pos);
+      return true;
+    }
+
+    value= select_derived->value;
+    return false;
+  }
+};
+
+
+class PT_select_derived_union_union : public PT_table_list
+{
+  typedef PT_table_list super;
+
+  PT_table_list *select_derived_union;
+  POS union_pos;
+  bool is_distinct;
+  PT_select_lex *query_specification;
+
+public:
+  
+  PT_select_derived_union_union(PT_table_list *select_derived_union_arg,
+                                const POS &union_pos_arg,
+                                bool is_distinct_arg,
+                                PT_select_lex *query_specification_arg)
+  : select_derived_union(select_derived_union_arg),
+    union_pos(union_pos_arg),
+    is_distinct(is_distinct_arg),
+    query_specification(query_specification_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc) || select_derived_union->contextualize(pc))
+      return true;
+
+    pc->select= pc->thd->lex->new_union_query(pc->select, is_distinct);
+    if (pc->select == NULL)
+      return true;
+
+    if (query_specification->contextualize(pc))
+      return true;
+
+    /*
+      Remove from the name resolution context stack the context of the
+      last query block in the union.
+     */
+    pc->thd->lex->pop_context();
+
+    if (select_derived_union->value != NULL)
+    {
+      error(pc, union_pos);
+      return true;
+    }
+    value= NULL;
+    return false;
+  }
+};
+
+
+class PT_table_factor_parenthesis : public PT_table_list
+{
+  typedef PT_table_list super;
+
+  PT_table_list *select_derived_union;
+  LEX_STRING *opt_table_alias;
+  POS alias_pos;
+
+public:
+
+  PT_table_factor_parenthesis(PT_table_list *select_derived_union_arg,
+                               LEX_STRING *opt_table_alias_arg,
+                               const POS &alias_pos_arg)
+  : select_derived_union(select_derived_union_arg),
+    opt_table_alias(opt_table_alias_arg),
+    alias_pos(alias_pos_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+
+class PT_derived_table_list : public PT_table_list
+{
+  typedef PT_table_list super;
+
+  POS pos;
+  PT_table_list *head;
+  PT_table_list *tail;
+
+public:
+  PT_derived_table_list(const POS &pos,
+                        PT_table_list *head_arg, PT_table_list *tail_arg)
+  : pos(pos), head(head_arg), tail(tail_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc) ||
+        head->contextualize(pc) || tail->contextualize(pc))
+      return true;
+
+    if (head->value == NULL || tail->value == NULL)
+    {
+      error(pc, pos);
+      return true;
+    }
+    value= tail->value;
+    return false;
+  }
+};
+
+
+class PT_select_derived : public PT_table_list
+{
+  typedef PT_table_list super;
+
+  POS pos;
+  PT_table_list *derived_table_list;
+
+public:
+   
+  PT_select_derived(const POS &pos, PT_table_list *derived_table_list_arg)
+  : pos(pos), derived_table_list(derived_table_list_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+
+    SELECT_LEX * const outer_select= pc->select;
+
+    if (outer_select->init_nested_join(pc->thd))
+      return true;
+
+    if (derived_table_list->contextualize(pc))
+      return true;
+
+    /*
+      for normal joins, derived_table_list->value != NULL and
+      end_nested_join() != NULL, for derived tables, both must equal NULL
+    */
+
+    value= outer_select->end_nested_join(pc->thd);
+
+    if (value == NULL && derived_table_list->value != NULL)
+    {
+      error(pc, pos);
+      return true;
+    }
+
+    if (derived_table_list->value == NULL && value != NULL)
+    {
+      error(pc, pos);
+      return true;
+    }
+    return false;
+  }
+};
+
+
+class PT_join_table_list : public PT_table_list
+{
+  typedef PT_table_list super;
+
+  POS pos;
+  PT_table_list *derived_table_list;
+
+public:
+  PT_join_table_list(const POS &pos, PT_table_list *derived_table_list_arg)
+  : pos(pos), derived_table_list(derived_table_list_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc) || derived_table_list->contextualize(pc))
+      return true;
+
+    if (derived_table_list->value == NULL)
+    {
+      error(pc, pos);
+      return true;
+    }
+    value= derived_table_list->value;
+    return false;
+  }
+};
+
+
+class PT_table_reference_list : public Parse_tree_node
+{
+  typedef Parse_tree_node super;
+
+  PT_join_table_list *join_table_list;
+
+public:
+  PT_table_reference_list(PT_join_table_list *join_table_list_arg)
+  : join_table_list(join_table_list_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc) || join_table_list->contextualize(pc))
+      return true;
+
+    SELECT_LEX *sel= pc->select;
+    sel->context.table_list=
+      sel->context.first_name_resolution_table=
+        sel->table_list.first;
+    return false;
+  }
+};
+
+
+class PT_query_specification_select : public PT_select_lex
+{
+  typedef Parse_tree_node super;
+
+  PT_hint_list *opt_hint_list;
+  PT_select_part2_derived *select_part2_derived;
+  PT_table_expression *table_expression;
+
+public:
+  PT_query_specification_select(
+    PT_hint_list *opt_hint_list_arg,
+    PT_select_part2_derived *select_part2_derived_arg,
+    PT_table_expression *table_expression_arg)
+  : opt_hint_list(opt_hint_list_arg),
+    select_part2_derived(select_part2_derived_arg),
+    table_expression(table_expression_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc) || select_part2_derived->contextualize(pc))
+      return true;
+
+    // Parentheses carry no meaning here.
+    pc->select->set_braces(false);
+
+    if (table_expression->contextualize(pc))
+      return true;
+
+    value= pc->select->master_unit()->first_select();
+
+    if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
+      return true;
+
+    return false;
+  }
+};
+
+
+class PT_select_paren_derived : public Parse_tree_node
+{
+  typedef Parse_tree_node super;
+
+  PT_hint_list *opt_hint_list;
+  PT_select_part2_derived *select_part2_derived;
+  PT_table_expression *table_expression;
+
+public:
+  PT_select_paren_derived(PT_hint_list *opt_hint_list_arg,
+                          PT_select_part2_derived *select_part2_derived_arg,
+                          PT_table_expression *table_expression_arg)
+  : opt_hint_list(opt_hint_list_arg),
+    select_part2_derived(select_part2_derived_arg),
+    table_expression(table_expression_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+
+    pc->select->set_braces(true);
+
+    if (select_part2_derived->contextualize(pc) ||
+        table_expression->contextualize(pc))
+      return true;
+
+    if (setup_select_in_parentheses(pc->select))
+      return true;
+
+    if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
+      return true;
+
+    return false;
+  }
+};
+
+
+class PT_query_specification_parenthesis : public PT_select_lex
+{
+  typedef PT_select_lex super;
+
+  PT_select_paren_derived *select_paren_derived;
+  Parse_tree_node *opt_union_order_or_limit;
+
+public:
+  PT_query_specification_parenthesis(
+    PT_select_paren_derived *select_paren_derived_arg,
+    Parse_tree_node *opt_union_order_or_limit_arg)
+  : select_paren_derived(select_paren_derived_arg),
+    opt_union_order_or_limit(opt_union_order_or_limit_arg)
+  {}
+
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc) ||
+        select_paren_derived->contextualize(pc) ||
+        (opt_union_order_or_limit != NULL &&
+         opt_union_order_or_limit->contextualize(pc)))
+      return true;
+
+    value= pc->select->master_unit()->first_select();
+    return false;
+  }
+};
+
+
+class PT_query_expression_body_union : public PT_select_lex
+{
+  typedef PT_select_lex super;
+
+  POS pos;
+  PT_select_lex *query_expression_body;
+  bool is_distinct;
+  PT_select_lex *query_specification;
+
+public:
+  PT_query_expression_body_union(const POS &pos,
+                                 PT_select_lex *query_expression_body_arg,
+                                 bool is_distinct_arg,
+                                 PT_select_lex *query_specification_arg)
+  : pos(pos),
+    query_expression_body(query_expression_body_arg),
+    is_distinct(is_distinct_arg),
+    query_specification(query_specification_arg)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc) || query_expression_body->contextualize(pc))
+      return true;
+
+    LEX *lex= pc->thd->lex;
+
+    if (pc->select->linkage == GLOBAL_OPTIONS_TYPE)
+    {
+      error(pc, pos);
+      return true;
+    }
+    pc->select= lex->new_union_query(pc->select, is_distinct);
+    if (pc->select == NULL)
+      return true;
+
+    if (query_specification->contextualize(pc))
+      return true;
+
+    lex->pop_context();
+    value= query_expression_body->value;
+    return false;
+  }
+};
+
+
+class PT_internal_variable_name : public Parse_tree_node
+{
+public:
+>>>>>>> upstream/cluster-7.6
+  sys_var_with_base value;
+};
+
+class PT_internal_variable_name_1d : public PT_internal_variable_name {
+  typedef PT_internal_variable_name super;
+
+  LEX_STRING ident;
+
+ public:
+  PT_internal_variable_name_1d(const LEX_STRING &ident_arg)
+      : ident(ident_arg) {}
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+/**
+  Parse tree node class for 2-dimentional variable names (example: \@global.x)
+*/
+class PT_internal_variable_name_2d : public PT_internal_variable_name {
+  typedef PT_internal_variable_name super;
+
+public:
+  const POS pos;
+private:
+  LEX_STRING ident1;
+  LEX_STRING ident2;
+
+ public:
+  PT_internal_variable_name_2d(const POS &pos, const LEX_STRING &ident1_arg,
+                               const LEX_STRING &ident2_arg)
+      : pos(pos), ident1(ident1_arg), ident2(ident2_arg) {}
+
+  virtual bool contextualize(Parse_context *pc);
+};
+
+class PT_internal_variable_name_default : public PT_internal_variable_name {
+  typedef PT_internal_variable_name super;
+
+  LEX_STRING ident;
+
+ public:
+  PT_internal_variable_name_default(const LEX_STRING &ident_arg)
+      : ident(ident_arg) {}
+
+  virtual bool contextualize(Parse_context *pc) {
+    if (super::contextualize(pc)) return true;
+
+    sys_var *tmp = find_sys_var(pc->thd, ident.str, ident.length);
+    if (!tmp) return true;
+    if (!tmp->is_struct()) {
+      my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), ident.str);
+      return true;
+    }
+    value.var = tmp;
+    value.base_name.str = (char *)"default";
+    value.base_name.length = 7;
+    return false;
+  }
+};
+
+class PT_option_value_following_option_type : public Parse_tree_node {
+>>>>>>> pr/231
   typedef Parse_tree_node super;
 
  public:
@@ -848,12 +1720,34 @@ class PT_set_system_variable : public PT_option_value_no_option_type {
 
   bool contextualize(Parse_context *pc) override;
 
+<<<<<<< HEAD
  private:
   const enum_var_type m_scope;
   const POS m_name_pos;
   const LEX_CSTRING m_opt_prefix;
   const LEX_CSTRING m_name;
   Item *m_opt_expr;
+=======
+<<<<<<< HEAD
+    THD *thd = pc->thd;
+    struct sys_var_with_base tmp = name->value;
+=======
+    THD *thd= pc->thd;
+    struct sys_var_with_base tmp= name->value;
+    if (tmp.var == trg_new_row_fake_var)
+    {
+      error(pc, down_cast<PT_internal_variable_name_2d *>(name)->pos);
+      return true;
+    }
+>>>>>>> upstream/cluster-7.6
+    /* Lookup if necessary: must be a system variable. */
+    if (tmp.var == NULL) {
+      if (find_sys_var_null_base(thd, &tmp)) return true;
+    }
+    if (set_system_variable(thd, &tmp, type, opt_expr)) return true;
+    return false;
+  }
+>>>>>>> pr/231
 };
 
 class PT_option_value_no_option_type_charset
@@ -947,7 +1841,61 @@ class PT_option_value_no_option_type_password_for
         random_password_generator(random_pass),
         expr_pos(expr_pos_arg) {}
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
+=======
+  virtual bool contextualize(Parse_context *pc) {
+    if (super::contextualize(pc)) return true;
+
+    THD *thd = pc->thd;
+    LEX *lex = thd->lex;
+    set_var_password *var;
+
+    /*
+      In case of anonymous user, user->user is set to empty string with
+      length 0. But there might be case when user->user.str could be NULL.
+      For Ex: "set password for current_user() = password('xyz');".
+      In this case, set user information as of the current user.
+    */
+<<<<<<< HEAD
+    if (!user->user.str) {
+      LEX_CSTRING sctx_priv_user = thd->security_context()->priv_user();
+      DBUG_ASSERT(sctx_priv_user.str);
+      user->user.str = sctx_priv_user.str;
+      user->user.length = sctx_priv_user.length;
+    }
+    if (!user->host.str) {
+      LEX_CSTRING sctx_priv_host = thd->security_context()->priv_host();
+      DBUG_ASSERT(sctx_priv_host.str);
+      user->host.str = (char *)sctx_priv_host.str;
+      user->host.length = sctx_priv_host.length;
+=======
+    if (!user->user.str)
+    {
+      LEX_CSTRING sctx_priv_user= thd->security_context()->priv_user();
+      assert(sctx_priv_user.str);
+      user->user.str= sctx_priv_user.str;
+      user->user.length= sctx_priv_user.length;
+    }
+    if (!user->host.str)
+    {
+      LEX_CSTRING sctx_priv_host= thd->security_context()->priv_host();
+      assert(sctx_priv_host.str);
+      user->host.str= (char *) sctx_priv_host.str;
+      user->host.length= sctx_priv_host.length;
+>>>>>>> upstream/cluster-7.6
+    }
+
+    var =
+        new (*THR_MALLOC) set_var_password(user, const_cast<char *>(password));
+    if (var == NULL) return true;
+    lex->var_list.push_back(var);
+    lex->sql_command = SQLCOM_SET_PASSWORD;
+    if (lex->sphead) lex->sphead->m_flags |= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+    if (sp_create_assignment_instr(pc->thd, expr_pos.raw.end)) return true;
+    return false;
+  }
+>>>>>>> pr/231
 };
 
 class PT_option_value_type : public Parse_tree_node {
@@ -979,7 +1927,44 @@ class PT_option_value_list_head : public Parse_tree_node {
         value(value_arg),
         value_pos(value_pos_arg) {}
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
+=======
+  virtual bool contextualize(Parse_context *pc) {
+    if (super::contextualize(pc)) return true;
+
+<<<<<<< HEAD
+    THD *thd = pc->thd;
+#ifndef DBUG_OFF
+    LEX *old_lex = thd->lex;
+#endif  // DBUG_OFF
+=======
+    THD *thd= pc->thd;
+#ifndef NDEBUG
+    LEX *old_lex= thd->lex;
+#endif//NDEBUG
+>>>>>>> upstream/cluster-7.6
+
+    sp_create_assignment_lex(thd, delimiter_pos.raw.end);
+    assert(thd->lex->select_lex == thd->lex->current_select());
+    Parse_context inner_pc(pc->thd, thd->lex->select_lex);
+
+    if (value->contextualize(&inner_pc)) return true;
+
+<<<<<<< HEAD
+    if (sp_create_assignment_instr(pc->thd, value_pos.raw.end)) return true;
+    DBUG_ASSERT(thd->lex == old_lex &&
+                thd->lex->current_select() == pc->select);
+=======
+    if (sp_create_assignment_instr(pc->thd, value_pos.raw.end))
+      return true;
+    assert(thd->lex == old_lex &&
+           thd->lex->current_select() == pc->select);
+>>>>>>> upstream/cluster-7.6
+
+    return false;
+  }
+>>>>>>> pr/231
 };
 
 class PT_option_value_list : public PT_option_value_list_head {
@@ -993,9 +1978,20 @@ class PT_option_value_list : public PT_option_value_list_head {
                        const POS &tail_pos)
       : super(delimiter_pos_arg, tail, tail_pos), head(head_arg) {}
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override {
     uchar dummy;
     if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy)) return true;
+=======
+<<<<<<< HEAD
+  virtual bool contextualize(Parse_context *pc) {
+=======
+  virtual bool contextualize(Parse_context *pc)
+  {
+    uchar dummy;
+    if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy)) return true;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return head->contextualize(pc) || super::contextualize(pc);
   }
 };
@@ -1013,7 +2009,28 @@ class PT_start_option_value_list_no_type : public PT_start_option_value_list {
                                      PT_option_value_list_head *tail_arg)
       : head(head_arg), head_pos(head_pos_arg), tail(tail_arg) {}
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
+=======
+  virtual bool contextualize(Parse_context *pc) {
+    if (super::contextualize(pc) || head->contextualize(pc)) return true;
+
+<<<<<<< HEAD
+    if (sp_create_assignment_instr(pc->thd, head_pos.raw.end)) return true;
+    DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
+    pc->select = pc->thd->lex->select_lex;
+=======
+    if (sp_create_assignment_instr(pc->thd, head_pos.raw.end))
+      return true;
+    assert(pc->thd->lex->select_lex == pc->thd->lex->current_select());
+    pc->select= pc->thd->lex->select_lex;
+>>>>>>> upstream/cluster-7.6
+
+    if (tail != NULL && tail->contextualize(pc)) return true;
+
+    return false;
+  }
+>>>>>>> pr/231
 };
 
 class PT_transaction_characteristic : public Parse_tree_node {
@@ -1075,7 +2092,30 @@ class PT_start_option_value_list_transaction
       const POS &end_pos_arg)
       : characteristics(characteristics_arg), end_pos(end_pos_arg) {}
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
+=======
+  virtual bool contextualize(Parse_context *pc) {
+    if (super::contextualize(pc)) return true;
+
+<<<<<<< HEAD
+    THD *thd = pc->thd;
+    thd->lex->option_type = OPT_DEFAULT;
+    if (characteristics->contextualize(pc)) return true;
+
+    if (sp_create_assignment_instr(thd, end_pos.raw.end)) return true;
+    DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
+    pc->select = pc->thd->lex->select_lex;
+=======
+    if (sp_create_assignment_instr(thd, end_pos.raw.end))
+      return true;
+    assert(pc->thd->lex->select_lex == pc->thd->lex->current_select());
+    pc->select= pc->thd->lex->select_lex;
+>>>>>>> upstream/cluster-7.6
+
+    return false;
+  }
+>>>>>>> pr/231
 };
 
 class PT_start_option_value_list_following_option_type
@@ -1095,7 +2135,28 @@ class PT_start_option_value_list_following_option_type_eq
       PT_option_value_list_head *opt_tail_arg)
       : head(head_arg), head_pos(head_pos_arg), opt_tail(opt_tail_arg) {}
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
+=======
+  virtual bool contextualize(Parse_context *pc) {
+    if (super::contextualize(pc) || head->contextualize(pc)) return true;
+
+<<<<<<< HEAD
+    if (sp_create_assignment_instr(pc->thd, head_pos.raw.end)) return true;
+    DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
+    pc->select = pc->thd->lex->select_lex;
+=======
+    if (sp_create_assignment_instr(pc->thd, head_pos.raw.end))
+      return true; 
+    assert(pc->thd->lex->select_lex == pc->thd->lex->current_select());
+    pc->select= pc->thd->lex->select_lex;
+>>>>>>> upstream/cluster-7.6
+
+    if (opt_tail != NULL && opt_tail->contextualize(pc)) return true;
+
+    return false;
+  }
+>>>>>>> pr/231
 };
 
 class PT_start_option_value_list_following_option_type_transaction
@@ -1112,7 +2173,27 @@ class PT_start_option_value_list_following_option_type_transaction
       : characteristics(characteristics_arg),
         characteristics_pos(characteristics_pos_arg) {}
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
+=======
+  virtual bool contextualize(Parse_context *pc) {
+    if (super::contextualize(pc) || characteristics->contextualize(pc))
+      return true;
+
+    if (sp_create_assignment_instr(pc->thd, characteristics_pos.raw.end))
+<<<<<<< HEAD
+      return true;
+    DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
+    pc->select = pc->thd->lex->select_lex;
+=======
+      return true; 
+    assert(pc->thd->lex->select_lex == pc->thd->lex->current_select());
+    pc->select= pc->thd->lex->select_lex;
+>>>>>>> upstream/cluster-7.6
+
+    return false;
+  }
+>>>>>>> pr/231
 };
 
 class PT_start_option_value_list_type : public PT_start_option_value_list {
@@ -1140,7 +2221,31 @@ class PT_set : public Parse_tree_node {
   PT_set(const POS &set_pos_arg, PT_start_option_value_list *list_arg)
       : set_pos(set_pos_arg), list(list_arg) {}
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
+=======
+  virtual bool contextualize(Parse_context *pc) {
+    if (super::contextualize(pc)) return true;
+
+    THD *thd = pc->thd;
+    LEX *lex = thd->lex;
+    lex->sql_command = SQLCOM_SET_OPTION;
+    lex->option_type = OPT_SESSION;
+    lex->var_list.empty();
+    lex->autocommit = false;
+
+    sp_create_assignment_lex(thd, set_pos.raw.end);
+<<<<<<< HEAD
+    DBUG_ASSERT(pc->thd->lex->select_lex == pc->thd->lex->current_select());
+    pc->select = pc->thd->lex->select_lex;
+=======
+    assert(pc->thd->lex->select_lex == pc->thd->lex->current_select());
+    pc->select= pc->thd->lex->select_lex;
+>>>>>>> upstream/cluster-7.6
+
+    return list->contextualize(pc);
+  }
+>>>>>>> pr/231
 };
 
 class PT_into_destination : public Parse_tree_node {
@@ -1194,10 +2299,14 @@ class PT_select_var : public Parse_tree_node {
   explicit PT_select_var(const LEX_STRING &name_arg) : name(name_arg) {}
 
   virtual bool is_local() const { return false; }
+<<<<<<< HEAD
   virtual uint get_offset() const {
     assert(0);
     return 0;
   }
+=======
+  virtual uint get_offset() const { assert(0); return 0; }
+>>>>>>> upstream/cluster-7.6
 };
 
 class PT_select_sp_var : public PT_select_var {
@@ -1219,7 +2328,36 @@ class PT_select_sp_var : public PT_select_var {
   bool is_local() const override { return true; }
   uint get_offset() const override { return offset; }
 
+<<<<<<< HEAD
   bool contextualize(Parse_context *pc) override;
+=======
+<<<<<<< HEAD
+  virtual bool contextualize(Parse_context *pc);
+=======
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (super::contextualize(pc))
+      return true;
+
+    LEX *lex= pc->thd->lex;
+#ifndef NDEBUG
+    sp= lex->sphead;
+#endif
+    sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
+    sp_variable *spv;
+
+    if (!pctx || !(spv= pctx->find_variable(name, false)))
+    {
+      my_error(ER_SP_UNDECLARED_VAR, MYF(0), name.str);
+      return true;
+    }
+
+    offset= spv->offset;
+    
+    return false;
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 class PT_select_var_list : public PT_into_destination {
@@ -1292,6 +2430,7 @@ class PT_borders : public Parse_tree_node {
   /**
     Constructor.
 
+<<<<<<< HEAD
     Frames of the form "frame_start no_frame_end" are translated during
     parsing to "BETWEEN frame_start AND CURRENT ROW". So both 'start' and
     'end' are non-nullptr.
@@ -1299,6 +2438,12 @@ class PT_borders : public Parse_tree_node {
   PT_borders(PT_border *start, PT_border *end) {
     m_borders[0] = start;
     m_borders[1] = end;
+=======
+    // Ensure we're resetting parsing place of the right select
+    assert(pc->select->parsing_place == CTX_SELECT_LIST);
+    pc->select->parsing_place= CTX_NONE;
+    return false;
+>>>>>>> upstream/cluster-7.6
   }
 };
 
@@ -1508,6 +2653,7 @@ class PT_query_expression final : public PT_query_expression_body {
         *) MySQL doesn't follow the standard when overwriting `LIMIT a` with
            `LIMIT b` if a < b.  Moreover, the result of:
 
+<<<<<<< HEAD
              (SELECT ... ORDER BY order1 LIMIT a) ORDER BY order1 LIMIT b; (1)
 
            can diverge from:
@@ -1535,6 +2681,63 @@ class PT_query_expression final : public PT_query_expression_body {
 
   bool is_table_value_constructor() const override {
     return m_body->is_table_value_constructor();
+=======
+<<<<<<< HEAD
+    return false;
+  }
+
+  PT_query_expression_body *body() { return m_body; }
+
+  bool has_order() const { return m_order != NULL; }
+
+  bool has_limit() const { return m_limit != NULL; }
+
+  bool is_union() const { return m_body->is_union(); }
+
+  bool has_into_clause() const { return m_body->has_into_clause(); }
+
+  /**
+    Callback for deeper nested query expressions. It's mandatory for any
+    derived class to call this member function during contextualize.
+  */
+  bool contextualize_order_and_limit(Parse_context *pc) {
+    contextualized = true;
+=======
+    assert(opt_into1 == NULL || opt_into2 == NULL);
+    assert(opt_procedure_analyse_clause == NULL ||
+           (opt_into1 == NULL && opt_into2 == NULL));
+>>>>>>> upstream/cluster-7.6
+
+    /*
+      We temporarily switch off 'braces' for contextualization of the limit
+      and order clauses if this query expression is a
+      union. PT_order::contextualize() and PT_limit_clause::contextualize()
+      are still used by legacy code where 'braces' is used to communicate
+      nesting information. It's not possible to express the difference between
+
+      (SELECT ... UNION SELECT ...) ORDER BY ... LIMIT ...
+
+      and
+
+      SELECT ... UNION (SELECT ... ORDER BY ... LIMIT ...)
+
+      in the SELECT_LEX structure. In other words, this structure does not
+      know the difference between a surrounding union and a local
+      union. Fortunately, the information is implicit in the parse tree
+      structure: is_union() is true if this query expression is a union, but
+      not true if it's nested within a union.
+    */
+    bool braces = pc->select->braces;
+    if (is_union()) pc->select->braces = false;
+    pc->thd->where = "global ORDER clause";
+    bool res =
+        contextualize_safe(pc, m_order) || contextualize_safe(pc, m_limit);
+    pc->select->braces = braces;
+    if (res) return true;
+
+    pc->thd->where = THD::DEFAULT_WHERE;
+    return false;
+>>>>>>> pr/231
   }
 
   PT_insert_values_list *get_row_value_list() const override {
@@ -1785,10 +2988,23 @@ class PT_delete final : public Parse_tree_root {
 
   Sql_cmd *make_cmd(THD *thd) override;
 
+<<<<<<< HEAD
  private:
   bool is_multitable() const {
+<<<<<<< HEAD
     assert((table_ident != nullptr) ^ (table_list.size() > 0));
     return table_ident == nullptr;
+=======
+    DBUG_ASSERT((table_ident != NULL) ^ (table_list.size() > 0));
+=======
+  virtual Sql_cmd *make_cmd(THD *thd);
+
+  bool is_multitable() const
+  {
+    assert((table_ident != NULL) ^ (table_list.size() > 0));
+>>>>>>> upstream/cluster-7.6
+    return table_ident == NULL;
+>>>>>>> pr/231
   }
 
   bool add_table(Parse_context *pc, Table_ident *table);
@@ -1842,6 +3058,7 @@ class PT_insert_values_list : public Parse_tree_node {
 
   bool contextualize(Parse_context *pc) override;
 
+<<<<<<< HEAD
   bool push_back(mem_root_deque<Item *> *x) {
     many_values.push_back(x);
     return false;
@@ -1849,6 +3066,16 @@ class PT_insert_values_list : public Parse_tree_node {
 
   virtual mem_root_deque<List_item *> &get_many_values() {
     assert(is_contextualized());
+=======
+<<<<<<< HEAD
+  virtual List<List_item> &get_many_values() {
+    DBUG_ASSERT(is_contextualized());
+=======
+  virtual List<List_item> &get_many_values()
+  {
+    assert(is_contextualized());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return many_values;
   }
 };
@@ -1900,12 +3127,21 @@ class PT_insert final : public Parse_tree_root {
     // REPLACE statement can't have IGNORE flag:
     assert(!is_replace || !ignore);
     // REPLACE statement can't have ON DUPLICATE KEY UPDATE clause:
+<<<<<<< HEAD
     assert(!is_replace || opt_on_duplicate_column_list == nullptr);
     // INSERT/REPLACE ... SELECT can't have VALUES clause:
     assert((row_value_list != nullptr) ^ (insert_query_expression != nullptr));
     // ON DUPLICATE KEY UPDATE: column and value arrays must have same sizes:
     assert((opt_on_duplicate_column_list == nullptr &&
             opt_on_duplicate_value_list == nullptr) ||
+=======
+    assert(!is_replace || opt_on_duplicate_column_list == NULL);
+    // INSERT/REPLACE ... SELECT can't have VALUES clause:
+    assert((row_value_list != NULL) ^ (insert_query_expression != NULL));
+    // ON DUPLICATE KEY UPDATE: column and value arrays must have same sizes:
+    assert((opt_on_duplicate_column_list == NULL &&
+            opt_on_duplicate_value_list == NULL) ||
+>>>>>>> pr/231
            (opt_on_duplicate_column_list->elements() ==
             opt_on_duplicate_value_list->elements()));
   }
@@ -5203,6 +6439,7 @@ class PT_restart_server final : public Parse_tree_root {
   Sql_cmd_restart_server sql_cmd;
 };
 
+<<<<<<< HEAD
 PT_alter_tablespace_option_base *make_tablespace_engine_attribute(MEM_ROOT *,
                                                                   LEX_CSTRING);
 
@@ -5217,4 +6454,32 @@ PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *,
 PT_base_index_option *make_index_engine_attribute(MEM_ROOT *, LEX_CSTRING);
 PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *,
                                                             LEX_CSTRING);
+=======
+/// Base class for Parse tree nodes of SHOW statements
+
+class PT_show_base : public PT_statement {
+ protected:
+  PT_show_base(const POS &pos, enum_sql_command sql_command)
+      : m_pos(pos), m_sql_command(sql_command) {}
+
+  /// Textual location of a token just parsed.
+  POS m_pos;
+  /// SQL command
+  enum_sql_command m_sql_command;
+};
+
+/// Parse tree node for SHOW PROCESSLIST statement
+
+class PT_show_processlist : public PT_show_base {
+ public:
+  PT_show_processlist(const POS &pos, bool verbose)
+      : PT_show_base(pos, SQLCOM_SHOW_PROCESSLIST), m_sql_cmd(verbose) {}
+
+  virtual Sql_cmd *make_cmd(THD *thd);
+
+ private:
+  Sql_cmd_show_processlist m_sql_cmd;
+};
+
+>>>>>>> pr/231
 #endif /* PARSE_TREE_NODES_INCLUDED */

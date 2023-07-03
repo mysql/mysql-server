@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +28,28 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+<<<<<<< HEAD
+=======
+
+IF(NOT GMOCK_FOUND)
+  RETURN()
+ENDIF()
+
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+<<<<<<< HEAD
+
+IF(SSL_DEFINES)
+  ADD_DEFINITIONS(${SSL_DEFINES})
+ENDIF()
+
+=======
+>>>>>>> upstream/cluster-7.6
+
+INCLUDE_DIRECTORIES(
+  ${GMOCK_INCLUDE_DIRS}
+)
+
+>>>>>>> pr/231
 SET(TESTS
   keyring-api
   keys_container

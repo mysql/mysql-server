@@ -1,6 +1,10 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+=======
+Copyright (c) 2020, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,10 +35,17 @@ namespace buf {
 void Block_hint::store(buf_block_t *block) {
   ut_ad(block->page.buf_fix_count > 0);
   m_block = block;
+<<<<<<< HEAD
   m_page_id = block->page.id;
 }
 
 void Block_hint::clear() { m_block = nullptr; }
+=======
+  m_page_id.copy_from(block->page.id);
+}
+
+void Block_hint::clear() { m_block = NULL; }
+>>>>>>> pr/231
 
 void Block_hint::buffer_fix_block_if_still_valid() {
   /* We need to check if m_block points to one of chunks. For this to be
@@ -57,15 +68,24 @@ void Block_hint::buffer_fix_block_if_still_valid() {
   page_no == m_page_id.m_page_no is minimal as compilers emit a single 8-byte
   comparison instruction to compare both at the same time atomically, and f()
   will probably double-check the block->page.id again, anyway.
+<<<<<<< HEAD
   Finally, assuming that we have correct hash cell latched, we should check if
   the state of the block is BUF_BLOCK_FILE_PAGE before buffer-fixing the block,
   as otherwise we risk buffer-fixing and operating on a block, which is already
   meant to be freed. In particular, buf_LRU_free_page() first calls
   buf_LRU_block_remove_hashed() under hash cell latch protection to change the
+=======
+  Finally, assuming that we have correct hash bucket latched, we should check if
+  the state of the block is BUF_BLOCK_FILE_PAGE before buffer-fixing the block,
+  as otherwise we risk buffer-fixing and operating on a block, which is already
+  meant to be freed. In particular, buf_LRU_free_page() first calls
+  buf_LRU_block_remove_hashed() under hash bucket latch protection to change the
+>>>>>>> pr/231
   state to BUF_BLOCK_REMOVE_HASH and then releases the latch. Later it calls
   buf_LRU_block_free_hashed_page() without any latch to change the state to
   BUF_BLOCK_MEMORY and reset the page's id, which means buf_resize() can free it
   regardless of our buffer-fixing. */
+<<<<<<< HEAD
   if (m_block != nullptr) {
     const buf_pool_t *const pool = buf_pool_get(m_page_id);
     rw_lock_t *latch = buf_page_hash_lock_get(pool, m_page_id);
@@ -76,6 +96,18 @@ void Block_hint::buffer_fix_block_if_still_valid() {
         m_page_id == m_block->page.id &&
         buf_block_get_state(m_block) == BUF_BLOCK_FILE_PAGE) {
       buf_block_buf_fix_inc(m_block, UT_LOCATION_HERE);
+=======
+  if (m_block != NULL) {
+    const buf_pool_t *const pool = buf_pool_get(m_page_id);
+    rw_lock_t *latch = buf_page_hash_lock_get(pool, m_page_id);
+    rw_lock_s_lock(latch);
+    /* If not own buf_pool_mutex, page_hash can be changed. */
+    latch = buf_page_hash_lock_s_confirm(latch, pool, m_page_id);
+    if (buf_pointer_is_block_field_instance(pool, m_block) &&
+        m_page_id.equals_to(m_block->page.id) &&
+        buf_block_get_state(m_block) == BUF_BLOCK_FILE_PAGE) {
+      buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
+>>>>>>> pr/231
     } else {
       clear();
     }
@@ -83,7 +115,11 @@ void Block_hint::buffer_fix_block_if_still_valid() {
   }
 }
 void Block_hint::buffer_unfix_block_if_needed(buf_block_t *block) {
+<<<<<<< HEAD
   if (block != nullptr) {
+=======
+  if (block != NULL) {
+>>>>>>> pr/231
     buf_block_buf_fix_dec(block);
   }
 }

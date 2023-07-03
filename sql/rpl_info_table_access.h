@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,8 +55,18 @@ class Rpl_info_table_access : public System_table_access {
 
     @param[in]  thd  Thread requesting to open the table
   */
+<<<<<<< HEAD
   void before_open(THD *thd) override;
   bool close_table(THD *thd, TABLE *table, Open_tables_backup *backup,
+=======
+<<<<<<< HEAD
+  void before_open(THD *thd);
+  void close_table(THD *thd, TABLE *table, Open_tables_backup *backup,
+=======
+  void before_open(THD* thd);
+  bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
                    bool error);
   enum enum_return_id find_info(Rpl_info_values *field_values, TABLE *table);
   enum enum_return_id scan_info(TABLE *table, uint instance);

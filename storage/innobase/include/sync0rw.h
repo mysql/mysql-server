@@ -1,6 +1,14 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -9,6 +17,7 @@ briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -24,6 +33,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -117,11 +143,182 @@ extern ib_mutex_t rw_lock_list_mutex;
  location (which must be appropriately aligned). The rw-lock is initialized
  to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
  is necessary only if the memory block containing it is freed.
+<<<<<<< HEAD
  @param[in] lock pointer to memory
  @param[in] id latch_id
  @param[in] clocation location where created */
 void rw_lock_create_func(rw_lock_t *lock,
                          IF_DEBUG(latch_id_t id, ) ut::Location clocation);
+=======
+ if MySQL performance schema is enabled and "UNIV_PFS_RWLOCK" is
+ defined, the rwlock are instrumented with performance schema probes. */
+#ifdef UNIV_DEBUG
+#define rw_lock_create(K, L, level) \
+  rw_lock_create_func((L), (level), #L, __FILE__, __LINE__)
+#else /* UNIV_DEBUG */
+#define rw_lock_create(K, L, level) rw_lock_create_func((L), __FILE__, __LINE__)
+#endif /* UNIV_DEBUG */
+
+/** NOTE! The following macros should be used in rw locking and
+ unlocking, not the corresponding function. */
+
+#define rw_lock_s_lock(M) rw_lock_s_lock_func((M), 0, __FILE__, __LINE__)
+
+#define rw_lock_s_lock_inline(M, P, F, L) \
+  rw_lock_s_lock_func((M), (P), (F), (L))
+
+#define rw_lock_s_lock_gen(M, P) \
+  rw_lock_s_lock_func((M), (P), __FILE__, __LINE__)
+
+#define rw_lock_s_lock_nowait(M, F, L) rw_lock_s_lock_low((M), 0, (F), (L))
+
+#ifdef UNIV_DEBUG
+#define rw_lock_s_unlock_gen(L, P) rw_lock_s_unlock_func(P, L)
+#else
+#define rw_lock_s_unlock_gen(L, P) rw_lock_s_unlock_func(L)
+#endif /* UNIV_DEBUG */
+
+#define rw_lock_sx_lock(L) rw_lock_sx_lock_func((L), 0, __FILE__, __LINE__)
+
+#define rw_lock_sx_lock_inline(M, P, F, L) \
+  rw_lock_sx_lock_func((M), (P), (F), (L))
+
+#define rw_lock_sx_lock_gen(M, P) \
+  rw_lock_sx_lock_func((M), (P), __FILE__, __LINE__)
+
+<<<<<<< HEAD
+#define rw_lock_sx_lock_nowait(M, P) \
+  rw_lock_sx_lock_low((M), (P), __FILE__, __LINE__)
+=======
+#define rw_lock_sx_lock_nowait(M, P)				\
+	rw_lock_sx_lock_func_nowait((M), (P), __FILE__, __LINE__)
+>>>>>>> upstream/cluster-7.6
+
+#ifdef UNIV_DEBUG
+#define rw_lock_sx_unlock(L) rw_lock_sx_unlock_func(0, L)
+#define rw_lock_sx_unlock_gen(L, P) rw_lock_sx_unlock_func(P, L)
+#else /* UNIV_DEBUG */
+#define rw_lock_sx_unlock(L) rw_lock_sx_unlock_func(L)
+#define rw_lock_sx_unlock_gen(L, P) rw_lock_sx_unlock_func(L)
+#endif /* UNIV_DEBUG */
+
+#define rw_lock_x_lock(M) rw_lock_x_lock_func((M), 0, __FILE__, __LINE__)
+
+#define rw_lock_x_lock_inline(M, P, F, L) \
+  rw_lock_x_lock_func((M), (P), (F), (L))
+
+#define rw_lock_x_lock_gen(M, P) \
+  rw_lock_x_lock_func((M), (P), __FILE__, __LINE__)
+
+#define rw_lock_x_lock_nowait(M) \
+  rw_lock_x_lock_func_nowait((M), __FILE__, __LINE__)
+
+#define rw_lock_x_lock_func_nowait_inline(M, F, L) \
+  rw_lock_x_lock_func_nowait((M), (F), (L))
+
+#ifdef UNIV_DEBUG
+#define rw_lock_x_unlock_gen(L, P) rw_lock_x_unlock_func(P, L)
+#else
+#define rw_lock_x_unlock_gen(L, P) rw_lock_x_unlock_func(L)
+#endif
+
+#define rw_lock_free(M) rw_lock_free_func(M)
+
+#else /* !UNIV_PFS_RWLOCK */
+
+/* Following macros point to Performance Schema instrumented functions. */
+#ifdef UNIV_DEBUG
+#define rw_lock_create(K, L, level) \
+  pfs_rw_lock_create_func((K), (L), (level), #L, __FILE__, __LINE__)
+#else /* UNIV_DEBUG */
+#define rw_lock_create(K, L, level) \
+  pfs_rw_lock_create_func((K), (L), __FILE__, __LINE__)
+#endif /* UNIV_DEBUG */
+
+/******************************************************************
+NOTE! The following macros should be used in rw locking and
+unlocking, not the corresponding function. */
+
+#define rw_lock_s_lock(M) pfs_rw_lock_s_lock_func((M), 0, __FILE__, __LINE__)
+
+#define rw_lock_s_lock_inline(M, P, F, L) \
+  pfs_rw_lock_s_lock_func((M), (P), (F), (L))
+
+#define rw_lock_s_lock_gen(M, P) \
+  pfs_rw_lock_s_lock_func((M), (P), __FILE__, __LINE__)
+
+#define rw_lock_s_lock_nowait(M, F, L) pfs_rw_lock_s_lock_low((M), 0, (F), (L))
+
+#ifdef UNIV_DEBUG
+#define rw_lock_s_unlock_gen(L, P) pfs_rw_lock_s_unlock_func(P, L)
+#else
+#define rw_lock_s_unlock_gen(L, P) pfs_rw_lock_s_unlock_func(L)
+#endif
+
+#define rw_lock_sx_lock(M) pfs_rw_lock_sx_lock_func((M), 0, __FILE__, __LINE__)
+
+#define rw_lock_sx_lock_inline(M, P, F, L) \
+  pfs_rw_lock_sx_lock_func((M), (P), (F), (L))
+
+#define rw_lock_sx_lock_gen(M, P) \
+  pfs_rw_lock_sx_lock_func((M), (P), __FILE__, __LINE__)
+
+<<<<<<< HEAD
+#define rw_lock_sx_lock_nowait(M, P) \
+  pfs_rw_lock_sx_lock_low((M), (P), __FILE__, __LINE__)
+=======
+#define rw_lock_sx_lock_nowait(M, P)				\
+	pfs_rw_lock_sx_lock_func_nowait((M), (P), __FILE__, __LINE__)
+>>>>>>> upstream/cluster-7.6
+
+#ifdef UNIV_DEBUG
+#define rw_lock_sx_unlock(L) pfs_rw_lock_sx_unlock_func(0, L)
+#define rw_lock_sx_unlock_gen(L, P) pfs_rw_lock_sx_unlock_func(P, L)
+#else
+#define rw_lock_sx_unlock(L) pfs_rw_lock_sx_unlock_func(L)
+#define rw_lock_sx_unlock_gen(L, P) pfs_rw_lock_sx_unlock_func(L)
+#endif
+
+#define rw_lock_x_lock(M) pfs_rw_lock_x_lock_func((M), 0, __FILE__, __LINE__)
+
+#define rw_lock_x_lock_inline(M, P, F, L) \
+  pfs_rw_lock_x_lock_func((M), (P), (F), (L))
+
+#define rw_lock_x_lock_gen(M, P) \
+  pfs_rw_lock_x_lock_func((M), (P), __FILE__, __LINE__)
+
+#define rw_lock_x_lock_nowait(M) \
+  pfs_rw_lock_x_lock_func_nowait((M), __FILE__, __LINE__)
+
+#define rw_lock_x_lock_func_nowait_inline(M, F, L) \
+  pfs_rw_lock_x_lock_func_nowait((M), (F), (L))
+
+#ifdef UNIV_DEBUG
+#define rw_lock_x_unlock_gen(L, P) pfs_rw_lock_x_unlock_func(P, L)
+#else
+#define rw_lock_x_unlock_gen(L, P) pfs_rw_lock_x_unlock_func(L)
+#endif
+
+#define rw_lock_free(M) pfs_rw_lock_free_func(M)
+
+#endif /* !UNIV_PFS_RWLOCK */
+
+#define rw_lock_s_unlock(L) rw_lock_s_unlock_gen(L, 0)
+#define rw_lock_x_unlock(L) rw_lock_x_unlock_gen(L, 0)
+
+/** Creates, or rather, initializes an rw-lock object in a specified memory
+ location (which must be appropriately aligned). The rw-lock is initialized
+ to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
+ is necessary only if the memory block containing it is freed. */
+void rw_lock_create_func(
+    rw_lock_t *lock, /*!< in: pointer to memory */
+#ifdef UNIV_DEBUG
+    latch_level_t level,     /*!< in: level */
+    const char *cmutex_name, /*!< in: mutex name */
+#endif                       /* UNIV_DEBUG */
+    const char *cfile_name,  /*!< in: file name where created */
+    ulint cline);            /*!< in: file line where created */
+>>>>>>> pr/231
 /** Calling this function is obligatory only if the memory buffer containing
  the rw-lock is freed. Removes an rw-lock object from the global list. The
  rw-lock is checked to be in the non-locked state. */
@@ -144,17 +341,80 @@ spinning.
                                                     ulint pass [[maybe_unused]],
                                                     ut::Location location);
 
+<<<<<<< HEAD
 /** NOTE! Use the corresponding macro, not directly this function, except if
 you supply the file name and line number. Lock an rw-lock in shared mode for
 the current thread. If the rw-lock is locked in exclusive mode, or there is an
 exclusive lock request waiting, the function spins a preset time (controlled
 by srv_n_spin_wait_rounds), waiting for the lock, before suspending the thread.
+<<<<<<< HEAD
 @param[in]      lock            pointer to rw-lock
 @param[in]      pass            pass value; != 0, if the lock will be passed to
                                 another thread to unlock
 @param[in]      location        location where requested */
 static inline void rw_lock_s_lock_func(rw_lock_t *lock, ulint pass,
                                        ut::Location location);
+=======
+@param[in]	lock		pointer to rw-lock
+@param[in]	pass		pass value; != 0, if the lock will be passed
+                                to another thread to unlock
+@param[in]	file_name	file name where lock requested
+@param[in]	line		line where requested */
+=======
+/******************************************************************//**
+NOTE! Use the corresponding macro, not directly this function! Lock an
+rw-lock in exclusive mode for the current thread. If the rw-lock is locked
+in shared or exclusive mode, or there is an exclusive lock request waiting,
+the function spins a preset time (controlled by srv_n_spin_wait_rounds), waiting
+for the lock, before suspending the thread. If the same thread has an x-lock
+on the rw-lock, locking succeed, with the following exception: if pass != 0,
+only a single x-lock may be taken on the lock. NOTE: If the same thread has
+an s-lock, locking does not succeed! */
+void
+rw_lock_x_lock_func(
+/*================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+NOTE! Use the corresponding macro, not directly this function! Lock an
+rw-lock in SX mode for the current thread if the lock can be
+obtained immediately.
+@return FALSE if did not succeed, TRUE if success. */
+ibool
+rw_lock_sx_lock_func_nowait(
+/*========================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+NOTE! Use the corresponding macro, not directly this function! Lock an
+rw-lock in SX mode for the current thread. If the rw-lock is locked
+in exclusive mode, or there is an exclusive lock request waiting,
+the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
+for the lock, before suspending the thread. If the same thread has an x-lock
+on the rw-lock, locking succeed, with the following exception: if pass != 0,
+only a single sx-lock may be taken on the lock. NOTE: If the same thread has
+an s-lock, locking does not succeed! */
+void
+rw_lock_sx_lock_func(
+/*=================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Releases an exclusive mode lock. */
+>>>>>>> upstream/cluster-7.6
+UNIV_INLINE
+void rw_lock_s_lock_func(rw_lock_t *lock, ulint pass, const char *file_name,
+                         ulint line);
+>>>>>>> pr/231
 
 /** NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread if the lock can be obtained
@@ -269,7 +529,48 @@ This is used by both s_lock and x_lock operations.
 @param[in,out]  lock    rw-lock
 @param[in]      amount  amount to decrement
 @return lock->lock_word after increment */
+<<<<<<< HEAD
 static inline lint rw_lock_lock_word_incr(rw_lock_t *lock, ulint amount);
+=======
+UNIV_INLINE
+<<<<<<< HEAD
+lint rw_lock_lock_word_incr(rw_lock_t *lock, ulint amount);
+=======
+lint
+rw_lock_lock_word_incr(
+/*===================*/
+	rw_lock_t*	lock,		/*!< in/out: rw-lock */
+	ulint		amount);	/*!< in: amount to increment */
+/******************************************************************//**
+This function sets the lock->writer_thread and lock->recursive fields.
+For platforms where we are using atomic builtins instead of lock->mutex
+it sets the lock->writer_thread field using atomics to ensure memory
+ordering. Note that it is assumed that the caller of this function
+effectively owns the lock i.e.: nobody else is allowed to modify
+lock->writer_thread at this point in time.
+The protocol is that lock->writer_thread MUST be updated BEFORE the
+lock->recursive flag is set. */
+UNIV_INLINE
+void
+rw_lock_set_writer_id_and_recursion_flag(
+/*=====================================*/
+	rw_lock_t*	lock,		/*!< in/out: lock to work on */
+	bool		recursive,	/*!< in: true if recursion
+					allowed */
+	const os_thread_id_t curr_thread);/*!< in: current thread id */
+#ifdef UNIV_DEBUG
+/******************************************************************//**
+Checks if the thread has locked the rw-lock in the specified mode, with
+the pass value == 0. */
+ibool
+rw_lock_own(
+/*========*/
+	rw_lock_t*	lock,		/*!< in: rw-lock */
+	ulint		lock_type)	/*!< in: lock type: RW_LOCK_S,
+					RW_LOCK_X */
+	MY_ATTRIBUTE((warn_unused_result));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /** This function sets the lock->writer_thread and lock->recursive fields. Sets
 lock->recursive field using atomic release after setting lock->writer thread to
@@ -516,8 +817,142 @@ NOTE! Please use the corresponding macro, not directly this function!
 @param[in]      lock            pointer to rw-lock
 @param[in]      location        location where requested
 @return true if success */
+<<<<<<< HEAD
 [[nodiscard]] static inline bool pfs_rw_lock_x_lock_func_nowait(
     rw_lock_t *lock, ut::Location location);
+=======
+UNIV_INLINE
+<<<<<<< HEAD
+ibool pfs_rw_lock_x_lock_func_nowait(rw_lock_t *lock, const char *file_name,
+                                     ulint line);
+=======
+ibool
+pfs_rw_lock_x_lock_func_nowait(
+/*===========================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_lock_func()
+NOTE! Please use the corresponding macro rw_lock_s_lock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_s_lock_func(
+/*====================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_lock_func()
+NOTE! Please use the corresponding macro rw_lock_s_lock(), not directly
+this function!
+@return TRUE if success */
+UNIV_INLINE
+ibool
+pfs_rw_lock_s_lock_low(
+/*===================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock will be passed to another
+				thread to unlock */
+	const char*	file_name, /*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_x_lock_func()
+NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_x_lock_func(
+/*====================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_unlock_func()
+NOTE! Please use the corresponding macro rw_lock_s_unlock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_s_unlock_func(
+/*======================*/
+#ifdef UNIV_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock may have been passed to another
+				thread to unlock */
+#endif /* UNIV_DEBUG */
+	rw_lock_t*	lock);	/*!< in/out: rw-lock */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_x_unlock_func()
+NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_x_unlock_func(
+/*======================*/
+#ifdef UNIV_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock may have been passed to another
+				thread to unlock */
+#endif /* UNIV_DEBUG */
+	rw_lock_t*	lock);	/*!< in/out: rw-lock */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_sx_lock_func()
+NOTE! Please use the corresponding macro rw_lock_sx_lock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_sx_lock_func(
+/*====================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_sx_lock_nowait()
+NOTE! Please use the corresponding macro, not directly
+this function! */
+UNIV_INLINE
+ibool
+pfs_rw_lock_sx_lock_func_nowait(
+/*===========================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line);	/*!< in: line where requested */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_sx_unlock_func()
+NOTE! Please use the corresponding macro rw_lock_sx_unlock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_sx_unlock_func(
+/*======================*/
+#ifdef UNIV_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock may have been passed to another
+				thread to unlock */
+#endif /* UNIV_DEBUG */
+	rw_lock_t*	lock);	/*!< in/out: rw-lock */
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_free_func()
+NOTE! Please use the corresponding macro rw_lock_free(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_free_func(
+/*==================*/
+	rw_lock_t*	lock);	/*!< in: rw-lock */
+#endif  /* UNIV_PFS_RWLOCK */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /** Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not directly this

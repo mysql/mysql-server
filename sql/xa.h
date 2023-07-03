@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,8 +133,23 @@ typedef struct xid_t {
 
   const char *get_data() const { return data; }
 
+<<<<<<< HEAD
   void set_data(const void *v, long l) {
+<<<<<<< HEAD
     assert(l <= XIDDATASIZE);
+=======
+    DBUG_ASSERT(l <= XIDDATASIZE);
+=======
+  const char* get_data() const
+  {
+    return data;
+  }
+
+  void set_data(const void* v, long l)
+  {
+    assert(l <= XIDDATASIZE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     memcpy(data, v, l);
   }
 
@@ -378,9 +401,16 @@ class XID_STATE {
     m_is_binlogged = false;
   }
 
+<<<<<<< HEAD
   void start_normal_xa(const XID *xid) {
     assert(m_xid.is_null());
     xa_state = XA_ACTIVE;
+=======
+  void start_normal_xa(const XID *xid)
+  {
+    assert(m_xid.is_null());
+    xa_state= XA_ACTIVE;
+>>>>>>> upstream/cluster-7.6
     m_xid.set(xid);
     m_is_detached = false;
     rm_error = 0;
@@ -561,7 +591,28 @@ struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
   @return    false   on success, true otherwise.
 */
 
+<<<<<<< HEAD
 bool detach_native_trx(THD *thd, plugin_ref plugin, void *);
+=======
+my_bool detach_native_trx(THD *thd, plugin_ref plugin,
+                                      void *unused);
+/**
+  The function reattaches existing storage engines transaction
+  context to thd. Backup area to save it is provided to low level
+  storage engine function.
+
+  is invoked by plugin_foreach() after
+  trans_xa_prepare() for each storage engine.
+
+  @param[in,out]     thd     Thread context
+  @param             plugin  Reference to handlerton
+
+  @return    FALSE   on success,
+             TRUE    otherwise.
+*/
+
+my_bool reattach_native_trx(THD *thd, plugin_ref plugin, void *);
+>>>>>>> upstream/cluster-7.6
 
 /**
   The function reattaches existing storage engines transaction

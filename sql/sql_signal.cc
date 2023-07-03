@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,8 +113,18 @@ void Sql_cmd_common_signal::assign_defaults(
     cond->set_message_text(ER_THD_NONCONST(thd, sqlcode));
 }
 
+<<<<<<< HEAD
 void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond) {
+<<<<<<< HEAD
   assert(cond);
+=======
+  DBUG_ASSERT(cond);
+=======
+void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond)
+{
+  assert(cond);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   const char *sqlstate;
   bool set_defaults = (m_cond != nullptr);
@@ -115,8 +133,17 @@ void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond) {
     /*
       SIGNAL is restricted in sql_yacc.yy to only signal SQLSTATE conditions.
     */
+<<<<<<< HEAD
     assert(m_cond->type == sp_condition_value::SQLSTATE);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(m_cond->type == sp_condition_value::SQLSTATE);
+>>>>>>> pr/231
     sqlstate = m_cond->sql_state;
+=======
+    assert(m_cond->type == sp_condition_value::SQLSTATE);
+    sqlstate= m_cond->sql_state;
+>>>>>>> upstream/cluster-7.6
     cond->set_returned_sqlstate(sqlstate);
   } else
     sqlstate = cond->returned_sqlstate();
@@ -183,12 +210,24 @@ static bool assign_fixed_string(MEM_ROOT *mem_root, CHARSET_INFO *dst_cs,
       const char *cannot_convert_error_pos;
       const char *from_end_pos;
 
+<<<<<<< HEAD
       dst_copied = well_formed_copy_nchars(
           dst_cs, dst_str, dst_len, src_cs, src_str, src_len, numchars,
           &well_formed_error_pos, &cannot_convert_error_pos, &from_end_pos);
       assert(dst_copied <= dst_len);
       dst_len = dst_copied; /* In case the copy truncated the data */
       dst_str[dst_copied] = '\0';
+=======
+      dst_copied= well_formed_copy_nchars(dst_cs, dst_str, dst_len,
+                                          src_cs, src_str, src_len,
+                                          numchars,
+                                          & well_formed_error_pos,
+                                          & cannot_convert_error_pos,
+                                          & from_end_pos);
+      assert(dst_copied <= dst_len);
+      dst_len= dst_copied; /* In case the copy truncated the data */
+      dst_str[dst_copied]= '\0';
+>>>>>>> upstream/cluster-7.6
     }
   } else {
     dst_len = to_copy;
@@ -383,7 +422,11 @@ bool Sql_cmd_signal::execute(THD *thd) {
   thd->set_row_count_func(0);
   thd->get_stmt_da()->reset_condition_info(thd);
 
+<<<<<<< HEAD
   assert(thd->lex->query_tables == nullptr);
+=======
+  assert(thd->lex->query_tables == NULL);
+>>>>>>> pr/231
 
   eval_defaults(thd, &cond);
   if (eval_signal_informations(thd, &cond)) return true;
@@ -477,8 +520,19 @@ bool Sql_cmd_resignal::execute(THD *thd) {
   }
 
   // RESIGNAL should not resignal SL_NOTE
+<<<<<<< HEAD
   assert(!raised || (raised->severity() == Sql_condition::SL_WARNING) ||
          (raised->severity() == Sql_condition::SL_ERROR));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!raised || (raised->severity() == Sql_condition::SL_WARNING) ||
+              (raised->severity() == Sql_condition::SL_ERROR));
+=======
+  assert(!raised ||
+         (raised->severity() == Sql_condition::SL_WARNING) ||
+         (raised->severity() == Sql_condition::SL_ERROR));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     We now have the following possibilities:

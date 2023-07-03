@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -101,8 +109,35 @@ bool PFS_index_mems_by_thread_by_event_name::match(PFS_memory_class *klass) {
   return true;
 }
 
+<<<<<<< HEAD
 PFS_engine_table *table_mems_by_thread_by_event_name::create(
     PFS_engine_table_share *) {
+=======
+PFS_engine_table_share_state
+table_mems_by_thread_by_event_name::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_mems_by_thread_by_event_name::m_share=
+{
+  { C_STRING_WITH_LEN("memory_summary_by_thread_by_event_name") },
+  &pfs_readonly_acl,
+  table_mems_by_thread_by_event_name::create,
+  NULL, /* write_row */
+  table_mems_by_thread_by_event_name::delete_all_rows,
+  table_mems_by_thread_by_event_name::get_row_count,
+  sizeof(PFS_simple_index),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_mems_by_thread_by_event_name::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_mems_by_thread_by_event_name();
 }
 

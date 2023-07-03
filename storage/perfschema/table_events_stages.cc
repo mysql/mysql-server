@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +76,7 @@ Plugin_table table_events_stages_current::m_table_def(
     /* Tablespace */
     nullptr);
 
+<<<<<<< HEAD
 PFS_engine_table_share table_events_stages_current::m_share = {
     &pfs_truncatable_acl,
     table_events_stages_current::create,
@@ -81,10 +90,37 @@ PFS_engine_table_share table_events_stages_current::m_share = {
     PFS_engine_table_proxy(),
     {0},
     false /* m_in_purgatory */
+=======
+TABLE_FIELD_DEF
+table_events_stages_current::m_field_def=
+{12 , field_types };
+
+PFS_engine_table_share_state
+table_events_stages_current::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_events_stages_current::m_share=
+{
+  { C_STRING_WITH_LEN("events_stages_current") },
+  &pfs_truncatable_acl,
+  table_events_stages_current::create,
+  NULL, /* write_row */
+  table_events_stages_current::delete_all_rows,
+  table_events_stages_current::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+>>>>>>> upstream/cluster-7.6
 };
 
 THR_LOCK table_events_stages_history::m_table_lock;
 
+<<<<<<< HEAD
 Plugin_table table_events_stages_history::m_table_def(
     /* Schema name */
     "performance_schema",
@@ -122,10 +158,33 @@ PFS_engine_table_share table_events_stages_history::m_share = {
     PFS_engine_table_proxy(),
     {0},
     false /* m_in_purgatory */
+=======
+PFS_engine_table_share_state
+table_events_stages_history::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_events_stages_history::m_share=
+{
+  { C_STRING_WITH_LEN("events_stages_history") },
+  &pfs_truncatable_acl,
+  table_events_stages_history::create,
+  NULL, /* write_row */
+  table_events_stages_history::delete_all_rows,
+  table_events_stages_history::get_row_count,
+  sizeof(pos_events_stages_history), /* ref length */
+  &m_table_lock,
+  &table_events_stages_current::m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+>>>>>>> upstream/cluster-7.6
 };
 
 THR_LOCK table_events_stages_history_long::m_table_lock;
 
+<<<<<<< HEAD
 Plugin_table table_events_stages_history_long::m_table_def(
     /* Schema name */
     "performance_schema",
@@ -162,6 +221,28 @@ PFS_engine_table_share table_events_stages_history_long::m_share = {
     PFS_engine_table_proxy(),
     {0},
     false /* m_in_purgatory */
+=======
+PFS_engine_table_share_state
+table_events_stages_history_long::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_events_stages_history_long::m_share=
+{
+  { C_STRING_WITH_LEN("events_stages_history_long") },
+  &pfs_truncatable_acl,
+  table_events_stages_history_long::create,
+  NULL, /* write_row */
+  table_events_stages_history_long::delete_all_rows,
+  table_events_stages_history_long::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &table_events_stages_current::m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+>>>>>>> upstream/cluster-7.6
 };
 
 bool PFS_index_events_stages::match(PFS_thread *pfs) {
@@ -195,7 +276,17 @@ table_events_stages_common::table_events_stages_common(
   @param stage                      the stage the cursor is reading
   @return 0 on success or HA_ERR_RECORD_DELETED
 */
+<<<<<<< HEAD
 int table_events_stages_common::make_row(PFS_events_stages *stage) {
+<<<<<<< HEAD
+=======
+  const char *base;
+  const char *safe_source_file;
+=======
+void table_events_stages_common::make_row(PFS_events_stages *stage)
+{
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   ulonglong timer_end;
 
   PFS_stage_class *unsafe = (PFS_stage_class *)stage->m_class;
@@ -210,10 +301,28 @@ int table_events_stages_common::make_row(PFS_events_stages *stage) {
   m_row.m_nesting_event_id = stage->m_nesting_event_id;
   m_row.m_nesting_event_type = stage->m_nesting_event_type;
 
+<<<<<<< HEAD
   if (m_row.m_end_event_id == 0) {
     timer_end = get_stage_timer();
   } else {
     timer_end = stage->m_timer_end;
+=======
+  m_row.m_name= klass->m_name;
+  m_row.m_name_length= klass->m_name_length;
+
+  /* Disable source file and line to avoid stale __FILE__ pointers. */
+  m_row.m_source_length= 0;
+
+  if (klass->is_progress())
+  {
+    m_row.m_progress= true;
+    m_row.m_work_completed= stage->m_progress.m_work_completed;
+    m_row.m_work_estimated= stage->m_progress.m_work_estimated;
+  }
+  else
+  {
+    m_row.m_progress= false;
+>>>>>>> upstream/cluster-7.6
   }
 
   m_normalizer->to_pico(stage->m_timer_start, timer_end, &m_row.m_timer_start,
@@ -242,7 +351,12 @@ int table_events_stages_common::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 2);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 2);
+>>>>>>> pr/231
   buf[0] = 0;
   buf[1] = 0;
 
@@ -319,7 +433,85 @@ int table_events_stages_common::read_row_values(TABLE *table,
           }
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 2);
+  buf[0]= 0;
+  buf[1]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* THREAD_ID */
+        set_field_ulonglong(f, m_row.m_thread_internal_id);
+        break;
+      case 1: /* EVENT_ID */
+        set_field_ulonglong(f, m_row.m_event_id);
+        break;
+      case 2: /* END_EVENT_ID */
+        if (m_row.m_end_event_id > 0)
+          set_field_ulonglong(f, m_row.m_end_event_id - 1);
+        else
+          f->set_null();
+        break;
+      case 3: /* EVENT_NAME */
+        set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+        break;
+      case 4: /* SOURCE */
+        set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
+        break;
+      case 5: /* TIMER_START */
+        if (m_row.m_timer_start != 0)
+          set_field_ulonglong(f, m_row.m_timer_start);
+        else
+          f->set_null();
+        break;
+      case 6: /* TIMER_END */
+        if (m_row.m_timer_end != 0)
+          set_field_ulonglong(f, m_row.m_timer_end);
+        else
+          f->set_null();
+        break;
+      case 7: /* TIMER_WAIT */
+        if (m_row.m_timer_wait != 0)
+          set_field_ulonglong(f, m_row.m_timer_wait);
+        else
+          f->set_null();
+        break;
+      case 8: /* WORK_COMPLETED */
+        if (m_row.m_progress)
+          set_field_ulonglong(f, m_row.m_work_completed);
+        else
+          f->set_null();
+        break;
+      case 9: /* WORK_ESTIMATED */
+        if (m_row.m_progress)
+          set_field_ulonglong(f, m_row.m_work_estimated);
+        else
+          f->set_null();
+        break;
+      case 10: /* NESTING_EVENT_ID */
+        if (m_row.m_nesting_event_id != 0)
+          set_field_ulonglong(f, m_row.m_nesting_event_id);
+        else
+          f->set_null();
+        break;
+      case 11: /* NESTING_EVENT_TYPE */
+        if (m_row.m_nesting_event_id != 0)
+          set_field_enum(f, m_row.m_nesting_event_type);
+        else
+          f->set_null();
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

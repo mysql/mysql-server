@@ -1,6 +1,15 @@
 /*
+<<<<<<< HEAD
 Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright 2010 Sun Microsystems, Inc.
+>>>>>>> pr/231
 Use is subject to license terms.
+=======
+Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+All rights reserved. Use is subject to license terms.
+>>>>>>> upstream/cluster-7.6
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,

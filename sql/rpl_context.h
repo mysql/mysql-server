@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +56,17 @@ enum enum_rpl_channel_type {
   GR_RECOVERY_CHANNEL = 3    // It is a GR recovery channel
 };
 
+<<<<<<< HEAD
+=======
+/** Type of replication channel thread/transaction might be associated to*/
+enum enum_rpl_channel_type {
+  NO_CHANNEL_INFO = 0,       // No information exists about the channel
+  RPL_STANDARD_CHANNEL = 1,  // It is a standard replication channel
+  GR_APPLIER_CHANNEL = 2,    // It is a GR applier channel
+  GR_RECOVERY_CHANNEL = 3    // It is a GR recovery channel
+};
+
+>>>>>>> upstream/cluster-7.6
 /**
    This class is an interface for session consistency instrumentation
    in the server. It holds the context information for a given session.
@@ -112,6 +131,11 @@ class Session_consistency_gtids_ctx {
    The last statement should return a set of GTIDs.
   */
   ulong m_curr_session_track_gtids;
+<<<<<<< HEAD
+=======
+
+protected:
+>>>>>>> upstream/cluster-7.6
 
  protected:
   /*
@@ -206,12 +230,24 @@ class Session_consistency_gtids_ctx {
     return notify_after_transaction_commit(thd);
   }
 
+<<<<<<< HEAD
   /**
     Update session tracker (m_curr_session_track_gtids) from thd.
   */
   void update_tracking_activeness_from_session_variable(const THD *thd);
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
  private:
+=======
+  /**
+    Update session tracker (m_curr_session_track_gtids) from thd.
+  */
+  void update_tracking_activeness_from_session_variable(const THD* thd);
+
+private:
+>>>>>>> upstream/cluster-7.6
   // not implemented
   Session_consistency_gtids_ctx(const Session_consistency_gtids_ctx &rsc);
   Session_consistency_gtids_ctx &operator=(
@@ -397,6 +433,7 @@ class Rpl_thd_context {
  private:
   Session_consistency_gtids_ctx m_session_gtids_ctx;
   Dependency_tracker_ctx m_dependency_tracker_ctx;
+<<<<<<< HEAD
   Last_used_gtid_tracker_ctx m_last_used_gtid_tracker_ctx;
   Transaction_compression_ctx m_transaction_compression_ctx;
   /** Manages interaction and keeps context w.r.t `Bgc_ticket_manager` */
@@ -405,10 +442,18 @@ class Rpl_thd_context {
   /** If this thread is a channel, what is its type*/
   enum_rpl_channel_type rpl_channel_type;
 
+=======
+  /** If this thread is a channel, what is its type*/
+  enum_rpl_channel_type rpl_channel_type;
+
+<<<<<<< HEAD
+  // make these private
+>>>>>>> pr/231
   Rpl_thd_context(const Rpl_thd_context &rsc);
   Rpl_thd_context &operator=(const Rpl_thd_context &rsc);
 
  public:
+<<<<<<< HEAD
   Rpl_thd_context() : rpl_channel_type(NO_CHANNEL_INFO) {}
 
   /**
@@ -416,6 +461,16 @@ class Rpl_thd_context {
     to INIT.
   */
   void init();
+=======
+  Rpl_thd_context() {}
+=======
+  Rpl_thd_context(const Rpl_thd_context& rsc);
+  Rpl_thd_context& operator=(const Rpl_thd_context& rsc);
+public:
+
+  Rpl_thd_context() : rpl_channel_type(NO_CHANNEL_INFO) {}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   inline Session_consistency_gtids_ctx &session_gtids_ctx() {
     return m_session_gtids_ctx;
@@ -425,6 +480,7 @@ class Rpl_thd_context {
     return m_dependency_tracker_ctx;
   }
 
+<<<<<<< HEAD
   inline Last_used_gtid_tracker_ctx &last_used_gtid_tracker_ctx() {
     return m_last_used_gtid_tracker_ctx;
   }
@@ -438,11 +494,14 @@ class Rpl_thd_context {
    */
   Binlog_group_commit_ctx &binlog_group_commit_ctx();
 
+=======
+>>>>>>> pr/231
   enum_rpl_channel_type get_rpl_channel_type() { return rpl_channel_type; }
 
   void set_rpl_channel_type(enum_rpl_channel_type rpl_channel_type_arg) {
     rpl_channel_type = rpl_channel_type_arg;
   }
+<<<<<<< HEAD
 
   inline Transaction_compression_ctx &transaction_compression_ctx() {
     return m_transaction_compression_ctx;
@@ -471,6 +530,8 @@ class Rpl_thd_context {
   /* Maintains transaction status of Trans_delegate. */
   enum_transaction_rpl_delegate_status m_tx_rpl_delegate_stage_status{
       TX_RPL_STAGE_INIT};
+=======
+>>>>>>> pr/231
 };
 
 #endif /* RPL_SESSION_H */

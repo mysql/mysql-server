@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -221,9 +229,19 @@ void PROF_MEASUREMENT::set_label(const char *status_arg,
   sizes[1] = (function_arg == nullptr) ? 0 : strlen(function_arg) + 1;
   sizes[2] = (file_arg == nullptr) ? 0 : strlen(file_arg) + 1;
 
+<<<<<<< HEAD
   allocated_status_memory = (char *)my_malloc(
       key_memory_PROFILE, sizes[0] + sizes[1] + sizes[2], MYF(0));
+<<<<<<< HEAD
   assert(allocated_status_memory != nullptr);
+=======
+  DBUG_ASSERT(allocated_status_memory != NULL);
+=======
+  allocated_status_memory= (char *) my_malloc(key_memory_PROFILE,
+                                              sizes[0] + sizes[1] + sizes[2], MYF(0));
+  assert(allocated_status_memory != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   cursor = allocated_status_memory;
 
@@ -298,11 +316,25 @@ void QUERY_PROFILE::set_query_source(const char *query_source_arg,
   /* Truncate to avoid DoS attacks. */
   size_t length = min(MAX_QUERY_LENGTH, query_length_arg);
 
+<<<<<<< HEAD
   assert(m_query_source.str == nullptr); /* we don't leak memory */
   if (query_source_arg != nullptr) {
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(m_query_source.str == NULL); /* we don't leak memory */
+  if (query_source_arg != NULL) {
+>>>>>>> pr/231
     m_query_source.str =
         my_strndup(key_memory_PROFILE, query_source_arg, length, MYF(0));
     m_query_source.length = length;
+=======
+  assert(m_query_source.str == NULL); /* we don't leak memory */
+  if (query_source_arg != NULL)
+  {
+    m_query_source.str= my_strndup(key_memory_PROFILE,
+                                   query_source_arg, length, MYF(0));
+    m_query_source.length= length;
+>>>>>>> upstream/cluster-7.6
   }
 }
 
@@ -311,7 +343,11 @@ void QUERY_PROFILE::new_status(const char *status_arg, const char *function_arg,
   PROF_MEASUREMENT *prof;
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(status_arg != nullptr);
+=======
+  assert(status_arg != NULL);
+>>>>>>> pr/231
 
   if ((function_arg != nullptr) && (file_arg != nullptr))
     prof = new PROF_MEASUREMENT(this, status_arg, function_arg,
@@ -380,8 +416,20 @@ void PROFILING::start_new_query(const char *initial_state) {
 
   if (!enabled) return;
 
+<<<<<<< HEAD
   assert(current == nullptr);
   current = new QUERY_PROFILE(this, initial_state);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(current == NULL);
+  current = new QUERY_PROFILE(this, initial_state);
+=======
+  assert(current == NULL);
+  current= new QUERY_PROFILE(this, initial_state);
+>>>>>>> upstream/cluster-7.6
+
+  DBUG_VOID_RETURN;
+>>>>>>> pr/231
 }
 
 /**

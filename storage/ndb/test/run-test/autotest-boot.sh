@@ -1,6 +1,10 @@
 #!/bin/bash
 
+<<<<<<< HEAD
 # Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -331,7 +335,11 @@ fi
 script=$install_dir0/mysql-test/ndb/autotest-run.sh
 for R in $RUN
 do
+<<<<<<< HEAD
     bash -x $script $save_args --conf=$conf --run-dir=$install_dir --install-dir0=$install_dir0 --install-dir1=$install_dir1 --suite=$R --nolock $extra_args
+=======
+    "$script" $save_args --conf=$conf --run-dir=$install_dir --install-dir0=$install_dir0 --install-dir1=$install_dir1 --suite=$R --nolock $extra_args
+>>>>>>> pr/231
 done
 
 if [ "$build" ]

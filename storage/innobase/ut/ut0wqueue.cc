@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -40,10 +64,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Work queue. */
 struct ib_wqueue_t {
+<<<<<<< HEAD
   ib_mutex_t mutex; /*!< mutex protecting everything */
   ib_list_t *items; /*!< work item list */
   uint64_t count;   /*!< total number of work items */
   os_event_t event; /*!< event we use to signal additions to list */
+=======
+	ib_mutex_t	mutex;	/*!< mutex protecting everything */
+	ib_list_t*	items;	/*!< work item list */
+	uint64_t	count;	/*!< total number of work items */
+	os_event_t	event;	/*!< event we use to signal additions to list */
+>>>>>>> upstream/cluster-7.6
 };
 
 /** Create a new work queue.
@@ -57,9 +88,19 @@ ib_wqueue_t *ib_wqueue_create(void) {
 
   mutex_create(LATCH_ID_WORK_QUEUE, &wq->mutex);
 
+<<<<<<< HEAD
   wq->items = ib_list_create();
+<<<<<<< HEAD
   wq->event = os_event_create();
   wq->count = 0;
+=======
+  wq->event = os_event_create(0);
+=======
+	wq->items = ib_list_create();
+	wq->event = os_event_create(0);
+	wq->count = 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return (wq);
 }
@@ -81,13 +122,20 @@ void ib_wqueue_free(ib_wqueue_t *wq) /*!< in: work queue */
 void ib_wqueue_add(ib_wqueue_t *wq, void *item, mem_heap_t *heap) {
   mutex_enter(&wq->mutex);
 
+<<<<<<< HEAD
   ib_list_add_last(wq->items, item, heap);
   wq->count++;
   os_event_set(wq->event);
+=======
+	ib_list_add_last(wq->items, item, heap);
+	wq->count++;
+	os_event_set(wq->event);
+>>>>>>> upstream/cluster-7.6
 
   mutex_exit(&wq->mutex);
 }
 
+<<<<<<< HEAD
 uint64_t ib_wqueue_get_count(ib_wqueue_t *wq) {
   uint64_t count;
   mutex_enter(&wq->mutex);
@@ -96,6 +144,63 @@ uint64_t ib_wqueue_get_count(ib_wqueue_t *wq) {
   return count;
 }
 
+=======
+<<<<<<< HEAD
+=======
+/****************************************************************//**
+Wait for a work item to appear in the queue.
+@return work item */
+void*
+ib_wqueue_wait(
+/*===========*/
+	ib_wqueue_t*	wq)	/*!< in: work queue */
+{
+	ib_list_node_t*	node;
+
+	for (;;) {
+		os_event_wait(wq->event);
+
+		mutex_enter(&wq->mutex);
+
+		node = ib_list_get_first(wq->items);
+
+		if (node) {
+			ib_list_remove(wq->items, node);
+			wq->count--;
+			if (!ib_list_get_first(wq->items)) {
+				/* We must reset the event when the list
+				gets emptied. */
+				os_event_reset(wq->event);
+			}
+
+			break;
+		}
+
+		mutex_exit(&wq->mutex);
+	}
+
+	mutex_exit(&wq->mutex);
+
+	return(node->data);
+}
+
+/********************************************************************
+read total number of work item to the queue.
+@return total count of work item in the queue */
+uint64_t
+ib_wqueue_get_count(
+/*==========*/
+	ib_wqueue_t *wq)		/*!< in: work queue */
+{
+	uint64_t count;
+	mutex_enter(&wq->mutex);
+	count = wq->count;
+	mutex_exit(&wq->mutex);
+	return count;
+}
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */
 void *ib_wqueue_timedwait(
@@ -113,6 +218,7 @@ void *ib_wqueue_timedwait(
 
     node = ib_list_get_first(wq->items);
 
+<<<<<<< HEAD
     if (node) {
       ib_list_remove(wq->items, node);
       wq->count--;
@@ -120,6 +226,14 @@ void *ib_wqueue_timedwait(
       mutex_exit(&wq->mutex);
       break;
     }
+=======
+		if (node) {
+			ib_list_remove(wq->items, node);
+			wq->count--;
+			mutex_exit(&wq->mutex);
+			break;
+		}
+>>>>>>> upstream/cluster-7.6
 
     sig_count = os_event_reset(wq->event);
 

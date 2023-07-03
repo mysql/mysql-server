@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +27,22 @@
 #ifndef REPLICATION_H
 #define REPLICATION_H
 
+<<<<<<< HEAD
 #include "my_thread_local.h"         // my_thread_id
 #include "mysql/psi/mysql_thread.h"  // mysql_mutex_t
+<<<<<<< HEAD
 #include "rpl_context.h"
 #include "sql/handler.h"  // enum_tx_isolation
+=======
+#include "sql/handler.h"             // enum_tx_isolation
+=======
+#include "my_global.h"
+#include "my_thread_local.h"          // my_thread_id
+#include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
+#include "handler.h"  // enum_tx_isolation
+#include "rpl_context.h"  // enum_rpl_channel_type
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 struct MYSQL;
 
@@ -173,9 +189,11 @@ typedef struct Trans_param {
    */
   Trans_context_info trans_ctx_info;
 
+<<<<<<< HEAD
   /// pointer to the status var original_commit_timestamp
   unsigned long long *original_commit_timestamp;
 
+<<<<<<< HEAD
   /** Replication channel info associated to this transaction/THD */
   enum_rpl_channel_type rpl_channel_type;
 
@@ -195,6 +213,12 @@ typedef struct Trans_param {
     Flag to identify a 'CREATE TABLE ... AS SELECT'.
   */
   bool is_create_table_as_query_block;
+=======
+=======
+  /** Replication channel info associated to this transaction/THD */
+  enum_rpl_channel_type rpl_channel_type;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 } Trans_param;
 
 /**

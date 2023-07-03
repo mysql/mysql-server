@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,6 +142,7 @@ struct DABits
      *
      * In Sql terms this is an INNER JOIN. Not setting an INNER_JOIN 
      * is similar to 'LEFT OUTER JOIN' result being produced.
+<<<<<<< HEAD
      */
     NI_INNER_JOIN = 0x400,
 
@@ -155,6 +160,11 @@ struct DABits
      */
     NI_ANTI_JOIN = 0x1000,
 
+=======
+     */ 
+    NI_INNER_JOIN = 0x400,
+
+>>>>>>> pr/231
     NI_END = 0
   };
 

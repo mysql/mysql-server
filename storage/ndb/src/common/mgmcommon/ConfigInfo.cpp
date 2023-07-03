@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD:storage/ndb/src/common/mgmcommon/ConfigInfo.cpp
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231:storage/ndb/src/mgmsrv/ConfigInfo.cpp
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,11 +125,19 @@ ConfigInfo::m_SectionRules[] = {
 
   { MGM_TOKEN,  fixShmUniqueId, nullptr },
 
+<<<<<<< HEAD:storage/ndb/src/common/mgmcommon/ConfigInfo.cpp
   { "TCP",  checkConnectionSupport, nullptr },
   { "SHM",  checkConnectionSupport, nullptr },
 
   { "TCP",  transformConnection, nullptr },
   { "SHM",  transformConnection, nullptr },
+=======
+  { "TCP",  checkConnectionSupport, 0 },
+  { "SHM",  checkConnectionSupport, 0 },
+
+  { "TCP",  transformConnection, 0 },
+  { "SHM",  transformConnection, 0 },
+>>>>>>> pr/231:storage/ndb/src/mgmsrv/ConfigInfo.cpp
   
   { DB_TOKEN,   fixNodeHostname, nullptr },
   { API_TOKEN,  fixNodeHostname, nullptr },
@@ -146,8 +158,13 @@ ConfigInfo::m_SectionRules[] = {
   { "SHM",  fixHostname, "HostName1" },
   { "SHM",  fixHostname, "HostName2" },
 
+<<<<<<< HEAD:storage/ndb/src/common/mgmcommon/ConfigInfo.cpp
   { "TCP",  fixPortNumber, nullptr }, // has to come after fixHostName
   { "SHM",  fixPortNumber, nullptr }, // has to come after fixHostName
+=======
+  { "TCP",  fixPortNumber, 0 }, // has to come after fixHostName
+  { "SHM",  fixPortNumber, 0 }, // has to come after fixHostName
+>>>>>>> pr/231:storage/ndb/src/mgmsrv/ConfigInfo.cpp
 
   { "*",    applyDefaultValues, "user" },
   { "*",    fixDeprecated, nullptr },
@@ -168,10 +185,22 @@ ConfigInfo::m_SectionRules[] = {
   { API_TOKEN, checkThreadPrioSpec, nullptr },
   { MGM_TOKEN, checkThreadPrioSpec, nullptr },
 
+<<<<<<< HEAD:storage/ndb/src/common/mgmcommon/ConfigInfo.cpp
   { "TCP",  checkConnectionConstraints, nullptr },
   { "SHM",  checkConnectionConstraints, nullptr },
 
   { "*",    checkMandatory, nullptr }
+=======
+  { "TCP",  checkConnectionConstraints, 0 },
+  { "SHM",  checkConnectionConstraints, 0 },
+
+  { "TCP",  checkTCPConstraints, "HostName1" },
+  { "TCP",  checkTCPConstraints, "HostName2" },
+  { "SHM",  checkTCPConstraints, "HostName1" },
+  { "SHM",  checkTCPConstraints, "HostName2" },
+  
+  { "*",    checkMandatory, 0 }
+>>>>>>> pr/231:storage/ndb/src/mgmsrv/ConfigInfo.cpp
 };
 const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 
@@ -2273,7 +2302,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_BOOL,
-    "true",
+    "false",
     "false",                     /* Min */
     "true"                       /* Max */
   },
@@ -2467,6 +2496,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+<<<<<<< HEAD:storage/ndb/src/common/mgmcommon/ConfigInfo.cpp
     CFG_DB_MAX_DD_LATENCY,
     "MaxDiskDataLatency",
     DB_TOKEN,
@@ -2516,6 +2546,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+=======
+>>>>>>> pr/231:storage/ndb/src/mgmsrv/ConfigInfo.cpp
     CFG_DB_ENABLE_REDO_CONTROL,
     "EnableRedoControl",
     DB_TOKEN,
@@ -2523,7 +2555,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_BOOL,
+<<<<<<< HEAD:storage/ndb/src/common/mgmcommon/ConfigInfo.cpp
     "true",
+=======
+    "false",
+>>>>>>> pr/231:storage/ndb/src/mgmsrv/ConfigInfo.cpp
     "false",
     "true"
   },
@@ -3858,7 +3894,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_SECTION,
     (const char *)CONNECTION_TYPE_SCI,
+<<<<<<< HEAD:storage/ndb/src/common/mgmcommon/ConfigInfo.cpp
     nullptr, nullptr
+=======
+    0, 0
+>>>>>>> pr/231:storage/ndb/src/mgmsrv/ConfigInfo.cpp
   },
 
   {

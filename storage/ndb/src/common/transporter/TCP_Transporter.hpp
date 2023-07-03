@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +80,11 @@ private:
    * Retrieves the contents of the send buffers and writes it on
    * the external TCP/IP interface.
    */
+<<<<<<< HEAD
   bool doSend(bool need_wakeup = true) override;
+=======
+  bool doSend(bool need_wakeup = true);
+>>>>>>> pr/231
   
   /**
    * It reads the external TCP/IP interface once 
@@ -134,8 +142,13 @@ private:
   static bool setSocketNonBlocking(ndb_socket_t aSocket);
   int pre_connect_options(ndb_socket_t aSocket) override;
   
+<<<<<<< HEAD
   bool send_is_possible(int timeout_millisec) const override;
   bool send_is_possible(ndb_socket_t fd, int timeout_millisec) const;
+=======
+  bool send_is_possible(int timeout_millisec) const;
+  bool send_is_possible(NDB_SOCKET_TYPE fd, int timeout_millisec) const;
+>>>>>>> pr/231
 
   ReceiveBuffer receiveBuffer;
 

@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +70,11 @@ int main(int argc, char *argv[])
   unsigned int nelem = argc > 1 ? atoi(argv[1]) : 1000000;
   plan(4);
   elem (*arr)[BUCKSIZE] = new elem[nelem][BUCKSIZE];
+<<<<<<< HEAD
   std::memset(arr, 0, nelem * sizeof(elem[BUCKSIZE]));
+=======
+  bzero(arr, nelem * sizeof(elem[BUCKSIZE]));
+>>>>>>> pr/231
   LHLevel lh;
   lh.clear();
   expand(lh, arr);

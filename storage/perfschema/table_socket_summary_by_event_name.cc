@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -102,8 +110,39 @@ bool PFS_index_socket_summary_by_event_name::match(
   return true;
 }
 
+<<<<<<< HEAD
 PFS_engine_table *table_socket_summary_by_event_name::create(
     PFS_engine_table_share *) {
+=======
+TABLE_FIELD_DEF
+table_socket_summary_by_event_name::m_field_def=
+{ 23, field_types };
+
+PFS_engine_table_share_state
+table_socket_summary_by_event_name::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_socket_summary_by_event_name::m_share=
+{
+  { C_STRING_WITH_LEN("socket_summary_by_event_name") },
+  &pfs_readonly_acl,
+  table_socket_summary_by_event_name::create,
+  NULL, /* write_row */
+  table_socket_summary_by_event_name::delete_all_rows,
+  table_socket_summary_by_event_name::get_row_count,
+  sizeof(PFS_simple_index),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_socket_summary_by_event_name::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_socket_summary_by_event_name();
 }
 
@@ -193,7 +232,112 @@ int table_socket_summary_by_event_name::make_row(
   PFS_instance_iterator::visit_socket_instances(socket_class, &visitor);
 
   /* Collect timer and byte count stats */
+<<<<<<< HEAD
   m_row.m_io_stat.set(m_normalizer, &visitor.m_socket_io_stat);
+=======
+  m_row.m_io_stat.set(normalizer, &visitor.m_socket_io_stat);
+  m_row_exists= true;
+}
+
+int table_socket_summary_by_event_name::read_row_values(TABLE *table,
+                                          unsigned char *,
+                                          Field **fields,
+                                          bool read_all)
+{
+  Field *f;
+
+  if (unlikely(!m_row_exists))
+    return HA_ERR_RECORD_DELETED;
+
+  /* Set the null bits */
+  assert(table->s->null_bytes == 0);
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case  0: /* EVENT_NAME */
+        m_row.m_event_name.set_field(f);
+        break;
+      case  1: /* COUNT_STAR */
+        set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_count);
+        break;
+      case  2: /* SUM_TIMER_WAIT */
+        set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_sum);
+        break;
+      case  3: /* MIN_TIMER_WAIT */
+        set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_min);
+        break;
+      case  4: /* AVG_TIMER_WAIT */
+        set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_avg);
+        break;
+      case  5: /* MAX_TIMER_WAIT */
+        set_field_ulonglong(f, m_row.m_io_stat.m_all.m_waits.m_max);
+        break;
+
+      case  6: /* COUNT_READ */
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_count);
+        break;
+      case  7: /* SUM_TIMER_READ */
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_sum);
+        break;
+      case  8: /* MIN_TIMER_READ */
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_min);
+        break;
+      case  9: /* AVG_TIMER_READ */
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_avg);
+        break;
+      case 10: /* MAX_TIMER_READ */
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_max);
+        break;
+      case 11: /* SUM_NUMBER_OF_BYTES_READ */
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_bytes);
+        break;
+
+      case 12: /* COUNT_WRITE */
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_count);
+        break;
+      case 13: /* SUM_TIMER_WRITE */
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_sum);
+        break;
+      case 14: /* MIN_TIMER_WRITE */
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_min);
+        break;
+      case 15: /* AVG_TIMER_WRITE */
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_avg);
+        break;
+      case 16: /* MAX_TIMER_WRITE */
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_max);
+        break;
+      case 17: /* SUM_NUMBER_OF_BYTES_WRITE */
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_bytes);
+        break;
+
+      case 18: /* COUNT_MISC */
+        set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_count);
+        break;
+      case 19: /* SUM_TIMER_MISC */
+        set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_sum);
+        break;
+      case 20: /* MIN_TIMER_MISC */
+        set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_min);
+        break;
+      case 21: /* AVG_TIMER_MISC */
+        set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_avg);
+        break;
+      case 22: /* MAX_TIMER_MISC */
+        set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_max);
+        break;
+
+      default:
+        assert(false);
+        break;
+      }
+    } // if
+  } // for
+>>>>>>> upstream/cluster-7.6
 
   return 0;
 }

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -272,7 +280,31 @@ int initialize_performance_schema(
   return 0;
 }
 
+<<<<<<< HEAD
 static void cleanup_performance_schema(void) {
+=======
+static void destroy_pfs_thread(void *key)
+{
+  PFS_thread* pfs= reinterpret_cast<PFS_thread*> (key);
+  assert(pfs);
+  /*
+    This automatic cleanup is a last resort and best effort to avoid leaks,
+    and may not work on windows due to the implementation of pthread_key_create().
+    Please either use:
+    - my_thread_end()
+    - or PSI_server->delete_current_thread()
+    in the instrumented code, to explicitly cleanup the instrumentation.
+
+    Avoid invalid writes when the main() thread completes after shutdown:
+    the memory pointed by pfs is already released.
+  */
+  if (pfs_initialized)
+    destroy_thread(pfs);
+}
+
+static void cleanup_performance_schema(void)
+{
+>>>>>>> upstream/cluster-7.6
   /*
     my.cnf options
   */

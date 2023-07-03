@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -110,8 +118,15 @@ struct pos_ews_by_user_by_event_name : public PFS_triple_index,
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME. */
+<<<<<<< HEAD
 class table_ews_by_user_by_event_name : public PFS_engine_table {
  public:
+=======
+class table_ews_by_user_by_event_name : public PFS_engine_table
+{
+public:
+  static PFS_engine_table_share_state m_share_state;
+>>>>>>> upstream/cluster-7.6
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);

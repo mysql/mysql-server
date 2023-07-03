@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -136,6 +160,7 @@ should not exceed FTS_DOC_ID_MAX_STEP */
 #define FTS_INDEX_LAST_DOC_ID_LEN 8
 #define FTS_INDEX_DOC_COUNT_LEN 4
 /* BLOB COLUMN, 0 means VARIABLE SIZE */
+<<<<<<< HEAD
 #define FTS_INDEX_ILIST_LEN 0
 /* Maximum nested expression in fulltext binary search string */
 #define FTS_MAX_NESTED_EXP 31
@@ -149,6 +174,11 @@ extern const char *FTS_SUFFIX_DELETED_CACHE;
 
 extern const char *FTS_PREFIX_5_7;
 extern const char *FTS_SUFFIX_CONFIG_5_7;
+=======
+#define FTS_INDEX_ILIST_LEN		0
+/* Maximum nested expression in fulltext binary search string */
+#define FTS_MAX_NESTED_EXP		31
+>>>>>>> upstream/cluster-7.6
 
 /** Variable specifying the number of word to optimize for each optimize table
 call */
@@ -690,6 +720,7 @@ all the split tables.
 dberr_t fts_drop_index_tables(trx_t *trx, dict_index_t *index,
                               aux_name_vec_t *aux_vec);
 
+<<<<<<< HEAD
 /** Empty all common talbes.
 @param[in,out]  trx     transaction
 @param[in]      table   dict table
@@ -699,6 +730,21 @@ dberr_t fts_empty_common_tables(trx_t *trx, dict_table_t *table);
 /** Remove the table from the OPTIMIZER's list. We do wait for
  acknowledgement from the consumer of the message. */
 void fts_optimize_remove_table(dict_table_t *table); /*!< in: table to remove */
+=======
+/** Add the table to add to the OPTIMIZER's list.
+@param[in]	table	table to add */
+void
+fts_optimize_add_table(
+	dict_table_t*	table);
+
+/******************************************************************//**
+Remove the table from the OPTIMIZER's list. We do wait for
+acknowledgement from the consumer of the message. */
+void
+fts_optimize_remove_table(
+/*======================*/
+	dict_table_t*	table);			/*!< in: table to remove */
+>>>>>>> upstream/cluster-7.6
 
 /** Shutdown fts optimize thread. */
 void fts_optimize_shutdown();

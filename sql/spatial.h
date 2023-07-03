@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,8 +182,17 @@ struct MBR {
       *mbr, and that both geometries and their intersection are of the
       same dimension.
     */
+<<<<<<< HEAD
     int d = dimension();
+<<<<<<< HEAD
     assert(d >= 0 && d <= 2);
+=======
+    DBUG_ASSERT(d >= 0 && d <= 2);
+=======
+    int d= dimension();
+    assert(d >= 0 && d <= 2);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     if (d != mbr->dimension() || d == 0 || contains(mbr) || within(mbr))
       return 0;
@@ -394,9 +411,16 @@ class Geometry {
         : wkb_container(data, data_end) {}
 
     /* Routines to skip non-interesting data */
+<<<<<<< HEAD
     void skip_unsafe(size_t nbytes) {
       assert(!no_data(nbytes));
       m_data += nbytes;
+=======
+    void skip_unsafe(size_t nbytes)
+    {
+      assert(!no_data(nbytes));
+      m_data+= nbytes;
+>>>>>>> upstream/cluster-7.6
     }
     bool skip(size_t nbytes) {
       if (no_data(nbytes)) return true;
@@ -433,8 +457,18 @@ class Geometry {
     }
 
     /* Routines to scan coordinate information */
+<<<<<<< HEAD
     void scan_xy_unsafe(point_xy *p) {
+<<<<<<< HEAD
       assert(!no_data(POINT_DATA_SIZE));
+=======
+      DBUG_ASSERT(!no_data(POINT_DATA_SIZE));
+=======
+    void scan_xy_unsafe(point_xy *p)
+    {
+      assert(!no_data(POINT_DATA_SIZE));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       get_float8(&p->x);
       m_data += SIZEOF_STORED_DOUBLE;
       get_float8(&p->y);
@@ -515,9 +549,23 @@ class Geometry {
   wkbType get_type() const {
     return static_cast<Geometry::wkbType>(get_class_info()->m_type_id);
   }
+<<<<<<< HEAD
   enum_coordinate_reference_system get_coordsys() const { return cartesian; }
   virtual uint32 feature_dimension() const {
+<<<<<<< HEAD
     assert(false);
+=======
+    DBUG_ASSERT(false);
+=======
+  enum_coordinate_reference_system get_coordsys() const
+  {
+    return cartesian;
+  }
+  virtual uint32 feature_dimension() const
+  {
+    assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return 0;
   }
 
@@ -665,18 +713,42 @@ class Geometry {
     return (m_flags.props & MULTIPOLYGON_NO_OVERLAPPED_COMPS);
   }
 
+<<<<<<< HEAD
   void set_components_no_overlapped(bool b) {
+<<<<<<< HEAD
     assert(get_type() == wkb_multilinestring ||
            get_type() == wkb_multipolygon ||
            get_type() == wkb_geometrycollection);
+=======
+    DBUG_ASSERT(get_type() == wkb_multilinestring ||
+                get_type() == wkb_multipolygon ||
+                get_type() == wkb_geometrycollection);
+=======
+  void set_components_no_overlapped(bool b)
+  {
+    assert(get_type() == wkb_multilinestring ||
+           get_type() == wkb_multipolygon ||
+           get_type() == wkb_geometrycollection);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     if (b)
       m_flags.props |= MULTIPOLYGON_NO_OVERLAPPED_COMPS;
     else
       m_flags.props &= ~MULTIPOLYGON_NO_OVERLAPPED_COMPS;
   }
 
+<<<<<<< HEAD
   void set_props(uint16 flag) {
+<<<<<<< HEAD
     assert(0xfff >= flag);
+=======
+    DBUG_ASSERT(0xfff >= flag);
+=======
+  void set_props(uint16 flag)
+  {
+    assert(0xfff >= flag);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     m_flags.props |= flag;
   }
 
@@ -735,6 +807,7 @@ class Geometry {
         they represent Z and/or M settings, 1: Z, 2: M, 3: ZM.
     unused: reserved for future use, it's unused now.
   */
+<<<<<<< HEAD
   class Flags_t {
    public:
     Flags_t() : Flags_t(wkb_invalid_type, /*len*/ 0) {}
@@ -756,6 +829,55 @@ class Geometry {
     uint64 props : 12;
     uint64 zm : 2;
     uint64 unused : 11;
+=======
+  class Flags_t
+  {
+    void initialize_bits_to_zero()
+    {
+      bo = 0;
+      dim = 0;
+      nomem = 0;
+      geotype = 0;
+      nbytes = 0;
+      props = 0;
+      zm = 0;
+    }
+  public:
+    Flags_t(const Flags_t &o)
+    {
+      compile_time_assert(sizeof(*this) == sizeof(uint64));
+      memcpy(this, &o, sizeof(o));
+    }
+
+    Flags_t()
+    {
+      compile_time_assert(sizeof(*this) == sizeof(uint64));
+      initialize_bits_to_zero();
+      bo= wkb_ndr;
+      dim= GEOM_DIM - 1;
+      nomem= 1;
+    }
+
+    Flags_t(wkbType type, size_t len)
+    {
+      compile_time_assert(sizeof(*this) == sizeof(uint64));
+      initialize_bits_to_zero();
+      geotype= type;
+      nbytes= len;
+      bo= wkb_ndr;
+      dim= GEOM_DIM - 1;
+      nomem= 1;
+    }
+
+    uint64 bo:1;
+    uint64 dim:2;
+    uint64 nomem:1;
+    uint64 geotype:5;
+    uint64 nbytes:30;
+    uint64 props:12;
+    uint64 zm:2;
+    uint64 unused:11;
+>>>>>>> upstream/cluster-7.6
   };
   static_assert(sizeof(Flags_t) == sizeof(uint64),
                 "Flags are expected to line up exactly with an uint64.");
@@ -801,15 +923,31 @@ class Geometry {
 
   void set_owner(Geometry *o) { m_owner = o; }
 
+<<<<<<< HEAD
   void set_byte_order(Geometry::wkbByteOrder bo) {
     assert(bo == Geometry::wkb_ndr);
     m_flags.bo = static_cast<char>(bo);
+=======
+  void set_byte_order(Geometry::wkbByteOrder bo)
+  {
+    assert(bo == Geometry::wkb_ndr);
+    m_flags.bo= static_cast<char>(bo);
+>>>>>>> upstream/cluster-7.6
   }
 
   void set_dimension(char dim) {
     // Valid dim is one of [1, 2, 3, 4].
+<<<<<<< HEAD
     assert(dim > 0 && dim < 5);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(dim > 0 && dim < 5);
+>>>>>>> pr/231
     m_flags.dim = dim - 1;
+=======
+    assert(dim >0 && dim <5);
+    m_flags.dim= dim - 1;
+>>>>>>> upstream/cluster-7.6
   }
 
   /**
@@ -913,8 +1051,18 @@ class Geometry {
     */
   bool get_ownmem() const { return !m_flags.nomem; }
 
+<<<<<<< HEAD
   Geometry::wkbByteOrder get_byte_order() const {
+<<<<<<< HEAD
     assert(m_flags.bo == 1);
+=======
+    DBUG_ASSERT(m_flags.bo == 1);
+=======
+  Geometry::wkbByteOrder get_byte_order() const
+  {
+    assert(m_flags.bo == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return Geometry::wkb_ndr;
   }
 
@@ -1025,9 +1173,22 @@ class Geometry {
   }
 
   void clear_wkb_data();
+<<<<<<< HEAD
   virtual void shallow_push(const Geometry *) {  // LCOV_EXCL_LINE
     assert(false);                               // LCOV_EXCL_LINE
   }                                              // LCOV_EXCL_LINE
+=======
+<<<<<<< HEAD
+  virtual void shallow_push(const Geometry *) { DBUG_ASSERT(false); }
+=======
+  virtual void shallow_push(const Geometry *)
+  {
+    assert(false);
+  }
+
+protected:
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
  protected:
   /**
@@ -1080,10 +1241,22 @@ inline void set_byte_order(void *p0, Geometry::wkbByteOrder bo) {
   @param p0 WKB geometry type field address.
   @return geometry type.
  */
+<<<<<<< HEAD
 inline Geometry::wkbType get_wkb_geotype(const void *p0) {
   const char *p = static_cast<const char *>(p0);
   uint32 gt = uint4korr(p);
+<<<<<<< HEAD
   assert(Geometry::is_valid_geotype(gt));
+=======
+  DBUG_ASSERT(Geometry::is_valid_geotype(gt));
+=======
+inline Geometry::wkbType get_wkb_geotype(const void *p0)
+{
+  const char *p= static_cast<const char *>(p0);
+  uint32 gt= uint4korr(p);
+  assert(Geometry::is_valid_geotype(gt));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return static_cast<Geometry::wkbType>(gt);
 }
 
@@ -1206,9 +1379,21 @@ class Gis_point : public Geometry {
             gis::srid_t srid)
       : Geometry(ptr, nbytes, flags, srid) {
     set_geotype(wkb_point);
+<<<<<<< HEAD
     assert(
         (ptr != nullptr && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
         (ptr == nullptr && get_nbytes() == 0));
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(
+        (ptr != NULL && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+        (ptr == NULL && get_nbytes() == 0));
+=======
+    assert((ptr != NULL &&
+            get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+           (ptr == NULL && get_nbytes() == 0));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     set_ownmem(false);
     set_bg_adapter(true);
   }
@@ -1225,11 +1410,27 @@ class Gis_point : public Geometry {
   /// @tparam K coordinate to get
   /// @return the coordinate
   template <std::size_t K>
+<<<<<<< HEAD
   double get() const {
+<<<<<<< HEAD
     assert(K < static_cast<size_t>(get_dimension()) &&
            ((m_ptr != nullptr &&
              get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
             (m_ptr == nullptr && get_nbytes() == 0)));
+=======
+    DBUG_ASSERT(
+        K < static_cast<size_t>(get_dimension()) &&
+        ((m_ptr != NULL && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+         (m_ptr == NULL && get_nbytes() == 0)));
+=======
+  double get() const
+  {
+    assert(K < static_cast<size_t>(get_dimension()) &&
+           ((m_ptr != NULL &&
+             get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+            (m_ptr == NULL && get_nbytes() == 0)));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     set_bg_adapter(true);
     const char *p = static_cast<char *>(m_ptr) + K * SIZEOF_STORED_DOUBLE;
@@ -1252,9 +1453,15 @@ class Gis_point : public Geometry {
   template <std::size_t K>
   void set(double const &value) {
     /* Allow assigning to others' memory. */
+<<<<<<< HEAD
     assert((m_ptr != nullptr && K < static_cast<size_t>(get_dimension()) &&
             get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
            (!get_ownmem() && get_nbytes() == 0 && m_ptr == nullptr));
+=======
+    assert((m_ptr != NULL && K < static_cast<size_t>(get_dimension()) &&
+            get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+           (!get_ownmem() && get_nbytes() == 0 && m_ptr == NULL));
+>>>>>>> pr/231
     set_bg_adapter(true);
     if (m_ptr == nullptr) {
       m_ptr = gis_wkb_fixed_alloc(SIZEOF_STORED_DOUBLE * GEOM_DIM);
@@ -1383,8 +1590,18 @@ class Gis_wkb_vector_const_iterator {
   /// sitting on the same key/data pair equal; Otherwise not equal.
   /// @param itr The iterator to compare against.
   /// @return True if this iterator equals to itr; False otherwise.
+<<<<<<< HEAD
   bool operator==(const self &itr) const {
+<<<<<<< HEAD
     assert(m_owner == itr.m_owner);
+=======
+    DBUG_ASSERT(m_owner == itr.m_owner);
+=======
+  bool operator==(const self &itr) const
+  {
+    assert(m_owner == itr.m_owner);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_curidx == itr.m_curidx;
   }
 
@@ -1397,8 +1614,18 @@ class Gis_wkb_vector_const_iterator {
   /// @brief Less than comparison operator.
   /// @param itr The iterator to compare against.
   /// @return True if this iterator is less than itr.
+<<<<<<< HEAD
   bool operator<(const self &itr) const {
+<<<<<<< HEAD
     assert(m_owner == itr.m_owner);
+=======
+    DBUG_ASSERT(m_owner == itr.m_owner);
+=======
+  bool operator < (const self &itr) const
+  {
+    assert(m_owner == itr.m_owner);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_curidx < itr.m_curidx;
   }
 
@@ -1416,8 +1643,18 @@ class Gis_wkb_vector_const_iterator {
   /// @brief Greater comparison operator.
   /// @param itr The iterator to compare against.
   /// @return True if this iterator is greater than itr.
+<<<<<<< HEAD
   bool operator>(const self &itr) const {
+<<<<<<< HEAD
     assert(m_owner == itr.m_owner);
+=======
+    DBUG_ASSERT(m_owner == itr.m_owner);
+=======
+  bool operator > (const self &itr) const
+  {
+    assert(m_owner == itr.m_owner);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_curidx > itr.m_curidx;
   }
   //@} // vctitr_cmp
@@ -1549,8 +1786,18 @@ class Gis_wkb_vector_const_iterator {
   /// iterator after last element or before first element, their index
   /// will be regarded as last element's index + 1 and -1 respectively.
   /// @return The index difference.
+<<<<<<< HEAD
   difference_type operator-(const self &itr) const {
+<<<<<<< HEAD
     assert(m_owner == itr.m_owner);
+=======
+    DBUG_ASSERT(m_owner == itr.m_owner);
+=======
+  difference_type operator-(const self &itr) const
+  {
+    assert(m_owner == itr.m_owner);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return (m_curidx - itr.m_curidx);
   }
 
@@ -1566,9 +1813,23 @@ class Gis_wkb_vector_const_iterator {
   /// The returned value can only be used to read its referenced
   /// element.
   /// @return The reference to the element this iterator points to.
+<<<<<<< HEAD
   reference operator*() const {
+<<<<<<< HEAD
     assert(this->m_owner != nullptr && this->m_curidx >= 0 &&
            this->m_curidx < static_cast<index_type>(this->m_owner->size()));
+=======
+    DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
+                this->m_curidx <
+                    static_cast<index_type>(this->m_owner->size()));
+=======
+  reference operator*() const
+  {
+    assert(this->m_owner != NULL && this->m_curidx >= 0 &&
+           this->m_curidx <
+           static_cast<index_type>(this->m_owner->size()));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return (*m_owner)[m_curidx];
   }
 
@@ -1578,9 +1839,23 @@ class Gis_wkb_vector_const_iterator {
   /// The returned value can only be used to read its referenced
   /// element.
   /// @return The address of the referenced object.
+<<<<<<< HEAD
   pointer operator->() const {
+<<<<<<< HEAD
     assert(this->m_owner != NULL && this->m_curidx >= 0 &&
            this->m_curidx < static_cast<index_type>(this->m_owner->size()));
+=======
+    DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
+                this->m_curidx <
+                    static_cast<index_type>(this->m_owner->size()));
+=======
+  pointer operator->() const
+  {
+    assert(this->m_owner != NULL && this->m_curidx >= 0 &&
+           this->m_curidx <
+           static_cast<index_type>(this->m_owner->size()));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return &(*m_owner)[m_curidx];
   }
 
@@ -1811,9 +2086,23 @@ class Gis_wkb_vector_iterator : public Gis_wkb_vector_const_iterator<T> {
   /// The returned value can be used to read or update its referenced
   /// element.
   /// @return The reference to the element this iterator points to.
+<<<<<<< HEAD
   reference operator*() const {
+<<<<<<< HEAD
     assert(this->m_owner != nullptr && this->m_curidx >= 0 &&
            this->m_curidx < static_cast<index_type>(this->m_owner->size()));
+=======
+    DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
+                this->m_curidx <
+                    static_cast<index_type>(this->m_owner->size()));
+=======
+  reference operator*() const
+  {
+    assert(this->m_owner != NULL && this->m_curidx >= 0 &&
+           this->m_curidx <
+           static_cast<index_type>(this->m_owner->size()));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return (*this->m_owner)[this->m_curidx];
   }
 
@@ -1823,9 +2112,23 @@ class Gis_wkb_vector_iterator : public Gis_wkb_vector_const_iterator<T> {
   /// The returned value can be used to read or update its referenced
   /// element.
   /// @return The address of the referenced object.
+<<<<<<< HEAD
   pointer operator->() const {
+<<<<<<< HEAD
     assert(this->m_owner != nullptr && this->m_curidx >= 0 &&
            this->m_curidx < static_cast<index_type>(this->m_owner->size()));
+=======
+    DBUG_ASSERT(this->m_owner != NULL && this->m_curidx >= 0 &&
+                this->m_curidx <
+                    static_cast<index_type>(this->m_owner->size()));
+=======
+  pointer operator->() const
+  {
+    assert(this->m_owner != NULL && this->m_curidx >= 0 &&
+           this->m_curidx <
+           static_cast<index_type>(this->m_owner->size()));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return &(*this->m_owner)[this->m_curidx];
   }
 
@@ -1994,16 +2297,38 @@ class Gis_wkb_vector : public Geometry {
     return *((T *)p);
   }
 
+<<<<<<< HEAD
   const_reference operator[](index_type i) const {
+<<<<<<< HEAD
     assert(!(i < 0 || i >= (index_type)size()));
+=======
+    DBUG_ASSERT(!(i < 0 || i >= (index_type)size()));
+=======
+
+  const_reference operator[](index_type i) const
+  {
+    assert(!(i < 0 || i >= (index_type)size()));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     set_bg_adapter(true);
 
     const Geometry *p = &((*m_geo_vect)[i]);
     return *((const T *)p);
   }
 
+<<<<<<< HEAD
   reference operator[](index_type i) {
+<<<<<<< HEAD
     assert(!(i < 0 || i >= (index_type)size()));
+=======
+    DBUG_ASSERT(!(i < 0 || i >= (index_type)size()));
+=======
+
+  reference operator[](index_type i)
+  {
+    assert(!(i < 0 || i >= (index_type)size()));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     set_bg_adapter(true);
 
     Geometry *p = &((*m_geo_vect)[i]);
@@ -2020,18 +2345,52 @@ class Gis_wkb_vector : public Geometry {
     /*
       See ~Geometry() for why we do try-catch like this.
 
+<<<<<<< HEAD
       Note that although ~Inplace_vector() calls std::vector member functions,
       all of them have no-throw guarantees, so this function won't throw any
       exception now. We do so nonetheless for potential mis-use of exceptions
       in further code.
     */
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+    Note that although ~Inplace_vector() calls std::vector member functions,
+    all of them have no-throw guarantees, so this function won't throw any
+    exception now. We do so nonetheless for potential mis-use of exceptions
+    in futher code.
+  */
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
     try {
 #endif
       if (!is_bg_adapter()) return;
       if (m_geo_vect != nullptr) clear_wkb_data();
 #if !defined(NDEBUG)
     } catch (...) {
+=======
+  ~Gis_wkb_vector()
+  {
+    /*
+      See ~Geometry() for why we do try-catch like this.
+
+      Note that although ~Inplace_vector() calls std::vector member functions,
+      all of them have no-throw guarantees, so this function won't throw any
+      exception now. We do so nonetheless for potential mis-use of exceptions
+      in futher code.
+    */
+#if !defined(NDEBUG)
+    try
+    {
+#endif
+      if (!is_bg_adapter())
+        return;
+      if (m_geo_vect != NULL)
+        clear_wkb_data();
+#if !defined(NDEBUG)
+    }
+    catch (...)
+    {
+>>>>>>> upstream/cluster-7.6
       // Should never throw exceptions in destructor.
       assert(false);
     }
@@ -2176,9 +2535,16 @@ class Gis_polygon_ring : public Gis_wkb_vector<Gis_point> {
 /***************************** Polygon *******************************/
 
 // For internal use only, only convert types, don't create rings.
+<<<<<<< HEAD
 inline Gis_polygon_ring *outer_ring(const Geometry *g) {
   assert(g->get_geotype() == Geometry::wkb_polygon);
   Gis_polygon_ring *out = static_cast<Gis_polygon_ring *>(g->get_ptr());
+=======
+inline Gis_polygon_ring *outer_ring(const Geometry *g)
+{
+  assert(g->get_geotype() == Geometry::wkb_polygon);
+  Gis_polygon_ring *out= static_cast<Gis_polygon_ring *>(g->get_ptr());
+>>>>>>> upstream/cluster-7.6
 
   return out;
 }
@@ -2207,8 +2573,18 @@ class Gis_polygon : public Geometry {
   typedef Gis_polygon_ring ring_type;
   typedef Gis_wkb_vector<ring_type> inner_container_type;
 
+<<<<<<< HEAD
   ring_type &outer() const {
+<<<<<<< HEAD
     assert(!polygon_is_wkb_form());
+=======
+    DBUG_ASSERT(!polygon_is_wkb_form());
+=======
+  ring_type &outer() const
+  {
+    assert(!polygon_is_wkb_form());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     set_bg_adapter(true);
     // Create outer ring if none, although read only, calller may just want
     // to traverse the outer ring if any.
@@ -2217,8 +2593,18 @@ class Gis_polygon : public Geometry {
     return *(outer_ring(this));
   }
 
+<<<<<<< HEAD
   inner_container_type &inners() const {
+<<<<<<< HEAD
     assert(!polygon_is_wkb_form());
+=======
+    DBUG_ASSERT(!polygon_is_wkb_form());
+=======
+  inner_container_type &inners() const
+  {
+    assert(!polygon_is_wkb_form());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     set_bg_adapter(true);
     // Create inner rings if none, although read only, calller may just want
     // to traverse the inner rings if any.
@@ -2419,6 +2805,7 @@ class Gis_geometry_collection : public Geometry {
   Gis_geometry_collection(gis::srid_t srid, wkbType gtype, const String *gbuf,
                           String *gcbuf);
   bool append_geometry(const Geometry *geo, String *gcbuf);
+<<<<<<< HEAD
   bool append_geometry(gis::srid_t srid, wkbType gtype, const String *gbuf,
                        String *gcbuf);
   uint32 get_data_size() const override;
@@ -2431,7 +2818,26 @@ class Gis_geometry_collection : public Geometry {
   int geometry_n(uint32 num, String *result) const override;
   bool dimension(uint32 *dim, wkb_parser *wkb) const override;
   uint32 feature_dimension() const override {
+<<<<<<< HEAD
     assert(0);
+=======
+    DBUG_ASSERT(0);
+=======
+  bool append_geometry(srid_t srid, wkbType gtype,
+                       const String *gbuf, String *gcbuf);
+  uint32 get_data_size() const;
+  bool init_from_wkt(Gis_read_stream *trs, String *wkb);
+  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
+  bool get_data_as_wkt(String *txt, wkb_parser *wkb) const;
+  bool get_mbr(MBR *mbr, wkb_parser *wkb) const;
+  int num_geometries(uint32 *num) const;
+  int geometry_n(uint32 num, String *result) const;
+  bool dimension(uint32 *dim, wkb_parser *wkb) const;
+  uint32 feature_dimension() const
+  {
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return 0;
   }
   bool reverse_coordinates() override;

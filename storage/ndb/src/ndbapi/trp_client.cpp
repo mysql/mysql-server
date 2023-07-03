@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +36,11 @@ trp_client::trp_client()
     m_facade(nullptr),
     m_locked_for_poll(false),
     m_is_receiver_thread(false),
+<<<<<<< HEAD
     m_mutex(nullptr),
+=======
+    m_mutex(NULL),
+>>>>>>> pr/231
     m_poll(),
     m_enabled_nodes_mask(),
     m_send_nodes_mask(),

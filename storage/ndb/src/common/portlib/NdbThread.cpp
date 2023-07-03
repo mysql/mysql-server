@@ -79,8 +79,13 @@ static int g_max_prio = 0;
 static bool get_prio_first = true;
 #endif
 
+<<<<<<< HEAD
 static NdbMutex *ndb_thread_mutex = nullptr;
 static struct NdbCondition * ndb_thread_condition = nullptr;
+=======
+static NdbMutex *ndb_thread_mutex = 0;
+static struct NdbCondition * ndb_thread_condition = 0;
+>>>>>>> pr/231
 
 static int f_high_prio_set = 0;
 #ifdef HAVE_PTHREAD_SETSCHEDPARAM
@@ -144,6 +149,29 @@ struct NdbThread
 #endif
 };
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD:storage/ndb/src/common/portlib/NdbThread.cpp
+#ifdef NDB_SHM_TRANSPORTER
+void NdbThread_set_shm_sigmask(bool block)
+{
+  if (ndb_shm_signum)
+  {
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, ndb_shm_signum);
+    if (block)
+      pthread_sigmask(SIG_BLOCK, &mask, 0);
+    else
+      pthread_sigmask(SIG_UNBLOCK, &mask, 0);
+  }
+  return;
+}
+#endif
+
+=======
+>>>>>>> upstream/cluster-7.6:storage/ndb/src/common/portlib/NdbThread.c
+>>>>>>> pr/231
 #if defined HAVE_LINUX_SCHEDULING
 #define THREAD_ID_TYPE pid_t
 #elif defined HAVE_CPUSET_SETAFFINITY

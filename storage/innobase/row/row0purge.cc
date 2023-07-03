@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1997, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1997, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -29,6 +53,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
  Created 3/14/1997 Heikki Tuuri
  *******************************************************/
+
+#include <debug_sync.h>
 
 #include "row0purge.h"
 
@@ -186,11 +212,13 @@ static bool row_purge_reposition_pcur(
 
   ut_ad(rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
+<<<<<<< HEAD
   if (mode == BTR_MODIFY_LEAF) {
     success = btr_cur_optimistic_delete(node->pcur.get_btr_cur(), 0, &mtr);
   } else {
     dberr_t err;
     ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
+<<<<<<< HEAD
 
     DBUG_EXECUTE_IF("pessimistic_row_purge_clust", {
       if (!fsp_is_dd_tablespace(index->space)) {
@@ -205,6 +233,32 @@ static bool row_purge_reposition_pcur(
     btr_cur_pessimistic_delete(&err, false, node->pcur.get_btr_cur(), 0, false,
                                node->trx_id, node->undo_no, node->rec_type,
                                &mtr, &node->pcur, node);
+=======
+    btr_cur_pessimistic_delete(&err, FALSE, btr_pcur_get_btr_cur(&node->pcur),
+                               0, false, node->trx_id, node->undo_no,
+                               node->rec_type, &mtr);
+=======
+	if (mode == BTR_MODIFY_LEAF) {
+		success = btr_cur_optimistic_delete(
+			btr_pcur_get_btr_cur(&node->pcur), 0, &mtr);
+	} else {
+		dberr_t	err;
+		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
+
+		DBUG_EXECUTE_IF("pessimistic_row_purge_clust", {
+			const char act[] =
+				"now SIGNAL pessimistic_row_purge_clust_pause "
+				"WAIT_FOR pessimistic_row_purge_clust_continue";
+			assert(opt_debug_sync_timeout > 0);
+			assert(!debug_sync_set_action(
+				       current_thd, STRING_WITH_LEN(act)));
+		});
+
+		btr_cur_pessimistic_delete(
+			&err, FALSE, btr_pcur_get_btr_cur(&node->pcur), 0,
+			false, &mtr);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     switch (err) {
       case DB_SUCCESS:
@@ -894,11 +948,31 @@ try_again:
     if (dict_table_is_sdi(table_id)) {
       space_id_t space_id = dict_sdi_get_space_id(table_id);
 
+<<<<<<< HEAD
       dberr_t err = dd_sdi_acquire_shared_mdl(thd, space_id, &node->mdl);
       if (err != DB_SUCCESS) {
         node->table = nullptr;
         return (false);
       }
+=======
+#if UNIV_DEBUG
+		ib::info() << "Record with space id "
+			   << node->table->space
+			   << " belongs to table which is being truncated"
+			   << " or tablespace which is missing"
+			   << " therefore skipping this undo record.";
+		if (dict_table_is_encrypted(node->table)) {
+
+			ib::info() << "Skipped record belongs to encrypted tablespace,"
+				   << " Check if the keyring plugin is loaded.";
+		}
+#endif
+		ut_ad(dict_table_is_file_per_table(node->table));
+		dict_table_close(node->table, FALSE, FALSE);
+		node->table = NULL;
+		goto err_exit;
+	}
+>>>>>>> upstream/cluster-7.6
 
       node->table = dd_table_open_on_id(table_id, thd, &node->mdl, false, true);
 

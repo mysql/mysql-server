@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -787,10 +791,6 @@ args: -n testDropDDObjects T1
 max-time: 1500
 cmd: testDict
 args: -n CreateAndDrop 
-
-max-time: 1000
-cmd: testNodeRestart
-args: -n Bug28717 T1
 
 max-time: 1500
 cmd: testDict

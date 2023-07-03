@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,6 +83,7 @@ public:
   class Table
   {
   public:
+<<<<<<< HEAD
     // Constructor for ndbinfo tables with pre-defined table id
     Table(const char *name, Uint32 id, Uint32 rows_estimate = 0,
           bool exact_row_count = false);
@@ -82,6 +91,10 @@ public:
     Table(const char * table_name, const class VirtualTable* virt,
           Uint32 rows_estimate, bool exact_row_count = true,
           TableName prefixed = TableName::WithPrefix);
+=======
+    Table(const char *name, Uint32 id, Uint32 rows_estimate = 0,
+          const class VirtualTable* virt = NULL);
+>>>>>>> pr/231
     Table(const Table& tab);
     const Table & operator=(const Table& tab) = delete;
     ~Table();
@@ -90,7 +103,11 @@ public:
     static const Uint32 InvalidTableId = ~0;
     Uint32 getTableId() const;
     Uint32 getRowsEstimate() const { return m_rows_estimate; }
+<<<<<<< HEAD
     bool rowCountIsExact() const { return m_exact_row_count; }
+=======
+    bool rowCountIsExact() const;
+>>>>>>> pr/231
 
     bool addColumn(const Column aCol);
     unsigned columns(void) const;
@@ -104,8 +121,11 @@ public:
     const BaseString m_name;
     Uint32 m_table_id;
     Uint32 m_rows_estimate;
+<<<<<<< HEAD
     bool m_exact_row_count;
     bool m_use_full_prefix;
+=======
+>>>>>>> pr/231
     Vector<Column*> m_columns;
     const class VirtualTable * m_virt;
   };

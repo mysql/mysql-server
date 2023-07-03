@@ -1,5 +1,14 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
 #
+=======
+<<<<<<< HEAD
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+# 
+>>>>>>> pr/231
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -20,7 +29,172 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+<<<<<<< HEAD
 IF(NOT WITH_UNIT_TESTS)
+=======
+# We want release-1.8.0.zip in order to build these unit tests.
+# If you have already downloaded it,
+# invoke cmake with -DWITH_GMOCK=/path/to/release-1.8.0.zip
+#                or -DWITH_GMOCK=/path/to
+#
+# Alternatively, set an environment variable
+# export WITH_GMOCK=/path/to/release-1.8.0.zip
+#
+# You can also do cmake -DENABLE_DOWNLOADS=1 
+# and we will download it from https://github.com/google/googletest/archive/
+#
+# Either way: we will unpack the zip, compile gmock-all.cc and gtest-all.cc
+# and link them into the executables.
+
+<<<<<<< HEAD
+
+=======
+>>>>>>> upstream/cluster-7.6
+# Default location for where to download and build gmock/gtest.
+IF(NOT DOWNLOAD_ROOT)
+  SET(DOWNLOAD_ROOT ${CMAKE_SOURCE_DIR}/source_downloads)
+ENDIF()
+
+# We want googletest version 1.8, which also contains googlemock.
+SET(GMOCK_PACKAGE_NAME "release-1.8.0")
+
+IF (DEFINED ENV{WITH_GMOCK} AND NOT DEFINED WITH_GMOCK)
+  FILE(TO_CMAKE_PATH "$ENV{WITH_GMOCK}" WITH_GMOCK)
+ENDIF()
+
+IF(LOCAL_GMOCK_ZIP
+   AND NOT ${LOCAL_GMOCK_ZIP} MATCHES ".*${GMOCK_PACKAGE_NAME}\\.zip")
+ SET(LOCAL_GMOCK_ZIP 0)
+ENDIF()
+
+IF (WITH_GMOCK)
+  FILE(TO_CMAKE_PATH "${WITH_GMOCK}" WITH_GMOCK)
+  ## Did we get a full path name, including file name?
+  IF (${WITH_GMOCK} MATCHES ".*\\.zip")
+    GET_FILENAME_COMPONENT(GMOCK_DIR ${WITH_GMOCK} PATH)
+    GET_FILENAME_COMPONENT(GMOCK_ZIP ${WITH_GMOCK} NAME)
+    FIND_FILE(LOCAL_GMOCK_ZIP
+              NAMES ${GMOCK_ZIP}
+              PATHS ${GMOCK_DIR}
+              NO_DEFAULT_PATH
+             )
+  ELSE()
+    ## Did we get a path name to the directory of the .zip file?
+    ## Check for both release-x.y.z.zip and googletest-release-x.y.z.zip
+    FIND_FILE(LOCAL_GMOCK_ZIP
+              NAMES "${GMOCK_PACKAGE_NAME}.zip" "googletest-${GMOCK_PACKAGE_NAME}.zip"
+              PATHS ${WITH_GMOCK}
+              NO_DEFAULT_PATH
+              )
+    ## If WITH_GMOCK is a directory, use it for download.
+    SET(DOWNLOAD_ROOT ${WITH_GMOCK})
+  ENDIF()
+  MESSAGE(STATUS "Local gmock zip ${LOCAL_GMOCK_ZIP}")
+ENDIF()
+
+IF(NOT EXISTS DOWNLOAD_ROOT)
+  MAKE_DIRECTORY(${DOWNLOAD_ROOT})
+ENDIF()
+SET(GMOCK_SOURCE_DIR ${DOWNLOAD_ROOT}/googletest-${GMOCK_PACKAGE_NAME}/googlemock)
+SET(GTEST_SOURCE_DIR ${DOWNLOAD_ROOT}/googletest-${GMOCK_PACKAGE_NAME}/googletest)
+
+# We may have downloaded gmock/gtest already, building in a different directory.
+IF(EXISTS ${GMOCK_SOURCE_DIR} OR EXISTS ${LOCAL_GMOCK_ZIP})
+  MESSAGE(STATUS "GMOCK_SOURCE_DIR:${GMOCK_SOURCE_DIR}")
+  SET(GMOCK_DOWNLOADED 1 CACHE INTERNAL "")
+  SET(GMOCK_FOUND 1 CACHE INTERNAL "")
+# If source dir does not exist, reset dependent variables (might be set from before).
+ELSE()
+  SET(LOCAL_GMOCK_ZIP 0 CACHE INTERNAL "")
+  SET(GMOCK_DOWNLOADED 0 CACHE INTERNAL "")
+  SET(GMOCK_FOUND 0 CACHE INTERNAL "")
+  SET(GMOCK_INCLUDE_DIRS 0 CACHE INTERNAL "")
+ENDIF()
+
+
+IF(LOCAL_GMOCK_ZIP AND NOT EXISTS ${GMOCK_SOURCE_DIR})
+  # Unpack tarball
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_COMMAND} -E tar xfz  "${LOCAL_GMOCK_ZIP}"
+    WORKING_DIRECTORY "${DOWNLOAD_ROOT}"
+    RESULT_VARIABLE tar_result
+  )
+  IF (tar_result MATCHES 0)
+    SET(GMOCK_FOUND 1 CACHE INTERNAL "")
+  ENDIF()
+ENDIF()
+
+
+OPTION(ENABLE_DOWNLOADS
+  "Download and build 3rd party source code components, e.g. googletest"
+  OFF)
+
+# While experimenting, use local URL rather than google.
+SET(GMOCK_TARBALL "googletest-${GMOCK_PACKAGE_NAME}.zip")
+SET(GMOCK_DOWNLOAD_URL 
+  "https://github.com/google/googletest/archive/${GMOCK_PACKAGE_NAME}.zip"
+  )
+  
+MACRO(HTTP_PROXY_HINT)
+  MESSAGE(STATUS
+    "If you are inside a firewall, you may need to use an https proxy: "
+    "export https_proxy=http://example.com:80")
+ENDMACRO()
+
+
+IF(NOT GMOCK_FOUND)
+  IF(NOT ENABLE_DOWNLOADS)
+    # Give warning
+    MESSAGE(STATUS
+      "Googletest was not found. gtest-based unit tests will be disabled. "
+      "You can run cmake . -DENABLE_DOWNLOADS=1 to automatically download "
+      "and build required components from source.")
+    HTTP_PROXY_HINT()
+    RETURN()
+  ENDIF()
+  
+  # Download googletest source
+  IF(NOT EXISTS ${GMOCK_SOURCE_DIR})
+    IF(NOT EXISTS ${DOWNLOAD_ROOT}/${GMOCK_TARBALL})
+      # Download the tarball
+      # Use CMake builtin download capabilities
+      FILE(DOWNLOAD ${GMOCK_DOWNLOAD_URL}
+        ${DOWNLOAD_ROOT}/${GMOCK_TARBALL} TIMEOUT 30 STATUS ERR)
+      IF(ERR EQUAL 0)
+        SET(DOWNLOAD_SUCCEEDED 1)
+      ELSE()
+        MESSAGE(STATUS "Download failed, error: ${ERR}")
+        # A failed DOWNLOAD leaves an empty file, remove it
+        FILE(REMOVE ${DOWNLOAD_ROOT}/${GMOCK_TARBALL})
+      ENDIF()
+
+      IF (DOWNLOAD_SUCCEEDED)
+        MESSAGE(STATUS 
+          "Successfully downloaded ${GMOCK_DOWNLOAD_URL} to ${DOWNLOAD_ROOT}")
+      ELSE()
+        MESSAGE(STATUS 
+          "To enable googletest, please download ${GMOCK_DOWNLOAD_URL} "
+          "to the directory ${DOWNLOAD_ROOT}")
+        HTTP_PROXY_HINT()
+        RETURN()
+      ENDIF()
+    ENDIF()
+    
+    # Unpack tarball
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E tar xfz  "${DOWNLOAD_ROOT}/${GMOCK_TARBALL}"
+        WORKING_DIRECTORY "${DOWNLOAD_ROOT}"
+      )
+  ENDIF()
+  IF(EXISTS ${GMOCK_SOURCE_DIR})
+    SET(GMOCK_DOWNLOADED 1 CACHE INTERNAL "")
+    SET(GMOCK_FOUND 1 CACHE INTERNAL "")
+  ENDIF()
+ENDIF()
+
+
+IF(NOT GMOCK_FOUND)
+>>>>>>> pr/231
   RETURN()
 ENDIF()
 
@@ -35,13 +209,22 @@ ENDIF()
 # Some tests require Boost.
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
+<<<<<<< HEAD
 INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
+=======
+MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
+<<<<<<< HEAD
+=======
+MY_CHECK_CXX_COMPILER_FLAG("-Wformat-overflow" HAVE_FORMAT_OVERFLOW)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 # TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
 STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 
+<<<<<<< HEAD
 SET(DISABLE_PSI_DEFINITIONS
   "DISABLE_PSI_COND"
   "DISABLE_PSI_FILE"
@@ -66,7 +249,23 @@ IF(LINUX OR FREEBSD)
     CACHE INTERNAL "")
 ENDIF()
 
+<<<<<<< HEAD
 MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
+=======
+=======
+>>>>>>> upstream/cluster-7.6
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+<<<<<<< HEAD
+  SYSTEM ${ICU_INCLUDE_DIRS}
+=======
+  ${CMAKE_SOURCE_DIR}/regex
+  ${CMAKE_SOURCE_DIR}/sql
+  ${CMAKE_SOURCE_DIR}/sql/auth
+  ${CMAKE_SOURCE_DIR}/storage/example
+>>>>>>> upstream/cluster-7.6
+)
+>>>>>>> pr/231
 
 # main-wrapper libraries (with tap-compatible option).
 ADD_LIBRARY(gunit_small STATIC
@@ -149,7 +348,16 @@ SET(TESTS
   my_fileutils
   my_gcvt
   my_murmur3
+<<<<<<< HEAD
   my_rcu_lock
+=======
+<<<<<<< HEAD
+=======
+  my_qsort_vs_stdsort
+  my_regex
+  my_snprintf
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   my_thread
   my_timer
   mysys_base64
@@ -194,13 +402,31 @@ SET(TESTS
   val_int_compare
   varlen_sort
   )
+<<<<<<< HEAD
+=======
+ 
+<<<<<<< HEAD
+IF(WIN32)
+  LIST(APPEND TESTS win_tests)
+ENDIF()
+>>>>>>> pr/231
 
 SET(ALL_SMALL_TESTS)
 FOREACH(test ${TESTS})
   LIST(APPEND ALL_SMALL_TESTS ${test}-t.cc)
 ENDFOREACH()
 
+<<<<<<< HEAD
 # Add tests (link them with gunit/gmock libraries and the server libraries)
+=======
+=======
+IF (UNIX)
+  LIST(APPEND TESTS path auth_utils)
+ENDIF()
+
+>>>>>>> upstream/cluster-7.6
+# Add tests (link them with gunit/gmock libraries and the server libraries) 
+>>>>>>> pr/231
 SET(SERVER_TESTS
   bgc_ticket_manager
   character_set_deprecation
@@ -257,8 +483,18 @@ SET(SERVER_TESTS
   item_filter
   item_func_case
   item_func_now_local
+<<<<<<< HEAD
   item_func_regexp
   item_json_func
+=======
+<<<<<<< HEAD
+  item_json_func
+  item_func_regexp
+=======
+  item_func_rlike
+  item_timefunc
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   item_like
   item_timefunc
   join_syntax
@@ -349,12 +585,84 @@ SET_TARGET_PROPERTIES(sqlgunitlib
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
 
+<<<<<<< HEAD
 MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
   ADD_TEST merge_small_tests
   COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS}
   ENABLE_EXPORTS
   LINK_LIBRARIES sqlgunitlib gunit_small
   )
+=======
+IF(WIN32)
+  LIST(APPEND SERVER_TESTS win_tests)
+ENDIF()
+
+## Merging tests into fewer executables saves *a lot* of
+## link time and disk space ...
+OPTION(MERGE_UNITTESTS "Merge tests into one executable" ON)
+IF (MERGE_UNITTESTS)
+<<<<<<< HEAD
+  MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
+    ADD_TEST merge_small_tests)
+=======
+  SET(MERGE_LARGE_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_large_tests.cc)
+  SET(MERGE_SMALL_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_small_tests.cc)
+  SET_SOURCE_FILES_PROPERTIES(MERGE_SMALL_TESTS MERGE_LARGE_TESTS
+    PROPERTIES GENERATED 1)
+
+  ## BOOST_HEAP_ASSERT generates if () ; else ;
+  IF(HAVE_EMPTY_BODY)
+    ADD_COMPILE_FLAGS(
+      ${MERGE_SMALL_TESTS}
+      COMPILE_FLAGS "-Wno-empty-body"
+    )
+  ENDIF()
+  # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
+  IF(WIN32)
+    ADD_COMPILE_FLAGS(
+      ${MERGE_LARGE_TESTS}
+      COMPILE_FLAGS "/bigobj")
+  ENDIF()
+
+  # Suppress -Wformat-overflow= for my_safe_snprintf(" %s ", nullptr)
+  IF(HAVE_FORMAT_OVERFLOW)
+    ADD_COMPILE_FLAGS(
+      ${MERGE_LARGE_TESTS}
+      COMPILE_FLAGS "-Wno-format-overflow")
+  ENDIF()
+
+  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+
+  FILE(WRITE ${MERGE_LARGE_TESTS} "// Merging large unit tests\n")
+  FILE(WRITE ${MERGE_SMALL_TESTS} "// Merging small unit tests\n")
+  FOREACH(test ${TESTS})
+    FILE(APPEND ${MERGE_SMALL_TESTS} "#include \"${test}-t.cc\"\n")
+  ENDFOREACH()
+  FOREACH(test ${SERVER_TESTS})
+    FILE(APPEND ${MERGE_LARGE_TESTS} "#include \"${test}-t.cc\"\n")
+  ENDFOREACH()
+
+  ADD_EXECUTABLE(merge_small_tests-t ${MERGE_SMALL_TESTS})
+  SET(SRC_FILES ${MERGE_LARGE_TESTS})
+  IF(WIN32)
+    LIST(APPEND SRC_FILES ../../sql/nt_servc.cc)
+  ENDIF()
+  LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
+  ADD_COMPILE_FLAGS(
+    ../../storage/example/ha_example.cc
+    COMPILE_FLAGS "-DDISABLE_DTRACE"
+  )
+  ADD_EXECUTABLE(merge_large_tests-t ${SRC_FILES})
+
+>>>>>>> upstream/cluster-7.6
+  TARGET_LINK_LIBRARIES(merge_small_tests-t
+    mysys mysys_ssl sqlgunitlib gunit_small)
+  
+  IF(WIN32)
+    LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
+  ENDIF()
+  LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
+>>>>>>> pr/231
 
 IF(WIN32)
   LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)
@@ -398,12 +706,31 @@ FOREACH(test ${SERVER_TESTS})
   IF(test MATCHES "table_cache")
     LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
   ENDIF()
+<<<<<<< HEAD
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
     ENABLE_EXPORTS
     EXCLUDE_FROM_ALL
     LINK_LIBRARIES gunit_large server_unittest_library
     SKIP_INSTALL
     )
+=======
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
+  TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)
+  TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis sql_dd)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
+  TARGET_LINK_LIBRARIES(${test}-t
+    sql_main binlog rpl master slave sql_gis sql_main sql_dd)
+  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
+
+  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema)
+  ENDIF()
+
+  IF(NOT MERGE_UNITTESTS)
+    ADD_TEST(${test} ${test}-t)
+  ENDIF()
+<<<<<<< HEAD
+>>>>>>> pr/231
 ENDFOREACH()
 
 ADD_LIBRARY(rpl_channel_credentials_lib STATIC
@@ -434,9 +761,56 @@ ADD_SUBDIRECTORY(components/keyring_common)
 ADD_SUBDIRECTORY(xplugin)
 ADD_SUBDIRECTORY(group_replication)
 ADD_SUBDIRECTORY(libmysqlgcs)
+<<<<<<< HEAD
 ADD_SUBDIRECTORY(temptable)
 ADD_SUBDIRECTORY(binlogevents)
 ADD_SUBDIRECTORY(memory)
 ADD_SUBDIRECTORY(containers)
 ADD_SUBDIRECTORY(locks)
 ADD_SUBDIRECTORY(changestreams)
+=======
+=======
+
+  # Suppress -Wformat-overflow= for my_safe_snprintf(" %s ", nullptr)
+  IF(HAVE_FORMAT_OVERFLOW)
+    ADD_COMPILE_FLAGS(
+      segfault-t.cc
+      COMPILE_FLAGS "-Wno-format-overflow")
+  ENDIF()
+
+  FOREACH(test ${SERVER_TESTS})
+    SET(SRC_FILES ${test}-t.cc)
+    IF(WIN32)
+      LIST(APPEND SRC_FILES ../../sql/nt_servc.cc)
+    ENDIF()
+    IF(test MATCHES "table_cache")
+      LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
+      ADD_COMPILE_FLAGS(
+        ../../storage/example/ha_example.cc
+        COMPILE_FLAGS "-DDISABLE_DTRACE"
+      )
+    ENDIF()
+    ADD_EXECUTABLE(${test}-t ${SRC_FILES})
+    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
+    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+
+    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+      TARGET_LINK_LIBRARIES(${test}-t perfschema)
+    ENDIF()
+
+    IF(MERGE_UNITTESTS)
+      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+      IF(WIN32)
+        SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+      ENDIF()
+    ELSE()
+      ADD_TEST(${test} ${test}-t)
+    ENDIF()
+  ENDFOREACH()
+
+ADD_SUBDIRECTORY(innodb)
+ADD_SUBDIRECTORY(keyring)
+ADD_SUBDIRECTORY(locks)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

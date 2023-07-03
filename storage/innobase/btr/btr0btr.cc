@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -18,6 +23,26 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+Copyright (c) 2012, Facebook Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -3959,8 +3984,156 @@ bool btr_index_rec_validate(const rec_t *rec,          /*!< in: index record */
 static bool btr_index_page_validate(buf_block_t *block,  /*!< in: index page */
                                     dict_index_t *index) /*!< in: index */
 {
+<<<<<<< HEAD
   page_cur_t cur;
+<<<<<<< HEAD
   bool ret = true;
+=======
+  ibool ret = TRUE;
+=======
+	page_cur_t	cur;
+	ibool		ret	= TRUE;
+#ifndef NDEBUG
+	ulint		nth	= 1;
+#endif /* !NDEBUG */
+
+	page_cur_set_before_first(block, &cur);
+
+	/* Directory slot 0 should only contain the infimum record. */
+	DBUG_EXECUTE_IF("check_table_rec_next",
+			ut_a(page_rec_get_nth_const(
+				     page_cur_get_page(&cur), 0)
+			     == cur.rec);
+			ut_a(page_dir_slot_get_n_owned(
+				     page_dir_get_nth_slot(
+					     page_cur_get_page(&cur), 0))
+			     == 1););
+
+	page_cur_move_to_next(&cur);
+
+	for (;;) {
+		if (page_cur_is_after_last(&cur)) {
+
+			break;
+		}
+
+		if (!btr_index_rec_validate(cur.rec, index, TRUE)) {
+
+			return(FALSE);
+		}
+
+		/* Verify that page_rec_get_nth_const() is correctly
+		retrieving each record. */
+		DBUG_EXECUTE_IF("check_table_rec_next",
+				ut_a(cur.rec == page_rec_get_nth_const(
+					     page_cur_get_page(&cur),
+					     page_rec_get_n_recs_before(
+						     cur.rec)));
+				ut_a(nth++ == page_rec_get_n_recs_before(
+					     cur.rec)););
+
+		page_cur_move_to_next(&cur);
+	}
+
+	return(ret);
+}
+
+/************************************************************//**
+Report an error on one page of an index tree. */
+static
+void
+btr_validate_report1(
+/*=================*/
+	dict_index_t*		index,	/*!< in: index */
+	ulint			level,	/*!< in: B-tree level */
+	const buf_block_t*	block)	/*!< in: index page */
+{
+	ib::error	error;
+	error << "In page " << block->page.id.page_no()
+		<< " of index " << index->name
+		<< " of table " << index->table->name;
+
+	if (level > 0) {
+		error << ", index tree level " << level;
+	}
+}
+
+/************************************************************//**
+Report an error on two pages of an index tree. */
+static
+void
+btr_validate_report2(
+/*=================*/
+	const dict_index_t*	index,	/*!< in: index */
+	ulint			level,	/*!< in: B-tree level */
+	const buf_block_t*	block1,	/*!< in: first index page */
+	const buf_block_t*	block2)	/*!< in: second index page */
+{
+	ib::error	error;
+	error << "In pages " << block1->page.id
+		<< " and " << block2->page.id << " of index " << index->name
+		<< " of table " << index->table->name;
+
+	if (level > 0) {
+		error << ", index tree level " << level;
+	}
+}
+
+/************************************************************//**
+Validates index tree level.
+@return TRUE if ok */
+static
+bool
+btr_validate_level(
+/*===============*/
+	dict_index_t*	index,	/*!< in: index tree */
+	const trx_t*	trx,	/*!< in: transaction or NULL */
+	ulint		level,	/*!< in: level number */
+	bool		lockout)/*!< in: true if X-latch index is intended */
+{
+	buf_block_t*	block;
+	page_t*		page;
+	buf_block_t*	right_block = 0; /* remove warning */
+	page_t*		right_page = 0; /* remove warning */
+	page_t*		father_page;
+	btr_cur_t	node_cur;
+	btr_cur_t	right_node_cur;
+	rec_t*		rec;
+	ulint		right_page_no;
+	ulint		left_page_no;
+	page_cur_t	cursor;
+	dtuple_t*	node_ptr_tuple;
+	bool		ret	= true;
+	mtr_t		mtr;
+	mem_heap_t*	heap	= mem_heap_create(256);
+	fseg_header_t*	seg;
+	ulint*		offsets	= NULL;
+	ulint*		offsets2= NULL;
+#ifdef UNIV_ZIP_DEBUG
+	page_zip_des_t*	page_zip;
+#endif /* UNIV_ZIP_DEBUG */
+	ulint		savepoint = 0;
+	ulint		savepoint2 = 0;
+	ulint		parent_page_no = FIL_NULL;
+	ulint		parent_right_page_no = FIL_NULL;
+	bool		rightmost_child = false;
+
+	mtr_start(&mtr);
+
+	if (!srv_read_only_mode) {
+		if (lockout) {
+			mtr_x_lock(dict_index_get_lock(index), &mtr);
+		} else {
+			mtr_sx_lock(dict_index_get_lock(index), &mtr);
+		}
+	}
+
+	block = btr_root_block_get(index, RW_SX_LATCH, &mtr);
+	page = buf_block_get_frame(block);
+	seg = page + PAGE_HEADER + PAGE_BTR_SEG_TOP;
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #ifdef UNIV_DEBUG
   ulint nth = 1;
 #endif /* UNIV_DEBUG */
@@ -4255,6 +4428,7 @@ loop:
         cmp_rec_rec(rec, right_rec, offsets, offsets2, index, false) >= 0) {
       btr_validate_report2(index, level, block, right_block);
 
+<<<<<<< HEAD
       fputs(
           "InnoDB: records in wrong order"
           " on adjacent pages\n",
@@ -4428,6 +4602,283 @@ loop:
       }
     }
   }
+=======
+	} else if (btr_page_get_index_id(page) != index->id) {
+
+		ib::error() << "Page index id " << btr_page_get_index_id(page)
+			<< " != data dictionary index id " << index->id;
+
+		ret = false;
+
+	} else if (!page_validate(page, index)) {
+
+		btr_validate_report1(index, level, block);
+		ret = false;
+
+	} else if (level == 0 && !btr_index_page_validate(block, index)) {
+
+		/* We are on level 0. Check that the records have the right
+		number of fields, and field lengths are right. */
+
+		ret = false;
+	}
+
+	ut_a(btr_page_get_level(page, &mtr) == level);
+
+	right_page_no = btr_page_get_next(page, &mtr);
+	left_page_no = btr_page_get_prev(page, &mtr);
+
+	ut_a(!page_is_empty(page)
+	     || (level == 0
+		 && page_get_page_no(page) == dict_index_get_page(index)));
+
+	if (right_page_no != FIL_NULL) {
+		const rec_t*	right_rec;
+		savepoint = mtr_set_savepoint(&mtr);
+
+		right_block = btr_block_get(
+			page_id_t(index->space, right_page_no),
+			table_page_size,
+			RW_SX_LATCH, index, &mtr);
+
+		right_page = buf_block_get_frame(right_block);
+
+		if (btr_page_get_prev(right_page, &mtr)
+		    != page_get_page_no(page)) {
+
+			btr_validate_report2(index, level, block, right_block);
+			fputs("InnoDB: broken FIL_PAGE_NEXT"
+			      " or FIL_PAGE_PREV links\n", stderr);
+
+			ret = false;
+		}
+
+		if (page_is_comp(right_page) != page_is_comp(page)) {
+			btr_validate_report2(index, level, block, right_block);
+			fputs("InnoDB: 'compact' flag mismatch\n", stderr);
+
+			ret = false;
+
+			goto node_ptr_fails;
+		}
+
+		rec = page_rec_get_prev(page_get_supremum_rec(page));
+		right_rec = page_rec_get_next(page_get_infimum_rec(
+						      right_page));
+		offsets = rec_get_offsets(rec, index,
+					  offsets, ULINT_UNDEFINED, &heap);
+		offsets2 = rec_get_offsets(right_rec, index,
+					   offsets2, ULINT_UNDEFINED, &heap);
+
+		/* For spatial index, we cannot guarantee the key ordering
+		across pages, so skip the record compare verification for
+		now. Will enhanced in special R-Tree index validation scheme */
+		if (!dict_index_is_spatial(index)
+		    && cmp_rec_rec(rec, right_rec,
+				   offsets, offsets2, index, false) >= 0) {
+
+			btr_validate_report2(index, level, block, right_block);
+
+			fputs("InnoDB: records in wrong order"
+			      " on adjacent pages\n", stderr);
+
+			fputs("InnoDB: record ", stderr);
+			rec = page_rec_get_prev(page_get_supremum_rec(page));
+			rec_print(stderr, rec, index);
+			putc('\n', stderr);
+			fputs("InnoDB: record ", stderr);
+			rec = page_rec_get_next(
+				page_get_infimum_rec(right_page));
+			rec_print(stderr, rec, index);
+			putc('\n', stderr);
+
+			ret = false;
+		}
+	}
+
+	if (level > 0 && left_page_no == FIL_NULL) {
+		ut_a(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
+			     page_rec_get_next(page_get_infimum_rec(page)),
+			     page_is_comp(page)));
+	}
+
+	/* Similarly skip the father node check for spatial index for now,
+	for a couple of reasons:
+	1) As mentioned, there is no ordering relationship between records
+	in parent level and linked pages in the child level.
+	2) Search parent from root is very costly for R-tree.
+	We will add special validation mechanism for R-tree later (WL #7520) */
+	if (!dict_index_is_spatial(index)
+	    && block->page.id.page_no() != dict_index_get_page(index)) {
+
+		/* Check father node pointers */
+		rec_t*	node_ptr;
+
+		btr_cur_position(
+			index, page_rec_get_next(page_get_infimum_rec(page)),
+			block, &node_cur);
+		offsets = btr_page_get_father_node_ptr_for_validate(
+			offsets, heap, &node_cur, &mtr);
+
+		father_page = btr_cur_get_page(&node_cur);
+		node_ptr = btr_cur_get_rec(&node_cur);
+
+		parent_page_no = page_get_page_no(father_page);
+		parent_right_page_no = btr_page_get_next(father_page, &mtr);
+		rightmost_child = page_rec_is_supremum(
+					page_rec_get_next(node_ptr));
+
+		btr_cur_position(
+			index,
+			page_rec_get_prev(page_get_supremum_rec(page)),
+			block, &node_cur);
+
+		offsets = btr_page_get_father_node_ptr_for_validate(
+				offsets, heap, &node_cur, &mtr);
+
+		if (node_ptr != btr_cur_get_rec(&node_cur)
+		    || btr_node_ptr_get_child_page_no(node_ptr, offsets)
+				     != block->page.id.page_no()) {
+
+			btr_validate_report1(index, level, block);
+
+			fputs("InnoDB: node pointer to the page is wrong\n",
+			      stderr);
+
+			fputs("InnoDB: node ptr ", stderr);
+			rec_print(stderr, node_ptr, index);
+
+			rec = btr_cur_get_rec(&node_cur);
+			fprintf(stderr, "\n"
+				"InnoDB: node ptr child page n:o %lu\n",
+				(ulong) btr_node_ptr_get_child_page_no(
+					rec, offsets));
+
+			fputs("InnoDB: record on page ", stderr);
+			rec_print_new(stderr, rec, offsets);
+			putc('\n', stderr);
+			ret = false;
+
+			goto node_ptr_fails;
+		}
+
+		if (!page_is_leaf(page)) {
+			node_ptr_tuple = dict_index_build_node_ptr(
+				index,
+				page_rec_get_next(page_get_infimum_rec(page)),
+				0, heap, btr_page_get_level(page, &mtr));
+
+			if (cmp_dtuple_rec(node_ptr_tuple, node_ptr,
+					   offsets)) {
+				const rec_t* first_rec = page_rec_get_next(
+					page_get_infimum_rec(page));
+
+				btr_validate_report1(index, level, block);
+
+				ib::error() << "Node ptrs differ on levels > 0";
+
+				fputs("InnoDB: node ptr ",stderr);
+				rec_print_new(stderr, node_ptr, offsets);
+				fputs("InnoDB: first rec ", stderr);
+				rec_print(stderr, first_rec, index);
+				putc('\n', stderr);
+				ret = false;
+
+				goto node_ptr_fails;
+			}
+		}
+
+		if (left_page_no == FIL_NULL) {
+			ut_a(node_ptr == page_rec_get_next(
+				     page_get_infimum_rec(father_page)));
+			ut_a(btr_page_get_prev(father_page, &mtr) == FIL_NULL);
+		}
+
+		if (right_page_no == FIL_NULL) {
+			ut_a(node_ptr == page_rec_get_prev(
+				     page_get_supremum_rec(father_page)));
+			ut_a(btr_page_get_next(father_page, &mtr) == FIL_NULL);
+		} else {
+			const rec_t*	right_node_ptr;
+
+			right_node_ptr = page_rec_get_next(node_ptr);
+
+			if (!lockout && rightmost_child) {
+
+				/* To obey latch order of tree blocks,
+				we should release the right_block once to
+				obtain lock of the uncle block. */
+				mtr_release_block_at_savepoint(
+					&mtr, savepoint, right_block);
+
+				btr_block_get(
+					page_id_t(index->space,
+						  parent_right_page_no),
+					table_page_size,
+					RW_SX_LATCH, index, &mtr);
+
+				right_block = btr_block_get(
+					page_id_t(index->space,
+						  right_page_no),
+					table_page_size,
+					RW_SX_LATCH, index, &mtr);
+			}
+
+			btr_cur_position(
+				index, page_rec_get_next(
+					page_get_infimum_rec(
+						buf_block_get_frame(
+							right_block))),
+				right_block, &right_node_cur);
+
+			offsets = btr_page_get_father_node_ptr_for_validate(
+					offsets, heap, &right_node_cur, &mtr);
+
+			if (right_node_ptr
+			    != page_get_supremum_rec(father_page)) {
+
+				if (btr_cur_get_rec(&right_node_cur)
+				    != right_node_ptr) {
+					ret = false;
+					fputs("InnoDB: node pointer to"
+					      " the right page is wrong\n",
+					      stderr);
+
+					btr_validate_report1(index, level,
+							     block);
+				}
+			} else {
+				page_t*	right_father_page
+					= btr_cur_get_page(&right_node_cur);
+
+				if (btr_cur_get_rec(&right_node_cur)
+				    != page_rec_get_next(
+					    page_get_infimum_rec(
+						    right_father_page))) {
+					ret = false;
+					fputs("InnoDB: node pointer 2 to"
+					      " the right page is wrong\n",
+					      stderr);
+
+					btr_validate_report1(index, level,
+							     block);
+				}
+
+				if (page_get_page_no(right_father_page)
+				    != btr_page_get_next(father_page, &mtr)) {
+
+					ret = false;
+					fputs("InnoDB: node pointer 3 to"
+					      " the right page is wrong\n",
+					      stderr);
+
+					btr_validate_report1(index, level,
+							     block);
+				}
+			}
+		}
+	}
+>>>>>>> upstream/cluster-7.6
 
 node_ptr_fails:
   /* Commit the mini-transaction to release the latch on 'page'.

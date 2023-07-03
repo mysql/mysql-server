@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,18 +149,42 @@ class Parse_tree_node_tmpl {
   Parse_tree_node_tmpl(const Parse_tree_node_tmpl &);  // undefined
   void operator=(const Parse_tree_node_tmpl &);        // undefined
 
+<<<<<<< HEAD
 #ifndef NDEBUG
  private:
   bool contextualized;  // true if the node object is contextualized
 #endif                  // NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+ private:
+  bool contextualized;  // true if the node object is contextualized
+  bool transitional;    // TODO: remove that after parser refactoring
+#endif                  // DBUG_OFF
+=======
+#ifndef NDEBUG
+private:
+  bool contextualized; // true if the node object is contextualized
+  bool transitional; // TODO: remove that after parser refactoring
+#endif//NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
  public:
   typedef Context context_t;
 
+<<<<<<< HEAD
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t &arg
                             [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
+=======
+<<<<<<< HEAD
+  static void *operator new(
+      size_t size, MEM_ROOT *mem_root,
+      const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) throw() {
+    return alloc_root(mem_root, size);
+>>>>>>> pr/231
   }
   static void operator delete(void *ptr [[maybe_unused]],
                               size_t size [[maybe_unused]]) {
@@ -165,7 +197,21 @@ class Parse_tree_node_tmpl {
   Parse_tree_node_tmpl() {
 #ifndef NDEBUG
     contextualized = false;
+<<<<<<< HEAD
 #endif  // NDEBUG
+=======
+    transitional = false;
+#endif  // DBUG_OFF
+=======
+protected:
+  Parse_tree_node()
+  {
+#ifndef NDEBUG
+    contextualized= false;
+    transitional= false;
+#endif//NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
  public:
@@ -173,7 +219,15 @@ class Parse_tree_node_tmpl {
 
 #ifndef NDEBUG
   bool is_contextualized() const { return contextualized; }
+<<<<<<< HEAD
 #endif  // NDEBUG
+=======
+<<<<<<< HEAD
+#endif  // DBUG_OFF
+=======
+#endif//NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /**
     Do all context-sensitive things and mark the node as contextualized
@@ -183,7 +237,9 @@ class Parse_tree_node_tmpl {
     @retval     false   success
     @retval     true    syntax/OOM/etc error
   */
+<<<<<<< HEAD
   virtual bool contextualize(Context *pc) {
+<<<<<<< HEAD
     uchar dummy;
     if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy)) return true;
 
@@ -191,11 +247,94 @@ class Parse_tree_node_tmpl {
     assert(!contextualized);
     contextualized = true;
 #endif  // NDEBUG
+=======
+#ifndef DBUG_OFF
+    if (transitional) {
+      DBUG_ASSERT(contextualized);
+      return false;
+    }
+#endif  // DBUG_OFF
+=======
+  virtual bool contextualize(Parse_context *pc)
+  {
+#ifndef NDEBUG
+    if (transitional)
+    {
+      assert(contextualized);
+      return false;
+    }
+#endif//NDEBUG
+>>>>>>> upstream/cluster-7.6
+
+    uchar dummy;
+    if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy)) return true;
+
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+    DBUG_ASSERT(!contextualized);
+    contextualized = true;
+#endif  // DBUG_OFF
+=======
+#ifndef NDEBUG
+    assert(!contextualized);
+    contextualized= true;
+#endif//NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return false;
   }
 
   /**
+<<<<<<< HEAD
+=======
+   Intermediate version of the contextualize() function
+
+   This function is intended to resolve parser grammar loops.
+
+    During the step-by-step refactoring of the parser grammar we wrap
+    each context-sensitive semantic action with 3 calls:
+    1. Parse_tree_node_tmpl() context-independent constructor call,
+    2. contextualize_() function call to evaluate all context-sensitive things
+       from the former context-sensitive semantic action code.
+    3. Call of dummy contextualize() function.
+
+    Then we lift the contextualize() function call to outer grammar rules but
+    save the contextualize_() function call untouched.
+
+    When all loops in the grammar rules are resolved (i.e. transformed
+    as described above) we:
+    a. remove all contextualize_() function calls and
+    b. rename all contextualize_() function definitions to contextualize()
+       function definitions.
+
+    Note: it's not necessary to transform the whole grammar and remove
+    this function calls in one pass: it's possible to transform the
+    grammar statement by statement in a way described above.
+
+    Note: remove this function together with Item::contextualize_().
+  */
+<<<<<<< HEAD
+  virtual bool contextualize_(Context *) {
+#ifndef DBUG_OFF
+    DBUG_ASSERT(!contextualized && !transitional);
+    transitional = true;
+    contextualized = true;
+#endif  // DBUG_OFF
+=======
+  virtual bool contextualize_(Parse_context *pc)
+  {
+#ifndef NDEBUG
+    assert(!contextualized && !transitional);
+    transitional= true;
+    contextualized= true;
+#endif//NDEBUG
+>>>>>>> upstream/cluster-7.6
+    return false;
+  }
+
+  /**
+>>>>>>> pr/231
     syntax_error() function replacement for deferred reporting of syntax
     errors
 

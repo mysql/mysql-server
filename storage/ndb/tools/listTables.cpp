@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +41,11 @@
 
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
+<<<<<<< HEAD
+=======
+
+#include <NdbToolsProgramExitCodes.hpp>
+>>>>>>> pr/231
 
 #include <NdbToolsProgramExitCodes.hpp>
 
@@ -80,8 +89,12 @@ fatal(const NdbError ndberr, char const* fmt, ...)
 }
 
 static void
+<<<<<<< HEAD
 list(const NdbDictionary::Dictionary* dict,
      const char * tabname,
+=======
+list(const char * tabname,
+>>>>>>> pr/231
      NdbDictionary::Object::Type type)
 {
     /**
@@ -255,9 +268,14 @@ list(const NdbDictionary::Dictionary* dict,
             ndbout_c("%-5d %-20s %-8s %-7s %-12s %-8s %s", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
         }
     }
+<<<<<<< HEAD
     if (_parsable) {
       exit(NdbToolsProgramExitCode::OK);
     }
+=======
+    if (_parsable)
+      exit(NdbToolsProgramExitCode::OK);
+>>>>>>> pr/231
 }
 
 static const char* _dbname = 0;
@@ -304,8 +322,13 @@ static void short_usage_sub(void)
   ndb_short_usage_sub("[table-name]");
 }
 
+<<<<<<< HEAD
 int main(int argc, char** argv) {
   NDB_INIT(argv[0]);
+=======
+int main(int argc, char** argv){
+<<<<<<< HEAD
+>>>>>>> pr/231
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub);
 #ifndef NDEBUG
@@ -315,14 +338,42 @@ int main(int argc, char** argv) {
   if (opts.handle_options())
     return NdbToolsProgramExitCode::WRONG_ARGS;
   if(_dbname && argc==0) {
+=======
+  NDB_INIT(argv[0]);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
+  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
+  int ho_error;
+#ifndef NDEBUG
+  opt_debug= "d:t:O,/tmp/ndb_show_tables.trace";
+#endif
+  bool using_default_database = false;
+  if ((ho_error = handle_options(&argc, &argv, my_long_options,
+                                 ndb_std_get_one_option)))
+  {
+    ndb_free_defaults(argv);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
+  }
+
+  if(_dbname && argc == 0)
+  {
+>>>>>>> upstream/cluster-7.6
     ndbout << "-d option given without table name." << endl;
+<<<<<<< HEAD
+=======
+    ndb_free_defaults(argv);
+>>>>>>> pr/231
     return NdbToolsProgramExitCode::WRONG_ARGS;
   }
   if (argc>0)
       _tabname = argv[0];
-  if (argc > 1) {
+  if (argc > 1)
+  {
     ndbout << "Wrong Argument" << endl;
     ndbout << "Please use the option --help for usage." << endl;
+<<<<<<< HEAD
+=======
+    ndb_free_defaults(argv);
+>>>>>>> pr/231
     return NdbToolsProgramExitCode::WRONG_ARGS;
   }
 
@@ -375,12 +426,23 @@ int main(int argc, char** argv) {
         ndbout << "Table " << _tabname << ": not found - "
                << dict->getNdbError() << endl;
       }
+<<<<<<< HEAD
+=======
+      ndb_free_defaults(argv);
+>>>>>>> pr/231
       return NdbToolsProgramExitCode::FAILED;
     }
   }
   for (int i = 0; _loops == 0 || i < _loops; i++) {
     list(dict, _tabname, static_cast<NdbDictionary::Object::Type>(_type));
   }
+<<<<<<< HEAD
+=======
+  delete ndb;
+  delete ndb_cluster_connection;
+
+  ndb_free_defaults(argv);
+>>>>>>> pr/231
   return NdbToolsProgramExitCode::OK;
 }
 

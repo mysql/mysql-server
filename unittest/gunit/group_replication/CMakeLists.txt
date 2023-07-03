@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:unittest/gunit/group_replication/CMakeLists.txt
+# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/group_replication/CMakeLists.txt
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +47,7 @@ SET(TESTS
   )
 
 FOREACH(test ${TESTS})
+<<<<<<< HEAD
   SET(SRC_FILES ${test}-t.cc)
   IF(WIN32)
     LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
@@ -68,3 +77,19 @@ IF(WIN32)
       )
   ENDIF()
 ENDIF()
+=======
+<<<<<<< HEAD:unittest/gunit/group_replication/CMakeLists.txt
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc ADD_TEST ${test})
+  TARGET_LINK_LIBRARIES(${test}-t gr_unit_test_resource gunit_small ${GCS_LIBRARY})
+  # mysys_ssl/libmysys_ssl.a already includes SSL objects on Solaris
+  IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
+    TARGET_LINK_LIBRARIES(${test}-t mysqlclient)
+  ENDIF()
+=======
+  ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+  TARGET_LINK_LIBRARIES(${test}-t gr_unit_test_resource)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_small)
+  ADD_TEST(${test} ${test}-t)
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/group_replication/CMakeLists.txt
+ENDFOREACH()
+>>>>>>> pr/231

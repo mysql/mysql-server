@@ -1,6 +1,14 @@
 /***********************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -20,6 +28,14 @@ as designated in a particular file or component or in included license
 documentation.  The authors of MySQL hereby grant you an additional
 permission to link the program and your derivative works with the
 separately licensed software that they have included with MySQL.
+<<<<<<< HEAD
+=======
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -261,16 +277,435 @@ static const ulint OS_FILE_NAME_TOO_LONG = 82;
 static const ulint OS_FILE_TOO_MANY_OPENED = 83;
 
 static const ulint OS_FILE_ERROR_MAX = 100;
+<<<<<<< HEAD
 /** @} */
+=======
+/* @} */
+
+<<<<<<< HEAD
+=======
+/** Compression algorithm. */
+struct Compression {
+
+	/** Algorithm types supported */
+	enum Type {
+		/* Note: During recovery we don't have the compression type
+		because the .frm file has not been read yet. Therefore
+		we write the recovered pages out without compression. */
+
+		/** No compression */
+		NONE = 0,
+
+		/** Use ZLib */
+		ZLIB = 1,
+
+		/** Use LZ4 faster variant, usually lower compression. */
+		LZ4 = 2
+	};
+
+	/** Compressed page meta-data */
+	struct meta_t {
+
+		/** Version number */
+		uint8_t		m_version;
+
+		/** Algorithm type */
+		Type		m_algorithm;
+
+		/** Original page type */
+		uint16_t	m_original_type;
+
+		/** Original page size, before compression */
+		uint16_t	m_original_size;
+
+		/** Size after compression */
+		uint16_t	m_compressed_size;
+	};
+
+	/** Default constructor */
+	Compression() : m_type(NONE) { };
+
+	/** Specific constructor
+	@param[in]	type		Algorithm type */
+	explicit Compression(Type type)
+		:
+		m_type(type)
+	{
+#ifdef UNIV_DEBUG
+		switch (m_type) {
+		case NONE:
+		case ZLIB:
+		case LZ4:
+
+		default:
+			ut_error;
+		}
+#endif /* UNIV_DEBUG */
+	}
+
+	/** Version of compressed page */
+	static const uint8_t FIL_PAGE_VERSION_1 = 1;
+	static const uint8_t FIL_PAGE_VERSION_2 = 2;
+
+	/** Check the page header type field.
+	@param[in]	page		Page contents
+	@return true if it is a compressed page */
+	static bool is_compressed_page(const byte* page)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check the page header type field.
+	@param[in]   page            Page contents
+	@return true if it is a compressed and encrypted page */
+	static bool is_compressed_encrypted_page(const byte *page)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Check if the version on page is valid.
+	@param[in]   version         version
+	@return true if version is valid */
+	static bool is_valid_page_version(uint8_t version);
+
+        /** Check wether the compression algorithm is supported.
+        @param[in]      algorithm       Compression algorithm to check
+        @param[out]     type            The type that algorithm maps to
+        @return DB_SUCCESS or error code */
+	static dberr_t check(const char* algorithm, Compression* type)
+		MY_ATTRIBUTE((warn_unused_result));
+
+        /** Validate the algorithm string.
+        @param[in]      algorithm       Compression algorithm to check
+        @return DB_SUCCESS or error code */
+	static dberr_t validate(const char* algorithm)
+		MY_ATTRIBUTE((warn_unused_result));
+
+        /** Convert to a "string".
+        @param[in]      type            The compression type
+        @return the string representation */
+        static const char* to_string(Type type)
+		MY_ATTRIBUTE((warn_unused_result));
+
+        /** Convert the meta data to a std::string.
+        @param[in]      meta		Page Meta data
+        @return the string representation */
+        static std::string to_string(const meta_t& meta)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Deserizlise the page header compression meta-data
+	@param[in]	header		Pointer to the page header
+	@param[out]	control		Deserialised data */
+	static void deserialize_header(
+		const byte*	page,
+		meta_t*		control);
+
+        /** Check if the string is "empty" or "none".
+        @param[in]      algorithm       Compression algorithm to check
+        @return true if no algorithm requested */
+	static bool is_none(const char* algorithm)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Decompress the page data contents. Page type must be
+	FIL_PAGE_COMPRESSED, if not then the source contents are
+	left unchanged and DB_SUCCESS is returned.
+	@param[in]	dblwr_recover	true of double write recovery
+					in progress
+	@param[in,out]	src		Data read from disk, decompressed
+					data will be copied to this page
+	@param[in,out]	dst		Scratch area to use for decompression
+	@param[in]	dst_len		Size of the scratch area in bytes
+	@return DB_SUCCESS or error code */
+	static dberr_t deserialize(
+		bool		dblwr_recover,
+		byte*		src,
+		byte*		dst,
+		ulint		dst_len)
+		MY_ATTRIBUTE((warn_unused_result));
+
+	/** Compression type */
+	Type		m_type;
+};
+
+>>>>>>> upstream/cluster-7.6
+/** Encryption key length */
+static const ulint ENCRYPTION_KEY_LEN = 32;
+
+/** Encryption magic bytes size */
+static const ulint ENCRYPTION_MAGIC_SIZE = 3;
+
+/** Encryption magic bytes for 5.7.11, it's for checking the encryption
+information version. */
+static const char ENCRYPTION_KEY_MAGIC_V1[] = "lCA";
+
+/** Encryption magic bytes for 5.7.12+, it's for checking the encryption
+information version. */
+static const char ENCRYPTION_KEY_MAGIC_V2[] = "lCB";
+
+/** Encryption magic bytes for 8.0.5+, it's for checking the encryption
+information version. */
+static const char ENCRYPTION_KEY_MAGIC_V3[] = "lCC";
+
+/** Encryption master key prifix */
+static const char ENCRYPTION_MASTER_KEY_PRIFIX[] = "INNODBKey";
+
+/** Encryption master key prifix size */
+static const ulint ENCRYPTION_MASTER_KEY_PRIFIX_LEN = 9;
+
+/** Encryption master key prifix size */
+static const ulint ENCRYPTION_MASTER_KEY_NAME_MAX_LEN = 100;
+
+/** UUID of server instance, it's needed for composing master key name */
+static const ulint ENCRYPTION_SERVER_UUID_LEN = 36;
+
+/** Encryption information total size: magic number + master_key_id +
+key + iv + server_uuid + checksum */
+static const ulint ENCRYPTION_INFO_SIZE =
+    (ENCRYPTION_MAGIC_SIZE + sizeof(uint32) + (ENCRYPTION_KEY_LEN * 2) +
+     ENCRYPTION_SERVER_UUID_LEN + sizeof(uint32));
+
+/** Maximum size of Encryption information considering all formats v1, v2 & v3.
+ */
+static const ulint ENCRYPTION_INFO_MAX_SIZE =
+    (ENCRYPTION_INFO_SIZE + sizeof(uint32));
+
+/** Default master key for bootstrap */
+static const char ENCRYPTION_DEFAULT_MASTER_KEY[] = "DefaultMasterKey";
+
+/** Default master key id for bootstrap */
+static const ulint ENCRYPTION_DEFAULT_MASTER_KEY_ID = 0;
+
+class IORequest;
+
+/** Encryption algorithm. */
+struct Encryption {
+  /** Algorithm types supported */
+  enum Type {
+
+    /** No encryption */
+    NONE = 0,
+
+    /** Use AES */
+    AES = 1,
+  };
+
+  /** Encryption information format version */
+  enum Version {
+
+    /** Version in 5.7.11 */
+    ENCRYPTION_VERSION_1 = 0,
+
+    /** Version in > 5.7.11 */
+    ENCRYPTION_VERSION_2 = 1,
+
+    /** Version in > 8.0.4 */
+    ENCRYPTION_VERSION_3 = 2,
+  };
+
+  /** Default constructor */
+  Encryption() : m_type(NONE){};
+
+  /** Specific constructor
+  @param[in]	type		Algorithm type */
+  explicit Encryption(Type type) : m_type(type) {
+#ifdef UNIV_DEBUG
+    switch (m_type) {
+      case NONE:
+      case AES:
+
+      default:
+        ut_error;
+    }
+#endif /* UNIV_DEBUG */
+  }
+
+  /** Copy constructor */
+  Encryption(const Encryption &other)
+      : m_type(other.m_type),
+        m_key(other.m_key),
+        m_klen(other.m_klen),
+        m_iv(other.m_iv){};
+
+  /** Check if page is encrypted page or not
+  @param[in]	page	page which need to check
+  @return true if it is an encrypted page */
+  static bool is_encrypted_page(const byte *page)
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /** Check if a log block is encrypted or not
+  @param[in]	block	block which need to check
+  @return true if it is an encrypted block */
+  static bool is_encrypted_log(const byte *block)
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /** Check the encryption option and set it
+  @param[in]	option		encryption option
+  @param[in,out]	encryption	The encryption type
+  @return DB_SUCCESS or DB_UNSUPPORTED */
+  dberr_t set_algorithm(const char *option, Encryption *type)
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /** Validate the algorithm string.
+  @param[in]	option		Encryption option
+  @return DB_SUCCESS or error code */
+  static dberr_t validate(const char *option)
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /** Convert to a "string".
+  @param[in]      type            The encryption type
+  @return the string representation */
+  static const char *to_string(Type type) MY_ATTRIBUTE((warn_unused_result));
+
+  /** Check if the string is "empty" or "none".
+  @param[in]      algorithm       Encryption algorithm to check
+  @return true if no algorithm requested */
+  static bool is_none(const char *algorithm) MY_ATTRIBUTE((warn_unused_result));
+
+  /** Generate random encryption value for key and iv.
+  @param[in,out]	value	Encryption value */
+  static void random_value(byte *value);
+
+  /** Create new master key for key rotation.
+  @param[in,out]	master_key	master key */
+  static void create_master_key(byte **master_key);
+
+  /** Get master key by key id.
+  @param[in]	master_key_id	master key id
+  @param[in]	srv_uuid	uuid of server instance
+  @param[in,out]	master_key	master key */
+  static void get_master_key(ulint master_key_id, char *srv_uuid,
+                             byte **master_key);
+
+  /** Get current master key and key id.
+  @param[in,out]	master_key_id	master key id
+  @param[in,out]	master_key	master key */
+  static void get_master_key(ulint *master_key_id, byte **master_key);
+
+  /** Fill the encryption information.
+  @param[in]	key		encryption key
+  @param[in]	iv		encryption iv
+  @param[in,out]	encrypt_info	encryption information
+  @param[in]	is_boot		if it's for bootstrap
+  @return true if success. */
+  static bool fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
+                                   bool is_boot);
+
+  /** Get master key from encryption information
+  @param[in]	encrypt_info	encryption information
+  @param[in]	version		version of encryption information
+  @param[in,out]	m_key_id	master key id
+  @param[in,out]	srv_uuid	server uuid
+  @param[in,out]	master_key	master key
+  @return position after master key id or uuid, or the old position
+  if can't get the master key. */
+  static byte *get_master_key_from_info(byte *encrypt_info, Version version,
+                                        uint32_t *m_key_id, char *srv_uuid,
+                                        byte **master_key);
+
+  /** Decoding the encryption info from the first page of a tablespace.
+  @param[in,out]	key		key
+  @param[in,out]	iv		iv
+  @param[in]	encryption_info	encrytion info.
+  @return true if success */
+  static bool decode_encryption_info(byte *key, byte *iv,
+                                     byte *encryption_info);
+
+  /** Encrypt the redo log block.
+  @param[in]	type		IORequest
+  @param[in,out]	src_ptr		log block which need to encrypt
+  @param[in,out]	dst_ptr		destination area
+  @return true if success. */
+  bool encrypt_log_block(const IORequest &type, byte *src_ptr, byte *dst_ptr);
+
+  /** Encrypt the redo log data contents.
+  @param[in]	type		IORequest
+  @param[in,out]	src		page data which need to encrypt
+  @param[in]	src_len		size of the source in bytes
+  @param[in,out]	dst		destination area
+  @param[in,out]	dst_len		size of the destination in bytes
+  @return buffer data, dst_len will have the length of the data */
+  byte *encrypt_log(const IORequest &type, byte *src, ulint src_len, byte *dst,
+                    ulint *dst_len);
+
+  /** Encrypt the page data contents. Page type can't be
+  FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
+  FIL_PAGE_ENCRYPTED_RTREE.
+  @param[in]	type		IORequest
+  @param[in,out]	src		page data which need to encrypt
+  @param[in]	src_len		size of the source in bytes
+  @param[in,out]	dst		destination area
+  @param[in,out]	dst_len		size of the destination in bytes
+  @return buffer data, dst_len will have the length of the data */
+  byte *encrypt(const IORequest &type, byte *src, ulint src_len, byte *dst,
+                ulint *dst_len) MY_ATTRIBUTE((warn_unused_result));
+
+  /** Decrypt the log block.
+  @param[in]	type		IORequest
+  @param[in,out]	src		data read from disk, decrypted data
+                                  will be copied to this page
+  @param[in,out]	dst		scratch area to use for decryption
+  @return DB_SUCCESS or error code */
+  dberr_t decrypt_log_block(const IORequest &type, byte *src, byte *dst);
+
+  /** Decrypt the log data contents.
+  @param[in]	type		IORequest
+  @param[in,out]	src		data read from disk, decrypted data
+                                  will be copied to this page
+  @param[in]	src_len		source data length
+  @param[in,out]	dst		scratch area to use for decryption
+  @param[in]	dst_len		size of the scratch area in bytes
+  @return DB_SUCCESS or error code */
+  dberr_t decrypt_log(const IORequest &type, byte *src, ulint src_len,
+                      byte *dst, ulint dst_len);
+
+  /** Decrypt the page data contents. Page type must be
+  FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
+  FIL_PAGE_ENCRYPTED_RTREE, if not then the source contents are
+  left unchanged and DB_SUCCESS is returned.
+  @param[in]	type		IORequest
+  @param[in,out]	src		data read from disk, decrypt
+                                  data will be copied to this page
+  @param[in]	src_len		source data length
+  @param[in,out]	dst		scratch area to use for decrypt
+  @param[in]	dst_len		size of the scratch area in bytes
+  @return DB_SUCCESS or error code */
+  dberr_t decrypt(const IORequest &type, byte *src, ulint src_len, byte *dst,
+                  ulint dst_len) MY_ATTRIBUTE((warn_unused_result));
+
+  /** Check if keyring plugin loaded. */
+  static bool check_keyring();
+
+  /** Encrypt type */
+  Type m_type;
+
+  /** Encrypt key */
+  byte *m_key;
+
+  /** Encrypt key length*/
+  ulint m_klen;
+
+  /** Encrypt initial vector */
+  byte *m_iv;
+
+  /** Current master key id */
+  static ulint s_master_key_id;
+
+  /** Current uuid of server instance */
+  static char s_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
+};
+>>>>>>> pr/231
 
 /** Types for AIO operations @{ */
 
 /** No transformations during read/write, write as is. */
+<<<<<<< HEAD
 #define IORequestRead IORequest(IORequest::READ)
 #define IORequestWrite IORequest(IORequest::WRITE)
 #define IORequestLogRead IORequest(IORequest::LOG | IORequest::READ)
 #define IORequestLogWrite IORequest(IORequest::LOG | IORequest::WRITE)
 
+=======
+#define IORequestRead		IORequest(IORequest::READ)
+#define IORequestWrite		IORequest(IORequest::WRITE)
+#define IORequestLogRead	IORequest(IORequest::LOG | IORequest::READ)
+#define IORequestLogWrite	IORequest(IORequest::LOG | IORequest::WRITE)
+>>>>>>> upstream/cluster-7.6
 /**
 The IO Context that is passed down to the low level IO code */
 class IORequest {
@@ -311,6 +746,7 @@ class IORequest {
     compression algorithm != NONE. Ignored if not set */
     PUNCH_HOLE = 256,
 
+<<<<<<< HEAD
     /** Force raw read, do not try to compress/decompress.
     This can be used to force a read and write without any
     compression e.g., for redo log, merge sort temporary files
@@ -325,6 +761,17 @@ class IORequest {
     optimisations if this flag is set. */
     DISABLE_PUNCH_HOLE_OPTIMISATION = 2048
   };
+=======
+		/** Force raw read, do not try to compress/decompress.
+		This can be used to force a read and write without any
+		compression e.g., for redo log, merge sort temporary files
+		and the truncate redo log. */
+		NO_COMPRESSION = 512,
+
+		/** Row log used in online DDL */
+		ROW_LOG = 1024
+	};
+>>>>>>> upstream/cluster-7.6
 
   /** Default constructor */
   IORequest()
@@ -337,6 +784,7 @@ class IORequest {
     /* No op */
   }
 
+<<<<<<< HEAD
   /**
   @param[in]    type            Request type, can be a value that is
                                   ORed from the above enum */
@@ -350,6 +798,21 @@ class IORequest {
     if (is_log() || is_row_log()) {
       disable_compression();
     }
+=======
+	/**
+	@param[in]	type		Request type, can be a value that is
+					ORed from the above enum */
+	explicit IORequest(ulint type)
+		:
+		m_block_size(UNIV_SECTOR_SIZE),
+		m_type(static_cast<uint16_t>(type)),
+		m_compression(),
+		m_encryption()
+	{
+		if (is_log() || is_row_log()) {
+			disable_compression();
+		}
+>>>>>>> upstream/cluster-7.6
 
     if (!is_punch_hole_supported()) {
       clear_punch_hole();
@@ -375,8 +838,30 @@ class IORequest {
     return ((m_type & ROW_LOG) == ROW_LOG);
   }
 
+<<<<<<< HEAD
   /** @return true if the simulated AIO thread should be woken up */
+<<<<<<< HEAD
   [[nodiscard]] bool is_wake() const { return ((m_type & DO_NOT_WAKE) == 0); }
+=======
+  bool is_wake() const MY_ATTRIBUTE((warn_unused_result)) {
+    return ((m_type & DO_NOT_WAKE) == 0);
+  }
+=======
+	/** @return true if it is a row log entry used in online DDL */
+	bool is_row_log() const
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return((m_type & ROW_LOG) == ROW_LOG);
+	}
+
+	/** @return true if the simulated AIO thread should be woken up */
+	bool is_wake() const
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return((m_type & DO_NOT_WAKE) == 0);
+	}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /** @return true if partial read warning disabled */
   [[nodiscard]] bool is_partial_io_warning_disabled() const {
@@ -1732,6 +2217,7 @@ dberr_t os_get_free_space(const char *path, uint64_t &free_space);
 dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info,
                            bool check_rw_perm, bool read_only);
 
+<<<<<<< HEAD
 /** Check if a file can be opened in read-write mode.
  @param[in]   name        filename to check
  @param[in]   read_only   true if check for read-only mode only
@@ -1745,6 +2231,18 @@ bool os_file_check_mode(const char *name, bool read_only);
 /** return any of the tmpdir path */
 char *innobase_mysql_tmpdir();
 
+=======
+<<<<<<< HEAD
+#ifndef UNIV_HOTBACKUP
+=======
+#if !defined(UNIV_HOTBACKUP)
+/** return one of the tmpdir path
+@return tmporary dir*/
+char *innobase_mysql_tmpdir(void);
+
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /** Creates a temporary file in the location specified by the parameter
 path. If the path is NULL, then it will be created in --tmpdir.
 @param[in]      path    location for creating temporary file

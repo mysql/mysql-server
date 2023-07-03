@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +32,145 @@ INCLUDE(ndb_add_target_property)
 INCLUDE(ndb_add_test)
 INCLUDE(ndb_add_executable)
 
+<<<<<<< HEAD
 DISABLE_MISSING_PROFILE_WARNING()
+=======
+MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
+
+# Check if this is MySQL Cluster build i.e the MySQL Server
+# version string ends in -ndb-Y.Y.Y[-status]
+MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
+
+  IF(${version_string} MATCHES "(.*)-ndb-(.*)")
+    SET(mysql_version ${CMAKE_MATCH_1})
+    SET(cluster_version ${CMAKE_MATCH_2})
+
+    # Sanity check that the mysql_version matches precalcuated
+    # values from higher level scripts
+    IF(NOT ${mysql_version} EQUAL "${MYSQL_NO_DASH_VERSION}")
+      MESSAGE(FATAL_ERROR "Sanity check of version_string failed!")
+    ENDIF()
+
+    # Split the cluster_version further into Y.Y.Y subcomponents
+    IF(${cluster_version} MATCHES "([0-9]+)\\.([0-9]+)\\.([0-9]+)")
+      SET(MYSQL_CLUSTER_VERSION_MAJOR ${CMAKE_MATCH_1})
+      SET(MYSQL_CLUSTER_VERSION_MINOR ${CMAKE_MATCH_2})
+      SET(MYSQL_CLUSTER_VERSION_BUILD ${CMAKE_MATCH_3})
+    ENDIF()
+
+    MESSAGE(STATUS  "This is MySQL Cluster ${cluster_version}")
+    # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
+    # that this is a MySQL Cluster build, yay!
+    SET(MYSQL_CLUSTER_VERSION ${cluster_version})
+  ENDIF()
+ENDMACRO()
+
+NDB_CHECK_MYSQL_CLUSTER(${VERSION})
+
+<<<<<<< HEAD
+=======
+# Disable specific types of warnings for storage/ndb
+# if the compiler supports the flag
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  INCLUDE(CheckCXXCompilerFlag)
+
+  FOREACH(warning
+      "class-memaccess"
+      )
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
+
+  FOREACH(warning
+      "strict-aliasing"
+      "unused-but-set-variable"
+      # Downgrade -Werror to warning for "may be used uninitialized"
+      # and "is used uninitialized in this function"
+      "error=maybe-uninitialized"
+      "error=uninitialized"
+      # Downgrade placement-new as part of Bug #24822203
+      "error=placement-new"
+      )
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
+
+>>>>>>> upstream/cluster-7.6
+#
+# Add the ndbcluster plugin
+#
+SET(NDBCLUSTER_SOURCES
+  ../../sql/ha_ndbcluster.cc
+  ../../sql/ha_ndbcluster_cond.cc
+  ../../sql/ha_ndbcluster_push.cc
+  ../../sql/ha_ndbcluster_connection.cc
+  ../../sql/ha_ndbcluster_binlog.cc
+  ../../sql/ha_ndb_index_stat.cc
+  ../../sql/ha_ndb_ddl_fk.cc
+  ../../sql/ha_ndbinfo.cc
+  ../../sql/ndb_local_connection.cc
+  ../../sql/ndb_share.cc
+  ../../sql/ndb_thd.cc
+  ../../sql/ndb_thd_ndb.cc
+  ../../sql/ndb_global_schema_lock.cc
+  ../../sql/ndb_mi.cc
+  ../../sql/ndb_conflict_trans.cc
+  ../../sql/ndb_anyvalue.cc
+  ../../sql/ndb_ndbapi_util.cc
+  ../../sql/ndb_binlog_extra_row_info.cc
+  ../../sql/ndb_event_data.cc
+  ../../sql/ndb_schema_object.cc
+  ../../sql/ndb_schema_dist.cc
+  ../../sql/ndb_component.cc
+  ../../sql/ndb_local_schema.cc
+  ../../sql/ndb_repl_tab.cc
+  ../../sql/ndb_conflict.cc
+  ../../sql/ndb_tdc.cc
+  ../../sql/ndb_log.cc
+  ../../sql/ndb_binlog_thread.cc
+  ../../sql/ndb_name_util.cc
+  ../../sql/ndb_bitmap.cc
+  ../../sql/ndb_table_map.cc
+  ../../sql/ndb_dd.cc
+  ../../sql/ndb_modifiers.cc
+  ../../sql/ndb_dd_client.cc
+  ../../sql/ndb_dd_table.cc
+  ../../sql/ndb_dd_sdi.cc
+  ../../sql/ndb_plugin_reference.cc
+  ../../sql/ndb_server_hooks.cc
+  ../../sql/ndb_binlog_client.cc
+)
+
+# Include directories used when building ha_ndbcluster
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
+
+IF(NOT MYSQL_CLUSTER_VERSION)
+ENDIF()
+
+# NDB is DEFAULT plugin in MySQL Cluster
+SET(is_default_plugin "")
+OPTION(WITH_NDB_DEFAULT_PLUGIN_DETECT
+  "Autodetect MySQL Cluster version and set ndbcluster as DEFAULT plugin" ON)
+MARK_AS_ADVANCED(WITH_NDB_DEFAULT_PLUGIN_DETECT)
+IF(WITH_NDB_DEFAULT_PLUGIN_DETECT)
+  IF(MYSQL_CLUSTER_VERSION)
+    # ndbcluster is DEFAULT plugin in MySQL Cluster
+    SET(is_default_plugin "DEFAULT")
+  ENDIF()
+ENDIF()
+>>>>>>> pr/231
 
 IF(NOT WITHOUT_SERVER)
   IF(NOT WITH_NDB AND NOT DEFINED WITH_NDBCLUSTER_STORAGE_ENGINE)
@@ -179,7 +321,13 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/include/ndbapi
   ${CMAKE_CURRENT_SOURCE_DIR}/include/logger
   ${CMAKE_CURRENT_BINARY_DIR}/include
+<<<<<<< HEAD
 )
+=======
+
+  # Util library includes
+  ${EDITLINE_INCLUDE_DIR})
+>>>>>>> upstream/cluster-7.6
 
 SET(DEBUG_FLAGS
   -DACC_SAFE_QUEUE
@@ -194,8 +342,39 @@ FOREACH(flag ${DEBUG_FLAGS})
   STRING_APPEND(DEBUG_FLAGS_STRING " ${flag}")
 ENDFOREACH()
 
+<<<<<<< HEAD
 STRING_APPEND(CMAKE_C_FLAGS_DEBUG "${DEBUG_FLAGS_STRING}")
 STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG "${DEBUG_FLAGS_STRING}")
+=======
+SET(WITH_NDBAPI_EXAMPLES_DEFAULT OFF)
+OPTION(WITH_NDB_TEST
+  "Include the NDB Cluster ndbapi test programs" OFF)
+IF(WITH_NDB_TEST)
+  MESSAGE(STATUS "Building NDB test programs")
+ELSE()
+  # Turn on NDB tests automatically for gcov builds
+  IF(ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
+    MESSAGE(STATUS "Building NDB test programs for improved gcov coverage")
+    SET(WITH_NDB_TEST ON)
+  ENDIF()
+  # Turn on NDB tests automatically for valgrind builds
+  IF(WITH_VALGRIND)
+    MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for improved valgrind coverage")
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
+  ENDIF()
+  # Turn on NDB tests automatically for "-devbld" debug builds
+  # to increase test coverage
+  IF(PACKAGE_SUFFIX STREQUAL "-devbld" AND
+     CMAKE_BUILD_TYPE MATCHES "Debug")
+    MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
+    SET(WITH_NDBAPI_EXAMPLES_DEFAULT ON)
+  ENDIF()
+ENDIF()
+>>>>>>> pr/231
 
 OPTION(WITH_ERROR_INSERT
   "Enable error injection in NDB" OFF)
@@ -315,6 +494,7 @@ IF(WITH_NDB_JAVA)
   ADD_SUBDIRECTORY(clusterj)
 ENDIF()
 
+<<<<<<< HEAD
 SET(WITH_NDB_NODEJS_DEFAULT ON)
 
 # Check if the default for WITH_NDB_NODEJS should be overriden
@@ -331,6 +511,8 @@ IF(WITH_NDB_NODEJS)
   ADD_SUBDIRECTORY(nodejs)
 ENDIF(WITH_NDB_NODEJS)
 
+=======
+>>>>>>> pr/231
 OPTION(WITH_NDBAPI_EXAMPLES
   "Build the NdbApi example programs" ${WITH_NDBAPI_EXAMPLES_DEFAULT})
 IF(WITH_NDBAPI_EXAMPLES)

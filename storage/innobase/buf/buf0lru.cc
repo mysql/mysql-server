@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -744,7 +768,49 @@ the list as they age towards the tail of the LRU.
   }
 
   buf_flush_list_mutex_exit(buf_pool);
+<<<<<<< HEAD
   return error;
+=======
+
+<<<<<<< HEAD
+  return (all_freed ? DB_SUCCESS : DB_FAIL);
+=======
+			/* Reset the batch size counter if we had to yield. */
+
+			processed = 0;
+		}
+
+#ifdef NDEBUG
+		if (flush) {
+			DBUG_EXECUTE_IF("ib_export_flush_crash",
+					static ulint	n_pages;
+					if (++n_pages == 4) {DBUG_SUICIDE();});
+		}
+#endif /* NDEBUG */
+
+		/* The check for trx is interrupted is expensive, we want
+		to check every N iterations. */
+		if (!processed && trx && trx_is_interrupted(trx)) {
+			if (trx->flush_observer != NULL) {
+				if (flush) {
+					trx->flush_observer->interrupted();
+				} else {
+					/* We should remove all pages with the
+					the flush observer. */
+					continue;
+				}
+			}
+
+			buf_flush_list_mutex_exit(buf_pool);
+			return(DB_INTERRUPTED);
+		}
+	}
+
+	buf_flush_list_mutex_exit(buf_pool);
+
+	return(all_freed ? DB_SUCCESS : DB_FAIL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /** Remove or flush all the dirty pages that belong to a given tablespace
@@ -1792,9 +1858,21 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
     ut_a(b);
   }
 
+<<<<<<< HEAD
   ut_ad(buf_page_in_file(bpage));
   ut_ad(bpage->in_LRU_list);
+<<<<<<< HEAD
   ut_ad(bpage->in_flush_list == is_dirty);
+=======
+  ut_ad(!bpage->in_flush_list == !bpage->oldest_modification);
+=======
+	} else if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
+		b = buf_page_alloc_descriptor();
+		ut_a(b);
+                new (b) buf_page_t(*bpage);
+	}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   DBUG_PRINT("ib_buf", ("free page " UINT32PF ":" UINT32PF, bpage->id.space(),
                         bpage->id.page_no()));
@@ -2454,9 +2532,29 @@ func_exit:
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+<<<<<<< HEAD
 /** Validates the LRU list for one buffer pool instance.
+<<<<<<< HEAD
 @param[in]      buf_pool        buffer pool instance */
 void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
+=======
+@param[in]	buf_pool	buffer pool instance */
+static void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
+  ulint old_len;
+  ulint new_len;
+=======
+/**********************************************************************//**
+Validates the LRU list for one buffer pool instance. */
+void
+buf_LRU_validate_instance(
+/*======================*/
+	buf_pool_t*	buf_pool)
+{
+	ulint		old_len;
+	ulint		new_len;
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {

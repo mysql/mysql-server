@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,8 +49,12 @@ enum SendStatus {
 
 enum TransporterType {
   tt_TCP_TRANSPORTER = 1,
+<<<<<<< HEAD
   tt_SHM_TRANSPORTER = 3,
   tt_Multi_TRANSPORTER = 4
+=======
+  tt_SHM_TRANSPORTER = 3
+>>>>>>> pr/231
 };
 
 enum SB_LevelType

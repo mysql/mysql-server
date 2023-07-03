@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +107,11 @@ max-time: 1800
 
 cmd: testScan
 args: -n ScanUsingMultipleNdbObjects T1
+<<<<<<< HEAD
 max-time: 60
+=======
+max-time: 30
+>>>>>>> pr/231
 
 cmd: testBackup
 args: -n ConsistencyUnderLoadSnapshotStart T1

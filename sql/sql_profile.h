@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,10 +114,25 @@ class Queue {
 
     new_item->payload = payload;
 
+<<<<<<< HEAD
     if (first == nullptr) first = new_item;
     if (last != nullptr) {
       assert(last->next == nullptr);
+=======
+<<<<<<< HEAD
+    if (first == NULL) first = new_item;
+    if (last != NULL) {
+      DBUG_ASSERT(last->next == NULL);
+>>>>>>> pr/231
       last->next = new_item;
+=======
+    if (first == NULL)
+      first= new_item;
+    if (last != NULL)
+    {
+      assert(last->next == NULL);
+      last->next= new_item;
+>>>>>>> upstream/cluster-7.6
     }
     new_item->previous = last;
     new_item->next = nullptr;
@@ -140,9 +163,20 @@ class Queue {
     return ret;
   }
 
+<<<<<<< HEAD
   bool is_empty() {
+<<<<<<< HEAD
     assert(((elements > 0) && (first != nullptr)) ||
            ((elements == 0) || (first == nullptr)));
+=======
+    DBUG_ASSERT(((elements > 0) && (first != NULL)) ||
+                ((elements == 0) || (first == NULL)));
+=======
+  bool is_empty()
+  {
+    assert(((elements > 0) && (first != NULL)) || ((elements == 0) || (first == NULL)));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return (elements == 0);
   }
 

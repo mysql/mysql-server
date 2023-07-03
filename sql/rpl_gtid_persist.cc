@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,12 +70,79 @@ using std::list;
 using std::string;
 
 my_thread_handle compress_thread_id;
+<<<<<<< HEAD
 static bool terminate_compress_thread = false;
 static bool should_compress = false;
+<<<<<<< HEAD
 const LEX_CSTRING Gtid_table_access_context::TABLE_NAME = {
     STRING_WITH_LEN("gtid_executed")};
 const LEX_CSTRING Gtid_table_access_context::DB_NAME = {
     STRING_WITH_LEN("mysql")};
+=======
+const LEX_STRING Gtid_table_access_context::TABLE_NAME = {
+    C_STRING_WITH_LEN("gtid_executed")};
+const LEX_STRING Gtid_table_access_context::DB_NAME = {
+    C_STRING_WITH_LEN("mysql")};
+=======
+static bool terminate_compress_thread= false;
+static bool should_compress= false;
+const LEX_STRING Gtid_table_access_context::TABLE_NAME= {C_STRING_WITH_LEN("gtid_executed")};
+const LEX_STRING Gtid_table_access_context::DB_NAME= {C_STRING_WITH_LEN("mysql")};
+
+/**
+  A derived from THD::Attachable_trx class allows updates in
+  the attachable transaction. Callers of the class methods must
+  make sure the attachable_rw won't cause deadlock with the main transaction.
+  The destructor does not invoke ha_commit_{stmt,trans} nor ha_rollback_trans
+  on purpose.
+  Burden to terminate the read-write instance also lies on the caller!
+  In order to use this interface it *MUST* prove that no side effect to
+  the global transaction state can be inflicted by a chosen method.
+*/
+
+class THD::Attachable_trx_rw : public THD::Attachable_trx
+{
+public:
+  bool is_read_only() const { return false; }
+  Attachable_trx_rw(THD *thd) : THD::Attachable_trx(thd)
+  {
+    m_thd->tx_read_only= false;
+    m_thd->lex->sql_command= SQLCOM_END;
+    m_xa_state_saved= m_thd->get_transaction()->xid_state()->get_state();
+    thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
+  }
+  ~Attachable_trx_rw()
+  {
+    /* The attachable transaction has been already committed */
+    assert(!m_thd->get_transaction()->is_active(Transaction_ctx::STMT)
+           && !m_thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+
+    m_thd->get_transaction()->xid_state()->set_state(m_xa_state_saved);
+    m_thd->tx_read_only= true;
+  }
+
+private:
+  XID_STATE::xa_states m_xa_state_saved;
+  Attachable_trx_rw(const Attachable_trx_rw &);
+  Attachable_trx_rw &operator =(const Attachable_trx_rw &);
+};
+
+
+bool THD::is_attachable_rw_transaction_active() const
+{
+  return m_attachable_trx != NULL && !m_attachable_trx->is_read_only();
+}
+
+
+void THD::begin_attachable_rw_transaction()
+{
+  assert(!m_attachable_trx);
+
+  m_attachable_trx= new Attachable_trx_rw(this);
+}
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /**
   Initialize a new THD.
@@ -112,7 +183,12 @@ THD *Gtid_table_access_context::create_thd() {
   */
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
+<<<<<<< HEAD
   thd->set_skip_readonly_check();
+=======
+<<<<<<< HEAD
+
+>>>>>>> pr/231
   return (thd);
 }
 
@@ -122,7 +198,25 @@ void Gtid_table_access_context::drop_thd(THD *thd) {
 }
 
 void Gtid_table_access_context::before_open(THD *) {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+=======
+  thd->set_skip_readonly_check();
+  return(thd);
+}
+
+void Gtid_table_access_context::drop_thd(THD *thd)
+{
+  thd->reset_skip_readonly_check();
+  System_table_access::drop_thd(thd);
+}
+
+void Gtid_table_access_context::before_open(THD* thd)
+{
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Gtid_table_access_context::before_open");
+>>>>>>> pr/231
   /*
     Allow to operate the gtid_executed table
     while disconnecting the session.
@@ -153,10 +247,21 @@ bool Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write) {
       the main transaction thanks to rejection to update
       'mysql.gtid_executed' by XA main transaction.
     */
+<<<<<<< HEAD
     assert(
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(
+>>>>>>> pr/231
         (*thd)->get_transaction()->xid_state()->has_state(XID_STATE::XA_IDLE) ||
         (*thd)->get_transaction()->xid_state()->has_state(
             XID_STATE::XA_PREPARED));
+=======
+    assert((*thd)->get_transaction()->xid_state()->
+           has_state(XID_STATE::XA_IDLE) ||
+           (*thd)->get_transaction()->xid_state()->
+           has_state(XID_STATE::XA_PREPARED));
+>>>>>>> upstream/cluster-7.6
 
     (*thd)->begin_attachable_rw_transaction();
   }
@@ -446,19 +551,41 @@ int Gtid_table_persistor::save(TABLE *table, const Gtid_set *gtid_set) {
     @retval 0    OK.
     @retval -1   Error.
 */
+<<<<<<< HEAD
 #ifndef NDEBUG
 static int dbug_test_on_compress(THD *thd) {
   DBUG_TRACE;
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+static int dbug_test_on_compress(THD *thd) {
+=======
+#ifndef NDEBUG
+static int dbug_test_on_compress(THD *thd)
+{
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("dbug_test_on_compress");
+>>>>>>> pr/231
   /*
     Sleep a little, so that notified user thread executed the statement
     completely.
   */
   DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", sleep(5););
+<<<<<<< HEAD
   DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", {
     const char act[] = "now signal fetch_thread_stage";
     assert(opt_debug_sync_timeout > 0);
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
+=======
+  DBUG_EXECUTE_IF("fetch_compression_thread_stage_info",
+                  {
+                    const char act[]= "now signal fetch_thread_stage";
+                    assert(opt_debug_sync_timeout > 0);
+                    assert(!debug_sync_set_action(thd,
+                                                  STRING_WITH_LEN(act)));
+                  };);
+>>>>>>> upstream/cluster-7.6
   /* Sleep a little, so that we can always fetch the correct stage info. */
   DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", sleep(1););
 
@@ -466,11 +593,21 @@ static int dbug_test_on_compress(THD *thd) {
     Wait until notified user thread executed the statement completely,
     then go to crash.
   */
+<<<<<<< HEAD
   DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table", {
     const char act[] = "now wait_for notified_thread_complete";
     assert(opt_debug_sync_timeout > 0);
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
+=======
+  DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table",
+                  {
+                    const char act[]= "now wait_for notified_thread_complete";
+                    assert(opt_debug_sync_timeout > 0);
+                    assert(!debug_sync_set_action(thd,
+                                                  STRING_WITH_LEN(act)));
+                  };);
+>>>>>>> upstream/cluster-7.6
   DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table", DBUG_SUICIDE(););
 
   return 0;
@@ -487,11 +624,21 @@ int Gtid_table_persistor::compress(THD *thd) {
 
   m_atomic_count = 0;
 
+<<<<<<< HEAD
   DBUG_EXECUTE_IF("compress_gtid_table", {
     const char act[] = "now signal complete_compression";
     assert(opt_debug_sync_timeout > 0);
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
   };);
+=======
+  DBUG_EXECUTE_IF("compress_gtid_table",
+                  {
+                    const char act[]= "now signal complete_compression";
+                    assert(opt_debug_sync_timeout > 0);
+                    assert(!debug_sync_set_action(thd,
+                                                  STRING_WITH_LEN(act)));
+                  };);
+>>>>>>> upstream/cluster-7.6
 
   return error;
 }
@@ -517,8 +664,17 @@ int Gtid_table_persistor::compress_in_single_transaction(THD *thd,
 
   if ((error = compress_first_consecutive_range(table, is_complete))) goto end;
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   error = dbug_test_on_compress(thd);
+=======
+#ifndef NDEBUG
+  error= dbug_test_on_compress(thd);
+>>>>>>> upstream/cluster-7.6
 #endif
 
 end:
@@ -755,6 +911,7 @@ static void *compress_gtid_table(void *p_thd) {
     */
     thd->set_skip_readonly_check();
 
+<<<<<<< HEAD
     // Compress the table at server startup
     should_compress = true;
 
@@ -783,6 +940,29 @@ static void *compress_gtid_table(void *p_thd) {
           assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
         };);
       }
+=======
+    THD_STAGE_INFO(thd, stage_compressing_gtid_table);
+    /* Compressing the gtid_executed table. */
+    if (gtid_state->compress(thd)) {
+      LogErr(WARNING_LEVEL, ER_FAILED_TO_COMPRESS_GTID_EXECUTED_TABLE);
+      /* Clear the error for going to wait for next compression signal. */
+      thd->clear_error();
+<<<<<<< HEAD
+      DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table", {
+        const char act[] = "now signal compression_failed";
+        DBUG_ASSERT(opt_debug_sync_timeout > 0);
+        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+      };);
+=======
+      DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",
+                      {
+                        const char act[]= "now signal compression_failed";
+                        assert(opt_debug_sync_timeout > 0);
+                        assert(!debug_sync_set_action(current_thd,
+                                                      STRING_WITH_LEN(act)));
+                      };);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
 
     mysql_mutex_unlock(&LOCK_compress_gtid_table);

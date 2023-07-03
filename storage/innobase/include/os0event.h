@@ -1,5 +1,10 @@
 /*****************************************************************************
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -16,6 +21,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -109,9 +133,41 @@ a timeout is exceeded. In Unix the timeout is always infinite.
 @param[in] reset_sig_count Zero or the value returned by previous call of
 os_event_reset().
 @return 0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+<<<<<<< HEAD
 ulint os_event_wait_time_low(os_event_t event,
                              std::chrono::microseconds timeout,
                              int64_t reset_sig_count);
+=======
+<<<<<<< HEAD
+ulint os_event_wait_time_low(
+    os_event_t event,         /*!< in/out: event to wait */
+    ulint time_in_usec,       /*!< in: timeout in
+                              microseconds, or
+                              OS_SYNC_INFINITE_TIME */
+    int64_t reset_sig_count); /*!< in: zero or the value
+                              returned by previous call of
+                              os_event_reset(). */
+=======
+ulint
+os_event_wait_time_low(
+/*===================*/
+	os_event_t	event,			/*!< in/out: event to wait */
+	ulint		time_in_usec,		/*!< in: timeout in
+						microseconds, or
+						OS_SYNC_INFINITE_TIME */
+	int64_t		reset_sig_count);	/*!< in: zero or the value
+						returned by previous call of
+						os_event_reset(). */
+/** Initializes support for os_event objects. Must be called once,
+ and before any os_event object is created. */
+void os_event_global_init(void);
+
+/** Deinitializes support for os_event objects. Must be called once,
+ and after all os_event objects are destroyed. After it is called, no
+new os_event is allowed to be created. */
+void os_event_global_destroy(void);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /** Blocking timed wait on an event.
 @param e - event to wait on.

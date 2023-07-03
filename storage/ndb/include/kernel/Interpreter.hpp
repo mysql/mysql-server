@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +41,7 @@ public:
   inline static Uint32 mod4(Uint32 len){
     return len + ((4 - (len & 3)) & 3);
   }
-  
+
 
   /**
    * General Mnemonic format
@@ -90,7 +94,7 @@ public:
    */
   static Uint32 Read(Uint32 AttrId, Uint32 Register);
   static Uint32 Write(Uint32 AttrId, Uint32 Register);
-  
+
   static Uint32 LoadNull(Uint32 Register);
   static Uint32 LoadConst16(Uint32 Register, Uint32 Value);
   static Uint32 LoadConst32(Uint32 Register); // Value in next word
@@ -170,6 +174,7 @@ public:
     AND_EQ_ZERO = 10,
     AND_NE_ZERO = 11
   };
+<<<<<<< HEAD
 
   enum NullSemantics {
     NULL_CMP_EQUAL = 0x0,    // Old cmp mode; 'NULL == NULL' and 'NULL < x'
@@ -179,6 +184,11 @@ public:
 
   // Compare Attr with literal
   static Uint32 BranchCol(BinaryCondition cond, NullSemantics nulls);
+=======
+  // TODO : Remove other 2 unused parameters.
+  static Uint32 BranchCol(BinaryCondition cond,
+			  Uint32 arrayLengthDiff, Uint32 varchar);
+>>>>>>> pr/231
   static Uint32 BranchCol_2(Uint32 AttrId);
   static Uint32 BranchCol_2(Uint32 AttrId, Uint32 Len);
 
@@ -196,7 +206,7 @@ public:
   static Uint32 getBranchCol_AttrId2(Uint32 op2);
   static Uint32 getBranchCol_Len(Uint32 op2);
   static Uint32 getBranchCol_ParamNo(Uint32 op2);
-  
+
   /**
    * Macros for decoding code
    */
@@ -216,7 +226,7 @@ public:
     SUB_ADDRESS_REPLACEMENT
   };
 
-  /* This method is used to determine what sort of 
+  /* This method is used to determine what sort of
    * instruction processing is required, and the address
    * of the next instruction in the stream
    */
@@ -280,10 +290,22 @@ Interpreter::Branch(Uint32 Inst, Uint32 Reg1, Uint32 Reg2){
 
 inline
 Uint32
+<<<<<<< HEAD
 Interpreter::BranchColAttrId(BinaryCondition cond, NullSemantics nulls) {
   return
     BRANCH_ATTR_OP_ATTR +     // Compare two ATTRs
     (nulls << 6) +
+=======
+Interpreter::BranchCol(BinaryCondition cond,
+		       Uint32 arrayLengthDiff,
+		       Uint32 varchar){
+  //ndbout_c("BranchCol: cond=%d diff=%u varchar=%u",
+      //cond, arrayLengthDiff, varchar);
+  return
+    BRANCH_ATTR_OP_ARG +
+    (arrayLengthDiff << 9) +
+    (varchar << 11) +
+>>>>>>> pr/231
     (cond << 12);
 }
 
@@ -319,13 +341,13 @@ Interpreter::BranchColParameter_2(Uint32 AttrId, Uint32 ParamNo){
 }
 
 inline
-Uint32 
+Uint32
 Interpreter::BranchCol_2(Uint32 AttrId, Uint32 Len){
   return (AttrId << 16) + Len;
 }
 
 inline
-Uint32 
+Uint32
 Interpreter::BranchCol_2(Uint32 AttrId){
   return (AttrId << 16);
 }
@@ -413,13 +435,13 @@ Uint32*
 Interpreter::getInstructionPreProcessingInfo(Uint32 *op,
                                              InstructionPreProcessing& processing )
 {
-  /* Given an instruction, get a pointer to the 
+  /* Given an instruction, get a pointer to the
    * next instruction in the stream.
    * Returns NULL on error.
    */
   processing= NONE;
   Uint32 opCode= getOpCode(*op);
-  
+
   switch( opCode )
   {
   case READ_ATTR_INTO_REG:
@@ -475,7 +497,11 @@ Interpreter::getInstructionPreProcessingInfo(Uint32 *op,
     return op + 1;
   case CALL:
     processing= SUB_ADDRESS_REPLACEMENT;
+<<<<<<< HEAD
     return op + 1;
+=======
+    // Fall through
+>>>>>>> pr/231
   case RETURN:
     return op + 1;
 

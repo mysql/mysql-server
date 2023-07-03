@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -168,6 +176,7 @@ class ha_federated : public handler {
   ulong index_flags(uint, uint, bool) const override {
     return (HA_READ_NEXT | HA_READ_RANGE | HA_READ_AFTER_KEY);
   }
+<<<<<<< HEAD
   uint max_supported_record_length() const override {
     return HA_MAX_REC_LENGTH;
   }
@@ -178,8 +187,24 @@ class ha_federated : public handler {
   }
   uint max_supported_key_part_length(HA_CREATE_INFO *create_info
                                      [[maybe_unused]]) const override {
+=======
+  uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
+<<<<<<< HEAD
+  uint max_supported_keys() const { return MAX_KEY; }
+  uint max_supported_key_parts() const { return MAX_REF_PARTS; }
+  uint max_supported_key_length() const { return FEDERATED_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const {
+>>>>>>> pr/231
     return FEDERATED_MAX_KEY_LENGTH;
   }
+=======
+  uint max_supported_keys()          const { return MAX_KEY; }
+  uint max_supported_key_parts()     const { return MAX_REF_PARTS; }
+  uint max_supported_key_length()    const { return FEDERATED_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length(HA_CREATE_INFO
+                    *create_info MY_ATTRIBUTE((unused))) const
+  { return FEDERATED_MAX_KEY_LENGTH; }
+>>>>>>> upstream/cluster-7.6
   /*
     Called in test_quick_select to determine if indexes should be used.
     Normally, we need to know number of blocks . For federated we need to
@@ -276,6 +301,11 @@ class ha_federated : public handler {
   int connection_rollback();
   int connection_autocommit(bool state);
   int execute_simple_query(const char *query, int len);
+<<<<<<< HEAD
   int reset(void) override;
   int rnd_pos_by_record(uchar *record) override;
+=======
+  int reset(void);
+  int rnd_pos_by_record(uchar *record);
+>>>>>>> pr/231
 };

@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +29,11 @@
 #ifndef STORAGE_NDB_INCLUDE_LOGGER_BUFFEREDLOGHANDLER_HPP_
 #define STORAGE_NDB_INCLUDE_LOGGER_BUFFEREDLOGHANDLER_HPP_
 
+<<<<<<< HEAD
 #include <time.h>
 
+=======
+>>>>>>> pr/231
 #include "LogHandler.hpp"
 #include <LogBuffer.hpp>
 #include <NdbThread.h>
@@ -41,6 +48,10 @@ class BufferedLogHandler : public LogHandler
 public:
   /**
    * Constructor
+<<<<<<< HEAD
+=======
+   * @param logbuf Pointer to the log buffer where log messages should be written into.
+>>>>>>> pr/231
    * @param dest_loghandler Pointer to the destination log handler i.e the log handler
    * to which the log messages taken from the log buffer are passed.
    */
@@ -48,6 +59,7 @@ public:
   /**
    * Destructor.
    */
+<<<<<<< HEAD
   ~BufferedLogHandler() override;
 
   bool open() override;
@@ -56,6 +68,16 @@ public:
   bool is_open() override;
 
   bool setParam(const BaseString &param, const BaseString &value) override;
+=======
+  virtual ~BufferedLogHandler();
+
+  virtual bool open();
+  virtual bool close();
+
+  virtual bool is_open();
+
+  virtual bool setParam(const BaseString &param, const BaseString &value);
+>>>>>>> pr/231
   /**
    * Check if logging needs to be stopped.
    * @return true if logging has to be stopped, false otherwise.
@@ -70,6 +92,7 @@ public:
     time_t log_timestamp;
     size_t varpart_length[2]; // 0: length of category, 1: length of message
   };
+<<<<<<< HEAD
   static constexpr Uint32 MAX_VARPART_SIZE = MAX_HEADER_LENGTH + MAX_LOG_MESSAGE_SIZE;
 
 protected:
@@ -77,6 +100,15 @@ protected:
                    time_t now) override;
   void writeMessage(const char* pMsg) override;
   void writeFooter() override;
+=======
+  STATIC_CONST( MAX_VARPART_SIZE = MAX_HEADER_LENGTH + MAX_LOG_MESSAGE_SIZE );
+
+protected:
+  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level,
+                           time_t now);
+  virtual void writeMessage(const char* pMsg);
+  virtual void writeFooter();
+>>>>>>> pr/231
 
 private:
   /** Prohibit*/
@@ -112,6 +144,7 @@ private:
 class MessageStreamLostMsgHandler : public LostMsgHandler
 {
 private:
+<<<<<<< HEAD
   const char* m_category;
 
 public:
@@ -126,6 +159,23 @@ public:
                    size_t lost_msgs) override;
 
  ~MessageStreamLostMsgHandler() override {}
+=======
+  const char* m_lost_msg_fmt;
+  const char* m_category;
+
+public:
+  MessageStreamLostMsgHandler(): m_lost_msg_fmt("*** %u MESSAGES LOST ***"),
+  m_category("MgmtSrvr")
+  {
+  }
+  /* Return size in bytes which must be appended to describe the lost messages */
+  size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs);
+
+  /* Write lost message summary into the buffer for the lost message summary */
+  bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs);
+
+  ~MessageStreamLostMsgHandler() {}
+>>>>>>> pr/231
 };
 
 #endif /* STORAGE_NDB_INCLUDE_LOGGER_BUFFEREDLOGHANDLER_HPP_ */

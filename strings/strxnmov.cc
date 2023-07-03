@@ -1,5 +1,15 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:strings/strxnmov.cc
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+   Use is subject to license terms.
+   
+>>>>>>> upstream/cluster-7.6:strings/strxnmov.c
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
    License, version 2.0, as published by the Free Software Foundation.

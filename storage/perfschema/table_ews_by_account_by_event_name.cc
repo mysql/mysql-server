@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -94,12 +102,36 @@ bool PFS_index_ews_by_account_by_event_name::match(PFS_account *pfs) {
   return true;
 }
 
+<<<<<<< HEAD
 bool PFS_index_ews_by_account_by_event_name::match_view(uint view) {
   if (m_fields >= 3) {
     return m_key_3.match_view(view);
   }
   return true;
 }
+=======
+PFS_engine_table_share_state
+table_ews_by_account_by_event_name::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_ews_by_account_by_event_name::m_share=
+{
+  { C_STRING_WITH_LEN("events_waits_summary_by_account_by_event_name") },
+  &pfs_truncatable_acl,
+  table_ews_by_account_by_event_name::create,
+  NULL, /* write_row */
+  table_ews_by_account_by_event_name::delete_all_rows,
+  table_ews_by_account_by_event_name::get_row_count,
+  sizeof(pos_ews_by_account_by_event_name),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+>>>>>>> upstream/cluster-7.6
 
 bool PFS_index_ews_by_account_by_event_name::match(
     PFS_instr_class *instr_class) {
@@ -140,6 +172,7 @@ int table_ews_by_account_by_event_name::rnd_next(void) {
   PFS_instr_class *instr_class;
   bool has_more_account = true;
 
+<<<<<<< HEAD
   for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account()) {
     account = global_account_container.get(m_pos.m_index_1, &has_more_account);
     if (account != nullptr) {
@@ -173,6 +206,49 @@ int table_ews_by_account_by_event_name::rnd_next(void) {
             instr_class = nullptr;
             assert(false);
             break;
+=======
+  for (m_pos.set_at(&m_next_pos);
+       has_more_account;
+       m_pos.next_account())
+  {
+    account= global_account_container.get(m_pos.m_index_1, & has_more_account);
+    if (account != NULL)
+    {
+      for ( ;
+           m_pos.has_more_view();
+           m_pos.next_view())
+      {
+        switch (m_pos.m_index_2)
+        {
+        case pos_ews_by_account_by_event_name::VIEW_MUTEX:
+          instr_class= find_mutex_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_account_by_event_name::VIEW_RWLOCK:
+          instr_class= find_rwlock_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_account_by_event_name::VIEW_COND:
+          instr_class= find_cond_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_account_by_event_name::VIEW_FILE:
+          instr_class= find_file_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_account_by_event_name::VIEW_TABLE:
+          instr_class= find_table_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_account_by_event_name::VIEW_SOCKET:
+          instr_class= find_socket_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_account_by_event_name::VIEW_IDLE:
+          instr_class= find_idle_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_account_by_event_name::VIEW_METADATA:
+          instr_class= find_metadata_class(m_pos.m_index_3);
+          break;
+        default:
+          instr_class= NULL;
+          assert(false);
+          break;
+>>>>>>> upstream/cluster-7.6
         }
 
         if (instr_class) {
@@ -195,6 +271,39 @@ int table_ews_by_account_by_event_name::rnd_pos(const void *pos) {
   account = global_account_container.get(m_pos.m_index_1);
   if (account == nullptr) {
     return HA_ERR_RECORD_DELETED;
+<<<<<<< HEAD
+=======
+
+  switch (m_pos.m_index_2)
+  {
+  case pos_ews_by_account_by_event_name::VIEW_MUTEX:
+    instr_class= find_mutex_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_account_by_event_name::VIEW_RWLOCK:
+    instr_class= find_rwlock_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_account_by_event_name::VIEW_COND:
+    instr_class= find_cond_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_account_by_event_name::VIEW_FILE:
+    instr_class= find_file_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_account_by_event_name::VIEW_TABLE:
+    instr_class= find_table_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_account_by_event_name::VIEW_SOCKET:
+    instr_class= find_socket_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_account_by_event_name::VIEW_IDLE:
+    instr_class= find_idle_class(m_pos.m_index_3);
+    break;
+  case pos_ews_by_account_by_event_name::VIEW_METADATA:
+    instr_class= find_metadata_class(m_pos.m_index_3);
+    break;
+  default:
+    instr_class= NULL;
+    assert(false);
+>>>>>>> upstream/cluster-7.6
   }
 
   switch (m_pos.m_index_2) {
@@ -346,8 +455,17 @@ int table_ews_by_account_by_event_name::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+>>>>>>> upstream/cluster-7.6
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {

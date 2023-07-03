@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4569,12 +4577,17 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
   }
 
   const int try_alloc_rc =
+<<<<<<< HEAD
     try_alloc_from_list(nodeid,
                         type,
                         timeout_ms,
                         nodes,
                         error_code,
                         error_string);
+=======
+    try_alloc_from_list(nodeid, type, timeout_ms, nodes);
+
+>>>>>>> pr/231
   if (try_alloc_rc == 0)
   {
     if (type == NDB_MGM_NODE_TYPE_NDB)
@@ -4586,6 +4599,10 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     return true;
   }
 
+<<<<<<< HEAD
+=======
+  error_code = NDB_MGM_ALLOCID_ERROR;
+>>>>>>> pr/231
 
   if (try_alloc_rc == -1)
   {
@@ -4595,6 +4612,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     */
     if (nodeid)
     {
+<<<<<<< HEAD
       if (error_code == 0)
       {
         error_string.appfmt("Id %d already allocated by another node.",
@@ -4613,12 +4631,28 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
       }
     }
     error_code = NDB_MGM_ALLOCID_ERROR;
+=======
+      error_string.appfmt("Id %d already allocated by another node.",
+                          nodeid);
+    }
+    else
+    {
+      const char *alias, *str;
+      alias= ndb_mgm_get_node_type_alias_string(type, &str);
+      error_string.appfmt("No free node id found for %s(%s).",
+                          alias, str);
+    }
+>>>>>>> pr/231
   }
   else
   {
     assert(try_alloc_rc == -2); /* No contact with cluster */
     error_string.assfmt("Cluster not ready for nodeid allocation.");
   }
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
   return false;
 }
 

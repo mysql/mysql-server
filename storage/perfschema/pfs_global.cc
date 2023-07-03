@@ -1,4 +1,13 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates. All rights
+   reserved.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -56,9 +65,21 @@ bool pfs_initialized = false;
   The memory used internally in the performance schema implementation.
   It is allocated at startup, or during runtime with scalable buffers.
 */
+<<<<<<< HEAD
 void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags) {
+<<<<<<< HEAD
   assert(klass != nullptr);
   assert(size > 0);
+=======
+  DBUG_ASSERT(klass != NULL);
+  DBUG_ASSERT(size > 0);
+=======
+void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf flags)
+{
+  assert(klass != NULL);
+  assert(size > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   void *ptr = nullptr;
 
@@ -138,6 +159,7 @@ void pfs_free(PFS_builtin_memory_class *klass, size_t size, void *ptr) {
   @param flags malloc flags
   @return pointer to memory on success, else NULL
 */
+<<<<<<< HEAD
 void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
                        myf flags) {
   assert(klass != nullptr);
@@ -145,6 +167,15 @@ void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size,
   assert(size > 0);
   void *ptr = nullptr;
   size_t array_size = n * size;
+=======
+void *pfs_malloc_array(PFS_builtin_memory_class *klass, size_t n, size_t size, myf flags)
+{
+  assert(klass != NULL);
+  assert(n > 0);
+  assert(size > 0);
+  void *ptr= NULL;
+  size_t array_size= n * size;
+>>>>>>> upstream/cluster-7.6
   /* Check for overflow before allocating. */
   if (is_overflow(array_size, n, size)) {
     log_errlog(WARNING_LEVEL, ER_PFS_MALLOC_ARRAY_OVERFLOW, n, size,
@@ -211,10 +242,24 @@ void pfs_print_error(const char *format, ...) {
 
 uint pfs_get_socket_address(char *host, uint host_len, uint *port,
                             const struct sockaddr_storage *src_addr,
+<<<<<<< HEAD
                             socklen_t) {
+<<<<<<< HEAD
   assert(host);
   assert(src_addr);
   assert(port);
+=======
+  DBUG_ASSERT(host);
+  DBUG_ASSERT(src_addr);
+  DBUG_ASSERT(port);
+=======
+                            socklen_t src_len)
+{
+  assert(host);
+  assert(src_addr);
+  assert(port);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   memset(host, 0, host_len);
   *port = 0;

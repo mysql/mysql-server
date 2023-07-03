@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,9 +92,21 @@ const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST = 20.0;
 const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST = 0.5;
 
 cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
+<<<<<<< HEAD
                                                double value) {
+<<<<<<< HEAD
   assert(name.str != nullptr);
   assert(name.length > 0);
+=======
+  DBUG_ASSERT(name.str != NULL);
+  DBUG_ASSERT(name.length > 0);
+=======
+                                               double value)
+{
+  assert(name.str != NULL);
+  assert(name.length > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (name.str == nullptr || name.length == 0)
     return UNKNOWN_COST_NAME; /* purecov: inspected */
@@ -152,9 +172,21 @@ const double SE_cost_constants::IO_BLOCK_READ_COST = 1.0;
 
 cost_constant_error SE_cost_constants::set(const LEX_CSTRING &name,
                                            const double value,
+<<<<<<< HEAD
                                            bool default_value) {
+<<<<<<< HEAD
   assert(name.str != nullptr);
   assert(name.length > 0);
+=======
+  DBUG_ASSERT(name.str != NULL);
+  DBUG_ASSERT(name.length > 0);
+=======
+                                           bool default_value)
+{
+  assert(name.str != NULL);
+  assert(name.length > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (name.str == nullptr || name.length == 0)
     return UNKNOWN_COST_NAME; /* purecov: inspected */
@@ -257,7 +289,14 @@ Cost_model_constants::Cost_model_constants()
   }
 }
 
+<<<<<<< HEAD
 Cost_model_constants::~Cost_model_constants() { assert(m_ref_counter == 0); }
+=======
+<<<<<<< HEAD
+Cost_model_constants::~Cost_model_constants() {
+  DBUG_ASSERT(m_ref_counter == 0);
+}
+>>>>>>> pr/231
 
 const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
     const TABLE *table) const {
@@ -275,7 +314,29 @@ const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
       slot < m_engines.size()
           ? m_engines[slot].get_cost_constants(DEFAULT_STORAGE_CLASS)
           : &default_cost;
+<<<<<<< HEAD
   assert(se_cc != nullptr);
+=======
+  DBUG_ASSERT(se_cc != NULL);
+=======
+
+Cost_model_constants::~Cost_model_constants()
+{
+  assert(m_ref_counter == 0);
+}
+
+
+const SE_cost_constants
+*Cost_model_constants::get_se_cost_constants(const TABLE *table) const
+{
+  assert(table->file != NULL);
+  assert(table->file->ht != NULL);
+
+  const SE_cost_constants *se_cc=
+    m_engines[table->file->ht->slot].get_cost_constants(DEFAULT_STORAGE_CLASS);
+  assert(se_cc != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return se_cc;
 }
@@ -302,9 +363,19 @@ cost_constant_error Cost_model_constants::update_engine_cost_constant(
     const uint ht_slot_id = find_handler_slot_from_name(thd, se_name);
     if (ht_slot_id == HA_SLOT_UNDEF) return UNKNOWN_ENGINE_NAME;
 
+<<<<<<< HEAD
     SE_cost_constants *se_cc =
         m_engines[ht_slot_id].get_cost_constants(storage_category);
+<<<<<<< HEAD
     assert(se_cc != nullptr);
+=======
+    DBUG_ASSERT(se_cc != NULL);
+=======
+    SE_cost_constants *se_cc=
+      m_engines[ht_slot_id].get_cost_constants(storage_category);
+    assert(se_cc != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     retval = se_cc->update(name, value);
   }
@@ -319,19 +390,45 @@ uint Cost_model_constants::find_handler_slot_from_name(
   if (!plugin) return HA_SLOT_UNDEF;
 
   // Find the handlerton for this storage engine
+<<<<<<< HEAD
   handlerton *ht = plugin_data<handlerton *>(plugin);
   assert(ht != nullptr);
   if (!ht) {
+<<<<<<< HEAD
     assert(false); /* purecov: inspected */
+=======
+    DBUG_ASSERT(false); /* purecov: inspected */
+=======
+  handlerton *ht= plugin_data<handlerton*>(plugin);
+  assert(ht != NULL);
+  if (!ht)
+  {
+    assert(false);                         /* purecov: inspected */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return HA_SLOT_UNDEF;
   }
 
   return ht->slot;
 }
 
+<<<<<<< HEAD
 cost_constant_error Cost_model_constants::update_engine_default_cost(
     const LEX_CSTRING &name, uint storage_category, double value) {
+<<<<<<< HEAD
   assert(storage_category < MAX_STORAGE_CLASSES);
+=======
+  DBUG_ASSERT(storage_category < MAX_STORAGE_CLASSES);
+=======
+
+cost_constant_error
+Cost_model_constants::update_engine_default_cost(const LEX_CSTRING &name,
+                                                 uint storage_category,
+                                                 double value)
+{
+  assert(storage_category < MAX_STORAGE_CLASSES);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     Return value: if at least one of the storage engines recognizes the

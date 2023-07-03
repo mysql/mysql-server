@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -874,12 +882,31 @@ static Item *create_comparator(MY_XPATH *xpath, int oper, MY_XPATH_LEX *context,
   RETURN
     The newly created item.
 */
+<<<<<<< HEAD
 static Item_nodeset_func *nametestfunc(MY_XPATH *xpath, int type, Item *arg,
                                        const char *beg, size_t len) {
   assert(arg != nullptr);
   assert(arg->type() == Item::XPATH_NODESET);
   assert(beg != nullptr);
   assert(len > 0);
+=======
+<<<<<<< HEAD
+static Item *nametestfunc(MY_XPATH *xpath, int type, Item *arg, const char *beg,
+                          size_t len) {
+  DBUG_ASSERT(arg != 0);
+  DBUG_ASSERT(arg->type() == Item::XPATH_NODESET);
+  DBUG_ASSERT(beg != 0);
+  DBUG_ASSERT(len > 0);
+=======
+static Item* nametestfunc(MY_XPATH *xpath,
+                          int type, Item *arg, const char *beg, size_t len)
+{
+  assert(arg != 0);
+  assert(arg->type() == Item::XPATH_NODESET);
+  assert(beg != 0);
+  assert(len > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Item_nodeset_func *res;
   switch (type) {
@@ -2205,6 +2232,7 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
     sp_variable *spv;
     sp_pcontext *spc;
     LEX *lex;
+<<<<<<< HEAD
     if ((lex = current_thd->lex) && (spc = lex->get_sp_current_parsing_ctx()) &&
         (spv = spc->find_variable(name_str, name_length, false))) {
       Item_splocal *splocal = new Item_splocal(
@@ -2217,7 +2245,30 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
       xpath->item = nullptr;
       assert(xpath->query.end > dollar_pos);
       size_t len = xpath->query.end - dollar_pos;
+<<<<<<< HEAD
       len = std::min(len, size_t(32));
+=======
+=======
+    if ((lex= current_thd->lex) &&
+        (spc= lex->get_sp_current_parsing_ctx()) &&
+        (spv= spc->find_variable(name, false)))
+    {
+      Item_splocal *splocal= new Item_splocal(Name_string(name, false),
+                                              spv->offset, spv->type, 0);
+#ifndef NDEBUG
+      if (splocal)
+        splocal->m_sp= lex->sphead;
+#endif
+      xpath->item= (Item*) splocal;
+    }
+    else
+    {
+      xpath->item= NULL;
+      assert(xpath->query.end > dollar_pos);
+      size_t len= xpath->query.end - dollar_pos;
+>>>>>>> upstream/cluster-7.6
+      set_if_smaller(len, 32);
+>>>>>>> pr/231
       my_printf_error(ER_UNKNOWN_ERROR, "Unknown XPATH variable at: '%.*s'",
                       MYF(0), static_cast<int>(len), dollar_pos);
     }
@@ -2237,6 +2288,7 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
     1 - success
     0 - failure
 */
+<<<<<<< HEAD
 static int my_xpath_parse_NodeTest_QName(MY_XPATH *xpath) {
   if (!my_xpath_parse_QName(xpath)) return 0;
   assert(xpath->context);
@@ -2249,6 +2301,26 @@ static int my_xpath_parse_NodeTest_asterisk(MY_XPATH *xpath) {
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_ASTERISK)) return 0;
   assert(xpath->context);
   xpath->context = nametestfunc(xpath, xpath->axis, xpath->context, "*", 1);
+=======
+static int
+my_xpath_parse_NodeTest_QName(MY_XPATH *xpath)
+{
+  if (!my_xpath_parse_QName(xpath))
+    return 0;
+  assert(xpath->context);
+  size_t len= xpath->prevtok.end - xpath->prevtok.beg;
+  xpath->context= nametestfunc(xpath, xpath->axis, xpath->context,
+                               xpath->prevtok.beg, len);
+  return 1;
+}
+static int
+my_xpath_parse_NodeTest_asterisk(MY_XPATH *xpath)
+{
+  if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_ASTERISK))
+    return 0;
+  assert(xpath->context);
+  xpath->context= nametestfunc(xpath, xpath->axis, xpath->context, "*", 1);
+>>>>>>> upstream/cluster-7.6
   return 1;
 }
 static int my_xpath_parse_NameTest(MY_XPATH *xpath) {
@@ -2308,12 +2380,26 @@ bool Item_xml_str_func::resolve_type(THD *thd) {
   return false;
 }
 
+<<<<<<< HEAD
 bool Item_xml_str_func::parse_xpath(Item *xpath_expr) {
   String *xp;
   MY_XPATH xpath;
 
+<<<<<<< HEAD
   if (!(xp = xpath_expr->val_str(&xpath_tmp_value)))
     return current_thd->is_error();
+=======
+  if (!(xp = xpath_expr->val_str(&tmp))) return current_thd->is_error();
+=======
+void Item_xml_str_func::parse_xpath(Item* xpath_expr)
+{
+  String *xp;
+  MY_XPATH xpath;
+
+  if (!(xp= xpath_expr->val_str(&xpath_tmp_value)))
+    return;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   my_xpath_init(&xpath);
   xpath.cs = collation.collation;
@@ -2365,10 +2451,23 @@ int xml_enter(MY_XML_PARSER *st, const char *attr, size_t len) {
   auto *data = reinterpret_cast<MY_XML_USER_DATA *>(st->user_data);
   MY_XML_NODE node;
 
+<<<<<<< HEAD
   node.parent = data->parent;  // Set parent for the new node to old parent
+<<<<<<< HEAD
   data->parent = data->pxml->size();  // Remember current node as new parent
   assert(data->level < MAX_LEVEL);
   data->pos[data->level] = data->pxml->size();
+=======
+  data->parent = numnodes;     // Remember current node as new parent
+  DBUG_ASSERT(data->level < MAX_LEVEL);
+  data->pos[data->level] = numnodes;
+=======
+  node.parent= data->parent; // Set parent for the new node to old parent
+  data->parent= numnodes;    // Remember current node as new parent
+  assert(data->level < MAX_LEVEL);
+  data->pos[data->level]= numnodes;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   if (data->level < MAX_LEVEL - 1)
     node.level = data->level++;
   else
@@ -2421,9 +2520,21 @@ int xml_value(MY_XML_PARSER *st, const char *attr, size_t len) {
 */
 extern "C" int xml_leave(MY_XML_PARSER *st, const char *attr, size_t len);
 
+<<<<<<< HEAD
 int xml_leave(MY_XML_PARSER *st, const char *, size_t) {
+<<<<<<< HEAD
   auto *data = reinterpret_cast<MY_XML_USER_DATA *>(st->user_data);
   assert(data->level > 0);
+=======
+  MY_XML_USER_DATA *data = (MY_XML_USER_DATA *)st->user_data;
+  DBUG_ASSERT(data->level > 0);
+=======
+int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len)
+{
+  MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
+  assert(data->level > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   data->level--;
 
   data->parent = data->pxml->at(data->parent).parent;

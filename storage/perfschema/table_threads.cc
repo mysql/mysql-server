@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +109,38 @@ PFS_engine_table_share table_threads::m_share = {
     false /* m_in_purgatory */
 };
 
+<<<<<<< HEAD
 PFS_engine_table *table_threads::create(PFS_engine_table_share *) {
+=======
+TABLE_FIELD_DEF
+table_threads::m_field_def=
+{ 17, field_types };
+
+PFS_engine_table_share_state
+table_threads::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_threads::m_share=
+{
+  { C_STRING_WITH_LEN("threads") },
+  &pfs_updatable_acl,
+  table_threads::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  cursor_by_thread::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_threads::create()
+{
+>>>>>>> upstream/cluster-7.6
   return new table_threads();
 }
 
@@ -342,9 +381,19 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
   int len = 0;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 2);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 2);
+>>>>>>> pr/231
   buf[0] = 0;
   buf[1] = 0;
+=======
+  assert(table->s->null_bytes == 2);
+  buf[0]= 0;
+  buf[1]= 0;
+>>>>>>> upstream/cluster-7.6
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
@@ -436,6 +485,7 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 12: /* ROLE */
           f->set_null();
+<<<<<<< HEAD
           break;
         case 13: /* INSTRUMENTED */
           set_field_enum(f, m_row.m_enabled ? ENUM_YES : ENUM_NO);
@@ -476,7 +526,103 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_session_all_memory_row.set_field(f->field_index() - 19, f);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+        break;
+      case 4: /* PROCESSLIST_USER */
+        if (m_row.m_username_length > 0)
+          set_field_varchar_utf8(f, m_row.m_username,
+                                 m_row.m_username_length);
+        else
+          f->set_null();
+        break;
+      case 5: /* PROCESSLIST_HOST */
+        if (m_row.m_hostname_length > 0)
+          set_field_varchar_utf8(f, m_row.m_hostname,
+                                 m_row.m_hostname_length);
+        else
+          f->set_null();
+        break;
+      case 6: /* PROCESSLIST_DB */
+        if (m_row.m_dbname_length > 0)
+          set_field_varchar_utf8(f, m_row.m_dbname,
+                                 m_row.m_dbname_length);
+        else
+          f->set_null();
+        break;
+      case 7: /* PROCESSLIST_COMMAND */
+        if (m_row.m_processlist_id != 0)
+          set_field_varchar_utf8(f, command_name[m_row.m_command].str,
+                                 command_name[m_row.m_command].length);
+        else
+          f->set_null();
+        break;
+      case 8: /* PROCESSLIST_TIME */
+        if (m_row.m_start_time)
+        {
+          time_t now= my_time(0);
+          ulonglong elapsed= (now > m_row.m_start_time ? now - m_row.m_start_time : 0);
+          set_field_ulonglong(f, elapsed);
+        }
+        else
+          f->set_null();
+        break;
+      case 9: /* PROCESSLIST_STATE */
+        /* This column's datatype is declared as varchar(64). Thread's state
+           message cannot be more than 64 characters. Otherwise, we will end up
+           in 'data truncated' warning/error (depends sql_mode setting) when
+           server is updating this column for those threads. To prevent this
+           kind of issue, an assert is added.
+         */
+        assert(m_row.m_processlist_state_length <= f->char_length());
+        if (m_row.m_processlist_state_length > 0)
+          set_field_varchar_utf8(f, m_row.m_processlist_state_ptr,
+                                 m_row.m_processlist_state_length);
+        else
+          f->set_null();
+        break;
+      case 10: /* PROCESSLIST_INFO */
+        if (m_row.m_processlist_info_length > 0)
+          set_field_longtext_utf8(f, m_row.m_processlist_info_ptr,
+                                  m_row.m_processlist_info_length);
+        else
+          f->set_null();
+        break;
+      case 11: /* PARENT_THREAD_ID */
+        if (m_row.m_parent_thread_internal_id != 0)
+          set_field_ulonglong(f, m_row.m_parent_thread_internal_id);
+        else
+          f->set_null();
+        break;
+      case 12: /* ROLE */
+        f->set_null();
+        break;
+      case 13: /* INSTRUMENTED */
+        set_field_enum(f, m_row.m_enabled ? ENUM_YES : ENUM_NO);
+        break;
+      case 14: /* HISTORY */
+        set_field_enum(f, m_row.m_history ? ENUM_YES : ENUM_NO);
+        break;
+      case 15: /* CONNECTION_TYPE */
+        get_vio_type_name(m_row.m_connection_type, & str, & len);
+        if (len > 0)
+          set_field_varchar_utf8(f, str, len);
+        else
+          f->set_null();
+        break;
+      case 16: /* THREAD_OS_ID */
+        if (m_row.m_thread_os_id > 0)
+          set_field_ulonglong(f, m_row.m_thread_os_id);
+        else
+          f->set_null();
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -488,6 +634,7 @@ int table_threads::update_row_values(TABLE *table, const unsigned char *,
   Field *f;
   enum_yes_no value;
 
+<<<<<<< HEAD
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
@@ -500,7 +647,46 @@ int table_threads::update_row_values(TABLE *table, const unsigned char *,
           m_row.m_psi->set_history((value == ENUM_YES) ? true : false);
           break;
         default:
+<<<<<<< HEAD
           return HA_ERR_WRONG_COMMAND;
+=======
+          DBUG_ASSERT(false);
+=======
+  for (; (f= *fields) ; fields++)
+  {
+    if (bitmap_is_set(table->write_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* THREAD_ID */
+      case 1: /* NAME */
+      case 2: /* TYPE */
+      case 3: /* PROCESSLIST_ID */
+      case 4: /* PROCESSLIST_USER */
+      case 5: /* PROCESSLIST_HOST */
+      case 6: /* PROCESSLIST_DB */
+      case 7: /* PROCESSLIST_COMMAND */
+      case 8: /* PROCESSLIST_TIME */
+      case 9: /* PROCESSLIST_STATE */
+      case 10: /* PROCESSLIST_INFO */
+      case 11: /* PARENT_THREAD_ID */
+      case 12: /* ROLE */
+        return HA_ERR_WRONG_COMMAND;
+      case 13: /* INSTRUMENTED */
+        value= (enum_yes_no) get_field_enum(f);
+        m_row.m_psi->set_enabled((value == ENUM_YES) ? true : false);
+        break;
+      case 14: /* HISTORY */
+        value= (enum_yes_no) get_field_enum(f);
+        m_row.m_psi->set_history((value == ENUM_YES) ? true : false);
+        break;
+      case 15: /* CONNECTION_TYPE */
+      case 16: /* THREAD_OS_ID */
+        return HA_ERR_WRONG_COMMAND;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

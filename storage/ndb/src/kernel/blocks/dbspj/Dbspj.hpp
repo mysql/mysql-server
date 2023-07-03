@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +37,7 @@
 #include <ArenaPool.hpp>
 #include <DataBuffer.hpp>
 #include <Bitmask.hpp>
+#include <KeyTable.hpp>
 #include <signaldata/DbspjErr.hpp>
 #include <stat_utils.hpp>
 #include "../dbtup/tuppage.hpp"
@@ -111,7 +116,11 @@ private:
    *   - 'insert' the GuardedPtr to allow it to be referred.
    *   - 'remove' at end of lifecycle.
    *   - 'get' will fetch the 'real' pointer to the object.
+<<<<<<< HEAD
    * Crash if ptrI is unknown to us.
+=======
+   * Crash if ptrI is unknow to us.
+>>>>>>> pr/231
    */
   void insertGuardedPtr(Ptr<Request>, Ptr<TreeNode>);
   void removeGuardedPtr(Ptr<TreeNode>);
@@ -223,6 +232,17 @@ public:
    */
   struct RowPtr
   {
+<<<<<<< HEAD
+=======
+    enum RowType
+    {
+      RT_SECTION = 1,
+      RT_LINEAR = 2,
+      RT_END = 0
+    };
+
+    RowType m_type;
+>>>>>>> pr/231
     Uint32  m_src_node_ptrI;
     Uint32  m_src_correlation;
 
@@ -239,8 +259,16 @@ public:
       const Header * m_header;
       const Uint32 * m_data;
     };
+<<<<<<< HEAD
 
     struct Row m_row_data;
+=======
+    union
+    {
+      struct Section m_section;
+      struct Linear m_linear;
+    } m_row_data;
+>>>>>>> pr/231
   };
 
   struct RowBuffer;  // forward decl.
@@ -688,6 +716,20 @@ public:
     bool equal(const ScanFragHandle &other) const {
       return key == other.key;
     }
+<<<<<<< HEAD
+=======
+    struct RangeBuilder
+    {
+      Uint32 m_range_size;
+      Uint16 m_range_cnt; // too set bounds info correctly
+    } m_range_builder;
+    Uint32 m_rangePtrI;
+
+    // Below are requirements for the hash lists
+    bool equal(const ScanFragHandle &other) const {
+      return key == other.key;
+    }
+>>>>>>> pr/231
     Uint32 hashValue() const {
       return hashPtrI(key);
     }
@@ -826,7 +868,11 @@ public:
     : m_magic(MAGIC), m_state(TN_END),
       m_parentPtrI(RNIL), m_requestPtrI(RNIL),
       m_ancestors(), m_coverage(), m_predecessors(), m_dependencies(),
+<<<<<<< HEAD
       m_resumeEvents(0),
+=======
+      m_resumeEvents(0), m_resumePtrI(RNIL),
+>>>>>>> pr/231
       m_scanAncestorPtrI(RNIL)
     {
     }
@@ -836,9 +882,15 @@ public:
       m_info(0), m_bits(T_LEAF), m_state(TN_BUILDING),
       m_parentPtrI(RNIL), m_requestPtrI(request),
       m_ancestors(), m_coverage(), m_predecessors(), m_dependencies(),
+<<<<<<< HEAD
       m_resumeEvents(0),
       m_scanAncestorPtrI(RNIL),
       nextList(RNIL), prevList(RNIL), nextCursor(RNIL)
+=======
+      m_resumeEvents(0), m_resumePtrI(RNIL),
+      m_scanAncestorPtrI(RNIL),
+      nextList(RNIL), prevList(RNIL)
+>>>>>>> pr/231
     {
 //    m_send.m_ref = 0;
       m_send.m_correlation = 0;
@@ -1003,6 +1055,7 @@ public:
        */
       T_SORTED_ORDER = 0x100000,
 
+<<<<<<< HEAD
       /**
        * Allow FirstMatch elimination when multiple rows matching the
        * same key or range
@@ -1015,6 +1068,8 @@ public:
        */
       T_CHK_CONGESTION = 0x400000,
 
+=======
+>>>>>>> pr/231
       // End marker...
       T_END = 0
     };
@@ -1026,6 +1081,13 @@ public:
      */
     enum TreeNodeResumeEvents
     {
+<<<<<<< HEAD
+=======
+      TN_ENQUEUE_OP   = 0x01,   // Enqueue and wait for RESUME_REF / _CONF
+      TN_RESUME_REF   = 0x02,
+      TN_RESUME_CONF  = 0x04,
+
+>>>>>>> pr/231
       TN_EXEC_WAIT    = 0x08,
       TN_RESUME_NODE  = 0x10
     };
@@ -1068,7 +1130,11 @@ public:
     Dependency_map::Head m_next_nodes;
 
     /**
+<<<<<<< HEAD
      * We provide some TreeNodeBitMap's. Useful to check how
+=======
+     * We provide some TreeNodeBitMap's. Usefull to check how
+>>>>>>> pr/231
      * a specific node relates to other TreeNodes:
      *
      * - 'ancestors' are the set of TreeNodes reachable through
@@ -1099,9 +1165,12 @@ public:
     // Memory Arena with lifetime limited to current result batch / node
     ArenaHead m_batchArena;
 
+<<<<<<< HEAD
     // RowBuffers for this TreeNode only
     RowBuffer m_rowBuffer;
 
+=======
+>>>>>>> pr/231
     /**
      * Rows buffered by this node
      */
@@ -1119,6 +1188,12 @@ public:
      * Set of TreeNodeResumeEvents, possibly or'ed.
      */
     Uint32 m_resumeEvents;
+
+    /**
+     * The Scan-TreeNode being the head of the inner-joined-branch
+     * this node is a member of.
+     */
+    Uint32 m_scanAncestorPtrI;
 
     /**
      * The Scan-TreeNode being the head of the inner-joined-branch
@@ -1181,6 +1256,10 @@ public:
     enum RequestBits
     {
       RT_SCAN                = 0x1  // unbounded result set, scan interface
+<<<<<<< HEAD
+=======
+      ,RT_BUFFERS            = 0x2  // Do any of nodes use row/match-buffering
+>>>>>>> pr/231
       ,RT_MULTI_SCAN         = 0x4  // Is there several scans in request
       ,RT_NEED_PREPARE       = 0x10 // Does any node need m_prepare hook
       ,RT_NEED_COMPLETE      = 0x20 // Does any node need m_complete hook
@@ -1432,11 +1511,21 @@ private:
 
   Uint32 planSequentialExec(Ptr<Request>  requestPtr,
                             const Ptr<TreeNode> branchPtr,
+<<<<<<< HEAD
                             Ptr<TreeNode> prevExecPtr);
 
   Uint32 appendTreeNode(Ptr<Request>  requestPtr,
                         Ptr<TreeNode> treeNodePtr,
                         Ptr<TreeNode> prevExecPtr);
+=======
+                            Ptr<TreeNode> prevExecPtr,
+                            const Ptr<TreeNode> outerBranchPtr);
+
+  Uint32 appendTreeNode(Ptr<Request>  requestPtr,
+                        Ptr<TreeNode> treeNodePtr,
+                        Ptr<TreeNode> prevExecPtr,
+                        const Ptr<TreeNode> outerBranchPtr);
+>>>>>>> pr/231
 
   void dumpExecPlan(Ptr<Request>, Ptr<TreeNode> node);
 
@@ -1463,20 +1552,31 @@ private:
    * Row buffering
    */
   Uint32 storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row);
+<<<<<<< HEAD
+=======
+  void releaseRow(Ptr<TreeNode> treeNodePtr, RowRef ref);
+>>>>>>> pr/231
   Uint32* stackAlloc(RowBuffer& dst, RowRef&, Uint32 len);
 
   void add_to_list(SLFifoRowList & list, RowRef);
   Uint32 add_to_map(RowMap& map, Uint32, RowRef);
 
   void setupRowPtr(Ptr<TreeNode> treeNodePtr,
+<<<<<<< HEAD
                    RowPtr &dst, const Uint32 *src);
+=======
+                   RowPtr& dst, RowRef, const Uint32 * src);
+>>>>>>> pr/231
   Uint32 * get_row_ptr(RowRef pos);
 
   void getBufferedRow(const Ptr<TreeNode>, Uint32 rowId,
                       RowPtr *row);
 
   void resumeBufferedNode(Signal*, Ptr<Request>, Ptr<TreeNode>);
+<<<<<<< HEAD
   void resumeCongestedNode(Signal*, Ptr<Request>, Ptr<TreeNode>);
+=======
+>>>>>>> pr/231
 
   /**
    * SLFifoRowListIterator
@@ -1520,7 +1620,22 @@ private:
   Uint32 appendFromParent(Uint32 & ptrI, Local_pattern_store&,
                           Local_pattern_store::ConstDataBufferIterator&,
                           Uint32 level, const RowPtr&, bool& hasNull);
+<<<<<<< HEAD
   Uint32 expand(Uint32 & ptrI, Local_pattern_store& p, const RowPtr& r, bool& hasNull);
+=======
+  Uint32 expand(Uint32 & ptrI, Local_pattern_store& p, const RowPtr& r, bool& hasNull){
+    switch(r.m_type){
+    case RowPtr::RT_SECTION:
+      return expandS(ptrI, p, r, hasNull);
+    case RowPtr::RT_LINEAR:
+      return expandL(ptrI, p, r, hasNull);
+    default:
+      return DbspjErr::InternalError;
+    }
+  }
+  Uint32 expandS(Uint32 & ptrI, Local_pattern_store&, const RowPtr&, bool& hasNull);
+  Uint32 expandL(Uint32 & ptrI, Local_pattern_store&, const RowPtr&, bool& hasNull);
+>>>>>>> pr/231
   Uint32 expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
                 DABuffer & param, Uint32 cnt, bool& hasNull);
   Uint32 expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,

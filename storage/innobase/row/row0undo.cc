@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1997, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1997, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -125,8 +149,31 @@ doing the purge. Similarly, during a rollback, a record can be removed
 if the stored roll ptr in the undo log points to a trx already (being) purged,
 or if the roll ptr is NULL, i.e., it was a fresh insert. */
 
+<<<<<<< HEAD
 undo_node_t *row_undo_node_create(trx_t *trx, que_thr_t *parent,
                                   mem_heap_t *heap, bool partial_rollback) {
+=======
+<<<<<<< HEAD
+/** Creates a row undo node to a query graph.
+ @return own: undo node */
+undo_node_t *row_undo_node_create(
+    trx_t *trx,        /*!< in/out: transaction */
+    que_thr_t *parent, /*!< in: parent node, i.e., a thr node */
+    mem_heap_t *heap)  /*!< in: memory heap where created */
+=======
+/********************************************************************//**
+Creates a row undo node to a query graph.
+@return own: undo node */
+undo_node_t*
+row_undo_node_create(
+/*=================*/
+	trx_t*		trx,	/*!< in/out: transaction */
+	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
+	mem_heap_t*	heap,	/*!< in: memory heap where created */
+	bool		partial_rollback) /*!< in: true if partial rollback */
+>>>>>>> upstream/cluster-7.6
+{
+>>>>>>> pr/231
   undo_node_t *undo;
 
   ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE) ||
@@ -141,8 +188,18 @@ undo_node_t *row_undo_node_create(trx_t *trx, que_thr_t *parent,
   undo->state = UNDO_NODE_FETCH_NEXT;
   undo->trx = trx;
 
+<<<<<<< HEAD
   undo->partial = partial_rollback;
   undo->pcur.init();
+=======
+<<<<<<< HEAD
+  btr_pcur_init(&(undo->pcur));
+=======
+	undo->partial = partial_rollback;
+
+	btr_pcur_init(&(undo->pcur));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   undo->heap = mem_heap_create(256, UT_LOCATION_HERE);
 
@@ -311,6 +368,7 @@ func_exit:
   return (err);
 }
 
+<<<<<<< HEAD
 void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node) {
   /* In case of partial rollback implicit lock on the
   record is released in the middle of transaction, which
@@ -340,10 +398,62 @@ void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node) {
   }
 }
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 /** Undoes a row operation in a table. This is a high-level function used
  in SQL execution graphs.
  @return query thread to run next or NULL */
 que_thr_t *row_undo_step(que_thr_t *thr) /*!< in: query thread */
+=======
+void
+row_convert_impl_to_expl_if_needed(
+/*===============================*/
+	btr_cur_t*	cursor, /*!< in: cursor to record */
+	undo_node_t*	node)	/*!< in: undo node */
+{
+	ulint*		offsets = NULL;
+
+	/* In case of partial rollback implicit lock on the
+	record is released in the middle of transaction, which
+	can break the serializability of IODKU and REPLACE
+	statements. Normal rollback is not affected by this
+	becasue we release the locks after the rollback. So
+	to prevent any other transaction modifying the record
+	in between the partial rollback we convert the implicit
+	lock on the record to explict. When the record is actually
+	deleted this lock be inherited by the next record.  */
+
+	if (!node->partial
+	    || (node->trx == NULL)
+	    || node->trx->isolation_level < TRX_ISO_REPEATABLE_READ){
+		return;
+	}
+
+	ut_ad(node->trx->in_rollback);
+	dict_index_t*	index = btr_cur_get_index(cursor);
+	rec_t*		rec = btr_cur_get_rec(cursor);
+	buf_block_t*	block = btr_cur_get_block(cursor);
+	ulint		heap_no = page_rec_get_heap_no(rec);
+
+	if (heap_no != PAGE_HEAP_NO_SUPREMUM
+	    && !dict_table_is_intrinsic(index->table)
+	    && !dict_table_is_temporary(index->table)
+	    && !dict_index_is_spatial(index)) {
+		lock_rec_convert_active_impl_to_expl(block, rec, index,
+						      offsets,node->trx,heap_no);
+	}
+}
+
+/***********************************************************//**
+Undoes a row operation in a table. This is a high-level function used
+in SQL execution graphs.
+@return query thread to run next or NULL */
+que_thr_t*
+row_undo_step(
+/*==========*/
+	que_thr_t*	thr)	/*!< in: query thread */
+>>>>>>> upstream/cluster-7.6
 {
   dberr_t err;
   undo_node_t *node;

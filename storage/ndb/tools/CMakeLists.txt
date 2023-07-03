@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -94,11 +98,18 @@ ENDIF()
 
 NDB_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp
+<<<<<<< HEAD
   ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
   )
 NDB_ADD_EXECUTABLE(ndb_drop_table
+=======
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_waiter ndbclient_static)
+
+MYSQL_ADD_EXECUTABLE(ndb_drop_table
+>>>>>>> pr/231
   drop_tab.cpp
   NDBTEST ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
@@ -124,11 +135,18 @@ NDB_ADD_EXECUTABLE(ndb_drop_index
   )
 NDB_ADD_EXECUTABLE(ndb_show_tables
   listTables.cpp
+<<<<<<< HEAD
   ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
   )
 NDB_ADD_EXECUTABLE(ndb_select_all
+=======
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_show_tables ndbclient_static)
+
+MYSQL_ADD_EXECUTABLE(ndb_select_all
+>>>>>>> pr/231
   select_all.cpp
   NDBTEST ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
@@ -155,12 +173,19 @@ NDB_ADD_EXECUTABLE(ndb_restore
   restore/consumer_printer.cpp
   restore/Restore.cpp
   ndb_lib_move_data.cpp
+<<<<<<< HEAD
   ${LINK_NDBCLIENT}
   COMPONENT ClusterTools
   ENABLE_EXPORTS
   LINK_LIBRARIES ndbgeneral ndbportlib
   )
 NDB_ADD_EXECUTABLE(ndb_import
+=======
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_restore ndbclient_static)
+
+MYSQL_ADD_EXECUTABLE(ndb_import
+>>>>>>> pr/231
   ndb_import.cpp
   ${LINK_NDBCLIENT}
   COMPONENT ClusterTools

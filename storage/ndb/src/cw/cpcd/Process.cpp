@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +28,7 @@
 
 #include "util/require.h"
 #include <ndb_global.h>
+#include "NdbSleep.h"
 
 #include <time.h>
 
@@ -135,7 +140,11 @@ const char *getProcessStatusName(ProcessStatus status)
     case RUNNING:
       return "Running";
   }
+<<<<<<< HEAD
   return nullptr;
+=======
+  return NULL;
+>>>>>>> pr/231
 }
 
 bool CPCD::Process::should_be_erased() const
@@ -166,9 +175,15 @@ void CPCD::Process::monitor()
       {
         logger.debug("Monitor : Process %s:%s:%d with pid %d no longer running",
                       m_group.c_str(), m_name.c_str(), m_id, m_pid);
+<<<<<<< HEAD
         switch (m_type)
         {
         case ProcessType::TEMPORARY:
+=======
+        switch (m_processType)
+        {
+        case TEMPORARY:
+>>>>>>> pr/231
           logger.debug("Monitor : Process %s:%s:%d with pid %d is STOPPED",
                         m_group.c_str(), m_name.c_str(), m_id, m_pid);
           m_status = STOPPED;
@@ -176,7 +191,11 @@ void CPCD::Process::monitor()
           m_pid = bad_pid;
           break;
 
+<<<<<<< HEAD
         case ProcessType::PERMANENT:
+=======
+        case PERMANENT:
+>>>>>>> pr/231
           logger.debug("Monitor : Process %s:%s:%d with previous pid %d is STARTING",
                         m_group.c_str(), m_name.c_str(), m_id, m_pid);
           start();
@@ -777,7 +796,11 @@ int CPCD::Process::start() {
     /* retry */
 
     // For processtype PERMANENT pid and pgid must be -1 so never enter here.
+<<<<<<< HEAD
     require(m_type == ProcessType::TEMPORARY);
+=======
+    require(m_processType == TEMPORARY);
+>>>>>>> pr/231
     logger.error("pgid and m_pid don't match: cpcd pid %d: forked pgid %d "
                  "pid %d: file m_pid %d",
                  getpid(),

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +39,18 @@
 #include "sql/sql_class.h"
 #include "sql_string.h"
 
+<<<<<<< HEAD
 bool sp_condition_value::equals(const sp_condition_value *cv) const {
+<<<<<<< HEAD
   assert(cv);
+=======
+  DBUG_ASSERT(cv);
+=======
+bool sp_condition_value::equals(const sp_condition_value *cv) const
+{
+  assert(cv);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (this == cv) return true;
 
@@ -88,6 +106,7 @@ void sp_handler::print_conditions(String *str) const {
   }
 }
 
+<<<<<<< HEAD
 void sp_handler::print(String *str) const {
   switch (type) {
     case sp_handler::EXIT:
@@ -98,7 +117,27 @@ void sp_handler::print(String *str) const {
       break;
     default:
       // The handler type must be either CONTINUE or EXIT.
+<<<<<<< HEAD
       assert(0);
+=======
+      DBUG_ASSERT(0);
+=======
+
+void sp_handler::print(String *str) const
+{
+  switch (type)
+  {
+  case sp_handler::EXIT:
+    str->append(STRING_WITH_LEN(" EXIT"));
+    break;
+  case sp_handler::CONTINUE:
+    str->append(STRING_WITH_LEN(" CONTINUE"));
+    break;
+  default:
+    // The handler type must be either CONTINUE or EXIT.
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   print_conditions(str);

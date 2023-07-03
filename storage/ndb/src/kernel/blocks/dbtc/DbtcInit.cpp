@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -359,7 +363,13 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   void *p;
 #if defined(USE_INIT_GLOBAL_VARIABLES)
   {
+<<<<<<< HEAD
     void* tmp[] = { &tcConnectptr,
+=======
+    void* tmp[] = { &apiConnectptr, 
+		    &tcConnectptr,
+		    &cachePtr,
+>>>>>>> pr/231
 		    &hostptr,
 		    &timeOutptr,
 		    &scanFragptr, 
@@ -679,6 +689,12 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   cpackedListIndex = 0;
   c_ongoing_take_over_cnt = 0;
 
+<<<<<<< HEAD
+=======
+  cacheRecord = 0;
+  apiConnectRecord = 0;
+  tcConnectRecord = 0;
+>>>>>>> pr/231
   hostRecord = 0;
   tableRecord = 0;
   tcFailRecord = 0;

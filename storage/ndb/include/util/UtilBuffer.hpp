@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,11 +58,16 @@ public:
   int append(const void *d, size_t l) {
     if (likely(l > 0))
     {
+<<<<<<< HEAD
       if (unlikely(d == nullptr))
+=======
+      if (unlikely(d == NULL))
+>>>>>>> pr/231
       {
         errno = EINVAL;
         return -1;
       }
+<<<<<<< HEAD
 
       void * pos = append(l);
       if(pos == nullptr)
@@ -67,6 +76,14 @@ public:
       }
 
       memcpy(pos, d, l);
+=======
+      const int ret = grow(len+l);
+      if (unlikely(ret != 0))
+        return ret;
+      
+      memcpy((char *)data+len, d, l);
+      len += l;
+>>>>>>> pr/231
     }
     return 0;
   }

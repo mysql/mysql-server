@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -195,7 +199,10 @@ private:
   void execAPI_REGREQ    (const Uint32 * theData);
   void execAPI_REGCONF   (const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execAPI_REGREF    (const Uint32 * theData);
+<<<<<<< HEAD
   void execDUMP_STATE_ORD(const NdbApiSignal*, const LinearSectionPtr ptr[]);
+=======
+>>>>>>> pr/231
   void execNODE_FAILREP  (const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execNF_COMPLETEREP(const NdbApiSignal*, const LinearSectionPtr ptr[3]);
 

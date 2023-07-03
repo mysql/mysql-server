@@ -32,6 +32,7 @@ INCLUDE_DIRECTORIES(
 
 ADD_DEFINITIONS(-DNO_DUMMY_DECL)
 ADD_CONVENIENCE_LIBRARY(ndbgeneral
+<<<<<<< HEAD
   BaseString.cpp
   Bitmask.cpp
   CharsetMap.cpp
@@ -70,6 +71,48 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   require.cpp
   socket_io.cpp
   version.cpp
+=======
+            ndbzio.cpp
+            File.cpp
+            basename.cpp
+            md5_hash.cpp
+            Properties.cpp
+            socket_io.cpp
+            SimpleProperties.cpp
+            Parser.cpp
+            InputStream.cpp
+            SocketServer.cpp
+            SocketClient.cpp
+            SocketAuthenticator.cpp
+            OutputStream.cpp
+            NdbOut.cpp
+            BaseString.cpp
+            NdbSqlUtil.cpp
+            uucode.cpp
+            random.cpp
+            ndb_rand.cpp
+            version.cpp
+            strdup.cpp
+            ConfigValues.cpp
+            ndb_init.cpp
+            ndb_opts.cpp
+            basestring_vsnprintf.cpp
+            Bitmask.cpp
+	    SparseBitmask.cpp
+            require.cpp
+            Vector.cpp
+            NdbPack.cpp
+            HashMap2.cpp
+            LinkedStack.cpp
+            decimal_utils.cpp
+            CharsetMap.cpp
+            CharsetMapImpl.cpp
+            parse_mask.cpp
+            LogBuffer.cpp
+            ProcessInfo.cpp
+            OwnProcessInfo.cpp
+            Checksum.cpp
+>>>>>>> pr/231
 )
 SET(NDBGENERAL_LIBS ndbtrace ndbportlib ${ZLIB_LIBRARY} mysys)
 TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
@@ -84,6 +127,7 @@ ENDFOREACH(tests)
 NDB_ADD_TEST(ndb_version-t version.cpp LIBS ndbgeneral)
 
 FOREACH(tests
+<<<<<<< HEAD
     NdbPack
     mysql_utils_test
     ndb_openssl_evp
@@ -95,4 +139,8 @@ FOREACH(tests
     testConfigValues
     )
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbmgmapi ndbgeneral ndbportlib)
+=======
+        NdbPack mysql_utils_test NdbSqlUtil LogBuffer testSimpleProperties)
+  NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral ndbportlib)
+>>>>>>> pr/231
 ENDFOREACH(tests)

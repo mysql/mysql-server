@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/message_builder_t.cc
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/message_builder_t.cc
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,

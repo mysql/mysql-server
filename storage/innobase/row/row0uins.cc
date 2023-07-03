@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1997, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1997, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -38,7 +62,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "ibuf0ibuf.h"
+<<<<<<< HEAD
 #include "log0chkp.h"
+=======
+#include "log0log.h"
+<<<<<<< HEAD
+>>>>>>> pr/231
 #include "mach0data.h"
 #include "que0que.h"
 #include "row0log.h"
@@ -51,6 +80,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #include "trx0undo.h"
 
+<<<<<<< HEAD
+=======
+#include "current_thd.h"
+
+=======
+#include "fil0fil.h"
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
 is enough space in the redo log before for that operation. This is
@@ -121,7 +158,34 @@ introduced where a call to log_free_check() is bypassed. */
     goto func_exit;
   }
 
+<<<<<<< HEAD
   node->pcur.commit_specify_mtr(&mtr);
+=======
+<<<<<<< HEAD
+  btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+=======
+		dict_drop_index_tree(
+			btr_pcur_get_rec(&node->pcur), &(node->pcur), &mtr);
+
+		mtr_commit(&mtr);
+
+		mtr_start(&mtr);
+
+		success = btr_pcur_restore_position(
+			BTR_MODIFY_LEAF, &node->pcur, &mtr);
+		ut_a(success);
+	}
+
+	row_convert_impl_to_expl_if_needed(btr_cur, node);
+
+	if (btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
+		err = DB_SUCCESS;
+		goto func_exit;
+	}
+
+	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 retry:
   /* If did not succeed, try pessimistic descent to tree */
   mtr_start(&mtr);
@@ -157,6 +221,7 @@ func_exit:
   return (err);
 }
 
+<<<<<<< HEAD
 /** Removes a secondary index entry if found.
 @param[in]      mode    BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
                         depending on whether we wish optimistic or
@@ -180,6 +245,32 @@ func_exit:
   ulint rec_deleted;
 
   log_free_check();
+=======
+/***************************************************************//**
+Removes a secondary index entry if found.
+@return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
+dberr_t
+row_undo_ins_remove_sec_low(
+/*========================*/
+	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+				depending on whether we wish optimistic or
+				pessimistic descent down the index tree */
+	dict_index_t*	index,	/*!< in: index */
+	dtuple_t*	entry,	/*!< in: index entry to remove */
+	que_thr_t*	thr,	/*!< in: query thread */
+	undo_node_t*	node)	/*!< in: undo node */
+{
+	btr_pcur_t		pcur;
+	btr_cur_t*		btr_cur;
+	dberr_t			err	= DB_SUCCESS;
+	mtr_t			mtr;
+	enum row_search_result	search_result;
+	ibool			modify_leaf = false;
+	ulint			rec_deleted;
+
+	log_free_check();
+>>>>>>> upstream/cluster-7.6
 
   mtr_start(&mtr);
 
@@ -214,6 +305,7 @@ func_exit:
     case ROW_FOUND:
       break;
 
+<<<<<<< HEAD
     case ROW_BUFFERED:
     case ROW_NOT_DELETED_REF:
       /* These are invalid outcomes, because the mode passed
@@ -221,6 +313,17 @@ func_exit:
       flags BTR_INSERT, BTR_DELETE, or BTR_DELETE_MARK. */
       ut_error;
   }
+=======
+	rec_deleted = rec_get_deleted_flag(btr_pcur_get_rec(&pcur),
+					   dict_table_is_comp(index->table));
+
+	if (search_result == ROW_FOUND && dict_index_is_spatial(index)) {
+		if(rec_deleted) {
+			ib::error() << "Record found in index " << index->name
+				<< " is deleted marked on insert rollback.";
+		}
+	}
+>>>>>>> upstream/cluster-7.6
 
   rec_deleted =
       rec_get_deleted_flag(pcur.get_rec(), dict_table_is_comp(index->table));
@@ -232,6 +335,7 @@ func_exit:
     }
   }
 
+<<<<<<< HEAD
   btr_cur = pcur.get_btr_cur();
 
   if (rec_deleted == 0) {
@@ -242,6 +346,10 @@ func_exit:
     implicit lock on the record.*/
     row_convert_impl_to_expl_if_needed(btr_cur, node);
   }
+=======
+<<<<<<< HEAD
+  btr_cur = btr_pcur_get_btr_cur(&pcur);
+>>>>>>> pr/231
 
   if (modify_leaf) {
     err = btr_cur_optimistic_delete(btr_cur, 0, &mtr) ? DB_SUCCESS : DB_FAIL;
@@ -254,6 +362,29 @@ func_exit:
     btr_cur_pessimistic_delete(&err, false, btr_cur, 0, false, 0, 0, 0, &mtr,
                                &pcur, nullptr);
   }
+=======
+	if (rec_deleted == 0) {
+		/* This record is not delete marked and has an implicit
+		lock on it. For delete marked record, INSERT has not
+		modified it yet and we don't have implicit lock on it.
+		We must convert to explicit if and only if we have
+		implicit lock on the record.*/
+		row_convert_impl_to_expl_if_needed(btr_cur, node);
+	}
+
+	if (modify_leaf) {
+		err = btr_cur_optimistic_delete(btr_cur, 0, &mtr)
+			? DB_SUCCESS : DB_FAIL;
+	} else {
+		/* Passing rollback=false here, because we are
+		deleting a secondary index record: the distinction
+		only matters when deleting a record that contains
+		externally stored columns. */
+		ut_ad(!dict_index_is_clust(index));
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
+					   false, &mtr);
+	}
+>>>>>>> upstream/cluster-7.6
 func_exit:
   pcur.close();
 func_exit_no_pcur:
@@ -262,8 +393,10 @@ func_exit_no_pcur:
   return (err);
 }
 
+<<<<<<< HEAD
 /** Removes a secondary index entry from the index if found. Tries first
  optimistic, then pessimistic descent down the tree.
+<<<<<<< HEAD
 @param[in]      index   index
 @param[in]      entry   index entry to insert
 @param[in]      thr     query thread
@@ -273,12 +406,42 @@ func_exit_no_pcur:
                                                      dtuple_t *entry,
                                                      que_thr_t *thr,
                                                      undo_node_t *node) {
+=======
+ @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_ins_remove_sec(dict_index_t *index, /*!< in: index */
+                            dtuple_t *entry, /*!< in: index entry to insert */
+                            que_thr_t *thr)  /*!< in: query thread */
+=======
+/***************************************************************//**
+Removes a secondary index entry from the index if found. Tries first
+optimistic, then pessimistic descent down the tree.
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
+dberr_t
+row_undo_ins_remove_sec(
+/*====================*/
+	dict_index_t*	index,	/*!< in: index */
+	dtuple_t*	entry,	/*!< in: index entry to insert */
+	que_thr_t*	thr,	/*!< in: query thread */
+	undo_node_t*	node)
+>>>>>>> upstream/cluster-7.6
+{
+>>>>>>> pr/231
   dberr_t err;
   ulint n_tries = 0;
 
   /* Try first optimistic descent to the B-tree */
 
+<<<<<<< HEAD
   err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry, thr, node);
+=======
+<<<<<<< HEAD
+  err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry, thr);
+=======
+	err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry, thr, node);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (err == DB_SUCCESS) {
     return (err);
@@ -286,8 +449,18 @@ func_exit_no_pcur:
 
 /* Try then pessimistic descent to the B-tree */
 retry:
+<<<<<<< HEAD
   err = row_undo_ins_remove_sec_low(BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+<<<<<<< HEAD
                                     index, entry, thr, node);
+=======
+                                    index, entry, thr);
+=======
+	err = row_undo_ins_remove_sec_low(
+		BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+		index, entry, thr, node);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* The delete operation may fail if we have little
   file space left: TODO: easiest to crash the database
@@ -434,12 +607,25 @@ static dberr_t row_undo_ins_remove_multi_sec(dict_index_t *index,
       back because an error occurred while storing
       off-page columns.
 
+<<<<<<< HEAD
       Because secondary index entries are inserted
       after the clustered index record, we may
       assume that the secondary index record does
       not exist. */
     } else {
+<<<<<<< HEAD
       err = row_undo_ins_remove_sec(index, entry, thr, node);
+=======
+      err = row_undo_ins_remove_sec(index, entry, thr);
+=======
+			Because secondary index entries are inserted
+			after the clustered index record, we may
+			assume that the secondary index record does
+			not exist. */
+		} else {
+			err = row_undo_ins_remove_sec(index, entry, thr, node);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
         goto func_exit;

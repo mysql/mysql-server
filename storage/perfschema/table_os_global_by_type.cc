@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -92,11 +100,35 @@ bool PFS_index_os_global_by_type::match(PFS_table_share *pfs) {
     }
   }
 
+<<<<<<< HEAD
   if (m_fields >= 3) {
     if (!m_key_3.match(pfs)) {
       return false;
     }
   }
+=======
+PFS_engine_table_share_state
+table_os_global_by_type::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_os_global_by_type::m_share=
+{
+  { C_STRING_WITH_LEN("objects_summary_global_by_type") },
+  &pfs_truncatable_acl,
+  table_os_global_by_type::create,
+  NULL, /* write_row */
+  table_os_global_by_type::delete_all_rows,
+  table_os_global_by_type::get_row_count,
+  sizeof(pos_os_global_by_type),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+>>>>>>> upstream/cluster-7.6
 
   return true;
 }
@@ -329,7 +361,12 @@ int table_os_global_by_type::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -360,7 +397,50 @@ int table_os_global_by_type::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, m_row.m_stat.m_max);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* OBJECT_TYPE */
+        set_field_object_type(f, m_row.m_object.m_object_type);
+        break;
+      case 1: /* SCHEMA_NAME */
+        set_field_varchar_utf8(f, m_row.m_object.m_schema_name,
+                               m_row.m_object.m_schema_name_length);
+        break;
+      case 2: /* OBJECT_NAME */
+        set_field_varchar_utf8(f, m_row.m_object.m_object_name,
+                               m_row.m_object.m_object_name_length);
+        break;
+      case 3: /* COUNT */
+        set_field_ulonglong(f, m_row.m_stat.m_count);
+        break;
+      case 4: /* SUM */
+        set_field_ulonglong(f, m_row.m_stat.m_sum);
+        break;
+      case 5: /* MIN */
+        set_field_ulonglong(f, m_row.m_stat.m_min);
+        break;
+      case 6: /* AVG */
+        set_field_ulonglong(f, m_row.m_stat.m_avg);
+        break;
+      case 7: /* MAX */
+        set_field_ulonglong(f, m_row.m_stat.m_max);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

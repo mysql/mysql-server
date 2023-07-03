@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,14 +89,22 @@ NdbBackup::clearOldBackups()
     if (!isHostLocal(host))
     {
       // clean up backup from BackupDataDir
+<<<<<<< HEAD
       tmp1.assfmt("ssh %s rm -rf %s/BACKUP", host, path.c_str());
+=======
+      tmp1.assfmt("ssh %s rm -rf %s/BACKUP", host, path);
+>>>>>>> pr/231
       // clean up local copy created by scp
       tmp2.assfmt("rm -rf ./BACKUP*");
     }
     else
     {
       // clean up backup from BackupDataDir
+<<<<<<< HEAD
       tmp1.assfmt("rm -rf %s/BACKUP", path.c_str());
+=======
+      tmp1.assfmt("rm -rf %s/BACKUP", path);
+>>>>>>> pr/231
       // clean up copy created by cp
       tmp2.assfmt("rm -rf ./BACKUP*");
     }
@@ -289,15 +301,48 @@ NdbBackup::getNdbRestoreBinaryPath(){
   return ndb_restore_bin_path;
 }
 
+BaseString
+NdbBackup::getNdbRestoreBinaryPath(){
+
+  const char* mysql_install_path;
+  if ((mysql_install_path = getenv(AUTOTEST_MYSQL_PATH_ENV)) != NULL) {
+  } else if ((mysql_install_path = getenv(MTR_MYSQL_PATH_ENV)) != NULL) {
+  } else {
+    g_err << "Either MYSQL_BASE_DIR or MYSQL_BINDIR environment variables"
+          << "must be defined as search path for ndb_restore binary" << endl;
+    return "";
+  }
+
+  BaseString ndb_restore_bin_path;
+  ndb_restore_bin_path.assfmt("%s/bin/ndb_restore", mysql_install_path);
+  if (!File_class::exists(ndb_restore_bin_path.c_str()))
+  {
+    ndb_restore_bin_path.assfmt("%s/storage/ndb/tools/ndb_restore", mysql_install_path);
+    if (!File_class::exists(ndb_restore_bin_path.c_str()))
+    {
+      g_err << "Failed to find ndb_restore in either $MYSQL_BASE_DIR "
+            << "or $MYSQL_BINDIR paths " <<  ndb_restore_bin_path.c_str() << endl;
+      return "";
+    }
+    else
+      return ndb_restore_bin_path;
+  }
+  return ndb_restore_bin_path;
+}
+
 int  
 NdbBackup::execRestore(bool _restore_data,
 		       bool _restore_meta,
 		       bool _restore_epoch,
                        int _node_id,
 		       unsigned _backup_id,
+<<<<<<< HEAD
                        unsigned _error_insert,
                        const char * encryption_password,
                        int password_length)
+=======
+                       unsigned _error_insert)
+>>>>>>> pr/231
 {
   ndbout << "getBackupDataDir "<< _node_id <<endl;
 
@@ -348,13 +393,21 @@ NdbBackup::execRestore(bool _restore_data,
   if (!isHostLocal(host))
   {
     tmp.assfmt("scp -r %s:%s/BACKUP/BACKUP-%d/* .",
+<<<<<<< HEAD
                host, path.c_str(),
+=======
+               host, path,
+>>>>>>> pr/231
                _backup_id);
   }
   else
   {
     tmp.assfmt("scp -r %s/BACKUP/BACKUP-%d/* .",
+<<<<<<< HEAD
                path.c_str(),
+=======
+               path,
+>>>>>>> pr/231
                _backup_id);
   }
 
@@ -363,14 +416,30 @@ NdbBackup::execRestore(bool _restore_data,
   
   ndbout << "scp res: " << res << endl;
 
+<<<<<<< HEAD
   BaseString cmd;
+=======
+  if(res == 0 && !_restore_meta && !_restore_data && !_restore_epoch)
+  {
+    // ndb_restore connects to cluster, prints backup info
+    // and exits without restoring anything
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d",
+>>>>>>> pr/231
 #if 1
 #else
   cmd = "valgrind --leak-check=yes -v "
 #endif
+<<<<<<< HEAD
   cmd.append(ndb_restore_bin_path.c_str());
   cmd.append(" --no-defaults");
 
+=======
+               ndb_restore_bin_path.c_str(),
+               ndb_mgm_get_connected_host(handle),
+               ndb_mgm_get_connected_port(handle),
+               _node_id, 
+               _backup_id);
+>>>>>>> pr/231
 #ifdef ERROR_INSERT
   if(_error_insert > 0)
   {
@@ -401,7 +470,26 @@ NdbBackup::execRestore(bool _restore_data,
   if (res == 0 && _restore_meta)
   {
     /** don't restore DD objects */
+<<<<<<< HEAD
     tmp.assfmt("%s -m -d .", cmd.c_str());
+=======
+    
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -m -d .",
+#if 1
+               "",
+#else
+               "valgrind --leak-check=yes -v "
+#endif
+               ndb_restore_bin_path.c_str(),
+               ndb_mgm_get_connected_host(handle),
+               ndb_mgm_get_connected_port(handle),
+               _node_id, 
+               _backup_id);
+#ifdef ERROR_INSERT
+    if(_error_insert > 0)
+      tmp.appfmt(" --error-insert=%u", _error_insert);
+#endif
+>>>>>>> pr/231
     
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
@@ -410,7 +498,25 @@ NdbBackup::execRestore(bool _restore_data,
   if (res == 0 && _restore_data)
   {
 
+<<<<<<< HEAD
     tmp.assfmt("%s -r .", cmd.c_str());
+=======
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -r .",
+#if 1
+               "",
+#else
+               "valgrind --leak-check=yes -v "
+#endif
+               ndb_restore_bin_path.c_str(),
+               ndb_mgm_get_connected_host(handle),
+               ndb_mgm_get_connected_port(handle),
+               _node_id, 
+               _backup_id);
+#ifdef ERROR_INSERT
+    if(_error_insert > 0)
+      tmp.appfmt(" --error-insert=%u", _error_insert);
+#endif
+>>>>>>> pr/231
     
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
@@ -418,7 +524,25 @@ NdbBackup::execRestore(bool _restore_data,
 
   if (res == 0 && _restore_epoch)
   {
+<<<<<<< HEAD
     tmp.assfmt("%s -e .", cmd.c_str());
+=======
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -e .",
+#if 1
+               "",
+#else
+               "valgrind --leak-check=yes -v "
+#endif
+               ndb_restore_bin_path.c_str(),
+               ndb_mgm_get_connected_host(handle),
+               ndb_mgm_get_connected_port(handle),
+               _node_id,
+               _backup_id);
+#ifdef ERROR_INSERT
+    if(_error_insert > 0)
+      tmp.appfmt(" --error-insert=%u", _error_insert);
+#endif
+>>>>>>> pr/231
 
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());

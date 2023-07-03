@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -311,7 +315,11 @@ public:
     ITAS_ALL_RECEIVED  = 3,     // All TransIdAI info received
     ITAS_WAIT_KEY_FAIL = 4     // Failed collecting key
   };
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> pr/231
   class Dbdih* c_dih;
   /**--------------------------------------------------------------------------
    * LOCAL SYMBOLS PER 'SYMBOL-VALUED' VARIABLE
@@ -561,6 +569,9 @@ public:
   RSS_AP_SNAPSHOT(c_theFiredTriggerPool);
 
   Uint32 c_maxNumberOfDefinedTriggers;
+
+  // Max number of outstanding FireTrigRequests per transaction
+  static const Uint32 MaxOutstandingFireTrigReqPerTrans = 32;
 
   // Max number of outstanding FireTrigRequests per transaction
   static const Uint32 MaxOutstandingFireTrigReqPerTrans = 32;
@@ -926,7 +937,33 @@ public:
     static constexpr Uint32 INDEX_MASK = (1 << INDEX_BITS) - 1;
     static constexpr Uint32 INDEX_MAX_COUNT = (1 << INDEX_BITS) - 2;
 
+<<<<<<< HEAD
     struct TimerEntry
+=======
+  inline Uint32 getApiConTimer(Uint32 apiConPtrI) const {
+    return c_apiConTimer[apiConPtrI];
+  }
+  UintR* c_apiConTimer;
+  UintR* c_apiConTimer_line;
+
+  /**
+   * Limit the resource (signal/job buffer) usage of a transaction
+   * by limiting :
+   * - max cascading scans (FK child scans) and
+   * - trigger operations.
+   * An FK child scan is executed alone exclusively.
+   */
+  static const Uint8 MaxCascadingScansPerTransaction = 1;
+  static const Uint32 MaxExecutingTriggerOpsPerTrans = 32;
+
+  struct ApiConnectRecord {
+    ApiConnectRecord(TcFiredTriggerData_pool & firedTriggerPool,
+                     TcIndexOperation_pool & seizedIndexOpPool):
+      nextApiConnect(RNIL),
+      m_special_op_flags(0),
+      theFiredTriggers(firedTriggerPool),
+      theSeizedIndexOperations(seizedIndexOpPool) 
+>>>>>>> pr/231
     {
       Uint32 m_timer;
       Uint32 m_apiConnectRecord;
@@ -1134,7 +1171,11 @@ public:
     /**
      * The list of fired triggers
      */  
+<<<<<<< HEAD
     Local_TcFiredTriggerData_fifo::Head theFiredTriggers;
+=======
+    TcFiredTriggerData_fifo theFiredTriggers;
+>>>>>>> pr/231
 
     // Count the outstanding FIRE_TRIG_REQs of a transaction.
     // Limit it in order to avoid job buffer overload
@@ -1173,11 +1214,22 @@ public:
         apiConnectstate == CS_WAIT_FIRE_TRIG_REQ ;
     }
 
+<<<<<<< HEAD
+=======
+    // number of on-going cascading scans (FK child scans) at a transaction.
+    Uint8 cascading_scans_count;
+
+>>>>>>> pr/231
     // Number of on-going trigger operations at a transaction
     // Limit them in order to avoid the transaction
     // overloading node resources (signal/job buffers).
     Uint32 m_executing_trigger_ops;
 
+<<<<<<< HEAD
+=======
+    // Trigger execution loop active
+    bool m_inExecuteTriggers;
+>>>>>>> pr/231
     /**
      * ExecTriggersGuard
      *
@@ -2065,7 +2117,12 @@ private:
 
   void sendFireTrigReq(Signal*, Ptr<ApiConnectRecord>);
 
+<<<<<<< HEAD
   Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass, ApiConnectRecord* regApiPtr);
+=======
+  Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass,
+                            Ptr<ApiConnectRecord>);
+>>>>>>> pr/231
 
   void checkWaitFireTrigConfDone(Signal*,
                                  Ptr<ApiConnectRecord>);
@@ -2364,7 +2421,11 @@ private:
                         Uint32 operation);
   void fk_scanFromChildTable(Signal* signal,
                              TcFiredTriggerData* firedTriggerData,
+<<<<<<< HEAD
                              ApiConnectRecordPtr const* transPtr,
+=======
+                             ApiConnectRecordPtr* transPtr,
+>>>>>>> pr/231
                              Uint32 opPtrI,
                              TcFKData* fkData,
                              Uint32 op, Uint32 attrValuesPtrI);

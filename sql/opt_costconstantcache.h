@@ -2,7 +2,15 @@
 #define OPT_COSTCONSTANTCACHE_INCLUDED
 
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,8 +143,18 @@ class Cost_constant_cache {
     @param cost_constants pointer to the cost constant set
   */
 
+<<<<<<< HEAD
   void release_cost_constants(const Cost_model_constants *cost_constants) {
+<<<<<<< HEAD
     assert(cost_constants != nullptr);
+=======
+    DBUG_ASSERT(cost_constants != NULL);
+=======
+  void release_cost_constants(const Cost_model_constants *cost_constants)
+  {
+    assert(cost_constants != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     /*
       The reason for using a const cast here is to be able to keep

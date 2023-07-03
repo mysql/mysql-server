@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -440,7 +448,11 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( EventBufferStatus3, "alloc_h",     11, alloc_h),
   ROW( EventBufferStatus3, "max_h",       12, max_h),
 
+<<<<<<< HEAD
   { NDB_LE_ILLEGAL_TYPE, nullptr, 0, nullptr, 0, 0}
+=======
+  { NDB_LE_ILLEGAL_TYPE, 0, 0, 0, 0, 0}
+>>>>>>> pr/231
 };
 
 struct Ndb_logevent_header_row {

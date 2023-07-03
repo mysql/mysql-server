@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +26,7 @@
 
 #include "sql/rpl_transaction_write_set_ctx.h"
 
+<<<<<<< HEAD
 #include <stddef.h>
 #include <utility>
 
@@ -45,12 +50,35 @@ std::atomic<uint64>
     Rpl_transaction_write_set_ctx::m_global_write_set_memory_size_limit(0);
 
 Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
+<<<<<<< HEAD
+=======
+    : m_has_missing_keys(false), m_has_related_foreign_keys(false) {
+=======
+#include "mysql/service_rpl_transaction_write_set.h" // Transaction_write_set
+#include "mysqld_thd_manager.h"                      // Global_THD_manager
+#include "sql_class.h"                               // THD
+#include "sql_parse.h"                               // Find_thd_with_id
+#include "debug_sync.h"                              // debug_sync_set_action
+#include "binlog.h"                              // get_opt_max_history_size
+
+int32 Rpl_transaction_write_set_ctx::m_global_component_requires_write_sets(0);
+int64 Rpl_transaction_write_set_ctx::m_global_write_set_memory_size_limit(0);
+
+Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
+>>>>>>> pr/231
     : m_has_missing_keys(false),
       m_has_related_foreign_keys(false),
       m_ignore_write_set_memory_limit(false),
       m_local_allow_drop_write_set(false),
+<<<<<<< HEAD
       m_local_has_reached_write_set_limit(false) {
   DBUG_TRACE;
+=======
+      m_local_has_reached_write_set_limit(false)
+{
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx");
+>>>>>>> pr/231
   /*
     In order to speed-up small transactions write-set extraction,
     we preallocate 12 elements.
@@ -60,14 +88,29 @@ Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
   write_set.reserve(12);
 }
 
+<<<<<<< HEAD
 bool Rpl_transaction_write_set_ctx::add_write_set(uint64 hash) {
   DBUG_TRACE;
+=======
+<<<<<<< HEAD
+void Rpl_transaction_write_set_ctx::add_write_set(uint64 hash) {
+  DBUG_ENTER("Transaction_context_log_event::add_write_set");
+  write_set.push_back(hash);
+  DBUG_VOID_RETURN;
+=======
+bool Rpl_transaction_write_set_ctx::add_write_set(uint64 hash)
+{
+>>>>>>> pr/231
   DBUG_EXECUTE_IF("add_write_set_no_memory", throw std::bad_alloc(););
 
   if (!m_local_has_reached_write_set_limit) {
     ulong binlog_trx_dependency_history_size =
         mysql_bin_log.m_dependency_tracker.get_writeset()
+<<<<<<< HEAD
             ->m_opt_max_history_size;
+=======
+            ->get_opt_max_history_size();
+>>>>>>> pr/231
     bool is_full_writeset_required =
         m_global_component_requires_write_sets && !m_local_allow_drop_write_set;
 
@@ -89,9 +132,17 @@ bool Rpl_transaction_write_set_ctx::add_write_set(uint64 hash) {
     }
 
     write_set.push_back(hash);
+<<<<<<< HEAD
   }
 
   return false;
+=======
+    write_set_unique.insert(hash);
+  }
+
+  return false;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 std::vector<uint64> *Rpl_transaction_write_set_ctx::get_write_set() {
@@ -106,11 +157,34 @@ void Rpl_transaction_write_set_ctx::reset_state() {
   m_local_has_reached_write_set_limit = false;
 }
 
+<<<<<<< HEAD
 void Rpl_transaction_write_set_ctx::clear_write_set() {
+<<<<<<< HEAD
   DBUG_TRACE;
   write_set.clear();
   savepoint.clear();
   savepoint_list.clear();
+=======
+  DBUG_ENTER("Transaction_context_log_event::clear_write_set");
+=======
+void Rpl_transaction_write_set_ctx::reset_state() {
+  clear_write_set();
+  m_has_missing_keys = m_has_related_foreign_keys = false;
+  m_local_has_reached_write_set_limit = false;
+}
+
+void Rpl_transaction_write_set_ctx::clear_write_set() {
+>>>>>>> upstream/cluster-7.6
+  write_set.clear();
+  savepoint.clear();
+  savepoint_list.clear();
+<<<<<<< HEAD
+  m_has_missing_keys = m_has_related_foreign_keys = false;
+
+  DBUG_VOID_RETURN;
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 void Rpl_transaction_write_set_ctx::set_has_missing_keys() {
@@ -184,6 +258,57 @@ void Rpl_transaction_write_set_ctx::set_local_allow_drop_write_set(
   m_local_allow_drop_write_set = allow_drop_write_set;
 }
 
+bool Rpl_transaction_write_set_ctx::was_write_set_limit_reached() {
+  return m_local_has_reached_write_set_limit;
+}
+
+size_t Rpl_transaction_write_set_ctx::write_set_memory_size() {
+  return sizeof(uint64) * write_set.size();
+}
+
+void Rpl_transaction_write_set_ctx::set_global_require_full_write_set(
+    bool requires_ws) {
+  assert(!requires_ws || !m_global_component_requires_write_sets);
+  if (requires_ws)
+    my_atomic_store32(&m_global_component_requires_write_sets, 1);
+  else
+    my_atomic_store32(&m_global_component_requires_write_sets, 0);
+}
+
+void require_full_write_set(int requires_ws) {
+  Rpl_transaction_write_set_ctx::set_global_require_full_write_set(requires_ws);
+}
+
+void Rpl_transaction_write_set_ctx::set_global_write_set_memory_size_limit(int64 limit) {
+  assert(m_global_write_set_memory_size_limit == 0);
+  m_global_write_set_memory_size_limit = limit;
+}
+
+void Rpl_transaction_write_set_ctx::update_global_write_set_memory_size_limit(
+    int64 limit) {
+  m_global_write_set_memory_size_limit = limit;
+}
+
+void set_write_set_memory_size_limit(long long size_limit) {
+  Rpl_transaction_write_set_ctx::set_global_write_set_memory_size_limit(
+      size_limit);
+}
+
+void update_write_set_memory_size_limit(long long size_limit) {
+  Rpl_transaction_write_set_ctx::update_global_write_set_memory_size_limit(
+      size_limit);
+}
+
+void Rpl_transaction_write_set_ctx::set_local_ignore_write_set_memory_limit(
+    bool ignore_limit) {
+  m_ignore_write_set_memory_limit = ignore_limit;
+}
+
+void Rpl_transaction_write_set_ctx::set_local_allow_drop_write_set(
+    bool allow_drop_write_set) {
+  m_local_allow_drop_write_set = allow_drop_write_set;
+}
+
 /**
   Implementation of service_rpl_transaction_write_set, see
   @file include/mysql/service_rpl_transaction_write_set.h
@@ -223,11 +348,21 @@ void Rpl_transaction_write_set_ctx::add_savepoint(char *name) {
   DBUG_TRACE;
   std::string identifier(name);
 
+<<<<<<< HEAD
   DBUG_EXECUTE_IF("transaction_write_set_savepoint_clear_on_commit_rollback", {
     assert(savepoint.size() == 0);
     assert(write_set.size() == 0);
     assert(savepoint_list.size() == 0);
   });
+=======
+  DBUG_EXECUTE_IF("transaction_write_set_savepoint_clear_on_commit_rollback",
+                  {
+                    assert(savepoint.size() == 0);
+                    assert(write_set.size() == 0);
+                    assert(write_set_unique.size() == 0);
+                    assert(savepoint_list.size() == 0);
+                  });
+>>>>>>> upstream/cluster-7.6
 
   DBUG_EXECUTE_IF("transaction_write_set_savepoint_level",
                   assert(savepoint.size() == 0););
@@ -243,19 +378,38 @@ void Rpl_transaction_write_set_ctx::add_savepoint(char *name) {
   savepoint.insert(
       std::pair<std::string, size_t>(identifier, write_set.size()));
 
+<<<<<<< HEAD
   DBUG_EXECUTE_IF(
       "transaction_write_set_savepoint_add_savepoint",
+<<<<<<< HEAD
       assert(savepoint.find(identifier)->second == write_set.size()););
+=======
+      DBUG_ASSERT(savepoint.find(identifier)->second == write_set.size()););
+=======
+  DBUG_EXECUTE_IF("transaction_write_set_savepoint_add_savepoint",
+                  assert(savepoint.find(identifier)->second == write_set.size()););
+>>>>>>> upstream/cluster-7.6
+
+  DBUG_VOID_RETURN;
+>>>>>>> pr/231
 }
 
 void Rpl_transaction_write_set_ctx::del_savepoint(char *name) {
   DBUG_TRACE;
   std::string identifier(name);
 
+<<<<<<< HEAD
   DBUG_EXECUTE_IF("transaction_write_set_savepoint_block_before_release", {
     const char act[] = "now wait_for signal.unblock_release";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
+=======
+  DBUG_EXECUTE_IF("transaction_write_set_savepoint_block_before_release",
+                    {
+                      const char act[]= "now wait_for signal.unblock_release";
+                      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    });
+>>>>>>> upstream/cluster-7.6
 
   savepoint.erase(identifier);
 }
@@ -266,6 +420,7 @@ void Rpl_transaction_write_set_ctx::rollback_to_savepoint(char *name) {
   std::string identifier(name);
   std::map<std::string, size_t>::iterator elem;
 
+<<<<<<< HEAD
   if ((elem = savepoint.find(identifier)) != savepoint.end()) {
     assert(elem->second <= write_set.size());
 
@@ -273,6 +428,17 @@ void Rpl_transaction_write_set_ctx::rollback_to_savepoint(char *name) {
       const char act[] = "now wait_for signal.unblock_rollback";
       assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
+=======
+  if ((elem = savepoint.find(identifier)) != savepoint.end())
+  {
+    assert(elem->second <= write_set.size());
+
+    DBUG_EXECUTE_IF("transaction_write_set_savepoint_block_before_rollback",
+                    {
+                      const char act[]= "now wait_for signal.unblock_rollback";
+                      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    });
+>>>>>>> upstream/cluster-7.6
 
     position = elem->second;
 
@@ -296,11 +462,25 @@ void Rpl_transaction_write_set_ctx::rollback_to_savepoint(char *name) {
       write_set.erase(write_set.begin() + position, write_set.end());
     }
 
+<<<<<<< HEAD
     DBUG_EXECUTE_IF("transaction_write_set_savepoint_add_savepoint",
                     assert(write_set.size() == 1););
 
     DBUG_EXECUTE_IF("transaction_write_set_size_2",
+<<<<<<< HEAD
                     assert(write_set.size() == 2););
+=======
+                    DBUG_ASSERT(write_set.size() == 2););
+=======
+    DBUG_EXECUTE_IF("transaction_write_set_savepoint_add_savepoint", {
+        assert(write_set.size() == 2);
+        assert(write_set_unique.size() == 2);});
+
+    DBUG_EXECUTE_IF("transaction_write_set_size_2", {
+        assert(write_set.size() == 4);
+        assert(write_set_unique.size() == 4);});
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 }
 

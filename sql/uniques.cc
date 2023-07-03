@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2001, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -751,9 +759,16 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
   Merge_chunk *top;
   int res = 1;
 
+<<<<<<< HEAD
   // uniq_read_to_buffer() needs only rec_length.
   Uniq_param uniq_param;
   uniq_param.rec_length = key_length;
+=======
+  // read_to_buffer() needs only rec_length.
+  Sort_param sort_param;
+  sort_param.rec_length= key_length;
+  assert(!sort_param.using_addon_fields());
+>>>>>>> upstream/cluster-7.6
 
   /*
     Invariant: queue must contain top element from each tree, until a tree
@@ -765,9 +780,20 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
     top->set_buffer_start(merge_buffer + (top - begin) * piece_size);
     top->set_buffer_end(top->buffer_start() + piece_size);
     top->set_max_keys(max_key_count_per_piece);
+<<<<<<< HEAD
     bytes_read = uniq_read_to_buffer(file, top, &uniq_param);
     if (bytes_read == (uint)(-1)) goto end;
+<<<<<<< HEAD
     assert(bytes_read);
+=======
+    DBUG_ASSERT(bytes_read);
+=======
+    bytes_read= read_to_buffer(file, top, &sort_param);
+    if (bytes_read == (uint) (-1))
+      goto end;
+    assert(bytes_read);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     queue.push(top);
   }
   top = queue.top();
@@ -894,13 +920,33 @@ bool Unique::get(TABLE *table) {
 
   if (my_b_tell(&file) == 0) {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
+<<<<<<< HEAD
     assert(table->unique_result.sorted_result == nullptr);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(table->unique_result.sorted_result == NULL);
+>>>>>>> pr/231
     table->unique_result.sorted_result.reset(
         (uchar *)my_malloc(key_memory_Filesort_info_record_pointers,
                            size * tree.elements_in_tree, MYF(0)));
     if ((record_pointers = table->unique_result.sorted_result.get())) {
+<<<<<<< HEAD
       (void)tree_walk(&tree, unique_write_to_ptrs, this, left_root_right);
       return false;
+=======
+      (void)tree_walk(&tree, (tree_walk_action)unique_write_to_ptrs, this,
+                      left_root_right);
+=======
+    assert(table->sort.sorted_result == NULL);
+    if ((record_pointers= table->sort.sorted_result= (uchar*)
+	 my_malloc(key_memory_Filesort_info_record_pointers,
+                   size * tree.elements_in_tree, MYF(0))))
+    {
+      (void) tree_walk(&tree, (tree_walk_action) unique_write_to_ptrs,
+		       this, left_root_right);
+>>>>>>> upstream/cluster-7.6
+      return 0;
+>>>>>>> pr/231
     }
   }
   /* Not enough memory; Save the result to file && free memory used by tree */
@@ -913,10 +959,21 @@ bool Unique::get(TABLE *table) {
   my_off_t save_pos;
   bool error = true;
 
+<<<<<<< HEAD
   /* Open cached file if it isn't open */
   assert(table->unique_result.io_cache == nullptr);
   outfile = table->unique_result.io_cache = (IO_CACHE *)my_malloc(
       key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE), MYF(MY_ZEROFILL));
+=======
+  /*
+    Open cached file if it isn't open. Reuse the existing io_cache if it is
+    already present.
+  */
+  if (!table->sort.io_cache)
+    outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
+                                                       sizeof(IO_CACHE),
+                                                       MYF(MY_ZEROFILL));
+>>>>>>> upstream/cluster-7.6
 
   if (!outfile || (!my_b_inited(outfile) &&
                    open_cached_file(outfile, mysql_tmpdir, TEMP_PREFIX,

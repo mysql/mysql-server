@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -246,6 +270,7 @@ void trx_purge_sys_initialize(uint32_t n_purge_threads,
 
   ut_a(purge_sys->trx->sess == purge_sys->sess);
 
+<<<<<<< HEAD
   /* A purge transaction is not a real transaction, we use a transaction
   here only because the query threads code requires it. It is otherwise
   quite unnecessary. We should get rid of it eventually. */
@@ -254,7 +279,19 @@ void trx_purge_sys_initialize(uint32_t n_purge_threads,
                                    std::memory_order_relaxed);
   purge_sys->trx->state.store(TRX_STATE_ACTIVE, std::memory_order_relaxed);
   purge_sys->trx->op_info = "purge trx";
+<<<<<<< HEAD
   purge_sys->trx->purge_sys_trx = true;
+=======
+=======
+	/* A purge transaction is not a real transaction, we use a transaction
+	here only because the query threads code requires it. It is otherwise
+	quite unnecessary. We should get rid of it eventually. */
+	purge_sys->trx->id = 0;
+	purge_sys->trx->start_time = ut_time_monotonic();
+	purge_sys->trx->state = TRX_STATE_ACTIVE;
+	purge_sys->trx->op_info = "purge trx";
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   purge_sys->query = trx_purge_graph_build(purge_sys->trx, n_purge_threads);
 
@@ -367,6 +404,7 @@ void trx_purge_add_update_undo_to_history(
   flst_add_first(rseg_header + TRX_RSEG_HISTORY,
                  undo_header + TRX_UNDO_HISTORY_NODE, mtr);
 
+<<<<<<< HEAD
   if (update_rseg_history_len) {
     trx_sys->rseg_history_len.fetch_add(n_added_logs);
     if (trx_sys->rseg_history_len.load() >
@@ -374,6 +412,16 @@ void trx_purge_add_update_undo_to_history(
       srv_wake_purge_thread_if_not_active();
     }
   }
+=======
+	if (update_rseg_history_len) {
+		os_atomic_increment_ulint(
+			&trx_sys->rseg_history_len, n_added_logs);
+		if (trx_sys->rseg_history_len
+		    > srv_n_purge_threads * srv_purge_batch_size) {
+			srv_wake_purge_thread_if_not_active();
+		}
+	}
+>>>>>>> upstream/cluster-7.6
 
   /* Update maximum transaction number for this rollback segment. */
   mlog_write_ull(rseg_header + TRX_RSEG_MAX_TRX_NO, trx->no, mtr);
@@ -1976,10 +2024,15 @@ static trx_undo_rec_t *trx_purge_get_next_rec(
   } else {
     page = page_align(rec2);
 
+<<<<<<< HEAD
     purge_sys->offset = rec2 - page;
     purge_sys->page_no = page_get_page_no(page);
     purge_sys->iter.undo_no = trx_undo_rec_get_undo_no(rec2);
     purge_sys->iter.undo_rseg_space = space;
+=======
+	} else {
+		page = page_align(rec2);
+>>>>>>> upstream/cluster-7.6
 
     if (undo_page != page) {
       /* We advance to a new page of the undo log: */
@@ -1989,9 +2042,15 @@ static trx_undo_rec_t *trx_purge_get_next_rec(
 
   rec_copy = trx_undo_rec_copy(undo_page, static_cast<uint32_t>(offset), heap);
 
+<<<<<<< HEAD
   mtr_commit(&mtr);
 
   return (rec_copy);
+=======
+	rec_copy = trx_undo_rec_copy(undo_page, offset, heap);
+	mtr_commit(&mtr);
+	return(rec_copy);
+>>>>>>> upstream/cluster-7.6
 }
 
 struct Purge_groups_t {
@@ -2325,9 +2384,20 @@ static ulint trx_purge_dml_delay(void) {
   Note: we do a dirty read of the trx_sys_t data structure here,
   without holding trx_sys->mutex. */
 
+<<<<<<< HEAD
   if (srv_max_purge_lag > 0 && trx_sys->rseg_history_len.load() >
                                    srv_n_purge_threads * srv_purge_batch_size) {
+=======
+<<<<<<< HEAD
+  if (srv_max_purge_lag > 0) {
+>>>>>>> pr/231
     float ratio;
+=======
+	if (srv_max_purge_lag > 0
+	    && trx_sys->rseg_history_len
+	       > srv_n_purge_threads * srv_purge_batch_size) {
+		float	ratio;
+>>>>>>> upstream/cluster-7.6
 
     ratio = float(trx_sys->rseg_history_len.load()) / srv_max_purge_lag;
 

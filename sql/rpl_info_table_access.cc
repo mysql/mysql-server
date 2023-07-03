@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,6 +101,7 @@ void Rpl_info_table_access::before_open(THD *thd) {
   any user transaction and if not finished, there would be pending
   changes.
 
+<<<<<<< HEAD
   @retval false Success
   @retval true  Failure
 */
@@ -102,6 +111,22 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE *table,
   DBUG_TRACE;
   bool res =
       System_table_access::close_table(thd, table, backup, error, thd_created);
+=======
+  @return
+    @retval false Success
+    @retval true  Failure
+*/
+<<<<<<< HEAD
+void Rpl_info_table_access::close_table(THD *thd, TABLE *table,
+=======
+bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
+>>>>>>> upstream/cluster-7.6
+                                        Open_tables_backup *backup,
+                                        bool error) {
+  DBUG_ENTER("Rpl_info_table_access::close_table");
+<<<<<<< HEAD
+  System_table_access::close_table(thd, table, backup, error, thd_created);
+>>>>>>> pr/231
 
   DBUG_EXECUTE_IF("replica_crash_after_commit_no_atomic_ddl", {
     if (thd->slave_thread && thd->rli_slave && thd->rli_slave->current_event &&
@@ -114,7 +139,15 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE *table,
     }
   });
 
+<<<<<<< HEAD
   return res;
+=======
+  DBUG_VOID_RETURN;
+=======
+  bool res= System_table_access::close_table(thd, table, backup, error, thd_created);
+  DBUG_RETURN(res);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /**
@@ -362,6 +395,7 @@ bool Rpl_info_table_access::store_info_values(uint max_num_field,
 THD *Rpl_info_table_access::create_thd() {
   THD *thd = current_thd;
 
+<<<<<<< HEAD
   if (!thd) {
     thd = System_table_access::create_thd();
     thd->system_thread = SYSTEM_THREAD_INFO_REPOSITORY;
@@ -371,6 +405,18 @@ THD *Rpl_info_table_access::create_thd() {
     */
     thd->set_skip_readonly_check();
     thd_created = true;
+=======
+  if (!thd)
+  {
+    thd= System_table_access::create_thd();
+    thd->system_thread= SYSTEM_THREAD_INFO_REPOSITORY;
+    /*
+       Set the skip_readonly_check flag as this thread should not be
+       blocked by super_read_only check during ha_commit_trans.
+    */
+    thd->set_skip_readonly_check();
+    thd_created= true;
+>>>>>>> upstream/cluster-7.6
   }
 
   return (thd);
@@ -385,8 +431,17 @@ THD *Rpl_info_table_access::create_thd() {
 void Rpl_info_table_access::drop_thd(THD *thd) {
   DBUG_TRACE;
 
+<<<<<<< HEAD
   if (thd_created) {
+<<<<<<< HEAD
     thd->reset_skip_readonly_check();
+=======
+=======
+  if (thd_created)
+  {
+    thd->reset_skip_readonly_check();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     System_table_access::drop_thd(thd);
     thd_created = false;
   }

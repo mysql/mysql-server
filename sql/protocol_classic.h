@@ -1,7 +1,11 @@
 #ifndef PROTOCOL_CLASSIC_INCLUDED
 #define PROTOCOL_CLASSIC_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -194,12 +198,24 @@ class Protocol_classic : public Protocol {
   /* Return packet string */
   String *get_output_packet();
   /* return packet length */
+<<<<<<< HEAD
   ulong get_packet_length() { return input_packet_length; }
+=======
+<<<<<<< HEAD
+  uint get_packet_length() { return input_packet_length; }
+=======
+  ulong get_packet_length() { return packet_length; }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /* Return raw packet buffer */
   uchar *get_raw_packet() { return input_raw_packet; }
   /* Set read timeout */
   virtual void set_read_timeout(ulong read_timeout,
+<<<<<<< HEAD
                                 bool on_full_packet = false);
+=======
+                                my_bool on_full_packet = FALSE);
+>>>>>>> pr/231
   /* Set write timeout */
   virtual void set_write_timeout(ulong write_timeout);
 

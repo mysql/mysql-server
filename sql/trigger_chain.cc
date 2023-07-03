@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,9 +72,20 @@ bool Trigger_chain::add_trigger(MEM_ROOT *mem_root, Trigger *new_trigger,
     case TRG_ORDER_NONE:
       return add_trigger(mem_root, new_trigger);
 
+<<<<<<< HEAD
     case TRG_ORDER_FOLLOWS:
     case TRG_ORDER_PRECEDES: {
+<<<<<<< HEAD
       assert(referenced_trigger_name.str);
+=======
+      DBUG_ASSERT(referenced_trigger_name.str);
+=======
+  case TRG_ORDER_FOLLOWS:
+  case TRG_ORDER_PRECEDES:
+    {
+      assert(referenced_trigger_name.str);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       List_iterator<Trigger> it(m_triggers);
       List_iterator<Trigger> it2 = it;

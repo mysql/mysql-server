@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1036,6 +1040,52 @@ static void convert_unit64(Uint64 &data, const char *&unit)
     data = (data+1024*1024-1)/(1024*1024);
     unit = mbytes_unit;
   }
+<<<<<<< HEAD
+=======
+}
+
+void getTextEventBufferStatus(QQQQ) {
+  unsigned used = theData[1], max_ = theData[3];
+
+  BaseString used_str = "used=";
+  if (used == 0) {
+    used_str.appfmt("0B");
+  } else {
+    unsigned used_pct = max_ ? (Uint32)(((Uint64)used * 100) / max_) : 0;
+    const char *used_unit;
+    convert_unit(used, used_unit);
+    used_str.appfmt("%u%s", used, used_unit);
+    if (max_ != 0) {
+      used_str.appfmt("(%u%% of max)", used_pct);
+    }
+  }
+
+  unsigned alloc = theData[2];
+  BaseString alloc_str = "alloc=";
+  if (alloc == 0) {
+    alloc_str.appfmt("0B");
+  } else {
+    const char *alloc_unit;
+    convert_unit(alloc, alloc_unit);
+    alloc_str.appfmt("%u%s", alloc, alloc_unit);
+  }
+
+  BaseString max_str = "max=";
+  if (max_ == 0) {
+    max_str.appfmt("unlimited");
+  } else {
+    const char *max_unit;
+    convert_unit(max_, max_unit);
+    max_str.appfmt("%u%s", max_, max_unit);
+  }
+
+  BaseString::snprintf(
+      m_text, m_text_len,
+      "Event buffer status: %s %s %s "
+      "apply_epoch=%u/%u latest_epoch=%u/%u",
+      max_str.c_str(), used_str.c_str(), alloc_str.c_str(),
+      theData[5], theData[4], theData[7], theData[6]);
+>>>>>>> pr/231
 }
 
 void getTextEventBufferStatus(char *m_text,
@@ -1107,11 +1157,15 @@ const char* getReason(Uint32 reason)
   return "UNKNOWN reason code";
 }
 
+<<<<<<< HEAD
 void getTextEventBufferStatus2(char *m_text,
                                size_t m_text_len,
                                const Uint32 *theData,
                                Uint32 /*len*/)
 {
+=======
+void getTextEventBufferStatus2(QQQQ) {
+>>>>>>> pr/231
   unsigned used = theData[1], max_ = theData[3];
 
   BaseString used_str = "used=";
@@ -1156,11 +1210,15 @@ void getTextEventBufferStatus2(char *m_text,
                        theData[6], getReason(theData[9]));
 }
 
+<<<<<<< HEAD
 void getTextEventBufferStatus3(char *m_text,
                                size_t m_text_len,
                                const Uint32 *theData,
                                Uint32 /*len*/)
 {
+=======
+void getTextEventBufferStatus3(QQQQ) {
+>>>>>>> pr/231
   Uint64 used = ((Uint64)theData[10] << 32) | theData[1];
   Uint64 max_ = ((Uint64)theData[12] << 32) | theData[3];
 
@@ -1204,6 +1262,12 @@ void getTextEventBufferStatus3(char *m_text,
                        theData[8], max_str.c_str(), used_str.c_str(),
                        alloc_str.c_str(), theData[5], theData[4], theData[7],
                        theData[6], getReason(theData[9]));
+<<<<<<< HEAD
+=======
+}
+void getTextWarningEvent(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, "%s", (char *)&theData[1]);
+>>>>>>> pr/231
 }
 void getTextWarningEvent(char *m_text,
                          size_t m_text_len,
@@ -1281,6 +1345,7 @@ void getTextBackupFailedToStart(char *m_text,
 		       "Backup request from %d failed to start. Error: %d", 
 		       refToNode(theData[1]), theData[2]);
 }
+<<<<<<< HEAD
 void getTextBackupCompleted(char *m_text,
                             size_t m_text_len,
                             const Uint32 *theData,
@@ -1289,12 +1354,24 @@ void getTextBackupCompleted(char *m_text,
   // Build 64-bit data bytes and records by assembling 32-bit signal parts
   const Uint64 bytes_hi = theData[11];
   const Uint64 records_hi = theData[12];
+=======
+void getTextBackupCompleted(QQQQ) {
+  const Uint32 node_bitmap_size = NdbNodeBitmask::Size;
+  // Build 64-bit data bytes and records by assembling 32-bit signal parts
+  const Uint64 bytes_hi = theData[9 + node_bitmap_size];
+  const Uint64 records_hi = theData[10 + node_bitmap_size];
+>>>>>>> pr/231
   const Uint64 data_bytes = (bytes_hi << 32) | theData[5];
   const Uint64 data_records = (records_hi << 32) | theData[6];
 
   // Build 64-bit log bytes and records by assembling 32-bit signal parts
+<<<<<<< HEAD
   const Uint64 bytes_hi_log = theData[13];
   const Uint64 records_hi_log = theData[14];
+=======
+  const Uint64 bytes_hi_log = theData[11 + node_bitmap_size];
+  const Uint64 records_hi_log = theData[12 + node_bitmap_size];
+>>>>>>> pr/231
   const Uint64 log_bytes = theData[7] | (bytes_hi_log << 32);
   const Uint64 log_records = theData[8] | (records_hi_log << 32);
 

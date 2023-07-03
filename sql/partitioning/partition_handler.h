@@ -2,7 +2,11 @@
 #define PARTITION_HANDLER_INCLUDED
 
 /*
+<<<<<<< HEAD
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,13 +145,29 @@ class Partition_share : public Handler_share {
                                     const ulonglong max_reserved);
 
   /** lock mutex protecting auto increment value next_auto_inc_val. */
+<<<<<<< HEAD
   inline void lock_auto_inc() {
     assert(auto_inc_mutex);
     mysql_mutex_lock(auto_inc_mutex);
   }
   /** unlock mutex protecting auto increment value next_auto_inc_val. */
   inline void unlock_auto_inc() {
+<<<<<<< HEAD
     assert(auto_inc_mutex);
+=======
+    DBUG_ASSERT(auto_inc_mutex);
+=======
+  inline void lock_auto_inc()
+  {
+    assert(auto_inc_mutex);
+    mysql_mutex_lock(auto_inc_mutex);
+  }
+  /** unlock mutex protecting auto increment value next_auto_inc_val. */
+  inline void unlock_auto_inc()
+  {
+    assert(auto_inc_mutex);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     mysql_mutex_unlock(auto_inc_mutex);
   }
   /**
@@ -270,8 +290,23 @@ class Partition_handler {
       @retval    0  Success.
       @retval != 0  Error code.
   */
+<<<<<<< HEAD
   int truncate_partition(dd::Table *table_def);
 
+=======
+  int truncate_partition()
+  {
+    handler *file= get_handler();
+    if (!file)
+    {
+      return HA_ERR_WRONG_COMMAND;
+    }
+    assert(file->table_share->tmp_table != NO_TMP_TABLE ||
+           file->m_lock_type == F_WRLCK);
+    file->mark_trx_read_write();
+    return truncate_partition_low();
+  }
+>>>>>>> upstream/cluster-7.6
   /**
     Exchange partition.
 
@@ -290,9 +325,34 @@ class Partition_handler {
       @retval    0  Success.
       @retval != 0  Error code.
   */
+<<<<<<< HEAD
   int exchange_partition(uint part_id, dd::Table *part_table_def,
                          dd::Table *swap_table_def);
+=======
+<<<<<<< HEAD
+  int exchange_partition(const char *part_table_path,
+                         const char *swap_table_path, uint part_id,
+                         dd::Table *part_table_def, dd::Table *swap_table_def);
+>>>>>>> pr/231
 
+=======
+  int change_partitions(HA_CREATE_INFO *create_info,
+                        const char *path,
+                        ulonglong * const copied,
+                        ulonglong * const deleted)
+  {
+    handler *file= get_handler();
+    if (!file)
+    {
+      my_error(ER_ILLEGAL_HA, MYF(0), create_info->alias);
+      return HA_ERR_WRONG_COMMAND;
+    }
+    assert(file->table_share->tmp_table != NO_TMP_TABLE ||
+           file->m_lock_type != F_UNLCK);
+    file->mark_trx_read_write();
+    return change_partitions_low(create_info, path, copied, deleted);
+  }
+>>>>>>> upstream/cluster-7.6
   /**
     Alter flags.
 
@@ -313,7 +373,20 @@ class Partition_handler {
   virtual enum row_type get_partition_row_type(const dd::Table *table,
                                                uint part_id) = 0;
 
+<<<<<<< HEAD
  private:
+=======
+  /**
+    Get partition row type from SE
+    @param       part_id    Id of partition for which row type to be retrieved
+    @return      Partition row type.
+  */
+  virtual enum row_type get_partition_row_type(uint part_id) {
+    return ROW_TYPE_NOT_USED;
+  }
+
+private:
+>>>>>>> upstream/cluster-7.6
   /**
     Truncate partition.
 
@@ -413,9 +486,22 @@ class Partition_helper {
       @retval false success.
       @retval true  failure.
   */
+<<<<<<< HEAD
   bool init_partitioning(MEM_ROOT *mem_root [[maybe_unused]]) {
 #ifndef NDEBUG
     m_key_not_found_partitions.bitmap = nullptr;
+=======
+<<<<<<< HEAD
+  bool init_partitioning(MEM_ROOT *mem_root MY_ATTRIBUTE((unused))) {
+#ifndef DBUG_OFF
+    m_key_not_found_partitions.bitmap = NULL;
+=======
+  inline bool init_partitioning(MEM_ROOT *mem_root)
+  {
+#ifndef NDEBUG
+    m_key_not_found_partitions.bitmap= NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif
     return false;
   }
@@ -631,8 +717,23 @@ class Partition_helper {
   /**
     Lock auto increment value if needed.
   */
+<<<<<<< HEAD
   void lock_auto_increment();
 
+=======
+  inline void lock_auto_increment()
+  {
+    /* lock already taken */
+    if (m_auto_increment_safe_stmt_log_lock)
+      return;
+    assert(!m_auto_increment_lock);
+    if(m_table->s->tmp_table == NO_TMP_TABLE)
+    {
+      m_auto_increment_lock= true;
+      m_part_share->lock_auto_inc();
+    }
+  }
+>>>>>>> upstream/cluster-7.6
   /**
     unlock auto increment.
   */
@@ -836,6 +937,16 @@ class Partition_helper {
   virtual int rnd_next_in_part(uint part_id, uchar *buf) = 0;
   virtual int rnd_end_in_part(uint part_id, bool scan) = 0;
   virtual void position_in_last_part(uchar *ref, const uchar *row) = 0;
+<<<<<<< HEAD
+=======
+  /* If ph_rnd_pos is used then this needs to be implemented! */
+  virtual int rnd_pos_in_part(uint part_id, uchar *buf, uchar *pos)
+  { assert(0); return HA_ERR_WRONG_COMMAND; }
+  virtual int index_init_in_part(uint part, uint keynr, bool sorted)
+  { assert(0); return HA_ERR_WRONG_COMMAND; }
+  virtual int index_end_in_part(uint part)
+  { assert(0); return HA_ERR_WRONG_COMMAND; }
+>>>>>>> upstream/cluster-7.6
   virtual int index_first_in_part(uint part, uchar *buf) = 0;
   virtual int index_last_in_part(uint part, uchar *buf) = 0;
   virtual int index_prev_in_part(uint part, uchar *buf) = 0;
@@ -890,10 +1001,21 @@ class Partition_helper {
 
     @param part_id  Partition to checksum.
   */
+<<<<<<< HEAD
   virtual ha_checksum checksum_in_part(uint part_id [[maybe_unused]]) const {
     assert(0);
+=======
+<<<<<<< HEAD
+  virtual ha_checksum checksum_in_part(
+      uint part_id MY_ATTRIBUTE((unused))) const {
+    DBUG_ASSERT(0);
+>>>>>>> pr/231
     return 0;
   }
+=======
+  virtual ha_checksum checksum_in_part(uint part_id) const
+  { assert(0); return 0; }
+>>>>>>> upstream/cluster-7.6
   /**
     Copy a cached row.
 

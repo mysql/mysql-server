@@ -1,6 +1,14 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
+<<<<<<< HEAD
 /* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,8 +85,16 @@ union COM_DATA;
   of metadata observers.
 */
 
+<<<<<<< HEAD
 class Reprepare_observer final {
  public:
+=======
+class Reprepare_observer
+{
+public:
+  Reprepare_observer() : m_invalidated(FALSE), m_attempt(0) {}
+
+>>>>>>> upstream/cluster-7.6
   /**
     Check if a change of metadata is OK. In future
     the signature of this method may be extended to accept the old
@@ -91,6 +107,7 @@ class Reprepare_observer final {
                   re-prepared.
   */
   bool is_invalidated() const { return m_invalidated; }
+<<<<<<< HEAD
   void reset_reprepare_observer() { m_invalidated = false; }
   /// @returns true if prepared statement can (and will) be retried
   bool can_retry() const {
@@ -102,14 +119,36 @@ class Reprepare_observer final {
   }
 
  private:
+<<<<<<< HEAD
   bool m_invalidated{false};
   int m_attempt{0};
+=======
+=======
+  void reset_reprepare_observer() { m_invalidated= FALSE; }
+  /// @returns true if prepared statement can (and will) be retried
+  bool can_retry() const {
+    // Only call for a statement that is invalidated
+    assert(is_invalidated());
+    return m_attempt <= MAX_REPREPARE_ATTEMPTS &&
+           DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", false,
+                            true);
+  }
+
+private:
+>>>>>>> upstream/cluster-7.6
+  bool m_invalidated;
+  int m_attempt;
+>>>>>>> pr/231
 
   /*
     We take only 3 attempts to reprepare the query, otherwise we might end up
     in endless loop.
   */
+<<<<<<< HEAD
   static constexpr int MAX_REPREPARE_ATTEMPTS = 3;
+=======
+  static const int MAX_REPREPARE_ATTEMPTS = 3;
+>>>>>>> pr/231
 };
 
 bool ask_to_reprepare(THD *thd);
@@ -322,8 +361,18 @@ class Ed_row final {
   const Ed_column &operator[](const unsigned int column_index) const {
     return *get_column(column_index);
   }
+<<<<<<< HEAD
   const Ed_column *get_column(const unsigned int column_index) const {
+<<<<<<< HEAD
     assert(column_index < size());
+=======
+    DBUG_ASSERT(column_index < size());
+=======
+  const Ed_column *get_column(const unsigned int column_index) const
+  {
+    assert(column_index < size());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_column_array + column_index;
   }
   size_t size() const { return m_column_count; }
@@ -427,6 +476,7 @@ class Prepared_statement final {
 
   bool set_name(const LEX_CSTRING &name);
   const LEX_CSTRING &name() const { return m_name; }
+<<<<<<< HEAD
   ulong id() const { return m_id; }
   bool is_in_use() const { return m_in_use; }
   bool is_sql_prepare() const { return m_is_sql_prepare; }
@@ -436,6 +486,20 @@ class Prepared_statement final {
                Item_param **orig_param_array);
   bool execute_loop(THD *thd, String *expanded_query, bool open_cursor);
   bool execute_server_runnable(THD *thd, Server_runnable *server_runnable);
+=======
+  void close_cursor();
+  bool is_in_use() const { return flags & (uint)IS_IN_USE; }
+  bool is_sql_prepare() const { return flags & (uint)IS_SQL_PREPARE; }
+  void set_sql_prepare() { flags |= (uint)IS_SQL_PREPARE; }
+  bool prepare(const char *packet, size_t packet_length);
+<<<<<<< HEAD
+  bool execute_loop(String *expanded_query, bool open_cursor);
+=======
+  bool execute_loop(bool open_cursor,
+                    uchar *packet_arg, uchar *packet_end_arg);
+>>>>>>> upstream/cluster-7.6
+  bool execute_server_runnable(Server_runnable *server_runnable);
+>>>>>>> pr/231
 #ifdef HAVE_PSI_PS_INTERFACE
   PSI_prepared_stmt *get_PS_prepared_stmt() { return m_prepared_stmt; }
 #endif

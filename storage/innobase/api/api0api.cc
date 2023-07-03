@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2008, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -334,7 +358,23 @@ static ib_err_t ib_read_tuple(
     ptr = mem_heap_alloc(tuple->heap, offset_size);
   }
 
+<<<<<<< HEAD
   copy = rec_copy(ptr, rec, offsets);
+=======
+			ut_a(len != UNIV_SQL_NULL);
+			/* Reset the data length if it fails to copy
+			externally stored column */
+			if (data == NULL) {
+				/* data == NULL means that the externally
+				stored field was not written yet.
+				This record should only be seen by
+				TRX_ISO_READ_UNCOMMITTED transactions. */
+				ut_ad(ib_cfg_trx_level() ==
+					IB_TRX_READ_UNCOMMITTED);
+				len = 0;
+			}
+		}
+>>>>>>> upstream/cluster-7.6
 
   /* DB_ROW_ID is added in dict_table_t unconditionally but is used only if PK
   isn't there. dtuple is made from the dict_table_t so it will also have it but

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -175,6 +183,11 @@ Master_info::Master_info(
                param_key_info_data_cond, param_key_info_start_cond,
                param_key_info_stop_cond, param_key_info_sleep_cond,
 #endif
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+               ,
+>>>>>>> pr/231
                param_id, param_channel),
       start_user_configured(false),
 #ifdef HAVE_PSI_INTERFACE
@@ -224,6 +237,30 @@ Master_info::Master_info(
   zstd_compression_level = default_zstd_compression_level;
   net_server_ext_init(&server_extn);
   gtid_monitoring_info = new Gtid_monitoring_info(&data_lock);
+=======
+             ,param_id, param_channel
+            ),
+   start_user_configured(false),
+   ssl(0), ssl_verify_server_cert(0),
+   port(MYSQL_PORT), connect_retry(DEFAULT_CONNECT_RETRY),
+   clock_diff_with_master(0), heartbeat_period(0),
+   received_heartbeats(0), last_heartbeat(0), master_id(0),
+   checksum_alg_before_fd(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
+   retry_count(master_retry_count),
+   mi_description_event(NULL),
+   auto_position(false),
+   reset(false)
+{
+  host[0] = 0; user[0] = 0; bind_addr[0] = 0;
+  password[0]= 0; start_password[0]= 0;
+  ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
+  ssl_cipher[0]= 0; ssl_key[0]= 0; tls_version[0]= 0;
+  ssl_crl[0]= 0; ssl_crlpath[0]= 0;
+  master_uuid[0]= 0;
+  start_plugin_auth[0]= 0; start_plugin_dir[0]= 0;
+  start_user[0]= 0;
+  ignore_server_ids= new Server_ids;
+>>>>>>> upstream/cluster-7.6
 
   mysql_mutex_init(*key_info_rotate_lock, &this->rotate_lock,
                    MY_MUTEX_INIT_FAST);
@@ -338,8 +375,15 @@ void Master_info::end_info() {
 
   handler->end_info();
 
+<<<<<<< HEAD
   inited = false;
   reset = true;
+=======
+  inited = 0;
+  reset = true;
+
+  DBUG_VOID_RETURN;
+>>>>>>> pr/231
 }
 
 /**
@@ -360,19 +404,33 @@ void Master_info::end_info() {
                when false, flush will only happen if it is time to flush.
 */
 
+<<<<<<< HEAD
 int Master_info::flush_info(bool force) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("master_pos: %lu", (ulong)master_log_pos));
 
+<<<<<<< HEAD
+=======
+  if (!inited) DBUG_RETURN(0);
+=======
+>>>>>>> pr/231
   bool skip_flushing = !inited;
   /*
     A Master_info of a channel that was inited and then reset must be flushed
     into the repository or else its connection configuration will be lost in
     case the server restarts before starting the channel again.
   */
+<<<<<<< HEAD
   if (force && reset) skip_flushing = false;
 
   if (skip_flushing) return 0;
+=======
+  if (force && reset) skip_flushing= false;
+
+  if (skip_flushing)
+    DBUG_RETURN(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     We update the sync_period at this point because only here we
@@ -380,7 +438,12 @@ int Master_info::flush_info(bool force) {
     update every time we call flush because the option maybe
     dynamically set.
   */
+<<<<<<< HEAD
   if (inited) handler->set_sync_period(sync_masterinfo_period);
+=======
+  if (inited)
+    handler->set_sync_period(sync_masterinfo_period);
+>>>>>>> pr/231
 
   if (write_info(handler)) goto err;
 
@@ -419,9 +482,20 @@ int Master_info::mi_init_info() {
     if (read_info(handler)) goto err;
   }
 
+<<<<<<< HEAD
   inited = true;
   reset = false;
+=======
+<<<<<<< HEAD
+  inited = 1;
+>>>>>>> pr/231
   if (flush_info(true)) goto err;
+=======
+  inited= 1;
+  reset= false;
+  if (flush_info(TRUE))
+    goto err;
+>>>>>>> upstream/cluster-7.6
 
   return 0;
 

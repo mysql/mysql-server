@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,9 +125,16 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance) {
 
   THD *thd = access->create_thd();
 
+<<<<<<< HEAD
   saved_mode = thd->variables.sql_mode;
   ulonglong saved_options = thd->variables.option_bits;
   thd->variables.option_bits &= ~OPTION_BIN_LOG;
+=======
+  saved_mode= thd->variables.sql_mode;
+  // Ensure replication tables are always read in a consistent way
+  thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+  tmp_disable_binlog(thd);
+>>>>>>> upstream/cluster-7.6
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -145,8 +160,17 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance) {
       break;
 
     default:
+<<<<<<< HEAD
       assert(0);
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(0);
+>>>>>>> pr/231
       break;
+=======
+      assert(0);
+    break;
+>>>>>>> upstream/cluster-7.6
   }
 
   if (res == FOUND_ID) {
@@ -162,9 +186,19 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
+<<<<<<< HEAD
   error = access->close_table(thd, table, &backup, error) || error;
+=======
+<<<<<<< HEAD
+  access->close_table(thd, table, &backup, error);
+>>>>>>> pr/231
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
+=======
+  error= access->close_table(thd, table, &backup, error) || error;
+  reenable_binlog(thd);
+  thd->variables.sql_mode= saved_mode;
+>>>>>>> upstream/cluster-7.6
   access->drop_thd(thd);
   return error;
 }
@@ -262,10 +296,21 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
+<<<<<<< HEAD
   error = access->close_table(thd, table, &backup, error) || error;
+=======
+<<<<<<< HEAD
+  access->close_table(thd, table, &backup, error);
+>>>>>>> pr/231
   thd->is_operating_substatement_implicitly = false;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
+=======
+  error= access->close_table(thd, table, &backup, error) || error;
+  thd->is_operating_substatement_implicitly= false;
+  reenable_binlog(thd);
+  thd->variables.sql_mode= saved_mode;
+>>>>>>> upstream/cluster-7.6
   access->drop_thd(thd);
   return error;
 }
@@ -313,9 +358,19 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
+<<<<<<< HEAD
   error = access->close_table(thd, table, &backup, error) || error;
+=======
+<<<<<<< HEAD
+  access->close_table(thd, table, &backup, error);
+>>>>>>> pr/231
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
+=======
+  error= access->close_table(thd, table, &backup, error) || error;
+  reenable_binlog(thd);
+  thd->variables.sql_mode= saved_mode;
+>>>>>>> upstream/cluster-7.6
   access->drop_thd(thd);
   return error;
 }
@@ -413,9 +468,19 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
+<<<<<<< HEAD
   error = info->access->close_table(thd, table, &backup, error) || error;
+=======
+<<<<<<< HEAD
+  info->access->close_table(thd, table, &backup, error);
+>>>>>>> pr/231
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
+=======
+  error= info->access->close_table(thd, table, &backup, error) || error;
+  reenable_binlog(thd);
+  thd->variables.sql_mode= saved_mode;
+>>>>>>> upstream/cluster-7.6
   info->access->drop_thd(thd);
   delete info;
   return error;
@@ -575,8 +640,17 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
+<<<<<<< HEAD
   error = info->access->close_table(thd, table, &backup, error) || error;
+=======
+<<<<<<< HEAD
+  info->access->close_table(thd, table, &backup, error);
+>>>>>>> pr/231
   thd->variables.sql_mode = saved_mode;
+=======
+  error= info->access->close_table(thd, table, &backup, error) || error;
+  thd->variables.sql_mode= saved_mode;
+>>>>>>> upstream/cluster-7.6
   info->access->drop_thd(thd);
   delete info;
   return error;
@@ -826,9 +900,19 @@ bool Rpl_info_table::do_update_is_transactional() {
   error = false;
 
 end:
+<<<<<<< HEAD
   error = access->close_table(thd, table, &backup, false) || error;
+=======
+<<<<<<< HEAD
+  access->close_table(thd, table, &backup, 0);
+>>>>>>> pr/231
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
+=======
+  error= access->close_table(thd, table, &backup, 0) || error;
+  reenable_binlog(thd);
+  thd->variables.sql_mode= saved_mode;
+>>>>>>> upstream/cluster-7.6
   access->drop_thd(thd);
   return error;
 }

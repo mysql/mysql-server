@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -52,6 +76,7 @@ static void lock_wait_table_print(void) {
 
   const srv_slot_t *slot = lock_sys->waiting_threads;
 
+<<<<<<< HEAD
   for (uint32_t i = 0; i < srv_max_n_threads; i++, ++slot) {
     fprintf(
         stderr,
@@ -66,7 +91,31 @@ static void lock_wait_table_print(void) {
             std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::steady_clock::now() - slot->suspend_time)
                 .count()));
+=======
+<<<<<<< HEAD
+  for (ulint i = 0; i < srv_max_n_threads; i++, ++slot) {
+    fprintf(stderr,
+            "Slot %lu: thread type %lu,"
+            " in use %lu, susp %lu, timeout %lu, time %lu\n",
+            (ulong)i, (ulong)slot->type, (ulong)slot->in_use,
+            (ulong)slot->suspended, slot->wait_timeout,
+            (ulong)difftime(ut_time(), slot->suspend_time));
+>>>>>>> pr/231
   }
+=======
+	for (ulint i = 0; i < OS_THREAD_MAX_N; i++, ++slot) {
+
+		fprintf(stderr,
+			"Slot %lu: thread type %lu,"
+			" in use %lu, susp %lu, timeout %lu, time %lu\n",
+			(ulong) i,
+			(ulong) slot->type,
+			(ulong) slot->in_use,
+			(ulong) slot->suspended,
+			slot->wait_timeout,
+			(ulong) (ut_time_monotonic() - slot->suspend_time));
+	}
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Release a slot in the lock_sys_t::waiting_threads. Adjust the array last
@@ -155,10 +204,17 @@ static srv_slot_t *lock_wait_table_reserve_slot(
         ut_a(slot->event);
       }
 
+<<<<<<< HEAD
       os_event_reset(slot->event);
       slot->suspended = true;
       slot->suspend_time = std::chrono::steady_clock::now();
       slot->wait_timeout = wait_timeout;
+=======
+			os_event_reset(slot->event);
+			slot->suspended = TRUE;
+			slot->suspend_time = ut_time_monotonic();
+			slot->wait_timeout = wait_timeout;
+>>>>>>> upstream/cluster-7.6
 
       if (slot == lock_sys->last_slot) {
         ++lock_sys->last_slot;
@@ -192,12 +248,43 @@ static srv_slot_t *lock_wait_table_reserve_slot(
   ut_error;
 }
 
+<<<<<<< HEAD
 void lock_wait_request_check_for_cycles() { lock_set_timeout_event(); }
 
 void lock_wait_suspend_thread(que_thr_t *thr) {
+=======
+/** Puts a user OS thread to wait for a lock to be released. If an error
+ occurs during the wait trx->error_state associated with thr is
+ != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
+ are possible errors. DB_DEADLOCK is returned if selective deadlock
+ resolution chose this transaction as a victim. */
+void lock_wait_suspend_thread(
+    que_thr_t *thr) /*!< in: query thread associated with the
+                    user OS thread */
+{
+<<<<<<< HEAD
+>>>>>>> pr/231
   srv_slot_t *slot;
   trx_t *trx;
+<<<<<<< HEAD
   std::chrono::steady_clock::time_point start_time;
+=======
+  ibool was_declared_inside_innodb;
+  int64_t start_time = 0;
+  int64_t finish_time;
+  ulint sec;
+  ulint ms;
+  ulong lock_wait_timeout;
+=======
+	srv_slot_t*	slot;
+	int64_t		wait_time;
+	trx_t*		trx;
+	ibool		was_declared_inside_innodb;
+	ib_time_monotonic_ms_t 		start_time = 0;
+	ib_time_monotonic_ms_t 		finish_time;
+	ulong		lock_wait_timeout;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   trx = thr_get_trx(thr);
 
@@ -246,6 +333,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) {
     start_time = std::chrono::steady_clock::now();
   }
 
+<<<<<<< HEAD
   lock_wait_mutex_exit();
 
   /* We hold trx->mutex here, which is required to call
@@ -255,6 +343,10 @@ void lock_wait_suspend_thread(que_thr_t *thr) {
   precisely what we want for our stats */
   auto lock_type = trx->lock.wait_lock_type;
   trx_mutex_exit(trx);
+=======
+		start_time = ut_time_monotonic_us();
+	}
+>>>>>>> upstream/cluster-7.6
 
   ulint had_dict_lock = trx->dict_operation_lock_mode;
 
@@ -318,9 +410,27 @@ void lock_wait_suspend_thread(que_thr_t *thr) {
 
   lock_wait_table_release_slot(slot);
 
+<<<<<<< HEAD
   if (thr->lock_state == QUE_THR_LOCK_ROW) {
+<<<<<<< HEAD
     const auto diff_time = std::chrono::steady_clock::now() - start_time;
+=======
+    ulint diff_time;
+=======
+	wait_time = ut_time_monotonic() - slot->suspend_time;
+>>>>>>> upstream/cluster-7.6
 
+    if (ut_usectime(&sec, &ms) == -1) {
+      finish_time = -1;
+    } else {
+      finish_time = static_cast<int64_t>(sec) * 1000000 + ms;
+    }
+
+    diff_time =
+        (finish_time > start_time) ? (ulint)(finish_time - start_time) : 0;
+>>>>>>> pr/231
+
+<<<<<<< HEAD
     srv_stats.n_lock_wait_current_count.dec();
     srv_stats.n_lock_wait_time.add(
         std::chrono::duration_cast<std::chrono::microseconds>(diff_time)
@@ -332,16 +442,31 @@ void lock_wait_suspend_thread(que_thr_t *thr) {
 
     /* Record the lock wait time for this thread */
     thd_set_lock_wait_time(trx->mysql_thd, diff_time);
+=======
+	if (thr->lock_state == QUE_THR_LOCK_ROW) {
+		ulint	diff_time;
+		finish_time = ut_time_monotonic_us();
+
+		diff_time = (finish_time > start_time) ?
+			    (uint64_t) (finish_time - start_time) : 0;
+>>>>>>> upstream/cluster-7.6
 
     DBUG_EXECUTE_IF("lock_instrument_slow_query_log",
                     std::this_thread::sleep_for(std::chrono::milliseconds(1)););
   }
 
+<<<<<<< HEAD
   /* The transaction is chosen as deadlock victim during sleep. */
   if (trx->error_state == DB_DEADLOCK) {
     ut_d(trx->lock.in_rollback = true);
     return;
   }
+=======
+		/* Only update the variable if we successfully
+		retrieved the start and finish times. See Bug#36819. */
+		if (diff_time > lock_sys->n_lock_max_wait_time
+		    && start_time != -1) {
+>>>>>>> upstream/cluster-7.6
 
   if (trx->error_state == DB_LOCK_WAIT_TIMEOUT) {
     MONITOR_INC(MONITOR_TIMEOUT);
@@ -502,6 +627,7 @@ static void lock_wait_check_and_cancel(
     const srv_slot_t *slot) /*!< in: slot reserved by a user
                             thread when the wait started */
 {
+<<<<<<< HEAD
   const auto wait_time = std::chrono::steady_clock::now() - slot->suspend_time;
   /* Timeout exceeded or a wrap-around in system time counter */
   const auto timeout = slot->wait_timeout < std::chrono::seconds{100000000} &&
@@ -528,6 +654,17 @@ struct waiting_trx_info_t {
   /** The slot->reservation_no at the moment of taking the snapshot */
   uint64_t reservation_no;
 };
+=======
+<<<<<<< HEAD
+  trx_t *trx;
+  double wait_time;
+  ib_time_t suspend_time = slot->suspend_time;
+=======
+	trx_t*		trx;
+	int64_t			wait_time;
+	ib_time_monotonic_t	suspend_time = slot->suspend_time;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /** As we want to quickly find a given trx_t within the snapshot, we use a
 sorting criterion which is based on trx only. We use the pointer address, as
@@ -542,6 +679,7 @@ static void lock_wait_check_slots_for_timeouts() {
   ut_ad(!lock_wait_mutex_own());
   lock_wait_mutex_enter();
 
+<<<<<<< HEAD
   for (auto slot = lock_sys->waiting_threads; slot < lock_sys->last_slot;
        ++slot) {
     /* We are doing a read without latching the lock_sys or the trx mutex.
@@ -549,6 +687,45 @@ static void lock_wait_check_slots_for_timeouts() {
     mutex. */
     if (slot->in_use) {
       lock_wait_check_and_cancel(slot);
+=======
+  ut_ad(slot->suspended);
+
+<<<<<<< HEAD
+  wait_time = ut_difftime(ut_time(), suspend_time);
+=======
+	wait_time = ut_time_monotonic() - suspend_time;
+>>>>>>> upstream/cluster-7.6
+
+  trx = thr_get_trx(slot->thr);
+
+<<<<<<< HEAD
+  if (trx_is_interrupted(trx) ||
+      (slot->wait_timeout < 100000000 &&
+       (wait_time > (double)slot->wait_timeout || wait_time < 0))) {
+    /* Timeout exceeded or a wrap-around in system
+    time counter: cancel the lock request queued
+    by the transaction and release possible
+    other transactions waiting behind; it is
+    possible that the lock has already been
+    granted: in that case do nothing */
+=======
+	if (trx_is_interrupted(trx)
+	    || (slot->wait_timeout < 100000000
+		&& (wait_time > (int64_t) slot->wait_timeout
+		   || wait_time < 0))) {
+>>>>>>> upstream/cluster-7.6
+
+    lock_mutex_enter();
+
+    trx_mutex_enter(trx);
+
+    trx->owns_mutex = true;
+
+    if (trx->lock.wait_lock != NULL && !trx_is_high_priority(trx)) {
+      ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
+
+      lock_cancel_waiting_and_release(trx->lock.wait_lock, false);
+>>>>>>> pr/231
     }
   }
 

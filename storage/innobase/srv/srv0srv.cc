@@ -1,6 +1,14 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -17,6 +25,7 @@ documentation. The contributions by Percona Inc. are incorporated with
 their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -32,6 +41,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -115,12 +141,20 @@ bool srv_upgrade_old_undo_found = false;
 bool srv_downgrade_partition_files = false;
 
 /* The following is the maximum allowed duration of a lock wait. */
+<<<<<<< HEAD
 ulong srv_fatal_semaphore_wait_threshold = 600;
 std::atomic<int> srv_fatal_semaphore_wait_extend{0};
 
 std::chrono::seconds get_srv_fatal_semaphore_wait_threshold() {
   return std::chrono::seconds{srv_fatal_semaphore_wait_threshold};
 }
+=======
+<<<<<<< HEAD
+ulint srv_fatal_semaphore_wait_threshold = 600;
+=======
+ulong	srv_fatal_semaphore_wait_threshold = 600;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */
@@ -426,6 +460,7 @@ const ulint srv_buf_pool_def_size = 128 * 1024 * 1024;
 const longlong srv_buf_pool_max_size = LLONG_MAX;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
+<<<<<<< HEAD
 ulonglong srv_buf_pool_chunk_unit;
 /** Minimum buffer pool chunk size. */
 const ulonglong srv_buf_pool_chunk_unit_min = (1024 * 1024);
@@ -434,6 +469,13 @@ const ulonglong srv_buf_pool_chunk_unit_blk_sz = (1024 * 1024);
 /** Maximum buffer pool chunk size. */
 const ulonglong srv_buf_pool_chunk_unit_max =
     srv_buf_pool_max_size / MAX_BUFFER_POOLS;
+=======
+<<<<<<< HEAD
+ulong srv_buf_pool_chunk_unit;
+=======
+ulonglong	srv_buf_pool_chunk_unit;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /** Requested number of buffer pool instances */
 ulong srv_buf_pool_instances;
 /** Default number of buffer pool instances */
@@ -530,12 +572,21 @@ export_var_t export_vars;
 starting from SRV_FORCE_IGNORE_CORRUPT, so that data can be recovered
 by SELECT or mysqldump. When this is nonzero, we do not allow any user
 modifications to the data. */
+<<<<<<< HEAD
 ulong srv_force_recovery;
 #ifdef UNIV_DEBUG
 /** Inject a crash at different steps of the recovery process.
 This is for testing and debugging only. */
 ulong srv_force_recovery_crash;
 #endif /* UNIV_DEBUG */
+=======
+ulong	srv_force_recovery;
+#ifndef NDEBUG
+/** Inject a crash at different steps of the recovery process.
+This is for testing and debugging only. */
+ulong	srv_force_recovery_crash;
+#endif /* !NDEBUG */
+>>>>>>> upstream/cluster-7.6
 
 /** Print all user-level transactions deadlocks to mysqld stderr */
 bool srv_print_all_deadlocks = false;
@@ -612,9 +663,13 @@ i/o handler thread */
 const char *srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
 const char *srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
+<<<<<<< HEAD
 #ifndef UNIV_HOTBACKUP
 static std::chrono::steady_clock::time_point srv_monitor_stats_refreshed_at;
 #endif /* !UNIV_HOTBACKUP */
+=======
+ib_time_monotonic_t	srv_last_monitor_time;
+>>>>>>> upstream/cluster-7.6
 
 static ib_mutex_t srv_innodb_monitor_mutex;
 
@@ -648,7 +703,15 @@ static ulint srv_main_shutdown_loops = 0;
 /** Log writes involving flush. */
 static ulint srv_log_writes_and_flush = 0;
 
+<<<<<<< HEAD
 #endif /* !UNIV_HOTBACKUP */
+=======
+/* This is only ever touched by the master thread. It records the
+time when the last flush of log file has happened. The master
+thread ensures that we flush the log files at least once per
+second. */
+static ib_time_monotonic_t	srv_last_log_flush_time;
+>>>>>>> upstream/cluster-7.6
 
 /* Interval in seconds at which various tasks are performed by the
 master thread when server is active. In order to balance the workload,
@@ -1343,7 +1406,11 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   ulint n_reserved;
   bool ret;
 
+<<<<<<< HEAD
   mutex_enter(&srv_innodb_monitor_mutex);
+=======
+	srv_last_monitor_time = ut_time_monotonic();
+>>>>>>> upstream/cluster-7.6
 
   const auto current_time = std::chrono::steady_clock::now();
 
@@ -1561,6 +1628,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
   return (ret);
 }
 
+<<<<<<< HEAD
 /** Function to pass InnoDB status variables to MySQL */
 void srv_export_innodb_status(void) {
   buf_pool_stat_t stat;
@@ -1568,19 +1636,54 @@ void srv_export_innodb_status(void) {
   ulint LRU_len;
   ulint free_len;
   ulint flush_list_len;
+=======
+/******************************************************************//**
+Outputs to a file the output of the InnoDB Monitor.
+@return FALSE if not all information printed
+due to failure to obtain necessary mutex */
+ibool
+srv_printf_innodb_monitor(
+/*======================*/
+	FILE*	file,		/*!< in: output stream */
+	ibool	nowait,		/*!< in: whether to wait for the
+				lock_sys_t:: mutex */
+	ulint*	trx_start_pos,	/*!< out: file position of the start of
+				the list of active transactions */
+	ulint*	trx_end)	/*!< out: file position of the end of
+				the list of active transactions */
+{
+	double 			time_elapsed;
+	ib_time_monotonic_t	current_time;
+	ulint	n_reserved;
+	ibool	ret;
+>>>>>>> upstream/cluster-7.6
 
   buf_get_total_stat(&stat);
   buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
   buf_get_total_list_size_in_bytes(&buf_pools_list_size);
 
+<<<<<<< HEAD
   mutex_enter(&srv_innodb_monitor_mutex);
+=======
+	current_time = ut_time_monotonic();
+>>>>>>> upstream/cluster-7.6
 
   export_vars.innodb_data_pending_reads = os_n_pending_reads;
 
+<<<<<<< HEAD
   export_vars.innodb_data_pending_writes = os_n_pending_writes;
 
   export_vars.innodb_data_pending_fsyncs =
+<<<<<<< HEAD
       log_pending_flushes() + fil_n_pending_tablespace_flushes;
+=======
+      fil_n_pending_log_flushes + fil_n_pending_tablespace_flushes;
+=======
+	time_elapsed = current_time - srv_last_monitor_time + 0.001;
+
+	srv_last_monitor_time = ut_time_monotonic();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   export_vars.innodb_data_fsyncs = os_n_fsyncs;
 
@@ -1760,8 +1863,10 @@ void srv_export_innodb_status(void) {
   mutex_exit(&srv_innodb_monitor_mutex);
 }
 
+<<<<<<< HEAD
 /** A thread which prints the info output by various InnoDB monitors. */
 void srv_monitor_thread() {
+<<<<<<< HEAD
   uint16_t mutex_skipped{0};
   bool last_srv_print_monitor = srv_print_innodb_monitor;
 
@@ -1775,6 +1880,86 @@ void srv_monitor_thread() {
       true. This is to ensure we will not be blocked by lock_sys global
       latch for short duration information printing, such as requested by
       sync_array_print_long_waits() */
+=======
+  int64_t sig_count;
+  double time_elapsed;
+  time_t current_time;
+  time_t last_monitor_time;
+  ulint mutex_skipped;
+  ibool last_srv_print_monitor;
+=======
+/*********************************************************************//**
+A thread which prints the info output by various InnoDB monitors.
+@return a dummy parameter */
+extern "C"
+os_thread_ret_t
+DECLARE_THREAD(srv_monitor_thread)(
+/*===============================*/
+	void*	arg MY_ATTRIBUTE((unused)))
+			/*!< in: a dummy parameter required by
+			os_thread_create */
+{
+	int64_t		sig_count;
+	ib_time_monotonic_t		time_elapsed;
+	ib_time_monotonic_t		current_time;
+	ib_time_monotonic_t		last_monitor_time;
+	ulint		mutex_skipped;
+	ibool		last_srv_print_monitor;
+>>>>>>> upstream/cluster-7.6
+
+  ut_ad(!srv_read_only_mode);
+
+<<<<<<< HEAD
+  srv_last_monitor_time = last_monitor_time = ut_time();
+  mutex_skipped = 0;
+  last_srv_print_monitor = srv_print_innodb_monitor;
+=======
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	ib::info() << "Lock timeout thread starts, id "
+		<< os_thread_pf(os_thread_get_curr_id());
+#endif /* UNIV_DEBUG_THREAD_CREATION */
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(srv_monitor_thread_key);
+#endif /* UNIV_PFS_THREAD */
+	srv_monitor_active = TRUE;
+
+	UT_NOT_USED(arg);
+	srv_last_monitor_time = last_monitor_time = ut_time_monotonic();
+	mutex_skipped = 0;
+	last_srv_print_monitor = srv_print_innodb_monitor;
+>>>>>>> upstream/cluster-7.6
+loop:
+  /* Wake up every 5 seconds to see if we need to print
+  monitor information or if signalled at shutdown. */
+
+  sig_count = os_event_reset(srv_monitor_event);
+
+  os_event_wait_time_low(srv_monitor_event, 5000000, sig_count);
+
+<<<<<<< HEAD
+  current_time = ut_time();
+
+  time_elapsed = difftime(current_time, last_monitor_time);
+
+  if (time_elapsed > 15) {
+    last_monitor_time = ut_time();
+=======
+	current_time = ut_time_monotonic();
+
+	time_elapsed = current_time - last_monitor_time;
+
+	if (time_elapsed > 15) {
+		last_monitor_time = ut_time_monotonic();
+>>>>>>> upstream/cluster-7.6
+
+    if (srv_print_innodb_monitor) {
+      /* Reset mutex_skipped counter everytime
+      srv_print_innodb_monitor changes. This is to
+      ensure we will not be blocked by lock_sys->mutex
+      for short duration information printing,
+      such as requested by sync_array_print_long_waits() */
+>>>>>>> pr/231
       if (!last_srv_print_monitor) {
         mutex_skipped = 0;
         last_srv_print_monitor = true;
@@ -1851,10 +2036,28 @@ loop:
 
   old_lsn = new_lsn;
 
+<<<<<<< HEAD
   /* Update the statistics collected for deciding LRU eviction policy.
   NOTE: While this doesn't relate to error monitoring, it's here for historical
   reasons, as it depends on being called ~1Hz. It is lock-free, so can't cause a
   deadlock itself. */
+=======
+<<<<<<< HEAD
+  if (difftime(time(NULL), srv_last_monitor_time) > 60) {
+    /* We referesh InnoDB Monitor values so that averages are
+    printed from at most 60 last seconds */
+=======
+	if (ut_difftime(ut_time_monotonic(), srv_last_monitor_time) > 60) {
+		/* We referesh InnoDB Monitor values so that averages are
+		printed from at most 60 last seconds */
+>>>>>>> upstream/cluster-7.6
+
+    srv_refresh_innodb_monitor_stats();
+  }
+
+  /* Update the statistics collected for deciding LRU
+  eviction policy. */
+>>>>>>> pr/231
   buf_LRU_stat_update();
 
   /* In case mutex_exit is not a memory barrier, it is
@@ -2012,21 +2215,105 @@ static void srv_shutdown_print_master_pending(
 {
   const auto current_time = std::chrono::steady_clock::now();
 
+<<<<<<< HEAD
   const auto time_elapsed = current_time - *last_print_time;
 
   if (time_elapsed > std::chrono::seconds(60)) {
     *last_print_time = std::chrono::steady_clock::now();
+=======
+<<<<<<< HEAD
+  current_time = ut_time();
+  time_elapsed = ut_difftime(current_time, *last_print_time);
+
+  if (time_elapsed > 60) {
+    *last_print_time = ut_time();
+=======
+/********************************************************************//**
+The master thread is tasked to ensure that flush of log file happens
+once every second in the background. This is to ensure that not more
+than one second of trxs are lost in case of crash when
+innodb_flush_logs_at_trx_commit != 1 */
+static
+void
+srv_sync_log_buffer_in_background(void)
+/*===================================*/
+{
+	ib_time_monotonic_t	current_time = ut_time_monotonic();
+
+	srv_main_thread_op_info = "flushing log";
+	if ((current_time - srv_last_log_flush_time)
+			>= srv_flush_log_at_timeout) {
+		log_buffer_sync_in_background(true);
+		srv_last_log_flush_time = current_time;
+		srv_log_writes_and_flush++;
+	}
+}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     if (n_tables_to_drop) {
       ib::info(ER_IB_MSG_1048, ulonglong{n_tables_to_drop});
     }
 
+<<<<<<< HEAD
     /* Check change buffer merge, we only wait for change buffer
     merge if it is a slow shutdown */
     if (!srv_fast_shutdown && n_bytes_merged) {
       ib::info(ER_IB_MSG_1049, ulonglong{n_bytes_merged});
     }
   }
+=======
+	rw_lock_x_lock(dict_operation_lock);
+
+	dict_mutex_enter_for_mysql();
+
+	n_tables_evicted = dict_make_room_in_cache(
+		innobase_get_table_cache_size(), pct_check);
+
+	dict_mutex_exit_for_mysql();
+
+	rw_lock_x_unlock(dict_operation_lock);
+
+	return(n_tables_evicted);
+}
+
+/*********************************************************************//**
+This function prints progress message every 60 seconds during server
+shutdown, for any activities that master thread is pending on. */
+static
+void
+srv_shutdown_print_master_pending(
+/*==============================*/
+	ib_time_monotonic_t*	last_print_time, /*!< last time the function
+						 print the message */
+	ulint		n_tables_to_drop,	 /*!< number of tables to
+						 be dropped */
+	ulint		n_bytes_merged)		 /*!< number of change buffer
+						 just merged */
+{
+	ib_time_monotonic_t	current_time;
+	ib_time_monotonic_t	time_elapsed;
+
+	current_time = ut_time_monotonic();
+	time_elapsed = current_time - *last_print_time;
+
+	if (time_elapsed > 60) {
+		*last_print_time = ut_time_monotonic();
+
+		if (n_tables_to_drop) {
+			ib::info() << "Waiting for " << n_tables_to_drop
+				<< " table(s) to be dropped";
+		}
+
+		/* Check change buffer merge, we only wait for change buffer
+		merge if it is a slow shutdown */
+		if (!srv_fast_shutdown && n_bytes_merged) {
+			ib::info() << "Waiting for change buffer merge to"
+				" complete number of bytes of change buffer"
+				" just merged: " << n_bytes_merged;
+		}
+	}
+>>>>>>> upstream/cluster-7.6
 }
 
 #ifdef UNIV_DEBUG
@@ -2068,7 +2355,11 @@ void srv_master_thread_disabled_debug_update(THD *, SYS_VAR *, void *,
 }
 #endif /* UNIV_DEBUG */
 
+<<<<<<< HEAD
 #ifdef UNIV_LINUX
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 /** Calculates difference between two timeval values.
 @param[in]      a       later timeval
 @param[in]      b       earlier timeval
@@ -2077,6 +2368,120 @@ void srv_master_thread_disabled_debug_update(THD *, SYS_VAR *, void *,
   return ((a.tv_sec - b.tv_sec) * 1000000LL + a.tv_usec - b.tv_usec);
 }
 
+<<<<<<< HEAD
+=======
+#ifdef UNIV_LINUX
+=======
+/*********************************************************************//**
+Perform the tasks that the master thread is supposed to do when the
+server is active. There are two types of tasks. The first category is
+of such tasks which are performed at each inovcation of this function.
+We assume that this function is called roughly every second when the
+server is active. The second category is of such tasks which are
+performed at some interval e.g.: purge, dict_LRU cleanup etc. */
+static
+void
+srv_master_do_active_tasks(void)
+/*============================*/
+{
+	ib_time_monotonic_t	cur_time     = ut_time_monotonic();
+	ib_time_monotonic_us_t	counter_time = ut_time_monotonic_us();
+
+	/* First do the tasks that we are suppose to do at each
+	invocation of this function. */
+
+	++srv_main_active_loops;
+
+	MONITOR_INC(MONITOR_MASTER_ACTIVE_LOOPS);
+
+	/* ALTER TABLE in MySQL requires on Unix that the table handler
+	can drop tables lazily after there no longer are SELECT
+	queries to them. */
+	srv_main_thread_op_info = "doing background drop tables";
+	row_drop_tables_for_mysql_in_background();
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_BACKGROUND_DROP_TABLE_MICROSECOND, counter_time);
+
+	ut_d(srv_master_do_disabled_loop());
+
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	/* make sure that there is enough reusable space in the redo
+	log files */
+	srv_main_thread_op_info = "checking free log space";
+	log_free_check();
+
+	/* Do an ibuf merge */
+	srv_main_thread_op_info = "doing insert buffer merge";
+	counter_time = ut_time_monotonic_us();
+	ibuf_merge_in_background(false);
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
+
+	/* Flush logs if needed */
+	srv_main_thread_op_info = "flushing log";
+	srv_sync_log_buffer_in_background();
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_LOG_FLUSH_MICROSECOND, counter_time);
+
+	/* Now see if various tasks that are performed at defined
+	intervals need to be performed. */
+
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	if (trx_sys->rseg_history_len > 0) {
+		srv_wake_purge_thread_if_not_active();
+	}
+
+	if (cur_time % SRV_MASTER_DICT_LRU_INTERVAL == 0) {
+		srv_main_thread_op_info = "enforcing dict cache limit";
+		ulint	n_evicted = srv_master_evict_from_table_cache(50);
+		if (n_evicted != 0) {
+			MONITOR_INC_VALUE(
+				MONITOR_SRV_DICT_LRU_EVICT_COUNT, n_evicted);
+		}
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_DICT_LRU_MICROSECOND, counter_time);
+	}
+
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	/* Make a new checkpoint */
+	if (cur_time % SRV_MASTER_CHECKPOINT_INTERVAL == 0) {
+		srv_main_thread_op_info = "making checkpoint";
+		log_checkpoint(TRUE, FALSE);
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_CHECKPOINT_MICROSECOND, counter_time);
+	}
+}
+
+/*********************************************************************//**
+Perform the tasks that the master thread is supposed to do whenever the
+server is idle. We do check for the server state during this function
+and if the server has entered the shutdown phase we may return from
+the function without completing the required tasks.
+Note that the server can move to active state when we are executing this
+function but we don't check for that as we are suppose to perform more
+or less same tasks when server is active. */
+static
+void
+srv_master_do_idle_tasks(void)
+/*==========================*/
+{
+	ib_time_monotonic_t	counter_time;
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
 /** Updates statistics about current CPU usage. */
 static void srv_update_cpu_usage() {
   using Clock = std::chrono::high_resolution_clock;
@@ -2088,7 +2493,19 @@ static void srv_update_cpu_usage() {
   static timeval last_cpu_stime;
   static bool last_cpu_times_set = false;
 
+<<<<<<< HEAD
   Clock_point cur_time = Clock::now();
+=======
+	/* ALTER TABLE in MySQL requires on Unix that the table handler
+	can drop tables lazily after there no longer are SELECT
+	queries to them. */
+	counter_time = ut_time_monotonic_us();
+	srv_main_thread_op_info = "doing background drop tables";
+	row_drop_tables_for_mysql_in_background();
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_BACKGROUND_DROP_TABLE_MICROSECOND,
+			 counter_time);
+>>>>>>> upstream/cluster-7.6
 
   const auto time_diff = std::chrono::duration_cast<std::chrono::microseconds>(
                              cur_time - last_time)
@@ -2104,18 +2521,42 @@ static void srv_update_cpu_usage() {
     return;
   }
 
+<<<<<<< HEAD
   if (!last_cpu_times_set) {
     last_cpu_utime = usage.ru_utime;
     last_cpu_stime = usage.ru_stime;
     last_cpu_times_set = true;
     return;
   }
+=======
+	/* Do an ibuf merge */
+	counter_time = ut_time_monotonic_us();
+	srv_main_thread_op_info = "doing insert buffer merge";
+	ibuf_merge_in_background(true);
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
+>>>>>>> upstream/cluster-7.6
 
   const auto cpu_utime_diff = timeval_diff_us(usage.ru_utime, last_cpu_utime);
   last_cpu_utime = usage.ru_utime;
 
+<<<<<<< HEAD
   const auto cpu_stime_diff = timeval_diff_us(usage.ru_stime, last_cpu_stime);
   last_cpu_stime = usage.ru_stime;
+=======
+	if (trx_sys->rseg_history_len > 0) {
+		srv_wake_purge_thread_if_not_active();
+	}
+
+	srv_main_thread_op_info = "enforcing dict cache limit";
+	ulint	n_evicted = srv_master_evict_from_table_cache(100);
+	if (n_evicted != 0) {
+		MONITOR_INC_VALUE(
+			MONITOR_SRV_DICT_LRU_EVICT_COUNT, n_evicted);
+	}
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_DICT_LRU_MICROSECOND, counter_time);
+>>>>>>> upstream/cluster-7.6
 
   /* Calculate absolute. */
 
@@ -2171,6 +2612,7 @@ static uint64_t FILETIME_to_microseconds(const FILETIME &ft) {
   return ulg.QuadPart / 10;
 }
 
+<<<<<<< HEAD
 /** Updates statistics about current CPU usage. */
 static void srv_update_cpu_usage() {
   using Clock = std::chrono::high_resolution_clock;
@@ -2420,6 +2862,7 @@ static void srv_master_do_idle_tasks(void) {
 /** Perform the tasks during pre_dd_shutdown phase. The tasks that we do
  depend on srv_fast_shutdown:
  2 => very fast shutdown => do no book keeping
+<<<<<<< HEAD
  0, 1 => normal or slow shutdown => clear drop table queue
  @param[in,out]   last_print_time       last time log message (about pending
                                         operations of shutdown) was printed
@@ -2427,6 +2870,31 @@ static void srv_master_do_idle_tasks(void) {
 static bool srv_master_do_pre_dd_shutdown_tasks(
     std::chrono::steady_clock::time_point *last_print_time) /*!< last time the
                                           function print the message */
+=======
+ 1 => normal shutdown => clear drop table queue and make checkpoint
+ 0 => slow shutdown => in addition to above do complete purge and ibuf
+ merge
+ @return true if some work was done. false otherwise */
+static ibool srv_master_do_shutdown_tasks(
+    ib_time_t *last_print_time) /*!< last time the function
+                                print the message */
+=======
+/*********************************************************************//**
+Perform the tasks during shutdown. The tasks that we do at shutdown
+depend on srv_fast_shutdown:
+2 => very fast shutdown => do no book keeping
+1 => normal shutdown => clear drop table queue and make checkpoint
+0 => slow shutdown => in addition to above do complete purge and ibuf
+merge
+@return TRUE if some work was done. FALSE otherwise */
+static
+ibool
+srv_master_do_shutdown_tasks(
+/*=========================*/
+	ib_time_monotonic_t*	last_print_time)/*!< last time the function
+					print the message */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 {
   ulint n_tables_to_drop = 0;
 
@@ -2642,10 +3110,22 @@ static void srv_master_sleep(void) {
   srv_main_thread_op_info = "";
 }
 
+<<<<<<< HEAD
 /** Waits on event in provided slot.
 @param[in]   slot     slot reserved as SRV_MASTER */
 static void srv_master_wait(srv_slot_t *slot) {
   srv_main_thread_op_info = "suspending";
+=======
+<<<<<<< HEAD
+/** The master thread controlling the server. */
+void srv_master_thread() {
+  DBUG_ENTER("srv_master_thread");
+=======
+	srv_slot_t*	slot;
+	ulint		old_activity_count = srv_get_activity_count();
+	ib_time_monotonic_t	last_print_time;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   srv_suspend_thread(slot);
 
@@ -2658,9 +3138,26 @@ static void srv_master_wait(srv_slot_t *slot) {
   os_event_wait(slot->event);
 }
 
+<<<<<<< HEAD
 /** Executes the main loop of the master thread.
 @param[in]   slot     slot reserved as SRV_MASTER */
 static void srv_master_main_loop(srv_slot_t *slot) {
+=======
+  ut_ad(!srv_read_only_mode);
+
+  srv_main_thread_process_no = os_proc_get_number();
+  srv_main_thread_id = os_thread_get_curr_id();
+
+<<<<<<< HEAD
+  slot = srv_reserve_slot(SRV_MASTER);
+  ut_a(slot == srv_sys->sys_threads);
+
+  last_print_time = ut_time();
+=======
+	last_print_time = ut_time_monotonic();
+>>>>>>> upstream/cluster-7.6
+loop:
+>>>>>>> pr/231
   if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
     /* When innodb_force_recovery is at least SRV_FORCE_NO_BACKGROUND,
     we avoid performing active/idle master's tasks. However, we still

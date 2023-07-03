@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -35,8 +59,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "fts0ast.h"
 #include "fts0fts.h"
+<<<<<<< HEAD
 #include "fts0pars.h"
 #include "ha_prototypes.h"
+<<<<<<< HEAD
+=======
+#include "my_inttypes.h"
+=======
+#include "row0sel.h"
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /* The FTS ast visit pass. */
 enum fts_ast_visit_pass_t {
@@ -489,6 +521,7 @@ void fts_ast_node_print(fts_ast_node_t *node) /*!< in: ast node to print */
 /** Check only union operation involved in the node
 @param[in]      node    ast node to check
 @return true if the node contains only union else false. */
+<<<<<<< HEAD
 bool fts_ast_node_check_union(fts_ast_node_t *node) {
   if (node->type == FTS_AST_LIST || node->type == FTS_AST_SUBEXP_LIST) {
     for (node = node->list.head; node; node = node->next) {
@@ -496,6 +529,14 @@ bool fts_ast_node_check_union(fts_ast_node_t *node) {
         return (false);
       }
     }
+=======
+bool
+fts_ast_node_check_union(
+	fts_ast_node_t*	node)
+{
+	if (node->type == FTS_AST_LIST
+	    || node->type == FTS_AST_SUBEXP_LIST) {
+>>>>>>> upstream/cluster-7.6
 
   } else if (node->type == FTS_AST_PARSER_PHRASE_LIST) {
     /* Phrase search for plugin parser */
@@ -508,7 +549,24 @@ bool fts_ast_node_check_union(fts_ast_node_t *node) {
     return (false);
   }
 
+<<<<<<< HEAD
   return (true);
+=======
+	} else if (node->type == FTS_AST_PARSER_PHRASE_LIST) {
+		/* Phrase search for plugin parser */
+		return(false);
+	} else if (node->type == FTS_AST_OPER
+		   && (node->oper == FTS_IGNORE
+		       || node->oper == FTS_EXIST)) {
+
+		return(false);
+	} else if (node->type == FTS_AST_TEXT) {
+		/* Distance or phrase search query. */
+		return(false);
+	}
+
+	return(true);
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Traverse the AST - in-order traversal, except for the FTX_EXIST and
@@ -525,13 +583,27 @@ dberr_t fts_ast_visit(fts_ast_oper_t oper,      /*!< in: current operator */
                                                 currently we ignore FTS_EXIST
                                                 and FTS_IGNORE operators */
 {
+<<<<<<< HEAD
   dberr_t error = DB_SUCCESS;
   fts_ast_node_t *oper_node = nullptr;
   fts_ast_node_t *start_node;
   bool revisit = false;
   bool will_be_ignored = false;
   fts_ast_visit_pass_t visit_pass = FTS_PASS_FIRST;
+<<<<<<< HEAD
   trx_t *trx = node->trx;
+=======
+=======
+	dberr_t			error = DB_SUCCESS;
+	fts_ast_node_t*		oper_node = NULL;
+	fts_ast_node_t*		start_node;
+	bool			revisit = false;
+	bool			will_be_ignored = false;
+	fts_ast_visit_pass_t	visit_pass = FTS_PASS_FIRST;
+	trx_t*	trx = node->trx;
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
   start_node = node->list.head;
 
   ut_a(node->type == FTS_AST_LIST || node->type == FTS_AST_SUBEXP_LIST);
@@ -634,6 +706,7 @@ dberr_t fts_ast_visit(fts_ast_oper_t oper,      /*!< in: current operator */
       }
     }
 
+<<<<<<< HEAD
     /* Ignore pass processes the skipped FTS_IGNORE operation. */
     for (node = start_node; node && error == DB_SUCCESS; node = node->next) {
       if (node->type == FTS_AST_LIST) {
@@ -642,6 +715,17 @@ dberr_t fts_ast_visit(fts_ast_oper_t oper,      /*!< in: current operator */
       }
     }
   }
+=======
+	if (trx_is_interrupted(trx)) {
+		return (DB_INTERRUPTED);
+	}
+
+	if (revisit) {
+		/* Exist pass processes the skipped FTS_EXIST operation. */
+                for (node = start_node;
+		     node && error == DB_SUCCESS;
+		     node = node->next) {
+>>>>>>> upstream/cluster-7.6
 
   return (error);
 }

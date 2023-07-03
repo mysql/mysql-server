@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -317,6 +321,7 @@ class OptRangeTest : public ::testing::Test {
 Item_func *OptRangeTest::create_item(Item_func::Functype type, Field *fld,
                                      int value) {
   Item_func *result;
+<<<<<<< HEAD
   switch (type) {
     case Item_func::GT_FUNC:
       result = new Item_func_gt(new Item_field(fld), new Item_int(value));
@@ -334,6 +339,26 @@ Item_func *OptRangeTest::create_item(Item_func::Functype type, Field *fld,
       result = nullptr;
       assert(false);
       return result;
+=======
+  switch (type)
+  {
+  case Item_func::GT_FUNC:
+    result= new Item_func_gt(new Item_field(fld), new Item_int(value));
+    break;
+  case Item_func::LT_FUNC:
+    result= new Item_func_lt(new Item_field(fld), new Item_int(value));
+    break;
+  case Item_func::MULT_EQUAL_FUNC:
+    result= new Item_equal(new Item_int(value), new Item_field(fld));
+    break;
+  case Item_func::XOR_FUNC:
+    result= new Item_func_xor(new Item_field(fld), new Item_int(value));
+    break;
+  default:
+    result= NULL;
+    assert(false);
+    return result;
+>>>>>>> upstream/cluster-7.6
   }
   Item *itm = static_cast<Item *>(result);
   result->fix_fields(thd(), &itm);
@@ -1710,6 +1735,94 @@ TEST_F(OptRangeTest, CombineAlways) {
     Mock_SEL_ARG key_range_root;
     SEL_ROOT key_range(&key_range_root);
 
+<<<<<<< HEAD
+=======
+
+TEST_F(OptRangeTest, IncrementUseCount)
+{
+  /*
+    We build the following SEL_ARG graph, corresponding to the condition
+    (kp11 = c AND (kp12 = c OR kp22 = c) AND kp3 = c) OR
+    (kp12 = c AND (kp12 = c OR kp22 = c) AND kp3 = c)
+
+    [kp11*]---[kp21*]---[kp3*]
+       |      /  |      /
+    [kp12]---/ [kp22]--/
+
+    Vertical lines = next/prev pointers
+    Horizontal lines = next_key_part pointers
+    * indicates that the SEL_ARG is root 
+  */
+  Mock_SEL_ARG kp3(NULL, 4);
+
+  Mock_SEL_ARG kp21(&kp3, 2);
+  Mock_SEL_ARG kp22(&kp3, 0);
+  build_interval_list(&kp21, &kp22);
+
+  Mock_SEL_ARG kp11(&kp21, 0);
+  Mock_SEL_ARG kp12(&kp21, 0);
+  build_interval_list(&kp11, &kp12);
+
+  /*
+    At this point, no one refers to this SEL_ARG graph, so the
+    use_count is 0 for all roots. Below we check that
+    increment_use_count() correctly updates use_count for the whole
+    tree. The actual test that use_count is as expected is performed
+    in ~Mock_SEL_ARG.
+   */
+  kp11.increment_use_count(1);
+}
+
+
+TEST_F(OptRangeTest, IncrementUseCount2)
+{
+  /*
+    We build the following SEL_ARG graph, corresponding to the condition
+    (kp11 = c AND kp2 = c AND (kp31 = c OR kp32 = c)) OR
+    (kp12 = c AND kp2 = c AND (kp31 = c OR kp32 = c))
+
+    [kp11*]---[kp2*]---[kp31*]
+       |      /           |
+    [kp12]---/         [kp32]
+
+    Vertical lines = next/prev pointers
+    Horizontal lines = next_key_part pointers
+    * indicates that the SEL_ARG is root 
+  */
+
+  Mock_SEL_ARG kp31(NULL, 2);
+  Mock_SEL_ARG kp32(NULL, 0);
+  build_interval_list(&kp31, &kp32);
+
+  Mock_SEL_ARG kp2(&kp31, 2);
+
+  Mock_SEL_ARG kp11(&kp2, 0);
+  Mock_SEL_ARG kp12(&kp2, 0);
+  build_interval_list(&kp11, &kp12);
+
+  /*
+    At this point, no one refers to this SEL_ARG graph, so the
+    use_count is 0 for all roots. Below we check that
+    increment_use_count() correctly updates use_count for the whole
+    tree. The actual test that use_count is as expected is performed
+    in ~Mock_SEL_ARG.
+ 
+   */
+  kp11.increment_use_count(1);
+}
+
+TEST_F(OptRangeTest, CombineAlways)
+{
+  // Gets decremented in key_or() before being compared > 0, triggering
+  // a assert in SEL_ARG::SEL_ARG(Type) unless the ALWAYS type is
+  // handled.
+  static const int INITIAL_USE_COUNT= 3;
+
+  RANGE_OPT_PARAM param; // Not really used
+  {
+    Mock_SEL_ARG always(SEL_ARG::ALWAYS, INITIAL_USE_COUNT, INITIAL_USE_COUNT),
+      key_range(SEL_ARG::KEY_RANGE, INITIAL_USE_COUNT, INITIAL_USE_COUNT - 1);
+>>>>>>> upstream/cluster-7.6
     EXPECT_TRUE(key_or(&param, &always, &key_range) == &always);
   }
   {
@@ -1771,6 +1884,13 @@ TEST_F(OptRangeTest, CombineAlways2) {
       set_endpoints(1, 2);
       next_key_part = nullptr;
       make_root();
+<<<<<<< HEAD
+=======
+      // Gets decremented in key_or() before being compared > 0, triggering
+      // a assert in SEL_ARG::SEL_ARG(Type) unless the ALWAYS type is
+      // handled.
+      use_count= 3;
+>>>>>>> upstream/cluster-7.6
     }
 
     void add_next_key_part(SEL_ROOT *next_arg) {
@@ -1837,6 +1957,7 @@ TEST_F(OptRangeTest, AppendRange) {
   EXPECT_STREQ("42 < my_field < 45", out.c_ptr());
 }
 
+<<<<<<< HEAD
 TEST_F(OptRangeTest, TreeRootGetsUpdated) {
   /*
     Create a bunch of SEL_ARGs (from 0 up to 10). The simplest way
@@ -1873,6 +1994,27 @@ TEST_F(OptRangeTest, TreeRootGetsUpdated) {
   }
   EXPECT_EQ(args.size(), root.elements);
   EXPECT_NE(args[0], root.root);
+=======
+TEST_F(OptRangeTest, CloneSpatialKey) {
+  Fake_RANGE_OPT_PARAM param(thd(), &m_alloc, 2, false);
+  Mock_SEL_ARG key1(SEL_ARG::KEY_RANGE, 2, 0);
+  Mock_SEL_ARG key2(SEL_ARG::MAYBE_KEY, 1, 0);
+  // dummy field
+  Mock_field_long field1("geom1");
+  key1.field = &field1;
+  key1.left = &null_element;
+  key1.next_key_part = NULL;
+  key1.min_flag |= GEOM_FLAG;
+  key1.rkey_func_flag = HA_READ_MBR_CONTAIN;
+  // check if tree is cloned along with gis flag.
+  SEL_ARG *cloned_key1 = key_and(&param, &key1, &key2, CLONE_KEY2_MAYBE);
+  EXPECT_NE(cloned_key1, &key1);
+  EXPECT_EQ(cloned_key1->rkey_func_flag, key1.rkey_func_flag);
+  key1.use_count = 0;
+  key2.use_count = 0;
+}
+
+>>>>>>> upstream/cluster-7.6
 }
 
 TEST_F(OptRangeTest, CloneSpatialKey) {

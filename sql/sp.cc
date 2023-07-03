@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -588,6 +592,35 @@ end:
   return ret;
 }
 
+<<<<<<< HEAD
+=======
+static void sp_returns_type(THD *thd, String &result, sp_head *sp) {
+  TABLE table;
+  TABLE_SHARE share;
+  Field *field;
+<<<<<<< HEAD
+  table.in_use = thd;
+=======
+
+  table.in_use= thd;
+>>>>>>> upstream/cluster-7.6
+  table.s = &share;
+  field = sp->create_result_field(0, 0, &table);
+  field->sql_type(result);
+
+  if (field->has_charset()) {
+    result.append(STRING_WITH_LEN(" CHARSET "));
+    result.append(field->charset()->csname);
+    if (!(field->charset()->state & MY_CS_PRIMARY)) {
+      result.append(STRING_WITH_LEN(" COLLATE "));
+      result.append(field->charset()->name);
+    }
+  }
+
+  destroy(field);
+}
+
+>>>>>>> pr/231
 /**
   Method to check if routine with same name already exists.
 
@@ -798,9 +831,19 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer,
   DBUG_PRINT("enter", ("type: %d  name: %.*s", static_cast<int>(sp->m_type),
                        static_cast<int>(sp->m_name.length), sp->m_name.str));
 
+<<<<<<< HEAD
   assert(sp->m_type == enum_sp_type::PROCEDURE ||
          sp->m_type == enum_sp_type::FUNCTION);
   assert(!sp_already_exists);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(sp->m_type == enum_sp_type::PROCEDURE ||
+              sp->m_type == enum_sp_type::FUNCTION);
+=======
+  assert(sp->m_type == SP_TYPE_PROCEDURE ||
+         sp->m_type == SP_TYPE_FUNCTION);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Grab an exclusive MDL lock. */
   MDL_key::enum_mdl_namespace mdl_type = (sp->m_type == enum_sp_type::FUNCTION)
@@ -897,7 +940,245 @@ err_with_rollback:
   */
   trans_rollback(thd);
 
+<<<<<<< HEAD
   return true;
+=======
+<<<<<<< HEAD
+  DBUG_RETURN(true);
+=======
+  saved_count_cuted_fields= thd->count_cuted_fields;
+  thd->count_cuted_fields= CHECK_FIELD_WARN;
+
+  if (!(table= open_proc_table_for_update(thd)))
+  {
+    my_error(ER_SP_STORE_FAILED, MYF(0),
+             SP_TYPE_STRING(thd->lex),sp->m_name.str);
+  }
+  else
+  {
+    restore_record(table, s->default_values); // Get default values for fields
+
+    /* NOTE: all needed privilege checks have been already done. */
+    strxnmov(definer, sizeof(definer)-1, thd->lex->definer->user.str, "@",
+            thd->lex->definer->host.str, NullS);
+
+    if (table->s->fields < MYSQL_PROC_FIELD_COUNT)
+    {
+      my_error(ER_SP_STORE_FAILED, MYF(0),
+               SP_TYPE_STRING(thd->lex),sp->m_name.str);
+      goto done;
+    }
+
+    if (system_charset_info->cset->numchars(system_charset_info,
+                                            sp->m_name.str,
+                                            sp->m_name.str+sp->m_name.length) >
+        table->field[MYSQL_PROC_FIELD_NAME]->char_length())
+    {
+      my_error(ER_TOO_LONG_IDENT, MYF(0), sp->m_name.str);
+      goto done;
+    }
+    if (sp->m_body.length > table->field[MYSQL_PROC_FIELD_BODY]->field_length)
+    {
+      my_error(ER_TOO_LONG_BODY, MYF(0), sp->m_name.str);
+      goto done;
+    }
+
+    store_failed=
+      table->field[MYSQL_PROC_FIELD_DB]->
+        store(sp->m_db.str, sp->m_db.length, system_charset_info);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_NAME]->
+        store(sp->m_name.str, sp->m_name.length, system_charset_info);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_MYSQL_TYPE]->
+        store((longlong)sp->m_type, TRUE);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]->
+        store(sp->m_name.str, sp->m_name.length, system_charset_info);
+
+    if (sp->m_chistics->daccess != SP_DEFAULT_ACCESS)
+    {
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_ACCESS]->
+          store((longlong)sp->m_chistics->daccess, TRUE);
+    }
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_DETERMINISTIC]->
+        store((longlong)(sp->m_chistics->detistic ? 1 : 2), TRUE);
+
+    if (sp->m_chistics->suid != SP_IS_DEFAULT_SUID)
+    {
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
+          store((longlong)sp->m_chistics->suid, TRUE);
+    }
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_PARAM_LIST]->
+        store(sp->m_params.str, sp->m_params.length, system_charset_info);
+
+    if (sp->m_type == SP_TYPE_FUNCTION)
+    {
+      sp_returns_type(thd, retstr, sp);
+
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_RETURNS]->
+          store(retstr.ptr(), retstr.length(), system_charset_info);
+    }
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_BODY]->
+        store(sp->m_body.str, sp->m_body.length, system_charset_info);
+
+    bool store_definer_failed= table->field[MYSQL_PROC_FIELD_DEFINER]->
+        store(definer, strlen(definer), system_charset_info);
+
+    store_failed= store_failed || store_definer_failed;
+
+    Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_CREATED]);
+    Item_func_now_local::store_in(table->field[MYSQL_PROC_FIELD_MODIFIED]);
+
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_SQL_MODE]->
+        store((longlong)saved_mode, TRUE);
+
+    if (sp->m_chistics->comment.str)
+    {
+      store_failed= store_failed ||
+        table->field[MYSQL_PROC_FIELD_COMMENT]->
+          store(sp->m_chistics->comment.str, sp->m_chistics->comment.length,
+                system_charset_info);
+    }
+
+    if ((sp->m_type == SP_TYPE_FUNCTION) &&
+        !trust_function_creators && mysql_bin_log.is_open())
+    {
+      if (!sp->m_chistics->detistic)
+      {
+	/*
+	  Note that this test is not perfect; one could use
+	  a non-deterministic read-only function in an update statement.
+	*/
+	enum enum_sp_data_access access=
+	  (sp->m_chistics->daccess == SP_DEFAULT_ACCESS) ?
+	  SP_DEFAULT_ACCESS_MAPPING : sp->m_chistics->daccess;
+	if (access == SP_CONTAINS_SQL ||
+	    access == SP_MODIFIES_SQL_DATA)
+	{
+          my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
+	  goto done;
+	}
+      }
+      if (!(thd->security_context()->check_access(SUPER_ACL)))
+      {
+        my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,MYF(0));
+	goto done;
+      }
+    }
+
+    table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]->set_notnull();
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT]->store(
+        thd->charset()->csname,
+        strlen(thd->charset()->csname),
+        system_charset_info);
+
+    table->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]->set_notnull();
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_COLLATION_CONNECTION]->store(
+        thd->variables.collation_connection->name,
+        strlen(thd->variables.collation_connection->name),
+        system_charset_info);
+
+    table->field[MYSQL_PROC_FIELD_DB_COLLATION]->set_notnull();
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_DB_COLLATION]->store(
+        db_cs->name, strlen(db_cs->name), system_charset_info);
+
+    table->field[MYSQL_PROC_FIELD_BODY_UTF8]->set_notnull();
+    store_failed= store_failed ||
+      table->field[MYSQL_PROC_FIELD_BODY_UTF8]->store(
+        sp->m_body_utf8.str, sp->m_body_utf8.length, system_charset_info);
+
+    if (store_definer_failed &&
+        table->field[MYSQL_PROC_FIELD_DEFINER]->field_length <
+          (USERNAME_CHAR_LENGTH + HOSTNAME_LENGTH + 1) *
+          table->field[MYSQL_PROC_FIELD_DEFINER]->charset()->mbmaxlen)
+    {
+      my_error(ER_USER_COLUMN_OLD_LENGTH, MYF(0),
+               table->field[MYSQL_PROC_FIELD_DEFINER]->field_name);
+      goto done;
+    }
+    else if (store_failed)
+    {
+      my_error(ER_CANT_CREATE_SROUTINE, MYF(0), sp->m_name.str);
+      goto done;
+    }
+
+    if (table->file->ha_write_row(table->record[0]))
+    {
+       my_error(ER_SP_ALREADY_EXISTS, MYF(0),
+                SP_TYPE_STRING(thd->lex), sp->m_name.str);
+       goto done;
+    }
+
+    sp_cache_invalidate();
+
+    error= false;
+    if (mysql_bin_log.is_open())
+    {
+      thd->clear_error();
+
+      String log_query;
+      log_query.set_charset(system_charset_info);
+
+      if (!create_string(thd, &log_query,
+                         sp->m_type,
+                         (sp->m_explicit_name ? sp->m_db.str : NULL), 
+                         (sp->m_explicit_name ? sp->m_db.length : 0), 
+                         sp->m_name.str, sp->m_name.length,
+                         sp->m_params.str, sp->m_params.length,
+                         retstr.c_ptr(), retstr.length(),
+                         sp->m_body.str, sp->m_body.length,
+                         sp->m_chistics, thd->lex->definer->user,
+                         thd->lex->definer->host,
+                         saved_mode))
+      {
+        my_error(ER_SP_STORE_FAILED, MYF(0),
+                 SP_TYPE_STRING(thd->lex), sp->m_name.str);
+        error= true;
+        goto done;
+      }
+      /* restore sql_mode when binloging */
+      thd->variables.sql_mode= saved_mode;
+      thd->add_to_binlog_accessed_dbs(sp->m_db.str);
+      /* Such a statement can always go directly to binlog, no trans cache */
+      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                            log_query.c_ptr(), log_query.length(),
+                            FALSE, FALSE, FALSE, 0))
+      {
+        my_error(ER_SP_STORE_FAILED, MYF(0),
+                 SP_TYPE_STRING(thd->lex), sp->m_name.str);
+        error= true;
+      };
+      thd->variables.sql_mode= 0;
+    }
+  }
+
+done:
+  thd->count_cuted_fields= saved_count_cuted_fields;
+  thd->variables.sql_mode= saved_mode;
+  /* Restore the state of binlog format */
+  assert(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+  DBUG_RETURN(error);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /**
@@ -930,7 +1211,16 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
              ("type: %d  name: %.*s", static_cast<int>(type),
               static_cast<int>(name->m_name.length), name->m_name.str));
 
+<<<<<<< HEAD
   assert(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(type == enum_sp_type::PROCEDURE ||
+              type == enum_sp_type::FUNCTION);
+=======
+  assert(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Grab an exclusive MDL lock. */
   MDL_key::enum_mdl_namespace mdl_type =
@@ -1014,6 +1304,7 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
       if (sp) sp_cache_flush_obsolete(spc, &sp);
     }
   }
+<<<<<<< HEAD
 
   return SP_OK;
 
@@ -1026,7 +1317,18 @@ err_with_rollback:
   */
   trans_rollback(thd);
 
+<<<<<<< HEAD
   return SP_DROP_FAILED;
+=======
+  DBUG_RETURN(SP_DROP_FAILED);
+=======
+  /* Restore the state of binlog format */
+  assert(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+  DBUG_RETURN(ret);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /**
@@ -1060,7 +1362,16 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
              ("type: %d  name: %.*s", static_cast<int>(type),
               static_cast<int>(name->m_name.length), name->m_name.str));
 
+<<<<<<< HEAD
   assert(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(type == enum_sp_type::PROCEDURE ||
+              type == enum_sp_type::FUNCTION);
+=======
+  assert(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Grab an exclusive MDL lock. */
   MDL_key::enum_mdl_namespace mdl_type =
@@ -1134,6 +1445,7 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
       return true;
     }
   }
+<<<<<<< HEAD
 
   // Alter stored routine.
   if (DBUG_EVALUATE_IF("simulate_alter_routine_failure", true, false) ||
@@ -1173,7 +1485,19 @@ err_report_with_rollback:
   */
   trans_rollback(thd);
 
+<<<<<<< HEAD
   return true;
+=======
+  DBUG_RETURN(true);
+=======
+err:
+  /* Restore the state of binlog format */
+  assert(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+  DBUG_RETURN(ret);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 bool lock_db_routines(THD *thd, const dd::Schema &schema) {
@@ -1223,11 +1547,70 @@ bool lock_db_routines(THD *thd, const dd::Schema &schema) {
     }
   };
 
+<<<<<<< HEAD
   add_requests_for_names(dd::Routine::RT_FUNCTION, func_names);
   add_requests_for_names(dd::Routine::RT_PROCEDURE, proc_names);
 
   return thd->mdl_context.acquire_locks(&mdl_requests,
                                         thd->variables.lock_wait_timeout);
+=======
+<<<<<<< HEAD
+=======
+  table->field[MYSQL_PROC_FIELD_DB]->store(db, strlen(db), system_charset_info);
+  key_len= table->key_info->key_part[0].store_length;
+  int nxtres= table->file->ha_index_init(0, 1);
+  if (nxtres)
+  {
+    table->file->print_error(nxtres, MYF(0));
+    close_nontrans_system_tables(thd, &open_tables_state_backup);
+    DBUG_RETURN(true);
+  }
+
+  if (! table->file->ha_index_read_map(table->record[0],
+                                       table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                       (key_part_map)1, HA_READ_KEY_EXACT))
+  {
+    do
+    {
+      char *sp_name= get_field(thd->mem_root,
+                               table->field[MYSQL_PROC_FIELD_NAME]);
+      if (sp_name == NULL)
+      {
+        table->file->ha_index_end();
+        my_error(ER_SP_WRONG_NAME, MYF(0), "");
+        close_nontrans_system_tables(thd, &open_tables_state_backup);
+        DBUG_RETURN(true);
+      }
+
+      longlong sp_type= table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
+      MDL_request *mdl_request= new (thd->mem_root) MDL_request;
+      MDL_REQUEST_INIT(mdl_request,
+                       sp_type == SP_TYPE_FUNCTION ?
+                         MDL_key::FUNCTION : MDL_key::PROCEDURE,
+                       db, sp_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
+      mdl_requests.push_front(mdl_request);
+    } while (! (nxtres= table->file->ha_index_next_same(table->record[0],
+                                       table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                       key_len)));
+  }
+  table->file->ha_index_end();
+  if (nxtres != 0 && nxtres != HA_ERR_END_OF_FILE)
+  {
+    table->file->print_error(nxtres, MYF(0));
+    close_nontrans_system_tables(thd, &open_tables_state_backup);
+    DBUG_RETURN(true);
+  }
+  close_nontrans_system_tables(thd, &open_tables_state_backup);
+
+  /* We should already hold a global IX lock and a schema X lock. */
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
+                                                      "", "", MDL_INTENTION_EXCLUSIVE) &&
+         thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
+                                                      db, "", MDL_EXCLUSIVE));
+>>>>>>> upstream/cluster-7.6
+  DBUG_RETURN(thd->mdl_context.acquire_locks(&mdl_requests,
+                                             thd->variables.lock_wait_timeout));
+>>>>>>> pr/231
 }
 
 /**
@@ -1475,7 +1858,16 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name) {
   DBUG_PRINT("enter",
              ("name: %.*s", (int)name->m_name.length, name->m_name.str));
 
+<<<<<<< HEAD
   assert(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(type == enum_sp_type::PROCEDURE ||
+              type == enum_sp_type::FUNCTION);
+=======
+  assert(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   // Lock routine for read.
   if (lock_routine_name(thd, type, name, MDL_SHARED_HIGH_PRIO)) {
@@ -1544,8 +1936,74 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
   sp_head *sp = sp_cache_lookup(cp, name);
   if (sp != nullptr) return sp;
 
+<<<<<<< HEAD
   if (!cache_only) {
     if (db_find_routine(thd, type, name, &sp) == SP_OK) {
+=======
+    /*
+      String buffer for RETURNS data type must have system charset;
+      64 -- size of "returns" column of mysql.proc.
+    */
+    String retstr(64);
+    retstr.set_charset(sp->get_creation_ctx()->get_client_cs());
+
+    DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
+    if (sp->m_first_free_instance)
+    {
+      DBUG_PRINT("info", ("first free: 0x%lx  level: %lu  flags %x",
+                          (ulong)sp->m_first_free_instance,
+                          sp->m_first_free_instance->m_recursion_level,
+                          sp->m_first_free_instance->m_flags));
+      assert(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
+      if (sp->m_first_free_instance->m_recursion_level > depth)
+      {
+        recursion_level_error(thd, sp);
+        DBUG_RETURN(0);
+      }
+      DBUG_RETURN(sp->m_first_free_instance);
+    }
+    /*
+      Actually depth could be +1 than the actual value in case a SP calls
+      SHOW CREATE PROCEDURE. Hence, the linked list could hold up to one more
+      instance.
+    */
+
+    level= sp->m_last_cached_sp->m_recursion_level + 1;
+    if (level > depth)
+    {
+      recursion_level_error(thd, sp);
+      DBUG_RETURN(0);
+    }
+
+    strxmov(definer, sp->m_definer_user.str, "@",
+            sp->m_definer_host.str, NullS);
+    if (type == SP_TYPE_FUNCTION)
+    {
+      sp_returns_type(thd, retstr, sp);
+      returns= retstr.ptr();
+    }
+    if (db_load_routine(thd, type, name, &new_sp,
+                        sp->m_sql_mode, sp->m_params.str, returns,
+                        sp->m_body.str, *sp->m_chistics, definer,
+                        sp->m_created, sp->m_modified,
+                        sp->get_creation_ctx()) == SP_OK)
+    {
+      sp->m_last_cached_sp->m_next_cached_sp= new_sp;
+      new_sp->m_recursion_level= level;
+      new_sp->m_first_instance= sp;
+      sp->m_last_cached_sp= sp->m_first_free_instance= new_sp;
+      DBUG_PRINT("info", ("added level: 0x%lx, level: %lu, flags %x",
+                          (ulong)new_sp, new_sp->m_recursion_level,
+                          new_sp->m_flags));
+      DBUG_RETURN(new_sp);
+    }
+    DBUG_RETURN(0);
+  }
+  if (!cache_only)
+  {
+    if (db_find_routine(thd, type, name, &sp) == SP_OK)
+    {
+>>>>>>> upstream/cluster-7.6
       sp_cache_insert(cp, sp);
       DBUG_PRINT("info", ("added new: %p, level: %lu, flags %x", sp,
                           sp->m_recursion_level, sp->m_flags));
@@ -1977,9 +2435,22 @@ enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
     in sroutines_list has an MDL lock unless it's a top-level call, or a
     trigger, but triggers can't occur here (see the preceding assert).
   */
+<<<<<<< HEAD
   assert(thd->mdl_context.owns_equal_or_stronger_lock(&mdl_key, MDL_SHARED) ||
          rt == thd->lex->sroutines_list.first);
 #endif
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+                  rt->type() == Sroutine_hash_entry::FUNCTION
+                      ? MDL_key::FUNCTION
+                      : MDL_key::PROCEDURE,
+                  rt->db(), rt->name(), MDL_SHARED) ||
+              rt == thd->lex->sroutines_list.first);
+=======
+  assert(rt->mdl_request.ticket || rt == thd->lex->sroutines_list.first);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return sp_cache_routine(thd, type, &name, lookup_only, sp);
 }
@@ -2013,7 +2484,16 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
 
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(type == enum_sp_type::FUNCTION || type == enum_sp_type::PROCEDURE);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(type == enum_sp_type::FUNCTION ||
+              type == enum_sp_type::PROCEDURE);
+=======
+  assert(type == SP_TYPE_FUNCTION || type == SP_TYPE_PROCEDURE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   *sp = sp_cache_lookup(spc, name);
 
@@ -2394,6 +2874,138 @@ uint sp_get_flags_for_command(LEX *lex) {
     default:
       flags = lex->is_explain() ? sp_head::MULTI_RESULTS : 0;
       break;
+<<<<<<< HEAD
+=======
+    }
+    /* fallthrough */
+  case SQLCOM_ANALYZE:
+  case SQLCOM_OPTIMIZE:
+  case SQLCOM_PRELOAD_KEYS:
+  case SQLCOM_ASSIGN_TO_KEYCACHE:
+  case SQLCOM_CHECKSUM:
+  case SQLCOM_CHECK:
+  case SQLCOM_HA_READ:
+  case SQLCOM_SHOW_BINLOGS:
+  case SQLCOM_SHOW_BINLOG_EVENTS:
+  case SQLCOM_SHOW_RELAYLOG_EVENTS:
+  case SQLCOM_SHOW_CHARSETS:
+  case SQLCOM_SHOW_COLLATIONS:
+  case SQLCOM_SHOW_CREATE:
+  case SQLCOM_SHOW_CREATE_DB:
+  case SQLCOM_SHOW_CREATE_FUNC:
+  case SQLCOM_SHOW_CREATE_PROC:
+  case SQLCOM_SHOW_CREATE_EVENT:
+  case SQLCOM_SHOW_CREATE_TRIGGER:
+  case SQLCOM_SHOW_DATABASES:
+  case SQLCOM_SHOW_ERRORS:
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_FUNC_CODE:
+  case SQLCOM_SHOW_GRANTS:
+  case SQLCOM_SHOW_ENGINE_STATUS:
+  case SQLCOM_SHOW_ENGINE_LOGS:
+  case SQLCOM_SHOW_ENGINE_MUTEX:
+  case SQLCOM_SHOW_EVENTS:
+  case SQLCOM_SHOW_KEYS:
+  case SQLCOM_SHOW_MASTER_STAT:
+  case SQLCOM_SHOW_OPEN_TABLES:
+  case SQLCOM_SHOW_PRIVILEGES:
+  case SQLCOM_SHOW_PROCESSLIST:
+  case SQLCOM_SHOW_PROC_CODE:
+  case SQLCOM_SHOW_SLAVE_HOSTS:
+  case SQLCOM_SHOW_SLAVE_STAT:
+  case SQLCOM_SHOW_STATUS:
+  case SQLCOM_SHOW_STATUS_FUNC:
+  case SQLCOM_SHOW_STATUS_PROC:
+  case SQLCOM_SHOW_STORAGE_ENGINES:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_TABLE_STATUS:
+  case SQLCOM_SHOW_VARIABLES:
+  case SQLCOM_SHOW_WARNS:
+  case SQLCOM_REPAIR:
+    flags= sp_head::MULTI_RESULTS;
+    break;
+  /*
+    EXECUTE statement may return a result set, but doesn't have to.
+    We can't, however, know it in advance, and therefore must add
+    this statement here. This is ok, as is equivalent to a result-set
+    statement within an IF condition.
+  */
+  case SQLCOM_EXECUTE:
+    flags= sp_head::MULTI_RESULTS | sp_head::CONTAINS_DYNAMIC_SQL;
+    break;
+  case SQLCOM_PREPARE:
+  case SQLCOM_DEALLOCATE_PREPARE:
+    flags= sp_head::CONTAINS_DYNAMIC_SQL;
+    break;
+  case SQLCOM_CREATE_TABLE:
+    if (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)
+      flags= 0;
+    else
+      flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
+    break;
+  case SQLCOM_DROP_TABLE:
+    if (lex->drop_temporary)
+      flags= 0;
+    else
+      flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
+    break;
+  case SQLCOM_FLUSH:
+    flags= sp_head::HAS_SQLCOM_FLUSH;
+    break;
+  case SQLCOM_RESET:
+    flags= sp_head::HAS_SQLCOM_RESET;
+    break;
+  case SQLCOM_CREATE_INDEX:
+  case SQLCOM_CREATE_DB:
+  case SQLCOM_CREATE_VIEW:
+  case SQLCOM_CREATE_TRIGGER:
+  case SQLCOM_CREATE_USER:
+  case SQLCOM_ALTER_TABLE:
+  case SQLCOM_GRANT:
+  case SQLCOM_REVOKE:
+  case SQLCOM_BEGIN:
+  case SQLCOM_RENAME_TABLE:
+  case SQLCOM_RENAME_USER:
+  case SQLCOM_DROP_INDEX:
+  case SQLCOM_DROP_DB:
+  case SQLCOM_REVOKE_ALL:
+  case SQLCOM_DROP_USER:
+  case SQLCOM_DROP_VIEW:
+  case SQLCOM_DROP_TRIGGER:
+  case SQLCOM_TRUNCATE:
+  case SQLCOM_COMMIT:
+  case SQLCOM_ROLLBACK:
+  case SQLCOM_LOAD:
+  case SQLCOM_LOCK_TABLES:
+  case SQLCOM_CREATE_PROCEDURE:
+  case SQLCOM_CREATE_SPFUNCTION:
+  case SQLCOM_ALTER_PROCEDURE:
+  case SQLCOM_ALTER_FUNCTION:
+  case SQLCOM_DROP_PROCEDURE:
+  case SQLCOM_DROP_FUNCTION:
+  case SQLCOM_CREATE_EVENT:
+  case SQLCOM_ALTER_EVENT:
+  case SQLCOM_DROP_EVENT:
+  case SQLCOM_INSTALL_PLUGIN:
+  case SQLCOM_UNINSTALL_PLUGIN:
+  case SQLCOM_ALTER_DB_UPGRADE:
+  case SQLCOM_ALTER_DB:
+  case SQLCOM_ALTER_USER:
+  case SQLCOM_CREATE_SERVER:
+  case SQLCOM_ALTER_SERVER:
+  case SQLCOM_DROP_SERVER:
+  case SQLCOM_CHANGE_MASTER:
+  case SQLCOM_CHANGE_REPLICATION_FILTER:
+  case SQLCOM_SLAVE_START:
+  case SQLCOM_SLAVE_STOP:
+  case SQLCOM_ALTER_INSTANCE:
+  case SQLCOM_ALTER_TABLESPACE:
+    flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
+    break;
+  default:
+    flags= lex->describe ? sp_head::MULTI_RESULTS : 0;
+    break;
+>>>>>>> upstream/cluster-7.6
   }
   return flags;
 }
@@ -2409,8 +3021,18 @@ uint sp_get_flags_for_command(LEX *lex) {
   @retval false   name is ok
 */
 
+<<<<<<< HEAD
 bool sp_check_name(LEX_STRING *ident) {
+<<<<<<< HEAD
   assert(ident != nullptr && ident->str != nullptr);
+=======
+  DBUG_ASSERT(ident != NULL && ident->str != NULL);
+=======
+bool sp_check_name(LEX_STRING *ident)
+{
+  assert(ident != NULL && ident->str != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (!ident->str[0] || ident->str[ident->length - 1] == ' ') {
     my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);

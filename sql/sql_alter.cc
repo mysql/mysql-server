@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +99,12 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
 }
 
 Alter_table_ctx::Alter_table_ctx()
+<<<<<<< HEAD
     : datetime_field(nullptr),
+=======
+<<<<<<< HEAD
+    : datetime_field(NULL),
+>>>>>>> pr/231
       error_if_not_empty(false),
       tables_opened(0),
       db(nullptr),
@@ -110,6 +119,14 @@ Alter_table_ctx::Alter_table_ctx()
 #ifndef NDEBUG
       ,
       tmp_table(false)
+=======
+  : datetime_field(NULL), error_if_not_empty(false),
+    tables_opened(0),
+    db(NULL), table_name(NULL), alias(NULL),
+    new_db(NULL), new_name(NULL), new_alias(NULL)
+#ifndef NDEBUG
+    , tmp_table(false)
+>>>>>>> upstream/cluster-7.6
 #endif
 {
 }
@@ -117,7 +134,12 @@ Alter_table_ctx::Alter_table_ctx()
 Alter_table_ctx::Alter_table_ctx(THD *thd, Table_ref *table_list,
                                  uint tables_opened_arg, const char *new_db_arg,
                                  const char *new_name_arg)
+<<<<<<< HEAD
     : datetime_field(nullptr),
+=======
+<<<<<<< HEAD
+    : datetime_field(NULL),
+>>>>>>> pr/231
       error_if_not_empty(false),
       tables_opened(tables_opened_arg),
       new_db(new_db_arg),
@@ -128,6 +150,13 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, Table_ref *table_list,
 #ifndef NDEBUG
       ,
       tmp_table(false)
+=======
+  : datetime_field(NULL), error_if_not_empty(false),
+    tables_opened(tables_opened_arg),
+    new_db(new_db_arg), new_name(new_name_arg)
+#ifndef NDEBUG
+    , tmp_table(false)
+>>>>>>> upstream/cluster-7.6
 #endif
 {
   /*
@@ -194,8 +223,17 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, Table_ref *table_list,
       this case. This fact is enforced with assert.
     */
     build_tmptable_filename(thd, tmp_path, sizeof(tmp_path));
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
     tmp_table = true;
+=======
+#ifndef NDEBUG
+    tmp_table= true;
+>>>>>>> upstream/cluster-7.6
 #endif
   }
 
@@ -259,9 +297,21 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
     priv_needed |= DROP_ACL;
 
   /* Must be set in the parser */
+<<<<<<< HEAD
   assert(alter_info.new_db_name.str);
   assert(!(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION));
   assert(!(alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(alter_info.new_db_name.str);
+  DBUG_ASSERT(!(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION));
+  DBUG_ASSERT(!(alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION));
+=======
+  assert(select_lex->db);
+  assert(!(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION));
+  assert(!(alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   if (check_access(thd, priv_needed, first_table->db,
                    &first_table->grant.privilege,
                    &first_table->grant.m_internal, false, false) ||
@@ -320,14 +370,33 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
   if (alter_info.new_table_name.str &&
       !test_all_bits(priv, INSERT_ACL | CREATE_ACL)) {
     // Rename of table
+<<<<<<< HEAD
     assert(alter_info.flags & Alter_info::ALTER_RENAME);
     Table_ref tmp_table;
+=======
+    DBUG_ASSERT(alter_info.flags & Alter_info::ALTER_RENAME);
+    TABLE_LIST tmp_table;
+<<<<<<< HEAD
+>>>>>>> pr/231
     tmp_table.table_name = alter_info.new_table_name.str;
     tmp_table.db = alter_info.new_db_name.str;
     tmp_table.grant.privilege = priv;
     if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, false, UINT_MAX,
                     false))
+<<<<<<< HEAD
       return true; /* purecov: inspected */
+=======
+      DBUG_RETURN(true); /* purecov: inspected */
+=======
+
+    tmp_table.table_name= lex->name.str;
+    tmp_table.db= select_lex->db;
+    tmp_table.grant.privilege= priv;
+    if (check_grant(thd, INSERT_ACL | CREATE_ACL, &tmp_table, FALSE,
+                    UINT_MAX, FALSE))
+      DBUG_RETURN(TRUE);                  /* purecov: inspected */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   /* Don't yet allow changing of symlinks with ALTER TABLE */
@@ -346,9 +415,17 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
   if (!thd->lex->is_ignore() && thd->is_strict_mode())
     thd->push_internal_handler(&strict_handler);
 
+<<<<<<< HEAD
   result = mysql_alter_table(thd, alter_info.new_db_name.str,
                              alter_info.new_table_name.str, &create_info,
                              first_table, &alter_info);
+=======
+  Partition_in_shared_ts_error_handler partition_in_shared_ts_handler;
+  thd->push_internal_handler(&partition_in_shared_ts_handler);
+  result= mysql_alter_table(thd, select_lex->db, lex->name.str,
+                            &create_info, first_table, &alter_info);
+  thd->pop_internal_handler();
+>>>>>>> upstream/cluster-7.6
 
   if (!thd->lex->is_ignore() && thd->is_strict_mode())
     thd->pop_internal_handler();

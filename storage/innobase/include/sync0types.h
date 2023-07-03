@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -268,7 +292,25 @@ enum latch_level_t {
   SYNC_LOCK_SYS_GLOBAL,
   SYNC_LOCK_WAIT_SYS,
 
+<<<<<<< HEAD
   SYNC_INDEX_ONLINE_LOG,
+=======
+	SYNC_FSP_PAGE,
+	SYNC_FSP,
+	SYNC_EXTERN_STORAGE,
+	SYNC_TRX_UNDO_PAGE,
+	SYNC_RSEG_HEADER,
+	SYNC_RSEG_HEADER_NEW,
+	SYNC_NOREDO_RSEG,
+	SYNC_REDO_RSEG,
+	SYNC_TRX_UNDO,
+	SYNC_PURGE_LATCH,
+	SYNC_TREE_NODE,
+	SYNC_TREE_NODE_FROM_HASH,
+	SYNC_TREE_NODE_NEW,
+	SYNC_INDEX_TREE,
+	SYNC_ANALYZE_INDEX,
+>>>>>>> upstream/cluster-7.6
 
   SYNC_IBUF_BITMAP,
   SYNC_IBUF_BITMAP_MUTEX,
@@ -339,6 +381,7 @@ enum latch_level_t {
 up its meta-data. See sync0debug.c. The order does not matter here, but
 alphabetical ordering seems useful */
 enum latch_id_t {
+<<<<<<< HEAD
   LATCH_ID_NONE = 0,
   LATCH_ID_AHI_ENABLED,
   LATCH_ID_AUTOINC,
@@ -462,6 +505,96 @@ enum latch_id_t {
   LATCH_ID_REDO_LOG_ARCHIVE_QUEUE_MUTEX,
   LATCH_ID_TEST_MUTEX,
   LATCH_ID_MAX = LATCH_ID_TEST_MUTEX
+=======
+	LATCH_ID_NONE = 0,
+	LATCH_ID_AUTOINC,
+	LATCH_ID_BUF_BLOCK_MUTEX,
+	LATCH_ID_BUF_POOL,
+	LATCH_ID_BUF_POOL_ZIP,
+	LATCH_ID_CACHE_LAST_READ,
+	LATCH_ID_DICT_FOREIGN_ERR,
+	LATCH_ID_DICT_SYS,
+	LATCH_ID_FILE_FORMAT_MAX,
+	LATCH_ID_FIL_SYSTEM,
+	LATCH_ID_FLUSH_LIST,
+	LATCH_ID_FTS_BG_THREADS,
+	LATCH_ID_FTS_DELETE,
+	LATCH_ID_FTS_OPTIMIZE,
+	LATCH_ID_FTS_DOC_ID,
+	LATCH_ID_FTS_PLL_TOKENIZE,
+	LATCH_ID_HASH_TABLE_MUTEX,
+	LATCH_ID_IBUF_BITMAP,
+	LATCH_ID_IBUF,
+	LATCH_ID_IBUF_PESSIMISTIC_INSERT,
+	LATCH_ID_LOG_SYS,
+	LATCH_ID_LOG_WRITE,
+	LATCH_ID_LOG_FLUSH_ORDER,
+	LATCH_ID_LIST,
+	LATCH_ID_MUTEX_LIST,
+	LATCH_ID_PAGE_CLEANER,
+	LATCH_ID_PURGE_SYS_PQ,
+	LATCH_ID_RECALC_POOL,
+	LATCH_ID_RECV_SYS,
+	LATCH_ID_RECV_WRITER,
+	LATCH_ID_REDO_RSEG,
+	LATCH_ID_NOREDO_RSEG,
+	LATCH_ID_RW_LOCK_DEBUG,
+	LATCH_ID_RTR_SSN_MUTEX,
+	LATCH_ID_RTR_ACTIVE_MUTEX,
+	LATCH_ID_RTR_MATCH_MUTEX,
+	LATCH_ID_RTR_PATH_MUTEX,
+	LATCH_ID_RW_LOCK_LIST,
+	LATCH_ID_RW_LOCK_MUTEX,
+	LATCH_ID_SRV_DICT_TMPFILE,
+	LATCH_ID_SRV_INNODB_MONITOR,
+	LATCH_ID_SRV_MISC_TMPFILE,
+	LATCH_ID_SRV_MONITOR_FILE,
+	LATCH_ID_SYNC_THREAD,
+	LATCH_ID_BUF_DBLWR,
+	LATCH_ID_TRX_UNDO,
+	LATCH_ID_TRX_POOL,
+	LATCH_ID_TRX_POOL_MANAGER,
+	LATCH_ID_TRX,
+	LATCH_ID_LOCK_SYS,
+	LATCH_ID_LOCK_SYS_WAIT,
+	LATCH_ID_TRX_SYS,
+	LATCH_ID_SRV_SYS,
+	LATCH_ID_SRV_SYS_TASKS,
+	LATCH_ID_PAGE_ZIP_STAT_PER_INDEX,
+	LATCH_ID_EVENT_MANAGER,
+	LATCH_ID_EVENT_MUTEX,
+	LATCH_ID_SYNC_ARRAY_MUTEX,
+	LATCH_ID_THREAD_MUTEX,
+	LATCH_ID_ZIP_PAD_MUTEX,
+	LATCH_ID_OS_AIO_READ_MUTEX,
+	LATCH_ID_OS_AIO_WRITE_MUTEX,
+	LATCH_ID_OS_AIO_LOG_MUTEX,
+	LATCH_ID_OS_AIO_IBUF_MUTEX,
+	LATCH_ID_OS_AIO_SYNC_MUTEX,
+	LATCH_ID_ROW_DROP_LIST,
+	LATCH_ID_INDEX_ONLINE_LOG,
+	LATCH_ID_WORK_QUEUE,
+	LATCH_ID_BTR_SEARCH,
+	LATCH_ID_BUF_BLOCK_LOCK,
+	LATCH_ID_BUF_BLOCK_DEBUG,
+	LATCH_ID_DICT_OPERATION,
+	LATCH_ID_CHECKPOINT,
+	LATCH_ID_FIL_SPACE,
+	LATCH_ID_FTS_CACHE,
+	LATCH_ID_FTS_CACHE_INIT,
+	LATCH_ID_TRX_I_S_CACHE,
+	LATCH_ID_TRX_PURGE,
+	LATCH_ID_IBUF_INDEX_TREE,
+	LATCH_ID_INDEX_TREE,
+	LATCH_ID_DICT_TABLE_STATS,
+	LATCH_ID_HASH_TABLE_RW_LOCK,
+	LATCH_ID_BUF_CHUNK_MAP_LATCH,
+	LATCH_ID_SYNC_DEBUG_MUTEX,
+	LATCH_ID_MASTER_KEY_ID_MUTEX,
+	LATCH_ID_ANALYZE_INDEX_MUTEX,
+	LATCH_ID_TEST_MUTEX,
+	LATCH_ID_MAX = LATCH_ID_TEST_MUTEX
+>>>>>>> upstream/cluster-7.6
 };
 
 /** OS mutex, without any policy. It is a thin wrapper around the
@@ -722,14 +855,38 @@ class LatchCounter {
   void enable() UNIV_NOTHROW {
     m_mutex.enter();
 
+<<<<<<< HEAD
     for (Count *count : m_counters) {
       count->m_enabled = true;
+=======
+    Counters::const_iterator end = m_counters.end();
+
+<<<<<<< HEAD
+    for (Counters::const_iterator it = m_counters.begin(); it != end; ++it) {
+      (*it)->m_enabled = true;
+>>>>>>> pr/231
     }
+=======
+	/** Iterate over the counters */
+	template <typename Callback>
+	void iterate(Callback& callback) const
+		UNIV_NOTHROW
+	{
+		m_mutex.enter();
+		Counters::const_iterator	end = m_counters.end();
+>>>>>>> upstream/cluster-7.6
 
     m_active = true;
 
+<<<<<<< HEAD
     m_mutex.exit();
   }
+=======
+			callback(*it);
+		}
+		m_mutex.exit();
+	}
+>>>>>>> upstream/cluster-7.6
 
   /** Disable the monitoring */
   void disable() UNIV_NOTHROW {
@@ -762,8 +919,40 @@ class LatchCounter {
   /** Counters for the latches */
   Counters m_counters;
 
+<<<<<<< HEAD
   /** if true then we collect the data */
   bool m_active;
+=======
+		m_active = false;
+
+		m_mutex.exit();
+	}
+
+	/** @return if monitoring is active */
+	bool is_enabled() const
+		UNIV_NOTHROW
+	{
+		return(m_active);
+	}
+
+private:
+	/* Disable copying */
+	LatchCounter(const LatchCounter&);
+	LatchCounter& operator=(const LatchCounter&);
+
+private:
+	typedef OSMutex Mutex;
+	typedef std::vector<Count*> Counters;
+
+	/** Mutex protecting m_counters */
+	mutable Mutex		m_mutex;
+
+	/** Counters for the latches */
+	Counters		m_counters;
+
+	/** if true then we collect the data */
+	bool			m_active;
+>>>>>>> upstream/cluster-7.6
 };
 
 /** Latch meta data */

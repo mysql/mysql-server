@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -818,6 +842,7 @@ static void trx_roll_try_truncate(
 }
 
 /** Pops the topmost undo log record in a single undo log and updates the info
+<<<<<<< HEAD
 about the topmost record in the undo log memory struct.
 @param[in]      trx             transaction
 @param[in]      undo            undo log
@@ -826,16 +851,57 @@ about the topmost record in the undo log memory struct.
 @return Undo page where undo log record resides, the page s-latched */
 static const page_t *trx_roll_pop_top_rec(trx_t *trx, trx_undo_t *undo,
                                           mtr_t *mtr, uint32_t *undo_offset) {
+=======
+<<<<<<< HEAD
+ about the topmost record in the undo log memory struct.
+ @return undo log record, the page s-latched */
+static trx_undo_rec_t *trx_roll_pop_top_rec(
+    trx_t *trx,       /*!< in: transaction */
+    trx_undo_t *undo, /*!< in: undo log */
+    mtr_t *mtr)       /*!< in: mtr */
+=======
+about the topmost record in the undo log memory struct.
+@param[in]	trx		transaction
+@param[in[	undo		undo log
+@param[in]	mtr		mtr
+@param[out]	undo_offset	offset of undo record in the page
+@return Undo page where undo log record resides, the page s-latched */
+static
+page_t*
+trx_roll_pop_top_rec(
+/*=================*/
+	trx_t*		trx,	 /*!< in: transaction */
+	trx_undo_t*	undo,	 /*!< in: undo log */
+	mtr_t*		mtr,	 /*!< in: mtr */
+	ulint*		undo_offset) /*!< out: offset of undo record in the page */
+>>>>>>> upstream/cluster-7.6
+{
+>>>>>>> pr/231
   ut_ad(mutex_own(&trx->undo_mutex));
 
   const page_t *undo_page = trx_undo_page_get_s_latched(
       page_id_t(undo->space, undo->top_page_no), undo->page_size, mtr);
 
+<<<<<<< HEAD
   *undo_offset = static_cast<uint32_t>(undo->top_offset);
 
   trx_undo_rec_t *prev_rec =
       trx_undo_get_prev_rec((trx_undo_rec_t *)(undo_page + *undo_offset),
                             undo->hdr_page_no, undo->hdr_offset, true, mtr);
+=======
+<<<<<<< HEAD
+  ulint offset = undo->top_offset;
+
+  trx_undo_rec_t *prev_rec = trx_undo_get_prev_rec(
+      undo_page + offset, undo->hdr_page_no, undo->hdr_offset, true, mtr);
+=======
+	*undo_offset = undo->top_offset;
+
+	trx_undo_rec_t*	prev_rec = trx_undo_get_prev_rec(
+		(trx_undo_rec_t*) (undo_page + *undo_offset), undo->hdr_page_no, undo->hdr_offset,
+		true, mtr);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (prev_rec == nullptr) {
     undo->empty = true;
@@ -851,7 +917,23 @@ static const page_t *trx_roll_pop_top_rec(trx_t *trx, trx_undo_t *undo,
     undo->top_undo_no = trx_undo_rec_get_undo_no(prev_rec);
   }
 
+<<<<<<< HEAD
   return (undo_page);
+=======
+<<<<<<< HEAD
+  return (undo_page + offset);
+=======
+			trx->pages_undone++;
+		}
+
+		undo->top_page_no = page_get_page_no(prev_rec_page);
+		undo->top_offset  = prev_rec - prev_rec_page;
+		undo->top_undo_no = trx_undo_rec_get_undo_no(prev_rec);
+	}
+
+	return(undo_page);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /** Pops the topmost record when the two undo logs of a transaction are seen
@@ -866,6 +948,7 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
     roll_ptr_t *roll_ptr,     /*!< out: roll pointer to undo record */
     mem_heap_t *heap)         /*!< in/out: memory heap where copied */
 {
+<<<<<<< HEAD
   trx_undo_t *undo;
   trx_undo_t *ins_undo;
   trx_undo_t *upd_undo;
@@ -875,6 +958,18 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
   uint32_t undo_offset;
   trx_rseg_t *rseg;
   mtr_t mtr;
+=======
+	trx_undo_t*	undo;
+	trx_undo_t*	ins_undo;
+	trx_undo_t*	upd_undo;
+	trx_undo_rec_t*	undo_rec_copy;
+	const page_t*	undo_page;
+	undo_no_t	undo_no;
+	ibool		is_insert;
+	ulint		undo_offset;
+	trx_rseg_t*	rseg;
+	mtr_t		mtr;
+>>>>>>> upstream/cluster-7.6
 
   rseg = undo_ptr->rseg;
 
@@ -916,9 +1011,21 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
 
   mtr_start(&mtr);
 
+<<<<<<< HEAD
   undo_page = trx_roll_pop_top_rec(trx, undo, &mtr, &undo_offset);
 
   undo_no = trx_undo_rec_get_undo_no(undo_page + undo_offset);
+=======
+<<<<<<< HEAD
+  undo_rec = trx_roll_pop_top_rec(trx, undo, &mtr);
+
+  undo_no = trx_undo_rec_get_undo_no(undo_rec);
+=======
+	undo_page = trx_roll_pop_top_rec(trx, undo, &mtr, &undo_offset);
+
+	undo_no = trx_undo_rec_get_undo_no(undo_page + undo_offset);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   ut_ad(trx_roll_check_undo_rec_ordering(undo_no, undo->rseg->space_id, trx));
 
@@ -947,7 +1054,11 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
   undo_rec_copy =
       trx_undo_rec_copy(undo_page, static_cast<uint32_t>(undo_offset), heap);
 
+<<<<<<< HEAD
   mutex_exit(&trx->undo_mutex);
+=======
+	undo_rec_copy = trx_undo_rec_copy(undo_page, undo_offset, heap);
+>>>>>>> upstream/cluster-7.6
 
   mtr_commit(&mtr);
 
@@ -978,14 +1089,35 @@ trx_undo_rec_t *trx_roll_pop_top_rec_of_trx(
   return (undo_rec);
 }
 
+<<<<<<< HEAD
 /** Builds an undo 'query' graph for a transaction. The actual rollback is
  performed by executing this query graph like a query subprocedure call.
  The reply about the completion of the rollback will be sent by this
  graph.
+<<<<<<< HEAD
 @param[in,out]  trx                     transaction
 @param[in]      partial_rollback        true if partial rollback
 @return the query graph */
 static que_t *trx_roll_graph_build(trx_t *trx, bool partial_rollback) {
+=======
+ @return own: the query graph */
+static que_t *trx_roll_graph_build(trx_t *trx) /*!< in/out: transaction */
+=======
+/****************************************************************//**
+Builds an undo 'query' graph for a transaction. The actual rollback is
+performed by executing this query graph like a query subprocedure call.
+The reply about the completion of the rollback will be sent by this
+graph.
+@return own: the query graph */
+static
+que_t*
+trx_roll_graph_build(
+/*=================*/
+	trx_t*	trx,			/*!< in/out: transaction */
+	bool	partial_rollback)	/*!< in: partial rollback */
+>>>>>>> upstream/cluster-7.6
+{
+>>>>>>> pr/231
   mem_heap_t *heap;
   que_fork_t *fork;
   que_thr_t *thr;
@@ -998,13 +1130,23 @@ static que_t *trx_roll_graph_build(trx_t *trx, bool partial_rollback) {
 
   thr = que_thr_create(fork, heap, nullptr);
 
+<<<<<<< HEAD
   thr->child = row_undo_node_create(trx, thr, heap, partial_rollback);
+=======
+<<<<<<< HEAD
+  thr->child = row_undo_node_create(trx, thr, heap);
+=======
+	thr->child = row_undo_node_create(trx, thr, heap, partial_rollback);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return (fork);
 }
 
+<<<<<<< HEAD
 /** Starts a rollback operation, creates the UNDO graph that will do the
  actual undo operation.
+<<<<<<< HEAD
 @param[in]      trx     transaction
 @param[in]      roll_limit       rollback to undo no (for
                                  partial undo), 0 if we are rolling back
@@ -1013,6 +1155,30 @@ static que_t *trx_roll_graph_build(trx_t *trx, bool partial_rollback) {
 @return query graph thread that will perform the UNDO operations. */
 static que_thr_t *trx_rollback_start(trx_t *trx, ib_id_t roll_limit,
                                      bool partial_rollback) {
+=======
+ @return query graph thread that will perform the UNDO operations. */
+static que_thr_t *trx_rollback_start(
+    trx_t *trx,         /*!< in: transaction */
+    ib_id_t roll_limit) /*!< in: rollback to undo no (for
+                        partial undo), 0 if we are rolling back
+                        the entire transaction */
+=======
+/*********************************************************************//**
+Starts a rollback operation, creates the UNDO graph that will do the
+actual undo operation.
+@return query graph thread that will perform the UNDO operations. */
+static
+que_thr_t*
+trx_rollback_start(
+/*===============*/
+	trx_t*		trx,		/*!< in: transaction */
+	ib_id_t		roll_limit,	/*!< in: rollback to undo no (for
+					partial undo), 0 if we are rolling back
+					the entire transaction */
+	bool		partial_rollback) /*!< in: partial rollback */
+>>>>>>> upstream/cluster-7.6
+{
+>>>>>>> pr/231
   ut_ad(trx_mutex_own(trx));
 
   /* Initialize the rollback field in the transaction */
@@ -1029,7 +1195,15 @@ static que_thr_t *trx_rollback_start(trx_t *trx, ib_id_t roll_limit,
 
   /* Build a 'query' graph which will perform the undo operations */
 
+<<<<<<< HEAD
   que_t *roll_graph = trx_roll_graph_build(trx, partial_rollback);
+=======
+<<<<<<< HEAD
+  que_t *roll_graph = trx_roll_graph_build(trx);
+=======
+	que_t*	roll_graph = trx_roll_graph_build(trx, partial_rollback);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   trx->graph = roll_graph;
 
@@ -1094,7 +1268,17 @@ que_thr_t *trx_rollback_step(que_thr_t *thr) /*!< in: query thread */
 
     trx_commit_or_rollback_prepare(trx);
 
+<<<<<<< HEAD
     node->undo_thr = trx_rollback_start(trx, roll_limit, node->partial);
+=======
+<<<<<<< HEAD
+    node->undo_thr = trx_rollback_start(trx, roll_limit);
+=======
+		node->undo_thr = trx_rollback_start(trx,
+						    roll_limit,
+						    node->partial);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     trx_mutex_exit(trx);
 

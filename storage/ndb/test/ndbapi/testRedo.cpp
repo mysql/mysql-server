@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1408,7 +1412,11 @@ resizeRedoLog(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     g_err << "Restarting nodes to apply config change..." << endl;
+<<<<<<< HEAD
     NdbSleep_SecSleep(3); //Give MGM server time to restart
+=======
+    sleep(3); //Give MGM server time to restart
+>>>>>>> pr/231
     if (restarter.restartAll(true))
     {
       g_err << "Failed to restart node." << endl;

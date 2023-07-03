@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +38,20 @@ using thread::Thread;
 
 namespace dbug_unittest {
 
+<<<<<<< HEAD
 #if defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if defined(DBUG_OFF)
+>>>>>>> pr/231
 TEST(DebugTest, NoSuicide) { DBUG_SUICIDE(); }
+=======
+#if defined(NDEBUG)
+TEST(DebugTest, NoSuicide)
+{
+  DBUG_SUICIDE();
+}
+>>>>>>> upstream/cluster-7.6
 #else
 TEST(DebugDeathTest, Suicide) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
@@ -39,9 +59,21 @@ TEST(DebugDeathTest, Suicide) {
 }
 #endif
 
+<<<<<<< HEAD
 #if !defined(NDEBUG) && !defined(_WIN32)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF) && !defined(_WIN32)
+>>>>>>> pr/231
 class DbugGcovThread : public Thread {
  public:
+=======
+
+#if !defined(NDEBUG) && !defined(_WIN32)
+class DbugGcovThread : public Thread
+{
+public:
+>>>>>>> upstream/cluster-7.6
   DbugGcovThread(Notification *start_notification)
       : m_start_notification(start_notification) {}
 
@@ -66,9 +98,21 @@ TEST(DebugFlushGcov, FlushGcovParallel) {
 }
 #endif
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
 TEST(DebugPrintTest, PrintEval) {
   int y = 0;
+=======
+
+#if !defined(NDEBUG)
+TEST(DebugPrintTest, PrintEval)
+{
+  int y= 0;
+>>>>>>> upstream/cluster-7.6
 
   // This DBUG_PRINT args should never be evaluated.
   DBUG_PRINT("never", ("%d", y += 1));
@@ -157,4 +201,8 @@ TEST(DebugSetTest, DebugKeywordsTest) {
   DBUG_SET("");
 }
 #endif /* NDEBUG */
+<<<<<<< HEAD
 }  // namespace dbug_unittest
+=======
+}
+>>>>>>> pr/231

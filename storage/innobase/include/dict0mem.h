@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -18,6 +23,26 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+Copyright (c) 2012, Facebook Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -891,6 +916,7 @@ static inline uint32_t DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(uint32_t flags) {
 constexpr uint32_t DICT_MAX_FIXED_COL_LEN = DICT_ANTELOPE_MAX_INDEX_COL_LEN;
 
 /** Data structure for a field in an index */
+<<<<<<< HEAD
 struct dict_field_t {
   dict_field_t() : col(nullptr), prefix_len(0), fixed_len(0), is_ascending(0) {}
 
@@ -908,6 +934,7 @@ struct dict_field_t {
                              column if smaller than
                              DICT_ANTELOPE_MAX_INDEX_COL_LEN */
   unsigned is_ascending : 1; /*!< 0=DESC, 1=ASC */
+<<<<<<< HEAD
 
   uint16_t get_phy_pos() const {
     if (prefix_len != 0) {
@@ -916,6 +943,26 @@ struct dict_field_t {
 
     return col->get_col_phy_pos();
   }
+=======
+=======
+struct dict_field_t{
+	dict_field_t() { memset(this, 0, sizeof(*this)); }
+
+	dict_col_t*	col;		/*!< pointer to the table column */
+	id_name_t	name;		/*!< name of the column */
+	unsigned	prefix_len:12;	/*!< 0 or the length of the column
+					prefix in bytes in a MySQL index of
+					type, e.g., INDEX (textcol(25));
+					must be smaller than
+					DICT_MAX_FIELD_LEN_BY_FORMAT;
+					NOTE that in the UTF-8 charset, MySQL
+					sets this to (mbmaxlen * the prefix len)
+					in UTF-8 chars */
+	unsigned	fixed_len:10;	/*!< 0 or the fixed length of the
+					column if smaller than
+					DICT_ANTELOPE_MAX_INDEX_COL_LEN */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /** PADDING HEURISTIC BASED ON LINEAR INCREASE OF PADDING TO AVOID
@@ -1898,10 +1945,14 @@ temp table */
 typedef std::vector<row_prebuilt_t *> temp_prebuilt_vec;
 #endif /* !UNIV_HOTBACKUP */
 
+<<<<<<< HEAD
 #ifdef UNIV_DEBUG
 /** Value of 'magic_n'. */
 constexpr uint32_t DICT_TABLE_MAGIC_N = 76333786;
 #endif
+=======
+typedef ib_mutex_t AnalyzeIndexMutex;
+>>>>>>> pr/231
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or false in dict_mem_table_create(). */
@@ -2051,8 +2102,13 @@ struct dict_table_t {
   /** Number of total columns (include virtual and non-virtual) */
   unsigned n_t_cols : 10;
 
+<<<<<<< HEAD
   /** Number of total columns defined so far. */
   unsigned n_t_def : 10;
+=======
+	/** Timestamp of last recalc of the stats. */
+	ib_time_monotonic_t				stats_last_recalc;
+>>>>>>> upstream/cluster-7.6
 
   /** Number of virtual columns defined so far. */
   unsigned n_v_def : 10;
@@ -2078,6 +2134,7 @@ struct dict_table_t {
   /** Array of column descriptions. */
   dict_col_t *cols;
 
+<<<<<<< HEAD
   /** Array of virtual column descriptions. */
   dict_v_col_t *v_cols;
 
@@ -2087,6 +2144,13 @@ struct dict_table_t {
   and need to preserve till rename table operation. That is the
   reason s_cols is a part of dict_table_t */
   dict_s_col_list *s_cols;
+=======
+	/** Approximate clustered index size in database pages. */
+	ib_uint64_t				stat_clustered_index_size;
+
+	/** Approximate size of other indexes in database pages. */
+	ib_uint64_t				stat_sum_of_other_index_sizes;
+>>>>>>> upstream/cluster-7.6
 
   /** Column names packed in a character string
   "name1\0name2\0...nameN\0". Until the string contains n_cols, it will
@@ -2137,10 +2201,81 @@ struct dict_table_t {
   /** table dynamic metadata status, protected by dict_persist->mutex */
   std::atomic<table_dirty_status> dirty_status;
 
+<<<<<<< HEAD
 #ifndef UNIV_HOTBACKUP
   /** Node of the dirty table list of tables, which is protected
   by dict_persist->mutex */
   UT_LIST_NODE_T(dict_table_t) dirty_dict_tables;
+=======
+	/** Autoinc counter value to give to the next inserted row. */
+	ib_uint64_t				autoinc;
+
+	/** This counter is used to track the number of granted and pending
+	autoinc locks on this table. This value is set after acquiring the
+	lock_sys_t::mutex but we peek the contents to determine whether other
+	transactions have acquired the AUTOINC lock or not. Of course only one
+	transaction can be granted the lock but there can be multiple
+	waiters. */
+	ulong					n_waiting_or_granted_auto_inc_locks;
+
+	/** The transaction that currently holds the the AUTOINC lock on this
+	table. Protected by lock_sys->mutex. */
+	const trx_t*				autoinc_trx;
+
+	/* @} */
+
+	/** Creation state of analyze_index member */
+	volatile os_once::state_t	analyze_index_mutex_created;
+
+	/** Mutex protecting the index during analyze. */
+	AnalyzeIndexMutex*			analyze_index_mutex;
+
+	/** Count of how many handles are opened to this table from memcached.
+	DDL on the table is NOT allowed until this count goes to zero. If
+	it is -1, then there's DDL on the table, DML from memcached will be
+	blocked. */
+	lint					memcached_sync_count;
+
+	/** FTS specific state variables. */
+	fts_t*					fts;
+
+	/** Quiescing states, protected by the dict_index_t::lock. ie. we can
+	only change the state if we acquire all the latches (dict_index_t::lock)
+	in X mode of this table's indexes. */
+	ib_quiesce_t				quiesce;
+
+	/** Count of the number of record locks on this table. We use this to
+	determine whether we can evict the table from the dictionary cache.
+	It is protected by lock_sys->mutex. */
+	ulint					n_rec_locks;
+
+#ifndef UNIV_DEBUG
+private:
+#endif
+	/** Count of how many handles are opened to this table. Dropping of the
+	table is NOT allowed until this count gets to zero. MySQL does NOT
+	itself check the number of open handles at DROP. */
+	ulint					n_ref_count;
+
+public:
+	/** List of locks on the table. Protected by lock_sys->mutex. */
+	table_lock_list_t			locks;
+
+	/** Timestamp of the last modification of this table. */
+	time_t					update_time;
+
+	/** row-id counter for use by intrinsic table for getting row-id.
+	Given intrinsic table semantics, row-id can be locally maintained
+	instead of getting it from central generator which involves mutex
+	locking. */
+	ib_uint64_t				sess_row_id;
+
+	/** trx_id counter for use by intrinsic table for getting trx-id.
+	Intrinsic table are not shared so don't need a central trx-id
+	but just need a increased counter to track consistent view while
+	proceeding SELECT as part of UPDATE. */
+	ib_uint64_t				sess_trx_id;
+>>>>>>> upstream/cluster-7.6
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
@@ -2991,6 +3126,7 @@ struct dict_foreign_add_to_referenced_table {
   }
 };
 
+<<<<<<< HEAD
 /** Request for lazy creation of the mutex of a given table.
 This function is only called from either single threaded environment
 or from a thread that has not shared the table object with other threads.
@@ -3011,6 +3147,31 @@ inline void dict_table_mutex_destroy(dict_table_t *table) {
       ut::delete_(table->mutex);
     }
   }
+=======
+/** Request for lazy creation of the analyze index mutex of a given table.
+@param[in,out]	table	table whose mutex is to be created. */
+inline
+void
+dict_table_analyze_index_create_lazy(
+	dict_table_t*	table)
+{
+	table->analyze_index_mutex = NULL;
+	table->analyze_index_mutex_created = os_once::NEVER_DONE;
+}
+
+/** Destroy the analyze index mutex of the given table.
+@param[in,out]	table	table whose mutex to destroy */
+inline
+void
+dict_table_analyze_index_destroy(
+	dict_table_t*	table)
+{
+	if (table->analyze_index_mutex_created == os_once::DONE
+	    && table->analyze_index_mutex != NULL) {
+		mutex_free(table->analyze_index_mutex);
+		UT_DELETE(table->analyze_index_mutex);
+	}
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Destroy the autoinc latch of the given table.

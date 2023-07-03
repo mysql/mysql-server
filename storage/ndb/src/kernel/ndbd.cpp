@@ -459,6 +459,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
      * allow over allocation (from SharedGlobalMemory) of up to 25% of
      *   totally allocated SendBuffer, at most 25% of SharedGlobalMemory.
      */
+<<<<<<< HEAD
     const Uint32 sb_max_shared_pages = 25 * std::min(sbpages, shared_pages) / 100;
     require(sbpages + sb_max_shared_pages > 0);
     rl.m_max = sbpages + sb_max_shared_pages;
@@ -474,6 +475,11 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     Resource_limit rl;
     rl.m_min = 0;
     rl.m_max = 0; // Not used by ndbd
+=======
+    const Uint32 sb_max_shared_pages = 25 * MIN(sbpages, shared_pages) / 100;
+    require(sbpages + sb_max_shared_pages > 0);
+    rl.m_max = sbpages + sb_max_shared_pages;
+>>>>>>> pr/231
     rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -1031,7 +1037,10 @@ ndbd_run(bool foreground, int report_fd,
          unsigned allocated_nodeid, int connect_retries, int connect_delay,
          size_t logbuffer_size)
 {
+<<<<<<< HEAD
   log_memusage("ndbd_run");
+=======
+>>>>>>> pr/231
   LogBuffer* logBuf = new LogBuffer(logbuffer_size);
   BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBuf);
 
@@ -1401,8 +1410,15 @@ ndbd_run(bool foreground, int report_fd,
    * Stopping the log thread is done at the very end since the
    * data node logs should be available until complete shutdown.
    */
+<<<<<<< HEAD
   logBuf->stop();
   stop_async_log_func(log_threadvar, thread_args);
+=======
+  void* dummy_return_status;
+  thread_args.stop = true;
+  logBuf->stop();
+  NdbThread_WaitFor(log_threadvar, &dummy_return_status);
+>>>>>>> pr/231
   globalEmulatorData.theConfiguration->removeThread(log_threadvar);
   NdbThread_Destroy(&log_threadvar);
   delete logBuf;

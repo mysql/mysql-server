@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+ # Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -65,11 +73,14 @@ SET_TARGET_PROPERTIES(libmyjapi
 SET_TARGET_PROPERTIES(libmyjapi PROPERTIES OUTPUT_NAME "myjapi")
 TARGET_LINK_LIBRARIES(libmyjapi libmyapi)
 
+<<<<<<< HEAD
 # This is needed for java-based unit tests.
 IF(MY_COMPILER_IS_CLANG AND WITH_UBSAN)
   TARGET_LINK_LIBRARIES(libmyjapi -lubsan)
 ENDIF()
 
+=======
+>>>>>>> pr/231
 IF(APPLE)
   SET_TARGET_PROPERTIES(libmyjapi PROPERTIES
     MACOSX_RPATH ON
@@ -78,6 +89,11 @@ ENDIF()
 
 set(JAR "${JAVA_NDB_VERSION}.jar")
 set(JTIE_MYJAPI_JAR "${CMAKE_CURRENT_BINARY_DIR}/jtie-test-myjapi-${JAR}")
+
+IF(WITH_ASAN)
+  MESSAGE(STATUS "Skipping java tests for ASAN builds")
+  RETURN()
+ENDIF()
 
 ADD_TEST(
   NAME test_jtie_myjapi

@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (C) 2016, 2023 Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,10 +43,15 @@ bool printPROCESSINFO_REP(FILE *out,
     return false;
   }
 
+<<<<<<< HEAD
   const ProcessInfoRep *sig = (const ProcessInfoRep *)data;
 
   fprintf(out, " process_name: %s", (const char *)sig->process_name);
   fprintf(out, " process_id: %d  angel_process_id: %d  application_port: %d",
+=======
+  fprintf(out, " process_name: %s\n", (char *) sig->process_name);
+  fprintf(out, " process_id: %d  angel_process_id: %d  application_port: %d\n",
+>>>>>>> pr/231
           sig->process_id, sig->angel_process_id, sig->application_port);
 
   return true;

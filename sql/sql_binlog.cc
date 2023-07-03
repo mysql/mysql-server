@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,12 +66,14 @@
 static int check_event_type(int type, Relay_log_info *rli) {
   Format_description_log_event *fd_event = rli->get_rli_description_event();
 
+<<<<<<< HEAD
   switch (type) {
     case binary_log::FORMAT_DESCRIPTION_EVENT:
       /*
         We need a preliminary FD event in order to parse the FD event,
         if we don't already have one.
       */
+<<<<<<< HEAD
       if (!fd_event) {
         fd_event = new Format_description_log_event();
         if (rli->set_rli_description_event(fd_event)) {
@@ -71,6 +81,26 @@ static int check_event_type(int type, Relay_log_info *rli) {
           return 1;
         }
       }
+=======
+      if (!fd_event)
+        rli->set_rli_description_event(new Format_description_log_event());
+=======
+  /*
+    Convert event type id of certain old versions (see comment in
+    Format_description_log_event::Format_description_log_event(char*,...)).
+  */
+  if (fd_event && fd_event->event_type_permutation)
+  {
+#ifndef NDEBUG
+    Log_event_type new_type;
+    new_type= (Log_event_type) fd_event->event_type_permutation[type];
+    DBUG_PRINT("info", ("converting event type %d to %d (%s)",
+                        type, new_type, Log_event::get_type_str(new_type)));
+#endif
+    type= fd_event->event_type_permutation[type];
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       /* It is always allowed to execute FD events. */
       return 0;
@@ -209,10 +239,22 @@ void mysql_client_binlog_statement(THD *thd) {
     } else if (bytes_decoded == 0)
       break;  // If no bytes where read, the string contained only whitespace
 
+<<<<<<< HEAD
     assert(bytes_decoded > 0);
     assert(endptr > strptr);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(bytes_decoded > 0);
+    DBUG_ASSERT(endptr > strptr);
+>>>>>>> pr/231
     coded_len -= endptr - strptr;
     strptr = endptr;
+=======
+    assert(bytes_decoded > 0);
+    assert(endptr > strptr);
+    coded_len-= endptr - strptr;
+    strptr= endptr;
+>>>>>>> upstream/cluster-7.6
 
     /*
       Now we have one or more events stored in the buffer. The size of

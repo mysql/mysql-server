@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -192,7 +200,11 @@ PT_hint *Opt_hints_global::get_complex_hints(opt_hints_enum type) {
   if (type == MAX_EXEC_TIME_HINT_ENUM) return max_exec_time;
 
   assert(0);
+<<<<<<< HEAD
   return nullptr;
+=======
+  return NULL;
+>>>>>>> pr/231
 }
 
 void Opt_hints_global::print_irregular_hints(const THD *thd, String *str) {
@@ -218,7 +230,11 @@ PT_hint *Opt_hints_qb::get_complex_hints(opt_hints_enum type) {
   if (type == SUBQUERY_HINT_ENUM) return subquery_hint;
 
   assert(0);
+<<<<<<< HEAD
   return nullptr;
+=======
+  return NULL;
+>>>>>>> pr/231
 }
 
 Opt_hints_table *Opt_hints_qb::adjust_table_hints(Table_ref *tr) {
@@ -857,9 +873,22 @@ void Sys_var_hint::print(const THD *thd, String *str) {
   @return true if hint is specified, false otherwise
 */
 
+<<<<<<< HEAD
 static bool get_hint_state(Opt_hints *hint, Opt_hints *parent_hint,
                            opt_hints_enum type_arg, bool *ret_val) {
+<<<<<<< HEAD
   assert(parent_hint);
+=======
+  DBUG_ASSERT(parent_hint);
+=======
+static bool get_hint_state(Opt_hints *hint,
+                           Opt_hints *parent_hint,
+                           opt_hints_enum type_arg,
+                           bool *ret_val)
+{
+  assert(parent_hint);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (opt_hint_info[type_arg].switch_hint) {
     if (hint && hint->is_specified(type_arg)) {
@@ -884,6 +913,14 @@ static bool get_hint_state(Opt_hints *hint, Opt_hints *parent_hint,
       return true;
     }
   }
+<<<<<<< HEAD
+=======
+  else
+  {
+    /* Complex hint, not implemented atm */
+    assert(0);
+  }
+>>>>>>> upstream/cluster-7.6
   return false;
 }
 

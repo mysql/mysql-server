@@ -149,11 +149,19 @@ xcng(volatile unsigned * addr, int val)
 #define NDB_HAVE_MB
 #define NDB_HAVE_RMB
 #define NDB_HAVE_WMB
+<<<<<<< HEAD:storage/ndb/include/portlib/mt-asm.h
+=======
+#define NDB_HAVE_READ_BARRIER_DEPENDS
+>>>>>>> pr/231:storage/ndb/src/kernel/vm/mt-asm.h
 //#define NDB_HAVE_XCNG
 
 #define mb() std::atomic_thread_fence(std::memory_order_seq_cst)
 #define rmb() std::atomic_thread_fence(std::memory_order_seq_cst)
 #define wmb() std::atomic_thread_fence(std::memory_order_seq_cst)
+<<<<<<< HEAD:storage/ndb/include/portlib/mt-asm.h
+=======
+#define read_barrier_depends() do {} while(0)
+>>>>>>> pr/231:storage/ndb/src/kernel/vm/mt-asm.h
 
 #define cpu_pause()  __asm__ __volatile__ ("yield")
 

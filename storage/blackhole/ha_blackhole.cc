@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -135,6 +143,7 @@ int ha_blackhole::rnd_next(uchar *) {
 }
 
 int ha_blackhole::rnd_pos(uchar *, uchar *) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(0);
   return 0;
@@ -143,14 +152,42 @@ int ha_blackhole::rnd_pos(uchar *, uchar *) {
 void ha_blackhole::position(const uchar *) {
   DBUG_TRACE;
   assert(0);
+=======
+  DBUG_ENTER("ha_blackhole::rnd_pos");
+<<<<<<< HEAD
+  DBUG_ASSERT(0);
+=======
+  MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
+                       FALSE);
+  assert(0);
+  MYSQL_READ_ROW_DONE(0);
+>>>>>>> upstream/cluster-7.6
+  DBUG_RETURN(0);
+}
+
+void ha_blackhole::position(const uchar *) {
+  DBUG_ENTER("ha_blackhole::position");
+  assert(0);
+  DBUG_VOID_RETURN;
+>>>>>>> pr/231
 }
 
 int ha_blackhole::info(uint flag) {
   DBUG_TRACE;
 
+<<<<<<< HEAD
   stats = ha_statistics();
   if (flag & HA_STATUS_AUTO) stats.auto_increment_value = 1;
+<<<<<<< HEAD
   return 0;
+=======
+=======
+  new (&stats) ha_statistics;
+  if (flag & HA_STATUS_AUTO)
+    stats.auto_increment_value= 1;
+>>>>>>> upstream/cluster-7.6
+  DBUG_RETURN(0);
+>>>>>>> pr/231
 }
 
 int ha_blackhole::external_lock(THD *, int) {

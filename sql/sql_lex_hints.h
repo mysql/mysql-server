@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,10 +119,23 @@ class Hint_scanner {
   int scan();
 
   template <hint_lex_char_classes Quote>
+<<<<<<< HEAD
   int scan_quoted() {
+<<<<<<< HEAD
     assert(Quote == HINT_CHR_BACKQUOTE || Quote == HINT_CHR_DOUBLEQUOTE ||
            Quote == HINT_CHR_QUOTE);
     assert(*ptr == '`' || *ptr == '"' || *ptr == '\'');
+=======
+    DBUG_ASSERT(Quote == HINT_CHR_BACKQUOTE || Quote == HINT_CHR_DOUBLEQUOTE ||
+                Quote == HINT_CHR_QUOTE);
+    DBUG_ASSERT(*ptr == '`' || *ptr == '"' || *ptr == '\'');
+=======
+  int scan_quoted_ident()
+  {
+    assert(Quote == HINT_CHR_BACKQUOTE || Quote == HINT_CHR_DOUBLEQUOTE);
+    assert(*ptr == '`' || *ptr == '"');
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     const bool is_ident = (Quote == HINT_CHR_BACKQUOTE) ||
                           (is_ansi_quotes && Quote == HINT_CHR_DOUBLEQUOTE);
@@ -176,8 +197,29 @@ class Hint_scanner {
             yyleng = s.length;
             return ret;
           }
+<<<<<<< HEAD
         default:
           skip_byte();
+=======
+          else
+          {
+            assert(0 < double_separators && double_separators < yyleng);
+            s.length= yyleng - double_separators;
+            s.str= (char *) thd->alloc(s.length);
+            if (s.str == NULL)
+              return HINT_ERROR; // OOM
+          }
+          if (double_separators > 0)
+            compact<Quote>(&s, yytext, yyleng, double_separators);
+
+          raw_yytext= yytext;
+          yytext= s.str;
+          yyleng= s.length;
+          return HINT_ARG_IDENT;
+        }
+      default:
+        skip_byte();
+>>>>>>> upstream/cluster-7.6
       }
     }
   }
@@ -221,8 +263,21 @@ class Hint_scanner {
     }
   }
 
+<<<<<<< HEAD
   int scan_query_block_name() {
+<<<<<<< HEAD
     skip_byte('@');
+=======
+    DBUG_ASSERT(*ptr == '@');
+=======
+
+  int scan_query_block_name()
+  {
+    assert(*ptr == '@');
+>>>>>>> upstream/cluster-7.6
+
+    skip_byte();  // skip '@'
+>>>>>>> pr/231
     start_token();
 
     switch (peek_class()) {
@@ -246,6 +301,7 @@ class Hint_scanner {
   int scan_ident_or_keyword() {
     for (;;) {
       switch (peek_class()) {
+<<<<<<< HEAD
         case HINT_CHR_IDENT:
         case HINT_CHR_DIGIT:
           skip_byte();
@@ -264,7 +320,32 @@ class Hint_scanner {
               keyword string since symbol array is a global constant).
             */
             yytext = symbol->name;
+<<<<<<< HEAD
             assert(yyleng == symbol->length);
+=======
+            DBUG_ASSERT(yyleng == symbol->length);
+=======
+      case HINT_CHR_IDENT:
+      case HINT_CHR_DIGIT:
+        skip_byte();
+        continue;
+      case HINT_CHR_MB:
+        return scan_ident();
+      case HINT_CHR_EOF:
+      default:
+        const SYMBOL *symbol=
+            Lex_hash::hint_keywords.get_hash_symbol(yytext, yyleng);
+        if (symbol) // keyword
+        {
+          /*
+            Override the yytext pointer to the short-living buffer with a
+            long-living pointer to the same text (don't need to allocate a
+            keyword string since symbol array is a global constant).
+          */
+          yytext= symbol->name;
+          assert(yyleng == symbol->length);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
             return symbol->tok;
           }
@@ -297,6 +378,7 @@ class Hint_scanner {
     }
   }
 
+<<<<<<< HEAD
   int scan_fraction_digits() {
     skip_byte('.');
 
@@ -319,13 +401,31 @@ class Hint_scanner {
     }
   }
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   bool eof() const {
     assert(ptr <= input_buf_end);
     return ptr >= input_buf_end;
   }
 
   char peek_byte() const {
+<<<<<<< HEAD
     assert(!eof());
+=======
+    DBUG_ASSERT(!eof());
+=======
+  bool eof() const
+  {
+    assert(ptr <= input_buf_end);
+    return ptr >= input_buf_end;
+  }
+
+  char peek_byte() const
+  {
+    assert(!eof());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return *ptr;
   }
 
@@ -333,6 +433,7 @@ class Hint_scanner {
     return eof() ? HINT_CHR_EOF : char_classes[static_cast<uchar>(peek_byte())];
   }
 
+<<<<<<< HEAD
   hint_lex_char_classes peek_class2() const {
     assert(ptr + 1 <= input_buf_end);
     return ptr + 1 >= input_buf_end ? HINT_CHR_EOF
@@ -340,21 +441,54 @@ class Hint_scanner {
   }
 
   void skip_newline() {
+<<<<<<< HEAD
     assert(!eof() && peek_byte() == '\n');
+=======
+    DBUG_ASSERT(!eof() && peek_byte() == '\n');
+=======
+  hint_lex_char_classes peek_class2() const
+  {
+    assert(ptr + 1 <= input_buf_end);
+    return ptr + 1 >= input_buf_end ?
+        HINT_CHR_EOF : char_classes[static_cast<uchar>(ptr[1])];
+  }
+
+  void skip_newline()
+  {
+    assert(!eof() && peek_byte() == '\n');
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     skip_byte();
     lineno++;
   }
 
+<<<<<<< HEAD
   uchar get_byte() {
     assert(!eof());
     char ret = *ptr;
+=======
+  uchar get_byte()
+  {
+    assert(!eof());
+    char ret= *ptr;
+>>>>>>> upstream/cluster-7.6
     yyleng++;
     ptr++;
     return ret;
   }
 
+<<<<<<< HEAD
   void skip_byte() {
+<<<<<<< HEAD
     assert(!eof());
+=======
+    DBUG_ASSERT(!eof());
+=======
+  void skip_byte()
+  {
+    assert(!eof());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     yyleng++;
     ptr++;
   }
@@ -404,20 +538,39 @@ class Hint_scanner {
   }
 
   template <hint_lex_char_classes Separator>
+<<<<<<< HEAD
   void compact(LEX_STRING *to, const char *from, size_t len, size_t doubles) {
+<<<<<<< HEAD
     assert(doubles > 0);
+=======
+    DBUG_ASSERT(doubles > 0);
+=======
+  void compact(LEX_STRING *to, const char *from, size_t len, size_t doubles)
+  {
+    assert(doubles > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     size_t d = doubles;
     char *t = to->str;
     for (const char *s = from, *end = from + len; s < end;) {
       switch (char_classes[(uchar)*s]) {
         case HINT_CHR_MB: {
+<<<<<<< HEAD
           size_t hint_len = my_ismbchar(cs, s, end);
           assert(hint_len > 1);
           memcpy(t, s, hint_len);
           t += hint_len;
           s += hint_len;
+=======
+          size_t len = my_ismbchar(cs, s, end);
+          assert(len > 1);
+          memcpy(t, s, len);
+          t += len;
+          s += len;
+>>>>>>> pr/231
         }
+<<<<<<< HEAD
           continue;
         case Separator:
           assert(char_classes[(uchar)*s] == Separator);
@@ -440,6 +593,31 @@ class Hint_scanner {
     }
     assert(0);
     to->length = 0;
+=======
+        continue;
+      case Separator:
+        assert(char_classes[(uchar) *s] == Separator);
+        *t++= *s++;
+        s++; //skip the 2nd separator
+        d--;
+        if (d == 0)
+        {
+          memcpy(t, s, end - s);
+          to->length= len - doubles;
+          return;
+        }
+        continue;
+      case HINT_CHR_EOF:
+        assert(0);
+        to->length= 0;
+        return;
+      default:
+        *t++= *s++;
+      }
+    }
+    assert(0);
+    to->length= 0;
+>>>>>>> upstream/cluster-7.6
     return;
   }
 

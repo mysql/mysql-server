@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -978,6 +982,7 @@ NdbTransaction::execute(ExecType aTypeOfExec,
       const NdbOperation* execOpFirst = theFirstOpInList;
       const NdbOperation* execOpLast = theLastOpInList;
 
+<<<<<<< HEAD
       if (executeNoBlobs(tExecType,
                          NdbOperation::DefaultAbortOption,
                          forceSend) == -1)
@@ -1002,6 +1007,12 @@ NdbTransaction::execute(ExecType aTypeOfExec,
           theError = firstTransError;
         DBUG_RETURN(-1);
       }
+=======
+      /* Capture any trans error left by the execute() in case it gets trampled */
+      if (firstTransError.code != 0)
+        theError = firstTransError;
+      DBUG_RETURN(-1);
+>>>>>>> pr/231
     }
 
     /* Capture any trans error left by the execute() in case it gets trampled */
@@ -1886,10 +1897,17 @@ void
 NdbTransaction::releaseCompletedOperations()
 {
   releaseOps(theCompletedFirstOp);
+<<<<<<< HEAD
   theCompletedFirstOp = nullptr;
   theCompletedLastOp = nullptr;
   theErrorLine = 0;
   theErrorOperation = nullptr;
+=======
+  theCompletedFirstOp = NULL;
+  theCompletedLastOp = NULL;
+  theErrorLine = 0;
+  theErrorOperation = NULL;
+>>>>>>> pr/231
 }//NdbTransaction::releaseCompletedOperations()
 
 
@@ -1994,7 +2012,11 @@ NdbTransaction::releaseScanOperation(NdbIndexScanOperation** listhead,
     {
       /* Remove ref to scan op before release */
       theErrorLine = 0;
+<<<<<<< HEAD
       theErrorOperation = nullptr;
+=======
+      theErrorOperation = NULL;
+>>>>>>> pr/231
     }
     op->release();
     theNdb->releaseScanOperation(op);

@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +49,7 @@
 class NdbScanFilterImpl {
 public:
   NdbScanFilterImpl()
+<<<<<<< HEAD
     : m_sql_cmp_semantics(false),
       m_label(0),
       m_current{(NdbScanFilter::Group)0, 0, 0, ~0U, ~0U},
@@ -69,6 +74,22 @@ public:
     m_code->reset();
   }
 
+=======
+    : m_label(0),
+      m_negative(0),
+      m_stack(),
+      m_stack2(),
+      m_code(NULL),
+      m_error(),
+      m_associated_op(NULL)
+  {
+    m_current.m_group = (NdbScanFilter::Group)0;
+    m_current.m_popCount = 0;
+    m_current.m_ownLabel = 0;
+    m_current.m_trueLabel = ~0;
+    m_current.m_falseLabel = ~0;
+  }
+>>>>>>> pr/231
   struct State {
     NdbScanFilter::Group m_group;  // AND or OR
     Uint32 m_popCount;
@@ -95,12 +116,15 @@ public:
   int cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, 
 		     const void * value, Uint32 len);
 
+<<<<<<< HEAD
   int cond_col_col(Interpreter::BinaryCondition,
                    Uint32 attrId1, Uint32 attrId2);
 
   int cond_col_param(Interpreter::BinaryCondition,
                      Uint32 attrId, Uint32 paramId);
 
+=======
+>>>>>>> pr/231
   /* This method propagates an error code from NdbInterpretedCode
    * back to the NdbScanFilter object
    */
@@ -148,7 +172,11 @@ NdbScanFilter::NdbScanFilter(NdbInterpretedCode* code) :
   m_impl(* new NdbScanFilterImpl())
 {
   DBUG_ENTER("NdbScanFilter::NdbScanFilter(NdbInterpretedCode)");
+<<<<<<< HEAD
   if (unlikely(code == nullptr))
+=======
+  if (unlikely(code == NULL))
+>>>>>>> pr/231
   {
     /* NdbInterpretedCode not supported for operation type */
     m_impl.m_error.code = 4539; 
@@ -175,7 +203,11 @@ NdbScanFilter::NdbScanFilter(class NdbOperation * op) :
      * survive after the NdbScanFilter has gone out of scope
      */
     NdbInterpretedCode* code= scanOp->allocInterpretedCodeOldApi();
+<<<<<<< HEAD
     if (likely(code != nullptr))
+=======
+    if (likely(code != NULL))
+>>>>>>> pr/231
     {
       m_impl.m_code = code;
       m_impl.m_associated_op = scanOp;

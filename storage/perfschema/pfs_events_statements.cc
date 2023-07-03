@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -183,7 +191,11 @@ void insert_events_statements_history(PFS_thread *thread,
     return;
   }
 
+<<<<<<< HEAD
   assert(thread->m_statements_history != nullptr);
+=======
+  assert(thread->m_statements_history != NULL);
+>>>>>>> pr/231
 
   uint index = thread->m_statements_history_index;
 
@@ -214,7 +226,11 @@ void insert_events_statements_history_long(PFS_events_statements *statement) {
     return;
   }
 
+<<<<<<< HEAD
   assert(events_statements_history_long_array != nullptr);
+=======
+  assert(events_statements_history_long_array != NULL);
+>>>>>>> pr/231
 
   uint index = events_statements_history_long_index.m_u32++;
 

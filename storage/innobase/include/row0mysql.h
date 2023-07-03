@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -452,6 +476,7 @@ This template struct is used to speed up row transformations between
 Innobase and MySQL. */
 
 struct mysql_row_templ_t {
+<<<<<<< HEAD
   ulint col_no;                 /*!< column number of the column */
   ulint rec_field_no;           /*!< field number of the column in an
                                 Innobase record in the current index;
@@ -497,8 +522,56 @@ struct mysql_row_templ_t {
                                 type and this field is != 0, then
                                 it is an unsigned integer type */
   ulint is_virtual;             /*!< if a column is a virtual column */
+<<<<<<< HEAD
   ulint is_multi_val;           /*!< if a column is a Multi-Value Array virtual
                                 column */
+=======
+=======
+	ulint	col_no;			/*!< column number of the column */
+	ulint	rec_field_no;		/*!< field number of the column in an
+					Innobase record in the current index;
+					not defined if template_type is
+					ROW_MYSQL_WHOLE_ROW */
+	ulint	clust_rec_field_no;	/*!< field number of the column in an
+					Innobase record in the clustered index;
+					not defined if template_type is
+					ROW_MYSQL_WHOLE_ROW */
+	ulint	icp_rec_field_no;	/*!< field number of the column in an
+					Innobase record in the current index;
+					used to evaluate the pushed index
+					condition and/or end-range condition */
+	ulint	mysql_col_offset;	/*!< offset of the column in the MySQL
+					row format */
+	ulint	mysql_col_len;		/*!< length of the column in the MySQL
+					row format */
+	ulint	mysql_null_byte_offset;	/*!< MySQL NULL bit byte offset in a
+					MySQL record */
+	ulint	mysql_null_bit_mask;	/*!< bit mask to get the NULL bit,
+					zero if column cannot be NULL */
+	ulint	type;			/*!< column type in Innobase mtype
+					numbers DATA_CHAR... */
+	ulint	mysql_type;		/*!< MySQL type code; this is always
+					< 256 */
+	ulint	mysql_length_bytes;	/*!< if mysql_type
+					== DATA_MYSQL_TRUE_VARCHAR, this tells
+					whether we should use 1 or 2 bytes to
+					store the MySQL true VARCHAR data
+					length at the start of row in the MySQL
+					format (NOTE that the MySQL key value
+					format always uses 2 bytes for the data
+					len) */
+	ulint	charset;		/*!< MySQL charset-collation code
+					of the column, or zero */
+	ulint	mbminlen;		/*!< minimum length of a char, in bytes,
+					or zero if not a char type */
+	ulint	mbmaxlen;		/*!< maximum length of a char, in bytes,
+					or zero if not a char type */
+	ulint	is_unsigned;		/*!< if a column type is an integer
+					type and this field is != 0, then
+					it is an unsigned integer type */
+	ulint	is_virtual;		/*!< if a column is a virtual column */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 constexpr uint32_t MYSQL_FETCH_CACHE_SIZE = 8;
@@ -930,12 +1003,24 @@ struct SysIndexCallback {
 
 /** Get the updated parent field value from the update vector for the
 given col_no.
+<<<<<<< HEAD
 @param[in]      foreign         foreign key information
 @param[in]      update          updated parent vector.
 @param[in]      col_no          base column position of the child table to check
 @return updated field from the parent update vector, else NULL */
 dfield_t *innobase_get_field_from_update_vector(dict_foreign_t *foreign,
                                                 upd_t *update, uint32_t col_no);
+=======
+@param[in]	foreign		foreign key information
+@param[in]	update		updated parent vector.
+@param[in]	col_no		base column position of the child table to check
+@return updated field from the parent update vector, else NULL */
+dfield_t*
+innobase_get_field_from_update_vector(
+	dict_foreign_t*	foreign,
+	upd_t*		update,
+	uint32_t	col_no);
+>>>>>>> pr/231
 
 /** Get the computed value by supplying the base column values.
 @param[in,out]  row             the data row

@@ -25,7 +25,10 @@
 #include "util/require.h"
 #include "Cmvmi.hpp"
 
+<<<<<<< HEAD
 #include <cstring>
+=======
+>>>>>>> pr/231
 #include <signal.h>
 #include <Configuration.hpp>
 #include <kernel_types.h>
@@ -52,6 +55,11 @@
 #include <signaldata/AllocMem.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
 #include <signaldata/GetConfig.hpp>
+#include "util/ndb_opts.h"
+
+#ifdef ERROR_INSERT
+#include <signaldata/FsOpenReq.hpp>
+#endif
 
 #ifdef ERROR_INSERT
 #include <signaldata/FsOpenReq.hpp>
@@ -237,8 +245,12 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
      * Instead we explicitly turn off core file generation by directly
      * modifying the opt_core variable of main.cpp.
      */
+<<<<<<< HEAD
     extern bool opt_core;
     opt_core = false;
+=======
+    opt_core = 0;
+>>>>>>> pr/231
     raise(SIGSEGV);
   }
 #endif
@@ -2103,7 +2115,11 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
                   id, rl.m_min, rl.m_max, rl.m_curr, rl.m_spare);
       }
     }
+<<<<<<< HEAD
     m_ctx.m_mm.dump(false); // To data node log
+=======
+    m_ctx.m_mm.dump(); // To data node log
+>>>>>>> pr/231
     return;
   }
   if (dumpState->args[0] == DumpStateOrd::DumpPageMemoryOnFail)
@@ -2418,6 +2434,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     openReq->fileNumber[0] = ~Uint32(0);
     openReq->fileNumber[1] = ~Uint32(0);
     openReq->fileNumber[2] = 0;
+<<<<<<< HEAD
     openReq->fileNumber[3] = ~Uint32(0);
     FsOpenReq::setVersion(openReq->fileNumber, 1);
     FsOpenReq::setSuffix(openReq->fileNumber, FsOpenReq::S_FRAGLOG);
@@ -2428,6 +2445,14 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     openReq->file_size_hi = UINT32_MAX;
     openReq->file_size_lo = UINT32_MAX;
     openReq->auto_sync_size = 0;
+=======
+    openReq->fileNumber[3] =
+      1 << 24 |
+      1 << 16 |
+      255 << 8 |
+      255;
+    openReq->fileFlags = FsOpenReq::OM_READWRITE | FsOpenReq::OM_CREATE;
+>>>>>>> pr/231
 
     for (Uint32 i=0; i < numFiles; i++)
     {

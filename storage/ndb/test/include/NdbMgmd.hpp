@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 /*
    Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -494,7 +502,11 @@ public:
     }
 
     Uint64 default_value = 0;
+<<<<<<< HEAD
     ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
+=======
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+>>>>>>> pr/231
     for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
     {
       if (!iter.openSection(type_of_section, nodeid))
@@ -531,7 +543,11 @@ public:
 
     // TODO: Instead of using flaky sleep, try reconnect and
     // determine whether the config is changed.
+<<<<<<< HEAD
     NdbSleep_SecSleep(10); //Give MGM server time to restart
+=======
+    sleep(10); //Give MGM server time to restart
+>>>>>>> pr/231
 
     return true;
   }
@@ -556,7 +572,11 @@ public:
     }
 
     Uint32 default_value = 0;
+<<<<<<< HEAD
     ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
+=======
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+>>>>>>> pr/231
     for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
     {
       if (!iter.openSection(type_of_section, nodeid))
@@ -593,7 +613,11 @@ public:
 
     // TODO: Instead of using flaky sleep, try reconnect and
     // determine whether the config is changed.
+<<<<<<< HEAD
     NdbSleep_SecSleep(10); //Give MGM server time to restart
+=======
+    sleep(10); //Give MGM server time to restart
+>>>>>>> pr/231
 
     return true;
   }
@@ -617,7 +641,11 @@ public:
       return 0;
     }
 
+<<<<<<< HEAD
     ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
+=======
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+>>>>>>> pr/231
     for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
     {
       if (!iter.openSection(type_of_section, nodeid))
@@ -634,6 +662,97 @@ public:
     }
     return 0;
   }
+<<<<<<< HEAD
+=======
+
+  bool change_config_str(const char* new_value, BaseString &saved_old_value,
+                     unsigned type_of_section, unsigned config_variable)
+  {
+    if (!is_connected() && !connect()) {
+        error("Mgmd not connected");
+        return false;
+    }
+
+    Config conf;
+    if (!get_config(conf)) {
+      error("Mgmd : get_config failed");
+      return false;
+    }
+
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++) {
+      if (!iter.openSection(type_of_section, nodeid))
+        continue;
+
+      const char *old_value = NULL;
+      if (iter.get(config_variable, &old_value)) {
+        if (saved_old_value.empty()) {
+          // saved_old_value will give the read value to the caller
+          saved_old_value.assign(old_value, strlen(old_value));
+        } else if (saved_old_value != old_value) {
+          g_err << "Config value is not consistent across nodes"
+                << ". Node id " << nodeid
+                << ": old value " << old_value
+                << ": default value " << saved_old_value.c_str()
+                << ". Overwriting it with the given value " << new_value
+                << endl;
+        }
+      }
+      iter.set(config_variable, new_value);
+      iter.closeSection();
+    }
+
+    g_err  << "change_config_str(): saved_old_value "
+           << saved_old_value.c_str() << endl;
+
+    // Set the new config in mgmd
+    if (!set_config(conf)) {
+      error("Mgmd : set_config failed");
+      return false;
+    }
+
+    // TODO: Instead of using flaky sleep, try reconnect and
+    // determine whether the config is changed.
+    sleep(10); //Give MGM server time to restart
+
+    return true;
+  }
+
+  bool get_config_str(unsigned type_of_section,
+                      unsigned config_variable,
+                      const char **configured_value,
+                      unsigned nodeid = 0)
+  {
+    if (!is_connected() && !connect()) {
+        error("Mgmd not connected");
+        return 0;
+    }
+
+    Config conf;
+    if (!get_config(conf))
+    {
+      error("Mgmd : get_config failed");
+      return 0;
+    }
+
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    for (unsigned node_id = 1; node_id < MAX_NODES; node_id++) {
+      if (iter.openSection(type_of_section, node_id)) {
+        if (nodeid != 0 && nodeid == node_id) {
+          const char *current_value = NULL;
+          if (iter.get(config_variable, &current_value) &&
+              (strlen(current_value) > 0)) {
+            *configured_value = current_value;
+            iter.closeSection();
+            return true;
+          }
+        }
+      }
+      iter.closeSection();
+    }
+    return false;
+  }
+>>>>>>> pr/231
 
   // Pretty printer for 'ndb_mgm_node_type'
   class NodeType {

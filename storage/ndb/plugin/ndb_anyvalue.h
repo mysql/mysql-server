@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD:storage/ndb/plugin/ndb_anyvalue.h
    Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:sql/ndb_anyvalue.h
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +55,11 @@ Uint32 ndbcluster_anyvalue_get_serverid(Uint32 anyValue);
 void ndbcluster_anyvalue_set_serverid(Uint32 &anyValue, Uint32 serverId);
 
 #ifndef NDEBUG
+<<<<<<< HEAD:storage/ndb/plugin/ndb_anyvalue.h
 void dbug_ndbcluster_anyvalue_set_userbits(Uint32 &anyValue);
+=======
+void dbug_ndbcluster_anyvalue_set_userbits(Uint32& anyValue);
+>>>>>>> pr/231:sql/ndb_anyvalue.h
 #endif
 
 #endif

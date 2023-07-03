@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -729,6 +737,14 @@ class Master_info : public Rpl_info {
     @param thd the THD object of current thread
   */
   void wait_until_no_reference(THD *thd);
+<<<<<<< HEAD
+=======
+
+  /* Set true when the Master_info object was cleared by a RESET SLAVE */
+  bool reset;
+};
+int change_master_server_id_cmp(ulong *id1, ulong *id2);
+>>>>>>> upstream/cluster-7.6
 
   /* Set true when the Master_info object was cleared by a RESET SLAVE */
   bool reset;

@@ -2,7 +2,15 @@
 #define FAKE_COSTMODEL_CC_INCLUDED
 
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +59,11 @@ const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
     const TABLE *) const {
   // This is only implemented in order to link the unit tests
   assert(false);
+<<<<<<< HEAD
   return nullptr;
+=======
+  return NULL;
+>>>>>>> pr/231
 }
 /* purecov: end */
 

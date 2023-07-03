@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,6 +143,201 @@ static int compare_lengths(Field *field, enum_field_types source_type,
   DBUG_PRINT("result", ("%d", result));
   return result;
 }
+<<<<<<< HEAD
+=======
+#endif //MYSQL_CLIENT
+
+/*********************************************************************
+ *                   table_def member definitions                    *
+ *********************************************************************/
+
+/*
+  This function returns the field size in raw bytes based on the type
+  and the encoded field data from the master's raw data.
+*/
+uint32 table_def::calc_field_size(uint col, uchar *master_data) const
+{
+  uint32 length= ::calc_field_size(type(col), master_data,
+                                   m_field_metadata[col]);
+  return length;
+}
+
+/**
+ */
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
+                          const CHARSET_INFO *field_cs)
+{
+  DBUG_ENTER("show_sql_type");
+  DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
+
+  switch (type)
+  {
+  case MYSQL_TYPE_TINY:
+    str->set_ascii(STRING_WITH_LEN("tinyint"));
+    break;
+
+  case MYSQL_TYPE_SHORT:
+    str->set_ascii(STRING_WITH_LEN("smallint"));
+    break;
+
+  case MYSQL_TYPE_LONG:
+    str->set_ascii(STRING_WITH_LEN("int"));
+    break;
+
+  case MYSQL_TYPE_FLOAT:
+    str->set_ascii(STRING_WITH_LEN("float"));
+    break;
+
+  case MYSQL_TYPE_DOUBLE:
+    str->set_ascii(STRING_WITH_LEN("double"));
+    break;
+
+  case MYSQL_TYPE_NULL:
+    str->set_ascii(STRING_WITH_LEN("null"));
+    break;
+
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
+    str->set_ascii(STRING_WITH_LEN("timestamp"));
+    break;
+
+  case MYSQL_TYPE_LONGLONG:
+    str->set_ascii(STRING_WITH_LEN("bigint"));
+    break;
+
+  case MYSQL_TYPE_INT24:
+    str->set_ascii(STRING_WITH_LEN("mediumint"));
+    break;
+
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_DATE:
+    str->set_ascii(STRING_WITH_LEN("date"));
+    break;
+
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIME2:
+    str->set_ascii(STRING_WITH_LEN("time"));
+    break;
+
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
+    str->set_ascii(STRING_WITH_LEN("datetime"));
+    break;
+
+  case MYSQL_TYPE_YEAR:
+    str->set_ascii(STRING_WITH_LEN("year"));
+    break;
+
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_VARCHAR:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "varchar(%u(bytes))", metadata);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_BIT:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      int bit_length= 8 * (metadata >> 8) + (metadata & 0xFF);
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "bit(%d)", bit_length);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_DECIMAL:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "decimal(%d,?)", metadata);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_NEWDECIMAL:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "decimal(%d,%d)", metadata >> 8, metadata & 0xff);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_ENUM:
+    str->set_ascii(STRING_WITH_LEN("enum"));
+    break;
+
+  case MYSQL_TYPE_SET:
+    str->set_ascii(STRING_WITH_LEN("set"));
+    break;
+
+  case MYSQL_TYPE_BLOB:
+    /*
+      Field::real_type() lies regarding the actual type of a BLOB, so
+      it is necessary to check the pack length to figure out what kind
+      of blob it really is.
+     */
+    switch (metadata)
+    {
+    case 1:
+      str->set_ascii(STRING_WITH_LEN("tinyblob"));
+      break;
+
+    case 2:
+      str->set_ascii(STRING_WITH_LEN("blob"));
+      break;
+
+    case 3:
+      str->set_ascii(STRING_WITH_LEN("mediumblob"));
+      break;
+
+    case 4:
+      str->set_ascii(STRING_WITH_LEN("longblob"));
+      break;
+
+    default:
+      assert(0);
+      break;
+    }
+    break;
+
+  case MYSQL_TYPE_STRING:
+    {
+      /*
+        This is taken from Field_string::unpack.
+      */
+      const CHARSET_INFO *cs= str->charset();
+      uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "char(%d(bytes))", bytes);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_GEOMETRY:
+    str->set_ascii(STRING_WITH_LEN("geometry"));
+    break;
+
+  case MYSQL_TYPE_JSON:
+    str->set_ascii(STRING_WITH_LEN("json"));
+    break;
+
+  default:
+    str->set_ascii(STRING_WITH_LEN("<unknown type>"));
+  }
+  DBUG_VOID_RETURN;
+}
+
+>>>>>>> upstream/cluster-7.6
 
 /**
    Check the order variable and print errors if the order is not
@@ -231,10 +434,16 @@ inline bool time_cross_check(enum_field_types type1, enum_field_types type2) {
    current setting.
  */
 static bool can_convert_field_to(Field *field, enum_field_types source_type,
+<<<<<<< HEAD
                                  uint metadata, bool is_array,
                                  Relay_log_info *rli, uint16 mflags,
                                  int *order_var) {
   DBUG_TRACE;
+=======
+                                 uint16 metadata, Relay_log_info *rli,
+                                 uint16 mflags, int *order_var) {
+  DBUG_ENTER("can_convert_field_to");
+>>>>>>> pr/231
 #ifndef NDEBUG
   char field_type_buf[MAX_FIELD_WIDTH];
   String field_type(field_type_buf, sizeof(field_type_buf), &my_charset_latin1);
@@ -319,6 +528,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
+<<<<<<< HEAD
       switch (field->real_type()) {
         case MYSQL_TYPE_NEWDECIMAL:
           /*
@@ -326,7 +536,22 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
             DECIMAL, so we require lossy conversion.
           */
           *order_var = 1;
+<<<<<<< HEAD
           return is_conversion_ok(*order_var);
+=======
+          DBUG_RETURN(is_conversion_ok(*order_var));
+=======
+    {
+      if (source_type == MYSQL_TYPE_NEWDECIMAL ||
+          source_type == MYSQL_TYPE_DECIMAL)
+        *order_var = 1;                         // Always require lossy conversions
+      else
+        *order_var= compare_lengths(field, source_type, metadata);
+      assert(*order_var != 0);
+      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+    }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
         case MYSQL_TYPE_DECIMAL:
         case MYSQL_TYPE_FLOAT:
@@ -355,6 +580,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
+<<<<<<< HEAD
       switch (field->real_type()) {
         case MYSQL_TYPE_BOOL:
         case MYSQL_TYPE_TINY:
@@ -363,8 +589,18 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
         case MYSQL_TYPE_LONG:
         case MYSQL_TYPE_LONGLONG:
           *order_var = compare_lengths(field, source_type, metadata);
+<<<<<<< HEAD
           assert(*order_var != 0);
           return is_conversion_ok(*order_var);
+=======
+          DBUG_ASSERT(*order_var != 0);
+          DBUG_RETURN(is_conversion_ok(*order_var));
+=======
+      *order_var= compare_lengths(field, source_type, metadata);
+      assert(*order_var != 0);
+      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
         default:
           return false;
@@ -540,8 +776,12 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
                              is_array(col), rli, m_flags, &order)) {
       DBUG_PRINT("debug", ("Checking column %lu -"
                            " field '%s' can be converted - order: %d",
+<<<<<<< HEAD
                            static_cast<long unsigned int>(col),
                            field->field_name, order));
+=======
+                           col, field->field_name, order));
+>>>>>>> pr/231
       assert(order >= -1 && order <= 1);
 
       /*
@@ -565,14 +805,29 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
       if (order == 0 && tmp_table != nullptr)
         tmp_table->field[absolute_col_pos] = nullptr;
     } else {
+<<<<<<< HEAD
       DBUG_PRINT("debug",
                  ("Checking column %lu -"
                   " field '%s' can not be converted",
                   static_cast<long unsigned int>(col), field->field_name));
       assert(col < size() && col < table->s->fields);
       assert(table->s->db.str && table->s->table_name.str);
+=======
+      DBUG_PRINT("debug", ("Checking column %d -"
+                           " field '%s' can not be converted",
+                           col, field->field_name));
+<<<<<<< HEAD
+      DBUG_ASSERT(col < size() && col < table->s->fields);
+      DBUG_ASSERT(table->s->db.str && table->s->table_name.str);
+>>>>>>> pr/231
       const char *db_name = table->s->db.str;
       const char *tbl_name = table->s->table_name.str;
+=======
+      assert(col < size() && col < table->s->fields);
+      assert(table->s->db.str && table->s->table_name.str);
+      const char *db_name= table->s->db.str;
+      const char *tbl_name= table->s->table_name.str;
+>>>>>>> upstream/cluster-7.6
       char source_buf[MAX_FIELD_WIDTH];
       char target_buf[MAX_FIELD_WIDTH];
       String field_sql_type;
@@ -610,10 +865,23 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
     }
   }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   if (tmp_table) {
     for (unsigned int col = 0; col < tmp_table->s->fields; ++col)
       if (tmp_table->field[col]) {
+=======
+#ifndef NDEBUG
+  if (tmp_table)
+  {
+    for (unsigned int col= 0; col < tmp_table->s->fields; ++col)
+      if (tmp_table->field[col])
+      {
+>>>>>>> upstream/cluster-7.6
         char source_buf[MAX_FIELD_WIDTH];
         char target_buf[MAX_FIELD_WIDTH];
         String source_type(source_buf, sizeof(source_buf), &my_charset_latin1);
@@ -978,9 +1246,20 @@ table_def::table_def(unsigned char *types, ulong size, uchar *field_metadata,
 
 table_def::~table_def() {
   my_free(m_memory);
+<<<<<<< HEAD
 #ifndef NDEBUG
   m_type = nullptr;
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+  m_type = 0;
+>>>>>>> pr/231
   m_size = 0;
+=======
+#ifndef NDEBUG
+  m_type= 0;
+  m_size= 0;
+>>>>>>> upstream/cluster-7.6
 #endif
 }
 
@@ -1117,7 +1396,11 @@ HASH_ROW_ENTRY *Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols) {
 }
 
 bool Hash_slave_rows::next(HASH_ROW_ENTRY **entry) {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("Hash_slave_rows::next");
+>>>>>>> pr/231
   assert(*entry);
 
   if (*entry == nullptr) return true;
@@ -1158,7 +1441,11 @@ bool Hash_slave_rows::next(HASH_ROW_ENTRY **entry) {
 }
 
 bool Hash_slave_rows::del(HASH_ROW_ENTRY *entry) {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("Hash_slave_rows::del");
+>>>>>>> pr/231
   assert(entry);
 
   erase_specific_element(&m_hash, entry->preamble->hash_value, entry);

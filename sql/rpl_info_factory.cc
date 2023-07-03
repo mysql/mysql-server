@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -327,7 +331,11 @@ bool Rpl_info_factory::change_rli_repository(Relay_log_info *rli,
   Rpl_info_handler *handler_dest = nullptr;
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(handler_src != nullptr);
+=======
+  assert(handler_src != NULL);
+>>>>>>> pr/231
 
   if (init_repositories(rli_table_data, rli_file_data, rli_option, nullptr,
                         &handler_dest, msg))
@@ -452,8 +460,13 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
 
   /* get_num_instances() requires channel_map lock */
   /*
+<<<<<<< HEAD
   assert(channel_map.get_num_instances() <= 1 ||
               (rli_option == 1 && handler_dest->get_rpl_info_type() == 1));
+=======
+    assert(channel_map.get_num_instances() <= 1 ||
+    (rli_option == 1 && handler_dest->get_rpl_info_type() == 1));
+>>>>>>> pr/231
   */
   if (decide_repository(worker, rli_option, &handler_src, &handler_dest, &msg))
     goto err;
@@ -493,6 +506,7 @@ err:
   return nullptr;
 }
 
+<<<<<<< HEAD
 static void build_worker_info_name(char *to, const char *path,
                                    const char *fname) {
   assert(to);
@@ -500,6 +514,18 @@ static void build_worker_info_name(char *to, const char *path,
   if (path[0]) pos = my_stpcpy(pos, path);
   pos = my_stpcpy(pos, "worker-");
   pos = my_stpcpy(pos, fname);
+=======
+static void build_worker_info_name(char* to,
+                                   const char* path,
+                                   const char* fname)
+{
+  assert(to);
+  char* pos= to;
+  if (path[0])
+    pos= my_stpcpy(pos, path);
+  pos= my_stpcpy(pos, "worker-");
+  pos= my_stpcpy(pos, fname);
+>>>>>>> upstream/cluster-7.6
   my_stpcpy(pos, ".");
 }
 
@@ -600,7 +626,11 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
     goto err;
   }
 
+<<<<<<< HEAD
   assert((*handler_src) != nullptr && (*handler_dest) != nullptr &&
+=======
+  assert((*handler_src) != NULL && (*handler_dest) != NULL &&
+>>>>>>> pr/231
          (*handler_src) != (*handler_dest));
 
   return_check_src = check_src_repository(info, option, handler_src);
@@ -665,6 +695,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
         *msg = "Error removing old repository";
         goto err;
       }
+<<<<<<< HEAD
     } else if (return_check_src == REPOSITORY_DOES_NOT_EXIST &&
                return_check_dst == REPOSITORY_EXISTS) {
       assert(info->get_rpl_info_handler() == nullptr);
@@ -673,9 +704,32 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
         goto err;
       }
     } else {
+<<<<<<< HEAD
       assert(return_check_src == REPOSITORY_DOES_NOT_EXIST &&
              return_check_dst == REPOSITORY_DOES_NOT_EXIST);
       info->inited = false;
+=======
+      DBUG_ASSERT(return_check_src == REPOSITORY_DOES_NOT_EXIST &&
+                  return_check_dst == REPOSITORY_DOES_NOT_EXIST);
+=======
+    }
+    else if (return_check_src == REPOSITORY_DOES_NOT_EXIST &&
+             return_check_dst == REPOSITORY_EXISTS)
+    {
+      assert(info->get_rpl_info_handler() == NULL);
+      if ((*handler_dest)->do_init_info(info->get_internal_id()))
+      {
+        *msg= "Error reading repository";
+        goto err;
+      }
+    }
+    else
+    {
+      assert(return_check_src == REPOSITORY_DOES_NOT_EXIST &&
+             return_check_dst == REPOSITORY_DOES_NOT_EXIST);
+      info->inited= false;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
 
     delete (*handler_src);
@@ -847,8 +901,18 @@ bool Rpl_info_factory::init_repositories(const struct_table_data &table_data,
 
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(handler_dest != nullptr);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(handler_dest != NULL);
+>>>>>>> pr/231
   switch (rep_option) {
+=======
+  assert(handler_dest != NULL);
+  switch (rep_option)
+  {
+>>>>>>> upstream/cluster-7.6
     case INFO_REPOSITORY_FILE:
       if (!(*handler_dest = new Rpl_info_file(
                 file_data.n_fields, file_data.pattern, file_data.name,
@@ -890,12 +954,33 @@ err:
   return error;
 }
 
+<<<<<<< HEAD
 bool Rpl_info_factory::scan_and_count_repositories(
     ulonglong &found_instances, uint &found_rep_option,
     const struct_table_data &table_data, const struct_file_data &file_data,
     std::string &msg) {
   uint file_instances = 0;
   ulonglong table_instances = 0;
+=======
+bool Rpl_info_factory::scan_repositories(uint *found_instances,
+                                         uint *found_rep_option,
+                                         const struct_table_data table_data,
+                                         const struct_file_data file_data,
+<<<<<<< HEAD
+                                         const char **msg) {
+  bool error = false;
+  uint file_instances = 0;
+  uint table_instances = 0;
+  DBUG_ASSERT(found_rep_option != NULL);
+=======
+                                         const char **msg)
+{
+  bool error= false;
+  uint file_instances= 0;
+  uint table_instances= 0;
+  assert(found_rep_option != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   DBUG_TRACE;
 
@@ -1299,6 +1384,7 @@ bool Rpl_info_factory::load_channel_names_from_repository(
     bool *default_channel_existed_previously) {
   DBUG_TRACE;
 
+<<<<<<< HEAD
   *default_channel_existed_previously = false;
   switch (mi_repository) {
     case INFO_REPOSITORY_FILE:
@@ -1319,7 +1405,35 @@ bool Rpl_info_factory::load_channel_names_from_repository(
       /* file and table instanaces are zero, nothing to be done*/
       break;
     default:
+<<<<<<< HEAD
       assert(0);
+=======
+      DBUG_ASSERT(0);
+=======
+  *default_channel_existed_previously= false;
+  switch(mi_repository)
+  {
+  case INFO_REPOSITORY_FILE:
+    assert(mi_instances == 1);
+    /* insert default channel */
+    {
+    std::string str(default_channel);
+    channel_list.push_back(str);
+    }
+    *default_channel_existed_previously= true;
+    break;
+  case INFO_REPOSITORY_TABLE:
+    if (load_channel_names_from_table(channel_list, default_channel,
+                                      default_channel_existed_previously))
+      DBUG_RETURN(true);
+    break;
+  case INVALID_INFO_REPOSITORY:
+    /* file and table instanaces are zero, nothing to be done*/
+    break;
+  default:
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   return false;
@@ -1371,8 +1485,15 @@ bool Rpl_info_factory::load_channel_names_from_table(
                                   &mi_table_data.nullable_fields)))
     return true;
 
+<<<<<<< HEAD
   thd = info->access->create_thd();
   saved_mode = thd->variables.sql_mode;
+=======
+  thd= info->access->create_thd();
+  saved_mode= thd->variables.sql_mode;
+  // Ensure channel names are always read consistently
+  thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+>>>>>>> upstream/cluster-7.6
 
   /*
      Opens and locks the rpl_info table before accessing it.

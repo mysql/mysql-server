@@ -1,6 +1,14 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -17,6 +25,7 @@ documentation. The contributions by Percona Inc. are incorporated with
 their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -32,6 +41,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -578,6 +604,7 @@ extern const ulint srv_buf_pool_def_size;
 extern const longlong srv_buf_pool_max_size;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
+<<<<<<< HEAD
 extern ulonglong srv_buf_pool_chunk_unit;
 /** Minimum buffer pool chunk size. */
 extern const ulonglong srv_buf_pool_chunk_unit_min;
@@ -586,6 +613,13 @@ extern const ulonglong srv_buf_pool_chunk_unit_blk_sz;
 /** Maximum buffer pool chunk size. */
 extern const ulonglong srv_buf_pool_chunk_unit_max;
 
+=======
+<<<<<<< HEAD
+extern ulong srv_buf_pool_chunk_unit;
+=======
+extern ulonglong	srv_buf_pool_chunk_unit;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /** Requested number of buffer pool instances */
 extern ulong srv_buf_pool_instances;
 /** Default number of buffer pool instances */
@@ -682,8 +716,15 @@ extern ulong srv_force_recovery;
 extern ulong srv_force_recovery_crash;
 #endif /* UNIV_DEBUG */
 
+<<<<<<< HEAD
 /** The value of the configuration parameter innodb_fast_shutdown,
 controlling the InnoDB shutdown.
+=======
+extern ulong	srv_force_recovery;
+#ifndef NDEBUG
+extern ulong	srv_force_recovery_crash;
+#endif /* !NDEBUG */
+>>>>>>> upstream/cluster-7.6
 
 If innodb_fast_shutdown=0, InnoDB shutdown will purge all undo log
 records (except XA PREPARE transactions) and complete the merge of the
@@ -740,10 +781,21 @@ extern bool srv_purge_view_update_only_debug;
 extern bool srv_master_thread_disabled_debug;
 #endif /* UNIV_DEBUG */
 
+<<<<<<< HEAD
 std::chrono::seconds get_srv_fatal_semaphore_wait_threshold();
 extern std::atomic<int> srv_fatal_semaphore_wait_extend;
 
+=======
+<<<<<<< HEAD
+extern ulint srv_fatal_semaphore_wait_threshold;
+#define SRV_SEMAPHORE_WAIT_EXTENSION 7200
+>>>>>>> pr/231
 extern ulint srv_dml_needed_delay;
+=======
+extern ulong	srv_fatal_semaphore_wait_threshold;
+#define SRV_SEMAPHORE_WAIT_EXTENSION	7200
+extern ulint	srv_dml_needed_delay;
+>>>>>>> upstream/cluster-7.6
 
 #ifdef UNIV_HOTBACKUP
 // MAHI: changed from 130 to 1 assuming the apply-log is single threaded
@@ -1225,7 +1277,9 @@ struct export_var_t {
 
 #ifndef UNIV_HOTBACKUP
 /** Thread slot in the thread table.  */
+<<<<<<< HEAD
 struct srv_slot_t {
+<<<<<<< HEAD
   /** Thread type: user, utility etc. */
   srv_thread_type type;
 
@@ -1258,6 +1312,53 @@ struct srv_slot_t {
 
   /** Suspended query thread (only used for user threads). */
   que_thr_t *thr;
+=======
+  srv_thread_type type;   /*!< thread type: user,
+                          utility etc. */
+  ibool in_use;           /*!< TRUE if this slot
+                          is in use */
+  ibool suspended;        /*!< TRUE if the thread is
+                          waiting for the event of this
+                          slot */
+  ib_time_t suspend_time; /*!< time when the thread was
+                          suspended. Initialized by
+                          lock_wait_table_reserve_slot()
+                          for lock wait */
+  ulong wait_timeout;     /*!< wait time that if exceeded
+                          the thread will be timed out.
+                          Initialized by
+                          lock_wait_table_reserve_slot()
+                          for lock wait */
+  os_event_t event;       /*!< event used in suspending
+                          the thread when it has nothing
+                          to do */
+  que_thr_t *thr;         /*!< suspended query thread
+                          (only used for user threads) */
+=======
+struct srv_slot_t{
+	srv_thread_type type;			/*!< thread type: user,
+						utility etc. */
+	ibool		in_use;			/*!< TRUE if this slot
+						is in use */
+	ibool		suspended;		/*!< TRUE if the thread is
+						waiting for the event of this
+						slot */
+	ib_time_monotonic_t	suspend_time;	/*!< time when the thread was
+						suspended. Initialized by
+						lock_wait_table_reserve_slot()
+						for lock wait */
+	ulong		wait_timeout;		/*!< wait time that if exceeded
+						the thread will be timed out.
+						Initialized by
+						lock_wait_table_reserve_slot()
+						for lock wait */
+	os_event_t	event;			/*!< event used in suspending
+						the thread when it has nothing
+						to do */
+	que_thr_t*	thr;			/*!< suspended query thread
+						(only used for user threads) */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 #endif /* !UNIV_HOTBACKUP */
 

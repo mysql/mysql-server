@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,7 +139,11 @@ bool ProcessInfo::isValidUri(const char *scheme, const char *path)
 
 void ProcessInfo::setProcessName(const char * name) {
   size_t len = 0;
+<<<<<<< HEAD
   if (name != nullptr)
+=======
+  if (name != NULL)
+>>>>>>> pr/231
   {
     len = truncateUtf8(name, ProcessNameLength);
     strncpy(process_name, name, len);
@@ -154,7 +162,11 @@ int ProcessInfo::getPid() const {
 
 void ProcessInfo::setUriPath(const char * path) {
   size_t len = 0;
+<<<<<<< HEAD
   if (path != nullptr)
+=======
+  if (path != NULL)
+>>>>>>> pr/231
   {
     len = truncateUtf8(path, UriPathLength);
     strncpy(uri_path, path, len);

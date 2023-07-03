@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +30,12 @@
 #include <utility>
 #include <vector>
 
+<<<<<<< HEAD
 #include "libbinlogevents/include/binlog_event.h"
+=======
+<<<<<<< HEAD
+#include "binlog_event.h"
+>>>>>>> pr/231
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "sql/binlog.h"
@@ -39,6 +48,9 @@
 #include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql/transaction_info.h"
+=======
+#include "debug_sync.h"
+>>>>>>> upstream/cluster-7.6
 
 Logical_clock::Logical_clock() : state(SEQ_UNINIT), offset(0) {}
 
@@ -61,8 +73,14 @@ inline int64 Logical_clock::get_timestamp() {
 
   @return  incremented "absolute" value
  */
+<<<<<<< HEAD
 inline int64 Logical_clock::step() {
   static_assert(SEQ_UNINIT == 0, "");
+=======
+inline int64 Logical_clock::step()
+{
+  assert(SEQ_UNINIT == 0);
+>>>>>>> upstream/cluster-7.6
   DBUG_EXECUTE_IF("logical_clock_step_2", ++state;);
   return ++state;
 }
@@ -104,7 +122,15 @@ inline int64 Logical_clock::set_if_greater(int64 new_val) {
       old_val < new_val) {
   }
 
+<<<<<<< HEAD
   assert(state >= new_val);  // setting can't be done to past
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(state >= new_val);  // setting can't be done to past
+=======
+  assert(state >= new_val); // setting can't be done to past
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   assert(cas_rc || old_val >= new_val);
 
@@ -147,7 +173,17 @@ void Commit_order_trx_dependency_tracker::get_dependency(THD *thd,
                                                          int64 &commit_parent) {
   Transaction_ctx *trn_ctx = thd->get_transaction();
 
+<<<<<<< HEAD
   assert(trn_ctx->sequence_number > m_max_committed_transaction.get_offset());
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(trn_ctx->sequence_number >
+              m_max_committed_transaction.get_offset());
+=======
+  assert(trn_ctx->sequence_number
+         > m_max_committed_transaction.get_offset());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
     Prepare sequence_number and commit_parent relative to the current
     binlog.  This is done by subtracting the binlog's clock offset
@@ -184,9 +220,19 @@ void Commit_order_trx_dependency_tracker::rotate() {
   m_transaction_counter.update_offset(m_transaction_counter.get_timestamp());
 }
 
+<<<<<<< HEAD
 void Commit_order_trx_dependency_tracker::update_max_committed(
     int64 sequence_number) {
+<<<<<<< HEAD
   mysql_mutex_assert_owner(&LOCK_replica_trans_dep_tracker);
+=======
+=======
+void
+Commit_order_trx_dependency_tracker::update_max_committed(int64 sequence_number)
+{
+  mysql_mutex_assert_owner(&LOCK_slave_trans_dep_tracker);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   m_max_committed_transaction.set_if_greater(sequence_number);
 }
 
@@ -214,7 +260,12 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
 
 #ifndef NDEBUG
   /* The writeset of an empty transaction must be empty. */
+<<<<<<< HEAD
   if (is_empty_transaction_in_binlog_cache(thd)) assert(writeset->size() == 0);
+=======
+  if (is_empty_transaction_in_binlog_cache(thd))
+    assert(writeset->size() == 0);
+>>>>>>> pr/231
 #endif
 
   /*
@@ -224,6 +275,7 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
     transaction cascade to other tables. If that happens revert to using the
     COMMIT_ORDER and clear the history to keep data consistent.
   */
+<<<<<<< HEAD
   bool can_use_writesets =
       // empty writeset implies DDL or similar, except if there are missing keys
       (writeset->size() != 0 || write_set_ctx->get_has_missing_keys() ||
@@ -243,23 +295,61 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
   bool exceeds_capacity = false;
 
   if (can_use_writesets) {
+=======
+  bool can_use_writesets=
+    // empty writeset implies DDL or similar, except if there are missing keys
+    (writeset->size() != 0 || write_set_ctx->get_has_missing_keys() ||
+     /*
+       The empty transactions do not need to clear the writeset history, since
+       they can be executed in parallel.
+     */
+     is_empty_transaction_in_binlog_cache(thd)) &&
+    // hashing algorithm for the session must be the same as used by other rows in history
+    (global_system_variables.transaction_write_set_extraction ==
+     thd->variables.transaction_write_set_extraction) &&
+    // must not use foreign keys
+    !write_set_ctx->get_has_related_foreign_keys() &&
+    // it did not broke past the capacity already
+    !write_set_ctx->was_write_set_limit_reached();
+  bool exceeds_capacity= false;
+
+  mysql_mutex_lock(&LOCK_slave_trans_dep_tracker);
+  if (can_use_writesets)
+  {
+>>>>>>> upstream/cluster-7.6
     /*
      Check if adding this transaction exceeds the capacity of the writeset
      history. If that happens, m_writeset_history will be cleared only after
      using its information for current transaction.
     */
+<<<<<<< HEAD
     exceeds_capacity =
         m_writeset_history.size() + writeset->size() > m_opt_max_history_size;
+=======
+    exceeds_capacity=
+      m_writeset_history.size() + writeset->size() > get_opt_max_history_size();
+>>>>>>> upstream/cluster-7.6
 
     /*
      Compute the greatest sequence_number among all conflicts and add the
      transaction's row hashes to the history.
     */
+<<<<<<< HEAD
     int64 last_parent = m_writeset_history_start;
     for (std::vector<uint64>::iterator it = writeset->begin();
          it != writeset->end(); ++it) {
       Writeset_history::iterator hst = m_writeset_history.find(*it);
       if (hst != m_writeset_history.end()) {
+=======
+    DEBUG_SYNC(thd, "wait_in_get_dependency");
+    int64 last_parent= m_writeset_history_start;
+    for (std::set<uint64>::iterator it= writeset->begin();
+         it != writeset->end(); ++it)
+    {
+      Writeset_history::iterator hst= m_writeset_history.find(*it);
+      if (hst != m_writeset_history.end())
+      {
+>>>>>>> upstream/cluster-7.6
         if (hst->second > last_parent && hst->second < sequence_number)
           last_parent = hst->second;
 
@@ -290,6 +380,7 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
     m_writeset_history_start = sequence_number;
     m_writeset_history.clear();
   }
+  mysql_mutex_unlock(&LOCK_slave_trans_dep_tracker);
 }
 
 void Writeset_trx_dependency_tracker::rotate(int64 start) {
@@ -328,7 +419,12 @@ void Transaction_dependency_tracker::get_dependency(THD *thd,
                                                     int64 &commit_parent) {
   sequence_number = commit_parent = 0;
 
+<<<<<<< HEAD
   switch (m_opt_tracking_mode) {
+=======
+  switch(my_atomic_load64(&m_opt_tracking_mode))
+  {
+>>>>>>> upstream/cluster-7.6
     case DEPENDENCY_TRACKING_COMMIT_ORDER:
       m_commit_order.get_dependency(thd, sequence_number, commit_parent);
       break;

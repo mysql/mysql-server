@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -46,9 +70,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** The number of microseconds in a second. */
 static const uint64_t MICROSECS_IN_A_SECOND = 1000000;
 
+<<<<<<< HEAD
 /** The number of nanoseconds in a second. */
 static const uint64_t NANOSECS_IN_A_SECOND [[maybe_unused]] =
     1000 * MICROSECS_IN_A_SECOND;
+=======
+/** The number of microsecnds in a second. */
+static const uint64_t MICROSECS_IN_A_SECOND = 1000000;
+
+/** The number of nanoseconds in a second. */
+static const uint64_t NANOSECS_IN_A_SECOND = 1000 * MICROSECS_IN_A_SECOND;
+>>>>>>> pr/231
 
 #ifdef _WIN32
 /** Native condition variable. */
@@ -64,12 +96,25 @@ struct os_event {
 
   ~os_event() UNIV_NOTHROW;
 
+<<<<<<< HEAD
   friend void os_event_global_init();
   friend void os_event_global_destroy();
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   /**
   Destroys a condition variable */
   void destroy() UNIV_NOTHROW {
+=======
+	friend void os_event_global_init();
+	friend void os_event_global_destroy();
+
+	/**
+	Destroys a condition variable */
+	void destroy() UNIV_NOTHROW
+	{
+>>>>>>> upstream/cluster-7.6
 #ifndef _WIN32
     int ret = pthread_cond_destroy(&cond_var);
     ut_a(ret == 0);
@@ -163,9 +208,19 @@ struct os_event {
     {
       int ret;
 
+<<<<<<< HEAD
       ret = pthread_cond_init(&cond_var, &cond_attr);
+=======
+<<<<<<< HEAD
+      ret = pthread_cond_init(&cond_var, NULL);
+>>>>>>> pr/231
       ut_a(ret == 0);
     }
+=======
+			ret = pthread_cond_init(&cond_var, &cond_attr);
+			ut_a(ret == 0);
+		}
+>>>>>>> upstream/cluster-7.6
 #endif /* _WIN32 */
 
     ut_d(n_objects_alive.fetch_add(1));
@@ -230,7 +285,16 @@ struct os_event {
 #else
       DWORD time_in_ms /*!< Timeout in milliseconds. */
 #endif /* !_WIN32 */
+<<<<<<< HEAD
   );
+=======
+	);
+#ifndef _WIN32
+	/** Returns absolute time until which we should wait if
+	we wanted to wait for time_in_usec microseconds since now. */
+	struct timespec get_wait_timelimit(ulint time_in_usec);
+#endif /* !_WIN32 */
+>>>>>>> upstream/cluster-7.6
 
 #ifndef _WIN32
   /** Returns absolute time until which we should wait if
@@ -255,6 +319,7 @@ struct os_event {
   os_cond_t cond_var; /*!< condition variable is
                       used in waiting for the event */
 
+<<<<<<< HEAD
 #ifndef _WIN32
   /** Attributes object passed to pthread_cond_* functions.
   Defines usage of the monotonic clock if it's available.
@@ -272,10 +337,40 @@ struct os_event {
   static std::atomic_size_t n_objects_alive;
 #endif /* UNIV_DEBUG */
 
+=======
+<<<<<<< HEAD
+ public:
+  event_iter_t event_iter; /*!< For O(1) removal from
+                           list */
+>>>>>>> pr/231
  protected:
   // Disable copying
   os_event(const os_event &);
   os_event &operator=(const os_event &);
+=======
+	os_cond_t		cond_var;	/*!< condition variable is
+						used in waiting for the event */
+#ifndef _WIN32
+	/** Attributes object passed to pthread_cond_* functions.
+	Defines usage of the monotonic clock if it's available.
+	Initialized once, in the os_event::global_init(), and
+	destroyed in the os_event::global_destroy(). */
+	static pthread_condattr_t cond_attr;
+
+	/** True iff usage of the monotonic clock has been successfuly
+	enabled for the cond_attr object. */
+	static bool cond_attr_has_monotonic_clock;
+#endif /* !_WIN32 */
+	static bool global_initialized;
+
+public:
+	event_iter_t		event_iter;	/*!< For O(1) removal from
+						list */
+protected:
+	// Disable copying
+	os_event(const os_event&);
+	os_event& operator=(const os_event&);
+>>>>>>> upstream/cluster-7.6
 };
 
 bool os_event::timed_wait(
@@ -373,6 +468,7 @@ void os_event::wait_low(int64_t reset_sig_count) UNIV_NOTHROW {
 
 #ifndef _WIN32
 
+<<<<<<< HEAD
 struct timespec os_event::get_wait_timelimit(
     std::chrono::microseconds timeout) {
   /* We could get rid of this function if we switched to std::condition_variable
@@ -442,11 +538,82 @@ struct timespec os_event::get_wait_timelimit(
       }
     }
   }
+=======
+struct timespec os_event::get_wait_timelimit(ulint time_in_usec) {
+    for (int i = 0;; i++) {
+	ut_a(i < 10);
+	if (cond_attr_has_monotonic_clock) {
+	    struct timespec tp;
+	    if (clock_gettime(CLOCK_MONOTONIC, &tp) == -1) {
+		int errno_clock_gettime = errno;
+
+#ifndef UNIV_NO_ERR_MSGS
+		ib::error() << "clock_gettime() failed: " <<
+			strerror(errno_clock_gettime);
+#endif /* !UNIV_NO_ERR_MSGS */
+
+		os_thread_sleep(100000); /* 0.1 sec */
+		errno = errno_clock_gettime;
+
+	    } else {
+		const uint64_t increased = tp.tv_nsec +
+				       time_in_usec * 1000;
+		if (increased >= NANOSECS_IN_A_SECOND) {
+		  tp.tv_sec += increased / NANOSECS_IN_A_SECOND;
+		  tp.tv_nsec = increased % NANOSECS_IN_A_SECOND;
+		} else {
+		  tp.tv_nsec = increased;
+		}
+		return (tp);
+	      }
+
+	} else {
+	    struct timeval tv;
+	    if (gettimeofday(&tv, NULL) == -1) {
+		const int errno_gettimeofday = errno;
+
+#ifndef UNIV_NO_ERR_MSGS
+		ib::error( ) << "clock_gettime() failed: " <<
+			strerror(errno_gettimeofday);
+#endif /* !UNIV_NO_ERR_MSGS */
+
+		os_thread_sleep(100000); /* 0.1 sec */
+		errno = errno_gettimeofday;
+
+	    } else {
+		uint64_t increased = tv.tv_usec + uint64_t(time_in_usec);
+
+		if (increased >= MICROSECS_IN_A_SECOND) {
+		    tv.tv_sec += increased / MICROSECS_IN_A_SECOND;
+		    tv.tv_usec = increased % MICROSECS_IN_A_SECOND;
+		} else {
+		    tv.tv_usec = increased;
+		}
+
+		struct timespec abstime;
+		abstime.tv_sec = tv.tv_sec;
+		abstime.tv_nsec = tv.tv_usec * 1000;
+		return (abstime);
+	    }
+	}
+    }
+>>>>>>> pr/231
 }
 
 #endif /* !_WIN32 */
 
+<<<<<<< HEAD
 ulint os_event::wait_time_low(std::chrono::microseconds timeout,
+=======
+/**
+Waits for an event object until it is in the signaled state or
+a timeout is exceeded.
+@param time_in_usec - timeout in microseconds, or OS_SYNC_INFINITE_TIME
+@param reset_sig_count - zero or the value returned by previous call
+        of os_event_reset().
+@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
+ulint os_event::wait_time_low(ulint time_in_usec,
+>>>>>>> pr/231
                               int64_t reset_sig_count) UNIV_NOTHROW {
   bool timed_out = false;
 
@@ -462,12 +629,45 @@ ulint os_event::wait_time_low(std::chrono::microseconds timeout,
 #else
   struct timespec abstime;
 
+<<<<<<< HEAD
   if (timeout != std::chrono::microseconds::max()) {
     abstime = os_event::get_wait_timelimit(timeout);
+=======
+<<<<<<< HEAD
+  if (time_in_usec != OS_SYNC_INFINITE_TIME) {
+    struct timeval tv;
+    int ret;
+    ulint sec;
+    ulint usec;
+
+    ret = ut_usectime(&sec, &usec);
+    ut_a(ret == 0);
+
+    tv.tv_sec = sec;
+    tv.tv_usec = usec;
+
+    tv.tv_usec += time_in_usec;
+
+    if ((ulint)tv.tv_usec >= MICROSECS_IN_A_SECOND) {
+      tv.tv_sec += tv.tv_usec / MICROSECS_IN_A_SECOND;
+      tv.tv_usec %= MICROSECS_IN_A_SECOND;
+    }
+
+    abstime.tv_sec = tv.tv_sec;
+    abstime.tv_nsec = tv.tv_usec * 1000;
+>>>>>>> pr/231
   } else {
     abstime.tv_nsec = 999999999;
     abstime.tv_sec = std::numeric_limits<time_t>::max();
   }
+=======
+	if (time_in_usec != OS_SYNC_INFINITE_TIME) {
+		abstime = os_event::get_wait_timelimit(time_in_usec);
+	} else {
+		abstime.tv_nsec = 999999999;
+		abstime.tv_sec = (time_t) ULINT_MAX;
+	}
+>>>>>>> upstream/cluster-7.6
 
   ut_a(abstime.tv_nsec <= 999999999);
 
@@ -498,9 +698,20 @@ ulint os_event::wait_time_low(std::chrono::microseconds timeout,
 }
 
 /** Constructor */
+<<<<<<< HEAD
 os_event::os_event() UNIV_NOTHROW {
   ut_a(global_initialized);
+=======
+<<<<<<< HEAD
+os_event::os_event(const char *name) UNIV_NOTHROW {
+>>>>>>> pr/231
   init();
+=======
+os_event::os_event(const char* name) UNIV_NOTHROW
+{
+	ut_a(global_initialized);
+	init();
+>>>>>>> upstream/cluster-7.6
 
   m_set = false;
 
@@ -602,6 +813,7 @@ void os_event_destroy(os_event_t &event) /*!< in/own: event to free */
 
 #ifndef _WIN32
 pthread_condattr_t os_event::cond_attr;
+<<<<<<< HEAD
 bool os_event::cond_attr_has_monotonic_clock{false};
 #endif /* !_WIN32 */
 bool os_event::global_initialized{false};
@@ -621,17 +833,40 @@ void os_event_global_init(void) {
   ret = pthread_condattr_setclock(&os_event::cond_attr, CLOCK_MONOTONIC);
   if (ret == 0) {
     os_event::cond_attr_has_monotonic_clock = true;
+=======
+bool os_event::cond_attr_has_monotonic_clock (false);
+#endif /* !_WIN32 */
+bool os_event::global_initialized (false);
+
+
+void os_event_global_init(void) {
+#ifndef _WIN32
+	int ret = pthread_condattr_init(&os_event::cond_attr);
+	ut_a(ret == 0);
+
+#ifdef UNIV_LINUX /* MacOS does not have support. */
+#ifdef HAVE_CLOCK_GETTIME
+	ret = pthread_condattr_setclock(&os_event::cond_attr, CLOCK_MONOTONIC);
+	if (ret == 0) {
+	  os_event::cond_attr_has_monotonic_clock = true;
+>>>>>>> pr/231
   }
 #endif /* HAVE_CLOCK_GETTIME */
 
 #ifndef UNIV_NO_ERR_MSGS
   if (!os_event::cond_attr_has_monotonic_clock) {
+<<<<<<< HEAD
     ib::warn(ER_IB_MSG_CLOCK_MONOTONIC_UNSUPPORTED);
+=======
+    ib::warn() << "CLOCK_MONOTONIC is unsupported, so do not change the" <<
+	          " system time when MySQL is running !";
+>>>>>>> pr/231
   }
 #endif /* !UNIV_NO_ERR_MSGS */
 
 #endif /* UNIV_LINUX */
 #endif /* !_WIN32 */
+<<<<<<< HEAD
   os_event::global_initialized = true;
 }
 
@@ -647,4 +882,20 @@ void os_event_global_destroy(void) {
   ut_ad(ret == 0);
 #endif /* !_WIN32 */
   os_event::global_initialized = false;
+=======
+	os_event::global_initialized = true;
+}
+
+void os_event_global_destroy(void) {
+	ut_a(os_event::global_initialized);
+#ifndef _WIN32
+	os_event::cond_attr_has_monotonic_clock = false;
+#ifdef UNIV_DEBUG
+	const int ret =
+#endif /* UNIV_DEBUG */
+		pthread_condattr_destroy(&os_event::cond_attr);
+	ut_ad(ret == 0);
+#endif /* !_WIN32 */
+	os_event::global_initialized = false;
+>>>>>>> pr/231
 }

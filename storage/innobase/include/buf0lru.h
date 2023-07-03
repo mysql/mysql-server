@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -190,6 +214,7 @@ void buf_LRU_free_one_page(buf_page_t *bpage, bool ignore_content);
 void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+<<<<<<< HEAD
 /** Validates the LRU list. */
 void buf_LRU_validate(void);
 
@@ -204,6 +229,26 @@ encountered.
 @returns map of space instances into count of pages in LRU. */
 Space_References buf_LRU_count_space_references();
 
+=======
+<<<<<<< HEAD
+/** Validates the LRU list.
+ @return true */
+ibool buf_LRU_validate(void);
+=======
+/**********************************************************************//**
+Validates the LRU list.
+@return TRUE */
+ibool
+buf_LRU_validate(void);
+/*==================*/
+/**********************************************************************//**
+Validates the LRU list for one buffer pool instance. */
+void
+buf_LRU_validate_instance(
+/*======================*/
+	buf_pool_t*	buf_pool);	/*!< in: buffer pool instance */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Prints the LRU list. */

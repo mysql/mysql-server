@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1371,15 +1375,37 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
             }
             break;
           }
+<<<<<<< HEAD
           [[fallthrough]];
+=======
+          break;
+<<<<<<< HEAD
+>>>>>>> pr/231
         case HA_READ_KEY_OR_NEXT:
           DBUG_PRINT("info", ("federated HA_READ_KEY_OR_NEXT %d", i));
+=======
+        }
+        // Fall through
+      case HA_READ_KEY_OR_NEXT:
+        DBUG_PRINT("info", ("federated HA_READ_KEY_OR_NEXT %d", i));
+        if (emit_key_part_name(&tmp, key_part) ||
+            tmp.append(STRING_WITH_LEN(" >= ")) ||
+            emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
+              part_length))
+          goto err;
+        break;
+      case HA_READ_BEFORE_KEY:
+        DBUG_PRINT("info", ("federated HA_READ_BEFORE_KEY %d", i));
+        if (store_length >= length)
+        {
+>>>>>>> upstream/cluster-7.6
           if (emit_key_part_name(&tmp, key_part) ||
               tmp.append(STRING_WITH_LEN(" >= ")) ||
               emit_key_part_element(&tmp, key_part, needs_quotes, false, ptr,
                                     part_length))
             goto err;
           break;
+<<<<<<< HEAD
         case HA_READ_BEFORE_KEY:
           DBUG_PRINT("info", ("federated HA_READ_BEFORE_KEY %d", i));
           if (store_length >= length) {
@@ -1401,6 +1427,16 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
           break;
         default:
           DBUG_PRINT("info", ("cannot handle flag %d", ranges[i]->flag));
+=======
+        }
+        // Fall through
+      case HA_READ_KEY_OR_PREV:
+        DBUG_PRINT("info", ("federated HA_READ_KEY_OR_PREV %d", i));
+        if (emit_key_part_name(&tmp, key_part) ||
+            tmp.append(STRING_WITH_LEN(" <= ")) ||
+            emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
+                                  part_length))
+>>>>>>> upstream/cluster-7.6
           goto err;
       }
       if (tmp.append(STRING_WITH_LEN(") "))) goto err;
@@ -1408,8 +1444,17 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
     prepare_for_next_key_part:
       if (store_length >= length) break;
       DBUG_PRINT("info", ("remainder %d", remainder));
+<<<<<<< HEAD
       assert(remainder > 1);
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(remainder > 1);
+>>>>>>> pr/231
       length -= store_length;
+=======
+      assert(remainder > 1);
+      length-= store_length;
+>>>>>>> upstream/cluster-7.6
       /*
         For nullable columns, null-byte is already skipped before, that is
         ptr was incremented by 1. Since store_length still counts null-byte,
@@ -1565,7 +1610,11 @@ int ha_federated::open(const char *name, int, uint, const dd::Table *) {
   if (!(share = get_share(name, table))) return 1;
   thr_lock_data_init(&share->lock, &lock, nullptr);
 
+<<<<<<< HEAD
   assert(mysql == nullptr);
+=======
+  assert(mysql == NULL);
+>>>>>>> pr/231
 
   ref_length = sizeof(MYSQL_RES *) + sizeof(MYSQL_ROW_OFFSET);
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
@@ -2339,7 +2388,11 @@ int ha_federated::read_range_first(const key_range *start_key,
   String sql_query(sql_query_buffer, sizeof(sql_query_buffer), &my_charset_bin);
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(!(start_key == nullptr && end_key == nullptr));
+=======
+  assert(!(start_key == NULL && end_key == NULL));
+>>>>>>> pr/231
 
   sql_query.length(0);
   sql_query.append(share->select_query);
@@ -2537,10 +2590,22 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result) {
   @param[in]  record  record data (unused)
 */
 
+<<<<<<< HEAD
 void ha_federated::position(const uchar *record [[maybe_unused]]) {
   DBUG_TRACE;
 
   assert(stored_result);
+=======
+void ha_federated::position(const uchar *record MY_ATTRIBUTE((unused))) {
+  DBUG_ENTER("ha_federated::position");
+<<<<<<< HEAD
+
+  DBUG_ASSERT(stored_result);
+=======
+  
+  assert(stored_result);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   position_called = true;
   /* Store result set address. */
@@ -2923,7 +2988,11 @@ int ha_federated::real_connect() {
   */
   mysql_mutex_assert_not_owner(&LOCK_open);
 
+<<<<<<< HEAD
   assert(mysql == nullptr);
+=======
+  assert(mysql == NULL);
+>>>>>>> pr/231
 
   if (!(mysql = mysql_init(nullptr))) {
     remote_error_number = HA_ERR_OUT_OF_MEM;
@@ -3052,11 +3121,19 @@ int ha_federated::stash_remote_error() {
   remote_error_number = mysql_errno(mysql);
   strmake(remote_error_buf, mysql_error(mysql), sizeof(remote_error_buf) - 1);
   if (remote_error_number == ER_DUP_ENTRY || remote_error_number == ER_DUP_KEY)
+<<<<<<< HEAD
     return HA_ERR_FOUND_DUPP_KEY;
   if (remote_error_number == ER_NO_REFERENCED_ROW ||
       remote_error_number == ER_NO_REFERENCED_ROW_2)
     return HA_ERR_NO_REFERENCED_ROW;
   return HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM;
+=======
+    DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
+  if (remote_error_number == ER_NO_REFERENCED_ROW ||
+      remote_error_number == ER_NO_REFERENCED_ROW_2)
+    DBUG_RETURN(HA_ERR_NO_REFERENCED_ROW);
+  DBUG_RETURN(HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM);
+>>>>>>> pr/231
 }
 
 bool ha_federated::get_error_message(int error, String *buf) {
@@ -3197,8 +3274,30 @@ int ha_federated::rnd_pos_by_record(uchar *record [[maybe_unused]]) {
   return error;
 }
 
+<<<<<<< HEAD
 struct st_mysql_storage_engine federated_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
+=======
+
+int ha_federated::rnd_pos_by_record(uchar *record) {
+  int error;
+  assert(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+
+  error = ha_rnd_init(false);
+  if (error != 0) return error;
+
+  if (stored_result) {
+    position(record);
+    error = ha_rnd_pos(record, ref);
+  }
+
+  ha_rnd_end();
+  return error;
+}
+
+struct st_mysql_storage_engine federated_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
+>>>>>>> upstream/cluster-7.6
 
 mysql_declare_plugin(federated){
     MYSQL_STORAGE_ENGINE_PLUGIN,

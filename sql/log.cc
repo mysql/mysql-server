@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +116,18 @@
 using std::max;
 using std::min;
 
+<<<<<<< HEAD
 enum enum_slow_query_log_table_field {
+=======
+#ifndef _WIN32
+static int   log_syslog_facility= 0;
+#endif
+static char *log_syslog_ident   = NULL;
+static bool  log_syslog_enabled = false;
+
+enum enum_slow_query_log_table_field
+{
+>>>>>>> upstream/cluster-7.6
   SQLT_FIELD_START_TIME = 0,
   SQLT_FIELD_USER_HOST,
   SQLT_FIELD_QUERY_TIME,
@@ -255,21 +274,302 @@ class Silence_log_table_errors : public Internal_error_handler {
   const char *message() const { return m_message; }
 };
 
+<<<<<<< HEAD
 static void ull2timeval(ulonglong utime, my_timeval *tv) {
   assert(tv != nullptr);
   assert(utime > 0); /* should hold true in this context */
   tv->m_tv_sec = static_cast<int64_t>(utime / 1000000);
   tv->m_tv_usec = utime % 1000000;
+=======
+<<<<<<< HEAD
+static void ull2timeval(ulonglong utime, struct timeval *tv) {
+  DBUG_ASSERT(tv != NULL);
+  DBUG_ASSERT(utime > 0); /* should hold true in this context */
+  tv->tv_sec = static_cast<long>(utime / 1000000);
+  tv->tv_usec = utime % 1000000;
+=======
+
+#ifndef _WIN32
+
+/**
+  On being handed a syslog facility name tries to look it up.
+  If successful, fills in a struct with the facility ID and
+  the facility's canonical name.
+
+  @param f   [in]   Name of the faciltiy we're trying to look up.
+                    Lookup is case-insensitive; leading "log_" is ignored.
+  @param rsf [out]  A buffer in which to return the ID and canonical name.
+
+  @return
+    false           No errors; buffer contains valid result
+    true            Something went wrong, no valid result set returned
+*/
+bool log_syslog_find_facility(char *f, SYSLOG_FACILITY *rsf)
+{
+  if (!f || !*f || !rsf)
+    return true;
+
+  if (strncasecmp(f, "log_", 4) == 0)
+    f+= 4;
+
+  for(int i= 0; syslog_facility[i].name != NULL; i++)
+    if (!strcasecmp(f, syslog_facility[i].name))
+    {
+      rsf->id=   syslog_facility[i].id;
+      rsf->name= syslog_facility[i].name;
+      return false;
+    }
+
+  return true;
+}
+
+#endif
+
+
+/**
+  Close POSIX syslog / Windows EventLog.
+*/
+static void log_syslog_close()
+{
+  if (log_syslog_enabled)
+  {
+    log_syslog_enabled= false;
+    my_closelog();
+  }
+}
+
+
+/**
+  Update syslog / Windows EventLog characteristics (on/off,
+  identify-as, log-PIDs, facility, ...) from global variables.
+
+  @return
+    false  No errors; all characteristics updated.
+    true   Unable to update characteristics.
+*/
+bool log_syslog_update_settings()
+{
+  const char *prefix;
+
+  if (!opt_log_syslog_enable && log_syslog_enabled)
+  {
+    log_syslog_close();
+    return false;
+  }
+
+#ifndef _WIN32
+  {
+    /*
+      make facility
+    */
+
+    SYSLOG_FACILITY rsf = { LOG_DAEMON, "daemon" };
+
+    assert(opt_log_syslog_facility != NULL);
+
+    if (log_syslog_find_facility(opt_log_syslog_facility, &rsf))
+    {
+      log_syslog_find_facility((char *) "daemon", &rsf);
+      sql_print_warning("failed to set syslog facility to \"%s\", "
+                        "setting to \"%s\" (%d) instead.",
+                        opt_log_syslog_facility, rsf.name, rsf.id);
+      rsf.name= NULL;
+    }
+    log_syslog_facility= rsf.id;
+
+    // If NaN, set to the canonical form (cut "log_", fix case)
+    if ((rsf.name != NULL) && (strcmp(opt_log_syslog_facility, rsf.name) != 0))
+      strcpy(opt_log_syslog_facility, rsf.name);
+  }
+
+  /*
+    Logs historically have subtly different names, to meet each platform's
+    conventions -- "mysqld" on unix (via mysqld_safe), and "MySQL" for the
+    Win NT EventLog.
+  */
+  prefix= "mysqld";
+#else
+  prefix= "MySQL";
+#endif
+
+  // tag must not contain directory separators
+  if ((opt_log_syslog_tag != NULL) &&
+      (strchr(opt_log_syslog_tag, FN_LIBCHAR) != NULL))
+    return true;
+
+  if (opt_log_syslog_enable)
+  {
+    /*
+      make ident
+    */
+    char *ident= NULL;
+
+    if ((opt_log_syslog_tag == NULL) ||
+        (*opt_log_syslog_tag == '\0'))
+      ident= my_strdup(PSI_NOT_INSTRUMENTED, prefix, MYF(0));
+    else
+    {
+      size_t l= 6 + 1 + 1 + strlen(opt_log_syslog_tag);
+
+      ident= (char *) my_malloc(PSI_NOT_INSTRUMENTED, l, MYF(0));
+      if (ident)
+        my_snprintf(ident, l, "%s-%s", prefix, opt_log_syslog_tag);
+    }
+
+    // if we succeeded in making an ident, replace the old one
+    if (ident)
+    {
+      char *i= log_syslog_ident;
+      log_syslog_ident= ident;
+      if (i)
+        my_free(i);
+    }
+    else
+      return true;
+
+    log_syslog_close();
+
+    int ret;
+
+    ret= my_openlog(log_syslog_ident,
+#ifndef _WIN32
+                    opt_log_syslog_include_pid ? MY_SYSLOG_PIDS : 0,
+                    log_syslog_facility
+#else
+                    0, 0
+#endif
+                   );
+
+    if (ret == -1)
+      return true;
+
+    log_syslog_enabled= true;
+
+    if (ret == -2)
+    {
+      my_syslog(system_charset_info, ERROR_LEVEL, "could not update log settings!");
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/**
+  Stop using syslog / EventLog. Call as late as possible.
+*/
+void log_syslog_exit(void)
+{
+  log_syslog_close();
+
+  if (log_syslog_ident != NULL)
+  {
+    my_free(log_syslog_ident);
+    log_syslog_ident= NULL;
+  }
+}
+
+
+/**
+  Start using syslog / EventLog.
+
+  @return
+    true   could not open syslog / EventLog with the requested characteristics
+    false  no issues encountered
+*/
+bool log_syslog_init(void)
+{
+  if (log_syslog_update_settings())
+  {
+#ifdef _WIN32
+    const char *l = "Windows EventLog";
+#else
+    const char *l = "syslog";
+#endif
+    sql_print_error("Cannot open %s; check privileges, or start server with --log_syslog=0", l);
+    return true;
+  }
+  return false;
+}
+
+
+static void ull2timeval(ulonglong utime, struct timeval *tv)
+{
+  assert(tv != NULL);
+  assert(utime > 0);      /* should hold true in this context */
+  tv->tv_sec= static_cast<long>(utime / 1000000);
+  tv->tv_usec=utime % 1000000;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 class File_query_log {
   File_query_log(enum_log_table_type log_type);
 
+<<<<<<< HEAD
   ~File_query_log() {
     assert(!is_open());
     if (name != nullptr) {
       my_free(name);
       name = nullptr;
+=======
+/**
+  Make and return an ISO 8601 / RFC 3339 compliant timestamp.
+  Heeds log_timestamps.
+
+  @param buf       A buffer of at least 26 bytes to store the timestamp in
+                   (19 + tzinfo tail + \0)
+  @param seconds   Seconds since the epoch, or 0 for "now"
+
+  @return          length of timestamp (excluding \0)
+*/
+
+int make_iso8601_timestamp(char *buf, ulonglong utime)
+{
+  struct tm  my_tm;
+  char       tzinfo[7]="Z";  // max 6 chars plus \0
+  size_t     len;
+  time_t     seconds;
+
+  if (utime == 0)
+    utime= my_micro_time();
+
+  seconds= utime / 1000000;
+  utime = utime % 1000000;
+
+  if (opt_log_timestamps == 0)
+    gmtime_r(&seconds, &my_tm);
+  else
+  {
+    localtime_r(&seconds, &my_tm);
+
+#ifdef HAVE_TM_GMTOFF
+    /*
+      The field tm_gmtoff is the offset (in seconds) of the time represented
+      from UTC, with positive values indicating east of the Prime Meridian.
+      Originally a BSDism, this is also supported in glibc, so this should
+      cover the majority of our platforms.
+    */
+    long tim= -my_tm.tm_gmtoff;
+#else
+    /*
+       Work this out "manually".
+    */
+    struct tm my_gm;
+    long tim, gm;
+    gmtime_r(&seconds, &my_gm);
+    gm = (my_gm.tm_sec + 60 * (my_gm.tm_min + 60 * my_gm.tm_hour));
+    tim = (my_tm.tm_sec + 60 * (my_tm.tm_min + 60 * my_tm.tm_hour));
+    tim = gm - tim;
+#endif
+    char dir= '-';
+
+    if (tim < 0)
+    {
+      dir= '+';
+      tim= -tim;
+>>>>>>> upstream/cluster-7.6
     }
     mysql_mutex_destroy(&LOCK_log);
   }
@@ -431,10 +731,24 @@ static File mysql_file_real_name_reopen(File file,
 #endif
                                         int open_flags [[maybe_unused]],
                                         const char *opened_file_name,
+<<<<<<< HEAD
                                         char *real_file_name) {
+<<<<<<< HEAD
   assert(file);
   assert(opened_file_name);
   assert(real_file_name);
+=======
+  DBUG_ASSERT(file);
+  DBUG_ASSERT(opened_file_name);
+  DBUG_ASSERT(real_file_name);
+=======
+                                        char *real_file_name)
+{
+  assert(file);
+  assert(opened_file_name);
+  assert(real_file_name);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #ifdef _WIN32
   /* On Windows, O_NOFOLLOW is not supported. Verify real path from fd. */
@@ -495,7 +809,21 @@ bool File_query_log::open() {
   MY_STAT f_stat;
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(name != nullptr);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(name != nullptr);
+=======
+  if (m_log_type == QUERY_LOG_SLOW)
+    log_name= opt_slow_logname;
+  else if (m_log_type == QUERY_LOG_GENERAL)
+    log_name= opt_general_logname;
+  else
+    assert(false);
+  assert(log_name && log_name[0]);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (is_open()) return false;
 
@@ -920,7 +1248,16 @@ bool Log_to_csv_event_handler::log_general(
     default value (which is CURRENT_TIMESTAMP).
   */
 
+<<<<<<< HEAD
   assert(table->field[GLT_FIELD_EVENT_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->field[GLT_FIELD_EVENT_TIME]->type() ==
+              MYSQL_TYPE_TIMESTAMP);
+=======
+  assert(table->field[GLT_FIELD_EVENT_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   ull2timeval(event_utime, &tv);
   table->field[GLT_FIELD_EVENT_TIME]->store_timestamp(&tv);
 
@@ -1034,7 +1371,16 @@ bool Log_to_csv_event_handler::log_slow(
   restore_record(table, s->default_values);  // Get empty record
 
   /* store the time and user values */
+<<<<<<< HEAD
   assert(table->field[SQLT_FIELD_START_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->field[SQLT_FIELD_START_TIME]->type() ==
+              MYSQL_TYPE_TIMESTAMP);
+=======
+  assert(table->field[SQLT_FIELD_START_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   ull2timeval(current_utime, &tv);
   table->field[SQLT_FIELD_START_TIME]->store_timestamp(&tv);
 
@@ -1158,6 +1504,7 @@ bool Log_to_csv_event_handler::activate_log(
   const char *log_name = nullptr;
   size_t log_name_length = 0;
 
+<<<<<<< HEAD
   switch (log_table_type) {
     case QUERY_LOG_GENERAL:
       log_name = GENERAL_LOG_NAME.str;
@@ -1168,7 +1515,27 @@ bool Log_to_csv_event_handler::activate_log(
       log_name_length = SLOW_LOG_NAME.length;
       break;
     default:
+<<<<<<< HEAD
       assert(false);
+=======
+      DBUG_ASSERT(false);
+=======
+  switch (log_table_type)
+  {
+  case QUERY_LOG_GENERAL:
+    table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                              GENERAL_LOG_NAME.str, GENERAL_LOG_NAME.length,
+                              GENERAL_LOG_NAME.str, TL_WRITE_CONCURRENT_INSERT);
+    break;
+  case QUERY_LOG_SLOW:
+    table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                              SLOW_LOG_NAME.str, SLOW_LOG_NAME.length,
+                              SLOW_LOG_NAME.str, TL_WRITE_CONCURRENT_INSERT);
+    break;
+  default:
+    assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   Table_ref table_list(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
@@ -1287,9 +1654,20 @@ void Query_logger::cleanup() {
 }
 
 bool Query_logger::slow_log_write(THD *thd, const char *query,
+<<<<<<< HEAD
                                   size_t query_length, bool aggregate,
                                   ulonglong lock_usec, ulonglong exec_usec) {
   assert(thd->enable_slow_log && opt_slow_log);
+=======
+<<<<<<< HEAD
+                                  size_t query_length) {
+  DBUG_ASSERT(thd->enable_slow_log && opt_slow_log);
+=======
+                                  size_t query_length)
+{
+  assert(thd->enable_slow_log && opt_slow_log);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (!(*slow_log_handler_list)) return false;
 
@@ -1482,8 +1860,18 @@ void Query_logger::init_query_log(enum_log_table_type log_type,
         general_log_handler_list[2] = nullptr;
         break;
     }
+<<<<<<< HEAD
   } else
+<<<<<<< HEAD
     assert(false);
+=======
+    DBUG_ASSERT(false);
+=======
+  }
+  else
+    assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 void Query_logger::set_handlers(ulonglong log_printer) {
@@ -1616,6 +2004,10 @@ bool log_slow_applicable(THD *thd) {
   // The docs say slow queries must be counted even when the log is off.
   if (log_this_query) thd->status_var.long_query_count++;
 
+  if (unlikely(thd->is_error()) &&
+      (unlikely(thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR)))
+    DBUG_RETURN(false);
+
   /*
     Do not log administrative statements unless the appropriate option is
     set.
@@ -1637,9 +2029,22 @@ bool log_slow_applicable(THD *thd) {
 void log_slow_do(THD *thd) {
   THD_STAGE_INFO(thd, stage_logging_slow_query);
 
+<<<<<<< HEAD
   if (thd->rewritten_query().length())
     query_logger.slow_log_write(thd, thd->rewritten_query().ptr(),
                                 thd->rewritten_query().length(), false, 0, 0);
+=======
+<<<<<<< HEAD
+  if (thd->rewritten_query.length())
+    query_logger.slow_log_write(thd, thd->rewritten_query.c_ptr_safe(),
+                                thd->rewritten_query.length());
+=======
+  if (thd->rewritten_query().length())
+    query_logger.slow_log_write(thd,
+                                thd->rewritten_query().ptr(),
+                                thd->rewritten_query().length());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   else
     query_logger.slow_log_write(thd, thd->query().str, thd->query().length,
                                 false, 0, 0);
@@ -1861,8 +2266,20 @@ void flush_error_log_messages() {
   log_sink_buffer_flush(LOG_BUFFER_PROCESS_AND_DISCARD);
 }
 
+<<<<<<< HEAD
 bool init_error_log() {
   assert(!error_log_initialized);
+=======
+<<<<<<< HEAD
+void init_error_log() {
+  DBUG_ASSERT(!error_log_initialized);
+=======
+
+void init_error_log()
+{
+  assert(!error_log_initialized);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
   /*
     ready the default filter/sink so they'll be available before/without
@@ -1878,10 +2295,23 @@ bool init_error_log() {
     return false;
 }
 
+<<<<<<< HEAD
 bool open_error_log(const char *filename, bool get_lock) {
   assert(filename);
+=======
+<<<<<<< HEAD
+bool open_error_log(const char *filename) {
+  DBUG_ASSERT(filename);
+>>>>>>> pr/231
   int retries = 2, errors = 0;
   MY_STAT f_stat;
+=======
+
+bool open_error_log(const char *filename, bool get_lock)
+{
+  assert(filename);
+  int retries= 2, errors= 0;
+>>>>>>> upstream/cluster-7.6
 
   /**
     Make sure, file is writable if it exists. If file does not exists
@@ -1895,8 +2325,26 @@ bool open_error_log(const char *filename, bool get_lock) {
     char path[FN_REFLEN];
     size_t path_length;
 
+<<<<<<< HEAD
     dirname_part(path, filename, &path_length);
+<<<<<<< HEAD
     if (path_length && my_access(path, (F_OK | W_OK))) goto fail;
+=======
+    if (path_length && my_access(path, (F_OK | W_OK))) return true;
+=======
+  if (errors)
+  {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    if (get_lock)
+      mysql_mutex_unlock(&LOCK_error_log);
+    sql_print_error(ER_DEFAULT(ER_CANT_OPEN_ERROR_LOG), filename,
+                    ": ", my_strerror(errbuf, sizeof(errbuf), errno));
+    flush_error_log_messages();
+    if (get_lock)
+      mysql_mutex_lock(&LOCK_error_log);
+    return true;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   do {
@@ -1930,6 +2378,10 @@ fail : {
 
 void destroy_error_log() {
   // We should have flushed before this...
+<<<<<<< HEAD
+=======
+  assert(!error_log_buffering);
+>>>>>>> pr/231
   // ... but play it safe on release builds
   flush_error_log_messages();
   if (error_log_initialized) {
@@ -1977,6 +2429,18 @@ bool reopen_error_log() {
                ""); /* purecov: inspected */
   }
 
+<<<<<<< HEAD
+=======
+bool reopen_error_log()
+{
+  if (!error_log_file)
+    return false;
+  mysql_mutex_lock(&LOCK_error_log);
+  bool result= open_error_log(error_log_file, true);
+  mysql_mutex_unlock(&LOCK_error_log);
+  if (result)
+    my_error(ER_CANT_OPEN_ERROR_LOG, MYF(0), error_log_file, ".", "");
+>>>>>>> upstream/cluster-7.6
   return result;
 }
 
@@ -2332,7 +2796,15 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
   struct st_plugin_int *plugin = static_cast<st_plugin_int *>(*plugin_ptr);
   va_list args;
 
+<<<<<<< HEAD
   assert(level >= MY_ERROR_LEVEL && level <= MY_INFORMATION_LEVEL);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(level >= MY_ERROR_LEVEL && level <= MY_INFORMATION_LEVEL);
+=======
+  assert(level >= MY_ERROR_LEVEL || level <= MY_INFORMATION_LEVEL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   switch (level) {
     case MY_ERROR_LEVEL:

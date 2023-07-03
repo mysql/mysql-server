@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -392,6 +396,7 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   Fragrecord& frag = *fragPtr.p;
+<<<<<<< HEAD
   bool wait_for_scan_lock_record = false;
   if (scan.m_bits & ScanOp::SCAN_LOCK &&
       c_freeScanLock == RNIL)
@@ -419,6 +424,23 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
        */
       c_freeScanLock = c_copy_frag_scan_lock;
     }
+=======
+  if (req->checkLcpStop == AccCheckScan::ZCHECK_LCP_STOP &&
+      scan.m_bits & ScanOp::SCAN_LOCK_WAIT)
+  {
+    /**
+     * Go to sleep for 1 millisecond while we are waiting for a
+     * row lock.
+     */
+    jam();
+    CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+    cls->scanPtrI = scan.m_userPtr;
+    cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+    EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+    jamEntry();
+    ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
+    return;
+>>>>>>> pr/231
   }
   if (req->checkLcpStop == AccCheckScan::ZCHECK_LCP_STOP &&
       (scan.m_bits & ScanOp::SCAN_LOCK_WAIT ||
@@ -554,8 +576,12 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
                           (Uint32*)tablePtr.p,
                           pos.m_realpid_mm,
                           key_mm.m_page_idx,
+<<<<<<< HEAD
 			  pkData,
                           true);
+=======
+			  pkData, true);
+>>>>>>> pr/231
       ndbrequire(ret > 0);
       pkSize = ret;
       dbg((DBTUP, "PK size=%d data=%08x", pkSize, pkData[0]));
@@ -581,7 +607,11 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       switch (lockReq->returnCode) {
       case AccLockReq::Success:
       {
+<<<<<<< HEAD
         jamDebug();
+=======
+        jam();
+>>>>>>> pr/231
         scan.m_state = ScanOp::Locked;
         scan.m_accLockOp = lockReq->accOpPtr;
         break;
@@ -597,6 +627,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
         CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+<<<<<<< HEAD
         c_lqh->execCHECK_LCP_STOP(signal);
         if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
         {
@@ -611,6 +642,12 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
         ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
         /* Ensure that we send NEXT_SCANCONF immediately to close */
         scan.m_state = ScanOp::Last;
+=======
+        EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+        jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
+        return;
+>>>>>>> pr/231
         break;
       }
       case AccLockReq::Refused:
@@ -623,6 +660,7 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
         CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+<<<<<<< HEAD
         c_lqh->execCHECK_LCP_STOP(signal);
         if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
         {
@@ -635,6 +673,32 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
         ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
         /* Ensure that we send NEXT_SCANCONF immediately to close */
         scan.m_state = ScanOp::Last;
+=======
+        EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+        jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
+        return;
+        break;
+      }
+      case AccLockReq::NoFreeOp:
+      {
+        jam();
+        // max ops should depend on max scans (assert only)
+        ndbassert(false);
+        // stay in Current state
+        scan.m_state = ScanOp::Current;
+        CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+        cls->scanPtrI = scan.m_userPtr;
+        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+        EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+        jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
+        return;
+        break;
+      }
+      default:
+        ndbrequire(false);
+>>>>>>> pr/231
         break;
       }
       case AccLockReq::NoFreeOp:
@@ -891,7 +955,11 @@ Dbtup::execACC_ABORTCONF(Signal* signal)
   ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   ScanOp& scan = *scanPtr.p;
   ndbrequire(scan.m_state == ScanOp::Aborting);
+<<<<<<< HEAD
   c_lqh->setup_scan_pointers(scan.m_userPtr, __LINE__);
+=======
+  c_lqh->setup_scan_pointers(scan.m_userPtr);
+>>>>>>> pr/231
   // most likely we are still in lock wait
   if (scan.m_bits & ScanOp::SCAN_LOCK_WAIT) {
     jam();
@@ -1208,8 +1276,12 @@ Uint32
 Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                                     Fix_page *fix_page,
                                     Tuple_header *tuple_header_ptr,
+<<<<<<< HEAD
                                     Uint32 & foundGCI,
                                     Fragrecord *fragPtrP)
+=======
+                                    Uint32 & foundGCI)
+>>>>>>> pr/231
 {
   ScanPos& pos = scan.m_scanPos;
   Local_key& key = pos.m_key;
@@ -1248,6 +1320,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
       jam();
       /* Ensure that LCP_DELETE bit is clear before we move on */
       /* Coverage tested */
+<<<<<<< HEAD
       /**
        * Acquire mutex since otherwise readers could calculate the
        * wrong checksum. Pretty sure change maps need no protection
@@ -1255,6 +1328,8 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
        * in the LDM threads.
        */
       acquire_frag_mutex(fragPtrP, key.m_page_no);
+=======
+>>>>>>> pr/231
       tuple_header_ptr->m_header_bits =
         thbits & (~Tuple_header::LCP_DELETE);
       updateChecksum(tuple_header_ptr,
@@ -1262,7 +1337,10 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      thbits,
                      tuple_header_ptr->m_header_bits);
       fix_page->set_change_maps(key.m_page_idx);
+<<<<<<< HEAD
       release_frag_mutex(fragPtrP, key.m_page_no);
+=======
+>>>>>>> pr/231
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
       DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
@@ -1316,7 +1394,10 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
       /* Ensure that LCP_SKIP bit is clear before we move on */
       jam();
       /* Coverage tested */
+<<<<<<< HEAD
       acquire_frag_mutex(fragPtrP, key.m_page_no);
+=======
+>>>>>>> pr/231
       tuple_header_ptr->m_header_bits =
         thbits & (~Tuple_header::LCP_SKIP);
       DEB_LCP_SKIP(("(%u) 2 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
@@ -1332,7 +1413,10 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      thbits,
                      tuple_header_ptr->m_header_bits);
       fix_page->set_change_maps(key.m_page_idx);
+<<<<<<< HEAD
       release_frag_mutex(fragPtrP, key.m_page_no);
+=======
+>>>>>>> pr/231
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
     }
@@ -1424,7 +1508,10 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
        * If all four conditions are met we could end up here with
        * LCP_SKIP bit set.
        */
+<<<<<<< HEAD
       acquire_frag_mutex(fragPtrP, key.m_page_no);
+=======
+>>>>>>> pr/231
       tuple_header_ptr->m_header_bits =
         thbits & (~Tuple_header::LCP_SKIP);
       DEB_LCP_SKIP(("(%u) 4 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
@@ -1440,7 +1527,10 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      thbits,
                      tuple_header_ptr->m_header_bits);
       fix_page->set_change_maps(key.m_page_idx);
+<<<<<<< HEAD
       release_frag_mutex(fragPtrP, key.m_page_no);
+=======
+>>>>>>> pr/231
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
       ndbrequire(c_lqh->is_full_local_lcp_running());
@@ -2002,7 +2092,11 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
              * We keep the code as comments to be activated when we implement
              * the possibility to release pages in the directory.
              */
+<<<<<<< HEAD
             ndbabort();
+=======
+            ndbrequire(false);
+>>>>>>> pr/231
             /* We will not scan this page, so reset flag immediately */
             // reset_lcp_scanned_bit(fragPtr.p, key.m_page_no);
             // scan.m_last_seen = __LINE__;
@@ -2059,6 +2153,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         if (pos.m_realpid_mm == RNIL)
         {
           Uint32 *next_ptr, *prev_ptr;
+<<<<<<< HEAD
           if (bits & ScanOp::SCAN_LCP)
           {
             jam();
@@ -2066,6 +2161,15 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                               key.m_page_no,
                                               &next_ptr,
                                               &prev_ptr);
+=======
+          pos.m_realpid_mm = getRealpidScan(fragPtr.p,
+                                            key.m_page_no,
+                                            &next_ptr,
+                                            &prev_ptr);
+          if (bits & ScanOp::SCAN_LCP)
+          {
+            jam();
+>>>>>>> pr/231
             Uint32 ret_val = prepare_lcp_scan_page(scan,
                                                    key,
                                                    next_ptr,
@@ -2405,7 +2509,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           {
             acquire_frag_page_map_mutex_read(fragPtr.p);
             Uint32 realpid = getRealpidCheck(fragPtr.p, key.m_page_no);
+<<<<<<< HEAD
             release_frag_page_map_mutex_read(fragPtr.p);
+=======
+>>>>>>> pr/231
             ndbrequire(pos.m_realpid_mm == realpid);
           }
 #endif
@@ -2644,8 +2751,12 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             ret_val = handle_scan_change_page_rows(scan,
                                                    page,
                                                    tuple_header_ptr,
+<<<<<<< HEAD
                                                    foundGCI,
                                                    fragPtr.p);
+=======
+                                                   foundGCI);
+>>>>>>> pr/231
             if (likely(ret_val == ZSCAN_FOUND_TUPLE))
             {
               thbits = tuple_header_ptr->m_header_bits;
@@ -2867,6 +2978,26 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       }
       break;
     }
+<<<<<<< HEAD
+=======
+    loop_count+= 4;
+    if (loop_count >= 512)
+    {
+      jam();
+      if (bits & ScanOp::SCAN_LCP)
+      {
+        jam();
+        c_backup->update_pause_lcp_counter(loop_count);
+        if (!c_backup->check_pause_lcp())
+        {
+          loop_count = 0;
+          continue;
+        }
+        c_backup->pausing_lcp(5,loop_count);
+      }
+      break;
+    }
+>>>>>>> pr/231
   }
   // TODO: at drop table we have to flush and terminate these
   jam();
@@ -3406,7 +3537,11 @@ Dbtup::disk_page_tup_scan_callback(Signal* signal, Uint32 scanPtrI, Uint32 page_
   scanPtr.i = scanPtrI;
   ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   ScanOp& scan = *scanPtr.p;
+<<<<<<< HEAD
   c_lqh->setup_scan_pointers(scan.m_userPtr, __LINE__);
+=======
+  c_lqh->setup_scan_pointers(scan.m_userPtr);
+>>>>>>> pr/231
   ScanPos& pos = scan.m_scanPos;
   // get cache page
   Ptr<GlobalPage> gptr;
@@ -3464,6 +3599,7 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
   signal->setLength(NextScanConf::SignalLengthNoTuple);
   c_lqh->exec_next_scan_conf(signal);
   return;
+<<<<<<< HEAD
 }
 
 void Dbtup::release_scan_lock(ScanLockPtr releasePtr)
@@ -3494,6 +3630,8 @@ void Dbtup::release_c_free_scan_lock()
     checkPoolShrinkNeed(DBTUP_SCAN_LOCK_TRANSIENT_POOL_INDEX,
                         c_scanLockPool);
   }
+=======
+>>>>>>> pr/231
 }
 
 void

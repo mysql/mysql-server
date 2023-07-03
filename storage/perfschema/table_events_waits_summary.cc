@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -96,6 +104,7 @@ bool PFS_index_events_waits_summary_by_instance::match(PFS_rwlock *pfs) {
   return true;
 }
 
+<<<<<<< HEAD
 bool PFS_index_events_waits_summary_by_instance::match(PFS_cond *pfs) {
   if (m_fields >= 1) {
     if (!m_key.match(pfs)) {
@@ -104,6 +113,29 @@ bool PFS_index_events_waits_summary_by_instance::match(PFS_cond *pfs) {
   }
   return true;
 }
+=======
+PFS_engine_table_share_state
+table_events_waits_summary_by_instance::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_events_waits_summary_by_instance::m_share=
+{
+  { C_STRING_WITH_LEN("events_waits_summary_by_instance") },
+  &pfs_truncatable_acl,
+  table_events_waits_summary_by_instance::create,
+  NULL, /* write_row */
+  table_events_waits_summary_by_instance::delete_all_rows,
+  table_all_instr::get_row_count,
+  sizeof(pos_all_instr),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+>>>>>>> upstream/cluster-7.6
 
 bool PFS_index_events_waits_summary_by_instance::match(PFS_file *pfs) {
   if (m_fields >= 1) {
@@ -346,6 +378,7 @@ int table_events_waits_summary_by_instance::read_row_values(TABLE *table,
   /* Set the null bits */
   assert(table->s->null_bytes == 0);
 
+<<<<<<< HEAD
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
@@ -371,7 +404,42 @@ int table_events_waits_summary_by_instance::read_row_values(TABLE *table,
           set_field_ulonglong(f, m_row.m_stat.m_max);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* NAME */
+        set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+        break;
+      case 1: /* OBJECT_INSTANCE */
+        set_field_ulonglong(f, m_row.m_object_instance_addr);
+        break;
+      case 2: /* COUNT */
+        set_field_ulonglong(f, m_row.m_stat.m_count);
+        break;
+      case 3: /* SUM */
+        set_field_ulonglong(f, m_row.m_stat.m_sum);
+        break;
+      case 4: /* MIN */
+        set_field_ulonglong(f, m_row.m_stat.m_min);
+        break;
+      case 5: /* AVG */
+        set_field_ulonglong(f, m_row.m_stat.m_avg);
+        break;
+      case 6: /* MAX */
+        set_field_ulonglong(f, m_row.m_stat.m_max);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

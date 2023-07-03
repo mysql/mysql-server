@@ -1,5 +1,14 @@
+<<<<<<< HEAD
 rem Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+rem Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 rem 
+=======
+rem Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+rem
+>>>>>>> upstream/cluster-7.6
 rem This program is free software; you can redistribute it and/or modify
 rem it under the terms of the GNU General Public License, version 2.0,
 rem as published by the Free Software Foundation.

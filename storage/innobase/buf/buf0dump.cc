@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -232,12 +256,21 @@ SET GLOBAL innodb_buffer_pool_filename='filename';
 static void buf_dump(bool obey_shutdown) {
 #define SHOULD_QUIT() (SHUTTING_DOWN() && obey_shutdown)
 
+<<<<<<< HEAD
   char full_filename[OS_FILE_MAX_PATH];
   char tmp_filename[OS_FILE_MAX_PATH + 11];
   char now[32];
   FILE *f;
   ulint i;
   int ret;
+=======
+	char	full_filename[OS_FILE_MAX_PATH];
+	char	tmp_filename[OS_FILE_MAX_PATH + 11];
+	char	now[32];
+	FILE*	f;
+	ulint	i;
+	int	ret;
+>>>>>>> upstream/cluster-7.6
 
   buf_dump_generate_path(full_filename, sizeof(full_filename));
 
@@ -373,9 +406,16 @@ normal client queries.
 @param[in]      last_activity_count     activity count
 @param[in]      n_io                    number of IO ops done since buffer
                                         pool load has started */
+<<<<<<< HEAD
 static inline void buf_load_throttle_if_needed(
     std::chrono::steady_clock::time_point *last_check_time,
     ulint *last_activity_count, ulint n_io) {
+=======
+UNIV_INLINE
+<<<<<<< HEAD
+void buf_load_throttle_if_needed(ulint *last_check_time,
+                                 ulint *last_activity_count, ulint n_io) {
+>>>>>>> pr/231
   if (n_io % srv_io_capacity < srv_io_capacity - 1) {
     return;
   }
@@ -386,6 +426,24 @@ static inline void buf_load_throttle_if_needed(
     *last_activity_count = srv_get_activity_count();
     return;
   }
+=======
+void
+buf_load_throttle_if_needed(
+/*========================*/
+	ib_time_monotonic_ms_t*	last_check_time,
+	ulint*			last_activity_count,
+	ulint 			n_io)
+{
+	if (n_io % srv_io_capacity < srv_io_capacity - 1) {
+		return;
+	}
+
+	if (*last_check_time == 0 || *last_activity_count == 0) {
+		*last_check_time = ut_time_monotonic_ms();
+		*last_activity_count = srv_get_activity_count();
+		return;
+	}
+>>>>>>> upstream/cluster-7.6
 
   /* srv_io_capacity IO operations have been performed by buffer pool
   load since the last time we were here. */
@@ -397,7 +455,13 @@ static inline void buf_load_throttle_if_needed(
 
   /* There has been other activity, throttle. */
 
+<<<<<<< HEAD
   const auto elapsed_time = std::chrono::steady_clock::now() - *last_check_time;
+=======
+<<<<<<< HEAD
+  ulint now = ut_time_ms();
+  ulint elapsed_time = now - *last_check_time;
+>>>>>>> pr/231
 
   /* Notice that elapsed_time is not the time for the last
   srv_io_capacity IO operations performed by BP load. It is the
@@ -416,14 +480,50 @@ static inline void buf_load_throttle_if_needed(
   The deficiency is that we could have slept at 3., but for this we
   would have to update last_check_time before the
   "cur_activity_count == *last_activity_count" check and calling
+<<<<<<< HEAD
   ut_time_monotonic_ms() that often may turn out to be too expensive. */
+=======
+  ut_time_ms() that often may turn out to be too expensive. */
+=======
+	ib_time_monotonic_ms_t	now = ut_time_monotonic_ms();
+	ulint	elapsed_time = now - *last_check_time;
+
+	/* Notice that elapsed_time is not the time for the last
+	srv_io_capacity IO operations performed by BP load. It is the
+	time elapsed since the last time we detected that there has been
+	other activity. This has a small and acceptable deficiency, e.g.:
+	1. BP load runs and there is no other activity.
+	2. Other activity occurs, we run N IO operations after that and
+	   enter here (where 0 <= N < srv_io_capacity).
+	3. last_check_time is very old and we do not sleep at this time, but
+	   only update last_check_time and last_activity_count.
+	4. We run srv_io_capacity more IO operations and call this function
+	   again.
+	5. There has been more other activity and thus we enter here.
+	6. Now last_check_time is recent and we sleep if necessary to prevent
+	   more than srv_io_capacity IO operations per second.
+	The deficiency is that we could have slept at 3., but for this we
+	would have to update last_check_time before the
+	"cur_activity_count == *last_activity_count" check and calling
+	ut_time_monotonic_ms() that often may turn out to be too expensive. */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (elapsed_time < std::chrono::seconds{1}) {
     std::this_thread::sleep_for(std::chrono::seconds{1} - elapsed_time);
   }
 
+<<<<<<< HEAD
   *last_check_time = std::chrono::steady_clock::now();
+=======
+<<<<<<< HEAD
+  *last_check_time = ut_time_ms();
+>>>>>>> pr/231
   *last_activity_count = srv_get_activity_count();
+=======
+	*last_check_time = ut_time_monotonic_ms();
+	*last_activity_count = srv_get_activity_count();
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Perform a buffer pool load from the file specified by
@@ -567,8 +667,17 @@ static void buf_load() {
     std::sort(dump, dump + dump_n);
   }
 
+<<<<<<< HEAD
   std::chrono::steady_clock::time_point last_check_time;
+=======
+<<<<<<< HEAD
+  ulint last_check_time = 0;
+>>>>>>> pr/231
   ulint last_activity_cnt = 0;
+=======
+	ib_time_monotonic_ms_t		last_check_time = 0;
+	ulint		last_activity_cnt = 0;
+>>>>>>> upstream/cluster-7.6
 
   /* Avoid calling the expensive fil_space_acquire_silent() for each
   page within the same tablespace. dump[] is sorted by (space, page),

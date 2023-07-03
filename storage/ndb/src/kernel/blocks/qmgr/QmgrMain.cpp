@@ -366,6 +366,7 @@ void Qmgr::execCONTINUEB(Signal* signal)
     handleStateChange(signal, tdata0);
     return;
   }
+<<<<<<< HEAD
   case ZCHECK_MULTI_TRP_CONNECT:
   {
     jam();
@@ -390,6 +391,9 @@ void Qmgr::execCONTINUEB(Signal* signal)
     send_trp_keep_alive(signal);
     return;
   }
+=======
+
+>>>>>>> pr/231
   default:
     jam();
     // ZCOULD_NOT_OCCUR_ERROR;
@@ -1287,6 +1291,8 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   addNodePtr.i = cmRegReq->nodeId;
   Uint32 gci = 1;
   Uint32 start_type = ~0;
+
+  ndbrequire(cmRegReq->nodeId < MAX_NODES);
 
   ndbrequire(cmRegReq->nodeId < MAX_NODES);
 
@@ -4749,20 +4755,29 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   Uint32 nodeId = req->nodeId;
 
   ApiVersionConf * conf = (ApiVersionConf *)req;
+<<<<<<< HEAD
   static_assert(sizeof(in6_addr) <= 16,
                 "Cannot fit in6_inaddr into ApiVersionConf:m_inet6_addr");
   NodeInfo nodeInfo = getNodeInfo(nodeId);
   conf->m_inet_addr = 0;
+=======
+  NodeInfo nodeInfo = getNodeInfo(nodeId);
+>>>>>>> pr/231
   if(nodeInfo.m_connected)
   {
     conf->version = nodeInfo.m_version;
     conf->mysql_version = nodeInfo.m_mysql_version;
+<<<<<<< HEAD
     struct in6_addr in= globalTransporterRegistry.get_connect_address(nodeId);
     memcpy(conf->m_inet6_addr, in.s6_addr, sizeof(conf->m_inet6_addr));
     if (IN6_IS_ADDR_V4MAPPED(&in))
     {
       memcpy(&conf->m_inet_addr, &conf->m_inet6_addr[12], sizeof(in_addr));
     }
+=======
+    struct in_addr in= globalTransporterRegistry.get_connect_address(nodeId);
+    conf->m_inet_addr= in.s_addr;
+>>>>>>> pr/231
   }
   else
   {
@@ -10773,4 +10788,77 @@ Qmgr::select_node_id_for_switch(NodeId &node_id, bool check_found)
   ndbrequire(!nodePtr.p->m_is_ready_to_switch_trp);
   jam();
   return true;
+}
+
+
+void
+Qmgr::execNODE_STATE_REP(Signal* signal)
+{
+  jam();
+  const NodeState prevState = getNodeState();
+  SimulatedBlock::execNODE_STATE_REP(signal);
+  const NodeState newState = getNodeState();
+
+  /* Check whether we are changing state */
+  if (prevState.startLevel != newState.startLevel ||
+      prevState.nodeGroup != newState.nodeGroup)
+  {
+    jam();
+    /* Inform APIs */
+    signal->theData[0] = ZNOTIFY_STATE_CHANGE;
+    signal->theData[1] = 1;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+
+  return;
+}
+
+void
+Qmgr::handleStateChange(Signal* signal, Uint32 nodeToNotify)
+{
+  jam();
+  bool take_a_break = false;
+
+  do
+  {
+    const NodeInfo::NodeType nt = getNodeInfo(nodeToNotify).getType();
+
+    if (nt == NodeInfo::API ||
+        nt == NodeInfo::MGM)
+    {
+      jam();
+
+      NodeRecPtr notifyNode;
+      notifyNode.i = nodeToNotify;
+      ptrCheckGuard(notifyNode, MAX_NODES, nodeRec);
+
+      if (notifyNode.p->phase == ZAPI_ACTIVE)
+      {
+        jam();
+        ndbassert(c_connectedNodes.get(nodeToNotify));
+
+        /**
+         * Ok, send an unsolicited API_REGCONF to inform
+         * the API of the state change
+         */
+        set_hb_count(nodeToNotify) = 0;
+        sendApiRegConf(signal, nodeToNotify);
+
+        take_a_break = true;
+      }
+    }
+
+    nodeToNotify++;
+  } while (nodeToNotify < MAX_NODES &&
+           !take_a_break);
+
+  if (nodeToNotify < MAX_NODES)
+  {
+    jam();
+    signal->theData[0] = ZNOTIFY_STATE_CHANGE;
+    signal->theData[1] = nodeToNotify;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+
+  return;
 }

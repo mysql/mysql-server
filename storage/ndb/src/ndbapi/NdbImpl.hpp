@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +74,11 @@ private:
    * objects has been observed.
    *
    * The high usage peaks are most interesting as we want to scale the
+<<<<<<< HEAD
    * free-list to accommodate these - The smaller peaks in between are mostly
+=======
+   * free-list to accomodate these - The smaller peaks inbetween are mostly
+>>>>>>> pr/231
    * considered as 'noise' in this statistics. Which may cause a too low
    * usage statistics to be collected, such that the high usage peaks could
    * not be served from the free-list.
@@ -84,7 +92,11 @@ private:
    * 2) A sampled peak value of 2 or less is considered as 'noise' and
    *    just ignored.
    * 3) Other peak values, less than the current mean:
+<<<<<<< HEAD
    *    These are observed over a period of such smaller peaks, and their
+=======
+   *    These are observed over a periode of such smaller peaks, and their
+>>>>>>> pr/231
    *    max value collected in 'm_sample_max'. When the windows size has expired,
    *    the 'm_sample_max' value is sampled.
    *    Intention with this heuristic is that temporary reduced usage of objects
@@ -115,7 +127,11 @@ private:
       if (m_samples_skipped < max_skipped && m_samples_skipped < 10)
         return;
 
+<<<<<<< HEAD
       // Expired low-value observation period, sample max value seen.
+=======
+      // Expired low-value observation periode, sample max value seen.
+>>>>>>> pr/231
       m_stats.update(m_sample_max);
     }
     m_sample_max = 0;
@@ -138,7 +154,11 @@ private:
   /** Number of consecuitive 'low-peak' values skipped */
   Uint32 m_samples_skipped;
 
+<<<<<<< HEAD
   /** Max sample value seen in the 'm_samples_skipped' period */
+=======
+  /** Max sample value seen in the 'm_samples_skipped' periode */
+>>>>>>> pr/231
   Uint32 m_sample_max;
 
   /** Statistics of peaks in number of obj 'T' in use */

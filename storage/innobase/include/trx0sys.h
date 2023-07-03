@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -524,7 +548,27 @@ struct trx_sys_t {
   /* Members protected by the trx_sys_t::mutex. */
   char pad4[ut::INNODB_CACHE_LINE_SIZE];
 
+<<<<<<< HEAD
   /** @{ */
+=======
+<<<<<<< HEAD
+  Rsegs rsegs; /*!< Vector of pointers to rollback
+               segments. These rsegs are iterated
+               and added to the end under a read
+               lock. They are deleted under a write
+               lock while the vector is adjusted.
+               They are created and destroyed in
+               single-threaded mode. */
+=======
+	trx_rseg_t*	pending_purge_rseg_array[TRX_SYS_N_RSEGS];
+					/*!< Pointer array to rollback segments
+					between slot-1..slot-srv_tmp_undo_logs
+					that are now replaced by non-redo
+					rollback segments. We need them for
+					scheduling purge if any of the rollback
+					segment has pending records to purge. */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /** Mutex protecting most fields in this structure (the default one). */
   TrxSysMutex mutex;

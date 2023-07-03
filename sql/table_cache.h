@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -363,9 +371,19 @@ bool Table_cache::add_used_table(THD *thd, TABLE *table) {
       Allocate new Table_cache_element object and add it to the cache
       and array in TABLE_SHARE.
     */
+<<<<<<< HEAD
     std::string key(table->s->table_cache_key.str,
                     table->s->table_cache_key.length);
+<<<<<<< HEAD
     assert(m_cache.count(key) == 0);
+=======
+    DBUG_ASSERT(m_cache.count(key) == 0);
+=======
+    assert(! my_hash_search(&m_cache,
+                            (uchar*)table->s->table_cache_key.str,
+                            table->s->table_cache_key.length));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     el = new Table_cache_element(table->s);
     m_cache.emplace(key, std::unique_ptr<Table_cache_element>(el));
@@ -456,8 +474,18 @@ TABLE *Table_cache::get_table(THD *thd, const char *key, size_t key_length,
 
   *share = el->share;
 
+<<<<<<< HEAD
   if ((table = el->free_tables.front())) {
+<<<<<<< HEAD
     assert(!table->in_use);
+=======
+    DBUG_ASSERT(!table->in_use);
+=======
+  if ((table= el->free_tables.front()))
+  {
+    assert(!table->in_use);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     /*
       Unlink table from list of unused TABLE objects for this
@@ -478,7 +506,15 @@ TABLE *Table_cache::get_table(THD *thd, const char *key, size_t key_length,
     /* The ex-unused table must be fully functional. */
     assert(table->db_stat && table->file);
     /* The children must be detached from the table. */
+<<<<<<< HEAD
     assert(!table->file->ha_extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(!table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+=======
+    assert(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   return table;
@@ -502,7 +538,15 @@ void Table_cache::release_table(THD *thd, TABLE *table) {
   assert(table->file);
 
   /* We shouldn't put the table to 'unused' list if the share is old. */
+<<<<<<< HEAD
   assert(!table->s->has_old_version());
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!table->s->has_old_version());
+=======
+  assert(! table->s->has_old_version());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   table->in_use = nullptr;
 

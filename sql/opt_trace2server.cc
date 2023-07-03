@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -345,10 +353,24 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp) {
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) ||
       thd->system_thread)
+<<<<<<< HEAD
     return;
   Opt_trace_context *const trace = &thd->opt_trace;
   if (!trace->is_started()) {
     assert(false);
+=======
+    DBUG_VOID_RETURN;
+<<<<<<< HEAD
+  Opt_trace_context *const trace = &thd->opt_trace;
+  if (!trace->is_started()) {
+    DBUG_ASSERT(false);
+=======
+  Opt_trace_context * const trace= &thd->opt_trace;
+  if (!trace->is_started())
+  {
+    assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     trace->disable_I_S_for_this_and_children();
     return;
   }
@@ -367,10 +389,24 @@ void opt_trace_disable_if_no_view_access(THD *thd, Table_ref *view,
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) ||
       thd->system_thread)
+<<<<<<< HEAD
     return;
   Opt_trace_context *const trace = &thd->opt_trace;
   if (!trace->is_started()) {
     assert(false);
+=======
+    DBUG_VOID_RETURN;
+<<<<<<< HEAD
+  Opt_trace_context *const trace = &thd->opt_trace;
+  if (!trace->is_started()) {
+    DBUG_ASSERT(false);
+=======
+  Opt_trace_context * const trace= &thd->opt_trace;
+  if (!trace->is_started())
+  {
+    assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     trace->disable_I_S_for_this_and_children();
     return;
   }
@@ -423,10 +459,24 @@ void opt_trace_disable_if_no_tables_access(THD *thd, Table_ref *tbl) {
   if (likely(!(thd->variables.optimizer_trace &
                Opt_trace_context::FLAG_ENABLED)) ||
       thd->system_thread)
+<<<<<<< HEAD
     return;
   Opt_trace_context *const trace = &thd->opt_trace;
   if (!trace->is_started()) {
     assert(false);
+=======
+    DBUG_VOID_RETURN;
+<<<<<<< HEAD
+  Opt_trace_context *const trace = &thd->opt_trace;
+  if (!trace->is_started()) {
+    DBUG_ASSERT(false);
+=======
+  Opt_trace_context * const trace= &thd->opt_trace;
+  if (!trace->is_started())
+  {
+    assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     trace->disable_I_S_for_this_and_children();
     return;
   }

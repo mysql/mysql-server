@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -700,6 +708,7 @@ NdbIndexStat::get_rpk(const Stat& stat_f,
   DBUG_ENTER("NdbIndexStat::get_rpk");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+<<<<<<< HEAD
   {
     double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
     if (x < 1.0)
@@ -707,6 +716,13 @@ NdbIndexStat::get_rpk(const Stat& stat_f,
     *rpk = x;
     require(stat.m_value.m_unq_factor[k] > 0);
   }
+=======
+  double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
+  if (x < 1.0)
+    x = 1.0;
+  require(rpk != 0);
+  *rpk = x;
+>>>>>>> pr/231
 #ifndef NDEBUG
   char buf[100];
   sprintf(buf, "%.2f", *rpk);

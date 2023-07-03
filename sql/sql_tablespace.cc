@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -206,7 +214,12 @@ bool lock_rec(THD *thd, MDL_request_list *rlst, const LEX_STRING &tsp) {
                    MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
   rlst->push_front(&global_request);
 
+<<<<<<< HEAD
   MDL_request backup_lock_request;
+=======
+  assert(ts_info);
+  handlerton *hton= ts_info->storage_engine;
+>>>>>>> upstream/cluster-7.6
 
   MDL_REQUEST_INIT(&backup_lock_request, MDL_key::BACKUP_LOCK, "", "",
                    MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);

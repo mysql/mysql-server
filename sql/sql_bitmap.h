@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,10 +84,21 @@ class Bitmap {
           const_cast<uchar *>(static_cast<uchar *>(static_cast<void *>(&buf2))),
           map2buff);
     } else {
+<<<<<<< HEAD
       assert(sizeof(buffer) >= 4);
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(sizeof(buffer) >= 4);
+>>>>>>> pr/231
       int4store(
           const_cast<uchar *>(static_cast<uchar *>(static_cast<void *>(&buf2))),
           static_cast<uint32>(map2buff));
+=======
+      assert(sizeof(buffer) >= 4);
+      int4store(const_cast<uchar *>(static_cast<uchar *>
+                                    (static_cast<void *>(&buf2))),
+                static_cast<uint32>(map2buff));
+>>>>>>> upstream/cluster-7.6
     }
 
     bitmap_intersect(&map, &map2);
@@ -123,11 +142,20 @@ class Bitmap {
   }
   ulonglong to_ulonglong() const {
     if (sizeof(buffer) >= 8)
+<<<<<<< HEAD
       return uint8korr(
           static_cast<const uchar *>(static_cast<const void *>(buffer)));
     assert(sizeof(buffer) >= 4);
     return (ulonglong)uint4korr(
         static_cast<const uchar *>(static_cast<const void *>(buffer)));
+=======
+      return uint8korr(static_cast<const uchar *>
+                       (static_cast<const void *>(buffer)));
+    assert(sizeof(buffer) >= 4);
+    return (ulonglong)
+      uint4korr(static_cast<const uchar *>
+                (static_cast<const void *>(buffer)));
+>>>>>>> upstream/cluster-7.6
   }
   uint bits_set() const { return bitmap_bits_set(&map); }
   uint get_first_set() const { return bitmap_get_first_set(&map); }
@@ -145,6 +173,7 @@ class Bitmap<64> {
   void init() { clear_all(); }
   void init(uint prefix_to_set) { set_prefix(prefix_to_set); }
   uint length() const { return 64; }
+<<<<<<< HEAD
   void set_bit(uint n) {
     assert(n < 64);
     map |= ((ulonglong)1) << n;
@@ -154,11 +183,18 @@ class Bitmap<64> {
     map &= ~(((ulonglong)1) << n);
   }
   void set_prefix(uint n) {
+=======
+  void set_bit(uint n) { assert(n < 64); map|= ((ulonglong)1) << n; }
+  void clear_bit(uint n) { assert(n < 64); map&= ~(((ulonglong)1) << n); }
+  void set_prefix(uint n)
+  {
+>>>>>>> upstream/cluster-7.6
     if (n >= length())
       set_all();
     else
       map = (((ulonglong)1) << n) - 1;
   }
+<<<<<<< HEAD
   void set_all() { map = ~(ulonglong)0; }
   void clear_all() { map = (ulonglong)0; }
   void intersect(const Bitmap<64> &map2) { map &= map2.map; }
@@ -171,7 +207,25 @@ class Bitmap<64> {
     return (map & (((ulonglong)1) << n));
   }
   bool is_prefix(uint n) const {
+<<<<<<< HEAD
     assert(n <= 64);
+=======
+    DBUG_ASSERT(n <= 64);
+=======
+  void set_all() { map=~(ulonglong)0; }
+  void clear_all() { map=(ulonglong)0; }
+  void intersect(const Bitmap<64>& map2) { map&= map2.map; }
+  void intersect(ulonglong map2) { map&= map2; }
+  void intersect_extended(ulonglong map2) { map&= map2; }
+  void subtract(const Bitmap<64>& map2) { map&= ~map2.map; }
+  void merge(const Bitmap<64>& map2) { map|= map2.map; }
+  my_bool is_set(uint n) const
+  { assert(n < 64); return MY_TEST(map & (((ulonglong)1) << n)); }
+  my_bool is_prefix(uint n) const
+  {
+    assert(n <= 64);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     if (n < 64)
       return map == (((ulonglong)1) << n) - 1;
     else

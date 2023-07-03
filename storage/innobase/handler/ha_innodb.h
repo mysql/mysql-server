@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -44,9 +68,31 @@ this program; if not, write to the Free Software Foundation, Inc.,
 system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
 
+<<<<<<< HEAD
 /** Clone protocol service. */
 extern SERVICE_TYPE(clone_protocol) * clone_protocol_svc;
 
+=======
+<<<<<<< HEAD
+=======
+/* Deprecation warning text */
+extern const char PARTITION_IN_SHARED_TABLESPACE_WARNING[];
+
+/* "innodb_file_per_table" tablespace name  is reserved by InnoDB in order
+to explicitly create a file_per_table tablespace for the table. */
+extern const char reserved_file_per_table_space_name[];
+
+/* "innodb_system" tablespace name is reserved by InnoDB for the
+system tablespace which uses space_id 0 and stores extra types of
+system pages like UNDO and doublewrite. */
+extern const char reserved_system_space_name[];
+
+/* "innodb_temporary" tablespace name is reserved by InnoDB for the
+predefined shared temporary tablespace. */
+extern const char reserved_temporary_space_name[];
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
 struct innodb_idx_translate_t {
@@ -113,8 +159,16 @@ class ha_innobase : public handler {
 
   uint max_supported_key_length() const override;
 
+<<<<<<< HEAD
   uint max_supported_key_part_length(
       HA_CREATE_INFO *create_info) const override;
+=======
+<<<<<<< HEAD
+  uint max_supported_key_part_length() const;
+=======
+	uint max_supported_key_part_length(HA_CREATE_INFO *create_info) const;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   int open(const char *name, int, uint open_flags,
            const dd::Table *table_def) override;
@@ -308,6 +362,7 @@ class ha_innobase : public handler {
   @retval 0 on success */
   int delete_table(const char *name, const dd::Table *table_def) override;
 
+<<<<<<< HEAD
  protected:
   /** Drop a table.
   @param[in]    name            table name
@@ -680,6 +735,374 @@ class ha_innobase : public handler {
   bool m_mysql_has_locked;
 };
 
+=======
+	char* get_foreign_key_create_info();
+
+	int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list);
+
+	int get_parent_foreign_key_list(
+		THD*			thd,
+		List<FOREIGN_KEY_INFO>*	f_key_list);
+
+	int get_cascade_foreign_key_table_list(
+		THD*				thd,
+		List<st_handler_tablename>*	fk_table_list);
+
+	bool can_switch_engines();
+
+	uint referenced_by_foreign_key();
+
+	void free_foreign_key_create_info(char* str);
+
+	uint lock_count(void) const;
+
+	THR_LOCK_DATA** store_lock(
+		THD*			thd,
+		THR_LOCK_DATA**		to,
+		thr_lock_type		lock_type);
+
+	void init_table_handle_for_HANDLER();
+
+        virtual void get_auto_increment(
+		ulonglong		offset,
+		ulonglong		increment,
+		ulonglong		nb_desired_values,
+		ulonglong*		first_value,
+		ulonglong*		nb_reserved_values);
+
+	virtual bool get_error_message(int error, String *buf);
+
+	virtual bool get_foreign_dup_key(char*, uint, char*, uint);
+
+	uint8 table_cache_type();
+
+	/**
+	Ask handler about permission to cache table during query registration
+	*/
+	my_bool register_query_cache_table(
+		THD*			thd,
+		char*			table_key,
+		size_t			key_length,
+		qc_engine_callback*	call_back,
+		ulonglong*		engine_data);
+
+	bool primary_key_is_clustered() const;
+
+	int cmp_ref(const uchar* ref1, const uchar* ref2);
+
+	/** On-line ALTER TABLE interface @see handler0alter.cc @{ */
+
+	/** Check if InnoDB supports a particular alter table in-place
+	@param altered_table TABLE object for new version of table.
+	@param ha_alter_info Structure describing changes to be done
+	by ALTER TABLE and holding data used during in-place alter.
+
+	@retval HA_ALTER_INPLACE_NOT_SUPPORTED Not supported
+	@retval HA_ALTER_INPLACE_NO_LOCK Supported
+	@retval HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
+		Supported, but requires lock during main phase and
+		exclusive lock during prepare phase.
+	@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
+		Supported, prepare phase requires exclusive lock.  */
+	enum_alter_inplace_result check_if_supported_inplace_alter(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info);
+
+	/** Allows InnoDB to update internal structures with concurrent
+	writes blocked (provided that check_if_supported_inplace_alter()
+	did not return HA_ALTER_INPLACE_NO_LOCK).
+	This will be invoked before inplace_alter_table().
+
+	@param altered_table TABLE object for new version of table.
+	@param ha_alter_info Structure describing changes to be done
+	by ALTER TABLE and holding data used during in-place alter.
+
+	@retval true Failure
+	@retval false Success
+	*/
+	bool prepare_inplace_alter_table(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info);
+
+	/** Alter the table structure in-place with operations
+	specified using HA_ALTER_FLAGS and Alter_inplace_information.
+	The level of concurrency allowed during this operation depends
+	on the return value from check_if_supported_inplace_alter().
+
+	@param altered_table TABLE object for new version of table.
+	@param ha_alter_info Structure describing changes to be done
+	by ALTER TABLE and holding data used during in-place alter.
+
+	@retval true Failure
+	@retval false Success
+	*/
+	bool inplace_alter_table(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info);
+
+	/** Commit or rollback the changes made during
+	prepare_inplace_alter_table() and inplace_alter_table() inside
+	the storage engine. Note that the allowed level of concurrency
+	during this operation will be the same as for
+	inplace_alter_table() and thus might be higher than during
+	prepare_inplace_alter_table(). (E.g concurrent writes were
+	blocked during prepare, but might not be during commit).
+	@param altered_table TABLE object for new version of table.
+	@param ha_alter_info Structure describing changes to be done
+	by ALTER TABLE and holding data used during in-place alter.
+	@param commit true => Commit, false => Rollback.
+	@retval true Failure
+	@retval false Success
+	*/
+	bool commit_inplace_alter_table(
+		TABLE*			altered_table,
+		Alter_inplace_info*	ha_alter_info,
+		bool			commit);
+	/** @} */
+
+	bool check_if_incompatible_data(
+		HA_CREATE_INFO*		info,
+		uint			table_changes);
+
+	/** @name Multi Range Read interface @{ */
+
+	/** Initialize multi range read @see DsMrr_impl::dsmrr_init
+	@param seq
+	@param seq_init_param
+	@param n_ranges
+	@param mode
+	@param buf */
+	int multi_range_read_init(
+		RANGE_SEQ_IF*		seq,
+		void*			seq_init_param,
+		uint			n_ranges,
+		uint			mode,
+		HANDLER_BUFFER*		buf);
+
+	/** Process next multi range read @see DsMrr_impl::dsmrr_next
+	@param range_info */
+	int multi_range_read_next(char** range_info);
+
+	/** Initialize multi range read and get information.
+	@see ha_myisam::multi_range_read_info_const
+	@see DsMrr_impl::dsmrr_info_const
+	@param keyno
+	@param seq
+	@param seq_init_param
+	@param n_ranges
+	@param bufsz
+	@param flags
+	@param cost */
+	ha_rows multi_range_read_info_const(
+		uint			keyno,
+		RANGE_SEQ_IF*		seq,
+		void*			seq_init_param,
+		uint			n_ranges,
+		uint*			bufsz,
+		uint*			flags,
+		Cost_estimate*		cost);
+
+	/** Initialize multi range read and get information.
+	@see DsMrr_impl::dsmrr_info
+	@param keyno
+	@param seq
+	@param seq_init_param
+	@param n_ranges
+	@param bufsz
+	@param flags
+	@param cost */
+	ha_rows multi_range_read_info(
+		uint			keyno,
+		uint			n_ranges,
+		uint			keys,
+		uint*			bufsz,
+		uint*			flags,
+		Cost_estimate*		cost);
+
+	/** Attempt to push down an index condition.
+	@param[in] keyno MySQL key number
+	@param[in] idx_cond Index condition to be checked
+	@return idx_cond if pushed; NULL if not pushed */
+	Item* idx_cond_push(uint keyno, Item* idx_cond);
+	/* @} */
+
+private:
+	void update_thd();
+
+	int change_active_index(uint keynr);
+
+	dberr_t innobase_lock_autoinc();
+
+	ulonglong innobase_peek_autoinc();
+
+	dberr_t innobase_set_max_autoinc(ulonglong auto_inc);
+
+	dberr_t innobase_get_autoinc(ulonglong* value);
+
+	void innobase_initialize_autoinc();
+
+	/** Resets a query execution 'template'.
+	@see build_template() */
+	void reset_template();
+
+	/** Write Row Interface optimized for Intrinsic table. */
+	int intrinsic_table_write_row(uchar* record);
+
+protected:
+	void update_thd(THD* thd);
+
+	int general_fetch(uchar* buf, uint direction, uint match_mode);
+
+	virtual dict_index_t* innobase_get_index(uint keynr);
+
+	/** Builds a 'template' to the prebuilt struct.
+
+	The template is used in fast retrieval of just those column
+	values MySQL needs in its processing.
+	@param whole_row true if access is needed to a whole row,
+	false if accessing individual fields is enough */
+	void build_template(bool whole_row);
+
+	virtual int info_low(uint, bool);
+
+	/**
+	MySQL calls this method at the end of each statement. This method
+	exists for readability only, called from reset(). The name reset()
+	doesn't give any clue that it is called at the end of a statement. */
+	int end_stmt();
+
+	/** Can reuse the template. Mainly used for partition.
+	@retval true Can reuse the mysql_template */
+	virtual bool can_reuse_mysql_template() {
+		return(false);
+	}
+
+
+	/** The multi range read session object */
+	DsMrr_impl		m_ds_mrr;
+
+	/** Save CPU time with prebuilt/cached data structures */
+	row_prebuilt_t*		m_prebuilt;
+
+	/** prebuilt pointer for the right prebuilt. For native
+	partitioning, points to the current partition prebuilt. */
+	row_prebuilt_t**	m_prebuilt_ptr;
+
+	/** Thread handle of the user currently using the handler;
+	this is set in external_lock function */
+	THD*			m_user_thd;
+
+	/** information for MySQL table locking */
+	INNOBASE_SHARE*		m_share;
+
+	/** buffer used in updates */
+	uchar*			m_upd_buf;
+
+	/** the size of upd_buf in bytes */
+	ulint			m_upd_buf_size;
+
+	/** Flags that specificy the handler instance (table) capability. */
+	Table_flags		m_int_table_flags;
+
+	/** Index into the server's primkary keye meta-data table->key_info{} */
+	uint			m_primary_key;
+
+	/** this is set to 1 when we are starting a table scan but have
+	not yet fetched any row, else false */
+	bool			m_start_of_scan;
+
+	/*!< match mode of the latest search: ROW_SEL_EXACT,
+	ROW_SEL_EXACT_PREFIX, or undefined */
+	uint			m_last_match_mode;
+
+	/** number of write_row() calls */
+	uint			m_num_write_row;
+
+        /** If mysql has locked with external_lock() */
+        bool                    m_mysql_has_locked;
+};
+
+
+/* Some accessor functions which the InnoDB plugin needs, but which
+can not be added to mysql/plugin.h as part of the public interface;
+the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
+
+#ifndef INNODB_COMPATIBILITY_HOOKS
+#error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
+#endif
+
+LEX_CSTRING thd_query_unsafe(MYSQL_THD thd);
+size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen);
+
+extern "C" {
+
+CHARSET_INFO *thd_charset(MYSQL_THD thd);
+
+/** Check if a user thread is a replication slave thread
+@param thd user thread
+@retval 0 the user thread is not a replication slave thread
+@retval 1 the user thread is a replication slave thread */
+int thd_slave_thread(const MYSQL_THD thd);
+
+/** Check if a user thread is running a non-transactional update
+@param thd user thread
+@retval 0 the user thread is not running a non-transactional update
+@retval 1 the user thread is running a non-transactional update */
+int thd_non_transactional_update(const MYSQL_THD thd);
+
+/** Check if the thread has attachable transaction
+@param thd user thread
+@retval 0 thd doesn't have attachable trx
+@retval 1 thd has attachable trx */
+int thd_has_active_attachable_trx(const MYSQL_THD thd);
+
+/** Check if the thread is doing a gtid operation implicitly
+@param thd user thread
+@retval 0 thd is not doing any gtid implicit operation
+@retval 1 thd is doing gtid implicit operation */
+int thd_is_operating_gtid_table_implicitly(const MYSQL_THD thd);
+
+/** Get the user thread's binary logging format
+@param thd user thread
+@return Value to be used as index into the binlog_format_names array */
+int thd_binlog_format(const MYSQL_THD thd);
+
+/** Check if binary logging is filtered for thread's current db.
+@param thd Thread handle
+@retval 1 the query is not filtered, 0 otherwise. */
+bool thd_binlog_filter_ok(const MYSQL_THD thd);
+
+/** Check if the query may generate row changes which may end up in the binary.
+@param thd Thread handle
+@retval 1 the query may generate row changes, 0 otherwise.
+*/
+bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
+
+/** Gets information on the durability property requested by a thread.
+@param thd Thread handle
+@return a durability property. */
+durability_properties thd_get_durability_property(const MYSQL_THD thd);
+
+/** Get the auto_increment_offset auto_increment_increment.
+@param thd Thread object
+@param off auto_increment_offset
+@param inc auto_increment_increment */
+void thd_get_autoinc(const MYSQL_THD thd, ulong* off, ulong* inc);
+
+/** Is strict sql_mode set.
+@param thd Thread object
+@return True if sql_mode has strict mode (all or trans), false otherwise. */
+bool thd_is_strict_mode(const MYSQL_THD thd);
+
+/** Get the partition_info working copy.
+@param	thd	Thread object.
+@return	NULL or pointer to partition_info working copy. */
+partition_info*
+thd_get_work_part_info(
+	THD*	thd);
+} /* extern "C" */
+
+>>>>>>> upstream/cluster-7.6
 struct trx_t;
 
 extern const struct _ft_vft ft_vft_result;
@@ -697,11 +1120,19 @@ typedef struct new_ft_info {
   fts_result_t *ft_result;
 } NEW_FT_INFO;
 
+<<<<<<< HEAD
 /** Allocates an InnoDB transaction for a MySQL handler object for DML.
 @param[in]      hton    Innobase handlerton.
 @param[in]      thd     MySQL thd (connection) object.
 @param[in]      trx     transaction to register. */
 void innobase_register_trx(handlerton *hton, THD *thd, trx_t *trx);
+=======
+/* Check if the thread can skip  innodb concurrency check
+@param[in]	row_prebuilt_t*	 prebuilt
+@return true if thread can skip innodb concurrency check*/
+ibool
+skip_concurrency_ticket(row_prebuilt_t* prebuilt);
+>>>>>>> upstream/cluster-7.6
 
 /**
 Allocates an InnoDB transaction for a MySQL handler object.
@@ -774,14 +1205,22 @@ static inline bool tablespace_is_general_space(
 /** Check if tablespace is shared tablespace.
 @param[in]      tablespace_name Name of the tablespace
 @return true if tablespace is a shared tablespace. */
+<<<<<<< HEAD
 static inline bool is_shared_tablespace(const char *tablespace_name) {
   if (tablespace_name != nullptr && tablespace_name[0] != '\0' &&
       (strcmp(tablespace_name, dict_sys_t::s_file_per_table_name) != 0)) {
+=======
+UNIV_INLINE
+bool is_shared_tablespace(const char *tablespace_name) {
+  if (tablespace_name != NULL && tablespace_name[0] != '\0' &&
+      (strcmp(tablespace_name, reserved_file_per_table_space_name) != 0)) {
+>>>>>>> pr/231
     return true;
   }
   return false;
 }
 
+<<<<<<< HEAD
 constexpr uint32_t SIZE_MB = 1024 * 1024;
 
 /** Validate AUTOEXTEND_SIZE attribute for a tablespace.
@@ -814,6 +1253,8 @@ static inline int validate_autoextend_size_value(uint64_t ext_size) {
   return DB_SUCCESS;
 }
 
+=======
+>>>>>>> pr/231
 /** Parse hint for table and its indexes, and update the information
 in dictionary.
 @param[in]      thd             Connection thread

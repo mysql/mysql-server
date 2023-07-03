@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -78,6 +102,13 @@ void trx_set_flush_observer(trx_t *trx, Flush_observer *observer);
 @param[in] msg Detailed error message */
 void trx_set_detailed_error(trx_t *trx, const char *msg);
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+/** Set detailed error message for the transaction. */
+void trx_set_detailed_error(trx_t *trx,       /*!< in: transaction struct */
+                            const char *msg); /*!< in: detailed error message */
+>>>>>>> pr/231
 /** Set detailed error message for the transaction from a file. Note that the
  file is rewinded before reading from it. */
 void trx_set_detailed_error_from_file(
@@ -93,6 +124,43 @@ trx_t *trx_allocate_for_mysql(void);
 /** Creates a transaction object for background operations by the master thread.
  @return own: transaction object */
 trx_t *trx_allocate_for_background(void);
+=======
+/******************************************************************//**
+Set detailed error message for the transaction. */
+void
+trx_set_detailed_error(
+/*===================*/
+	trx_t*		trx,	/*!< in: transaction struct */
+	const char*	msg);	/*!< in: detailed error message */
+/*************************************************************//**
+Set detailed error message for the transaction from a file. Note that the
+file is rewinded before reading from it. */
+void
+trx_set_detailed_error_from_file(
+/*=============================*/
+	trx_t*	trx,	/*!< in: transaction struct */
+	FILE*	file);	/*!< in: file to read message from */
+/****************************************************************//**
+Retrieves the index causing the error from a trx.
+@return the error info */
+UNIV_INLINE
+const dict_index_t*
+trx_get_error_index(
+/*===============*/
+	const trx_t*	trx);	/*!< in: trx object */
+/********************************************************************//**
+Creates a transaction object for MySQL.
+@return own: transaction object */
+trx_t*
+trx_allocate_for_mysql(void);
+/*========================*/
+/********************************************************************//**
+Creates a transaction object for background operations by the master thread.
+@return own: transaction object */
+trx_t*
+trx_allocate_for_background(void);
+/*=============================*/
+>>>>>>> upstream/cluster-7.6
 
 /** Resurrect table locks for resurrected transactions.
 @param[in]      all     false: resurrect locks for dictionary transactions,
@@ -968,6 +1036,7 @@ struct trx_t {
   /*!< true if in
   trx_sys->mysql_trx_list */
 #endif /* UNIV_DEBUG */
+<<<<<<< HEAD
   /*------------------------------*/
 
   /** DB_SUCCESS if no error, otherwise error number.
@@ -1017,6 +1086,56 @@ struct trx_t {
   trx_rsegs_t rsegs;    /* rollback segments for undo logging */
   undo_no_t roll_limit; /*!< least undo number to undo during
                         a partial rollback; 0 otherwise */
+=======
+	/*------------------------------*/
+	dberr_t		error_state;	/*!< 0 if no error, otherwise error
+					number; NOTE That ONLY the thread
+					doing the transaction is allowed to
+					set this field: this is NOT protected
+					by any mutex */
+	const dict_index_t*error_index;	/*!< if the error number indicates a
+					duplicate key error, a pointer to
+					the problematic index is stored here */
+	ulint		error_key_num;	/*!< if the index creation fails to a
+					duplicate key error, a mysql key
+					number of that index is stored here */
+	sess_t*		sess;		/*!< session of the trx, NULL if none */
+	que_t*		graph;		/*!< query currently run in the session,
+					or NULL if none; NOTE that the query
+					belongs to the session, and it can
+					survive over a transaction commit, if
+					it is a stored procedure with a COMMIT
+					WORK statement, for instance */
+	/*------------------------------*/
+	UT_LIST_BASE_NODE_T(trx_named_savept_t)
+			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,
+					oldest first */
+	/*------------------------------*/
+	UndoMutex	undo_mutex;	/*!< mutex protecting the fields in this
+					section (down to undo_no_arr), EXCEPT
+					last_sql_stat_start, which can be
+					accessed only when we know that there
+					cannot be any activity in the undo
+					logs! */
+	undo_no_t	undo_no;	/*!< next undo log record number to
+					assign; since the undo log is
+					private for a transaction, this
+					is a simple ascending sequence
+					with no gaps; thus it represents
+					the number of modified/inserted
+					rows in a transaction */
+	ulint		undo_rseg_space;
+					/*!< space id where last undo record
+					was written */
+	trx_savept_t	last_sql_stat_start;
+					/*!< undo_no when the last sql statement
+					was started: in case of an error, trx
+					is rolled back down to this undo
+					number; see note at undo_mutex! */
+	trx_rsegs_t	rsegs;		/* rollback segments for undo logging */
+	undo_no_t	roll_limit;	/*!< least undo number to undo during
+					a partial rollback; 0 otherwise */
+>>>>>>> upstream/cluster-7.6
 #ifdef UNIV_DEBUG
   bool in_rollback;   /*!< true when the transaction is
                       executing a partial or full rollback */

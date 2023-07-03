@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +101,34 @@ bool PFS_index_file_instances_by_event_name::match(const PFS_file *pfs) {
   return true;
 }
 
+<<<<<<< HEAD
 PFS_engine_table *table_file_instances::create(PFS_engine_table_share *) {
+=======
+PFS_engine_table_share_state
+table_file_instances::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_file_instances::m_share=
+{
+  { C_STRING_WITH_LEN("file_instances") },
+  &pfs_readonly_acl,
+  table_file_instances::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_file_instances::get_row_count,
+  sizeof(PFS_simple_index),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_file_instances::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_file_instances();
 }
 
@@ -208,6 +243,7 @@ int table_file_instances::read_row_values(TABLE *table, unsigned char *,
   /* Set the null bits */
   assert(table->s->null_bytes == 0);
 
+<<<<<<< HEAD
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
@@ -223,7 +259,31 @@ int table_file_instances::read_row_values(TABLE *table, unsigned char *,
           set_field_ulong(f, m_row.m_open_count);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* FILENAME */
+        set_field_varchar_utf8(f, m_row.m_filename, m_row.m_filename_length);
+        break;
+      case 1: /* EVENT_NAME */
+        set_field_varchar_utf8(f, m_row.m_event_name,
+                               m_row.m_event_name_length);
+        break;
+      case 2: /* OPEN_COUNT */
+        set_field_ulong(f, m_row.m_open_count);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

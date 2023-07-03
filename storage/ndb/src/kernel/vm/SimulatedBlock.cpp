@@ -94,6 +94,13 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     c_segmentedFragmentSendList(c_fragmentSendPool),
     c_mutexMgr(* this),
     c_counterMgr(* this)
+<<<<<<< HEAD
+=======
+#ifdef VM_TRACE
+    ,debugOutFile(globalSignalLoggers.getOutputStream())
+    ,debugOut(debugOutFile)
+#endif
+>>>>>>> pr/231
 #ifdef VM_TRACE_TIME
     ,m_currentGsn(0)
 #endif
@@ -4978,7 +4985,11 @@ SimulatedBlock::execLOCAL_ROUTE_ORD(Signal* signal)
     Uint32 gsn = ord->gsn;
     Uint32 prio = ord->prio;
     ndbrequire(dstcnt <= LocalRouteOrd::MaxDstCount);
+<<<<<<< HEAD
     static_assert(25 + LocalRouteOrd::MaxDstCount <= NDB_ARRAY_SIZE(signal->theData));
+=======
+    NDB_STATIC_ASSERT(25 + LocalRouteOrd::MaxDstCount <= NDB_ARRAY_SIZE(signal->theData));
+>>>>>>> pr/231
     memcpy(signal->theData+25, ord->path, 4*dstcnt);
     SectionHandle handle(this, signal);
     if (sigLen > LocalRouteOrd::StaticLen + dstcnt)

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -114,6 +122,7 @@ class ha_archive : public handler {
             HA_CAN_GEOMETRY | HA_UPDATE_NOT_SUPPORTED |
             HA_DELETE_NOT_SUPPORTED);
   }
+<<<<<<< HEAD
   ulong index_flags(uint, uint, bool) const override {
     return HA_ONLY_WHOLE_INDEX;
   }
@@ -127,7 +136,29 @@ class ha_archive : public handler {
     return sizeof(ulonglong);
   }
   int records(ha_rows *num_rows) override {
+=======
+  ulong index_flags(uint, uint, bool) const { return HA_ONLY_WHOLE_INDEX; }
+  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
+                                  ulonglong nb_desired_values,
+                                  ulonglong *first_value,
+                                  ulonglong *nb_reserved_values);
+<<<<<<< HEAD
+  uint max_supported_keys() const { return 1; }
+  uint max_supported_key_length() const { return sizeof(ulonglong); }
+  uint max_supported_key_part_length() const { return sizeof(ulonglong); }
+  virtual int records(ha_rows *num_rows) {
+>>>>>>> pr/231
     *num_rows = share->rows_recorded;
+=======
+  uint max_supported_keys()          const { return 1; }
+  uint max_supported_key_length()    const { return sizeof(ulonglong); }
+  uint max_supported_key_part_length(HA_CREATE_INFO
+                    *create_info MY_ATTRIBUTE((unused))) const
+  { return sizeof(ulonglong); }
+  virtual int records(ha_rows *num_rows)
+  {
+    *num_rows= share->rows_recorded;
+>>>>>>> upstream/cluster-7.6
     return 0;
   }
   int index_init(uint keynr, bool sorted) override;

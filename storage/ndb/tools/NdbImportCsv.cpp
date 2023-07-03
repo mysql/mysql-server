@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1027,6 +1031,57 @@ NdbImportCsv::g_str_state(Parse::State state)
 
 // eval
 
+<<<<<<< HEAD
+=======
+NdbImportCsv::Regex::Regex(NdbImportUtil& util,
+                           const char* pattern,
+                           uint nsub) :
+  m_util(util),
+  m_pattern(pattern),
+  m_nsub(nsub)
+{
+  const CHARSET_INFO* cs = get_charset_by_name("latin1_bin", MYF(0));
+  require(cs != 0);
+  int cflags = MY_REG_EXTENDED;
+  int ret = my_regcomp(&m_regex, m_pattern, cflags, cs);
+  if (ret != 0)
+  {
+    char msg[256];
+    my_regerror(ret, &m_regex, msg, sizeof(msg));
+    m_util.c_opt.m_log_level = 1;
+    log_debug(1, "abort: regcomp error " << ret << ": " << msg);
+    require(false);
+  }
+  require(m_regex.re_nsub == m_nsub);
+  m_subs = new my_regmatch_t[1 + m_nsub];
+}
+
+NdbImportCsv::Regex::~Regex()
+{
+  my_regfree(&m_regex);
+  delete [] m_subs;
+}
+
+bool
+NdbImportCsv::Regex::match(const char* string)
+{
+  int eflags = 0;
+  int ret = my_regexec(&m_regex, string, 1 + m_nsub, m_subs, eflags);
+  if (ret != 0)
+  {
+    if (ret != MY_REG_NOMATCH)
+    {
+      char msg[256];
+      my_regerror(ret, &m_regex, msg, sizeof(msg));
+      m_util.c_opt.m_log_level = 1;
+      log_debug(1, "abort: regexec error " << ret << ": " << msg);
+      require(false);
+    }
+  }
+  return (ret == 0);
+}
+
+>>>>>>> upstream/cluster-7.6
 NdbImportCsv::Eval::Eval(Input& input) :
   m_input(input),
   m_csv(m_input.m_csv),
@@ -1129,7 +1184,17 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line, const uint expect_attrcnt)
 
   // Hidden pk
   const uint auto_inc_field_id = (uint)table.m_autoIncAttrId;
+<<<<<<< HEAD
   const bool hidden_pk = table.m_has_hidden_pk;
+=======
+  bool hidden_pk = table.m_has_hidden_pk;
+
+  uint expect_attrcnt = attrcnt;
+  if (hidden_pk) {
+    require(auto_inc_field_id == attrcnt - 1);
+    expect_attrcnt = attrcnt - 1;
+  }
+>>>>>>> pr/231
 
   Error error;  // local error
   do
@@ -1146,6 +1211,15 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line, const uint expect_attrcnt)
           error, __LINE__, 0,
           "line %" PRIu64 ": too few fields (%u < %u of %u)",
           linenr, fieldcnt, expect_attrcnt, attrcnt);
+      break;
+    }
+    if(fieldcnt == expect_attrcnt + 1 &&
+       line->m_field_list.final_field_is_empty())
+    {
+      /* Handle field terminator at end of line */
+      Field * empty_field = line->m_field_list.pop_back();
+      fieldcnt--;
+      m_input.free_field(empty_field);
       break;
     }
     if(fieldcnt == expect_attrcnt + 1 &&
@@ -1179,13 +1253,21 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line, const uint expect_attrcnt)
       break;
 
     bool no_ai_val_provided = false;
+<<<<<<< HEAD
     if (unlikely(auto_inc_field_id == n) && field != nullptr) {
+=======
+    if (unlikely(auto_inc_field_id == n) && field != 0) {
+>>>>>>> pr/231
       if (field->m_null || field->is_empty())
         no_ai_val_provided = true;
     }
 
     if (unlikely(auto_inc_field_id == n) &&
+<<<<<<< HEAD
         (hidden_pk || no_ai_val_provided || m_input.m_missing_ai_col)) {
+=======
+        (hidden_pk || no_ai_val_provided)) {
+>>>>>>> pr/231
       // No field data provided in the input file, so fill the field with 0
       eval_auto_inc_field(row, line, field, n);
 
@@ -1193,16 +1275,25 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line, const uint expect_attrcnt)
       if (hidden_pk) {
         break;
       }
+<<<<<<< HEAD
       if (m_input.m_missing_ai_col) {
         continue;
       }
+=======
+>>>>>>> pr/231
     } else {
       // Eval user-provided-auto-inc or regular field data
       require(field != 0);
       if (!field->m_null) {
+<<<<<<< HEAD
         eval_field(row, line, field, n);
       } else {
         eval_null(row, line, field, n);
+=======
+        eval_field(row, line, field);
+      } else {
+        eval_null(row, line, field);
+>>>>>>> pr/231
       }
     }
     field = field->next();
@@ -1866,7 +1957,11 @@ ndb_import_csv_parse_timestamp2(const NdbImportCsv::Attr& attr,
 }
 
 void
+<<<<<<< HEAD
 NdbImportCsv::Eval::eval_auto_inc_field(Row* row, Line* line, Field* field, const uint attr_id)
+=======
+NdbImportCsv::Eval::eval_auto_inc_field(Row* row, Line* line, Field* field, uint attr_id)
+>>>>>>> pr/231
 {
   const Table& table = m_input.m_table;
   const Attrs& attrs = table.m_attrs;
@@ -1931,7 +2026,11 @@ NdbImportCsv::Eval::eval_auto_inc_field(Row* row, Line* line, Field* field, cons
       const uint fieldnr = 1 + fieldno;
       m_util.set_error_data(
                             error, __LINE__, 0,
+<<<<<<< HEAD
                             "line %" PRIu64 " field %u: eval_auto_inc_field %s:"
+=======
+                            "line %llu field %u: eval_auto_inc_field %s:"
+>>>>>>> pr/231
                             " failed : bad type",
                             linenr, fieldnr, attr.m_sqltype);
 
@@ -1946,7 +2045,11 @@ NdbImportCsv::Eval::eval_auto_inc_field(Row* row, Line* line, Field* field, cons
 }
 
 void
+<<<<<<< HEAD
 NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field, const uint attr_id)
+=======
+NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field)
+>>>>>>> pr/231
 {
   const Opt& opt = m_util.c_opt;
   const CHARSET_INFO* cs = opt.m_charset;
@@ -2253,7 +2356,11 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field, const uint at
   case NdbDictionary::Column::Unsigned:
     {
       int err = 0;
+<<<<<<< HEAD
       const char* endptr = 0;
+=======
+      char* endptr = 0;
+>>>>>>> pr/231
       uint32 val = (uint32) cs->cset->strntoull10rnd(cs, datac, length,
                                                      true, &endptr, &err);
       if (err == MY_ERRNO_ERANGE)  log_debug(1, "Value out of range.");
@@ -2279,7 +2386,11 @@ NdbImportCsv::Eval::eval_field(Row* row, Line* line, Field* field, const uint at
   case NdbDictionary::Column::Bigunsigned:
     {
       int err = 0;
+<<<<<<< HEAD
       const char* endptr = 0;
+=======
+      char* endptr = 0;
+>>>>>>> pr/231
       uint64 val = (uint64) cs->cset->strntoull10rnd(cs, datac, length,
                                                      true, &endptr, &err);
       if (err == MY_ERRNO_ERANGE)  log_debug(1, "Value out of range.");
@@ -2773,7 +2884,11 @@ NdbImportCsv::Eval::eval_null(Row* row, Line* line, Field* field, const uint att
   // user wants the counts from 1
   const uint64 linenr = 1 + lineno;
   const uint fieldnr = 1 + fieldno;
+<<<<<<< HEAD
   const Attr& attr = attrs[attr_id];
+=======
+  const Attr& attr = attrs[fieldno];
+>>>>>>> pr/231
   Error error;  // local error
   do
   {
@@ -2781,7 +2896,11 @@ NdbImportCsv::Eval::eval_null(Row* row, Line* line, Field* field, const uint att
     {
       m_util.set_error_data(
         error, __LINE__, 0,
+<<<<<<< HEAD
         "line %" PRIu64 " field %u: setting non-nullable attr to NULL",
+=======
+        "line %llu field %u: setting non-nullable attr to NULL",
+>>>>>>> pr/231
         linenr, fieldnr);
       break;
     }
@@ -2801,6 +2920,18 @@ operator<<(NdbOut& out, const NdbImportCsv::Eval& eval)
   return out;
 }
 
+<<<<<<< HEAD
+=======
+NdbOut&
+operator<<(NdbOut& out, const NdbImportCsv::Regex& regex)
+{
+  out << "regex";
+  out << " pattern=" << regex.m_pattern;
+  out << " nsub=" << regex.m_nsub << " ";
+  return out;
+}
+
+>>>>>>> upstream/cluster-7.6
 // output
 
 NdbImportCsv::Output::Output(NdbImportCsv& csv,

@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,6 +116,7 @@ static struct my_option my_long_options[] =
   { "initial-start", NDB_OPT_NOSHORT,
     "Perform a partial initial start of the cluster.  "
     "Each node should be started with this option, as well as --nowait-nodes",
+<<<<<<< HEAD
     &opt_initialstart, nullptr, nullptr, GET_BOOL, NO_ARG,
     0, 0, 0, nullptr, 0, nullptr },
   { "bind-address", NDB_OPT_NOSHORT, "Local bind address",
@@ -142,6 +151,36 @@ static struct my_option my_long_options[] =
 #endif
   },
   NdbStdOpt::end_of_options
+=======
+    (uchar**) &opt_initialstart, (uchar**) &opt_initialstart, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "bind-address", NDB_OPT_NOSHORT,
+    "Local bind address",
+    (uchar**) &opt_bind_address, (uchar**) &opt_bind_address, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "verbose", 'v',
+    "Write more log messages",
+    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "report-fd", 256,
+    "INTERNAL: fd where to write extra shutdown status",
+    (uchar**) &opt_report_fd, (uchar**) &opt_report_fd, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, INT_MAX, 0, 0, 0 },
+  { "allocated-nodeid", 256,
+    "INTERNAL: nodeid allocated by angel process",
+    (uchar**) &opt_allocated_nodeid, (uchar**) &opt_allocated_nodeid, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, UINT_MAX, 0, 0, 0 },
+  { "angel-pid", NDB_OPT_NOSHORT,
+    "INTERNAL: angel process id",
+    (uchar**) &opt_angel_pid, (uchar **) &opt_angel_pid, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, UINT_MAX, 0, 0, 0 },
+  { "logbuffer-size", NDB_OPT_NOSHORT,
+    "Size of the log buffer for data node ndb_x_out.log",
+    (uchar**) &opt_logbuffer_size, (uchar**) &opt_logbuffer_size, 0,
+    GET_ULONG, REQUIRED_ARG, 32768, 2048, ULONG_MAX, 0, 0, 0
+  },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+>>>>>>> pr/231
 };
 
 const char *load_default_groups[]= { "mysql_cluster", "ndbd", 0 };
@@ -179,9 +218,20 @@ real_main(int argc, char** argv)
   // Turn on max loglevel for startup messages
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
 
+<<<<<<< HEAD
   opts.set_usage_funcs(short_usage_sub);
 
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+=======
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
+  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
+
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   opt_debug= "d:t:O,/tmp/ndbd.trace";
 #endif
 
@@ -195,6 +245,7 @@ real_main(int argc, char** argv)
     original_args.push_back(argv[i]);
   }
 
+<<<<<<< HEAD
   /**
  * Running on forked child, reset password state to avoid invalid password
  * source during ndb_password_from_stdin_option::post_process()
@@ -208,6 +259,16 @@ real_main(int argc, char** argv)
 
   int ho_error = opts.handle_options(ndb_std_get_one_option);
   if (ho_error != 0) {
+=======
+<<<<<<< HEAD
+  int ho_error;
+  if ((ho_error=opts.handle_options()))
+=======
+  int ho_error=handle_options(&argc, &argv, my_long_options,
+                              ndb_std_get_one_option);
+  if (ho_error != 0) {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     exit(ho_error);
   }
 

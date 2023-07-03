@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +156,34 @@ bool PFS_index_setup_consumers::match(row_setup_consumers *row) {
   return true;
 }
 
+<<<<<<< HEAD
 PFS_engine_table *table_setup_consumers::create(PFS_engine_table_share *) {
+=======
+PFS_engine_table_share_state
+table_setup_consumers::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_setup_consumers::m_share=
+{
+  { C_STRING_WITH_LEN("setup_consumers") },
+  &pfs_updatable_acl,
+  table_setup_consumers::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_setup_consumers::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_setup_consumers::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_setup_consumers();
 }
 
@@ -186,8 +221,17 @@ int table_setup_consumers::rnd_next(void) {
 
 int table_setup_consumers::rnd_pos(const void *pos) {
   set_position(pos);
+<<<<<<< HEAD
   assert(m_pos.m_index < COUNT_SETUP_CONSUMERS);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(m_pos.m_index < COUNT_SETUP_CONSUMERS);
+>>>>>>> pr/231
   m_row = &all_setup_consumers_data[m_pos.m_index];
+=======
+  assert(m_pos.m_index < COUNT_SETUP_CONSUMERS);
+  m_row= &all_setup_consumers_data[m_pos.m_index];
+>>>>>>> upstream/cluster-7.6
   return 0;
 }
 
@@ -224,6 +268,7 @@ int table_setup_consumers::read_row_values(TABLE *table, unsigned char *,
   /* Set the null bits */
   assert(table->s->null_bytes == 0);
 
+<<<<<<< HEAD
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
@@ -234,7 +279,27 @@ int table_setup_consumers::read_row_values(TABLE *table, unsigned char *,
           set_field_enum(f, (*m_row->m_enabled_ptr) ? ENUM_YES : ENUM_NO);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* NAME */
+        set_field_varchar_utf8(f, m_row->m_name.str, m_row->m_name.length);
+        break;
+      case 1: /* ENABLED */
+        set_field_enum(f, (*m_row->m_enabled_ptr) ? ENUM_YES : ENUM_NO);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -250,6 +315,7 @@ int table_setup_consumers::update_row_values(TABLE *table,
 
   assert(m_row);
 
+<<<<<<< HEAD
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
@@ -260,7 +326,29 @@ int table_setup_consumers::update_row_values(TABLE *table,
           break;
         }
         default:
+<<<<<<< HEAD
           return HA_ERR_WRONG_COMMAND;
+=======
+          DBUG_ASSERT(false);
+=======
+  for (; (f= *fields) ; fields++)
+  {
+    if (bitmap_is_set(table->write_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* NAME */
+        return HA_ERR_WRONG_COMMAND;
+      case 1: /* ENABLED */
+      {
+        value= (enum_yes_no) get_field_enum(f);
+        *m_row->m_enabled_ptr= (value == ENUM_YES) ? true : false;
+        break;
+      }
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

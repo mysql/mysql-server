@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -77,8 +85,40 @@ PFS_engine_table_share table_ews_by_thread_by_event_name::m_share = {
     false /* m_in_purgatory */
 };
 
+<<<<<<< HEAD
 PFS_engine_table *table_ews_by_thread_by_event_name::create(
     PFS_engine_table_share *) {
+=======
+TABLE_FIELD_DEF
+table_ews_by_thread_by_event_name::m_field_def=
+{ 7, field_types };
+
+PFS_engine_table_share_state
+table_ews_by_thread_by_event_name::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_ews_by_thread_by_event_name::m_share=
+{
+  { C_STRING_WITH_LEN("events_waits_summary_by_thread_by_event_name") },
+  &pfs_truncatable_acl,
+  table_ews_by_thread_by_event_name::create,
+  NULL, /* write_row */
+  table_ews_by_thread_by_event_name::delete_all_rows,
+  table_ews_by_thread_by_event_name::get_row_count,
+  sizeof(pos_ews_by_thread_by_event_name),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table*
+table_ews_by_thread_by_event_name::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_ews_by_thread_by_event_name();
 }
 
@@ -131,6 +171,7 @@ int table_ews_by_thread_by_event_name::rnd_next(void) {
   PFS_instr_class *instr_class;
   bool has_more_thread = true;
 
+<<<<<<< HEAD
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
     if (thread != nullptr) {
@@ -164,6 +205,49 @@ int table_ews_by_thread_by_event_name::rnd_next(void) {
             assert(false);
             instr_class = nullptr;
             break;
+=======
+  for (m_pos.set_at(&m_next_pos);
+       has_more_thread;
+       m_pos.next_thread())
+  {
+    thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
+    if (thread != NULL)
+    {
+      for ( ;
+           m_pos.has_more_view();
+           m_pos.next_view())
+      {
+        switch (m_pos.m_index_2)
+        {
+        case pos_ews_by_thread_by_event_name::VIEW_MUTEX:
+          instr_class= find_mutex_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_RWLOCK:
+          instr_class= find_rwlock_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_COND:
+          instr_class= find_cond_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_FILE:
+          instr_class= find_file_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_TABLE:
+          instr_class= find_table_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_SOCKET:
+          instr_class= find_socket_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_IDLE:
+          instr_class= find_idle_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_METADATA:
+          instr_class= find_metadata_class(m_pos.m_index_3);
+          break;
+        default:
+          assert(false);
+          instr_class= NULL;
+          break;
+>>>>>>> upstream/cluster-7.6
         }
 
         if (instr_class != nullptr) {
@@ -183,6 +267,7 @@ int table_ews_by_thread_by_event_name::rnd_pos(const void *pos) {
 
   set_position(pos);
 
+<<<<<<< HEAD
   thread = global_thread_container.get(m_pos.m_index_1);
   if (thread != nullptr) {
     switch (m_pos.m_index_2) {
@@ -211,8 +296,47 @@ int table_ews_by_thread_by_event_name::rnd_pos(const void *pos) {
         instr_class = find_metadata_class(m_pos.m_index_3);
         break;
       default:
+<<<<<<< HEAD
         assert(false);
         instr_class = nullptr;
+=======
+        DBUG_ASSERT(false);
+        instr_class = NULL;
+=======
+  thread= global_thread_container.get(m_pos.m_index_1);
+  if (thread != NULL)
+  {
+    switch (m_pos.m_index_2)
+    {
+    case pos_ews_by_thread_by_event_name::VIEW_MUTEX:
+      instr_class= find_mutex_class(m_pos.m_index_3);
+      break;
+    case pos_ews_by_thread_by_event_name::VIEW_RWLOCK:
+      instr_class= find_rwlock_class(m_pos.m_index_3);
+      break;
+    case pos_ews_by_thread_by_event_name::VIEW_COND:
+      instr_class= find_cond_class(m_pos.m_index_3);
+      break;
+    case pos_ews_by_thread_by_event_name::VIEW_FILE:
+      instr_class= find_file_class(m_pos.m_index_3);
+      break;
+    case pos_ews_by_thread_by_event_name::VIEW_TABLE:
+      instr_class= find_table_class(m_pos.m_index_3);
+      break;
+    case pos_ews_by_thread_by_event_name::VIEW_SOCKET:
+      instr_class= find_socket_class(m_pos.m_index_3);
+      break;
+    case pos_ews_by_thread_by_event_name::VIEW_IDLE:
+      instr_class= find_idle_class(m_pos.m_index_3);
+      break;
+    case pos_ews_by_thread_by_event_name::VIEW_METADATA:
+      instr_class= find_metadata_class(m_pos.m_index_3);
+      break;
+    default:
+      assert(false);
+      instr_class= NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
 
     if (instr_class) {

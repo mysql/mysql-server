@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -268,7 +292,44 @@ static bool row_upd_index_is_referenced(dict_index_t *index) /*!< in: index */
     }
   }
 
+<<<<<<< HEAD
   err = DB_SUCCESS;
+=======
+			if (foreign_table != NULL &&
+			   (dict_table_is_discarded(foreign_table)
+			    || fil_space_is_being_truncated(
+						foreign_table->space))) {
+				continue;
+			}
+
+			/* NOTE that if the thread ends up waiting for a lock
+			we will release dict_operation_lock temporarily!
+			But the counter on the table protects 'foreign' from
+			being dropped while the check is running. */
+
+
+                        if (foreign_table) {
+				os_atomic_increment_ulint(&foreign_table->n_foreign_key_checks_running, 1);
+			}
+
+			err = row_ins_check_foreign_constraint(
+				FALSE, foreign, table, entry, thr);
+
+                        if (foreign_table) {
+				os_atomic_decrement_ulint(&foreign_table->n_foreign_key_checks_running, 1);
+			}
+			if (ref_table != NULL) {
+				dict_table_close(ref_table, FALSE, FALSE);
+			}
+
+			if (err != DB_SUCCESS) {
+				goto func_exit;
+			}
+		}
+	}
+
+	err = DB_SUCCESS;
+>>>>>>> upstream/cluster-7.6
 
 func_exit:
   mem_heap_free(heap);
@@ -823,8 +884,14 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
                                 DB_TRX_ID and DB_ROLL_PTR
 @param[in]      trx             transaction (for diagnostics),
                                 or NULL
+<<<<<<< HEAD
 @param[in]      heap            memory heap from which allocated
 @param[in]      mysql_table     NULL, or mysql table object when
+=======
+@param[in]	heap		memory heap from which allocated
+@param[in]	mysql_table	NULL, or mysql table object when
+<<<<<<< HEAD
+>>>>>>> pr/231
                                 user thread invokes dml
 @param[out]     error           error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
@@ -846,6 +913,36 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
   ulint n_fld = dtuple_get_n_fields(entry);
   ulint n_v_fld = dtuple_get_n_v_fields(entry);
   rec_offs_init(offsets_);
+=======
+				user thread invokes dml
+@param[out]	error		error number in case of failure
+@return own: update vector of differing fields, excluding roll ptr and
+trx id,if error is not equal to DB_SUCCESS, return NULL */
+upd_t*
+row_upd_build_difference_binary(
+	dict_index_t*	index,
+	const dtuple_t*	entry,
+	const rec_t*	rec,
+	const ulint*	offsets,
+	bool		no_sys,
+	trx_t*		trx,
+	mem_heap_t*	heap,
+	TABLE*		mysql_table,
+	dberr_t*	error)
+{
+	upd_field_t*	upd_field;
+	dfield_t*	dfield;
+	const byte*	data;
+	ulint		len;
+	upd_t*		update;
+	ulint		n_diff;
+	ulint		trx_id_pos;
+	ulint		i;
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint		n_fld = dtuple_get_n_fields(entry);
+	ulint		n_v_fld = dtuple_get_n_v_fields(entry);
+	rec_offs_init(offsets_);
+>>>>>>> upstream/cluster-7.6
 
   /* This function is used only for a clustered index */
   ut_a(index->is_clustered());
@@ -948,8 +1045,19 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
                                        static_cast<byte *>(vfield->data))) {
         upd_field = upd_get_nth_field(update, n_diff);
 
+<<<<<<< HEAD
         upd_field->old_v_val = static_cast<dfield_t *>(
             mem_heap_alloc(heap, sizeof *upd_field->old_v_val));
+=======
+			dfield_t*	vfield = innobase_get_computed_value(
+				update->old_vrow, col, index,
+				&v_heap, heap, NULL, thd, mysql_table,
+				NULL, NULL, NULL);
+			if (vfield == NULL) {
+				*error = DB_COMPUTE_VALUE_FAILED;
+				return(NULL);
+			}
+>>>>>>> upstream/cluster-7.6
 
         dfield_copy(upd_field->old_v_val, vfield);
 
@@ -1854,6 +1962,7 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
         break;
       }
 
+<<<<<<< HEAD
       /* Not updated */
       if (i >= n_upd) {
         /* If this is an update, then the value
@@ -1893,6 +2002,55 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
   if (heap) {
     mem_heap_free(heap);
   }
+=======
+				dfield_copy_data(dfield, upd_field->old_v_val);
+				dfield_dup(dfield, node->heap);
+				break;
+			}
+
+			/* Not updated */
+			if (i >= n_upd) {
+				/* If this is an update, then the value
+				should be in update->old_vrow */
+				if (update) {
+					if (update->old_vrow == NULL) {
+						/* This only happens in
+						cascade update. And virtual
+						column can't be affected,
+						so it is Ok to set it to NULL */
+						dfield_set_null(dfield);
+					} else {
+						dfield_t*       vfield
+							= dtuple_get_nth_v_field(
+								update->old_vrow,
+								col_no);
+						dfield_copy_data(dfield, vfield);
+						dfield_dup(dfield, node->heap);
+						if (dfield_is_null(dfield)) {
+						  innobase_get_computed_value(
+							node->row, col, index,
+							&heap, node->heap, NULL,
+							thd, mysql_table, NULL,
+							NULL, NULL);
+						}
+					}
+				} else {
+					/* Need to compute, this happens when
+					deleting row */
+					innobase_get_computed_value(
+						node->row, col, index,
+						&heap, node->heap, NULL,
+						thd, mysql_table, NULL,
+						NULL, NULL);
+				}
+			}
+		}
+	}
+
+	if (heap) {
+		mem_heap_free(heap);
+	}
+>>>>>>> upstream/cluster-7.6
 }
 
 void row_upd_store_row(upd_node_t *node, THD *thd, TABLE *mysql_table) {
@@ -2652,11 +2810,18 @@ static inline bool row_upd_clust_rec_by_insert_inherit(
         err = row_upd_check_references_constraints(node, pcur, table, index,
                                                    offsets, thr, mtr);
 
+<<<<<<< HEAD
         if (err != DB_SUCCESS) {
           goto err_exit;
         }
       }
   }
+=======
+	err = row_ins_clust_index_entry(
+		index, entry, thr,
+		entry->get_n_ext(), false);
+	node->state = UPD_NODE_INSERT_CLUSTERED;
+>>>>>>> upstream/cluster-7.6
 
   mtr_commit(mtr);
 

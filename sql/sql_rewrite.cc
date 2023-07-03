@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1332,11 +1340,27 @@ bool Rewriter_grant::rewrite(String &rlb) const {
           the order we'll recreate the privilege: UPDATE (f2, f3, f1)
         */
 
+<<<<<<< HEAD
         while ((column = column_iter++)) {
           if (column->rights & priv) {
             comma_maybe(&cols, &comma_inner);
+<<<<<<< HEAD
             append_identifier(m_thd, &cols, column->column.ptr(),
                               column->column.length());
+=======
+            cols.append(column->column.ptr(), column->column.length());
+=======
+        while ((column= column_iter++))
+        {
+          if (column->rights & priv)
+          {
+            if (comma_inner)
+              cols.append(STRING_WITH_LEN(", "));
+            else
+              comma_inner= TRUE;
+            append_identifier(thd, &cols, column->column.ptr(), column->column.length());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
           }
         }
         cols.append(STRING_WITH_LEN(")"));
@@ -1454,9 +1478,124 @@ bool Rewriter_grant::rewrite(String &rlb) const {
   return true;
 }
 
+<<<<<<< HEAD
 Rewriter_change_replication_source::Rewriter_change_replication_source(
     THD *thd, Consumer_type type)
     : I_rewriter(thd, type) {}
+=======
+/**
+  Rewrite CREATE/ALTER USER statement.
+
+<<<<<<< HEAD
+  @param thd      The THD to rewrite for.
+  @param rlb      An empty String object to put the rewritten query in.
+  @param users_not_to_log Members of this list are not added to the generated
+                           statement.
+  @param for_binlog We don't skip any user while writing to binlog
+*/
+
+void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
+                                     std::set<LEX_USER *> *users_not_to_log,
+                                     bool for_binlog) {
+  LEX *lex = thd->lex;
+  LEX_USER *user_name, *tmp_user_name;
+  List_iterator<LEX_USER> user_list(lex->users_list);
+  bool comma = false;
+=======
+  @param thd                     The THD to rewrite for.
+  @param rlb                     An empty String object to put the rewritten query in.
+  @param hide_password_hash      If password hash has to be shown as <secret> or not.
+*/
+
+void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
+                                     std::set<LEX_USER *> *extra_users,
+                                     bool hide_password_hash)
+{
+  LEX                      *lex= thd->lex;
+  LEX_USER                 *user_name, *tmp_user_name;
+  List_iterator <LEX_USER>  user_list(lex->users_list);
+  bool                      comma= FALSE;
+>>>>>>> upstream/cluster-7.6
+
+  if (thd->lex->sql_command == SQLCOM_CREATE_USER ||
+      thd->lex->sql_command == SQLCOM_SHOW_CREATE_USER)
+    rlb->append(STRING_WITH_LEN("CREATE USER "));
+  else
+    rlb->append(STRING_WITH_LEN("ALTER USER "));
+
+  if (thd->lex->sql_command == SQLCOM_CREATE_USER &&
+      thd->lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
+    rlb->append(STRING_WITH_LEN("IF NOT EXISTS "));
+  if (thd->lex->sql_command == SQLCOM_ALTER_USER && thd->lex->drop_if_exists)
+    rlb->append(STRING_WITH_LEN("IF EXISTS "));
+
+<<<<<<< HEAD
+  while ((tmp_user_name = user_list++)) {
+    if (!for_binlog && users_not_to_log &&
+        users_not_to_log->find(tmp_user_name) != users_not_to_log->end())
+      continue;
+    if ((user_name = get_current_user(thd, tmp_user_name))) {
+      append_user_new(thd, rlb, user_name, comma);
+      comma = true;
+=======
+  while ((tmp_user_name= user_list++))
+  {
+    if ((user_name= get_current_user(thd, tmp_user_name)))
+    {
+      if (opt_log_builtin_as_identified_by_password &&
+          thd->lex->sql_command != SQLCOM_ALTER_USER)
+        append_user(thd, rlb, user_name, comma, true);
+      else
+        append_user_new(thd, rlb, user_name, comma, hide_password_hash);
+      comma= TRUE;
+>>>>>>> upstream/cluster-7.6
+    }
+  }
+
+  if (thd->lex->sql_command == SQLCOM_SHOW_CREATE_USER)
+    rewrite_default_roles(lex, rlb);
+  rewrite_ssl_properties(lex, rlb);
+  rewrite_user_resources(lex, rlb);
+
+  /* rewrite password expired */
+  if (lex->alter_password.update_password_expired_fields) {
+    if (lex->alter_password.update_password_expired_column) {
+      rlb->append(STRING_WITH_LEN(" PASSWORD EXPIRE"));
+    } else if (lex->alter_password.expire_after_days) {
+      append_int(rlb, false, STRING_WITH_LEN(" PASSWORD EXPIRE INTERVAL"),
+                 lex->alter_password.expire_after_days, true);
+      rlb->append(STRING_WITH_LEN(" DAY"));
+    } else if (lex->alter_password.use_default_password_lifetime) {
+      rlb->append(STRING_WITH_LEN(" PASSWORD EXPIRE DEFAULT"));
+    } else {
+      rlb->append(STRING_WITH_LEN(" PASSWORD EXPIRE NEVER"));
+    }
+  }
+
+  if (lex->alter_password.update_account_locked_column) {
+    rewrite_account_lock(lex, rlb);
+  }
+
+  if (!for_binlog || lex->alter_password.update_password_history) {
+    if (lex->alter_password.use_default_password_history) {
+      rlb->append(STRING_WITH_LEN(" PASSWORD HISTORY DEFAULT"));
+    } else {
+      append_int(rlb, false, STRING_WITH_LEN(" PASSWORD HISTORY"),
+                 lex->alter_password.password_history_length, true);
+    }
+  }
+
+  if (!for_binlog || lex->alter_password.update_password_reuse_interval) {
+    if (lex->alter_password.use_default_password_reuse_interval) {
+      rlb->append(STRING_WITH_LEN(" PASSWORD REUSE INTERVAL DEFAULT"));
+    } else {
+      append_int(rlb, false, STRING_WITH_LEN(" PASSWORD REUSE INTERVAL"),
+                 lex->alter_password.password_reuse_interval, true);
+      rlb->append(STRING_WITH_LEN(" DAY"));
+    }
+  }
+}
+>>>>>>> pr/231
 
 /**
   Rewrite the query for the CHANGE REPLICATION SOURCE statement.
@@ -1778,7 +1917,19 @@ Rewriter_start_group_replication::Rewriter_start_group_replication(
 /**
   Rewrite the query for the START GROUP_REPLICATION command.
 
+<<<<<<< HEAD
   @param[in,out] rlb     Buffer to return the rewritten query in.
+=======
+   Side-effects:
+
+   - thd->m_rewritten_query will contain a rewritten query,
+     or be cleared if no rewriting took place.
+     LOCK_thd_query will be temporarily acquired to make that change.
+
+   @note Keep in mind that these side-effects will only happen when
+         calling this top-level function, but not when calling
+         individual sub-functions directly!
+>>>>>>> pr/231
 
   @retval true  the query is rewritten
 */
@@ -1786,6 +1937,7 @@ bool Rewriter_start_group_replication::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
   bool comma = false;
 
+<<<<<<< HEAD
   rlb.append(STRING_WITH_LEN("START GROUP_REPLICATION"));
 
   if (lex->slave_connection.user) {
@@ -1802,4 +1954,100 @@ bool Rewriter_start_group_replication::rewrite(String &rlb) const {
   }
 
   return true;
+=======
+<<<<<<< HEAD
+void mysql_rewrite_query(THD *thd) {
+  String *rlb = &thd->rewritten_query;
+=======
+void mysql_rewrite_query(THD *thd)
+{
+  String rlb;
+>>>>>>> upstream/cluster-7.6
+
+  // We should not come through here twice for the same query.
+  assert(thd->rewritten_query().length() == 0);
+
+<<<<<<< HEAD
+  if (thd->lex->contains_plaintext_password) {
+    switch (thd->lex->sql_command) {
+      case SQLCOM_GRANT:
+        mysql_rewrite_grant(thd, rlb);
+        break;
+      case SQLCOM_SET_PASSWORD:
+      case SQLCOM_SET_OPTION:
+        mysql_rewrite_set(thd, rlb);
+        break;
+      case SQLCOM_CREATE_USER:
+      case SQLCOM_ALTER_USER:
+        mysql_rewrite_create_alter_user(thd, rlb);
+        break;
+      case SQLCOM_CHANGE_MASTER:
+        mysql_rewrite_change_master(thd, rlb);
+        break;
+      case SQLCOM_SLAVE_START:
+        mysql_rewrite_start_slave(thd, rlb);
+        break;
+      case SQLCOM_CREATE_SERVER:
+        mysql_rewrite_create_server(thd, rlb);
+        break;
+      case SQLCOM_ALTER_SERVER:
+        mysql_rewrite_alter_server(thd, rlb);
+        break;
+
+      /*
+        PREPARE stmt FROM <string> is rewritten so that <string> is
+        not logged.  The statement in <string> will in turn be logged
+        by the prepare and the execute functions in sql_prepare.cc.
+        They do call rewrite so they can safely log the statement,
+        but when they call us, it'll be with sql_command set to reflect
+        the statement in question, not SQLCOM_PREPARE or SQLCOM_EXECUTE.
+        Therefore, there is no SQLCOM_EXECUTE case here, and all
+        SQLCOM_PREPARE does is remove <string>; the "other half",
+        i.e. printing what string we prepare from happens when the
+        prepare function calls the logger (and comes by here with
+        sql_command set to the command being prepared).
+      */
+      case SQLCOM_PREPARE:
+        mysql_rewrite_prepare(thd, rlb);
+        break;
+      default: /* unhandled query types are legal. */
+        break;
+=======
+  if (thd->lex->contains_plaintext_password)
+  {
+    switch(thd->lex->sql_command)
+    {
+    case SQLCOM_GRANT:         mysql_rewrite_grant(thd, &rlb);         break;
+    case SQLCOM_SET_OPTION:    mysql_rewrite_set(thd, &rlb);           break;
+    case SQLCOM_CREATE_USER:
+    case SQLCOM_ALTER_USER:
+                        mysql_rewrite_create_alter_user(thd, &rlb);    break;
+    case SQLCOM_CHANGE_MASTER: mysql_rewrite_change_master(thd, &rlb); break;
+    case SQLCOM_SLAVE_START:   mysql_rewrite_start_slave(thd, &rlb);   break;
+    case SQLCOM_CREATE_SERVER: mysql_rewrite_create_server(thd, &rlb); break;
+    case SQLCOM_ALTER_SERVER:  mysql_rewrite_alter_server(thd, &rlb);  break;
+
+    /*
+      PREPARE stmt FROM <string> is rewritten so that <string> is
+      not logged.  The statement in <string> will in turn be logged
+      by the prepare and the execute functions in sql_prepare.cc.
+      They do call rewrite so they can safely log the statement,
+      but when they call us, it'll be with sql_command set to reflect
+      the statement in question, not SQLCOM_PREPARE or SQLCOM_EXECUTE.
+      Therefore, there is no SQLCOM_EXECUTE case here, and all
+      SQLCOM_PREPARE does is remove <string>; the "other half",
+      i.e. printing what string we prepare from happens when the
+      prepare function calls the logger (and comes by here with
+      sql_command set to the command being prepared).
+    */
+    case SQLCOM_PREPARE:       mysql_rewrite_prepare(thd, &rlb);       break;
+    default:                   /* unhandled query types are legal. */  break;
+>>>>>>> upstream/cluster-7.6
+    }
+  }
+
+  // Note that we succeeded in rewriting (where applicable).
+  if (rlb.length() > 0)
+    thd->swap_rewritten_query(rlb);
+>>>>>>> pr/231
 }

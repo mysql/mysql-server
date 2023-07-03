@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -189,6 +197,11 @@ typedef int (*pfs_delete_all_rows_t)(void);
 /** Callback to get a row count. */
 typedef ha_rows (*pfs_get_row_count_t)(void);
 
+struct PFS_engine_table_share_state {
+  /** Schema integrity flag. */
+  bool m_checked;
+};
+
 /**
   PFS_key_reader: Convert key into internal format.
 */
@@ -354,8 +367,16 @@ class PFS_engine_index : public PFS_engine_index_abstract {
   A PERFORMANCE_SCHEMA table share.
   This data is shared by all the table handles opened on the same table.
 */
+<<<<<<< HEAD
 struct PFS_engine_table_share {
   static void get_all_tables(List<const Plugin_table> *tables);
+=======
+struct PFS_engine_table_share
+{
+  static void check_all_tables(THD *thd);
+  void check_one_table(THD *thd);
+  bool is_table_checked(TABLE *table) const;
+>>>>>>> upstream/cluster-7.6
   static void init_all_locks(void);
   static void delete_all_locks(void);
 
@@ -378,6 +399,7 @@ struct PFS_engine_table_share {
   uint m_ref_length;
   /** The lock, stored on behalf of the SQL layer. */
   THR_LOCK *m_thr_lock_ptr;
+<<<<<<< HEAD
   /** Table definition. */
   const Plugin_table *m_table_def;
   /** Table is available even if the Performance Schema is disabled. */
@@ -389,6 +411,16 @@ struct PFS_engine_table_share {
   std::atomic<int> m_ref_count;
   /* is marked to be deleted? */
   bool m_in_purgatory;
+=======
+  /** Table fields definition. */
+  TABLE_FIELD_DEF *m_field_def;
+  /** Table is available even if the Performance Schema is disabled. */
+  bool m_perpetual;
+  /** Table is optional. */
+  bool m_optional;
+  /** Dynamic state. */
+  PFS_engine_table_share_state *m_state;
+>>>>>>> upstream/cluster-7.6
 };
 
 /**
@@ -539,21 +571,42 @@ class PFS_truncatable_world_acl : public PFS_truncatable_acl {
 /** Singleton instance of PFS_readonly_world_acl */
 extern PFS_truncatable_world_acl pfs_truncatable_world_acl;
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
 /**
   Privileges for readable processlist tables.
 */
 class PFS_readonly_processlist_acl : public PFS_readonly_acl {
  public:
+<<<<<<< HEAD
   PFS_readonly_processlist_acl() = default;
 
   ~PFS_readonly_processlist_acl() override = default;
   ACL_internal_access_result check(ulong want_access, ulong *save_priv,
                                    bool any_combination_will_do) const override;
+=======
+  PFS_readonly_processlist_acl()
+  {}
+
+  ~PFS_readonly_processlist_acl()
+  {}
+
+  virtual ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
+>>>>>>> pr/231
 };
 
 /** Singleton instance of PFS_readonly_processlist_acl */
 extern PFS_readonly_processlist_acl pfs_readonly_processlist_acl;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /** Position of a cursor, for simple iterations. */
 struct PFS_simple_index {
   /** Current row index. */

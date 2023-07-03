@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -103,6 +111,7 @@ Plugin_table table_events_statements_current::m_table_def(
     /* Tablespace */
     nullptr);
 
+<<<<<<< HEAD
 PFS_engine_table_share table_events_statements_current::m_share = {
     &pfs_truncatable_acl,
     table_events_statements_current::create,
@@ -116,10 +125,37 @@ PFS_engine_table_share table_events_statements_current::m_share = {
     PFS_engine_table_proxy(),
     {0},
     false /* m_in_purgatory */
+=======
+TABLE_FIELD_DEF
+table_events_statements_current::m_field_def=
+{41 , field_types };
+
+PFS_engine_table_share_state
+table_events_statements_current::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_events_statements_current::m_share=
+{
+  { C_STRING_WITH_LEN("events_statements_current") },
+  &pfs_truncatable_acl,
+  table_events_statements_current::create,
+  NULL, /* write_row */
+  table_events_statements_current::delete_all_rows,
+  table_events_statements_current::get_row_count,
+  sizeof(pos_events_statements_current), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+>>>>>>> upstream/cluster-7.6
 };
 
 THR_LOCK table_events_statements_history::m_table_lock;
 
+<<<<<<< HEAD
 Plugin_table table_events_statements_history::m_table_def(
     /* Schema name */
     "performance_schema",
@@ -191,10 +227,33 @@ PFS_engine_table_share table_events_statements_history::m_share = {
     PFS_engine_table_proxy(),
     {0},
     false /* m_in_purgatory */
+=======
+PFS_engine_table_share_state
+table_events_statements_history::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_events_statements_history::m_share=
+{
+  { C_STRING_WITH_LEN("events_statements_history") },
+  &pfs_truncatable_acl,
+  table_events_statements_history::create,
+  NULL, /* write_row */
+  table_events_statements_history::delete_all_rows,
+  table_events_statements_history::get_row_count,
+  sizeof(pos_events_statements_history), /* ref length */
+  &m_table_lock,
+  &table_events_statements_current::m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+>>>>>>> upstream/cluster-7.6
 };
 
 THR_LOCK table_events_statements_history_long::m_table_lock;
 
+<<<<<<< HEAD
 Plugin_table table_events_statements_history_long::m_table_def(
     /* Schema name */
     "performance_schema",
@@ -265,6 +324,28 @@ PFS_engine_table_share table_events_statements_history_long::m_share = {
     PFS_engine_table_proxy(),
     {0},
     false /* m_in_purgatory */
+=======
+PFS_engine_table_share_state
+table_events_statements_history_long::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_events_statements_history_long::m_share=
+{
+  { C_STRING_WITH_LEN("events_statements_history_long") },
+  &pfs_truncatable_acl,
+  table_events_statements_history_long::create,
+  NULL, /* write_row */
+  table_events_statements_history_long::delete_all_rows,
+  table_events_statements_history_long::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &table_events_statements_current::m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+>>>>>>> upstream/cluster-7.6
 };
 
 bool PFS_index_events_statements::match(PFS_thread *pfs) {
@@ -300,8 +381,19 @@ table_events_statements_common::table_events_statements_common(
   @param [out] digest Saved copy of the statement digest
   @return 0 on success or HA_ERR_RECORD_DELETED
 */
+<<<<<<< HEAD
 int table_events_statements_common::make_row_part_1(
     PFS_events_statements *statement, sql_digest_storage *digest) {
+<<<<<<< HEAD
+=======
+  const char *base;
+  const char *safe_source_file;
+=======
+void table_events_statements_common::make_row_part_1(PFS_events_statements *statement,
+                                                     sql_digest_storage *digest)
+{
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   ulonglong timer_end;
 
   PFS_statement_class *unsafe = (PFS_statement_class *)statement->m_class;
@@ -338,9 +430,38 @@ int table_events_statements_common::make_row_part_1(
   m_row.m_schema_name = statement->m_schema_name;
   m_row.m_object_name = statement->m_object_name;
 
+<<<<<<< HEAD
   make_source_column(statement->m_source_file, statement->m_source_line,
                      m_row.m_source, sizeof(m_row.m_source),
                      m_row.m_source_length);
+=======
+  m_row.m_schema_name_length = statement->m_schema_name_length;
+  if (m_row.m_schema_name_length > 0)
+    memcpy(m_row.m_schema_name, statement->m_schema_name,
+           m_row.m_schema_name_length);
+
+  m_row.m_object_name_length = statement->m_object_name_length;
+  if (m_row.m_object_name_length > 0)
+    memcpy(m_row.m_object_name, statement->m_object_name,
+           m_row.m_object_name_length);
+
+<<<<<<< HEAD
+  safe_source_file = statement->m_source_file;
+  if (unlikely(safe_source_file == NULL)) {
+    return HA_ERR_RECORD_DELETED;
+  }
+
+  base = base_name(safe_source_file);
+  m_row.m_source_length = snprintf(m_row.m_source, sizeof(m_row.m_source),
+                                   "%s:%d", base, statement->m_source_line);
+  if (m_row.m_source_length > sizeof(m_row.m_source)) {
+    m_row.m_source_length = sizeof(m_row.m_source);
+  }
+=======
+  /* Disable source file and line to avoid stale __FILE__ pointers. */
+  m_row.m_source_length= 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   memcpy(m_row.m_message_text, statement->m_message_text,
          sizeof(m_row.m_message_text));
@@ -422,10 +543,21 @@ int table_events_statements_common::read_row_values(TABLE *table,
   uint len;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 3);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 3);
+>>>>>>> pr/231
   buf[0] = 0;
   buf[1] = 0;
   buf[2] = 0;
+=======
+  assert(table->s->null_bytes == 3);
+  buf[0]= 0;
+  buf[1]= 0;
+  buf[2]= 0;
+>>>>>>> upstream/cluster-7.6
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
@@ -609,6 +741,7 @@ int table_events_statements_common::read_row_values(TABLE *table,
           break;
         case 40: /* NESTING_EVENT_LEVEL */
           set_field_ulong(f, m_row.m_nesting_event_level);
+<<<<<<< HEAD
           break;
         case 41: /* STATEMENT_ID */
           if (m_row.m_statement_id != 0) {
@@ -630,7 +763,16 @@ int table_events_statements_common::read_row_values(TABLE *table,
           set_field_enum(f, m_row.m_secondary ? ENUM_SECONDARY : ENUM_PRIMARY);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -862,9 +1004,21 @@ int table_events_statements_history::rnd_pos(const void *pos) {
   assert(events_statements_history_per_thread != 0);
   set_position(pos);
 
+<<<<<<< HEAD
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
+<<<<<<< HEAD
   if (pfs_thread != nullptr) {
     assert(m_pos.m_index_2 < events_statements_history_per_thread);
+=======
+  if (pfs_thread != NULL) {
+    DBUG_ASSERT(m_pos.m_index_2 < events_statements_history_per_thread);
+=======
+  pfs_thread= global_thread_container.get(m_pos.m_index_1);
+  if (pfs_thread != NULL)
+  {
+    assert(m_pos.m_index_2 < events_statements_history_per_thread);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     if (!pfs_thread->m_statements_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_statements_history_index)) {

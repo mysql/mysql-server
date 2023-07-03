@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -18,6 +23,26 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+Copyright (c) 2012, Facebook Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -767,9 +792,26 @@ rec_t *page_copy_rec_list_start(
         }
         ut_ad(page_validate(new_page, index));
 
+<<<<<<< HEAD
         if (UNIV_LIKELY_NULL(heap)) {
           mem_heap_free(heap);
         }
+=======
+		if (!page_zip_compress(new_page_zip, new_page, index,
+				       page_zip_level, NULL, mtr)) {
+			ulint	ret_pos;
+#ifndef NDEBUG
+zip_reorganize:
+#endif /* NDEBUG */
+			/* Before trying to reorganize the page,
+			store the number of preceding records on the page. */
+			ret_pos = page_rec_get_n_recs_before(ret);
+			/* Before copying, "ret" was the predecessor
+			of the predefined supremum record.  If it was
+			the predefined infimum record, then it would
+			still be the infimum, and we would have
+			ret_pos == 0. */
+>>>>>>> upstream/cluster-7.6
 
         return (nullptr);
       }
@@ -2113,6 +2155,7 @@ func_exit:
   return (ret);
 }
 
+<<<<<<< HEAD
 /** This function checks if the page in which record is present is a
 non-leaf node of a spatial index.
 param[in]       rec     Btree record
@@ -2122,12 +2165,41 @@ bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index) {
   return (dict_index_is_spatial(index) && !page_is_leaf(page_align(rec)));
 }
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 /** This function checks the consistency of an index page.
  @return true if ok */
 bool page_validate(
     const page_t *page,  /*!< in: index page */
     dict_index_t *index) /*!< in: data dictionary index containing
                          the page record type definition */
+=======
+/***************************************************************//**
+This function checks if the page in which record is present is a
+non-leaf node of a spatial index.
+param[in]	rec	Btree record
+param[in]	index	index
+@return TRUE if ok */
+bool
+page_is_spatial_non_leaf(
+/*====================*/
+	const rec_t*	rec,
+	dict_index_t*	index)
+{
+     return (dict_index_is_spatial(index) && !page_is_leaf(page_align(rec)));
+}
+
+/***************************************************************//**
+This function checks the consistency of an index page.
+@return TRUE if ok */
+ibool
+page_validate(
+/*==========*/
+	const page_t*	page,	/*!< in: index page */
+	dict_index_t*	index)	/*!< in: data dictionary index containing
+				the page record type definition */
+>>>>>>> upstream/cluster-7.6
 {
   const page_dir_slot_t *slot;
   mem_heap_t *heap;
@@ -2178,6 +2250,7 @@ bool page_validate(
     because the transaction system has not been initialized yet */
     trx_id_t sys_next_trx_id_or_no = trx_sys_get_next_trx_id_or_no();
 
+<<<<<<< HEAD
     if (max_trx_id == 0 ||
         (sys_next_trx_id_or_no != 0 && max_trx_id >= sys_next_trx_id_or_no)) {
       ib::error(ER_IB_MSG_898)
@@ -2186,6 +2259,47 @@ bool page_validate(
       goto func_exit2;
     }
   }
+=======
+			int	ret = cmp_rec_rec(
+				rec, old_rec, offsets, old_offsets, index,
+				page_is_spatial_non_leaf(rec, index));
+
+			/* For spatial index, on nonleaf leavel, we
+			allow recs to be equal. */
+			bool rtr_equal_nodeptrs =
+				(ret == 0 && dict_index_is_spatial(index)
+				&& !page_is_leaf(page));
+
+			if (ret <= 0 && !rtr_equal_nodeptrs) {
+
+				ib::error() << "Records in wrong order on"
+					" space " << page_get_space_id(page)
+					<< " page " << page_get_page_no(page)
+					<< " index " << index->name;
+
+				fputs("\nInnoDB: previous record ", stderr);
+				/* For spatial index, print the mbr info.*/
+				if (index->type & DICT_SPATIAL) {
+					putc('\n', stderr);
+					rec_print_mbr_rec(stderr,
+						old_rec, old_offsets);
+					fputs("\nInnoDB: record ", stderr);
+					putc('\n', stderr);
+					rec_print_mbr_rec(stderr, rec, offsets);
+					putc('\n', stderr);
+					putc('\n', stderr);
+
+				} else {
+					rec_print_new(stderr, old_rec, old_offsets);
+					fputs("\nInnoDB: record ", stderr);
+					rec_print_new(stderr, rec, offsets);
+					putc('\n', stderr);
+				}
+
+				goto func_exit;
+			}
+		}
+>>>>>>> upstream/cluster-7.6
 #endif /* !UNIV_HOTBACKUP */
 
   heap = mem_heap_create(UNIV_PAGE_SIZE + 200, UT_LOCATION_HERE);

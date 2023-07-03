@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,10 +79,30 @@
 #include "sql/trigger_def.h"
 #include "unsafe_string_append.h"
 
+<<<<<<< HEAD
 class Cmp_splocal_locations {
  public:
   bool operator()(const Item_splocal *a, const Item_splocal *b) {
     assert(a == b || a->pos_in_query != b->pos_in_query);
+=======
+<<<<<<< HEAD
+class Cmp_splocal_locations
+    : public std::binary_function<const Item_splocal *, const Item_splocal *,
+                                  bool> {
+ public:
+  bool operator()(const Item_splocal *a, const Item_splocal *b) {
+    DBUG_ASSERT(a->pos_in_query != b->pos_in_query);
+=======
+
+class Cmp_splocal_locations :
+  public std::binary_function<const Item_splocal*, const Item_splocal*, bool>
+{
+public:
+  bool operator()(const Item_splocal *a, const Item_splocal *b)
+  {
+    assert(a == b || a->pos_in_query != b->pos_in_query);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return a->pos_in_query < b->pos_in_query;
   }
 };
@@ -315,7 +339,16 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   /* Check pre-conditions. */
 
+<<<<<<< HEAD
   assert(thd->change_list.is_empty());
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(thd->change_list.is_empty());
+=======
+  assert(!thd->derived_tables);
+  assert(thd->change_list.is_empty());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     Use our own lex.
@@ -680,6 +713,13 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
                                                  bool open_tables) {
   Reprepare_observer reprepare_observer;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  int reprepare_attempt = 0;
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   while (true) {
     DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
@@ -739,6 +779,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
           to the user;
         - if we've got an error, different from ER_NEED_REPREPARE, we need to
           raise it to the user;
+<<<<<<< HEAD
     */
     if (stmt_reprepare_observer == nullptr || thd->is_fatal_error() ||
         thd->killed || thd->get_stmt_da()->mysql_errno() != ER_NEED_REPREPARE) {
@@ -749,6 +790,28 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
       if (m_lex->is_metadata_used() && !m_lex->is_exec_started()) {
         invalidate();
       }
+=======
+        - we take only 3 attempts to reprepare the query, otherwise we might end
+          up in the endless loop.
+        - Reprepare_observer ensures that the statement is retried a maximum
+          number of times, to avoid an endless loop.
+    */
+    if (stmt_reprepare_observer && !thd->is_fatal_error && !thd->killed &&
+        thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE &&
+<<<<<<< HEAD
+        reprepare_attempt++ < 3) {
+      DBUG_ASSERT(stmt_reprepare_observer->is_invalidated());
+=======
+        stmt_reprepare_observer->can_retry())
+    {
+      assert(stmt_reprepare_observer->is_invalidated());
+>>>>>>> upstream/cluster-7.6
+
+      thd->clear_error();
+      free_lex();
+      invalidate();
+    } else
+>>>>>>> pr/231
       return true;
     }
     /*
@@ -900,7 +963,37 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
     /* Finalize server status flags after executing a statement. */
     thd->update_slow_query_status();
 
+<<<<<<< HEAD
     thd->send_statement_status();
+=======
+      thd->send_statement_status();
+    }
+
+    query_cache.end_of_result(thd);
+
+    if (!rc && unlikely(log_slow_applicable(thd)))
+    {
+      /*
+        We actually need to write the slow log. Check whether we already
+        called subst_spvars() above, otherwise, do it now.  In the highly
+        unlikely event of subst_spvars() failing (OOM), we'll try to log
+        the unmodified statement instead.
+      */
+      if (!need_subst)
+        rc= subst_spvars(thd, this, &m_query);
+      log_slow_do(thd);
+    }
+
+    /*
+      With the current setup, a subst_spvars() and a mysql_rewrite_query()
+      (rewriting passwords etc.) will not both happen to a query.
+      If this ever changes, we give the engineer pause here so they will
+      double-check whether the potential conflict they created is a
+      problem.
+    */
+    assert((thd->query_name_consts == 0) ||
+           (thd->rewritten_query().length() == 0));
+>>>>>>> upstream/cluster-7.6
   }
 
   if (!rc && unlikely(log_slow_applicable(thd))) {
@@ -1056,10 +1149,24 @@ void sp_instr_set_trigger_field::print(const THD *thd, String *str) {
   m_value_item->print(thd, str, QT_TO_ARGUMENT_CHARSET);
 }
 
+<<<<<<< HEAD
 bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd) {
+<<<<<<< HEAD
   m_value_item = thd->lex->query_block->single_visible_field();
   assert(m_value_item != nullptr);
 
+=======
+  DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+=======
+
+bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd)
+{
+  assert(thd->lex->select_lex->item_list.elements == 1);
+>>>>>>> upstream/cluster-7.6
+
+  m_value_item = thd->lex->select_lex->item_list.head();
+
+>>>>>>> pr/231
   assert(!m_trigger_field);
 
   m_trigger_field = new (thd->mem_root)
@@ -1137,8 +1244,18 @@ PSI_statement_info sp_instr_jump_if_not::psi_info = {0, "jump_if_not", 0,
                                                      PSI_DOCUMENT_ME};
 #endif
 
+<<<<<<< HEAD
 bool sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp) {
+<<<<<<< HEAD
   assert(m_expr_item);
+=======
+  DBUG_ASSERT(m_expr_item);
+=======
+bool sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
+{
+  assert(m_expr_item);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Item *item = sp_prepare_func_item(thd, &m_expr_item);
 
@@ -1219,8 +1336,18 @@ PSI_statement_info sp_instr_jump_case_when::psi_info = {0, "jump_case_when", 0,
                                                         PSI_DOCUMENT_ME};
 #endif
 
+<<<<<<< HEAD
 bool sp_instr_jump_case_when::exec_core(THD *thd, uint *nextp) {
+<<<<<<< HEAD
   assert(m_eq_item);
+=======
+  DBUG_ASSERT(m_eq_item);
+=======
+bool sp_instr_jump_case_when::exec_core(THD *thd, uint *nextp)
+{
+  assert(m_eq_item);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Item *item = sp_prepare_func_item(thd, &m_eq_item);
 
@@ -1251,8 +1378,17 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
 
   if (!m_case_expr_item) return true;
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   m_case_expr_item->m_sp = thd->lex->sphead;
+=======
+#ifndef NDEBUG
+  m_case_expr_item->m_sp= thd->lex->sphead;
+>>>>>>> upstream/cluster-7.6
 #endif
 
   // Setup WHEN-expression item (m_expr_item) if it is not already set.
@@ -1267,9 +1403,21 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
   //     parsed aux-SELECT statement, so we need to take 1st (and the only one)
   //     item from its list.
 
+<<<<<<< HEAD
   if (!m_expr_item) {
+<<<<<<< HEAD
     m_expr_item = thd->lex->query_block->single_visible_field();
     assert(m_expr_item != nullptr);
+=======
+    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+=======
+  if (!m_expr_item)
+  {
+    assert(thd->lex->select_lex->item_list.elements == 1);
+>>>>>>> upstream/cluster-7.6
+
+    m_expr_item = thd->lex->select_lex->item_list.head();
+>>>>>>> pr/231
   }
 
   // Setup main expression item (m_expr_item).

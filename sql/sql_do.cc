@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2001, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +41,35 @@
 #include "sql/visible_fields.h"
 #include "sql_string.h"
 
+<<<<<<< HEAD
 bool Query_result_do::send_data(THD *thd, const mem_root_deque<Item *> &items) {
   DBUG_TRACE;
+=======
+<<<<<<< HEAD
+bool Query_result_do::send_data(List<Item> &items) {
+=======
+  assert(!lex->unit->global_parameters()->explicit_limit);
+
+  if (open_tables_for_query(thd, lex->query_tables, 0))
+    DBUG_RETURN(true);
+
+  assert(!lex->describe);
+
+  Query_result *result= new Query_result_do(thd);
+  if (!result)
+    DBUG_RETURN(true);
+
+  if (handle_query(thd, lex, result, 0, 0))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
+
+bool Query_result_do::send_data(List<Item> &items)
+{
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Query_result_do::send_data");
+>>>>>>> pr/231
 
   char buffer[MAX_FIELD_WIDTH];
   String str_buffer(buffer, sizeof(buffer), &my_charset_bin);

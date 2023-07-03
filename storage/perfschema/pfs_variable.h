@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -171,10 +175,22 @@ class System_variable {
  public:
   System_variable();
   System_variable(THD *target_thd, const SHOW_VAR *show_var,
+<<<<<<< HEAD
                   enum_var_type query_scope);
   System_variable(THD *target_thd, const SHOW_VAR *show_var);
 
+<<<<<<< HEAD
   bool is_null() const { return !m_initialized; }
+=======
+  bool is_null() const { return !m_initialized; };
+=======
+                  enum_var_type query_scope, bool ignore);
+  ~System_variable() {}
+
+  bool is_null() const { return !m_initialized; }
+  bool is_ignored() const { return m_ignore; }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
  public:
   const char *m_name;
@@ -183,6 +199,7 @@ class System_variable {
   size_t m_value_length;
   enum_mysql_show_type m_type;
   int m_scope;
+  bool m_ignore;
   const CHARSET_INFO *m_charset;
   enum_variable_source m_source;
   char m_path_str[SHOW_VAR_FUNC_BUFF_SIZE + 1];
@@ -481,8 +498,19 @@ THD_ptr PFS_variable_cache<Var_type>::get_THD(THD *unsafe_thd) {
 }
 
 template <class Var_type>
+<<<<<<< HEAD
 THD_ptr PFS_variable_cache<Var_type>::get_THD(PFS_thread *pfs_thread) {
   assert(pfs_thread != nullptr);
+=======
+<<<<<<< HEAD
+THD *PFS_variable_cache<Var_type>::get_THD(PFS_thread *pfs_thread) {
+  DBUG_ASSERT(pfs_thread != NULL);
+=======
+THD *PFS_variable_cache<Var_type>::get_THD(PFS_thread *pfs_thread)
+{
+  assert(pfs_thread != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return get_THD(pfs_thread->m_thd);
 }
 

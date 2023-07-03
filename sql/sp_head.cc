@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2040,7 +2048,16 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
 
   opt_trace_disable_if_no_security_context_access(thd);
 
+<<<<<<< HEAD
   assert(!(m_flags & IS_INVOKED));
+=======
+  /* init per-instruction memroot */
+  init_sql_alloc(key_memory_sp_head_execute_root, &execute_mem_root,
+                 MEM_ROOT_BLOCK_SIZE, 0);
+
+<<<<<<< HEAD
+  DBUG_ASSERT(!(m_flags & IS_INVOKED));
+>>>>>>> pr/231
   m_flags |= IS_INVOKED;
   m_first_instance->m_first_free_instance = m_next_cached_sp;
   if (m_next_cached_sp) {
@@ -2048,6 +2065,19 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
                         m_first_instance, this, m_next_cached_sp,
                         m_next_cached_sp->m_recursion_level,
                         m_next_cached_sp->m_flags));
+=======
+  assert(!(m_flags & IS_INVOKED));
+  m_flags|= IS_INVOKED;
+  m_first_instance->m_first_free_instance= m_next_cached_sp;
+  if (m_next_cached_sp)
+  {
+    DBUG_PRINT("info",
+               ("first free for 0x%lx ++: 0x%lx->0x%lx  level: %lu  flags %x",
+                (ulong)m_first_instance, (ulong) this,
+                (ulong) m_next_cached_sp,
+                m_next_cached_sp->m_recursion_level,
+                m_next_cached_sp->m_flags));
+>>>>>>> upstream/cluster-7.6
   }
   /*
     Check that if there are not any instances after this one then
@@ -2055,9 +2085,21 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     some instances after this one then recursion level of next instance
     greater then recursion level of current instance on 1
   */
+<<<<<<< HEAD
   assert((m_next_cached_sp == nullptr &&
           m_first_instance->m_last_cached_sp == this) ||
          (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(
+      (m_next_cached_sp == 0 && m_first_instance->m_last_cached_sp == this) ||
+      (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
+=======
+  assert((m_next_cached_sp == 0 &&
+          m_first_instance->m_last_cached_sp == this) ||
+         (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     NOTE: The SQL Standard does not specify the context that should be
@@ -2216,7 +2258,16 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
       likely to change in the future, so we'll do it right from the
       start.
     */
+<<<<<<< HEAD
     if (thd->rewritten_query().length()) thd->reset_rewritten_query();
+=======
+<<<<<<< HEAD
+    if (thd->rewritten_query.length()) thd->rewritten_query.mem_free();
+=======
+    if (thd->rewritten_query().length())
+      thd->reset_rewritten_query();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     err_status = i->execute(thd, &ip);
 
@@ -2280,13 +2331,30 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   // Delete all cursors allocated during execution
   thd->sp_runtime_ctx->pop_all_cursors();
 
+<<<<<<< HEAD
   if (thd->is_classic_protocol()) /* Restore all saved */
     old_packet.swap(*thd->get_protocol_classic()->get_output_packet());
+<<<<<<< HEAD
   assert(thd->change_list.is_empty());
+=======
+  DBUG_ASSERT(thd->change_list.is_empty());
+=======
+  if(thd->is_classic_protocol())
+    /* Restore all saved */
+    old_packet.swap(*thd->get_protocol_classic()->get_packet());
+  assert(thd->change_list.is_empty());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   old_change_list.move_elements_to(&thd->change_list);
   thd->lex = old_lex;
   thd->set_query_id(old_query_id);
+<<<<<<< HEAD
   thd->variables.sql_mode = save_sql_mode;
+=======
+  assert(!thd->derived_tables);
+  thd->derived_tables= old_derived_tables;
+  thd->variables.sql_mode= save_sql_mode;
+>>>>>>> upstream/cluster-7.6
   thd->pop_reprepare_observer();
 
   thd->stmt_arena = old_arena;
@@ -2386,6 +2454,7 @@ done:
     should go just after this one and recursion level of that free instance
     should be on 1 more then recursion level of this instance.
   */
+<<<<<<< HEAD
   assert((m_first_instance->m_first_free_instance == nullptr &&
           this == m_first_instance->m_last_cached_sp &&
           m_next_cached_sp == nullptr) ||
@@ -2393,7 +2462,27 @@ done:
           m_first_instance->m_first_free_instance == m_next_cached_sp &&
           m_first_instance->m_first_free_instance->m_recursion_level ==
               m_recursion_level + 1));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT((m_first_instance->m_first_free_instance == 0 &&
+               this == m_first_instance->m_last_cached_sp &&
+               m_next_cached_sp == 0) ||
+              (m_first_instance->m_first_free_instance != 0 &&
+               m_first_instance->m_first_free_instance == m_next_cached_sp &&
+               m_first_instance->m_first_free_instance->m_recursion_level ==
+                   m_recursion_level + 1));
+>>>>>>> pr/231
   m_first_instance->m_first_free_instance = this;
+=======
+  assert((m_first_instance->m_first_free_instance == 0 &&
+          this == m_first_instance->m_last_cached_sp &&
+          m_next_cached_sp == 0) ||
+         (m_first_instance->m_first_free_instance != 0 &&
+          m_first_instance->m_first_free_instance == m_next_cached_sp &&
+          m_first_instance->m_first_free_instance->m_recursion_level ==
+          m_recursion_level + 1));
+  m_first_instance->m_first_free_instance= this;
+>>>>>>> upstream/cluster-7.6
 
   return err_status;
 }
@@ -3052,7 +3141,99 @@ void sp_head::set_definer(const LEX_CSTRING &user_name,
   m_definer_host.length = host_name.length;
 }
 
+<<<<<<< HEAD
 bool sp_head::add_instr(THD *thd, sp_instr *instr) {
+=======
+
+bool sp_head::show_create_routine(THD *thd, enum_sp_type type)
+{
+  const char *col1_caption= (type == SP_TYPE_PROCEDURE) ?
+                            "Procedure" : "Function";
+
+  const char *col3_caption= (type == SP_TYPE_PROCEDURE) ?
+                            "Create Procedure" : "Create Function";
+
+  bool err_status;
+
+  Protocol *protocol= thd->get_protocol();
+  List<Item> fields;
+
+  LEX_STRING sql_mode;
+
+  bool full_access;
+
+  assert(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+
+  if (check_show_access(thd, &full_access))
+    return true;
+
+  sql_mode_string_representation(thd, m_sql_mode, &sql_mode);
+
+  /* Send header. */
+
+  fields.push_back(new Item_empty_string(col1_caption, NAME_CHAR_LEN));
+  fields.push_back(new Item_empty_string("sql_mode", sql_mode.length));
+
+  {
+    /*
+      NOTE: SQL statement field must be not less than 1024 in order not to
+      confuse old clients.
+    */
+
+    Item_empty_string *stmt_fld=
+      new Item_empty_string(col3_caption,
+                            std::max<size_t>(m_defstr.length, 1024U));
+
+    stmt_fld->maybe_null= TRUE;
+
+    fields.push_back(stmt_fld);
+  }
+
+  fields.push_back(new Item_empty_string("character_set_client",
+                                         MY_CS_NAME_SIZE));
+
+  fields.push_back(new Item_empty_string("collation_connection",
+                                         MY_CS_NAME_SIZE));
+
+  fields.push_back(new Item_empty_string("Database Collation",
+                                         MY_CS_NAME_SIZE));
+
+  if (thd->send_result_metadata(&fields,
+                                Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  {
+    return true;
+  }
+
+  /* Send data. */
+
+  protocol->start_row();
+
+  protocol->store(m_name.str, m_name.length, system_charset_info);
+  protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
+
+  if (full_access)
+    protocol->store(m_defstr.str, m_defstr.length,
+                    m_creation_ctx->get_client_cs());
+  else
+    protocol->store_null();
+
+
+  protocol->store(m_creation_ctx->get_client_cs()->csname, system_charset_info);
+  protocol->store(m_creation_ctx->get_connection_cl()->name, system_charset_info);
+  protocol->store(m_creation_ctx->get_db_cl()->name, system_charset_info);
+
+  err_status= protocol->end_row();
+
+  if (!err_status)
+    my_eof(thd);
+
+  return err_status;
+}
+
+
+bool sp_head::add_instr(THD *thd, sp_instr *instr)
+{
+>>>>>>> upstream/cluster-7.6
   m_parser_data.process_new_sp_instr(thd, instr);
 
   if (m_type == enum_sp_type::TRIGGER &&
@@ -3156,9 +3337,21 @@ void sp_head::opt_mark() {
   }
 }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
 bool sp_head::show_routine_code(THD *thd) {
   Protocol *protocol = thd->get_protocol();
+=======
+
+#ifndef NDEBUG
+bool sp_head::show_routine_code(THD *thd)
+{
+  Protocol *protocol= thd->get_protocol();
+>>>>>>> upstream/cluster-7.6
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
   sp_instr *i;
@@ -3205,7 +3398,15 @@ bool sp_head::show_routine_code(THD *thd) {
 
   return res;
 }
+<<<<<<< HEAD
 #endif  // ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#endif  // ifndef DBUG_OFF
+=======
+#endif // ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 bool sp_head::merge_table_list(THD *thd, Table_ref *table,
                                LEX *lex_for_tmp_check) {
@@ -3376,12 +3577,39 @@ bool sp_head::check_show_access(THD *thd, bool *full_access) {
     stored routine code), or partial access (i.e to view its other properties).
   */
 
+<<<<<<< HEAD
   *full_access = has_full_view_routine_access(thd, m_db.str, m_definer_user.str,
                                               m_definer_host.str);
   return *full_access ? false
                       : !has_partial_view_routine_access(
                             thd, m_db.str, m_name.str,
                             m_type == enum_sp_type::PROCEDURE);
+=======
+<<<<<<< HEAD
+  return *full_access
+             ? false
+             : check_some_routine_access(thd, m_db.str, m_name.str,
+                                         m_type == enum_sp_type::PROCEDURE);
+=======
+bool sp_head::check_show_access(THD *thd, bool *full_access)
+{
+  TABLE_LIST tables;
+
+  tables.db= (char*) "mysql";
+  tables.table_name= tables.alias= (char*) "proc";
+
+  *full_access=
+    ((!check_table_access(thd, SELECT_ACL, &tables, false, 1, true) &&
+      (tables.grant.privilege & SELECT_ACL) != 0) ||
+     (!strcmp(m_definer_user.str, thd->security_context()->priv_user().str) &&
+      !strcmp(m_definer_host.str, thd->security_context()->priv_host().str)));
+
+  return *full_access ?
+         false :
+         check_some_routine_access(thd, m_db.str, m_name.str,
+                                   m_type == SP_TYPE_PROCEDURE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx) {
@@ -3420,7 +3648,9 @@ void sp_parser_data::start_parsing_sp_body(THD *thd, sp_head *sp) {
   m_saved_memroot = thd->mem_root;
   m_saved_item_list = thd->item_list();
 
+<<<<<<< HEAD
   thd->mem_root = sp->get_persistent_mem_root();
+<<<<<<< HEAD
   thd->mem_root->set_max_capacity(m_saved_memroot->get_max_capacity());
   thd->mem_root->set_error_for_capacity_exceeded(
       m_saved_memroot->get_error_for_capacity_exceeded());
@@ -3447,6 +3677,20 @@ void sp_parser_data::finish_parsing_sp_body(THD *thd) {
 
   m_saved_memroot = nullptr;
   m_saved_item_list = nullptr;
+=======
+  thd->free_list = NULL;
+=======
+void sp_parser_data::start_parsing_sp_body(THD *thd, sp_head *sp)
+{
+  m_saved_memroot= thd->mem_root;
+  m_saved_free_list= thd->free_list;
+
+  thd->mem_root= sp->get_persistent_mem_root();
+  set_memroot_max_capacity(thd->mem_root, m_saved_memroot->max_capacity);
+  set_memroot_error_reporting(thd->mem_root, m_saved_memroot->error_for_capacity_exceeded);
+  thd->free_list= NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 bool sp_parser_data::add_backpatch_entry(sp_branch_instr *i, sp_label *label) {

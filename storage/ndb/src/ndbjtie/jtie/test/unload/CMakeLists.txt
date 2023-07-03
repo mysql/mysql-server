@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +38,20 @@ GET_FILENAME_COMPONENT(PARENT ${CMAKE_CURRENT_BINARY_DIR} PATH)
 SET(JTIE_MYJAPI_DIR "${PARENT}/myjapi")
 SET(JTIE_MYJAPI_JAR "${JTIE_MYJAPI_DIR}/jtie-test-myjapi-${JAR}")
 
+IF(WITH_ASAN)
+  MESSAGE(STATUS "Skipping java tests for ASAN builds")
+  RETURN()
+ENDIF()
+
 ADD_TEST(
   NAME test_jtie_unload
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} "-ea" "-Xcheck:jni"
+<<<<<<< HEAD
   "-classpath" "${JTIE_TEST_UNLOAD_JAR}${JAVA_SEPARATOR}${JTIE_MYJAPI_JAR}"
+=======
+  "-classpath" "${JTIE_TEST_UNLOAD_JAR}${JAVA_SEPERATOR}${JTIE_MYJAPI_JAR}"
+>>>>>>> pr/231
   "-Djava.library.path=${JTIE_MYJAPI_DIR}/${JAVA_SUBDIR}"
   "-Dcom.mysql.jtie.test.MyLoadUnloadTest.target_package_prefixes=test.,myjapi."
   "-Dcom.mysql.jtie.test.MyLoadUnloadTest.target_class_name=test.MyJapiTest"

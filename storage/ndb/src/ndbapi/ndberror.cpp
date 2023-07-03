@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -291,11 +295,17 @@ ErrorBundle ErrorCodes[] = {
   { 899,  DMEC, TR, "Rowid already allocated" },
   { 909,  DMEC, TR, "Out of transaction memory in local data manager, ordered scan operation (increase SharedGlobalMemory)" },
   { 921,  DMEC, TR, "Out of transaction memory in local data manager, copy tuples (increase SharedGlobalMemory)" },
+<<<<<<< HEAD
   { 923,  DMEC, TR, "Out of UNDO buffer memory (increase UNDO_BUFFER_SIZE)" },
   { 924,  DMEC, TR, "Out of transaction memory in local data manager, stored procedure record (increase SharedGlobalMemory)" },
   { 925,  DMEC, TR, "Out of transaction memory in local data manager, tup scan operation (increase SharedGlobalMemory)" },
   { 926,  DMEC, TR, "Out of transaction memory in local data manager, acc scan operation (increase SharedGlobalMemory)" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase SharedGlobalMemory)" },
+=======
+  { 922,  DMEC, TR, "Out of transaction memory in local data manager, ordered index data (increase SharedGlobalMemory)" },
+  { 923,  DMEC, TR, "Out of UNDO buffer memory (increase UNDO_BUFFER_SIZE)" },
+  { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
+>>>>>>> pr/231
   { 1218, DMEC, TR, "Send Buffers overloaded in NDB kernel" },
   { 1220, DMEC, TR, "REDO log files overloaded (increase FragmentLogFileSize)" },
   { 1234, DMEC, TR, "REDO log files overloaded (increase disk hardware)" },
@@ -442,6 +452,11 @@ ErrorBundle ErrorCodes[] = {
   { 851,  DMEC, AE, "Fixed-size column offset exceeded max."
     "Use VARCHAR or COLUMN_FORMAT DYNAMIC for memory-stored columns"},
   { 850,  DMEC, AE, "Too long or too short default value"},
+<<<<<<< HEAD
+=======
+  { 851,  DMEC, AE, "Fixed-size column offset exceeded max."
+    "Use VARCHAR or COLUMN_FORMAT DYNAMIC for memory-stored columns"},
+>>>>>>> pr/231
   { 876,  DMEC, AE, "876" },
   { 877,  DMEC, AE, "877" },
   { 878,  DMEC, AE, "878" },
@@ -605,7 +620,10 @@ ErrorBundle ErrorCodes[] = {
   { 1515, DMEC, SE, "Currently there is a 4G limit of one undo/data-file in 32-bit host" },
   { 1516, DMEC, SE, "File too small" },
   { 1517, DMEC, SE, "Insufficient disk page buffer memory. Increase DiskPageBufferMemory or reduce data file size." },
+<<<<<<< HEAD
   { 1518, DMEC, OL, "IO overload error" },
+=======
+>>>>>>> pr/231
 
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },
@@ -819,9 +837,14 @@ ErrorBundle ErrorCodes[] = {
   { 4554, DMEC, AE, "NdbBlob can only be closed from Active state" },
   { 4555, DMEC, AE, "NdbBlob cannot be closed with pending operations" },
   { 4556, DMEC, AE, "RecordSpecification has illegal value in column_flags" },
+<<<<<<< HEAD
   { 4557, DMEC, AE, "Column types must be identical when comparing two columns" },
   { 4558, DMEC, AE, "Pending Blob operations must be executed before this call" },
   { 4559, DMEC, AE, "Failed to transfer KeyInfo to AttrInfo for InterpretedWrite" },
+=======
+  /* 4557 */
+  { 4558, DMEC, AE, "Pending Blob operations must be executed before this call" },
+>>>>>>> pr/231
 
   { 4200, DMEC, AE, "Status Error when defining an operation" },
   { 4201, DMEC, AE, "Variable Arrays not yet supported" },

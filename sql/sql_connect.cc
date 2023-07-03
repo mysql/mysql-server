@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,8 +129,13 @@ int get_or_create_user_conn(THD *thd, const char *user, const char *host,
   char temp_user[USER_HOST_BUFF_SIZE];
   struct user_conn *uc = nullptr;
 
+<<<<<<< HEAD
   assert(user != nullptr);
   assert(host != nullptr);
+=======
+  assert(user != 0);
+  assert(host != 0);
+>>>>>>> pr/231
 
   user_len = strlen(user);
   temp_len = (my_stpcpy(my_stpcpy(temp_user, user) + 1, host) - temp_user) + 1;
@@ -250,8 +259,18 @@ end:
 void decrease_user_connections(USER_CONN *uc) {
   DBUG_TRACE;
   mysql_mutex_lock(&LOCK_user_conn);
+<<<<<<< HEAD
   assert(uc->connections);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(uc->connections);
+>>>>>>> pr/231
   if (!--uc->connections && !mqh_used) {
+=======
+  assert(uc->connections);
+  if (!--uc->connections && !mqh_used)
+  {
+>>>>>>> upstream/cluster-7.6
     /* Last connection for user; Delete it */
     hash_user_connections->erase(std::string(uc->user, uc->len));
   }
@@ -291,8 +310,13 @@ void release_user_connection(THD *thd) {
 bool check_mqh(THD *thd, uint check_command) {
   bool error = false;
   const USER_CONN *uc = thd->get_user_connect();
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(uc != nullptr);
+=======
+  DBUG_ENTER("check_mqh");
+  assert(uc != 0);
+>>>>>>> pr/231
 
   mysql_mutex_lock(&LOCK_user_conn);
 
@@ -455,9 +479,18 @@ static int check_connection(THD *thd) {
     char ip[NI_MAXHOST];
     LEX_CSTRING main_sctx_ip;
 
+<<<<<<< HEAD
     /* Set the remote (peer) port for this THD. */
     peer_rc = vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
     mysql_thread_set_peer_port(thd->peer_port);
+=======
+<<<<<<< HEAD
+    peer_rc = vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
+=======
+    peer_rc= vio_peer_addr(net->vio, ip, &thd->peer_port, NI_MAXHOST);
+    mysql_thread_set_peer_port(thd->peer_port);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     /*
     ===========================================================================
@@ -674,6 +707,21 @@ static int check_connection(THD *thd) {
     can be inspected.
   */
   thd->set_ssl(net->vio);
+<<<<<<< HEAD
+=======
+
+  if (net->vio->ssl_arg) {
+    int version = SSL_version((SSL *)net->vio->ssl_arg);
+    if (version == TLS1_VERSION || version == TLS1_1_VERSION) {
+      Security_context *sctx = thd->security_context();
+      sql_print_warning(ER(ER_DEPRECATED_TLS_VERSION_SESSION),
+                        SSL_get_version((SSL *)net->vio->ssl_arg),
+                        sctx->priv_user().str, sctx->priv_host().str,
+                        sctx->host_or_ip().str, sctx->user().str);
+    }
+  }
+
+>>>>>>> pr/231
   return auth_rc;
 }
 
@@ -699,7 +747,11 @@ static bool login_connection(THD *thd) {
              ("login_connection called by thread %u", thd->thread_id()));
 
   /* Use "connect_timeout" value during connection phase */
+<<<<<<< HEAD
   thd->get_protocol_classic()->set_read_timeout(connect_timeout, true);
+=======
+  thd->get_protocol_classic()->set_read_timeout(connect_timeout, TRUE);
+>>>>>>> pr/231
   thd->get_protocol_classic()->set_write_timeout(connect_timeout);
 
   error = check_connection(thd);

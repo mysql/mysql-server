@@ -1,4 +1,5 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -11,16 +12,30 @@
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
    separately licensed software that they have included with MySQL.
+=======
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+>>>>>>> pr/231
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<<<<<<< HEAD
    GNU General Public License, version 2.0, for more details.
+=======
+   GNU General Public License for more details.
+>>>>>>> pr/231
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 */
 
 #include <NdbHistory.hpp>
@@ -29,7 +44,11 @@
 WorkerIdentifier:: WorkerIdentifier():
     m_totalWorkers(0),
     m_nextWorker(0)
+<<<<<<< HEAD
 {}
+=======
+{};
+>>>>>>> pr/231
 
 void
 WorkerIdentifier::init(const Uint32 totalWorkers)
@@ -41,7 +60,11 @@ WorkerIdentifier::init(const Uint32 totalWorkers)
     m_nextWorker = 0;
   }
   unlock();
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 Uint32
 WorkerIdentifier::getTotalWorkers() const
@@ -60,7 +83,11 @@ WorkerIdentifier::getNextWorkerId()
   }
   unlock();
   return r;
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 void 
 EpochRange::dump() const
@@ -68,7 +95,11 @@ EpochRange::dump() const
   ndbout_c("[%u/%u,%u/%u)",
            hi(m_start), lo(m_start),
            hi(m_end), lo(m_end));
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 bool
 NdbHistory::RecordState::equal(const RecordState& other) const
@@ -90,20 +121,32 @@ NdbHistory::Version::Version(RecordRange range) :
 {
   m_states = new RecordState[m_range.m_len];
   memset(m_states, 0, (sizeof(RecordState) * m_range.m_len));
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 NdbHistory::Version::Version(const Version* other) :
   m_range(other->m_range)
 {
   m_states = new RecordState[m_range.m_len];
   memcpy(m_states, other->m_states, (sizeof(RecordState) * m_range.m_len));
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 NdbHistory::Version::~Version()
 {
   delete [] m_states;
   m_states = NULL;
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 void 
 NdbHistory::Version::assign(const Version* other)
@@ -112,7 +155,11 @@ NdbHistory::Version::assign(const Version* other)
   assert(m_range.m_len == other->m_range.m_len);
   
   memcpy(m_states, other->m_states, (sizeof(RecordState) * m_range.m_len));
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 void
 NdbHistory::Version::setRows(const Uint32 start,
@@ -154,7 +201,11 @@ NdbHistory::Version::diffRowCount(const Version* other) const
   }
   abort();
   return ~Uint32(0);
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 bool 
 NdbHistory::Version::equal(const Version* other) const
@@ -183,7 +234,11 @@ static void dumpV(const char* indent,
              end,
              rs->m_updatesValue);
   }
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 void
 NdbHistory::Version::dump(bool full,
@@ -243,7 +298,11 @@ NdbHistory::Version::dump(bool full,
       }
     }  
   }
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 void
 NdbHistory::Version::dumpDiff(const Version* other) const
@@ -338,7 +397,11 @@ NdbHistory::NdbHistory(const Granularity granularity,
   
   start.m_version = new Version(m_range);
   m_storedVersions.push_back(start);
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 NdbHistory::~NdbHistory()
 {
@@ -346,7 +409,11 @@ NdbHistory::~NdbHistory()
   {
     delete m_storedVersions[i].m_version;
   }
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 bool
 NdbHistory::checkVersionBoundary(const Uint64 epoch, 
@@ -454,7 +521,11 @@ NdbHistory::commitVersion(const Version* version,
     lastVersion.m_version->assign(version);
     lastVersion.m_meta.m_latest_epoch = commitEpoch;
   }
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 const NdbHistory::Version* 
 NdbHistory::getLatestVersion() const
@@ -485,14 +556,22 @@ NdbHistory::findFirstClosestMatch(const Version* match,
   }
   
   return closest;
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 
 NdbHistory::VersionIterator::VersionIterator(const NdbHistory& history):
   m_history(history),
   m_index(0)
 {
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 
 const NdbHistory::Version*
@@ -508,13 +587,21 @@ NdbHistory::VersionIterator::next(VersionMeta& vm)
     return sv.m_version;
   }
   return NULL;
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 void
 NdbHistory::VersionIterator::reset()
 {
   m_index = 0;
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 
 NdbHistory::VersionMatchIterator::VersionMatchIterator(const NdbHistory& history,
@@ -526,7 +613,11 @@ NdbHistory::VersionMatchIterator::VersionMatchIterator(const NdbHistory& history
          match->m_range.m_start);
   assert(history.m_range.m_len ==
          match->m_range.m_len);
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 const NdbHistory::Version*
 NdbHistory::VersionMatchIterator::next(VersionMeta& vm)
@@ -540,13 +631,21 @@ NdbHistory::VersionMatchIterator::next(VersionMeta& vm)
     }
   }
   return NULL;
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 void
 NdbHistory::VersionMatchIterator::reset()
 {
   m_vi.reset();
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 
 NdbHistory::MatchingEpochRangeIterator::
@@ -559,7 +658,11 @@ MatchingEpochRangeIterator(const NdbHistory& history,
          match->m_range.m_start);
   assert(history.m_range.m_len ==
          match->m_range.m_len);
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 bool 
 NdbHistory::MatchingEpochRangeIterator::next(EpochRange& er)
@@ -644,7 +747,11 @@ NdbHistory::getGranularityName(const Granularity gr)
     abort();
     return NULL;
   }
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 void 
 NdbHistory::dump(const bool full) const
@@ -676,7 +783,11 @@ NdbHistory::dump(const bool full) const
     }
     ndbout_c("End of versions");
   }
+<<<<<<< HEAD
 }
+=======
+};
+>>>>>>> pr/231
 
 void
 NdbHistory::dumpClosestMatch(const Version* target) const

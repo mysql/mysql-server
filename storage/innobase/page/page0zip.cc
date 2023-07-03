@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -18,6 +23,26 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+Copyright (c) 2012, Facebook Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -945,7 +970,15 @@ bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
   byte *storage; /* storage of uncompressed
                  columns */
 #ifndef UNIV_HOTBACKUP
+<<<<<<< HEAD
   const auto start_time = std::chrono::steady_clock::now();
+=======
+<<<<<<< HEAD
+  uintmax_t usec = ut_time_us(NULL);
+=======
+	ib_time_monotonic_us_t usec = ut_time_monotonic_us();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif /* !UNIV_HOTBACKUP */
 #ifdef PAGE_ZIP_COMPRESS_DBG
   FILE *logfile = nullptr;
@@ -1022,11 +1055,23 @@ bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
 #ifndef UNIV_HOTBACKUP
   page_zip_stat[page_zip->ssize - 1].compressed++;
 
+<<<<<<< HEAD
   if (cmp_per_index_enabled) {
     mutex_enter(&page_zip_stat_per_index_mutex);
     page_zip_stat_per_index[ind_id].compressed++;
     mutex_exit(&page_zip_stat_per_index_mutex);
   }
+=======
+		uint64_t time_diff = ut_time_monotonic_us() - usec;
+		page_zip_stat[page_zip->ssize - 1].compressed_usec
+			+= time_diff;
+		if (cmp_per_index_enabled) {
+			mutex_enter(&page_zip_stat_per_index_mutex);
+			page_zip_stat_per_index[ind_id].compressed_usec
+				+= time_diff;
+			mutex_exit(&page_zip_stat_per_index_mutex);
+		}
+>>>>>>> upstream/cluster-7.6
 #endif /* !UNIV_HOTBACKUP */
 
   if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE >=
@@ -1239,8 +1284,13 @@ bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
   }
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
+<<<<<<< HEAD
   const auto time_diff = std::chrono::duration_cast<std::chrono::microseconds>(
       std::chrono::steady_clock::now() - start_time);
+=======
+<<<<<<< HEAD
+  uintmax_t time_diff = ut_time_us(NULL) - usec;
+>>>>>>> pr/231
   page_zip_stat[page_zip->ssize - 1].compressed_ok++;
   page_zip_stat[page_zip->ssize - 1].compress_time += time_diff;
   if (cmp_per_index_enabled) {
@@ -1249,6 +1299,17 @@ bool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
     page_zip_stat_per_index[ind_id].compress_time += time_diff;
     mutex_exit(&page_zip_stat_per_index_mutex);
   }
+=======
+	uint64_t time_diff = ut_time_monotonic_us() - usec;
+	page_zip_stat[page_zip->ssize - 1].compressed_ok++;
+	page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
+	if (cmp_per_index_enabled) {
+		mutex_enter(&page_zip_stat_per_index_mutex);
+		page_zip_stat_per_index[ind_id].compressed_ok++;
+		page_zip_stat_per_index[ind_id].compressed_usec += time_diff;
+		mutex_exit(&page_zip_stat_per_index_mutex);
+	}
+>>>>>>> upstream/cluster-7.6
 
   if (page_is_leaf(page)) {
     dict_index_zip_success(index);
@@ -1272,7 +1333,15 @@ bool page_zip_decompress(
                                after page creation */
 {
 #ifndef UNIV_HOTBACKUP
+<<<<<<< HEAD
   const auto start_time = std::chrono::steady_clock::now();
+=======
+<<<<<<< HEAD
+  uintmax_t usec = ut_time_us(NULL);
+=======
+	ib_time_monotonic_us_t	usec = ut_time_monotonic_ms();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif /* !UNIV_HOTBACKUP */
 
   if (!page_zip_decompress_low(page_zip, page, all)) {
@@ -1280,10 +1349,22 @@ bool page_zip_decompress(
   }
 
 #ifndef UNIV_HOTBACKUP
+<<<<<<< HEAD
   const auto time_diff = std::chrono::duration_cast<std::chrono::microseconds>(
       std::chrono::steady_clock::now() - start_time);
   page_zip_stat[page_zip->ssize - 1].decompressed++;
   page_zip_stat[page_zip->ssize - 1].decompress_time += time_diff;
+=======
+<<<<<<< HEAD
+  uintmax_t time_diff = ut_time_us(NULL) - usec;
+  page_zip_stat[page_zip->ssize - 1].decompressed++;
+  page_zip_stat[page_zip->ssize - 1].decompressed_usec += time_diff;
+=======
+	uint64_t time_diff = ut_time_monotonic_us() - usec;
+	page_zip_stat[page_zip->ssize - 1].decompressed++;
+	page_zip_stat[page_zip->ssize - 1].decompressed_usec += time_diff;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (srv_cmp_per_index_enabled) {
     index_id_t index_id(page_get_space_id(page), btr_page_get_index_id(page));

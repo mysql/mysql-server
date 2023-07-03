@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -144,8 +152,19 @@ bool sp_rcontext::init_var_items(THD *thd) {
   return false;
 }
 
+<<<<<<< HEAD
 bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item) {
+<<<<<<< HEAD
   assert(m_return_value_fld);
+=======
+  DBUG_ASSERT(m_return_value_fld);
+=======
+
+bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
+{
+  assert(m_return_value_fld);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   m_return_value_set = true;
 
@@ -171,8 +190,19 @@ bool sp_rcontext::push_cursor(sp_instr_cpush *i) {
   return false;
 }
 
+<<<<<<< HEAD
 void sp_rcontext::pop_cursors(uint count) {
+<<<<<<< HEAD
   assert(m_ccount >= count);
+=======
+  DBUG_ASSERT(m_ccount >= count);
+=======
+
+void sp_rcontext::pop_cursors(uint count)
+{
+  assert(m_ccount >= count);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   while (count--) {
     m_ccount--;
@@ -536,8 +566,13 @@ bool sp_cursor::Query_fetch_into_spvars::send_data(
   auto item_iter = VisibleFields(items).begin();
   sp_variable *spvar;
 
+<<<<<<< HEAD
   assert(items.size() == CountVisibleFields(items));
   assert(spvar_list->size() == items.size());
+=======
+  /* Must be ensured by the caller */
+  assert(spvar_list->elements == items.elements);
+>>>>>>> pr/231
 
   /*
     Assign the row fetched from a server side cursor to stored

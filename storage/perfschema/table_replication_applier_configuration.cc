@@ -1,5 +1,10 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -11,6 +16,25 @@
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
   separately licensed software that they have included with MySQL.
+=======
+      Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+
+      This program is free software; you can redistribute it and/or modify
+      it under the terms of the GNU General Public License, version 2.0,
+      as published by the Free Software Foundation.
+
+      This program is also distributed with certain software (including
+      but not limited to OpenSSL) that is licensed under separate terms,
+      as designated in a particular file or component or in included license
+      documentation.  The authors of MySQL hereby grant you an additional
+      permission to link the program and your derivative works with the
+      separately licensed software that they have included with MySQL.
+
+      This program is distributed in the hope that it will be useful,
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
+      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+      GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -114,8 +138,35 @@ bool PFS_index_rpl_applier_config::match(Master_info *mi) {
   return true;
 }
 
+<<<<<<< HEAD
 PFS_engine_table *table_replication_applier_configuration::create(
     PFS_engine_table_share *) {
+=======
+PFS_engine_table_share_state
+table_replication_applier_configuration::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_replication_applier_configuration::m_share=
+{
+  { C_STRING_WITH_LEN("replication_applier_configuration") },
+  &pfs_readonly_acl,
+  table_replication_applier_configuration::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_replication_applier_configuration::get_row_count,
+  sizeof(pos_t), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_replication_applier_configuration::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_replication_applier_configuration();
 }
 
@@ -137,21 +188,56 @@ ha_rows table_replication_applier_configuration::get_row_count() {
 
 int table_replication_applier_configuration::rnd_next(void) {
   Master_info *mi;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+
+>>>>>>> pr/231
   channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels(); m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
+<<<<<<< HEAD
+=======
+=======
+  channel_map.rdlock();
+
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index < channel_map.get_max_channels();
+       m_pos.next())
+  {
+    mi= channel_map.get_mi_at_pos(m_pos.m_index);
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
     if (mi && mi->host[0]) {
       make_row(mi);
       m_next_pos.set_after(&m_pos);
+<<<<<<< HEAD
       channel_map.unlock();
       return 0;
+=======
+<<<<<<< HEAD
+=======
+      channel_map.unlock();
+      return 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
   }
 
   channel_map.unlock();
+<<<<<<< HEAD
   return HA_ERR_END_OF_FILE;
+=======
+<<<<<<< HEAD
+
+  return res;
+=======
+  return HA_ERR_END_OF_FILE;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 int table_replication_applier_configuration::rnd_pos(const void *pos) {
@@ -183,6 +269,7 @@ int table_replication_applier_configuration::index_init(uint idx
   return 0;
 }
 
+<<<<<<< HEAD
 int table_replication_applier_configuration::index_next(void) {
   int res = HA_ERR_END_OF_FILE;
 
@@ -209,9 +296,18 @@ int table_replication_applier_configuration::index_next(void) {
 }
 
 int table_replication_applier_configuration::make_row(Master_info *mi) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(mi != nullptr);
   assert(mi->rli != nullptr);
+=======
+  DBUG_ASSERT(mi != NULL);
+  DBUG_ASSERT(mi->rli != NULL);
+=======
+  assert(mi != NULL);
+  assert(mi->rli != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
@@ -262,9 +358,26 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
                                                              unsigned char *buf,
                                                              Field **fields,
                                                              bool read_all) {
+<<<<<<< HEAD
   DBUG_TRACE;
   /* Set the null bits */
   assert(table->s->null_bytes == 1);
+=======
+  Field *f;
+
+  /*
+    Note:
+    There are no NULL columns in this table,
+    so there are no null bits reserved for NULL flags per column.
+    There are no VARCHAR columns either, so the record is not
+    in HA_OPTION_PACK_RECORD format as most other performance_schema tables.
+    When HA_OPTION_PACK_RECORD is not set,
+    the table record reserves an extra null byte, see open_binary_frm().
+  */
+
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (Field *f = nullptr; (f = *fields); fields++) {
@@ -306,7 +419,30 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
             f->set_null();
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /**channel_name*/
+        set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+        break;
+      case 1: /** desired_delay */
+        set_field_ulong(f, static_cast<ulong>(m_row.desired_delay));
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

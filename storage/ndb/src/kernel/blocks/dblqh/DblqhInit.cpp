@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,9 +92,12 @@ void Dblqh::initData()
   m_insert_size = 0;
   m_delete_size = 0;
 
+<<<<<<< HEAD
   c_copy_fragment_ongoing = false;
   c_copy_active_ongoing = false;
 
+=======
+>>>>>>> pr/231
   c_gcp_stop_timer = 0;
   c_is_io_lag_reported = false;
   c_wait_lcp_surfacing = false;
@@ -100,8 +107,11 @@ void Dblqh::initData()
   c_send_gcp_saveref_needed = false;
   m_first_distributed_lcp_started = false;
   m_in_send_next_scan = 0;
+<<<<<<< HEAD
   m_fragment_lock_status = FRAGMENT_UNLOCKED;
   m_old_fragment_lock_status = FRAGMENT_UNLOCKED;
+=======
+>>>>>>> pr/231
 
   if (m_is_query_block)
   {
@@ -260,6 +270,14 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator* mgm_cfg,
       &prim_tab_fragptr,
       &gcpPtr,
       &lcpPtr,
+<<<<<<< HEAD
+=======
+      &logPartPtr,
+      &logFilePtr,
+      &lfoPtr,
+      &logPagePtr,
+      &pageRefPtr,
+>>>>>>> pr/231
       &scanptr,
       &tabptr,
       &m_tc_connect_ptr,
@@ -588,6 +606,7 @@ Dblqh::Dblqh(Block_context& ctx,
 {
   BLOCK_CONSTRUCTOR(Dblqh);
 
+<<<<<<< HEAD
   if (blockNo == DBLQH)
   {
     addRecSignal(GSN_LOCAL_LATEST_LCP_ID_REP,
@@ -599,6 +618,19 @@ Dblqh::Dblqh(Block_context& ctx,
     addRecSignal(GSN_COMMIT, &Dblqh::execCOMMIT);
     addRecSignal(GSN_COMPLETE, &Dblqh::execCOMPLETE);
     addRecSignal(GSN_LQHKEYCONF, &Dblqh::execLQHKEYCONF);
+=======
+  addRecSignal(GSN_LOCAL_LATEST_LCP_ID_REP,
+               &Dblqh::execLOCAL_LATEST_LCP_ID_REP);
+  addRecSignal(GSN_PACKED_SIGNAL, &Dblqh::execPACKED_SIGNAL);
+  addRecSignal(GSN_DEBUG_SIG, &Dblqh::execDEBUG_SIG);
+  addRecSignal(GSN_ATTRINFO, &Dblqh::execATTRINFO);
+  addRecSignal(GSN_KEYINFO, &Dblqh::execKEYINFO);
+  addRecSignal(GSN_LQHKEYREQ, &Dblqh::execLQHKEYREQ);
+  addRecSignal(GSN_LQHKEYREF, &Dblqh::execLQHKEYREF);
+  addRecSignal(GSN_COMMIT, &Dblqh::execCOMMIT);
+  addRecSignal(GSN_COMPLETE, &Dblqh::execCOMPLETE);
+  addRecSignal(GSN_LQHKEYCONF, &Dblqh::execLQHKEYCONF);
+>>>>>>> pr/231
 #ifdef VM_TRACE
     addRecSignal(GSN_TESTSIG, &Dblqh::execTESTSIG);
 #endif
@@ -628,6 +660,7 @@ Dblqh::Dblqh(Block_context& ctx,
     addRecSignal(GSN_BUILD_INDX_IMPL_REF, &Dblqh::execBUILD_INDX_IMPL_REF);
     addRecSignal(GSN_BUILD_INDX_IMPL_CONF, &Dblqh::execBUILD_INDX_IMPL_CONF);
 
+<<<<<<< HEAD
     addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
     addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
     addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);
@@ -659,9 +692,43 @@ Dblqh::Dblqh(Block_context& ctx,
     addRecSignal(GSN_ABORTREQ, &Dblqh::execABORTREQ);
     addRecSignal(GSN_COMMITREQ, &Dblqh::execCOMMITREQ);
     addRecSignal(GSN_COMPLETEREQ, &Dblqh::execCOMPLETEREQ);
+=======
+  addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
+  addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
+  addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);
+  addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED, true);
+  addRecSignal(GSN_TUP_ATTRINFO, &Dblqh::execTUP_ATTRINFO);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dblqh::execREAD_CONFIG_REQ, true);
+  addRecSignal(GSN_LQHFRAGREQ, &Dblqh::execLQHFRAGREQ);
+  addRecSignal(GSN_LQHADDATTREQ, &Dblqh::execLQHADDATTREQ);
+  addRecSignal(GSN_TUP_ADD_ATTCONF, &Dblqh::execTUP_ADD_ATTCONF);
+  addRecSignal(GSN_TUP_ADD_ATTRREF, &Dblqh::execTUP_ADD_ATTRREF);
+  addRecSignal(GSN_ACCFRAGCONF, &Dblqh::execACCFRAGCONF);
+  addRecSignal(GSN_ACCFRAGREF, &Dblqh::execACCFRAGREF);
+  addRecSignal(GSN_TUPFRAGCONF, &Dblqh::execTUPFRAGCONF);
+  addRecSignal(GSN_TUPFRAGREF, &Dblqh::execTUPFRAGREF);
+  addRecSignal(GSN_WAIT_LCP_IDLE_CONF, &Dblqh::execWAIT_LCP_IDLE_CONF);
+  addRecSignal(GSN_TAB_COMMITREQ, &Dblqh::execTAB_COMMITREQ);
+  addRecSignal(GSN_ACCSEIZECONF, &Dblqh::execACCSEIZECONF);
+  addRecSignal(GSN_ACCSEIZEREF, &Dblqh::execACCSEIZEREF);
+  addRecSignal(GSN_READ_NODESCONF, &Dblqh::execREAD_NODESCONF);
+  addRecSignal(GSN_READ_NODESREF, &Dblqh::execREAD_NODESREF);
+  addRecSignal(GSN_STTOR, &Dblqh::execSTTOR);
+  addRecSignal(GSN_NDB_STTOR, &Dblqh::execNDB_STTOR);
+  addRecSignal(GSN_TUPSEIZECONF, &Dblqh::execTUPSEIZECONF);
+  addRecSignal(GSN_TUPSEIZEREF, &Dblqh::execTUPSEIZEREF);
+  addRecSignal(GSN_ACCKEYCONF, &Dblqh::execACCKEYCONF);
+  addRecSignal(GSN_ACCKEYREF, &Dblqh::execACCKEYREF);
+  addRecSignal(GSN_TUPKEYREF, &Dblqh::execTUPKEYREF);
+  addRecSignal(GSN_ABORT, &Dblqh::execABORT);
+  addRecSignal(GSN_ABORTREQ, &Dblqh::execABORTREQ);
+  addRecSignal(GSN_COMMITREQ, &Dblqh::execCOMMITREQ);
+  addRecSignal(GSN_COMPLETEREQ, &Dblqh::execCOMPLETEREQ);
+>>>>>>> pr/231
 #ifdef VM_TRACE
     addRecSignal(GSN_MEMCHECKREQ, &Dblqh::execMEMCHECKREQ);
 #endif
+<<<<<<< HEAD
     addRecSignal(GSN_SCAN_FRAGREQ, &Dblqh::execSCAN_FRAGREQ);
     addRecSignal(GSN_SCAN_NEXTREQ, &Dblqh::execSCAN_NEXTREQ);
     addRecSignal(GSN_NEXT_SCANCONF, &Dblqh::execNEXT_SCANCONF);
@@ -683,6 +750,29 @@ Dblqh::Dblqh(Block_context& ctx,
     addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_CONF,
                  &Dblqh::execINFORM_BACKUP_DROP_TAB_CONF);
     addRecSignal(GSN_LCP_ALL_COMPLETE_CONF, &Dblqh::execLCP_ALL_COMPLETE_CONF);
+=======
+  addRecSignal(GSN_SCAN_FRAGREQ, &Dblqh::execSCAN_FRAGREQ);
+  addRecSignal(GSN_SCAN_NEXTREQ, &Dblqh::execSCAN_NEXTREQ);
+  addRecSignal(GSN_NEXT_SCANCONF, &Dblqh::execNEXT_SCANCONF);
+  addRecSignal(GSN_NEXT_SCANREF, &Dblqh::execNEXT_SCANREF);
+  addRecSignal(GSN_ACC_CHECK_SCAN, &Dblqh::execACC_CHECK_SCAN);
+  addRecSignal(GSN_COPY_FRAGREQ, &Dblqh::execCOPY_FRAGREQ);
+  addRecSignal(GSN_COPY_FRAGREF, &Dblqh::execCOPY_FRAGREF);
+  addRecSignal(GSN_COPY_FRAGCONF, &Dblqh::execCOPY_FRAGCONF);
+  addRecSignal(GSN_COPY_ACTIVEREQ, &Dblqh::execCOPY_ACTIVEREQ);
+  addRecSignal(GSN_LQH_TRANSREQ, &Dblqh::execLQH_TRANSREQ);
+  addRecSignal(GSN_TRANSID_AI, &Dblqh::execTRANSID_AI);
+  addRecSignal(GSN_INCL_NODEREQ, &Dblqh::execINCL_NODEREQ);
+  addRecSignal(GSN_LCP_PREPARE_REF, &Dblqh::execLCP_PREPARE_REF);
+  addRecSignal(GSN_LCP_PREPARE_CONF, &Dblqh::execLCP_PREPARE_CONF);
+  addRecSignal(GSN_END_LCPCONF, &Dblqh::execEND_LCPCONF);
+  addRecSignal(GSN_WAIT_COMPLETE_LCP_REQ, &Dblqh::execWAIT_COMPLETE_LCP_REQ);
+  addRecSignal(GSN_WAIT_ALL_COMPLETE_LCP_CONF,
+               &Dblqh::execWAIT_ALL_COMPLETE_LCP_CONF);
+  addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_CONF,
+               &Dblqh::execINFORM_BACKUP_DROP_TAB_CONF);
+  addRecSignal(GSN_LCP_ALL_COMPLETE_CONF, &Dblqh::execLCP_ALL_COMPLETE_CONF);
+>>>>>>> pr/231
 
     addRecSignal(GSN_LCP_FRAG_ORD, &Dblqh::execLCP_FRAG_ORD);
   
@@ -834,6 +924,7 @@ Dblqh::Dblqh(Block_context& ctx,
   m_is_recover_block = false;
   initData();
 
+<<<<<<< HEAD
   init_restart_synch();
   m_restore_mutex = 0;
   m_lock_acc_page_mutex = 0;
@@ -854,6 +945,8 @@ Dblqh::Dblqh(Block_context& ctx,
     &m_commitAckMarkerPool;
   static_assert(c_transient_pool_count == 3);
   c_transient_pools_shrinking.clear();
+=======
+>>>>>>> pr/231
 }//Dblqh::Dblqh()
 
 Dblqh::~Dblqh()

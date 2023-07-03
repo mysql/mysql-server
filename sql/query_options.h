@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,8 +85,17 @@
 #define OPTION_NO_CONST_TABLES (1ULL << 23)    // No const tables, intern
 
 /* The following is used to detect a conflict with DISTINCT */
+<<<<<<< HEAD
 #define SELECT_ALL (1ULL << 24)           // SELECT, user, parser
 #define SELECT_NO_SEMI_JOIN (1ULL << 25)  // SELECT, intern
+=======
+<<<<<<< HEAD
+#define SELECT_ALL (1ULL << 24)  // SELECT, user, parser
+=======
+#define SELECT_ALL              (1ULL << 24)    // SELECT, user, parser
+#define SELECT_NO_SEMI_JOIN     (1ULL << 25)    // SELECT, intern
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /** The following can be set when importing tables in a 'wrong order'
    to suppress foreign key checks */
 #define OPTION_NO_FOREIGN_KEY_CHECKS (1ULL << 26)  // THD, user, binlog

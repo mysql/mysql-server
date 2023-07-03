@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -79,8 +87,15 @@ class PFS_index_setup_actors : public PFS_engine_index {
 };
 
 /** Table PERFORMANCE_SCHEMA.SETUP_ACTORS. */
+<<<<<<< HEAD
 class table_setup_actors : public PFS_engine_table {
  public:
+=======
+class table_setup_actors : public PFS_engine_table
+{
+public:
+  static PFS_engine_table_share_state m_share_state;
+>>>>>>> upstream/cluster-7.6
   /** Table share. */
   static PFS_engine_table_share m_share;
   /** Table builder. */

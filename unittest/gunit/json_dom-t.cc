@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -300,8 +304,16 @@ TEST_F(JsonDomTest, BasicTest) {
   a.append_clone(&jbf);
   a.append_clone(&jbt);
   EXPECT_EQ(std::string("[null, false, true]"), format(a));
+<<<<<<< HEAD
   EXPECT_EQ(std::string("[null, false, true]"), format(a.clone()));
+=======
+  EXPECT_EQ(std::string("[null, false, true]"), format(c.get()));
+}
+>>>>>>> upstream/cluster-7.6
 
+TEST_F(JsonDomTest, BasicTestTwo)
+{
+  Json_array a;
   /* DATETIME scalar */
   MYSQL_TIME dt;
   std::memset(&dt, 0, sizeof dt);
@@ -387,7 +399,11 @@ TEST_F(JsonDomTest, BasicTest) {
   dom = parse_json(sample_object);
   const Json_object *obj = down_cast<const Json_object *>(dom.get());
   EXPECT_EQ(8U, obj->cardinality());
+<<<<<<< HEAD
   idx = 0;
+=======
+  int idx= 0;
+>>>>>>> upstream/cluster-7.6
 
   for (Json_object::const_iterator it = obj->begin(); it != obj->end(); ++it) {
     EXPECT_EQ(expected[idx][0], it->first);

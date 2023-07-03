@@ -99,7 +99,11 @@ changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
       break;
     }
     g_err << "Restarting nodes to apply config change" << endl;
+<<<<<<< HEAD
     NdbSleep_SecSleep(3); //Give MGM server time to restart
+=======
+    sleep(3); //Give MGM server time to restart
+>>>>>>> pr/231
     if (restarter.restartAll())
     {
       g_err << "Failed to restart nodes." << endl;
@@ -1690,7 +1694,12 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
   if (restarter.getMaxConcurrentNodeFailures() < 1)
   {
+<<<<<<< HEAD
     g_err << "[SKIPPED] Configuration cannot handle 1 node failure." << endl;
+=======
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
+    ctx->stopTest();
+>>>>>>> pr/231
     return NDBT_OK;
   }
 
@@ -1794,12 +1803,17 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
 
   if (restarter.getNumReplicas() < 2)
   {
+<<<<<<< HEAD
     g_err << "[SKIPPED] Test requires 2 or more replicas." << endl;
     return NDBT_OK;
   }
  if (restarter.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
+=======
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
+    ctx->stopTest();
+>>>>>>> pr/231
     return NDBT_OK;
   }
   Uint32 cnt = restarter.getNumDbNodes();
@@ -2027,9 +2041,15 @@ runBug29364(NDBT_Context* ctx, NDBT_Step* step)
   
   HugoTransactions hugoTrans(*ctx->getTab());
 
+<<<<<<< HEAD
   if (restarter.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
+=======
+  if (restarter.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+>>>>>>> pr/231
     return NDBT_OK;
   }
 
@@ -2075,9 +2095,15 @@ int runBug25364(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter restarter;
   int loops = ctx->getNumLoops();
   
+<<<<<<< HEAD
   if (restarter.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
+=======
+  if (restarter.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 2 nodes" << endl;
+>>>>>>> pr/231
     return NDBT_OK;
   }
 
@@ -2237,9 +2263,15 @@ int runBug25554(NDBT_Context* ctx, NDBT_Step* step)
   int loops = ctx->getNumLoops();
   NdbRestarter restarter;
   
+<<<<<<< HEAD
   if (restarter.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
+=======
+  if (restarter.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+>>>>>>> pr/231
     return NDBT_OK;
   }
 
@@ -2399,6 +2431,7 @@ int
 runBug26457(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
+<<<<<<< HEAD
 
   if (res.getNumNodeGroups() < 2)
   {
@@ -2410,6 +2443,13 @@ runBug26457(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
+=======
+  if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    return NDBT_OK;
+  }
+>>>>>>> pr/231
 
   int loops = ctx->getNumLoops();
   while (loops --)
@@ -2868,6 +2908,18 @@ runBug28023(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+/**
+ * The test Bug28717 has been disabled. The problem is that the error insert
+ * 1001 in NDBCNTR is not a correct error inject. It delays execution of
+ * NODE_FAILREP in among other things DBTC. However other nodes proceed with
+ * node failure handling and send TAKE_OVERTCCONF to the node delaying the
+ * NODE_FAILREP. When DBTC receives this TAKE_OVERTCCONF it crashes on an
+ * ndbrequire(i != end) where this crash is caused by the fact that
+ * NODE_FAILREP wasn't received before we received TAKE_OVERTCCONF.
+ *
+ * This crash occurred roughly 1-2 times per week in execution of tests in
+ * autotest.
+ */
 int
 runBug28717(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -4203,6 +4255,7 @@ runBug36199(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
 
+<<<<<<< HEAD
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
@@ -4213,6 +4266,13 @@ runBug36199(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
+=======
+  if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    return NDBT_OK;
+  }
+>>>>>>> pr/231
 
   int master = res.getMasterNodeId();
   int nextMaster = res.getNextMasterNodeId(master);
@@ -4260,6 +4320,7 @@ runBug36246(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
 
+<<<<<<< HEAD
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
@@ -4270,6 +4331,13 @@ runBug36246(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
+=======
+  if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    return NDBT_OK;
+  }
+>>>>>>> pr/231
 
   HugoOperations hugoOps(*ctx->getTab());
 restartloop:
@@ -4356,6 +4424,7 @@ runBug36247(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
 
+<<<<<<< HEAD
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
@@ -4366,6 +4435,13 @@ runBug36247(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
+=======
+  if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    return NDBT_OK;
+  }
+>>>>>>> pr/231
 
   Ndb* pNdb = GETNDB(step);
   HugoOperations hugoOps(*ctx->getTab());
@@ -4467,12 +4543,16 @@ runBug36276(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
     return NDBT_OK;
   }
+<<<<<<< HEAD
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
     return NDBT_OK;
   }
 
+=======
+  
+>>>>>>> pr/231
   int master = res.getMasterNodeId();
   int nextMaster = res.getNextMasterNodeId(master);
   int victim = res.getRandomNodeSameNodeGroup(nextMaster, rand());
@@ -4514,6 +4594,7 @@ runBug36245(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
 
+<<<<<<< HEAD
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
@@ -4524,6 +4605,13 @@ runBug36245(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
     return NDBT_OK;
   }
+=======
+  if (res.getNumDbNodes() < 4)
+  {
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    return NDBT_OK;
+  }
+>>>>>>> pr/231
 
   /**
    * Make sure master and nextMaster is in different node groups
@@ -4851,7 +4939,12 @@ runBug42422(NDBT_Context* ctx, NDBT_Step* step)
   
   if (res.getNumNodeGroups() < 2)
   {
+<<<<<<< HEAD
     g_err << "[SKIPPED] Need at least 2 node groups to run the test" << endl;
+=======
+    g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
+    ctx->stopTest();
+>>>>>>> pr/231
     return NDBT_OK;
   }
 
@@ -6893,6 +6986,7 @@ runTestScanFragWatchdog(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 /**
+<<<<<<< HEAD
  * The function remembers the old values such that they can be restored.
  * If the configuration doesn't contain any value then it will be restored
  * to 0 (which isn't generally correct, but correct for all current use
@@ -6909,6 +7003,21 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd,
                              bool initial_nr)
 {
   g_err << "nodeId = " << nodeId << endl;
+=======
+ * Change the config value of the nodes that have
+ * the given 'key' config variable with the given
+ * 'value'. And then restart the given 'nodeId'.
+ * The 'value' will return the old value
+ * of the 'key'.
+ */
+static Uint32
+setConfigValueAndRestartNode(NdbMgmd *mgmd,
+                             Uint32 key,
+                             Uint32 & value,
+                             int nodeId,
+                             NdbRestarter *restarter)
+{
+>>>>>>> pr/231
   // Get the binary config
   Config conf;
   if (!mgmd->get_config(conf)) 
@@ -6917,6 +7026,7 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd,
     return NDBT_FAILED;
   }
   // Set the key
+<<<<<<< HEAD
   ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
   Uint32 oldValue[4];
   for (Uint32 i = 0; i < 4; i++)
@@ -6974,15 +7084,43 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd,
     }
     iter.closeSection();
   }
+=======
+  ConfigValues::Iterator iter(conf.m_configValues->m_config);
+  Uint32 oldValue = 0;
+  bool first = true;
+  for (int nodeid = 1; nodeid < MAX_NODES; nodeid ++)
+  {
+    if (!iter.openSection(CFG_SECTION_NODE, nodeid))
+      continue;
+    Uint32 prev_old_value = oldValue;
+    if (iter.get(key, &oldValue))
+    {
+      iter.set(key, value);
+    }
+    iter.closeSection();
+    if (!first && prev_old_value != oldValue)
+    {
+      g_err << "Failed since node configs not equal" << endl;
+      return NDBT_FAILED;
+    }
+  }
+  value = oldValue;
+>>>>>>> pr/231
   // Set the modified config
   if (!mgmd->set_config(conf)) 
   {
     g_err << "Failed to set config in ndb_mgmd." << endl;
     return NDBT_FAILED;
   }
+<<<<<<< HEAD
   NdbSleep_SecSleep(5); //Give MGM server time to restart
   g_err << "Restarting node " << nodeId << " to apply config change.." << endl;
   if (restarter->restartOneDbNode(nodeId, initial_nr, false, true))
+=======
+  sleep(5); //Give MGM server time to restart
+  g_err << "Restarting node " << nodeId << " to apply config change.." << endl;
+  if (restarter->restartOneDbNode(nodeId, false, false, true))
+>>>>>>> pr/231
   {
     g_err << "Failed to restart node." << endl;
     return NDBT_FAILED;
@@ -7262,6 +7400,7 @@ runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
 
     // to disable the LCP frag scan watchdog, set 
     // CFG_DB_LCP_SCAN_WATCHDOG_LIMIT = 0
+<<<<<<< HEAD
     lcp_watchdog_limit = 0;
     Uint32 key = CFG_DB_LCP_SCAN_WATCHDOG_LIMIT;
     if (setConfigValueAndRestartNode(&mgmd,
@@ -7272,6 +7411,11 @@ runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
                                      true,
                                      &restarter,
                                      false) == NDBT_FAILED)
+=======
+    Uint32 lcp_watchdog_limit = 0;
+    if (setConfigValueAndRestartNode(&mgmd, CFG_DB_LCP_SCAN_WATCHDOG_LIMIT,
+          lcp_watchdog_limit, victim, &restarter) == NDBT_FAILED)
+>>>>>>> pr/231
       break;
 
     g_err << "Injecting fault in node " << victim;
@@ -7331,6 +7475,7 @@ runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "No LCP activity: LCP Frag watchdog successfully disabled..."
           << endl;
     g_err << "Restoring default LCP Frag watchdog config..." << endl;
+<<<<<<< HEAD
     if (setConfigValueAndRestartNode(&mgmd,
                                      &key,
                                      &lcp_watchdog_limit,
@@ -7339,6 +7484,10 @@ runTestScanFragWatchdogDisable(NDBT_Context* ctx, NDBT_Step* step)
                                      true,
                                      &restarter,
                                      false) == NDBT_FAILED)
+=======
+    if(setConfigValueAndRestartNode(&mgmd, CFG_DB_LCP_SCAN_WATCHDOG_LIMIT, 
+          lcp_watchdog_limit, victim, &restarter) == NDBT_FAILED)
+>>>>>>> pr/231
       break;
 
     ctx->stopTest();
@@ -9343,7 +9492,11 @@ int runTestStartNode(NDBT_Context* ctx, NDBT_Step* step){
  * The test loops for more than 2048 times to ensure that we come
  * to a situation with a large number of parts in each LCP and in
  * particular for the last one that we are to restore. The number
+<<<<<<< HEAD
  * 2058 is somewhat arbitrarily chosen to ensure this.
+=======
+ * 2058 is somewhat arbitrarily choosen to ensure this.
+>>>>>>> pr/231
  *
  * The test case is hardcoded to make those special LCPs in node 2.
  *
@@ -9385,6 +9538,7 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
     return NDBT_FAILED;
   }
   Uint32 gcp_interval = 200;
+<<<<<<< HEAD
   Uint32 key = CFG_DB_GCP_INTERVAL;
   if (setConfigValueAndRestartNode(&mgmd,
                                    &key,
@@ -9394,6 +9548,10 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
                                    true,
                                    &restarter,
                                    false) == NDBT_FAILED)
+=======
+  if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
+                          gcp_interval, node_1, &restarter) == NDBT_FAILED)
+>>>>>>> pr/231
   {
     g_err << "Failed to set TimeBetweenGlobalCheckpoints to 200" << endl;
     return NDBT_FAILED;
@@ -9401,12 +9559,20 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
   g_err << "Restarting node " << node_2 << " to apply config change.." << endl;
   if (restarter.restartOneDbNode(node_2, false, false, true))
   {
+<<<<<<< HEAD
     g_err << "Failed to restart node." << endl;
+=======
+    g_err << "Failed to restart node " << node_2 << endl;
+>>>>>>> pr/231
     return NDBT_FAILED;
   }
   if (restarter.waitNodesStarted(&node_2, 1) != 0)
   {
+<<<<<<< HEAD
     g_err << "Failed waiting for node started." << endl;
+=======
+    g_err << "Failed waiting for node " << node_2 << " to start." << endl;
+>>>>>>> pr/231
     return NDBT_FAILED;
   }
   if (hugoTrans.loadTable(pNdb, records) != NDBT_OK)
@@ -9515,6 +9681,7 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
   ndbout << "Reset TimeBetweenGlobalCheckpoints to "
          << gcp_interval << endl;
 
+<<<<<<< HEAD
   if (setConfigValueAndRestartNode(&mgmd,
                                    &key,
                                    &gcp_interval,
@@ -9525,17 +9692,32 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
                                    false) == NDBT_FAILED)
   {
     g_err << "Failed to reset TimeBetweenGlobalCheckpoints" << endl;
+=======
+  if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
+                         gcp_interval, node_1, &restarter) == NDBT_FAILED)
+  {
+    g_err << "Failed to reset TimeBetweenGlobalCheckpoints to "
+          << gcp_interval << endl;
+>>>>>>> pr/231
     return NDBT_FAILED;
   }
   g_err << "Restarting node " << node_2 << " to apply config change.." << endl;
   if (restarter.restartOneDbNode(node_2, false, false, true))
   {
+<<<<<<< HEAD
     g_err << "Failed to restart node." << endl;
+=======
+    g_err << "Failed to restart node " << node_2 << endl;
+>>>>>>> pr/231
     return NDBT_FAILED;
   }
   if (restarter.waitNodesStarted(&node_2, 1) != 0)
   {
+<<<<<<< HEAD
     g_err << "Failed waiting for node started." << endl;
+=======
+    g_err << "Failed waiting for node " << node_2 << " to start." << endl;
+>>>>>>> pr/231
     return NDBT_FAILED;
   }
   ndbout << "Test complete" << endl;
@@ -9762,7 +9944,11 @@ int runNodeFailLcpStall(NDBT_Context* ctx, NDBT_Step* step)
   NdbSleep_MilliSleep(10000);
 
   ndbout_c("Getting Master to kill other when Master LCP complete %u", master);
+<<<<<<< HEAD
   restarter.insertError2InNode(master, 7178, other);
+=======
+  restarter.insertErrorInNode(master, 7178);
+>>>>>>> pr/231
 
   ndbout_c("Releasing scans in node %u", other);
   restarter.insertErrorInNode(other, 0);
@@ -9875,6 +10061,62 @@ int runChangeDataNodeConfig(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+<<<<<<< HEAD
+=======
+int runChangeDataNodeConfigStr(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int num_config_vars = ctx->getProperty("NumConfigVars", Uint32(1));
+
+  ctx->setProperty("NumConfigVars", Uint32(0));
+
+  for (int c=1; c <= num_config_vars; c++) {
+    BaseString varId;
+    BaseString varVal;
+    varId.assfmt("ConfigVarId%u", c);
+    varVal.assfmt("ConfigValue%u", c);
+
+    Uint32 new_value_read = 0;
+    int config_var_id =
+      ctx->getProperty(varId.c_str(), (Uint32)new_value_read);
+
+    const char *new_config_value =
+      ctx->getProperty(varVal.c_str(), "NULL");
+
+    g_err << "Setting config " << config_var_id
+          << " val " << new_config_value << endl;
+
+    // Override the config
+    NdbMgmd mgmd;
+    BaseString old_config_value;
+    CHECK(mgmd.change_config_str(new_config_value, old_config_value,
+                                 CFG_SECTION_NODE, config_var_id),
+          "Change config failed");
+
+    g_err << "  Success, old config val : " << old_config_value.c_str()
+          << " is changed to new : " << new_config_value << endl;
+
+    // Save the old_value in the test property 'config_var%u'.
+    ctx->setProperty(varVal.c_str(), old_config_value.c_str());
+    ctx->setProperty("NumConfigVars", Uint32(c));
+  }
+
+  g_err << "Restarting nodes with new config " << endl;
+
+  // Get the restart type from context
+  const Uint32 restart_type = ctx->getProperty("Initial", 1);
+  bool initial = (restart_type == 1);
+
+  // Restart cluster to get the new config value
+  NdbRestarter restarter;
+  CHECK(restarter.restartAll(initial) == 0, "Restart all failed");
+
+  CHECK(restarter.waitClusterStarted() == 0,
+        "Cluster has not started");
+  g_err << "Nodes restarted with new config." << endl;
+  return NDBT_OK;
+}
+
+>>>>>>> pr/231
 int runPauseGcpCommitUntilNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
 {
   int result = NDBT_OK;
@@ -9958,7 +10200,11 @@ int runCreateCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
     {
       ndbout_c("Using non case-sensitive charset");
       charsetName = "latin1_swedish_ci";
+<<<<<<< HEAD
 //    charsetName = "utf8mb3_unicode_ci";
+=======
+//    charsetName = "utf8_unicode_ci";
+>>>>>>> pr/231
     }
     else
     {
@@ -10407,7 +10653,11 @@ int runChangePkCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
         /**
          * For case-sensitive collations, we must use correct case
          * when specifying keys.
+<<<<<<< HEAD
          * For case-insensitive collations, we do not need to, so use
+=======
+         * For case-insenstive collations, we do not need to, so use
+>>>>>>> pr/231
          * the 'to' case for the key, and the 'to' value.
          */
         const char toCaseKey = ((cycle? 'A' : 'a') + i);
@@ -10554,6 +10804,61 @@ int runClearErrorInsert(NDBT_Context* ctx, NDBT_Step* step)
   return restarter.insertErrorInAllNodes(0);
 }
 
+<<<<<<< HEAD
+=======
+/**
+ * This method is used to check whether LCP succeeds when a data node
+ * is restarted with empty ldms.
+ * Precondition for calling this method is the data node being restarted
+ * is having ldms < 4. The method :
+ * - changes the config to 4 ldms
+ * - restarts one random data node with delayed COPY_FRAGCONF
+ * - waits until it comes up.
+ *
+ * The test will fail if it does not come up within reasonable time.
+ */
+int runStartOneDBNodeWith4Ldms(NDBT_Context* ctx, NDBT_Step* step) {
+
+  // Override the config
+  const char *four_ldm_cfg = "ldm={count=4}";
+  BaseString old_thread_config;
+  NdbMgmd mgmd;
+  CHECK(mgmd.connect() != 0, "Could not connect to mgmd");
+  CHECK(mgmd.change_config_str(four_ldm_cfg, old_thread_config,
+                               CFG_SECTION_NODE, CFG_DB_MT_THREAD_CONFIG),
+        "Change config execution threads failed");
+
+  g_err << "Config var ThreadConfig changed from "
+        << old_thread_config.c_str() << " to "
+        << four_ldm_cfg << endl;
+
+  NdbRestarter restarter;
+  int db_node_id = restarter.getNode(NdbRestarter::NS_RANDOM);
+
+  // Restart one DB node to get the new config value
+  g_err << "Restarting node " << db_node_id << " with new config "
+        << four_ldm_cfg << endl;
+
+  // initial false, nostart true and other in-parameters false
+  CHECK(restarter.restartOneDbNode(db_node_id, false, true) == 0,
+        "Restarting node failed");
+
+  CHECK(restarter.waitNodesNoStart(&db_node_id, 1) == 0,
+        "Waiting for NoStart state failed");
+
+  CHECK(restarter.insertErrorInNode(db_node_id, 7249) == 0,
+        "Inserting error failed");
+
+  CHECK(restarter.startNodes(&db_node_id, 1) == 0, "Starting node failed");
+
+  CHECK(restarter.waitNodesStarted(&db_node_id, 1) == 0,
+        "Waiting for node to start failed");
+
+  g_err << "Node " << db_node_id << " restarted with new config." << endl;
+
+  return NDBT_OK;
+}
+>>>>>>> pr/231
 
 int runWatchdogSlowShutdown(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -11410,11 +11715,14 @@ TESTCASE("StartDuringNodeRestart",
 {
   STEP(runTestStartNode);
 }
+<<<<<<< HEAD
 TESTCASE("MultiSocketRestart",
          "Test failures in setup phase of multi sockets for multi failures");
 {
   STEP(run_test_multi_socket);
 }
+=======
+>>>>>>> pr/231
 TESTCASE("NodeFailLcpStall",
          "Check that node failure does not result in LCP stall")
 {
@@ -11435,6 +11743,67 @@ TESTCASE("PostponeRecalculateGCPCommitLag",
   TC_PROPERTY("ConfigVarId3", Uint32(CFG_DB_LCP_SCAN_WATCHDOG_LIMIT));
   // 10000 sec - long enough not to expire before GCP max lags expire
   TC_PROPERTY("ConfigValue3", Uint32(10000));
+<<<<<<< HEAD
+=======
+
+  INITIALIZER(runChangeDataNodeConfig);
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPauseGcpCommitUntilNodeFailure);
+  FINALIZER(runChangeDataNodeConfig);
+}
+TESTCASE("InplaceCharPkChangeCS",
+         "Check that pk changes which are binary different, but "
+         "collation-compare the same, are ok during restarts")
+{
+  TC_PROPERTY("CSCharset", Uint32(1));
+  TC_PROPERTY("NumDataColumns", Uint32(10));
+  INITIALIZER(runCreateCharKeyTable);
+  INITIALIZER(runLoadCharKeyTable);
+  INITIALIZER(runErrorInsertSlowCopyFrag);
+  STEP(runChangePkCharKeyTable);
+  STEP(runRestarter);
+  FINALIZER(runClearErrorInsert);
+  FINALIZER(runDropCharKeyTable);
+}
+TESTCASE("InplaceCharPkChangeCI",
+         "Check that pk changes which are binary different, but "
+         "collation-compare the same, are ok during restarts")
+{
+  TC_PROPERTY("CSCharset", Uint32(0));
+  TC_PROPERTY("NumDataColumns", Uint32(10));
+  INITIALIZER(runCreateCharKeyTable);
+  INITIALIZER(runLoadCharKeyTable);
+  INITIALIZER(runErrorInsertSlowCopyFrag);
+  STEP(runChangePkCharKeyTable);
+  STEP(runRestarter);
+  FINALIZER(runClearErrorInsert);
+  FINALIZER(runDropCharKeyTable);
+}
+
+TESTCASE("LCPWithEmptyLDMs",
+         "Check reconfiguring nodes with more ldms "
+         "(resulting in empty ldms) will work, by "
+         "initializing the data nodes with 1 ldm "
+         "reconfiguring and restarting one random data node with 4 ldms "
+         "and finally resetting the changes made by the test case")
+{
+  TC_PROPERTY("NumConfigVars", Uint32(1));
+  TC_PROPERTY("ConfigVarId1", Uint32(CFG_DB_MT_THREAD_CONFIG));
+  TC_PROPERTY("ConfigValue1", "ldm={count=1}");
+  TC_PROPERTY("Initial", (Uint32)1);
+
+  INITIALIZER(runChangeDataNodeConfigStr);
+  STEP(runStartOneDBNodeWith4Ldms);
+  FINALIZER(runChangeDataNodeConfigStr);
+}
+TESTCASE("WatchdogSlowShutdown",
+         "Watchdog reacts to slow exec thread shutdown")
+{
+  INITIALIZER(runWatchdogSlowShutdown);
+  FINALIZER(runWatchdogSlowShutdownCleanup);
+}
+>>>>>>> pr/231
 
   INITIALIZER(runChangeDataNodeConfig);
   INITIALIZER(runLoadTable);

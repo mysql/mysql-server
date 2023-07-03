@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,12 +54,15 @@
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_SKIP 1
 //#define DEBUG_LCP_SKIP_DELETE 1
+<<<<<<< HEAD
 #endif
 
 #ifdef DEBUG_DISK
 #define DEB_DISK(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_DISK(arglist) do { } while (0)
+=======
+>>>>>>> pr/231
 #endif
 
 #ifdef DEBUG_LCP
@@ -171,6 +178,10 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
       free_fix_rec(regFragPtr.p, regTabPtr.p, &tmp, (Fix_page*)pagePtr.p);
     }
     c_lqh->downgrade_from_exclusive_frag_access(fragPtrP);
+  }
+  else
+  {
+    jam();
   }
   else
   {
@@ -526,7 +537,11 @@ Dbtup::dealloc_tuple(Signal* signal,
     rowid.m_page_no = page->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Deleted row(%u,%u)"
                         ", bits: %x, row_count = %llu"
+<<<<<<< HEAD
                         ", tuple_header_ptr: %p, gci: %u",
+=======
+                        ", tuple_header_ptr: %p",
+>>>>>>> pr/231
                         instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
@@ -534,8 +549,12 @@ Dbtup::dealloc_tuple(Signal* signal,
                         rowid.m_page_idx,
                         ptr->m_header_bits,
                         regFragPtr->m_row_count,
+<<<<<<< HEAD
                         ptr,
                         gci_hi);
+=======
+                        ptr);
+>>>>>>> pr/231
 #endif
   }
 }
@@ -1066,6 +1085,11 @@ Dbtup::commit_operation(Signal* signal,
   fix_page->set_max_gci(gci_hi);
   ndbassert(fix_page->verify_change_maps(jamBuffer()));
 
+  Tup_fixsize_page *fix_page = (Tup_fixsize_page*)pagePtr.p;
+  fix_page->set_change_maps(regOperPtr->m_tuple_location.m_page_idx);
+  fix_page->set_max_gci(gci_hi);
+  ndbassert(fix_page->verify_change_maps(jamBuffer()));
+
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI &&
       update_gci_at_commit)
   {
@@ -1102,7 +1126,11 @@ Dbtup::commit_operation(Signal* signal,
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Inserted row(%u,%u)"
+<<<<<<< HEAD
                         ", bits: %x, row_count = %llu, tuple_ptr: %p, gci: %u",
+=======
+                        ", bits: %x, row_count = %llu, tuple_ptr: %p",
+>>>>>>> pr/231
                         instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
@@ -1110,8 +1138,12 @@ Dbtup::commit_operation(Signal* signal,
                         rowid.m_page_idx,
                         tuple_ptr->m_header_bits,
                         regFragPtr->m_row_count,
+<<<<<<< HEAD
                         tuple_ptr,
                         gci_hi);
+=======
+                        tuple_ptr);
+>>>>>>> pr/231
 #endif
   }
   else
@@ -1311,10 +1343,123 @@ Dbtup::prepare_disk_page_for_commit(Signal *signal,
                                     Tuple_header *tuple_ptr,
                                     Ptr<GlobalPage> &diskPagePtr)
 {
+<<<<<<< HEAD
   bool initial_delete = false;
   Tablerec *regTabPtrP = prepare_tabptr.p;
   FragrecordPtr regFragPtr = prepare_fragptr;
   if (leaderOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit)
+=======
+  FragrecordPtr regFragPtr;
+  OperationrecPtr regOperPtr;
+  TablerecPtr regTabPtr;
+  KeyReqStruct req_struct(this, KRS_COMMIT);
+  TransState trans_state;
+  Ptr<GlobalPage> diskPagePtr;
+  Uint32 no_of_fragrec, no_of_tablerec;
+
+  TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
+
+  regOperPtr.i= tupCommitReq->opPtr;
+  Uint32 hash_value= tupCommitReq->hashValue;
+  Uint32 gci_hi = tupCommitReq->gci_hi;
+  Uint32 gci_lo = tupCommitReq->gci_lo;
+  Uint32 transId1 = tupCommitReq->transId1;
+  Uint32 transId2 = tupCommitReq->transId2;
+
+  jamEntry();
+
+  c_operation_pool.getPtr(regOperPtr);
+ 
+  diskPagePtr.i = tupCommitReq->diskpage;
+  regFragPtr.i= regOperPtr.p->fragmentPtr;
+  trans_state= get_trans_state(regOperPtr.p);
+
+  no_of_fragrec= cnoOfFragrec;
+
+  ndbrequire(trans_state == TRANS_STARTED);
+  ptrCheckGuard(regFragPtr, no_of_fragrec, fragrecord);
+
+  no_of_tablerec= cnoOfTablerec;
+  regTabPtr.i= regFragPtr.p->fragTableId;
+
+  req_struct.signal= signal;
+  req_struct.hash_value= hash_value;
+  req_struct.gci_hi = gci_hi;
+  req_struct.gci_lo = gci_lo;
+  /* Put transid in req_struct, so detached triggers can access it */
+  req_struct.trans_id1 = transId1;
+  req_struct.trans_id2 = transId2;
+  req_struct.m_reorg = regOperPtr.p->op_struct.bit_field.m_reorg;
+  regOperPtr.p->m_commit_disk_callback_page = tupCommitReq->diskpage;
+
+  ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);
+  PagePtr page;
+  Tuple_header* tuple_ptr= (Tuple_header*)
+    get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
+
+  Tup_fixsize_page *fix_page = (Tup_fixsize_page*)page.p;
+  fix_page->prefetch_change_map();
+  NDB_PREFETCH_WRITE(tuple_ptr);
+
+  if (diskPagePtr.i == RNIL)
+  {
+    jam();
+    diskPagePtr.p = 0;
+    req_struct.m_disk_page_ptr.i = RNIL;
+    req_struct.m_disk_page_ptr.p = 0;
+  }
+  else
+  {
+    m_global_page_pool.getPtr(diskPagePtr, diskPagePtr.i);
+  }
+  
+  ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);
+
+  prepare_fragptr = regFragPtr;
+  prepare_tabptr = regTabPtr;
+
+  /**
+   * NOTE: This has to be run before potential time-slice when
+   *       waiting for disk, as otherwise the "other-ops" in a multi-op
+   *       commit might run while we're waiting for disk
+   *
+   */
+  if (!regTabPtr.p->tuxCustomTriggers.isEmpty())
+  {
+    if(get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
+    {
+      jam();
+
+      OperationrecPtr loopPtr = regOperPtr;
+      if (unlikely(!regOperPtr.p->is_first_operation()))
+      {
+        findFirstOp(loopPtr);
+      }
+
+      /**
+       * Execute all tux triggers at first commit
+       *   since previous tuple is otherwise removed...
+       */
+      jam();
+      goto first;
+      while(loopPtr.i != RNIL)
+      {
+	c_operation_pool.getPtr(loopPtr);
+    first:
+	executeTuxCommitTriggers(signal,
+				 loopPtr.p,
+				 regFragPtr.p,
+				 regTabPtr.p);
+	set_tuple_state(loopPtr.p, TUPLE_TO_BE_COMMITTED);
+	loopPtr.i = loopPtr.p->nextActiveOp;
+      }
+    }
+  }
+  
+  bool get_page = false;
+  bool initial_delete = false;
+  if(regOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit)
+>>>>>>> pr/231
   {
     jam();
     Page_cache_client::Request req;
@@ -1369,9 +1514,16 @@ Dbtup::prepare_disk_page_for_commit(Signal *signal,
       jam();
       // initial delete
       initial_delete = true;
+<<<<<<< HEAD
       ndbassert(leaderOperPtr.p->op_type == ZDELETE);
       memcpy(&req.m_page,
 	     tuple_ptr->get_disk_ref_ptr(regTabPtrP), sizeof(Local_key));
+=======
+      ndbassert(regOperPtr.p->op_type == ZDELETE);
+      memcpy(&req.m_page, 
+	     tuple_ptr->get_disk_ref_ptr(regTabPtr.p), sizeof(Local_key));
+      
+>>>>>>> pr/231
       ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
     }
 
@@ -1389,6 +1541,7 @@ Dbtup::prepare_disk_page_for_commit(Signal *signal,
       {
         jam();
         /* Set bit to indicate the tuple is already deleted */
+<<<<<<< HEAD
         acquire_frag_mutex(regFragPtr.p, leaderOperPtr.p->fragPageId);
         Uint32 old_header = tuple_ptr->m_header_bits;
         Uint32 new_header = tuple_ptr->m_header_bits =
@@ -1397,6 +1550,15 @@ Dbtup::prepare_disk_page_for_commit(Signal *signal,
         release_frag_mutex(regFragPtr.p, leaderOperPtr.p->fragPageId);
       }
       return ZDISK_PAGE_NOT_READY_FOR_COMMIT;
+=======
+        Uint32 old_header = tuple_ptr->m_header_bits;
+        Uint32 new_header = tuple_ptr->m_header_bits =
+          old_header | Tuple_header::DELETE_WAIT;
+        updateChecksum(tuple_ptr, regTabPtr.p, old_header, new_header);
+      }
+      signal->theData[0] = 1; //Ensure we report real-time break
+      return; // Data page has not been retrieved yet.
+>>>>>>> pr/231
     }
   }
   
@@ -1419,6 +1581,7 @@ Dbtup::prepare_disk_page_for_commit(Signal *signal,
       {
         jam();
         /* Set bit to indicate the tuple is already deleted */
+<<<<<<< HEAD
         acquire_frag_mutex(regFragPtr.p, leaderOperPtr.p->fragPageId);
         Uint32 old_header = tuple_ptr->m_header_bits;
         Uint32 new_header = tuple_ptr->m_header_bits =
@@ -1427,6 +1590,15 @@ Dbtup::prepare_disk_page_for_commit(Signal *signal,
         release_frag_mutex(regFragPtr.p, leaderOperPtr.p->fragPageId);
       }
       return ZDISK_PAGE_NOT_READY_FOR_COMMIT;
+=======
+        Uint32 old_header = tuple_ptr->m_header_bits;
+        Uint32 new_header = tuple_ptr->m_header_bits =
+          old_header | Tuple_header::DELETE_WAIT;
+        updateChecksum(tuple_ptr, regTabPtr.p, old_header, new_header);
+      }
+      signal->theData[0] = 1; //Ensure we report real-time break
+      return; // Log page has not been retrieved yet.
+>>>>>>> pr/231
     }
   }
   return ZDISK_PAGE_READY_FOR_COMMIT;

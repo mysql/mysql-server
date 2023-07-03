@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +102,7 @@ bool PFS_index_esgs_by_account_by_event_name::match(PFS_account *pfs) {
   return true;
 }
 
+<<<<<<< HEAD
 bool PFS_index_esgs_by_account_by_event_name::match(
     PFS_instr_class *instr_class) {
   if (m_fields >= 3) {
@@ -103,6 +112,29 @@ bool PFS_index_esgs_by_account_by_event_name::match(
   }
   return true;
 }
+=======
+PFS_engine_table_share_state
+table_esgs_by_account_by_event_name::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_esgs_by_account_by_event_name::m_share=
+{
+  { C_STRING_WITH_LEN("events_stages_summary_by_account_by_event_name") },
+  &pfs_truncatable_acl,
+  table_esgs_by_account_by_event_name::create,
+  NULL, /* write_row */
+  table_esgs_by_account_by_event_name::delete_all_rows,
+  table_esgs_by_account_by_event_name::get_row_count,
+  sizeof(pos_esgs_by_account_by_event_name),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+>>>>>>> upstream/cluster-7.6
 
 PFS_engine_table *table_esgs_by_account_by_event_name::create(
     PFS_engine_table_share *) {
@@ -238,8 +270,17 @@ int table_esgs_by_account_by_event_name::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+>>>>>>> upstream/cluster-7.6
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {

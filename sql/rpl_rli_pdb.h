@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,6 +191,7 @@ struct Slave_job_group {
 
   my_off_t master_log_pos;  // B-event log_pos
   /* checkpoint coord are reset by periodical and special (Rotate event) CP:s */
+<<<<<<< HEAD
   uint checkpoint_seqno;
   my_off_t checkpoint_log_pos;  // T-event lop_pos filled by W for CheckPoint
   char *checkpoint_log_name;
@@ -198,6 +203,18 @@ struct Slave_job_group {
   time_t ts;                // Group's timestamp to update Seconds_behind_master
 #ifndef NDEBUG
   bool notified{false};  // to debug group_master_log_name change notification
+=======
+  uint  checkpoint_seqno;
+  my_off_t checkpoint_log_pos; // T-event lop_pos filled by W for CheckPoint
+  char*    checkpoint_log_name;
+  my_off_t checkpoint_relay_log_pos; // T-event lop_pos filled by W for CheckPoint
+  char*    checkpoint_relay_log_name;
+  int32    done;  // Flag raised by W,  read and reset by Coordinator
+  ulong    shifted;     // shift the last CP bitmap at receiving a new CP
+  time_t   ts;          // Group's timestampt to update Seconds_behind_master
+#ifndef NDEBUG
+  bool     notified;    // to debug group_master_log_name change notification
+>>>>>>> upstream/cluster-7.6
 #endif
   /* Clock-based scheduler requirement: */
   longlong last_committed;   // commit parent timestamp
@@ -232,6 +249,7 @@ struct Slave_job_group {
     Coordinator fills the struct with defaults and options at starting of
     a group distribution.
   */
+<<<<<<< HEAD
   void reset(my_off_t master_pos, ulonglong seqno) {
     master_log_pos = master_pos;
     group_master_log_pos = group_relay_log_pos = 0;
@@ -248,6 +266,25 @@ struct Slave_job_group {
     ts = 0;
 #ifndef NDEBUG
     notified = false;
+=======
+  void reset(my_off_t master_pos, ulonglong seqno)
+  {
+    master_log_pos= master_pos;
+    group_master_log_pos= group_relay_log_pos= 0;
+    group_master_log_name= NULL; // todo: remove
+    group_relay_log_name= NULL;
+    worker_id= MTS_WORKER_UNDEF;
+    total_seqno= seqno;
+    checkpoint_log_name= NULL;
+    checkpoint_log_pos= 0;
+    checkpoint_relay_log_name= NULL;
+    checkpoint_relay_log_pos= 0;
+    checkpoint_seqno= (uint) -1;
+    done= 0;
+    ts= 0;
+#ifndef NDEBUG
+    notified= false;
+>>>>>>> upstream/cluster-7.6
 #endif
     last_committed = SEQ_UNINIT;
     sequence_number = SEQ_UNINIT;
@@ -374,8 +411,17 @@ class Slave_committed_queue : public circular_buffer_queue<Slave_job_group> {
     }
   }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   bool count_done(Relay_log_info *rli);
+=======
+#ifndef NDEBUG
+  bool count_done(Relay_log_info* rli);
+>>>>>>> upstream/cluster-7.6
 #endif
 
   /* Checkpoint routine refreshes the queue */
@@ -386,8 +432,19 @@ class Slave_committed_queue : public circular_buffer_queue<Slave_job_group> {
      returns a pointer to Slave_job_group struct instance as indexed by arg
      in the circular buffer dyn-array
   */
+<<<<<<< HEAD
   Slave_job_group *get_job_group(size_t ind) {
     assert(ind < capacity);
+=======
+<<<<<<< HEAD
+  Slave_job_group *get_job_group(ulong ind) {
+    DBUG_ASSERT(ind < size);
+=======
+  Slave_job_group* get_job_group(ulong ind)
+  {
+    assert(ind < size);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return &m_Q[ind];
   }
 
@@ -429,16 +486,49 @@ class Slave_committed_queue : public circular_buffer_queue<Slave_job_group> {
              `circular_buffer_queue::error_result`.
 */
 template <typename Element_type>
+<<<<<<< HEAD
 size_t circular_buffer_queue<Element_type>::en_queue(Element_type *item) {
   if (full()) {
     return error_result;
+=======
+ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item) {
+  ulong ret;
+<<<<<<< HEAD
+  if (avail == size) {
+    DBUG_ASSERT(avail == m_Q.size());
+    return (ulong)-1;
+=======
+  if (avail == size)
+  {
+    assert(avail == m_Q.size());
+    return (ulong) -1;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   const auto ret = (avail++) % capacity;
   m_Q[ret] = *item;
   len++;
+<<<<<<< HEAD
   assert(len == avail - entry);
   assert(entry < avail);
+=======
+
+  // post-boundary cond
+  if (avail == entry) avail = size;
+
+<<<<<<< HEAD
+  DBUG_ASSERT(avail == entry || len == (avail >= entry)
+                  ? (avail - entry)
+                  : (size + avail - entry));
+  DBUG_ASSERT(avail != entry);
+=======
+  assert(avail == entry ||
+         len == (avail >= entry) ?
+         (avail - entry) : (size + avail - entry));
+  assert(avail != entry);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return ret;
 }
@@ -450,15 +540,31 @@ size_t circular_buffer_queue<Element_type>::en_queue(Element_type *item) {
   @return true if an element was returned, false if the queue was empty.
 */
 template <typename Element_type>
+<<<<<<< HEAD
 bool circular_buffer_queue<Element_type>::de_queue(Element_type *item) {
   if (empty()) {
     return false;
+=======
+ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item) {
+  ulong ret;
+<<<<<<< HEAD
+  if (entry == size) {
+    DBUG_ASSERT(len == 0);
+    return (ulong)-1;
+=======
+  if (entry == size)
+  {
+    assert(len == 0);
+    return (ulong) -1;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   *item = m_Q[entry++];
   len--;
   assert(len == avail - entry);
   assert(entry <= avail);
 
+<<<<<<< HEAD
   // The start of the queue just have returned to the first index. Normalize
   // indexes so they are small again.
   if (entry == capacity) {
@@ -474,13 +580,71 @@ template <typename Element_type>
 bool circular_buffer_queue<Element_type>::de_tail(Element_type *item) {
   if (empty()) {
     return false;
+=======
+  // pre boundary cond
+  if (avail == size) avail = entry;
+  entry = (entry + 1) % size;
+
+  // post boundary cond
+  if (avail == entry) entry = size;
+
+<<<<<<< HEAD
+  DBUG_ASSERT(
+      entry == size ||
+      (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
+  DBUG_ASSERT(avail != entry);
+=======
+  assert(entry == size ||
+         (len == (avail >= entry)? (avail - entry) :
+          (size + avail - entry)));
+  assert(avail != entry);
+>>>>>>> upstream/cluster-7.6
+
+  return ret;
+}
+
+template <typename Element_type>
+<<<<<<< HEAD
+ulong circular_buffer_queue<Element_type>::de_tail(Element_type *item) {
+  if (entry == size) {
+    DBUG_ASSERT(len == 0);
+    return (ulong)-1;
+=======
+ulong circular_buffer_queue<Element_type>::de_tail(Element_type *item)
+{
+  if (entry == size)
+  {
+    assert(len == 0);
+    return (ulong) -1;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   assert(avail > entry);
   *item = m_Q[(--avail) % capacity];
   len--;
+<<<<<<< HEAD
   assert(len == avail - entry);
   return true;
+=======
+
+  // post boundary cond
+  if (avail == entry) entry = size;
+
+<<<<<<< HEAD
+  DBUG_ASSERT(
+      entry == size ||
+      (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
+  DBUG_ASSERT(avail != entry);
+=======
+  assert(entry == size ||
+         (len == (avail >= entry)? (avail - entry) :
+          (size + avail - entry)));
+  assert(avail != entry);
+>>>>>>> upstream/cluster-7.6
+
+  return avail;
+>>>>>>> pr/231
 }
 
 class Slave_jobs_queue : public circular_buffer_queue<Slave_job_item> {
@@ -519,8 +683,19 @@ class Slave_worker : public Relay_log_info {
   Prealloced_array<db_worker_hash_entry *, SLAVE_INIT_DBS_IN_GROUP>
       curr_group_exec_parts;  // Current Group Executed Partitions
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+  bool curr_group_seen_begin;  // is set to true with explicit B-event
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   bool curr_group_seen_sequence_number;  // is set to true about starts_group()
+=======
+  bool curr_group_seen_begin; // is set to TRUE with explicit B-event
+#ifndef NDEBUG
+  bool curr_group_seen_sequence_number; // is set to TRUE about starts_group()
+>>>>>>> upstream/cluster-7.6
 #endif
   ulong id;  // numeric identifier of the Worker
 
@@ -781,12 +956,31 @@ class Slave_worker : public Relay_log_info {
       adapt_to_master_version_updown(fdle->get_product_version(),
                                      get_master_server_version());
     }
+<<<<<<< HEAD
     if (rli_description_event) {
+<<<<<<< HEAD
       assert(rli_description_event->atomic_usage_counter > 0);
 
       if (--rli_description_event->atomic_usage_counter == 0) {
         /* The being deleted by Worker FD can't be the latest one */
         assert(rli_description_event != c_rli->get_rli_description_event());
+=======
+      DBUG_ASSERT(rli_description_event->atomic_usage_counter > 0);
+=======
+    if (rli_description_event)
+    {
+      assert(rli_description_event->usage_counter.atomic_get() > 0);
+>>>>>>> upstream/cluster-7.6
+
+      if (--rli_description_event->atomic_usage_counter == 0) {
+        /* The being deleted by Worker FD can't be the latest one */
+<<<<<<< HEAD
+        DBUG_ASSERT(rli_description_event !=
+                    c_rli->get_rli_description_event());
+=======
+        assert(rli_description_event != c_rli->get_rli_description_event());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
         delete rli_description_event;
       }
@@ -802,7 +996,10 @@ class Slave_worker : public Relay_log_info {
   }
 
   int slave_worker_exec_event(Log_event *ev);
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
   /**
     Make the necessary changes to both the `Slave_worker` and current
     `Log_event` objects, before retrying to apply the transaction.
@@ -812,6 +1009,7 @@ class Slave_worker : public Relay_log_info {
     instance, as well as of the current `Log_event` being processed.
 
     @param event The `Log_event` object currently being processed.
+<<<<<<< HEAD
    */
   void prepare_for_retry(Log_event &event);
 
@@ -858,6 +1056,10 @@ class Slave_worker : public Relay_log_info {
     @retval false if transaction succeeds (possibly after a number of retries)
     @retval true  if transaction fails
   */
+=======
+  */
+  void prepare_for_retry(Log_event &event);
+>>>>>>> pr/231
   bool retry_transaction(uint start_relay_number, my_off_t start_relay_pos,
                          uint end_relay_number, my_off_t end_relay_pos);
 
@@ -943,6 +1145,36 @@ class Slave_worker : public Relay_log_info {
      Returns the index of the Channel_name field of the table repository.
   */
   static uint get_channel_field_index();
+
+  /**
+    This class aims to do cleanup for workers in retry_transaction method.
+  */
+  class Retry_context_sentry {
+  public:
+    /**
+      Constructor to inilizate class objects and flags.
+    */
+    Retry_context_sentry(Slave_worker& parent);
+    /**
+       This destructor calls clean() method which performs the cleanup.
+    */
+    virtual ~Retry_context_sentry();
+    /**
+       Operator to set the value of m_cleaned_up.
+
+       @param [out] Flag to check for cleanup.
+       @return the value of flag for each worker.
+
+    */
+    Retry_context_sentry& operator=(bool is_cleaned_up);
+    /**
+       This method performs the cleanup and resets m_order_commit_deadlock flag.
+    */
+    void clean();
+  private:
+    Slave_worker& m_parent;           // Object of enclosed class.
+    bool m_is_cleaned_up;             // Flag to check for cleanup.
+  };
 };
 
 bool handle_slave_worker_stop(Slave_worker *worker, Slave_job_item *job_item);

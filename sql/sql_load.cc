@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -477,9 +481,21 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
           MY_RELATIVE_PATH | MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH);
     }
 
+<<<<<<< HEAD
     if ((thd->system_thread &
+=======
+<<<<<<< HEAD
+    if ((thd->slave_thread &
+>>>>>>> pr/231
          (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0) {
       Relay_log_info *rli = thd->rli_slave->get_c_rli();
+=======
+    if ((thd->system_thread &
+         (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
+    {
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+      Relay_log_info* rli= thd->rli_slave->get_c_rli();
+>>>>>>> upstream/cluster-7.6
 
       if (strncmp(rli->slave_patternload_file, name,
                   rli->slave_patternload_file_size)) {
@@ -492,7 +508,19 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
         my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--replica-load-tmpdir");
         return true;
       }
+<<<<<<< HEAD
     } else if (!is_secure_file_path(name)) {
+=======
+#else
+      /*
+        This is impossible and should never happen.
+      */
+      assert(FALSE); 
+#endif
+    }
+    else if (!is_secure_file_path(name))
+    {
+>>>>>>> upstream/cluster-7.6
       /* Read only allowed from within dir specified by secure_file_priv */
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
       return true;
@@ -677,9 +705,22 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   /* ok to client sent only after binlog write and engine commit */
   my_ok(thd, info.stats.copied + info.stats.deleted, 0L, name);
 err:
+<<<<<<< HEAD
   assert(table->file->has_transactions() ||
          !(info.stats.copied || info.stats.deleted) ||
          thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(
+      table->file->has_transactions() ||
+      !(info.stats.copied || info.stats.deleted) ||
+      thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+=======
+  assert(table->file->has_transactions() ||
+         !(info.stats.copied || info.stats.deleted) ||
+         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   table->file->ha_release_auto_increment();
   return error;
 }
@@ -804,9 +845,19 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
         There is no variables in fields_vars list in this format so
         this conversion is safe (no need to check for STRING_ITEM).
       */
+<<<<<<< HEAD
       assert(item->real_item()->type() == Item::FIELD_ITEM);
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(item->real_item()->type() == Item::FIELD_ITEM);
+>>>>>>> pr/231
       Item_field *sql_field = static_cast<Item_field *>(item->real_item());
       Field *field = sql_field->field;
+=======
+      assert(item->real_item()->type() == Item::FIELD_ITEM);
+      Item_field *sql_field= static_cast<Item_field*>(item->real_item());
+      Field *field= sql_field->field;                  
+>>>>>>> upstream/cluster-7.6
       if (field == table->next_number_field)
         table->autoinc_field_has_explicit_non_null_value = true;
       /*
@@ -996,10 +1047,19 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
             */
             field->set_null();
           }
+<<<<<<< HEAD
         } else if (item->type() == Item::STRING_ITEM) {
           assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)
               ->set_null_value(read_info.read_charset);
+=======
+	}
+        else if (item->type() == Item::STRING_ITEM)
+        {
+          assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+          ((Item_user_var_as_out_param *)item)->set_null_value(
+                                                  read_info.read_charset);
+>>>>>>> upstream/cluster-7.6
         }
 
         continue;
@@ -1010,12 +1070,27 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
         field->set_notnull();
         read_info.row_end[0] = 0;  // Safe to change end marker
         if (field == table->next_number_field)
+<<<<<<< HEAD
           table->autoinc_field_has_explicit_non_null_value = true;
+=======
+<<<<<<< HEAD
+          table->auto_increment_field_not_null = true;
+>>>>>>> pr/231
         field->store((char *)pos, length, read_info.read_charset);
       } else if (item->type() == Item::STRING_ITEM) {
         assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
         ((Item_user_var_as_out_param *)item)
             ->set_value((char *)pos, length, read_info.read_charset);
+=======
+          table->auto_increment_field_not_null= TRUE;
+        field->store((char*) pos, length, read_info.read_charset);
+      }
+      else if (item->type() == Item::STRING_ITEM)
+      {
+        assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+        ((Item_user_var_as_out_param *)item)->set_value((char*) pos, length,
+                                                        read_info.read_charset);
+>>>>>>> upstream/cluster-7.6
       }
     }
 
@@ -1058,10 +1133,19 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
+<<<<<<< HEAD
         } else if (item->type() == Item::STRING_ITEM) {
           assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)
               ->set_null_value(read_info.read_charset);
+=======
+        }
+        else if (item->type() == Item::STRING_ITEM)
+        {
+          assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+          ((Item_user_var_as_out_param *)item)->set_null_value(
+                                                  read_info.read_charset);
+>>>>>>> upstream/cluster-7.6
         }
       }
     }
@@ -1159,13 +1243,29 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
 
     List_iterator_fast<XML_TAG> xmlit(read_info.taglist);
     xmlit.rewind();
+<<<<<<< HEAD
     XML_TAG *tag = nullptr;
+=======
+<<<<<<< HEAD
+    XML_TAG *tag = NULL;
+>>>>>>> pr/231
 
 #ifndef NDEBUG
     DBUG_PRINT("read_xml_field", ("skip_lines=%d", (int)skip_lines));
     while ((tag = xmlit++)) {
       DBUG_PRINT("read_xml_field", ("got tag:%i '%s' '%s'", tag->level,
                                     tag->field.c_ptr(), tag->value.c_ptr()));
+=======
+    XML_TAG *tag= NULL;
+    
+#ifndef NDEBUG
+    DBUG_PRINT("read_xml_field", ("skip_lines=%d", (int) skip_lines));
+    while ((tag= xmlit++))
+    {
+      DBUG_PRINT("read_xml_field", ("got tag:%i '%s' '%s'",
+                                    tag->level, tag->field.c_ptr(),
+                                    tag->value.c_ptr()));
+>>>>>>> upstream/cluster-7.6
     }
 #endif
 
@@ -1216,9 +1316,17 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
               field->set_warning(Sql_condition::SL_WARNING,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
           }
+<<<<<<< HEAD
         } else {
           assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
+=======
+        }
+        else
+        {
+          assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+          ((Item_user_var_as_out_param *) item)->set_null_value(cs);
+>>>>>>> upstream/cluster-7.6
         }
         continue;
       }
@@ -1227,12 +1335,33 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
         Field *field = ((Item_field *)item)->field;
         field->set_notnull();
         if (field == table->next_number_field)
+<<<<<<< HEAD
           table->autoinc_field_has_explicit_non_null_value = true;
         field->store(tag->value.ptr(), tag->value.length(), cs);
+=======
+<<<<<<< HEAD
+          table->auto_increment_field_not_null = true;
+        field->store((char *)tag->value.ptr(), tag->value.length(), cs);
+>>>>>>> pr/231
       } else {
         assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
         ((Item_user_var_as_out_param *)item)
+<<<<<<< HEAD
             ->set_value(tag->value.ptr(), tag->value.length(), cs);
+=======
+            ->set_value((char *)tag->value.ptr(), tag->value.length(), cs);
+=======
+          table->auto_increment_field_not_null= TRUE;
+        field->store((char *) tag->value.ptr(), tag->value.length(), cs);
+      }
+      else
+      {
+        assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+        ((Item_user_var_as_out_param *) item)->set_value(
+                                                 (char *) tag->value.ptr(), 
+                                                 tag->value.length(), cs);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
 
@@ -1260,8 +1389,19 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
+<<<<<<< HEAD
         } else {
+<<<<<<< HEAD
           assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
+=======
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param *>(item));
+=======
+        }
+        else
+        {
+          assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
         }
       }
@@ -1426,6 +1566,7 @@ READ_INFO::~READ_INFO() {
   @param[in]  chr the first char of sequence
   @param[out] len the length of multi-byte char
 */
+<<<<<<< HEAD
 #define GET_MBCHARLEN(cs, chr, len)                     \
   do {                                                  \
     len = my_mbcharlen((cs), (chr));                    \
@@ -1438,6 +1579,23 @@ READ_INFO::~READ_INFO() {
       }                                                 \
       if (len != 0) PUSH(chr1);                         \
     }                                                   \
+=======
+#define GET_MBCHARLEN(cs, chr, len)                                           \
+  do {                                                                        \
+    len= my_mbcharlen((cs), (chr));                                           \
+    if (len == 0 && my_mbmaxlenlen((cs)) == 2)                                \
+    {                                                                         \
+      int chr1= GET;                                                          \
+      if (chr1 != my_b_EOF)                                                   \
+      {                                                                       \
+        len= my_mbcharlen_2((cs), (chr), chr1);                               \
+        /* Character is gb18030 or invalid (len = 0) */                       \
+        assert(len == 0 || len == 2 || len == 4);                       \
+      }                                                                       \
+      if (len != 0)                                                           \
+        PUSH(chr1);                                                           \
+    }                                                                         \
+>>>>>>> upstream/cluster-7.6
   } while (0)
 
 /**

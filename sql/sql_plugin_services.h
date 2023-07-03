@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -300,8 +308,124 @@ static struct security_context_service_st security_context_handler = {
 static struct mysql_keyring_service_st mysql_keyring_handler = {
     my_key_store, my_key_fetch, my_key_remove, my_key_generate};
 
+<<<<<<< HEAD
 static struct plugin_registry_service_st plugin_registry_handler = {
     mysql_plugin_registry_acquire, mysql_plugin_registry_release};
+=======
+static struct mysql_string_service_st mysql_string_handler= {
+  mysql_string_convert_to_char_ptr,
+  mysql_string_get_iterator,
+  mysql_string_iterator_next,
+  mysql_string_iterator_isupper,
+  mysql_string_iterator_islower,
+  mysql_string_iterator_isdigit,
+  mysql_string_to_lowercase,
+  mysql_string_free,
+  mysql_string_iterator_free,
+};
+
+static struct mysql_malloc_service_st mysql_malloc_handler=
+{
+  my_malloc,
+  my_realloc,
+  my_claim,
+  my_free,
+  my_memdup,
+  my_strdup,
+  my_strndup
+};
+
+
+static struct mysql_password_policy_service_st mysql_password_policy_handler= {
+  my_validate_password_policy,
+  my_calculate_password_strength
+};
+
+static struct mysql_parser_service_st parser_handler=
+{
+  mysql_parser_current_session,
+  mysql_parser_open_session,
+  mysql_parser_start_thread,
+  mysql_parser_join_thread,
+  mysql_parser_set_current_database,
+  mysql_parser_parse,
+  mysql_parser_get_statement_type,
+  mysql_parser_get_statement_digest,
+  mysql_parser_get_number_params,
+  mysql_parser_extract_prepared_params,
+  mysql_parser_visit_tree,
+  mysql_parser_item_string,
+  mysql_parser_free_string,
+  mysql_parser_get_query,
+  mysql_parser_get_normalized_query
+};
+
+static struct rpl_transaction_ctx_service_st rpl_transaction_ctx_handler= {
+  set_transaction_ctx,
+};
+
+static struct transaction_write_set_service_st transaction_write_set_handler= {
+  get_transaction_write_set, require_full_write_set, set_write_set_memory_size_limit, update_write_set_memory_size_limit,
+};
+
+static struct mysql_locking_service_st locking_service_handler=
+{
+  mysql_acquire_locking_service_locks,
+  mysql_release_locking_service_locks
+};
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+static struct security_context_service_st security_context_handler={
+  thd_get_security_context,
+  thd_set_security_context,
+  security_context_create,
+  security_context_destroy,
+  security_context_copy,
+  security_context_lookup,
+  security_context_get_option,
+  security_context_set_option
+};
+#endif
+
+static struct mysql_keyring_service_st mysql_keyring_handler= {
+  my_key_store,
+  my_key_fetch,
+  my_key_remove,
+  my_key_generate
+};
+
+static struct st_service_ref list_of_services[]=
+{
+#ifndef EMBEDDED_LIBRARY
+  { "srv_session_service",
+    VERSION_srv_session_service,&srv_session_service_handler },
+  { "command_service",     VERSION_command, &command_handler },
+  { "srv_session_info_service",
+     VERSION_srv_session_info_service, &srv_session_info_handler },
+#endif
+  { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
+  { "thd_alloc_service",   VERSION_thd_alloc,   &thd_alloc_handler },
+  { "thd_wait_service",    VERSION_thd_wait,    &thd_wait_handler },
+  { "my_thread_scheduler_service",
+    VERSION_my_thread_scheduler, &my_thread_scheduler_handler },
+  { "my_plugin_log_service", VERSION_my_plugin_log, &my_plugin_log_handler },
+  { "mysql_string_service",
+    VERSION_mysql_string, &mysql_string_handler },
+  { "mysql_malloc_service", VERSION_mysql_malloc, &mysql_malloc_handler },
+  { "mysql_password_policy_service", VERSION_mysql_password_policy, &mysql_password_policy_handler },
+  { "mysql_parser_service", VERSION_parser, &parser_handler },
+  { "rpl_transaction_ctx_service",
+    VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler },
+  { "transaction_write_set_service",
+    VERSION_transaction_write_set_service, &transaction_write_set_handler },
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  { "security_context_service",
+    VERSION_security_context_service, &security_context_handler },
+#endif
+  { "mysql_locking_service", VERSION_locking_service, &locking_service_handler },
+  { "mysql_keyring_service", VERSION_mysql_keyring_service, &mysql_keyring_handler}
+};
+>>>>>>> upstream/cluster-7.6
 
 static struct st_service_ref list_of_services[] = {
     {"srv_session_service", VERSION_srv_session_service,

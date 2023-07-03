@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,6 +162,7 @@ bool NdbInfo::load_ndbinfo_tables(void)
     }
 
     int err;
+    m_tables_table->m_rows_estimate = 0;
     while ((err = scanOp->nextResult()) == 1)
     {
       m_tables_table->m_rows_estimate++;
@@ -171,9 +180,16 @@ bool NdbInfo::load_ndbinfo_tables(void)
         break;
 
       default:
+<<<<<<< HEAD
         Table table(tableName, tableId, est_rows);
         BaseString hash_key = mysql_table_name(table);
         if (!m_tables.insert(hash_key.c_str(), table)) {
+=======
+        BaseString hash_key = mysql_table_name(tableName);
+        if (!m_tables.insert(hash_key.c_str(),
+                             Table(tableName, tableId, est_rows, NULL)))
+        {
+>>>>>>> pr/231
           DBUG_PRINT("error", ("Failed to insert Table('%s', %u)",
                      tableName, tableId));
           releaseScanOperation(scanOp);
@@ -215,6 +231,7 @@ bool NdbInfo::load_ndbinfo_tables(void)
     }
 
     int err;
+    m_columns_table->m_rows_estimate = 0;
     while ((err = scanOp->nextResult()) == 1)
     {
       m_columns_table->m_rows_estimate++;
@@ -515,6 +532,7 @@ NdbInfo::Column::Column(const NdbInfo::Column & col) :
 // Table
 
 NdbInfo::Table::Table(const char *name, Uint32 id, Uint32 est_rows,
+<<<<<<< HEAD
                       bool exact_row_count) :
   m_name(name),
   m_table_id(id),
@@ -533,6 +551,12 @@ NdbInfo::Table::Table(const char * table_name, const VirtualTable* virt,
   m_rows_estimate(est_rows),
   m_exact_row_count(exact_row_count),
   m_use_full_prefix((prefixed == TableName::WithPrefix)),
+=======
+                      const VirtualTable* virt) :
+  m_name(name),
+  m_table_id(id),
+  m_rows_estimate(est_rows),
+>>>>>>> pr/231
   m_virt(virt)
 {
   assert(virt);                // constructor for virtual tables only
@@ -544,7 +568,10 @@ NdbInfo::Table::Table(const NdbInfo::Table& tab) :
   m_name(tab.m_name),
   m_table_id(tab.m_table_id),
   m_rows_estimate(tab.m_rows_estimate),
+<<<<<<< HEAD
   m_exact_row_count(tab.m_exact_row_count),
+=======
+>>>>>>> pr/231
   m_virt(tab.m_virt)
 {
   DBUG_ENTER("Table(const Table&");
@@ -553,6 +580,22 @@ NdbInfo::Table::Table(const NdbInfo::Table& tab) :
   DBUG_VOID_RETURN;
 }
 
+<<<<<<< HEAD
+=======
+const NdbInfo::Table &
+NdbInfo::Table::operator=(const NdbInfo::Table& tab)
+{
+  DBUG_ENTER("Table::operator=");
+  m_table_id = tab.m_table_id;
+  m_rows_estimate = tab.m_rows_estimate;
+  m_name.assign(tab.m_name);
+  for (unsigned i = 0; i < tab.m_columns.size(); i++)
+    addColumn(*tab.m_columns[i]);
+  m_virt = tab.m_virt;
+  DBUG_RETURN(*this);
+}
+
+>>>>>>> pr/231
 NdbInfo::Table::~Table()
 {
   for (unsigned i = 0; i < m_columns.size(); i++)
@@ -621,6 +664,20 @@ const VirtualTable* NdbInfo::Table::getVirtualTable() const
   return m_virt;
 }
 
+<<<<<<< HEAD
+=======
+bool NdbInfo::Table::rowCountIsExact() const
+{
+  // Hard-coded tables have exact row counts
+  if(m_table_id < NUM_HARDCODED_TABLES) return true;
+
+  // Virtual tables have exact row counts
+  if(m_virt) return true;
+
+  return false;
+}
+
+>>>>>>> pr/231
 bool NdbInfo::load_virtual_tables(void)
 {
   // The virtual tables should already have been created

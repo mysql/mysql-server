@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -295,8 +299,18 @@ class Relay_log_info : public Rpl_info {
     thread and nonzero for Relay_log_info objects that belong to
     clients.
   */
+<<<<<<< HEAD
   inline bool belongs_to_client() {
+<<<<<<< HEAD
     assert(info_thd);
+=======
+    DBUG_ASSERT(info_thd);
+=======
+  inline bool belongs_to_client()
+  {
+    assert(info_thd);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return !info_thd->slave_thread;
   }
 /* Instrumentation key for performance schema for mts_temp_table_LOCK */
@@ -732,6 +746,7 @@ class Relay_log_info : public Rpl_info {
   /* Flag that ensures the retrieved GTID set is initialized only once. */
   bool gtid_retrieved_initialized;
 
+<<<<<<< HEAD
   /**
     Stores information on the last processed transaction or the transaction
     that is currently being processed.
@@ -813,6 +828,15 @@ class Relay_log_info : public Rpl_info {
     assert(sidno <= get_sid_map()->get_max_sidno());
     gtid_set->ensure_sidno(sidno);
     gtid_set->_add_gtid(sidno, gno);
+=======
+public:
+  void add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
+  {
+    global_sid_lock->assert_some_lock();
+    assert(sidno <= global_sid_map->get_max_sidno());
+    gtid_set.ensure_sidno(sidno);
+    gtid_set._add_gtid(sidno, gno);
+>>>>>>> upstream/cluster-7.6
   }
 
   /**
@@ -1052,14 +1076,30 @@ class Relay_log_info : public Rpl_info {
   /* RBR: Record Rows_query log event */
   Rows_query_log_event *rows_query_ev;
 
+<<<<<<< HEAD
   bool get_table_data(TABLE *table_arg, table_def **tabledef_var,
                       TABLE **conv_table_var) const {
     assert(tabledef_var && conv_table_var);
     for (Table_ref *ptr = tables_to_lock; ptr != nullptr;
          ptr = ptr->next_global)
       if (ptr->table == table_arg) {
+<<<<<<< HEAD
         *tabledef_var = &static_cast<RPL_Table_ref *>(ptr)->m_tabledef;
         *conv_table_var = static_cast<RPL_Table_ref *>(ptr)->m_conv_table;
+=======
+        *tabledef_var = &static_cast<RPL_TABLE_LIST *>(ptr)->m_tabledef;
+        *conv_table_var = static_cast<RPL_TABLE_LIST *>(ptr)->m_conv_table;
+=======
+  bool get_table_data(TABLE *table_arg, table_def **tabledef_var, TABLE **conv_table_var) const
+  {
+    assert(tabledef_var && conv_table_var);
+    for (TABLE_LIST *ptr= tables_to_lock ; ptr != NULL ; ptr= ptr->next_global)
+      if (ptr->table == table_arg)
+      {
+        *tabledef_var= &static_cast<RPL_TABLE_LIST*>(ptr)->m_tabledef;
+        *conv_table_var= static_cast<RPL_TABLE_LIST*>(ptr)->m_conv_table;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         DBUG_PRINT("debug", ("Fetching table data for table %s.%s:"
                              " tabledef: %p, conv_table: %p",
                              table_arg->s->db.str, table_arg->s->table_name.str,
@@ -1960,6 +2000,7 @@ class Relay_log_info : public Rpl_info {
   */
   int thd_tx_priority;
 
+<<<<<<< HEAD
   /**
     If the SQL thread should or not ignore the set limit for
     write set collection
@@ -1972,10 +2013,28 @@ class Relay_log_info : public Rpl_info {
   */
   bool m_allow_drop_write_set;
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   /* The object stores and handles START SLAVE UNTIL option */
   Until_option *until_option;
 
  public:
+=======
+  /**
+    If the SQL thread should or not ignore the set limit for
+    write set collection
+   */
+  bool m_ignore_write_set_memory_limit;
+
+  /**
+    Even if a component says all transactions require write sets,
+    this variable says the SQL thread transactions can drop them
+  */
+  bool m_allow_drop_write_set;
+
+public:
+>>>>>>> upstream/cluster-7.6
   /*
     The boolean is set to true when the binlog (rli_fake) or slave
     (rli_slave) applier thread detaches any engine ha_data
@@ -2028,6 +2087,7 @@ class Relay_log_info : public Rpl_info {
     return until_option != nullptr &&
            until_option->is_satisfied_at_start_slave();
   }
+<<<<<<< HEAD
   bool is_until_satisfied_before_dispatching_event(const Log_event *ev) {
     return until_option != nullptr &&
            until_option->is_satisfied_before_dispatching_event(ev);
@@ -2047,6 +2107,22 @@ class Relay_log_info : public Rpl_info {
      @retval <> 0   A defined error number is return if any error happens.
    */
   int init_until_option(THD *thd, const LEX_MASTER_INFO *master_param);
+=======
+
+  void set_ignore_write_set_memory_limit(bool ignore_limit) {
+    m_ignore_write_set_memory_limit = ignore_limit;
+  }
+
+  bool get_ignore_write_set_memory_limit() {
+    return m_ignore_write_set_memory_limit;
+  }
+
+  void set_allow_drop_write_set(bool does_not_require_ws) {
+    m_allow_drop_write_set = does_not_require_ws;
+  }
+
+  bool get_allow_drop_write_set() { return m_allow_drop_write_set; }
+>>>>>>> upstream/cluster-7.6
 
   /**
     Detaches the engine ha_data from THD. The fact
@@ -2056,6 +2132,20 @@ class Relay_log_info : public Rpl_info {
   */
 
   void detach_engine_ha_data(THD *thd);
+<<<<<<< HEAD
+=======
+  /**
+    Reattaches the engine ha_data to THD. The fact
+    is memorized in @c is_engine_ha_detached flag.
+
+    @param  thd a reference to THD
+  */
+  void reattach_engine_ha_data(THD *thd);
+  /**
+    Drops the engine ha_data flag when it is up.
+    The method is run at execution points of the engine ha_data
+    re-attachment.
+>>>>>>> pr/231
 
   /**
     Reattaches the engine ha_data to THD. The fact

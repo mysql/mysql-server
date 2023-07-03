@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -10,6 +18,14 @@
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
    separately licensed software that they have included with MySQL.
+<<<<<<< HEAD
+=======
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
+>>>>>>> upstream/cluster-7.6
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -219,9 +235,14 @@ extern bool opt_require_secure_transport;
 extern bool opt_replica_preserve_commit_order;
 
 #ifndef NDEBUG
+<<<<<<< HEAD
 extern uint replica_rows_last_search_algorithm_used;
+=======
+extern uint slave_rows_last_search_algorithm_used;
+>>>>>>> pr/231
 #endif
 extern ulong mts_parallel_option;
+<<<<<<< HEAD
 #ifdef _WIN32
 extern bool opt_enable_named_pipe;
 extern char *named_pipe_full_access_group;
@@ -235,10 +256,30 @@ extern bool sp_automatic_privileges, opt_noacl;
 extern bool opt_old_style_user_limits, trust_function_creators;
 extern bool check_proxy_users, mysql_native_password_proxy_users,
     sha256_password_proxy_users;
+<<<<<<< HEAD
 #ifdef _WIN32
 extern const char *shared_memory_base_name;
 #endif
 extern const char *mysqld_unix_port;
+=======
+=======
+extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
+#ifdef _WIN32
+extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
+extern char *named_pipe_full_access_group;
+#endif
+extern my_bool opt_secure_auth;
+extern char* opt_secure_file_priv;
+extern char* opt_secure_backup_file_priv;
+extern size_t opt_secure_backup_file_priv_len;
+extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
+extern my_bool sp_automatic_privileges, opt_noacl;
+extern my_bool opt_old_style_user_limits, trust_function_creators;
+extern my_bool check_proxy_users, mysql_native_password_proxy_users, sha256_password_proxy_users;
+extern uint opt_crash_binlog_innodb;
+>>>>>>> upstream/cluster-7.6
+extern char *shared_memory_base_name, *mysqld_unix_port;
+>>>>>>> pr/231
 extern char *default_tz_name;
 extern Time_zone *default_tz;
 extern const char *default_storage_engine;
@@ -422,12 +463,60 @@ extern LEX_CSTRING sql_statement_names[(uint)SQLCOM_END + 1];
 
 extern thread_local MEM_ROOT **THR_MALLOC;
 
+<<<<<<< HEAD
 extern PSI_file_key key_file_binlog_cache;
 extern PSI_file_key key_file_binlog_index_cache;
+=======
+extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
+
+/*
+  THR_MALLOC is a key which will be used to set/get MEM_ROOT** for a thread,
+  using my_set_thread_local()/my_get_thread_local().
+*/
+extern thread_local_key_t THR_MALLOC;
+extern bool THR_MALLOC_initialized;
+
+static inline MEM_ROOT ** my_thread_get_THR_MALLOC()
+{
+  assert(THR_MALLOC_initialized);
+  return (MEM_ROOT**) my_get_thread_local(THR_MALLOC);
+}
+
+static inline int my_thread_set_THR_MALLOC(MEM_ROOT ** hdl)
+{
+  assert(THR_MALLOC_initialized);
+  return my_set_thread_local(THR_MALLOC, hdl);
+}
+
+/*
+  THR_THD is a key which will be used to set/get THD* for a thread,
+  using my_set_thread_local()/my_get_thread_local().
+*/
+extern MYSQL_PLUGIN_IMPORT thread_local_key_t THR_THD;
+extern bool THR_THD_initialized;
+
+static inline THD * my_thread_get_THR_THD()
+{
+  if (!THR_THD_initialized) return NULL;
+  return (THD*)my_get_thread_local(THR_THD);
+}
+
+static inline int my_thread_set_THR_THD(THD *thd)
+{
+  assert(THR_THD_initialized);
+  return my_set_thread_local(THR_THD, thd);
+}
+>>>>>>> upstream/cluster-7.6
+
+/**
+  Set m_opt_tracking_mode with a user given value associated with sysvar.
+*/
+void set_mysqld_opt_tracking_mode();
 
 #ifdef HAVE_PSI_INTERFACE
 
 extern PSI_mutex_key key_LOCK_tc;
+<<<<<<< HEAD
 extern PSI_mutex_key key_hash_filo_lock;
 extern PSI_mutex_key key_LOCK_error_log;
 extern PSI_mutex_key key_LOCK_thd_data;
@@ -455,6 +544,48 @@ extern PSI_mutex_key key_LOCK_query_plan;
 extern PSI_mutex_key key_LOCK_thd_query;
 extern PSI_mutex_key key_LOCK_cost_const;
 extern PSI_mutex_key key_LOCK_current_cond;
+=======
+
+#ifdef HAVE_OPENSSL
+extern PSI_mutex_key key_LOCK_des_key_file;
+#endif
+
+extern PSI_mutex_key key_BINLOG_LOCK_commit;
+extern PSI_mutex_key key_BINLOG_LOCK_commit_queue;
+extern PSI_mutex_key key_BINLOG_LOCK_done;
+extern PSI_mutex_key key_BINLOG_LOCK_flush_queue;
+extern PSI_mutex_key key_BINLOG_LOCK_index;
+extern PSI_mutex_key key_BINLOG_LOCK_log;
+extern PSI_mutex_key key_BINLOG_LOCK_binlog_end_pos;
+extern PSI_mutex_key key_BINLOG_LOCK_sync;
+extern PSI_mutex_key key_BINLOG_LOCK_sync_queue;
+extern PSI_mutex_key key_BINLOG_LOCK_xids;
+extern PSI_mutex_key
+  key_hash_filo_lock,
+  key_LOCK_crypt, key_LOCK_error_log,
+  key_LOCK_gdl, key_LOCK_global_system_variables,
+  key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
+  key_LOCK_prepared_stmt_count,
+  key_LOCK_server_started, key_LOCK_status,
+  key_LOCK_sql_slave_skip_counter,
+  key_LOCK_slave_net_timeout,
+  key_LOCK_slave_trans_dep_tracker,
+  key_LOCK_table_share, key_LOCK_thd_data, key_LOCK_thd_sysvar,
+  key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
+  key_master_info_data_lock, key_master_info_run_lock,
+  key_master_info_sleep_lock, key_master_info_thd_lock,
+  key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
+  key_relay_log_info_sleep_lock, key_relay_log_info_thd_lock,
+  key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
+  key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
+  key_mutex_slave_parallel_worker,
+  key_mutex_slave_parallel_worker_count,
+  key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
+  key_LOCK_error_messages,
+  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
+  key_LOCK_cost_const, key_LOCK_current_cond,
+  key_LOCK_keyring_operations;
+>>>>>>> upstream/cluster-7.6
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 extern PSI_mutex_key key_RELAYLOG_LOCK_log;
@@ -465,9 +596,17 @@ extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mta_temp_table_LOCK;
 extern PSI_mutex_key key_mta_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
+<<<<<<< HEAD
 extern PSI_mutex_key key_monitor_info_run_lock;
 extern PSI_mutex_key key_LOCK_delegate_connection_mutex;
 extern PSI_mutex_key key_LOCK_group_replication_connection_mutex;
+=======
+<<<<<<< HEAD
+=======
+extern PSI_mutex_key key_LOCK_offline_mode;
+extern PSI_mutex_key key_LOCK_default_password_lifetime;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 extern PSI_mutex_key key_commit_order_manager_mutex;
 extern PSI_mutex_key key_mutex_replica_worker_hash;
@@ -700,6 +839,7 @@ extern MYSQL_PLUGIN_IMPORT char pidfile_name[];
 /*
   Server mutex locks and condition variables.
  */
+<<<<<<< HEAD
 extern mysql_mutex_t LOCK_status;
 extern mysql_mutex_t LOCK_uuid_generator;
 extern mysql_mutex_t LOCK_crypt;
@@ -717,9 +857,33 @@ extern mysql_mutex_t LOCK_mandatory_roles;
 extern mysql_mutex_t LOCK_password_history;
 extern mysql_mutex_t LOCK_password_reuse_interval;
 extern mysql_mutex_t LOCK_default_password_lifetime;
+=======
+extern mysql_mutex_t
+       LOCK_item_func_sleep, LOCK_status,
+       LOCK_uuid_generator,
+       LOCK_crypt, LOCK_timezone,
+       LOCK_slave_list, LOCK_manager,
+       LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
+       LOCK_prepared_stmt_count, LOCK_error_messages,
+       LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
+       LOCK_slave_trans_dep_tracker,
+       LOCK_offline_mode, LOCK_default_password_lifetime;
+#ifdef HAVE_OPENSSL
+extern char* des_key_file;
+extern mysql_mutex_t LOCK_des_key_file;
+#endif
+>>>>>>> upstream/cluster-7.6
 extern mysql_mutex_t LOCK_server_started;
 extern mysql_mutex_t LOCK_reset_gtid_table;
 extern mysql_mutex_t LOCK_compress_gtid_table;
+<<<<<<< HEAD
+=======
+extern mysql_cond_t COND_compress_gtid_table;
+extern mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
+extern mysql_rwlock_t LOCK_system_variables_hash;
+extern mysql_cond_t COND_manager;
+extern int32 thread_running;
+>>>>>>> upstream/cluster-7.6
 extern mysql_mutex_t LOCK_keyring_operations;
 extern mysql_mutex_t LOCK_collect_instance_log;
 extern mysql_mutex_t LOCK_tls_ctx_options;
@@ -740,6 +904,128 @@ extern mysql_rwlock_t LOCK_system_variables_hash;
 extern ulong opt_ssl_fips_mode;
 
 extern char *opt_disabled_storage_engines;
+<<<<<<< HEAD
+=======
+/**
+  only options that need special treatment in get_one_option() deserve
+  to be listed below
+*/
+enum options_mysqld
+{
+  OPT_to_set_the_start_number=256,
+  OPT_BIND_ADDRESS,
+  OPT_BINLOG_CHECKSUM,
+  OPT_BINLOG_DO_DB,
+  OPT_BINLOG_FORMAT,
+  OPT_BINLOG_MAX_FLUSH_QUEUE_TIME,
+  OPT_BINLOG_IGNORE_DB,
+  OPT_BIN_LOG,
+  OPT_BOOTSTRAP,
+  OPT_CONSOLE,
+  OPT_DEBUG_SYNC_TIMEOUT,
+  OPT_DELAY_KEY_WRITE_ALL,
+  OPT_ISAM_LOG,
+  OPT_IGNORE_DB_DIRECTORY,
+  OPT_KEY_BUFFER_SIZE,
+  OPT_KEY_CACHE_AGE_THRESHOLD,
+  OPT_KEY_CACHE_BLOCK_SIZE,
+  OPT_KEY_CACHE_DIVISION_LIMIT,
+  OPT_LC_MESSAGES_DIRECTORY,
+  OPT_LOWER_CASE_TABLE_NAMES,
+  OPT_MASTER_RETRY_COUNT,
+  OPT_MASTER_VERIFY_CHECKSUM,
+  OPT_POOL_OF_THREADS,
+  OPT_REPLICATE_DO_DB,
+  OPT_REPLICATE_DO_TABLE,
+  OPT_REPLICATE_IGNORE_DB,
+  OPT_REPLICATE_IGNORE_TABLE,
+  OPT_REPLICATE_REWRITE_DB,
+  OPT_REPLICATE_WILD_DO_TABLE,
+  OPT_REPLICATE_WILD_IGNORE_TABLE,
+  OPT_SERVER_ID,
+  OPT_SKIP_HOST_CACHE,
+  OPT_SKIP_LOCK,
+  OPT_SKIP_NEW,
+  OPT_SKIP_RESOLVE,
+  OPT_SKIP_STACK_TRACE,
+  OPT_SKIP_SYMLINKS,
+  OPT_SLAVE_SQL_VERIFY_CHECKSUM,
+  OPT_SSL_CA,
+  OPT_SSL_CAPATH,
+  OPT_SSL_CERT,
+  OPT_SSL_CIPHER,
+  OPT_TLS_VERSION,
+  OPT_SSL_KEY,
+  OPT_UPDATE_LOG,
+  OPT_WANT_CORE,
+  OPT_LOG_ERROR,
+  OPT_MAX_LONG_DATA_SIZE,
+  OPT_EARLY_PLUGIN_LOAD,
+  OPT_PLUGIN_LOAD,
+  OPT_PLUGIN_LOAD_ADD,
+  OPT_SSL_CRL,
+  OPT_SSL_CRLPATH,
+  OPT_PFS_INSTRUMENT,
+  OPT_DEFAULT_AUTH,
+  OPT_SECURE_AUTH,
+  OPT_THREAD_CACHE_SIZE,
+  OPT_HOST_CACHE_SIZE,
+  OPT_TABLE_DEFINITION_CACHE,
+  OPT_MDL_CACHE_SIZE,
+  OPT_MDL_HASH_INSTANCES,
+  OPT_SKIP_INNODB,
+  OPT_AVOID_TEMPORAL_UPGRADE,
+  OPT_SHOW_OLD_TEMPORALS,
+  OPT_ENFORCE_GTID_CONSISTENCY,
+  OPT_TRANSACTION_READ_ONLY,
+  OPT_TRANSACTION_ISOLATION,
+  OPT_KEYRING_MIGRATION_SOURCE,
+  OPT_KEYRING_MIGRATION_DESTINATION,
+  OPT_KEYRING_MIGRATION_USER,
+  OPT_KEYRING_MIGRATION_HOST,
+  OPT_KEYRING_MIGRATION_PASSWORD,
+  OPT_KEYRING_MIGRATION_SOCKET,
+  OPT_KEYRING_MIGRATION_PORT,
+  OPT_NAMED_PIPE_FULL_ACCESS_GROUP
+};
+
+
+/**
+   Query type constants (usable as bitmap flags).
+*/
+enum enum_query_type
+{
+  /// Nothing specific, ordinary SQL query.
+  QT_ORDINARY= 0,
+  /// In utf8.
+  QT_TO_SYSTEM_CHARSET= (1 << 0),
+  /// Without character set introducers.
+  QT_WITHOUT_INTRODUCERS= (1 << 1),
+  /// When printing a SELECT, add its number (select_lex->number)
+  QT_SHOW_SELECT_NUMBER= (1 << 2),
+  /// Don't print a database if it's equal to the connection's database
+  QT_NO_DEFAULT_DB= (1 << 3),
+  /// When printing a derived table, don't print its expression, only alias
+  QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 4),
+  /// Print in charset of Item::print() argument (typically thd->charset()).
+  QT_TO_ARGUMENT_CHARSET= (1 << 5),
+  /// Print identifiers without database's name
+  QT_NO_DB= (1 << 6),
+  /// Print identifiers without table's name
+  QT_NO_TABLE= (1 << 7),
+  /**
+    Change all Item_basic_constant to ? (used by query rewrite to compute
+    digest.)  Un-resolved hints will also be printed in this format.
+  */
+  QT_NORMALIZED_FORMAT= (1 << 8),
+  /**
+    If an expression is constant, print the expression, not the value
+    it evaluates to. Should be used for error messages, so that they
+    don't reveal values.
+  */
+  QT_NO_DATA_EXPANSION= (1 << 9),
+};
+>>>>>>> upstream/cluster-7.6
 
 extern sigset_t mysqld_signal_mask;
 /* query_id */
@@ -823,9 +1109,11 @@ bool update_named_pipe_full_access_group(const char *new_group_name);
 
 #endif
 
+<<<<<<< HEAD
 extern LEX_STRING opt_mandatory_roles;
 extern bool opt_mandatory_roles_cache;
 extern bool opt_always_activate_granted_roles;
+<<<<<<< HEAD
 
 extern mysql_component_t mysql_component_mysql_server;
 extern mysql_component_t mysql_component_performance_schema;
@@ -843,4 +1131,12 @@ extern Deployed_components *g_deployed_components;
 extern bool opt_persist_sensitive_variables_in_plaintext;
 
 void persisted_variables_refresh_keyring_support();
+=======
+=======
+#ifdef _WIN32
+bool update_named_pipe_full_access_group(const char *new_group_name);
+#endif
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif /* MYSQLD_INCLUDED */

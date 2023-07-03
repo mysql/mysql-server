@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -322,7 +346,123 @@ static inline class btr_search_sys_t::search_part_t &btr_get_search_part(
 A latch is selected from an array of latches using pair of index-id, space-id.
 @param[in]      index   index handler
 @return latch */
+<<<<<<< HEAD
 static inline rw_lock_t *btr_get_search_latch(const dict_index_t *index);
+=======
+UNIV_INLINE
+rw_lock_t *btr_get_search_latch(const dict_index_t *index);
+
+/** Get the hash-table based on index attributes.
+A table is selected from an array of tables using pair of index-id, space-id.
+@param[in]	index	index handler
+@return hash table */
+UNIV_INLINE
+hash_table_t *btr_get_search_table(const dict_index_t *index);
+
+/** The search info struct in an index */
+struct btr_search_t {
+  ulint ref_count; /*!< Number of blocks in this index tree
+                   that have search index built
+                   i.e. block->index points to this index.
+                   Protected by search latch except
+                   when during initialization in
+                   btr_search_info_create(). */
+
+<<<<<<< HEAD
+  /* @{ The following fields are not protected by any latch.
+  Unfortunately, this means that they must be aligned to
+  the machine word, i.e., they cannot be turned into bit-fields. */
+  buf_block_t *root_guess; /*!< the root page frame when it was last time
+                           fetched, or NULL */
+  ulint withdraw_clock;    /*!< the withdraw clock value of the buffer
+                           pool when root_guess was stored */
+  ulint hash_analysis;     /*!< when this exceeds
+                           BTR_SEARCH_HASH_ANALYSIS, the hash
+                           analysis starts; this is reset if no
+                           success noticed */
+  ibool last_hash_succ;    /*!< TRUE if the last search would have
+                           succeeded, or did succeed, using the hash
+                           index; NOTE that the value here is not exact:
+                           it is not calculated for every search, and the
+                           calculation itself is not always accurate! */
+  ulint n_hash_potential;
+  /*!< number of consecutive searches
+  which would have succeeded, or did succeed,
+  using the hash index;
+  the range is 0 .. BTR_SEARCH_BUILD_LIMIT + 5 */
+  /* @} */
+  /*---------------------- @{ */
+  ulint n_fields;  /*!< recommended prefix length for hash search:
+                   number of full fields */
+  ulint n_bytes;   /*!< recommended prefix: number of bytes in
+                   an incomplete field
+                   @see BTR_PAGE_MAX_REC_SIZE */
+  ibool left_side; /*!< TRUE or FALSE, depending on whether
+                   the leftmost record of several records with
+                   the same prefix should be indexed in the
+                   hash index */
+                   /*---------------------- @} */
+=======
+	/* @{ The following fields are not protected by any latch.
+	Unfortunately, this means that they must be aligned to
+	the machine word, i.e., they cannot be turned into bit-fields. */
+	buf_block_t* root_guess;/*!< the root page frame when it was last time
+				fetched, or NULL */
+	ulint	hash_analysis;	/*!< when this exceeds
+				BTR_SEARCH_HASH_ANALYSIS, the hash
+				analysis starts; this is reset if no
+				success noticed */
+	ibool	last_hash_succ;	/*!< TRUE if the last search would have
+				succeeded, or did succeed, using the hash
+				index; NOTE that the value here is not exact:
+				it is not calculated for every search, and the
+				calculation itself is not always accurate! */
+	ulint	n_hash_potential;
+				/*!< number of consecutive searches
+				which would have succeeded, or did succeed,
+				using the hash index;
+				the range is 0 .. BTR_SEARCH_BUILD_LIMIT + 5 */
+	/* @} */
+	/*---------------------- @{ */
+	ulint	n_fields;	/*!< recommended prefix length for hash search:
+				number of full fields */
+	ulint	n_bytes;	/*!< recommended prefix: number of bytes in
+				an incomplete field
+				@see BTR_PAGE_MAX_REC_SIZE */
+	ibool	left_side;	/*!< TRUE or FALSE, depending on whether
+				the leftmost record of several records with
+				the same prefix should be indexed in the
+				hash index */
+	/*---------------------- @} */
+>>>>>>> upstream/cluster-7.6
+#ifdef UNIV_SEARCH_PERF_STAT
+  ulint n_hash_succ; /*!< number of successful hash searches thus
+                     far */
+  ulint n_hash_fail; /*!< number of failed hash searches */
+  ulint n_patt_succ; /*!< number of successful pattern searches thus
+                     far */
+  ulint n_searches;  /*!< number of searches */
+#endif               /* UNIV_SEARCH_PERF_STAT */
+#ifdef UNIV_DEBUG
+  ulint magic_n; /*!< magic number @see BTR_SEARCH_MAGIC_N */
+/** value of btr_search_t::magic_n, used in assertions */
+#define BTR_SEARCH_MAGIC_N 1112765
+#endif /* UNIV_DEBUG */
+};
+
+/** The hash index system */
+struct btr_search_sys_t {
+  hash_table_t **hash_tables; /*!< the adaptive hash tables,
+                              mapping dtuple_fold values
+                              to rec_t pointers on index pages */
+};
+
+/** Latches protecting access to adaptive hash index. */
+extern rw_lock_t **btr_search_latches;
+
+/** The adaptive hash index */
+extern btr_search_sys_t *btr_search_sys;
+>>>>>>> pr/231
 
 #ifdef UNIV_SEARCH_PERF_STAT
 /** Number of successful adaptive hash index lookups */

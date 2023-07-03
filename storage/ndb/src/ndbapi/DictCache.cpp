@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,9 +108,15 @@ LocalDictCache::put(const BaseString& name, Ndb_local_table_info * tab_info){
 void
 LocalDictCache::drop(const BaseString& name){
   ASSERT_NOT_MYSQLD;
+<<<<<<< HEAD
   Ndb_local_table_info *info=
       m_tableHash.deleteKey(name.c_str(), name.length());
   assert(info != nullptr);
+=======
+  assert(! is_ndb_blob_table(name));
+  Ndb_local_table_info *info= m_tableHash.deleteKey(name, (Uint32)strlen(name));
+  assert(info != 0);
+>>>>>>> pr/231
   Ndb_local_table_info::destroy(info);
 }
 

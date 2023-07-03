@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -572,10 +576,14 @@ static bool load_process(atrt_config& config,
     case atrt_process::AP_NDB_MGMD: {
       proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndb_mgmd");
       proc.m_proc.m_cwd.assfmt("%sndb_mgmd.%u", dir.c_str(), proc.m_index);
+<<<<<<< HEAD
 
       BaseString ndb_mgmd_bin_path =
           g_resources.getExecutableFullPath(g_resources.NDB_MGMD).c_str();
       proc.m_proc.m_path.assign(ndb_mgmd_bin_path);
+=======
+      proc.m_proc.m_path.assign(g_ndb_mgmd_bin_path);
+>>>>>>> pr/231
       proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s",
                                cluster.m_name.c_str());
       proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
@@ -592,12 +600,15 @@ static bool load_process(atrt_config& config,
           proc.m_proc.m_args.assfmt("--config-file=%s/config%s.ini",
                                     proc.m_host->m_basedir.c_str(),
                                     cluster.m_name.c_str());
+<<<<<<< HEAD
           if (g_restart) {
             proc.m_proc.m_args.append(" --reload");
           } else {
             proc.m_proc.m_args.append(" --initial");
           }
 
+=======
+>>>>>>> pr/231
           break;
         }
       }
@@ -610,10 +621,16 @@ static bool load_process(atrt_config& config,
       proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndbd");
       proc.m_proc.m_cwd.assfmt("%sndbd.%u", dir.c_str(), proc.m_index);
 
+<<<<<<< HEAD
       if (g_mt == 0 || (g_mt == 1 && ((g_mt_rr++) & 1) == 0)) {
         BaseString ndbd_bin_path =
             g_resources.getExecutableFullPath(g_resources.NDBD).c_str();
         proc.m_proc.m_path.assign(ndbd_bin_path);
+=======
+      if (g_mt == 0 || (g_mt == 1 && ((g_mt_rr++) & 1) == 0) ||
+          g_ndbmtd_bin_path == 0) {
+        proc.m_proc.m_path.assign(g_ndbd_bin_path);
+>>>>>>> pr/231
       } else {
         BaseString ndbmtd_bin_path =
             g_resources.getExecutableFullPath(g_resources.NDBMTD).c_str();

@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -306,13 +330,28 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
   be replaced with something else, though a time interval is the natural
   approach. */
 
+<<<<<<< HEAD
   if (std::chrono::steady_clock::now() - table->stats_last_recalc <
       MIN_RECALC_INTERVAL) {
+=======
+<<<<<<< HEAD
+  if (ut_difftime(ut_time(), table->stats_last_recalc) < MIN_RECALC_INTERVAL) {
+>>>>>>> pr/231
     /* Stats were (re)calculated not long ago. To avoid
     too frequent stats updates we put back the table on
     the auto recalc list and do nothing. */
 
     dict_stats_recalc_pool_add(table);
+=======
+	/* ut_time_monotonic() could be expensive, the current function
+	is called once every time a table has been changed more than 10% and
+	on a system with lots of small tables, this could become hot. If we
+	find out that this is a problem, then the check below could eventually
+	be replaced with something else, though a time interval is the natural
+	approach. */
+
+	if (ut_time_monotonic() - table->stats_last_recalc < MIN_RECALC_INTERVAL) {
+>>>>>>> upstream/cluster-7.6
 
   } else {
     dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);

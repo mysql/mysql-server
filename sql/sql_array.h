@@ -1,7 +1,15 @@
 #ifndef SQL_ARRAY_INCLUDED
 #define SQL_ARRAY_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,6 +93,7 @@ class Bounds_checked_array {
     array, so the new size must be smaller than or equal to the
     current size.
    */
+<<<<<<< HEAD
   void resize(size_t new_size) {
     assert(new_size <= m_size);
     m_size = new_size;
@@ -109,7 +118,28 @@ class Bounds_checked_array {
   }
 
   const Element_type &operator[](size_t n) const {
+<<<<<<< HEAD
     assert(n < m_size);
+=======
+    DBUG_ASSERT(n < m_size);
+=======
+  void resize(size_t new_size)
+  {
+    assert(new_size <= m_size);
+    m_size= new_size;
+  }
+
+  Element_type &operator[](size_t n)
+  {
+    assert(n < m_size);
+    return m_array[n];
+  }
+
+  const Element_type &operator[](size_t n) const
+  {
+    assert(n < m_size);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_array[n];
   }
 
@@ -137,10 +167,18 @@ class Bounds_checked_array {
 
   bool is_null() const { return m_array == nullptr; }
 
+<<<<<<< HEAD
   void pop_front() {
     assert(m_size > 0);
     m_array += 1;
     m_size -= 1;
+=======
+  void pop_front()
+  {
+    assert(m_size > 0);
+    m_array+= 1;
+    m_size-= 1;
+>>>>>>> upstream/cluster-7.6
   }
 
   Element_type *array() const { return m_array; }

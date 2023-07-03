@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,18 +102,29 @@ struct Channel_creation_info {
   int replicate_same_server_id;
   int thd_tx_priority;  // The applier thread priority
   int sql_delay;
+<<<<<<< HEAD
   int connect_retry;         // How many seconds to wait between retries.
   int retry_count;           // Limits the number of reconnection attempts
   bool preserve_relay_logs;  // If the logs should be preserved on creation
   char *public_key_path;     // RSA Public key information
   int get_public_key;        // Preference to get public key from donor if not
                              // available
+<<<<<<< HEAD
   char *compression_algorithm;
   unsigned int zstd_compression_level;
   /* to enable async connection failover */
   int m_source_connection_auto_failover{0};
   bool m_ignore_write_set_memory_limit;
   bool m_allow_drop_write_set;
+=======
+=======
+  int connect_retry;             //How many seconds to wait between retries.
+  int retry_count;               //Limits the number of reconnection attempts
+  bool preserve_relay_logs;      //If the logs should be preserved on creation
+  bool m_ignore_write_set_memory_limit; //Shall ignore write set mem limits
+  bool m_allow_drop_write_set; //Shall not require write set to be preserved
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 void initialize_channel_creation_info(Channel_creation_info *channel_info);

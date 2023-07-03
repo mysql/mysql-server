@@ -2,7 +2,15 @@
 #define FAKE_COSTMODEL_INCLUDED
 
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,9 +46,15 @@ class Fake_Cost_model_server : public Cost_model_server {
  public:
   Fake_Cost_model_server() {
     // Create default values for server cost constants
+<<<<<<< HEAD
     m_server_cost_constants = new Server_cost_constants();
 #if !defined(NDEBUG)
     m_initialized = true;
+=======
+    m_server_cost_constants= new Server_cost_constants();
+#if !defined(NDEBUG)
+    m_initialized= true;
+>>>>>>> upstream/cluster-7.6
 #endif
   }
 
@@ -60,8 +74,17 @@ class Fake_Cost_model_table : public Cost_model_table {
     // Allocate cost constants for operations on tables
     m_se_cost_constants = new SE_cost_constants();
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
     m_initialized = true;
+=======
+#if !defined(NDEBUG)
+    m_initialized= true;
+>>>>>>> upstream/cluster-7.6
 #endif
   }
 

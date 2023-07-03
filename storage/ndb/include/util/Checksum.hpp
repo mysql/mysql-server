@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +78,11 @@ template <class T>
 T xorChecksum(const T *const buf, const size_t words, T sum)
 {
   T tmp = 0;
+<<<<<<< HEAD
   for (auto ptr{buf}; ptr < (buf + words); ++ptr) {
+=======
+  for (const T *ptr = buf; ptr < (buf + words); ++ptr) {
+>>>>>>> pr/231
     tmp ^= *ptr;
   }
   return sum ^ tmp;
@@ -117,7 +129,11 @@ computeXorChecksum(const Uint32 *const buf, const size_t words, Uint32 sum = 0)
 #if defined(__GNUC__)
 #pragma GCC push_options
 // Specifying 'unroll and vectorize', improve GCC generated code by ~8x.
+<<<<<<< HEAD
 #pragma GCC optimize("unroll-loops","tree-loop-vectorize")
+=======
+#pragma GCC optimize("unroll-loops","tree-vectorize")
+>>>>>>> pr/231
 #endif
 
 /**
@@ -134,8 +150,13 @@ computeXorChecksum(const Uint32 *const buf, const size_t words,
   Uint32 tmp0 = 0;
   Uint32 tmp1 = 0;
   const Uint32 middle = words / 2;
+<<<<<<< HEAD
   for (auto ptr{buf}; ptr < (buf + middle); ++ptr) {
     // Use two separate 'Xor-streams'
+=======
+  for (const Uint32 *ptr = buf; ptr < (buf + middle); ++ptr) {
+    // Use two seperate 'Xor-streams'
+>>>>>>> pr/231
     tmp0 ^= *ptr;
     tmp1 ^= *(ptr+middle);
   }
@@ -152,8 +173,11 @@ computeXorChecksum(const Uint32 *const buf, const size_t words,
 
 #endif
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> pr/231
 inline
 Uint32
 rotateChecksum(const Uint32 sum, Uint32 byte_steps)

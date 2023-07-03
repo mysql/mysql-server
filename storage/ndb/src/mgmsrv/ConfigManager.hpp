@@ -195,6 +195,7 @@ class ConfigManager : public MgmtThread {
                           Uint32, Uint32, ConfigState, ConfigState) const;
   void sendConfigCheckConf(SignalSender& ss, BlockReference to) const;
 
+<<<<<<< HEAD
   /*
     ConfigChecker - for connecting to other mgm nodes without
     transporter
@@ -221,6 +222,8 @@ class ConfigManager : public MgmtThread {
   MutexVector<NodeId> m_exclude_nodes;
   void handle_exclude_nodes(void);
 
+=======
+>>>>>>> pr/231
   class DynamicPorts {
     struct NodePair {
       int node1;

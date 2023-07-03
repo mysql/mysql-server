@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +50,7 @@ NdbOperation::insertTuple()
     theErrorLine = tErrorLine++;
     theLockMode = LM_Exclusive;
     m_abortOption = AbortOnError;
-    return 0; 
+    return 0;
   } else {
     setErrorCode(4200);
     return -1;
@@ -57,17 +61,17 @@ NdbOperation::insertTuple()
  *****************************************************************************/
 int
 NdbOperation::updateTuple()
-{  
+{
   NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
     tNdbCon->theSimpleState = 0;
-    theOperationType = UpdateRequest;  
+    theOperationType = UpdateRequest;
     theErrorLine = tErrorLine++;
     theLockMode = LM_Exclusive;
     m_abortOption = AbortOnError;
-    return 0; 
+    return 0;
   } else {
     setErrorCode(4200);
     return -1;
@@ -78,17 +82,17 @@ NdbOperation::updateTuple()
  *****************************************************************************/
 int
 NdbOperation::writeTuple()
-{  
+{
   NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
     theStatus = OperationDefined;
     tNdbCon->theSimpleState = 0;
-    theOperationType = WriteRequest;  
+    theOperationType = WriteRequest;
     theErrorLine = tErrorLine++;
     theLockMode = LM_Exclusive;
     m_abortOption = AbortOnError;
-    return 0; 
+    return 0;
   } else {
     setErrorCode(4200);
     return -1;
@@ -103,7 +107,7 @@ NdbOperation::deleteTuple()
   NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
-    theStatus = OperationDefined;  
+    theStatus = OperationDefined;
     tNdbCon->theSimpleState = 0;
     theOperationType = DeleteRequest;
     theErrorLine = tErrorLine++;
@@ -121,7 +125,7 @@ NdbOperation::deleteTuple()
  *****************************************************************************/
 int
 NdbOperation::readTuple(NdbOperation::LockMode lm)
-{ 
+{
   switch(lm) {
   case LM_Read:
     return readTuple();
@@ -143,7 +147,7 @@ NdbOperation::readTuple(NdbOperation::LockMode lm)
  *****************************************************************************/
 int
 NdbOperation::readTuple()
-{ 
+{
   NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
@@ -165,7 +169,7 @@ NdbOperation::readTuple()
  *****************************************************************************/
 int
 NdbOperation::readTupleExclusive()
-{ 
+{
   NdbTransaction* tNdbCon = theNdbCon;
   int tErrorLine = theErrorLine;
   if (theStatus == Init) {
@@ -404,8 +408,8 @@ NdbOperation::setReadLockMode(LockMode lockMode)
  * int getValue(AttrInfo* tAttrInfo, char* aRef )
  *
  * Return Value   Return 0 : GetValue was successful.
- *                Return -1: In all other case. 
- * Parameters:    tAttrInfo : Attribute object of the retrieved attribute 
+ *                Return -1: In all other case.
+ * Parameters:    tAttrInfo : Attribute object of the retrieved attribute
  *                            value.
  * Remark:        Define an attribute to retrieve in query.
  *****************************************************************************/
@@ -432,7 +436,7 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 	  theInterpretedSize = theTotalCurrAI_Len -
 	    (theInitialReadSize + 5);
 	} else if (theStatus == SetValueInterpreted) {
-	  theFinalUpdateSize = theTotalCurrAI_Len - 
+	  theFinalUpdateSize = theTotalCurrAI_Len -
 	    (theInitialReadSize + theInterpretedSize + 5);
 	} else {
 	  setErrorCodeAbort(4230);
@@ -446,16 +450,16 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
       }//if
     }//if
     AttributeHeader ah(tAttrInfo->m_attrId, 0);
-    if (insertATTRINFO(ah.m_value) != -1) {	
-      // Insert Attribute Id into ATTRINFO part. 
-      
+    if (insertATTRINFO(ah.m_value) != -1) {
+      // Insert Attribute Id into ATTRINFO part.
+
       /************************************************************************
        * Get a Receive Attribute object and link it into the operation object.
        ***********************************************************************/
       if((tRecAttr = theReceiver.getValue(tAttrInfo, aValue)) != nullptr){
 	theErrorLine++;
 	return tRecAttr;
-      } else {  
+      } else {
 	setErrorCodeAbort(4000);
 	return nullptr;
       }
@@ -463,9 +467,15 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
       return nullptr;
     }//if insertATTRINFO failure
   } else {
+<<<<<<< HEAD
     if (tAttrInfo == nullptr) {
       setErrorCodeAbort(4004);      
       return nullptr;
+=======
+    if (tAttrInfo == NULL) {
+      setErrorCodeAbort(4004);
+      return NULL;
+>>>>>>> pr/231
     }//if
   }//if
   setErrorCodeAbort(4200);
@@ -498,16 +508,22 @@ NdbOperation::getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue)
 /*****************************************************************************
  * int setValue(AttrInfo* tAttrInfo, char* aValue, Uint32 len)
  *
+<<<<<<< HEAD
  * Return Value:  Return 0 : SetValue was successful.
  *                Return -1: In all other case.   
  * Parameters:    tAttrInfo : Attribute object where the attribute 
+=======
+ * Return Value:  Return 0 : SetValue was succesful.
+ *                Return -1: In all other case.
+ * Parameters:    tAttrInfo : Attribute object where the attribute
+>>>>>>> pr/231
  *                            info exists.
  *                aValue : Reference to the variable with the new value.
  *		  len    : Length of the value
  * Remark:        Define a attribute to set in a query.
 ******************************************************************************/
 int
-NdbOperation::setValue( const NdbColumnImpl* tAttrInfo, 
+NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 			const char* aValuePassed)
 {
   DBUG_ENTER("NdbOperation::setValue");
@@ -520,7 +536,13 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
   Uint32 tData;
   Uint32 tempData[ NDB_MAX_TUPLE_SIZE_IN_WORDS ];
   OperationType tOpType = theOperationType;
+<<<<<<< HEAD
   
+=======
+  OperationStatus tStatus = theStatus;
+
+
+>>>>>>> pr/231
   if ((tOpType == UpdateRequest) ||
       (tOpType == WriteRequest)) {
     if (theInterpretIndicator == 0) {
@@ -547,13 +569,13 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
         }
       } else if	(theStatus == ExecInterpretedValue) {
 	//--------------------------------------------------------------------
-	// We insert an exit from interpretation since we are now starting 
+	// We insert an exit from interpretation since we are now starting
 	// to set values in the tuple by setValue.
 	//--------------------------------------------------------------------
         if (insertATTRINFO(Interpreter::EXIT_OK) == -1){
           DBUG_RETURN(-1);
 	}
-        theInterpretedSize = theTotalCurrAI_Len - 
+        theInterpretedSize = theTotalCurrAI_Len -
           (theInitialReadSize + 5);
         //--------------------------------------------------------------------
         // If the operation is an interpreted write, then transfer the keyinfo
@@ -594,49 +616,59 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
     DBUG_RETURN(-1);
   } else {
     //---------------------------------------------------------------------
-    // setValue with undefined operation type. 
+    // setValue with undefined operation type.
     // Probably application coding error.
     //---------------------------------------------------------------------
     setErrorCodeAbort(4108);
     DBUG_RETURN(-1);
   }//if
+<<<<<<< HEAD
   if (tAttrInfo == nullptr) {
     setErrorCodeAbort(4004);      
+=======
+  if (tAttrInfo == NULL) {
+    setErrorCodeAbort(4004);
+>>>>>>> pr/231
     DBUG_RETURN(-1);
   }//if
   if (tAttrInfo->m_pk) {
     if (theOperationType == InsertRequest) {
       DBUG_RETURN(equal_impl(tAttrInfo, aValuePassed));
     } else {
-      setErrorCodeAbort(4202);      
+      setErrorCodeAbort(4202);
       DBUG_RETURN(-1);
     }//if
   }//if
-  
-  // Insert Attribute Id into ATTRINFO part. 
+
+  // Insert Attribute Id into ATTRINFO part.
   tAttrId = tAttrInfo->m_attrId;
   if (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK)
   {
     m_flags &= ~Uint8(OF_NO_DISK);
   }
+<<<<<<< HEAD
   const char *aValue = aValuePassed; 
   if (aValue == nullptr) {
+=======
+  const char *aValue = aValuePassed;
+  if (aValue == NULL) {
+>>>>>>> pr/231
     if (tAttrInfo->m_nullable) {
       AttributeHeader ah(tAttrId, 0);
       ah.setNULL();
       insertATTRINFO(ah.m_value);
       // Insert Attribute Id with the value
-      // NULL into ATTRINFO part. 
+      // NULL into ATTRINFO part.
       DBUG_RETURN(0);
     } else {
       /***********************************************************************
        * Setting a NULL value on a NOT NULL attribute is not allowed.
        **********************************************************************/
-      setErrorCodeAbort(4203);      
+      setErrorCodeAbort(4203);
       DBUG_RETURN(-1);
     }//if
   }//if
-  
+
   Uint32 len;
   if (! tAttrInfo->get_var_length(aValue, len)) {
     setErrorCodeAbort(4209);
@@ -645,10 +677,10 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 
   const Uint32 sizeInBytes = len;
   const Uint32 bitsInLastWord = 8 * (sizeInBytes & 3) ;
-  
+
   const int attributeSize = sizeInBytes;
   const int slack = sizeInBytes & 3;
-  
+
   if (((UintPtr)aValue & 3) != 0 || (slack != 0)){
     memcpy(&tempData[0], aValue, attributeSize);
     aValue = (char*)&tempData[0];
@@ -657,20 +689,24 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
       memset(&tmp[attributeSize], 0, (4 - slack));
     }//if
   }//if
-  
+
   // Excluding bits in last word
-  const Uint32 sizeInWords = sizeInBytes / 4;          
+  const Uint32 sizeInWords = sizeInBytes / 4;
   AttributeHeader ah(tAttrId, sizeInBytes);
   insertATTRINFO( ah.m_value );
 
   /***********************************************************************
    * Check if the pointer of the value passed is aligned on a 4 byte boundary.
-   * If so only assign the pointer to the internal variable aValue. 
-   * If it is not aligned then we start by copying the value to tempData and 
+   * If so only assign the pointer to the internal variable aValue.
+   * If it is not aligned then we start by copying the value to tempData and
    * use this as aValue instead.
    *************************************************************************/
 
+<<<<<<< HEAD
   tReturnCode = insertATTRINFOloop((const Uint32*)aValue, sizeInWords);
+=======
+  tReturnCode = insertATTRINFOloop((Uint32*)aValue, sizeInWords);
+>>>>>>> pr/231
   if (tReturnCode == -1) {
     DBUG_RETURN(tReturnCode);
   }//if
@@ -684,7 +720,7 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
       DBUG_RETURN(tReturnCode);
     }//if
   }//if
-  theErrorLine++;  
+  theErrorLine++;
   DBUG_RETURN(0);
 }//NdbOperation::setValue()
 
@@ -696,7 +732,7 @@ NdbOperation::setAnyValue(Uint32 any_value)
 
   if (theStatus == UseNdbRecord)
   {
-    /* Method not allowed for NdbRecord, use OperationOptions or 
+    /* Method not allowed for NdbRecord, use OperationOptions or
        ScanOptions structure instead */
     setErrorCodeAbort(4515);
     return -1;
@@ -709,13 +745,17 @@ NdbOperation::setAnyValue(Uint32 any_value)
   case DeleteRequest:{
     Uint32 ah;
     AttributeHeader::init(&ah, AttributeHeader::ANY_VALUE, 4);
-    if (insertATTRINFO(ah) != -1 && insertATTRINFO(any_value) != -1 ) 
+    if (insertATTRINFO(ah) != -1 && insertATTRINFO(any_value) != -1 )
     {
       return 0;
     }
   }
+<<<<<<< HEAD
   // Fall through - let setValue call set error
   [[fallthrough]];
+=======
+  // Fall through
+>>>>>>> pr/231
   default:
     return setValue(impl, (const char *)&any_value);
   }
@@ -732,7 +772,7 @@ NdbOperation::setOptimize(Uint32 options)
 }
 
 /* Non-const variant of getBlobHandle - can return existing blob
- * handles, or create new ones for non-NdbRecord operations 
+ * handles, or create new ones for non-NdbRecord operations
  */
 NdbBlob*
 NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo)
@@ -747,8 +787,8 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
   }
 
   /*
-   * For NdbRecord PK, unique index and scan operations, we only fetch existing 
-   * blob handles here, creation must be done by requesting the blob in the 
+   * For NdbRecord PK, unique index and scan operations, we only fetch existing
+   * blob handles here, creation must be done by requesting the blob in the
    * NdbRecord and mask when creating the operation.
    * For NdbRecAttr PK, IK and scan operations, we allow Blob handles
    * to be created here.  Note that NdbRecAttr PK and unique index ops are handled
@@ -884,7 +924,7 @@ NdbOperation::linkInBlobHandle(NdbTransaction *aCon,
  * For read request, store the pointers to blob handles in the row.
  */
 int
-NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon, 
+NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon,
                                       const Uint32 * m_read_mask)
 {
   NdbBlob *lastBlob= nullptr;
@@ -923,7 +963,7 @@ NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon,
 /*
   For a delete, we need to create blob handles for all table blob columns,
   so that we can be sure to delete all blob parts for the row.
-  If checkReadset is true, we also check that the caller is not asking to 
+  If checkReadset is true, we also check that the caller is not asking to
   read any blobs as part of the delete.
 */
 int
@@ -994,10 +1034,15 @@ NdbOperation::setVarValue(const NdbColumnImpl* tAttrInfo,
 /****************************************************************************
  * int insertATTRINFO( Uint32 aData );
  *
+<<<<<<< HEAD
  * Return Value:   Return 0 : insertATTRINFO was successful.
  *                 Return -1: In all other case.   
+=======
+ * Return Value:   Return 0 : insertATTRINFO was succesful.
+ *                 Return -1: In all other case.
+>>>>>>> pr/231
  * Parameters:     aData: the data to insert into ATTRINFO.
- * Remark:         Puts the the data into either TCKEYREQ signal or 
+ * Remark:         Puts the the data into either TCKEYREQ signal or
  *                 ATTRINFO signal.
  *****************************************************************************/
 int
@@ -1048,14 +1093,20 @@ insertATTRINFO_error1:
 /*****************************************************************************
  * int insertATTRINFOloop(Uint32* aDataPtr, Uint32 aLength );
  *
+<<<<<<< HEAD
  * Return Value:  Return 0 : insertATTRINFO was successful.
  *                Return -1: In all other case.   
+=======
+ * Return Value:  Return 0 : insertATTRINFO was succesful.
+ *                Return -1: In all other case.
+>>>>>>> pr/231
  * Parameters:    aDataPtr: Pointer to the data to insert into ATTRINFO.
  *                aLength: Length of data to be copied
- * Remark:        Puts the the data into either TCKEYREQ signal or 
+ * Remark:        Puts the the data into either TCKEYREQ signal or
  *                ATTRINFO signal.
  *****************************************************************************/
 int
+<<<<<<< HEAD
 NdbOperation::insertATTRINFOloop(const Uint32* aDataPtr, 
 				 Uint32 aLength)
 {
@@ -1063,6 +1114,15 @@ NdbOperation::insertATTRINFOloop(const Uint32* aDataPtr,
   Uint32 tAI_LenInCurrAI = theAI_LenInCurrAI;
   Uint32 tTotCurrAILen = theTotalCurrAI_Len;
   Uint32* tAttrPtr = theATTRINFOptr;
+=======
+NdbOperation::insertATTRINFOloop(register const Uint32* aDataPtr,
+				 register Uint32 aLength)
+{
+  NdbApiSignal* tSignal;
+  register Uint32 tAI_LenInCurrAI = theAI_LenInCurrAI;
+  register Uint32 tTotCurrAILen = theTotalCurrAI_Len;
+  register Uint32* tAttrPtr = theATTRINFOptr;
+>>>>>>> pr/231
   Ndb* tNdb = theNdb;
 
   while (aLength > 0) {
@@ -1119,7 +1179,7 @@ NdbOperation::setAbortOption(AbortOption ao)
 {
   if (theStatus == UseNdbRecord)
   {
-    /* Method not allowed for NdbRecord, use OperationOptions or 
+    /* Method not allowed for NdbRecord, use OperationOptions or
        ScanOptions structure instead */
     setErrorCodeAbort(4515);
     return -1;
@@ -1156,11 +1216,11 @@ NdbOperation::prepareGetLockHandleNdbRecord()
   assert(m_attribute_record);
   theLockHandle->m_table = m_attribute_record->table;
   assert(theLockHandle->m_table);
-  
-  NdbRecAttr* ra = 
+
+  NdbRecAttr* ra =
     getValue_NdbRecord(&NdbColumnImpl::getImpl(*NdbDictionary::Column::LOCK_REF),
                        (char*) &theLockHandle->m_lockRef);
-  
+
   if (!ra)
   {
     /* Assume error code set */
@@ -1213,23 +1273,28 @@ NdbOperation::handleOperationOptions (const OperationType type,
                                       NdbOperation *op)
 {
   /* Check options size for versioning... */
-  if (unlikely((sizeOfOptions != 0) && 
+  if (unlikely((sizeOfOptions != 0) &&
                (sizeOfOptions != sizeof(OperationOptions))))
   {
     // Handle different sized OperationOptions
     // Probably smaller is old version, larger is new version.
-    
+
     // No other versions currently supported
     // Invalid or unsupported OperationOptions structure
     return 4297;
   }
 
+<<<<<<< HEAD
   bool isScanTakeoverOp = (op->m_key_record == nullptr); 
   
+=======
+  bool isScanTakeoverOp = (op->m_key_record == NULL);
+
+>>>>>>> pr/231
   if (opts->optionsPresent & OperationOptions::OO_ABORTOPTION)
   {
-    /* User defined operation abortoption : Allowed for 
-     * any operation 
+    /* User defined operation abortoption : Allowed for
+     * any operation
      */
     switch (opts->abortOption)
     {
@@ -1244,14 +1309,14 @@ NdbOperation::handleOperationOptions (const OperationType type,
       // Invalid AbortOption
       return 4296;
     }
-  } 
+  }
 
   if ((opts->optionsPresent & OperationOptions::OO_GETVALUE) &&
       (opts->numExtraGetValues > 0))
   {
     if (opts->extraGetValues == nullptr)
     {
-      // Incorrect combination of OperationOptions optionsPresent, 
+      // Incorrect combination of OperationOptions optionsPresent,
       // extraGet/SetValues ptr and numExtraGet/SetValues
       return 4512;
     }
@@ -1268,7 +1333,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
       // these values.
       for (unsigned int i=0; i < opts->numExtraGetValues; i++)
       {
-        GetValueSpec *pvalSpec 
+        GetValueSpec *pvalSpec
           = &(opts->extraGetValues[i]);
 
         pvalSpec->recAttr=nullptr;
@@ -1282,8 +1347,13 @@ NdbOperation::handleOperationOptions (const OperationType type,
         NdbRecAttr *pra=
           op->getValue_NdbRecord(&NdbColumnImpl::getImpl(*pvalSpec->column),
                                  (char *) pvalSpec->appStorage);
+<<<<<<< HEAD
         
         if (pra == nullptr)
+=======
+
+        if (pra == NULL)
+>>>>>>> pr/231
         {
           return -1;
         }
@@ -1296,6 +1366,15 @@ NdbOperation::handleOperationOptions (const OperationType type,
       // Bad operation type for GetValue
       switch (type)
       {
+<<<<<<< HEAD
+=======
+      case WriteRequest :
+      case UpdateRequest :
+      {
+        return 4502;
+        // GetValue not allowed in Update operation
+      }
+>>>>>>> pr/231
       case InsertRequest :
       {
         return 4503;
@@ -1313,7 +1392,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
   {
     if (opts->extraSetValues == nullptr)
     {
-      // Incorrect combination of OperationOptions optionsPresent, 
+      // Incorrect combination of OperationOptions optionsPresent,
       // extraGet/SetValues ptr and numExtraGet/SetValues
       return 4512;
     }
@@ -1322,7 +1401,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
         (type == UpdateRequest) ||
         (type == WriteRequest))
     {
-      /* Could be insert/update/writeTuple() or 
+      /* Could be insert/update/writeTuple() or
        * updateCurrentTuple()
        */
       // Validate SetValuesSpec
@@ -1353,15 +1432,15 @@ NdbOperation::handleOperationOptions (const OperationType type,
             return 4203;
           }
         }
-          
+
         NdbDictionary::Column::Type colType=pcol->getType();
-          
+
         if ((colType == NdbDictionary::Column::Blob) ||
             (colType == NdbDictionary::Column::Text))
         {
           // Invalid usage of blob attribute
           return 4264;
-        }          
+        }
       }
 
       // Store details of extra set values for later
@@ -1384,14 +1463,14 @@ NdbOperation::handleOperationOptions (const OperationType type,
     if (unlikely(isScanTakeoverOp))
     {
       return 4510;
-      /* User-specified partition id not allowed for scan 
-       * takeover operation 
+      /* User-specified partition id not allowed for scan
+       * takeover operation
        */
     }
     /* Only allowed for pk ops on user defined partitioned tables
      * or when defining an unlock operation
      */
-    if (unlikely( ! (((op->m_attribute_record->flags & 
+    if (unlikely( ! (((op->m_attribute_record->flags &
                        NdbRecord::RecHasUserDefinedPartitioning) &&
                       (op->m_key_record->table->m_index == nullptr)) ||
                      (type == UnlockRequest))))
@@ -1400,9 +1479,9 @@ NdbOperation::handleOperationOptions (const OperationType type,
       return 4546;
     }
     op->theDistributionKey=opts->partitionId;
-    op->theDistrKeyIndicator_= 1;       
+    op->theDistrKeyIndicator_= 1;
   }
-    
+
   if (opts->optionsPresent & OperationOptions::OO_INTERPRETED)
   {
     /* Check the operation type is valid */
@@ -1414,6 +1493,7 @@ NdbOperation::handleOperationOptions (const OperationType type,
       /* NdbInterpretedCode not supported for operation type */
       return 4539;
 
+<<<<<<< HEAD
     /* Interpreted write onlys supported in 8.0.30 and above */
     if (type == WriteRequest &&
         !ndbd_interpreted_write_supported(
@@ -1421,6 +1501,8 @@ NdbOperation::handleOperationOptions (const OperationType type,
       return 4003;
     }
 
+=======
+>>>>>>> pr/231
     /* Check the program's for the same table as the
      * operation, within a major version number
      * Perhaps NdbInterpretedCode should not contain the table
@@ -1429,15 +1511,15 @@ NdbOperation::handleOperationOptions (const OperationType type,
     if (codeTable != nullptr)
     {
       NdbTableImpl* impl= &NdbTableImpl::getImpl(*codeTable);
-      
+
       if ((impl->m_id != (int) op->m_attribute_record->tableId) ||
-          (table_version_major(impl->m_version) != 
+          (table_version_major(impl->m_version) !=
            table_version_major(op->m_attribute_record->tableVersion)))
         return 4524; // NdbInterpretedCode is for different table`
     }
 
     /* Check the program's finalised */
-    if ((opts->interpretedCode->m_flags & 
+    if ((opts->interpretedCode->m_flags &
          NdbInterpretedCode::Finalised) == 0)
       return 4519; // NdbInterpretedCode::finalise() not called.
 
@@ -1459,7 +1541,18 @@ NdbOperation::handleOperationOptions (const OperationType type,
 
   if (opts->optionsPresent & OperationOptions::OO_LOCKHANDLE)
   {
+<<<<<<< HEAD
     /* Check that this is a pk read with a lock 
+=======
+    if (unlikely(op->theNdb->getMinDbNodeVersion() <
+                 NDBD_UNLOCK_OP_SUPPORTED))
+    {
+      /* Function not implemented yet */
+      return 4003;
+    }
+
+    /* Check that this is a pk read with a lock
+>>>>>>> pr/231
      * No need to worry about Blob lock upgrade issues as
      * Blobs have not been handled at this stage
      */
@@ -1473,11 +1566,11 @@ NdbOperation::handleOperationOptions (const OperationType type,
       return 4549; /* getLockHandle only supported for primary key read with a lock */
     }
 
-    int prepareRc = op->prepareGetLockHandleNdbRecord();      
+    int prepareRc = op->prepareGetLockHandleNdbRecord();
     if (prepareRc != 0)
     {
       return prepareRc;
-    }    
+    }
   }
 
   if (opts->optionsPresent & OperationOptions::OO_QUEUABLE)

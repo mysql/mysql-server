@@ -1,6 +1,14 @@
 #ifndef MDL_H
 #define MDL_H
+<<<<<<< HEAD
 /* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -495,14 +503,27 @@ struct MDL_key {
             implementation, possibly relying on the key format,
             must be investigated first, though.
     */
+<<<<<<< HEAD
     assert(strlen(db) <= NAME_LEN);
     assert((mdl_namespace == TABLESPACE) || (strlen(name) <= NAME_LEN));
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(strlen(db) <= NAME_LEN);
+    DBUG_ASSERT((mdl_namespace == TABLESPACE) || (strlen(name) <= NAME_LEN));
+>>>>>>> pr/231
     m_db_name_length =
         static_cast<uint16>(strmake(m_ptr + 1, db, NAME_LEN) - m_ptr - 1);
     m_object_name_length = static_cast<uint16>(
         strmake(m_ptr + m_db_name_length + 2, name, NAME_LEN) - m_ptr -
         m_db_name_length - 2);
     m_length = m_db_name_length + m_object_name_length + 3;
+=======
+    assert(strlen(db) <= NAME_LEN && strlen(name) <= NAME_LEN);
+    m_db_name_length= static_cast<uint16>(strmake(m_ptr + 1, db, NAME_LEN) -
+                                          m_ptr - 1);
+    m_length= static_cast<uint16>(strmake(m_ptr + m_db_name_length + 2, name,
+                                          NAME_LEN) - m_ptr + 1);
+>>>>>>> upstream/cluster-7.6
   }
 
   /**
@@ -848,9 +869,16 @@ class MDL_request {
                                     enum_mdl_duration mdl_duration_arg,
                                     const char *src_file, uint src_line);
   /** Set type of lock request. Can be only applied to pending locks. */
+<<<<<<< HEAD
   inline void set_type(enum_mdl_type type_arg) {
     assert(ticket == nullptr);
     type = type_arg;
+=======
+  inline void set_type(enum_mdl_type type_arg)
+  {
+    assert(ticket == NULL);
+    type= type_arg;
+>>>>>>> upstream/cluster-7.6
   }
 
   /**
@@ -1038,7 +1066,12 @@ class MDL_ticket : public MDL_wait_for_subgraph {
   friend class MDL_context;
 
   MDL_ticket(MDL_context *ctx_arg, enum_mdl_type type_arg
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
              ,
              enum_mdl_duration duration_arg
 #endif
@@ -1051,15 +1084,48 @@ class MDL_ticket : public MDL_wait_for_subgraph {
         m_lock(nullptr),
         m_is_fast_path(false),
         m_hton_notified(false),
+<<<<<<< HEAD
         m_psi(nullptr) {
+=======
+        m_psi(NULL) {
+=======
+#ifndef NDEBUG
+             , enum_mdl_duration duration_arg
+#endif
+            )
+   : m_type(type_arg),
+#ifndef NDEBUG
+     m_duration(duration_arg),
+#endif
+     m_ctx(ctx_arg),
+     m_lock(NULL),
+     m_is_fast_path(false),
+     m_hton_notified(false),
+     m_psi(NULL)
+  {}
+
+  virtual ~MDL_ticket()
+  {
+    assert(m_psi == NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   ~MDL_ticket() override { assert(m_psi == nullptr); }
 
   static MDL_ticket *create(MDL_context *ctx_arg, enum_mdl_type type_arg
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
                             ,
                             enum_mdl_duration duration_arg
+=======
+#ifndef NDEBUG
+                            , enum_mdl_duration duration_arg
+>>>>>>> upstream/cluster-7.6
 #endif
   );
   static void destroy(MDL_ticket *ticket);
@@ -1711,7 +1777,16 @@ class MDL_context {
 void mdl_init();
 void mdl_destroy();
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+=======
+
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 extern mysql_mutex_t LOCK_open;
 #endif
 

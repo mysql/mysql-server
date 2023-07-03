@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -79,9 +87,16 @@ class User_variables {
 
   void materialize(PFS_thread *pfs, THD *thd);
 
+<<<<<<< HEAD
   bool is_materialized(PFS_thread *pfs) {
     assert(pfs != nullptr);
     if (m_pfs != pfs) {
+=======
+  bool is_materialized(PFS_thread *pfs)
+  {
+    assert(pfs != NULL);
+    if (m_pfs != pfs)
+>>>>>>> upstream/cluster-7.6
       return false;
     }
     if (m_thread_internal_id != pfs->m_thread_internal_id) {
@@ -159,7 +174,12 @@ class PFS_index_uvar_by_thread : public PFS_engine_index {
 class table_uvar_by_thread : public PFS_engine_table {
   typedef pos_uvar_by_thread pos_t;
 
+<<<<<<< HEAD
  public:
+=======
+public:
+  static PFS_engine_table_share_state m_share_state;
+>>>>>>> upstream/cluster-7.6
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);

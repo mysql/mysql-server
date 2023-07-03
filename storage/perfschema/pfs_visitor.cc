@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -98,11 +106,25 @@ class All_THD_visitor_adapter : public Do_THD_Impl {
 
 /** Connection iterator */
 void PFS_connection_iterator::visit_global(bool with_hosts, bool with_users,
+<<<<<<< HEAD
                                            bool with_accounts,
                                            bool with_threads, bool with_THDs,
                                            PFS_connection_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
   assert(!with_threads || !with_THDs);
+=======
+  DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(!with_threads || !with_THDs);
+=======
+                                           bool with_accounts, bool with_threads,
+                                           bool with_THDs,
+                                           PFS_connection_visitor *visitor)
+{
+  assert(visitor != NULL);
+  assert(! with_threads || ! with_THDs);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_global();
 
@@ -177,11 +199,26 @@ class All_host_THD_visitor_adapter : public Do_THD_Impl {
   PFS_host *m_host;
 };
 
+<<<<<<< HEAD
 void PFS_connection_iterator::visit_host(PFS_host *host, bool with_accounts,
                                          bool with_threads, bool with_THDs,
                                          PFS_connection_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
   assert(!with_threads || !with_THDs);
+=======
+  DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(!with_threads || !with_THDs);
+=======
+void PFS_connection_iterator::visit_host(PFS_host *host,
+                                         bool with_accounts, bool with_threads,
+                                         bool with_THDs,
+                                         PFS_connection_visitor *visitor)
+{
+  assert(visitor != NULL);
+  assert(! with_threads || ! with_THDs);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_host(host);
 
@@ -249,11 +286,26 @@ class All_user_THD_visitor_adapter : public Do_THD_Impl {
   PFS_user *m_user;
 };
 
+<<<<<<< HEAD
 void PFS_connection_iterator::visit_user(PFS_user *user, bool with_accounts,
                                          bool with_threads, bool with_THDs,
                                          PFS_connection_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
   assert(!with_threads || !with_THDs);
+=======
+  DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(!with_threads || !with_THDs);
+=======
+void PFS_connection_iterator::visit_user(PFS_user *user,
+                                         bool with_accounts, bool with_threads,
+                                         bool with_THDs,
+                                         PFS_connection_visitor *visitor)
+{
+  assert(visitor != NULL);
+  assert(! with_threads || ! with_THDs);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_user(user);
 
@@ -318,10 +370,24 @@ class All_account_THD_visitor_adapter : public Do_THD_Impl {
 };
 
 void PFS_connection_iterator::visit_account(PFS_account *account,
+<<<<<<< HEAD
                                             bool with_threads, bool with_THDs,
                                             PFS_connection_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
   assert(!with_threads || !with_THDs);
+=======
+  DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(!with_threads || !with_THDs);
+=======
+                                            bool with_threads,
+                                            bool with_THDs,
+                                            PFS_connection_visitor *visitor)
+{
+  assert(visitor != NULL);
+  assert(! with_threads || ! with_THDs);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_account(account);
 
@@ -343,6 +409,21 @@ void PFS_connection_iterator::visit_account(PFS_account *account,
   }
 }
 
+<<<<<<< HEAD
+=======
+void PFS_connection_iterator::visit_THD(THD *thd,
+<<<<<<< HEAD
+                                        PFS_connection_visitor *visitor) {
+  DBUG_ASSERT(visitor != NULL);
+=======
+                                        PFS_connection_visitor *visitor)
+{
+  assert(visitor != NULL);
+>>>>>>> upstream/cluster-7.6
+  visitor->visit_THD(thd);
+}
+
+>>>>>>> pr/231
 void PFS_instance_iterator::visit_all(PFS_instance_visitor *visitor) {
   visit_all_mutex(visitor);
   visit_all_rwlock(visitor);
@@ -460,9 +541,20 @@ void PFS_instance_iterator::visit_all_file_instances(
 
 /** Instance iterator */
 
+<<<<<<< HEAD
 void PFS_instance_iterator::visit_mutex_instances(
     PFS_mutex_class *klass, PFS_instance_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
+=======
+  DBUG_ASSERT(visitor != NULL);
+=======
+void PFS_instance_iterator::visit_mutex_instances(PFS_mutex_class *klass,
+                                                  PFS_instance_visitor *visitor)
+{
+  assert(visitor != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_mutex_class(klass);
 
@@ -486,9 +578,20 @@ void PFS_instance_iterator::visit_mutex_instances(
   }
 }
 
+<<<<<<< HEAD
 void PFS_instance_iterator::visit_rwlock_instances(
     PFS_rwlock_class *klass, PFS_instance_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
+=======
+  DBUG_ASSERT(visitor != NULL);
+=======
+void PFS_instance_iterator::visit_rwlock_instances(PFS_rwlock_class *klass,
+                                                   PFS_instance_visitor *visitor)
+{
+  assert(visitor != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_rwlock_class(klass);
 
@@ -512,9 +615,20 @@ void PFS_instance_iterator::visit_rwlock_instances(
   }
 }
 
+<<<<<<< HEAD
 void PFS_instance_iterator::visit_cond_instances(
     PFS_cond_class *klass, PFS_instance_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
+=======
+  DBUG_ASSERT(visitor != NULL);
+=======
+void PFS_instance_iterator::visit_cond_instances(PFS_cond_class *klass,
+                                                 PFS_instance_visitor *visitor)
+{
+  assert(visitor != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_cond_class(klass);
 
@@ -538,9 +652,20 @@ void PFS_instance_iterator::visit_cond_instances(
   }
 }
 
+<<<<<<< HEAD
 void PFS_instance_iterator::visit_file_instances(
     PFS_file_class *klass, PFS_instance_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
+=======
+  DBUG_ASSERT(visitor != NULL);
+=======
+void PFS_instance_iterator::visit_file_instances(PFS_file_class *klass,
+                                                 PFS_instance_visitor *visitor)
+{
+  assert(visitor != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_file_class(klass);
 
@@ -566,9 +691,20 @@ void PFS_instance_iterator::visit_file_instances(
 
 /** Socket instance iterator visiting a socket class and all instances */
 
+<<<<<<< HEAD
 void PFS_instance_iterator::visit_socket_instances(
     PFS_socket_class *klass, PFS_instance_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
+=======
+  DBUG_ASSERT(visitor != NULL);
+=======
+void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
+                                                   PFS_instance_visitor *visitor)
+{
+  assert(visitor != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_socket_class(klass);
 
@@ -594,11 +730,26 @@ void PFS_instance_iterator::visit_socket_instances(
 
 /** Socket instance iterator visiting sockets owned by a PFS_thread. */
 
+<<<<<<< HEAD
 void PFS_instance_iterator::visit_socket_instances(
     PFS_socket_class *klass, PFS_instance_visitor *visitor, PFS_thread *thread,
     bool visit_class) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
   assert(thread != nullptr);
+=======
+  DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(thread != NULL);
+=======
+void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
+                                                   PFS_instance_visitor *visitor,
+                                                   PFS_thread *thread,
+                                                   bool visit_class)
+{
+  assert(visitor != NULL);
+  assert(thread != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (visit_class) {
     visitor->visit_socket_class(klass);
@@ -632,9 +783,21 @@ void PFS_instance_iterator::visit_socket_instances(
 void PFS_instance_iterator::visit_instances(PFS_instr_class *klass,
                                             PFS_instance_visitor *visitor,
                                             PFS_thread *thread,
+<<<<<<< HEAD
                                             bool visit_class) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
   assert(klass != nullptr);
+=======
+  DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(klass != NULL);
+=======
+                                            bool visit_class)
+{
+  assert(visitor != NULL);
+  assert(klass != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   switch (klass->m_type) {
     case PFS_CLASS_SOCKET: {
@@ -682,8 +845,42 @@ class Proc_all_table_handles : public PFS_buffer_processor<PFS_table> {
   PFS_object_visitor *m_visitor;
 };
 
+<<<<<<< HEAD
 void PFS_object_iterator::visit_all_tables(PFS_object_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
+=======
+  DBUG_ASSERT(visitor != NULL);
+=======
+class Proc_all_table_handles
+  : public PFS_buffer_processor<PFS_table>
+{
+public:
+  Proc_all_table_handles(PFS_object_visitor *visitor)
+    : m_visitor(visitor)
+  {}
+
+  virtual void operator()(PFS_table *pfs)
+  {
+    PFS_table_share *safe_share= sanitize_table_share(pfs->m_share);
+    if (safe_share != NULL)
+    {
+      if (safe_share->m_enabled)
+      {
+        m_visitor->visit_table(pfs);
+      }
+    }
+  }
+
+private:
+  PFS_object_visitor* m_visitor;
+};
+
+void PFS_object_iterator::visit_all_tables(PFS_object_visitor *visitor)
+{
+  assert(visitor != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_global();
 
@@ -714,8 +911,18 @@ class Proc_one_table_share_handles : public PFS_buffer_processor<PFS_table> {
 };
 
 void PFS_object_iterator::visit_tables(PFS_table_share *share,
+<<<<<<< HEAD
                                        PFS_object_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
+=======
+  DBUG_ASSERT(visitor != NULL);
+=======
+                                       PFS_object_visitor *visitor)
+{
+  assert(visitor != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_table_share(share);
 
@@ -750,8 +957,18 @@ class Proc_one_table_share_indexes : public PFS_buffer_processor<PFS_table> {
 
 void PFS_object_iterator::visit_table_indexes(PFS_table_share *share,
                                               uint index,
+<<<<<<< HEAD
                                               PFS_object_visitor *visitor) {
+<<<<<<< HEAD
   assert(visitor != nullptr);
+=======
+  DBUG_ASSERT(visitor != NULL);
+=======
+                                              PFS_object_visitor *visitor)
+{
+  assert(visitor != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   visitor->visit_table_share_index(share, index);
 
@@ -782,8 +999,18 @@ void PFS_connection_wait_visitor::visit_global() {
     For waits, do not sum by connection but by instances,
     it is more efficient.
   */
+<<<<<<< HEAD
   assert((m_index == global_idle_class.m_event_name_index) ||
          (m_index == global_metadata_class.m_event_name_index));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT((m_index == global_idle_class.m_event_name_index) ||
+              (m_index == global_metadata_class.m_event_name_index));
+=======
+  assert(   (m_index == global_idle_class.m_event_name_index)
+            || (m_index == global_metadata_class.m_event_name_index));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (m_index == global_idle_class.m_event_name_index) {
     m_stat.aggregate(&global_idle_stat);

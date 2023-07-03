@@ -181,7 +181,11 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
   m_magic_number= 0;
 
   if (m_oid == ~(Uint32)0)
+<<<<<<< HEAD
     return;
+=======
+    DBUG_VOID_RETURN;
+>>>>>>> pr/231
 
   stop();
 
@@ -1778,7 +1782,15 @@ NdbEventBuffer::nextEvent2()
 
       // If all event operations are dropped, ignore exceptional-event
       op = m_ndb->theImpl->m_ev_op;
+<<<<<<< HEAD
       if (op == nullptr)
+=======
+      while (op && op->m_state != NdbEventOperation::EO_EXECUTING)
+      {
+        op = op->m_next;
+      }
+      if (op == NULL)
+>>>>>>> pr/231
         continue;
 
       data->m_event_op = op;
@@ -1898,9 +1910,10 @@ NdbEventBuffer::getEpochEventOperations(Uint32* iter, Uint32* event_types, Uint3
 {
   DBUG_ENTER("NdbEventBuffer::getEpochEventOperations");
   EpochData *epoch = m_event_queue.first_epoch();
-  if (*iter < epoch->m_gci_op_count)
+  while (*iter < epoch->m_gci_op_count)
   {
     Gci_op g = epoch->m_gci_op_list[(*iter)++];
+<<<<<<< HEAD
     if (event_types != nullptr)
       *event_types = g.event_types;
     if (cumulative_any_value != nullptr)
@@ -1910,6 +1923,21 @@ NdbEventBuffer::getEpochEventOperations(Uint32* iter, Uint32* event_types, Uint3
                         (long) g.event_types, (long) g.cumulative_any_value,
                         m_ndb->getReference(), m_ndb->getNdbObjectName()));
     DBUG_RETURN(g.op);
+=======
+    if (g.op->m_state == NdbEventOperation::EO_EXECUTING)
+    {
+      if (event_types != NULL)
+        *event_types = g.event_types;
+      if (cumulative_any_value != NULL)
+        *cumulative_any_value = g.cumulative_any_value;
+      DBUG_PRINT("info", ("gci: %u  g.op: %p  g.event_types: 0x%lx"
+                          "g.cumulative_any_value: 0x%lx 0x%x %s",
+          (unsigned) epoch->m_gci.getGCI(), g.op,
+          (long) g.event_types, (long) g.cumulative_any_value,
+          m_ndb->getReference(), m_ndb->getNdbObjectName()));
+      DBUG_RETURN(g.op);
+    }
+>>>>>>> pr/231
   }
   DBUG_RETURN(NULL);
 }
@@ -3408,7 +3436,11 @@ NdbEventBuffer::alloc_data_main()
 {
   DBUG_ENTER_EVENT("alloc_data_main");
   void* memptr = alloc(sizeof(EventBufDataHead));
+<<<<<<< HEAD
   assert(memptr != nullptr);  // Alloc failures caught in ::alloc()
+=======
+  assert(memptr != NULL);  // Alloc failures catched in ::alloc()
+>>>>>>> pr/231
   EventBufDataHead* data = new(memptr) EventBufDataHead();
   DBUG_RETURN_EVENT(data);
 }
@@ -3636,7 +3668,11 @@ void NdbEventBuffer::remove_consumed_memory(MonotonicEpoch consumed_epoch)  //Ne
     while (m_mem_block_free != nullptr)
     {
       // Keep a maximum of 20% of total allocated memory as free_data
+<<<<<<< HEAD
       // ... Plus an additional 3 'small memory blocks'.
+=======
+      // ... Pluss an aditional 3 'small memory blocks'.
+>>>>>>> pr/231
       const Uint64 max_free_data_sz = (3*MEM_BLOCK_SMALL) + (m_total_alloc / 5);
       if (get_free_data_sz() <= max_free_data_sz)
       {
@@ -3687,9 +3723,13 @@ NdbEventBuffer::copy_data(const SubTableData * const sdata, Uint32 len,
 
   for (int i = 0; i <= 2; i++) {
     if (ptr[i].sz > 0) {
+<<<<<<< HEAD
       // Ok to cast const away, memory allocated in alloc_mem call above.
       Uint32* p = const_cast<Uint32*>(data->ptr[i].p);
       memcpy(p, ptr[i].p, ptr[i].sz << 2);
+=======
+      memcpy(data->ptr[i].p, ptr[i].p, ptr[i].sz << 2);
+>>>>>>> pr/231
     }
   }
 
@@ -4083,7 +4123,11 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
 
   // not found, create a place-holder
   EventBufDataHead* main_data = alloc_data_main();
+<<<<<<< HEAD
   if (main_data == nullptr)
+=======
+  if (main_data == NULL)
+>>>>>>> pr/231
     DBUG_RETURN_EVENT(-1);
   SubTableData sdata = *blob_data->sdata;
   sdata.tableId = main_op->m_eventImpl->m_tableImpl->m_id;
@@ -4097,15 +4141,26 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
   DBUG_RETURN_EVENT(1);
 }
 
+<<<<<<< HEAD
 void NdbEventBuffer::add_blob_data(EventBufDataHead* main_data,
                                    EventBufData* blob_data)
+=======
+void
+NdbEventBuffer::add_blob_data(Gci_container* bucket,
+                              EventBufDataHead* main_data,
+                              EventBufData* blob_data)
+>>>>>>> pr/231
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::add_blob_data");
   DBUG_PRINT_EVENT("info", ("main_data=%p blob_data=%p 0x%x %s",
                             main_data, blob_data, m_ndb->getReference(),
                             m_ndb->getNdbObjectName()));
   EventBufData* head = main_data->m_next_blob;
+<<<<<<< HEAD
   while (head != nullptr)
+=======
+  while (head != NULL)
+>>>>>>> pr/231
   {
     if (head->m_event_op == blob_data->m_event_op)
       break;
@@ -4554,7 +4609,11 @@ Gci_container::count_event_data() const
 {
   Uint32 count = 0;
   EventBufDataHead* data = m_head;
+<<<<<<< HEAD
   while (data != nullptr)
+=======
+  while (data != NULL)
+>>>>>>> pr/231
   {
     count += data->m_event_count;
     data = data->m_next_main;
@@ -4567,7 +4626,11 @@ EpochData::count_event_data() const
 {
   Uint32 count = 0;
   EventBufDataHead* data = m_data;
+<<<<<<< HEAD
   while (data != nullptr)
+=======
+  while (data != NULL)
+>>>>>>> pr/231
   {
     count += data->m_event_count;
     data = data->m_next_main;
@@ -4588,6 +4651,7 @@ EpochDataList::count_event_data() const
   return count;
 }
 #endif
+<<<<<<< HEAD
 
 /////////////////
 /**
@@ -4618,6 +4682,8 @@ void EventBufAllocator<T>::deallocate(T* /*p*/, std::size_t /*n*/) noexcept
 }
 
 //////////////////
+=======
+>>>>>>> pr/231
 
 
 // hash table routines
@@ -4698,8 +4764,13 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
   const uchar* dptr = (const uchar*)ptr[1].p;
 
   // hash registers
+<<<<<<< HEAD
   uint64 nr1 = 0;
   uint64 nr2 = 4;
+=======
+  ulong nr1 = 0;
+  ulong nr2 = 4;
+>>>>>>> pr/231
   while (nkey-- != 0)
   {
     AttributeHeader ah(*hptr++);

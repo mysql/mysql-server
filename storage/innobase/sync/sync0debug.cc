@@ -1,6 +1,14 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+=======
+Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -8,6 +16,7 @@ briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -23,6 +32,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -439,6 +465,7 @@ bool LatchDebug::s_initialized = false;
 LatchDebug::LatchDebug() {
   m_mutex.init();
 
+<<<<<<< HEAD
   LEVEL_MAP_INSERT(SYNC_UNKNOWN);
   LEVEL_MAP_INSERT(SYNC_MUTEX);
   LEVEL_MAP_INSERT(RW_LOCK_SX);
@@ -539,6 +566,79 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_TRX_I_S_RWLOCK);
   LEVEL_MAP_INSERT(SYNC_LEVEL_VARYING);
   LEVEL_MAP_INSERT(SYNC_NO_ORDER_CHECK);
+=======
+	LEVEL_MAP_INSERT(SYNC_UNKNOWN);
+	LEVEL_MAP_INSERT(SYNC_MUTEX);
+	LEVEL_MAP_INSERT(RW_LOCK_SX);
+	LEVEL_MAP_INSERT(RW_LOCK_X_WAIT);
+	LEVEL_MAP_INSERT(RW_LOCK_S);
+	LEVEL_MAP_INSERT(RW_LOCK_X);
+	LEVEL_MAP_INSERT(RW_LOCK_NOT_LOCKED);
+	LEVEL_MAP_INSERT(SYNC_MONITOR_MUTEX);
+	LEVEL_MAP_INSERT(SYNC_ANY_LATCH);
+	LEVEL_MAP_INSERT(SYNC_DOUBLEWRITE);
+	LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_LIST);
+	LEVEL_MAP_INSERT(SYNC_BUF_BLOCK);
+	LEVEL_MAP_INSERT(SYNC_BUF_PAGE_HASH);
+	LEVEL_MAP_INSERT(SYNC_BUF_POOL);
+	LEVEL_MAP_INSERT(SYNC_POOL);
+	LEVEL_MAP_INSERT(SYNC_POOL_MANAGER);
+	LEVEL_MAP_INSERT(SYNC_SEARCH_SYS);
+	LEVEL_MAP_INSERT(SYNC_WORK_QUEUE);
+	LEVEL_MAP_INSERT(SYNC_FTS_TOKENIZE);
+	LEVEL_MAP_INSERT(SYNC_FTS_OPTIMIZE);
+	LEVEL_MAP_INSERT(SYNC_FTS_BG_THREADS);
+	LEVEL_MAP_INSERT(SYNC_FTS_CACHE_INIT);
+	LEVEL_MAP_INSERT(SYNC_RECV);
+	LEVEL_MAP_INSERT(SYNC_LOG_FLUSH_ORDER);
+	LEVEL_MAP_INSERT(SYNC_LOG);
+	LEVEL_MAP_INSERT(SYNC_LOG_WRITE);
+	LEVEL_MAP_INSERT(SYNC_PAGE_CLEANER);
+	LEVEL_MAP_INSERT(SYNC_PURGE_QUEUE);
+	LEVEL_MAP_INSERT(SYNC_TRX_SYS_HEADER);
+	LEVEL_MAP_INSERT(SYNC_REC_LOCK);
+	LEVEL_MAP_INSERT(SYNC_THREADS);
+	LEVEL_MAP_INSERT(SYNC_TRX);
+	LEVEL_MAP_INSERT(SYNC_TRX_SYS);
+	LEVEL_MAP_INSERT(SYNC_LOCK_SYS);
+	LEVEL_MAP_INSERT(SYNC_LOCK_WAIT_SYS);
+	LEVEL_MAP_INSERT(SYNC_INDEX_ONLINE_LOG);
+	LEVEL_MAP_INSERT(SYNC_IBUF_BITMAP);
+	LEVEL_MAP_INSERT(SYNC_IBUF_BITMAP_MUTEX);
+	LEVEL_MAP_INSERT(SYNC_IBUF_TREE_NODE);
+	LEVEL_MAP_INSERT(SYNC_IBUF_TREE_NODE_NEW);
+	LEVEL_MAP_INSERT(SYNC_IBUF_INDEX_TREE);
+	LEVEL_MAP_INSERT(SYNC_IBUF_MUTEX);
+	LEVEL_MAP_INSERT(SYNC_FSP_PAGE);
+	LEVEL_MAP_INSERT(SYNC_FSP);
+	LEVEL_MAP_INSERT(SYNC_EXTERN_STORAGE);
+	LEVEL_MAP_INSERT(SYNC_TRX_UNDO_PAGE);
+	LEVEL_MAP_INSERT(SYNC_RSEG_HEADER);
+	LEVEL_MAP_INSERT(SYNC_RSEG_HEADER_NEW);
+	LEVEL_MAP_INSERT(SYNC_NOREDO_RSEG);
+	LEVEL_MAP_INSERT(SYNC_REDO_RSEG);
+	LEVEL_MAP_INSERT(SYNC_TRX_UNDO);
+	LEVEL_MAP_INSERT(SYNC_PURGE_LATCH);
+	LEVEL_MAP_INSERT(SYNC_TREE_NODE);
+	LEVEL_MAP_INSERT(SYNC_TREE_NODE_FROM_HASH);
+	LEVEL_MAP_INSERT(SYNC_TREE_NODE_NEW);
+	LEVEL_MAP_INSERT(SYNC_ANALYZE_INDEX);
+	LEVEL_MAP_INSERT(SYNC_INDEX_TREE);
+	LEVEL_MAP_INSERT(SYNC_IBUF_PESS_INSERT_MUTEX);
+	LEVEL_MAP_INSERT(SYNC_IBUF_HEADER);
+	LEVEL_MAP_INSERT(SYNC_DICT_HEADER);
+	LEVEL_MAP_INSERT(SYNC_STATS_AUTO_RECALC);
+	LEVEL_MAP_INSERT(SYNC_DICT_AUTOINC_MUTEX);
+	LEVEL_MAP_INSERT(SYNC_DICT);
+	LEVEL_MAP_INSERT(SYNC_FTS_CACHE);
+	LEVEL_MAP_INSERT(SYNC_DICT_OPERATION);
+	LEVEL_MAP_INSERT(SYNC_FILE_FORMAT_TAG);
+	LEVEL_MAP_INSERT(SYNC_TRX_I_S_LAST_READ);
+	LEVEL_MAP_INSERT(SYNC_TRX_I_S_RWLOCK);
+	LEVEL_MAP_INSERT(SYNC_RECV_WRITER);
+	LEVEL_MAP_INSERT(SYNC_LEVEL_VARYING);
+	LEVEL_MAP_INSERT(SYNC_NO_ORDER_CHECK);
+>>>>>>> upstream/cluster-7.6
 
   /* Enum count starts from 0 */
   ut_ad(m_levels.size() == SYNC_LEVEL_MAX + 1);
@@ -951,7 +1051,80 @@ Latches *LatchDebug::check_order(const latch_t *latch,
       break;
   }
 
+<<<<<<< HEAD
   return (latches);
+=======
+		ut_a(find(latches, SYNC_FSP_PAGE) != 0);
+		break;
+
+	case SYNC_INDEX_TREE:
+
+		basic_check(latches, level, SYNC_TREE_NODE - 1);
+		break;
+
+	case SYNC_ANALYZE_INDEX:
+
+		basic_check(latches, level, SYNC_ANALYZE_INDEX - 1);
+		break;
+
+	case SYNC_IBUF_TREE_NODE:
+
+		ut_a(find(latches, SYNC_IBUF_INDEX_TREE) != 0
+		     || basic_check(latches, level, SYNC_IBUF_TREE_NODE - 1));
+		break;
+
+	case SYNC_IBUF_TREE_NODE_NEW:
+
+		/* ibuf_add_free_page() allocates new pages for the change
+		buffer while only holding the tablespace x-latch. These
+		pre-allocated new pages may only be used while holding
+		ibuf_mutex, in btr_page_alloc_for_ibuf(). */
+
+		ut_a(find(latches, SYNC_IBUF_MUTEX) != 0
+		     || find(latches, SYNC_FSP) != 0);
+		break;
+
+	case SYNC_IBUF_INDEX_TREE:
+
+		if (find(latches, SYNC_FSP) != 0) {
+			basic_check(latches, level, level - 1);
+		} else {
+			basic_check(latches, level, SYNC_IBUF_TREE_NODE - 1);
+		}
+		break;
+
+	case SYNC_IBUF_PESS_INSERT_MUTEX:
+
+		basic_check(latches, level, SYNC_FSP - 1);
+		ut_a(find(latches, SYNC_IBUF_MUTEX) == 0);
+		break;
+
+	case SYNC_IBUF_HEADER:
+
+		basic_check(latches, level, SYNC_FSP - 1);
+		ut_a(find(latches, SYNC_IBUF_MUTEX) == NULL);
+		ut_a(find(latches, SYNC_IBUF_PESS_INSERT_MUTEX) == NULL);
+		break;
+
+	case SYNC_DICT:
+		basic_check(latches, level, SYNC_DICT);
+		break;
+
+	case SYNC_MUTEX:
+	case SYNC_UNKNOWN:
+	case SYNC_LEVEL_VARYING:
+	case RW_LOCK_X:
+	case RW_LOCK_X_WAIT:
+	case RW_LOCK_S:
+	case RW_LOCK_SX:
+	case RW_LOCK_NOT_LOCKED:
+		/* These levels should never be set for a latch. */
+		ut_error;
+		break;
+	}
+
+	return(latches);
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Removes a latch from the thread level array if it is found there.
@@ -1353,7 +1526,14 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(TRX_UNDO, SYNC_TRX_UNDO, trx_undo_mutex_key);
 
+<<<<<<< HEAD
   LATCH_ADD_MUTEX(TRX_POOL, SYNC_POOL, trx_pool_mutex_key);
+=======
+	LATCH_ADD_MUTEX(ANALYZE_INDEX_MUTEX, SYNC_ANALYZE_INDEX,
+			analyze_index_mutex_key);
+
+	latch_id_t	id = LATCH_ID_NONE;
+>>>>>>> upstream/cluster-7.6
 
   LATCH_ADD_MUTEX(TRX_POOL_MANAGER, SYNC_POOL_MANAGER,
                   trx_pool_manager_mutex_key);

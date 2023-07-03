@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -176,9 +184,21 @@ static bool push(mem_root_deque<Item *> *items, const qep_row::column<float> &c,
   return false;
 }
 
+<<<<<<< HEAD
 bool Explain_format_traditional::push_select_type(
     mem_root_deque<Item *> *items) {
   assert(!column_buffer.col_select_type.is_empty());
+=======
+<<<<<<< HEAD
+bool Explain_format_traditional::push_select_type(List<Item> *items) {
+  DBUG_ASSERT(!column_buffer.col_select_type.is_empty());
+=======
+
+bool Explain_format_traditional::push_select_type(List<Item> *items)
+{
+  assert(!column_buffer.col_select_type.is_empty());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   StringBuffer<32> buff;
   if (column_buffer.is_dependent) {
     if (buff.append(STRING_WITH_LEN("DEPENDENT "), system_charset_info))
@@ -240,11 +260,22 @@ bool Explain_format_traditional::flush_entry() {
     StringBuffer<64> buff(system_charset_info);
     List_iterator<qep_row::extra> it(column_buffer.col_extra);
     qep_row::extra *e;
+<<<<<<< HEAD
     while ((e = it++)) {
       assert(traditional_extra_tags[e->tag] != nullptr);
       if (buff.append(traditional_extra_tags[e->tag])) return true;
       if (e->data) {
         bool brackets = false;
+=======
+    while ((e= it++))
+    {
+      assert(traditional_extra_tags[e->tag] != NULL);
+      if (buff.append(traditional_extra_tags[e->tag]))
+        return true;
+      if (e->data)
+      {
+        bool brackets= false;
+>>>>>>> upstream/cluster-7.6
         switch (e->tag) {
           case ET_RANGE_CHECKED_FOR_EACH_RECORD:
           case ET_USING_INDEX_FOR_GROUP_BY:

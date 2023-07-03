@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD:storage/ndb/src/mgmapi/ndbd_exit_codes.cpp
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231:storage/ndb/src/kernel/error/ndbd_exit_codes.cpp
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,6 +140,7 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_UPGRADE_INITIAL_REQUIRED, XRE,
     "Node upgrade requires initial restart to rebuild filesystem. "
     "Please retry with --initial or reconsider."},
+<<<<<<< HEAD:storage/ndb/src/mgmapi/ndbd_exit_codes.cpp
    {NDBD_EXIT_WRONG_FILESYSTEM_PASSWORD, XRE,
     "Unable to read secrets file using the provided filesystem password. "
     "To define a new password retry with --initial"},
@@ -146,6 +151,8 @@ static const ErrStruct errArray[] =
     "Invalid secrets file"},
     {NDBD_EXIT_MISSING_SECRETS_FILE, XRE,
     "Secrets file is missing"},
+=======
+>>>>>>> pr/231:storage/ndb/src/kernel/error/ndbd_exit_codes.cpp
 
    /* DIH */
    {NDBD_EXIT_MAX_CRASHED_REPLICAS, XFL,

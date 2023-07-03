@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:vio/viopipe.cc
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:vio/viopipe.c
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,10 +101,12 @@ bool vio_is_connected_pipe(Vio *vio) {
   return (GetLastError() != ERROR_BROKEN_PIPE);
 }
 
+<<<<<<< HEAD:vio/viopipe.cc
 int vio_shutdown_pipe(Vio *vio) {
   BOOL ret = FALSE;
   DBUG_TRACE;
 
+<<<<<<< HEAD
   if (vio->inactive == false) {
     CancelIo(vio->hPipe);
     CloseHandle(vio->overlapped.hEvent);
@@ -104,6 +114,28 @@ int vio_shutdown_pipe(Vio *vio) {
     DisconnectNamedPipe(vio->hPipe);
     ret = CloseHandle(vio->hPipe);
   }
+=======
+  CancelIo(vio->hPipe);
+  CloseHandle(vio->overlapped.hEvent);
+  FlushFileBuffers(vio->hPipe);
+  DisconnectNamedPipe(vio->hPipe);
+  ret = CloseHandle(vio->hPipe);
+=======
+
+int vio_shutdown_pipe(Vio *vio)
+{
+  BOOL ret= FALSE;
+  DBUG_ENTER("vio_shutdown_pipe");
+
+  if (vio->inactive == FALSE)
+  {
+    CancelIo(vio->hPipe);
+    CloseHandle(vio->overlapped.hEvent);
+    DisconnectNamedPipe(vio->hPipe);
+    ret= CloseHandle(vio->hPipe);
+  }
+>>>>>>> upstream/cluster-7.6:vio/viopipe.c
+>>>>>>> pr/231
 
   vio->inactive = true;
   vio->hPipe = NULL;

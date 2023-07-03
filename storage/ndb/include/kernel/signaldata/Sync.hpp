@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,8 +72,13 @@ struct SyncPathReq
   Uint32 pathlen;
   Uint32 path[1];
 
+<<<<<<< HEAD
   static constexpr Uint32 SignalLength = 4;
   static constexpr Uint32 MaxPathLen = 25 - SignalLength;
+=======
+  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( MaxPathLen = 25 - SignalLength );
+>>>>>>> pr/231
 };
 
 struct SyncPathConf

@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
  * Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+>>>>>>> pr/231
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -158,8 +166,16 @@ class Listener_unix_socket_testsuite : public Test {
     ASSERT_NO_FATAL_FAILURE(assert_valid_lock_file());
     ASSERT_NO_FATAL_FAILURE(assert_unix_socket_listen());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
     ASSERT_TRUE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
     ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_prepared));
+=======
+=======
+    ASSERT_TRUE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+    ASSERT_TRUE(sut->get_state().is(ngs::State_listener_prepared));
+>>>>>>> pr/231
 
     ASSERT_NO_FATAL_FAILURE(assert_and_clear_mocks());
   }
@@ -206,8 +222,16 @@ TEST_F(Listener_unix_socket_testsuite,
 
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -220,8 +244,16 @@ TEST_F(Listener_unix_socket_testsuite,
 
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -237,8 +269,16 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_create_a_lockfile) {
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -255,8 +295,16 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_open_existing_lockfile) {
   EXPECT_CALL(*m_mock_system, get_errno()).WillOnce(Return(EEXIST));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -274,8 +322,16 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_read_existing_lockfile) {
   EXPECT_CALL(*m_mock_file, read(_, _)).WillOnce(Return(READ_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -294,8 +350,16 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_read_empty_lockfile) {
   EXPECT_CALL(*m_mock_file, close()).WillOnce(Return(0));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -317,8 +381,16 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_read_not_x_plugin_lockfile) {
   EXPECT_CALL(*m_mock_file, close()).WillOnce(Return(CLOSE_OK));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -344,8 +416,16 @@ TEST_F(Listener_unix_socket_testsuite,
   EXPECT_CALL(*m_mock_file, close()).WillOnce(Return(CLOSE_OK));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -372,8 +452,16 @@ TEST_F(Listener_unix_socket_testsuite,
       .WillOnce(Return(UNLINK_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -390,8 +478,16 @@ TEST_F(Listener_unix_socket_testsuite,
   EXPECT_CALL(*m_mock_file, write(_, _)).WillOnce(Return(WRITE_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -411,8 +507,16 @@ TEST_F(Listener_unix_socket_testsuite,
   EXPECT_CALL(*m_mock_file, fsync()).WillOnce(Return(FSYNC_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -433,8 +537,16 @@ TEST_F(Listener_unix_socket_testsuite,
   EXPECT_CALL(*m_mock_file, close()).WillOnce(Return(CLOSE_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -448,8 +560,16 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_create_socket_failed) {
       .WillOnce(DoAll(SetArgPointee<0>(0), SetArgPointee<1>("")));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -471,8 +591,16 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_listen_failed) {
       .Times(2);  // first call in setup_listener
                   // second call in SUT destructor
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 
@@ -495,6 +623,20 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_event_regiester_failure) {
   std::shared_ptr<iface::Socket> socket = m_mock_socket;
   EXPECT_CALL(m_mock_socket_events, listen(socket, _)).WillOnce(Return(false));
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
+  ASSERT_FALSE(sut->setup_listener(nullptr));
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+
+  // In SUT destructor
+  ASSERT_TRUE(Mock::VerifyAndClearExpectations(m_mock_system.get()));
+  ASSERT_TRUE(Mock::VerifyAndClearExpectations(m_mock_socket.get()));
+  EXPECT_CALL(*m_mock_socket, get_socket_fd()).WillOnce(Return(SOCKET_OK));
+>>>>>>> pr/231
   EXPECT_CALL(*m_mock_system, unlink(StrEq(UNIX_SOCKET_LOCK_FILE)))
       .WillOnce(Return(UNLINK_OK));
 
@@ -531,8 +673,16 @@ TEST_F(Listener_unix_socket_testsuite, unix_socket_unsupported) {
 
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
+<<<<<<< HEAD:unittest/gunit/xplugin/xpl/listener_unix_socket_t.cc
   ASSERT_FALSE(sut->setup_listener(nullptr));
+<<<<<<< HEAD
   ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
+=======
+=======
+  ASSERT_FALSE(sut->setup_listener(ngs::Listener_interface::On_connection()));
+>>>>>>> upstream/cluster-7.6:rapid/unittest/gunit/xplugin/listener_unix_socket_t.cc
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+>>>>>>> pr/231
 #endif
 }
 

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -74,10 +82,18 @@ struct row_ets_global_by_event_name {
   PFS_transaction_stat_row m_stat;
 };
 
+<<<<<<< HEAD
 /** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME.
  */
 class table_ets_global_by_event_name : public PFS_engine_table {
  public:
+=======
+/** Table PERFORMANCE_SCHEMA.EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME. */
+class table_ets_global_by_event_name : public PFS_engine_table
+{
+public:
+  static PFS_engine_table_share_state m_share_state;
+>>>>>>> upstream/cluster-7.6
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);

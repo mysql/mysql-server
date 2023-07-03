@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -587,8 +611,17 @@ static void rtr_adjust_upper_level(
   big_rec_t *dummy_big_rec;
   rec_t *rec;
 
+<<<<<<< HEAD
   /* Create a memory heap where the data tuple is stored */
+<<<<<<< HEAD
   heap = mem_heap_create(1024, UT_LOCATION_HERE);
+=======
+  heap = mem_heap_create(1024);
+=======
+	/* Create a memory heap where the data tuple is stored */
+	heap = mem_heap_create(1024);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   cursor.thr = sea_cur->thr;
 
@@ -646,11 +679,15 @@ static void rtr_adjust_upper_level(
     cursor.rtr_info = sea_cur->rtr_info;
     cursor.tree_height = sea_cur->tree_height;
 
+<<<<<<< HEAD
     mem_heap_t *new_heap = nullptr;
 
     DBUG_EXECUTE_IF("rtr_page_need_first_split",
                     { DBUG_SET("+d,rtr_page_need_second_split"); });
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
     err = btr_cur_pessimistic_insert(
         flags | BTR_NO_LOCKING_FLAG | BTR_KEEP_SYS_FLAG | BTR_NO_UNDO_LOG_FLAG,
         &cursor, &offsets, &new_heap, node_ptr_upper, &rec, &dummy_big_rec,
@@ -666,6 +703,33 @@ static void rtr_adjust_upper_level(
       mem_heap_free(new_heap);
     }
   }
+=======
+		mem_heap_t *new_heap = NULL;
+
+		DBUG_EXECUTE_IF("rtr_page_need_first_split", {
+			DBUG_SET("+d,rtr_page_need_second_split");
+		});
+
+		err = btr_cur_pessimistic_insert(flags
+						 | BTR_NO_LOCKING_FLAG
+						 | BTR_KEEP_SYS_FLAG
+						 | BTR_NO_UNDO_LOG_FLAG,
+						 &cursor, &offsets, &new_heap,
+						 node_ptr_upper, &rec,
+						 &dummy_big_rec, 0, NULL, mtr);
+
+		DBUG_EXECUTE_IF("rtr_page_need_first_split", {
+			DBUG_SET("-d,rtr_page_need_second_split");
+		});
+
+		cursor.rtr_info = NULL;
+		ut_a(err == DB_SUCCESS);
+
+		if (new_heap) {
+			mem_heap_free(new_heap);
+		}
+	}
+>>>>>>> upstream/cluster-7.6
 
   prdt.data = static_cast<void *>(mbr);
   prdt.op = 0;
@@ -926,9 +990,20 @@ rec_t *rtr_page_split_and_insert(
   }
 
 func_start:
+<<<<<<< HEAD
   ut_ad(tuple->m_heap != *heap);
   mem_heap_empty(*heap);
   *offsets = nullptr;
+=======
+<<<<<<< HEAD
+  mem_heap_empty(*heap);
+  *offsets = NULL;
+=======
+	ut_ad(tuple->m_heap != *heap);
+	mem_heap_empty(*heap);
+	*offsets = NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(cursor->index),
                                   MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK));
@@ -1203,7 +1278,17 @@ after_insert:
   return (rec);
 }
 
+<<<<<<< HEAD
 dberr_t rtr_ins_enlarge_mbr(btr_cur_t *btr_cur, mtr_t *mtr) {
+=======
+/** Following the right link to find the proper block for insert.
+ @return the proper block.*/
+dberr_t rtr_ins_enlarge_mbr(btr_cur_t *btr_cur, /*!< in: btr cursor */
+                            que_thr_t *thr,     /*!< in: query thread */
+                            mtr_t *mtr)         /*!< in: mtr */
+{
+<<<<<<< HEAD
+>>>>>>> pr/231
   dberr_t err = DB_SUCCESS;
   rtr_mbr_t new_mbr;
   buf_block_t *block;
@@ -1213,6 +1298,17 @@ dberr_t rtr_ins_enlarge_mbr(btr_cur_t *btr_cur, mtr_t *mtr) {
   ulint *offsets;
   node_visit_t *node_visit;
   page_t *page;
+=======
+	dberr_t			err = DB_SUCCESS;
+	rtr_mbr_t		new_mbr;
+	buf_block_t*		block;
+	mem_heap_t*		heap;
+	dict_index_t*		index = btr_cur->index;
+	page_cur_t*		page_cursor;
+	ulint*			offsets;
+	node_visit_t*		node_visit;
+	page_t*			page;
+>>>>>>> upstream/cluster-7.6
 
   ut_ad(dict_index_is_spatial(index));
 
@@ -1244,10 +1340,22 @@ dberr_t rtr_ins_enlarge_mbr(btr_cur_t *btr_cur, mtr_t *mtr) {
     /* Calculate the mbr of the child page. */
     rtr_page_cal_mbr(index, block, &new_mbr, heap);
 
+<<<<<<< HEAD
     /* Get father block. */
     btr_cur_t cursor;
+<<<<<<< HEAD
     offsets = rtr_page_get_father_block(nullptr, heap, index, block, mtr,
                                         btr_cur, &cursor);
+=======
+    offsets = rtr_page_get_father_block(NULL, heap, index, block, mtr, btr_cur,
+                                        &cursor);
+=======
+		/* Get father block. */
+		btr_cur_t cursor;
+		offsets = rtr_page_get_father_block(
+			NULL, heap, index, block, mtr, btr_cur, &cursor);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     page = buf_block_get_frame(block);
 
@@ -1335,8 +1443,14 @@ void rtr_page_copy_rec_list_end_no_locks(buf_block_t *new_block,
       ulint cur_matched_fields = 0;
       int cmp;
 
+<<<<<<< HEAD
       offsets2 = rec_get_offsets(cur_rec, index, offsets2, ULINT_UNDEFINED,
                                  UT_LOCATION_HERE, &heap);
+=======
+<<<<<<< HEAD
+      offsets2 =
+          rec_get_offsets(cur_rec, index, offsets2, ULINT_UNDEFINED, &heap);
+>>>>>>> pr/231
       cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec, offsets1, offsets2, index,
                                    page_is_spatial_non_leaf(cur1_rec, index),
                                    false, &cur_matched_fields);
@@ -1359,6 +1473,37 @@ void rtr_page_copy_rec_list_end_no_locks(buf_block_t *new_block,
         }
       }
     }
+=======
+			offsets2 = rec_get_offsets(cur_rec, index, offsets2,
+						   ULINT_UNDEFINED, &heap);
+			cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec,
+						     offsets1, offsets2,
+						     index,
+						     page_is_spatial_non_leaf(cur1_rec, index),
+						     false,
+						     &cur_matched_fields);
+			if (cmp < 0) {
+				page_cur_move_to_prev(&page_cur);
+				break;
+			} else if (cmp > 0) {
+				/* Skip small recs. */
+				page_cur_move_to_next(&page_cur);
+				cur_rec = page_cur_get_rec(&page_cur);
+			} else if (is_leaf) {
+				if (rec_get_deleted_flag(cur1_rec,
+					dict_table_is_comp(index->table))) {
+					goto next;
+				} else {
+					/* We have two identical leaf records,
+					skip copying the undeleted one, and
+					unmark deleted on the current page */
+					btr_rec_set_deleted_flag(
+						cur_rec, NULL, FALSE);
+					goto next;
+				}
+			}
+		}
+>>>>>>> upstream/cluster-7.6
 
     /* If position is on suprenum rec, need to move to
     previous rec. */
@@ -1448,8 +1593,14 @@ void rtr_page_copy_rec_list_start_no_locks(
       ulint cur_matched_fields = 0;
       int cmp;
 
+<<<<<<< HEAD
       offsets2 = rec_get_offsets(cur_rec, index, offsets2, ULINT_UNDEFINED,
                                  UT_LOCATION_HERE, &heap);
+=======
+<<<<<<< HEAD
+      offsets2 =
+          rec_get_offsets(cur_rec, index, offsets2, ULINT_UNDEFINED, &heap);
+>>>>>>> pr/231
       cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec, offsets1, offsets2, index,
                                    page_is_spatial_non_leaf(cur1_rec, index),
                                    false, &cur_matched_fields);
@@ -1473,6 +1624,39 @@ void rtr_page_copy_rec_list_start_no_locks(
         }
       }
     }
+=======
+			offsets2 = rec_get_offsets(cur_rec, index, offsets2,
+						   ULINT_UNDEFINED, &heap);
+			cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec,
+						     offsets1, offsets2,
+						     index,
+						     page_is_spatial_non_leaf(cur1_rec, index),
+						     false,
+						     &cur_matched_fields);
+			if (cmp < 0) {
+				page_cur_move_to_prev(&page_cur);
+				cur_rec = page_cur_get_rec(&page_cur);
+				break;
+			} else if (cmp > 0) {
+				/* Skip small recs. */
+				page_cur_move_to_next(&page_cur);
+				cur_rec = page_cur_get_rec(&page_cur);
+			} else if (is_leaf) {
+				if (rec_get_deleted_flag(
+					cur1_rec,
+					dict_table_is_comp(index->table))) {
+					goto next;
+				} else {
+					/* We have two identical leaf records,
+					skip copying the undeleted one, and
+					unmark deleted on the current page */
+					btr_rec_set_deleted_flag(
+						cur_rec, NULL, FALSE);
+					goto next;
+				}
+			}
+		}
+>>>>>>> upstream/cluster-7.6
 
     /* If position is on suprenum rec, need to move to
     previous rec. */

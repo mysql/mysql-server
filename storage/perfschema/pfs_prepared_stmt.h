@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +36,7 @@
   Stored Program data structures (declarations).
 */
 
+<<<<<<< HEAD
 #include <sys/types.h>
 
 #include "include/mysql/psi/mysql_ps.h"
@@ -35,6 +44,12 @@
 #include "storage/perfschema/pfs_name.h"
 #include "storage/perfschema/pfs_program.h"
 #include "storage/perfschema/pfs_stat.h"
+=======
+#include "pfs_stat.h"
+#include "mysql/psi/psi.h"
+#include "mysql/psi/mysql_ps.h"
+#include "pfs_program.h"
+>>>>>>> upstream/cluster-7.6
 
 #define PS_NAME_LENGTH NAME_LEN
 

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -110,6 +114,7 @@ SET(NDB_MGMAPI_HEADERS
   )
 
 INSTALL(FILES ${NDB_GENERAL_HEADERS}
+<<<<<<< HEAD
   DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb
   COMPONENT Development)
 
@@ -120,3 +125,15 @@ INSTALL(FILES ${NDB_NDBAPI_HEADERS}
 INSTALL(FILES ${NDB_MGMAPI_HEADERS}
   DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/mgmapi
   COMPONENT Development)
+=======
+        DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb
+        COMPONENT Development)
+
+INSTALL(FILES ${NDB_NDBAPI_HEADERS}
+        DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/ndbapi
+        COMPONENT Development)
+
+INSTALL(FILES ${NDB_MGMAPI_HEADERS}
+        DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/mgmapi
+        COMPONENT Development)
+>>>>>>> pr/231

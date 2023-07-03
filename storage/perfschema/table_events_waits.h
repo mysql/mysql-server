@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -171,8 +179,15 @@ class table_events_waits_common : public PFS_engine_table {
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT. */
+<<<<<<< HEAD
 class table_events_waits_current : public table_events_waits_common {
  public:
+=======
+class table_events_waits_current : public table_events_waits_common
+{
+public:
+  static PFS_engine_table_share_state m_share_state;
+>>>>>>> upstream/cluster-7.6
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -213,8 +228,15 @@ class table_events_waits_current : public table_events_waits_common {
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_HISTORY. */
+<<<<<<< HEAD
 class table_events_waits_history : public table_events_waits_common {
  public:
+=======
+class table_events_waits_history : public table_events_waits_common
+{
+public:
+  static PFS_engine_table_share_state m_share_state;
+>>>>>>> upstream/cluster-7.6
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -253,8 +275,15 @@ class table_events_waits_history : public table_events_waits_common {
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_HISTORY_LONG. */
+<<<<<<< HEAD
 class table_events_waits_history_long : public table_events_waits_common {
  public:
+=======
+class table_events_waits_history_long : public table_events_waits_common
+{
+public:
+  static PFS_engine_table_share_state m_share_state;
+>>>>>>> upstream/cluster-7.6
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);

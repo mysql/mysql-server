@@ -1,4 +1,13 @@
+<<<<<<< HEAD
 /*  Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/*
+   Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -689,8 +698,17 @@ void Srv_session::deinit_thread() {
 
   THR_srv_session_thread = nullptr;
 
+<<<<<<< HEAD
   assert(THR_stack_start_address);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(THR_stack_start_address);
+>>>>>>> pr/231
   THR_stack_start_address = nullptr;
+=======
+  assert(my_get_thread_local(THR_stack_start_address));
+  my_set_thread_local(THR_stack_start_address, NULL);
+>>>>>>> upstream/cluster-7.6
   my_thread_end();
 }
 
@@ -843,8 +861,18 @@ bool Srv_session::open() {
   char stack_start;
   DBUG_TRACE;
 
+<<<<<<< HEAD
   DBUG_PRINT("info", ("Session=%p  THD=%p  DA=%p", this, m_thd, &m_da));
   assert(m_state == SRV_SESSION_CREATED || m_state == SRV_SESSION_CLOSED);
+=======
+<<<<<<< HEAD
+  DBUG_PRINT("info", ("Session=%p  THD=%p  DA=%p", this, &thd, &da));
+  DBUG_ASSERT(state == SRV_SESSION_CREATED || state == SRV_SESSION_CLOSED);
+=======
+  DBUG_PRINT("info",("Session=%p  THD=%p  DA=%p", this, &thd, &da));
+  assert(state == SRV_SESSION_CREATED || state == SRV_SESSION_CLOSED);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   m_thd->push_protocol(&m_protocol_error);
   m_thd->push_diagnostics_area(&m_da);
@@ -989,9 +1017,14 @@ bool Srv_session::detach() {
   DBUG_PRINT("info",
              ("Session=%p THD=%p current_thd=%p", this, m_thd, current_thd));
 
+<<<<<<< HEAD
   assert(m_thd == current_thd);
 
   m_thd->restore_globals();
+=======
+  assert(&thd == current_thd);
+  thd.restore_globals();
+>>>>>>> pr/231
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   set_psi(nullptr);
@@ -1028,7 +1061,11 @@ bool Srv_session::close() {
   DBUG_PRINT("info",
              ("Session=%p THD=%p current_thd=%p", this, m_thd, current_thd));
 
+<<<<<<< HEAD
   assert(m_state < SRV_SESSION_CLOSED);
+=======
+  assert(state < SRV_SESSION_CLOSED);
+>>>>>>> pr/231
 
   /*
     RAII
@@ -1132,7 +1169,11 @@ int Srv_session::execute_command(enum enum_server_command command,
     return 1;
   }
 
+<<<<<<< HEAD
   assert(m_thd->get_protocol() == &m_protocol_error);
+=======
+  assert(thd.get_protocol() == &protocol_error);
+>>>>>>> pr/231
 
   // RAII:the destructor restores the state
   Srv_session::Session_backup_and_attach backup(this, false);
@@ -1156,12 +1197,30 @@ int Srv_session::execute_command(enum enum_server_command command,
   */
   if (command != COM_QUERY) m_thd->reset_for_next_command();
 
+<<<<<<< HEAD
   /* For per-query performance counters with log_slow_statement */
   struct System_status_var query_start_status;
   m_thd->clear_copy_status_var();
   if (opt_log_slow_extra) {
     m_thd->copy_status_var(&query_start_status);
   }
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(thd.m_statement_psi == NULL);
+  thd.m_statement_psi =
+      MYSQL_START_STATEMENT(&thd.m_statement_state, stmt_info_new_packet.m_key,
+                            thd.db().str, thd.db().length, thd.charset(), NULL);
+  int ret = dispatch_command(&thd, data, command);
+=======
+  assert(thd.m_statement_psi == NULL);
+  thd.m_statement_psi= MYSQL_START_STATEMENT(&thd.m_statement_state,
+                                             stmt_info_new_packet.m_key,
+                                             thd.db().str,
+                                             thd.db().length,
+                                             thd.charset(), NULL);
+  int ret= dispatch_command(&thd, data, command);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   mysql_thread_set_secondary_engine(false);
 

@@ -1,7 +1,12 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -17,6 +22,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -5546,6 +5568,7 @@ void lock_rec_convert_impl_to_expl(const buf_block_t *block, const rec_t *rec,
   }
 }
 
+<<<<<<< HEAD
 /** Checks if locks of other transactions prevent an immediate modify (update,
  delete mark, or delete unmark) of a clustered index record. If they do,
  first tests if the query thread should anyway be suspended for some
@@ -5562,6 +5585,40 @@ dberr_t lock_clust_rec_modify_check_and_lock(
     dict_index_t *index,      /*!< in: clustered index */
     const ulint *offsets,     /*!< in: rec_get_offsets(rec, index) */
     que_thr_t *thr)           /*!< in: query thread */
+=======
+void
+lock_rec_convert_active_impl_to_expl(
+	const buf_block_t*	block,	/*!< in: buffer block of rec */
+	const rec_t*		rec,	/*!< in: user record on page */
+	dict_index_t*		index,	/*!< in: index of record */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	trx_t*			trx,	/*!< in/out: active transaction */
+	ulint			heap_no)/*!< in: rec heap number to lock */
+{
+	trx_reference(trx, true);
+	lock_rec_convert_impl_to_expl_for_trx(block, rec, index, offsets,
+					      trx, heap_no);
+}
+/*********************************************************************//**
+Checks if locks of other transactions prevent an immediate modify (update,
+delete mark, or delete unmark) of a clustered index record. If they do,
+first tests if the query thread should anyway be suspended for some
+reason; if not, then puts the transaction and the query thread to the
+lock wait state and inserts a waiting request for a record x-lock to the
+lock queue.
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+dberr_t
+lock_clust_rec_modify_check_and_lock(
+/*=================================*/
+	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
+					bit is set, does nothing */
+	const buf_block_t*	block,	/*!< in: buffer block of rec */
+	const rec_t*		rec,	/*!< in: record which should be
+					modified */
+	dict_index_t*		index,	/*!< in: clustered index */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	que_thr_t*		thr)	/*!< in: query thread */
+>>>>>>> upstream/cluster-7.6
 {
   dberr_t err;
   ulint heap_no;

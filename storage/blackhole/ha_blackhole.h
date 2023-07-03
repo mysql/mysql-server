@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -77,6 +85,7 @@ class ha_blackhole : public handler {
                 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE | HA_READ_ORDER |
                       HA_KEYREAD_ONLY);
   }
+<<<<<<< HEAD
   /* The following defines can be increased if necessary */
 #define BLACKHOLE_MAX_KEY 64          /* Max allowed keys */
 #define BLACKHOLE_MAX_KEY_SEG 16      /* Max segments for key */
@@ -95,6 +104,32 @@ class ha_blackhole : public handler {
   int rnd_init(bool scan) override;
   int rnd_next(uchar *buf) override;
   int rnd_pos(uchar *buf, uchar *pos) override;
+=======
+    /* The following defines can be increased if necessary */
+#define BLACKHOLE_MAX_KEY 64     /* Max allowed keys */
+#define BLACKHOLE_MAX_KEY_SEG 16 /* Max segments for key */
+#define BLACKHOLE_MAX_KEY_LENGTH 1000
+<<<<<<< HEAD
+  uint max_supported_keys() const { return BLACKHOLE_MAX_KEY; }
+  uint max_supported_key_length() const { return BLACKHOLE_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const {
+    return BLACKHOLE_MAX_KEY_LENGTH;
+  }
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *table_def);
+=======
+  uint max_supported_keys()          const { return BLACKHOLE_MAX_KEY; }
+  uint max_supported_key_length()    const { return BLACKHOLE_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length(HA_CREATE_INFO
+                        *create_info MY_ATTRIBUTE((unused))) const
+  { return BLACKHOLE_MAX_KEY_LENGTH; }
+  int open(const char *name, int mode, uint test_if_locked);
+>>>>>>> upstream/cluster-7.6
+  int close(void);
+  int rnd_init(bool scan);
+  int rnd_next(uchar *buf);
+  int rnd_pos(uchar *buf, uchar *pos);
+>>>>>>> pr/231
   int index_read_map(uchar *buf, const uchar *key, key_part_map keypart_map,
                      enum ha_rkey_function find_flag) override;
   int index_read_idx_map(uchar *buf, uint idx, const uchar *key,

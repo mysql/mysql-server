@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD:storage/ndb/src/common/debugger/DblqhStateDesc.cpp
    Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231:storage/ndb/src/kernel/blocks/dblqh/DblqhStateDesc.cpp
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +76,7 @@ static const uchar *setup_object_hash_get_key(const uchar *entry,
   const PFS_setup_object *const *typed_entry;
   const PFS_setup_object *setup_object;
   const void *result;
+<<<<<<< HEAD
   typed_entry = reinterpret_cast<const PFS_setup_object *const *>(entry);
   assert(typed_entry != nullptr);
   setup_object = *typed_entry;
@@ -75,6 +84,15 @@ static const uchar *setup_object_hash_get_key(const uchar *entry,
   *length = sizeof(setup_object->m_key);
   result = &setup_object->m_key;
   return reinterpret_cast<const uchar *>(result);
+=======
+  typed_entry= reinterpret_cast<const PFS_setup_object* const *> (entry);
+  assert(typed_entry != NULL);
+  setup_object= *typed_entry;
+  assert(setup_object != NULL);
+  *length= setup_object->m_key.m_key_length;
+  result= setup_object->m_key.m_hash_key;
+  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+>>>>>>> upstream/cluster-7.6
 }
 
 static bool is_table(enum_object_type object_type) {
@@ -185,11 +203,38 @@ static LF_PINS *get_setup_object_hash_pins(PFS_thread *thread) {
 
 static void set_setup_object_key(PFS_setup_object_key *key,
                                  enum_object_type object_type,
+<<<<<<< HEAD
                                  const PFS_schema_name *schema,
                                  const PFS_object_name *object) {
   key->m_object_type = object_type;
   key->m_schema_name = *schema;
   key->m_object_name = *object;
+=======
+                                 const char *schema, uint schema_length,
+<<<<<<< HEAD
+                                 const char *object, uint object_length) {
+  DBUG_ASSERT(schema_length <= NAME_LEN);
+  DBUG_ASSERT(object_length <= NAME_LEN);
+=======
+                                 const char *object, uint object_length)
+{
+  assert(schema_length <= NAME_LEN);
+  assert(object_length <= NAME_LEN);
+>>>>>>> upstream/cluster-7.6
+
+  char *ptr = &key->m_hash_key[0];
+  ptr[0] = (char)object_type;
+  ptr++;
+  memcpy(ptr, schema, schema_length);
+  ptr += schema_length;
+  ptr[0] = 0;
+  ptr++;
+  memcpy(ptr, object, object_length);
+  ptr += object_length;
+  ptr[0] = 0;
+  ptr++;
+  key->m_key_length = ptr - &key->m_hash_key[0];
+>>>>>>> pr/231
 }
 
 int insert_setup_object(enum_object_type object_type,

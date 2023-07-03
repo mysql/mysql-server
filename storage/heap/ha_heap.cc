@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -255,20 +263,57 @@ int ha_heap::delete_row(const uchar *buf) {
 
 int ha_heap::index_read_map(uchar *buf, const uchar *key,
                             key_part_map keypart_map,
+<<<<<<< HEAD
                             enum ha_rkey_function find_flag) {
   assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error = heap_rkey(file, buf, active_index, key, keypart_map, find_flag);
 
+<<<<<<< HEAD
+=======
+#ifndef DBUG_OFF
+  const uint key_len = calculate_key_len(table, active_index, keypart_map);
+#endif /* DBUG_OFF */
+  DBUG_PRINT(
+      "heap_api",
+      ("this=%p cells=(%s) cells_len=%u find_flag=%s out=(%s); return=%d", this,
+       indexed_cells_to_string(key, key_len, table->key_info[active_index])
+           .c_str(),
+       key_len, ha_rkey_function_to_str(find_flag),
+       (error == 0 ? row_to_string(buf, table).c_str() : ""), error));
+
+=======
+                            enum ha_rkey_function find_flag)
+{
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_key_count);
+  int error = heap_rkey(file,buf,active_index, key, keypart_map, find_flag);
+  table->status = error ? STATUS_NOT_FOUND : 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return error;
 }
 
 int ha_heap::index_read_last_map(uchar *buf, const uchar *key,
+<<<<<<< HEAD
                                  key_part_map keypart_map) {
   assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error =
       heap_rkey(file, buf, active_index, key, keypart_map, HA_READ_PREFIX_LAST);
+=======
+                                 key_part_map keypart_map)
+{
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_key_count);
+  int error= heap_rkey(file, buf, active_index, key, keypart_map,
+		       HA_READ_PREFIX_LAST);
+  table->status= error ? STATUS_NOT_FOUND : 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+>>>>>>> upstream/cluster-7.6
   return error;
 }
 
@@ -280,6 +325,7 @@ int ha_heap::index_read_idx_map(uchar *buf, uint index, const uchar *key,
   return error;
 }
 
+<<<<<<< HEAD
 int ha_heap::index_next(uchar *buf) {
   assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_next_count);
@@ -305,6 +351,49 @@ int ha_heap::index_last(uchar *buf) {
   assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_last_count);
   int error = heap_rlast(file, buf, active_index);
+=======
+int ha_heap::index_next(uchar * buf)
+{
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_next_count);
+  int error=heap_rnext(file,buf);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+  return error;
+}
+
+int ha_heap::index_prev(uchar * buf)
+{
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_prev_count);
+  int error=heap_rprev(file,buf);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+  return error;
+}
+
+int ha_heap::index_first(uchar * buf)
+{
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_first_count);
+  int error=heap_rfirst(file, buf, active_index);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+  return error;
+}
+
+int ha_heap::index_last(uchar * buf)
+{
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_last_count);
+  int error=heap_rlast(file, buf, active_index);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+>>>>>>> upstream/cluster-7.6
   return error;
 }
 
@@ -479,7 +568,15 @@ THR_LOCK_DATA **ha_heap::store_lock(THD *, THR_LOCK_DATA **to,
     as they don't have properly initialized THR_LOCK and THR_LOCK_DATA
     structures.
   */
+<<<<<<< HEAD
   assert(!single_instance);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!single_instance);
+=======
+  assert(!internal_table);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   if (lock_type != TL_IGNORE && file->lock.type == TL_UNLOCK)
     file->lock.type = lock_type;
   *to++ = &file->lock;
@@ -520,10 +617,19 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
   if (stats.records <= 1) return stats.records;
 
   /* Assert that info() did run. We need current statistics here. */
+<<<<<<< HEAD
   assert(key_stat_version == file->s->key_stat_version);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(key_stat_version == file->s->key_stat_version);
+>>>>>>> pr/231
   const ha_rows rec_in_range = static_cast<ha_rows>(
       key->records_per_key(key->user_defined_key_parts - 1));
   return rec_in_range;
+=======
+  assert(key_stat_version == file->s->key_stat_version);
+  return key->rec_per_key[key->user_defined_key_parts - 1];
+>>>>>>> upstream/cluster-7.6
 }
 
 static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
@@ -557,6 +663,7 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
     keydef[key].seg = seg;
 
     switch (pos->algorithm) {
+<<<<<<< HEAD
       case HA_KEY_ALG_HASH:
         keydef[key].algorithm = HA_KEY_ALG_HASH;
         mem_per_row += sizeof(HASH_INFO);
@@ -566,7 +673,24 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
         mem_per_row += sizeof(TREE_ELEMENT) + pos->key_length + sizeof(char *);
         break;
       default:
+<<<<<<< HEAD
         assert(0);  // cannot happen
+=======
+        DBUG_ASSERT(0);  // cannot happen
+=======
+    case HA_KEY_ALG_UNDEF:
+    case HA_KEY_ALG_HASH:
+      keydef[key].algorithm= HA_KEY_ALG_HASH;
+      mem_per_row+= sizeof(HASH_INFO);
+      break;
+    case HA_KEY_ALG_BTREE:
+      keydef[key].algorithm= HA_KEY_ALG_BTREE;
+      mem_per_row+=sizeof(TREE_ELEMENT)+pos->key_length+sizeof(char*);
+      break;
+    default:
+      assert(0); // cannot happen
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
 
     for (; key_part != key_part_end; key_part++, seg++) {
@@ -639,6 +763,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   HP_CREATE_INFO hp_create_info;
   assert(!single_instance);
 
+<<<<<<< HEAD
   error = heap_prepare_hp_create_info(table_arg, false, false, &hp_create_info);
   if (error == 0) {
     hp_create_info.auto_increment = (create_info->auto_increment_value
@@ -649,6 +774,22 @@ int ha_heap::create(const char *name, TABLE *table_arg,
     assert(file == nullptr);
   }
 
+<<<<<<< HEAD
+=======
+  DBUG_PRINT("heap_api", ("this=%p %s; return=%d", this,
+                          table_definition(name, table_arg).c_str(), error));
+=======
+  error= heap_prepare_hp_create_info(table_arg, internal_table,
+                                     &hp_create_info);
+  if (error)
+    return error;
+  hp_create_info.auto_increment= (create_info->auto_increment_value ?
+				  create_info->auto_increment_value - 1 : 0);
+  error= heap_create(name, &hp_create_info, &internal_share, &created);
+  my_free(hp_create_info.keydef);
+  assert(file == 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return (error);
 }
 

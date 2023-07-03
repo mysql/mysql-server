@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -343,6 +347,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
             table->pack_row_tmp_set.last_word_ptr -
                 table->pack_row_tmp_set.bitmap + 1);
 
+<<<<<<< HEAD
   // Null bits.
   Bit_writer null_bits(pack_ptr);
   pack_ptr += (image_column_count + 7) / 8;
@@ -372,6 +377,38 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
 #ifndef NDEBUG
     else {
       DBUG_PRINT("info", ("field %s: skipped", field->field_name));
+=======
+          For big-endian machines, we have to make sure that the
+          length is stored in little-endian format, since this is the
+          format used for the binlog.
+        */
+#ifndef NDEBUG
+        const uchar *old_pack_ptr= pack_ptr;
+#endif
+        pack_ptr= field->pack(pack_ptr, field->ptr + offset,
+                              field->max_data_length(), TRUE);
+        DBUG_PRINT("debug", ("field: %s; real_type: %d, pack_ptr: 0x%lx;"
+                             " pack_ptr':0x%lx; bytes: %d",
+                             field->field_name, field->real_type(),
+                             (ulong) old_pack_ptr, (ulong) pack_ptr,
+                             (int) (pack_ptr - old_pack_ptr)));
+        DBUG_DUMP("packed_data", old_pack_ptr, pack_ptr - old_pack_ptr);
+      }
+
+      null_mask <<= 1;
+      if ((null_mask & 0xFF) == 0)
+      {
+        assert(null_ptr < row_data + null_byte_count);
+        null_mask = 1U;
+        *null_ptr++ = null_bits;
+        null_bits= (1U << 8) - 1;
+      }
+    }
+#ifndef NDEBUG
+    else
+    {
+      DBUG_PRINT("debug", ("Skipped"));
+>>>>>>> upstream/cluster-7.6
     }
 #endif
 
@@ -382,7 +419,12 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
     }
   }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   DBUG_PRINT("info", ("partial_bits.tell()=%u, null_bits.tell()=%u",
                       partial_bits.tell(), null_bits.tell()));
   if (has_any_json_diff)
@@ -395,9 +437,30 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
   DBUG_DUMP("rbr", row_data, pack_ptr - row_data);
 #endif
 
+<<<<<<< HEAD
   // Reset the pack_row_tmp_set so it can be used elsewhere.
   bitmap_clear_all(&table->pack_row_tmp_set);
   return static_cast<size_t>(pack_ptr - row_data);
+=======
+=======
+  /*
+    Write the last (partial) byte, if there is one
+  */
+  if ((null_mask & 0xFF) > 1)
+  {
+    assert(null_ptr < row_data + null_byte_count);
+    *null_ptr++ = null_bits;
+  }
+
+  /*
+    The null pointer should now point to the first byte of the
+    packed data. If it doesn't, something is very wrong.
+  */
+  assert(null_ptr == row_data + null_byte_count);
+  DBUG_DUMP("row_data", row_data, pack_ptr - row_data);
+>>>>>>> upstream/cluster-7.6
+  DBUG_RETURN(static_cast<size_t>(pack_ptr - row_data));
+>>>>>>> pr/231
 }
 
 /**
@@ -451,19 +514,39 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
                 uchar const *const event_end,
                 enum_row_image_type row_image_type,
                 bool event_has_value_options, bool only_seek) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(rli != nullptr);
   assert(table != nullptr);
   assert(row_data != nullptr);
   assert(column_image != nullptr);
+=======
+  DBUG_ENTER("unpack_row");
+<<<<<<< HEAD
+  DBUG_ASSERT(rli != nullptr);
+  DBUG_ASSERT(table != nullptr);
+  DBUG_ASSERT(row_data != nullptr);
+  DBUG_ASSERT(column_image != nullptr);
+>>>>>>> pr/231
   // This is guaranteed by the way column_image is initialized in the
   // Rows_log_event constructor.
   assert(column_image->n_bits == source_column_count);
   assert(row_image_end_p != nullptr);
   assert(event_end >= row_data);
   if (event_has_value_options)
+<<<<<<< HEAD
     assert(row_image_type == enum_row_image_type::UPDATE_BI ||
            row_image_type == enum_row_image_type::UPDATE_AI);
+=======
+    DBUG_ASSERT(row_image_type == enum_row_image_type::UPDATE_BI ||
+                row_image_type == enum_row_image_type::UPDATE_AI);
+=======
+  assert(row_data);
+  assert(table);
+  size_t const master_null_byte_count= (bitmap_bits_set(cols) + 7) / 8;
+  int error= 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   // Get table_def object and table used for type conversion
   table_def *tabledef = nullptr;
@@ -496,7 +579,28 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
       cs::util::ReplicatedColumnsViewFactory::
           get_columns_view_with_inbound_filters(rli->info_thd, table, tabledef);
 
+<<<<<<< HEAD
   const uchar *pack_ptr = row_data;
+=======
+
+  Field **const begin_ptr = table->field;
+  Field **field_ptr;
+  Field **const end_ptr= begin_ptr + colcnt;
+
+  assert(null_ptr < row_data + master_null_byte_count);
+
+  // Mask to mask out the correct bit among the null bits
+  unsigned int null_mask= 1U;
+  // The "current" null bits
+  unsigned int null_bits= *null_ptr++;
+  uint i= 0;
+  table_def *tabledef= NULL;
+  TABLE *conv_table= NULL;
+  bool table_found= rli && rli->get_table_data(table, &tabledef, &conv_table);
+  DBUG_PRINT("debug", ("Table data: table_found: %d, tabldef: %p, conv_table: %p",
+                       table_found, tabledef, conv_table));
+  assert(table_found);
+>>>>>>> upstream/cluster-7.6
 
   /*
     For UPDATE AI, partial bits are here.  For UPDATE BI, we
@@ -585,6 +689,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
       the conversion table.  If the conversion table or the field
       pointer is NULL, no conversions are necessary.
      */
+<<<<<<< HEAD
     Field *conv_field =
         conv_table ? conv_table->field[it.absolute_pos()] : nullptr;
     Field *const f = conv_field ? conv_field : field_ptr;
@@ -592,6 +697,26 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
                          conv_field ? "" : "not ", field_ptr->field_name,
                          static_cast<long unsigned int>(it.absolute_pos())));
     assert(f != nullptr);
+=======
+<<<<<<< HEAD
+    Field *conv_field = conv_table ? conv_table->field[col_i] : NULL;
+    Field *const f = conv_field ? conv_field : field_ptr;
+    DBUG_PRINT("debug",
+               ("Conversion %srequired for field '%s' (#%d)",
+                conv_field ? "" : "not ", field_ptr->field_name, col_i));
+    DBUG_ASSERT(f != NULL);
+=======
+    Field *conv_field=
+      conv_table ? conv_table->field[field_ptr - begin_ptr] : NULL;
+    Field *const f=
+      conv_field ? conv_field : *field_ptr;
+    DBUG_PRINT("debug", ("Conversion %srequired for field '%s' (#%ld)",
+                         conv_field ? "" : "not ",
+                         (*field_ptr)->field_name,
+                         (long) (field_ptr - begin_ptr)));
+    assert(f != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     DBUG_PRINT("debug",
                ("field name: %s; field position: %p", f->field_name, pack_ptr));
@@ -607,9 +732,27 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
       No need to bother about columns that does not exist: they have
       gotten default values when being emptied above.
      */
+<<<<<<< HEAD
     if (bitmap_is_set(column_image, col_i)) {
+=======
+    if (bitmap_is_set(cols, field_ptr -  begin_ptr))
+    {
+      if ((null_mask & 0xFF) == 0)
+      {
+        assert(null_ptr < row_data + master_null_byte_count);
+        null_mask= 1U;
+        null_bits= *null_ptr++;
+      }
+
+      assert(null_mask & 0xFF); // One of the 8 LSB should be set
+
+>>>>>>> upstream/cluster-7.6
       /* Field...::unpack() cannot return 0 */
+<<<<<<< HEAD
       assert(pack_ptr != nullptr);
+=======
+      assert(pack_ptr != NULL);
+>>>>>>> pr/231
 
       if (null_bits.get()) {
         if (f->is_nullable()) {
@@ -645,9 +788,20 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           Use the master's size information if available else call
           normal unpack operation.
         */
+<<<<<<< HEAD
         uint const metadata = tabledef->field_metadata(col_i);
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+        uint16 const metadata = tabledef->field_metadata(col_i);
+#ifndef DBUG_OFF
+>>>>>>> pr/231
         uchar const *const old_pack_ptr = pack_ptr;
+=======
+        uint16 const metadata= tabledef->field_metadata(i);
+#ifndef NDEBUG
+        uchar const *const old_pack_ptr= pack_ptr;
+>>>>>>> upstream/cluster-7.6
 #endif
         /// @todo calc_field_size may read out of bounds /Sven
         uint32 len = tabledef->calc_field_size(col_i, pack_ptr);
@@ -674,9 +828,21 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           a old decimal data type which is unsupported datatype in
           RBR mode.
          */
+<<<<<<< HEAD
         assert(tabledef->type(col_i) == MYSQL_TYPE_DECIMAL ||
                tabledef->calc_field_size(col_i, old_pack_ptr) ==
                    (uint32)(pack_ptr - old_pack_ptr));
+=======
+<<<<<<< HEAD
+        DBUG_ASSERT(tabledef->type(col_i) == MYSQL_TYPE_DECIMAL ||
+                    tabledef->calc_field_size(col_i, (uchar *)old_pack_ptr) ==
+                        (uint32)(pack_ptr - old_pack_ptr));
+=======
+        assert(tabledef->type(i) == MYSQL_TYPE_DECIMAL ||
+               tabledef->calc_field_size(i, (uchar *) old_pack_ptr) ==
+               (uint32) (pack_ptr - old_pack_ptr));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
 
       /*
@@ -698,8 +864,13 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
                              field_ptr->field_name, source_type.c_ptr_safe(),
                              value_string.c_ptr_safe()));
 #endif
+<<<<<<< HEAD
         copy.set(field_ptr, f);
         copy.invoke_do_copy();
+=======
+        copy.set(field_ptr, f, true);
+        copy.invoke_do_copy(&copy);
+>>>>>>> pr/231
 #ifndef NDEBUG
         char target_buf[MAX_FIELD_WIDTH];
         String target_type(target_buf, sizeof(target_buf), system_charset_info);
@@ -711,16 +882,32 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
 #endif
       }
     }
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
     else {
+=======
+#ifndef NDEBUG
+    else
+    {
+>>>>>>> upstream/cluster-7.6
       DBUG_PRINT("debug", ("Non-existent: skipped"));
     }
 #endif
   }
 
+<<<<<<< HEAD
   // move past source's extra fields
   for (size_t col_i = last_source_pos + 1; col_i < source_column_count;
        ++col_i) {
+=======
+<<<<<<< HEAD
+  // move past master's extra fields
+  for (; col_i < master_column_count; col_i++) {
+>>>>>>> pr/231
     if ((event_value_options & PARTIAL_JSON_UPDATES) != 0 &&
         tabledef->type(col_i) == MYSQL_TYPE_JSON)
       partial_bits.get();
@@ -731,6 +918,50 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
         DBUG_PRINT("info", ("Skipping field"));
         DBUG_DUMP("info", pack_ptr, len);
         if (len > event_len) {
+=======
+  /*
+    Re-evaluating generated columns since their values must be
+    recalculated prior to change.
+  */
+  if (table->has_gcol())
+  {
+    for (Field **vfield_ptr= table->vfield; *vfield_ptr; ++vfield_ptr)
+    {
+      Field *vfield= *vfield_ptr;
+      if ((vfield->is_virtual_gcol() && vfield->m_indexed) ||
+          bitmap_is_overlapping(table->write_set,
+                                &vfield->gcol_info->base_columns_map))
+      {
+        if ((vfield->flags & BLOB_FLAG) != 0 && vfield->is_virtual_gcol())
+          (down_cast<Field_blob*>(vfield))->keep_old_value();
+        vfield->gcol_info->expr_item->save_in_field(vfield, 0);
+      }
+    }
+  }
+
+  /*
+    throw away master's extra fields
+  */
+  uint max_cols= min<ulong>(tabledef->size(), cols->n_bits);
+  for (; i < max_cols; i++)
+  {
+    if (bitmap_is_set(cols, i))
+    {
+      if ((null_mask & 0xFF) == 0)
+      {
+        assert(null_ptr < row_data + master_null_byte_count);
+        null_mask= 1U;
+        null_bits= *null_ptr++;
+      }
+      assert(null_mask & 0xFF); // One of the 8 LSB should be set
+
+      if (!((null_bits & null_mask) && tabledef->maybe_null(i))) {
+        uint32 len= tabledef->calc_field_size(i, (uchar *) pack_ptr);
+        DBUG_DUMP("field_data", pack_ptr, len);
+        pack_ptr+= len;
+        if ( pack_ptr > row_end )
+        {
+>>>>>>> upstream/cluster-7.6
           my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
           return true;
         }
@@ -739,8 +970,20 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
     }
   }
 
+<<<<<<< HEAD
   // We have read all the null bits.
+<<<<<<< HEAD
   assert(null_bits.tell() == image_column_count);
+=======
+  DBUG_ASSERT(null_bits.tell() == image_column_count);
+=======
+  /*
+    We should now have read all the null bytes, otherwise something is
+    really wrong.
+   */
+  assert(null_ptr == row_data + master_null_byte_count);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   DBUG_DUMP("info", row_data, pack_ptr - row_data);
 

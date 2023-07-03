@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -79,11 +103,23 @@ static inline undo_no_t trx_undo_rec_get_undo_no(
   return (mach_u64_read_much_compressed(ptr));
 }
 
+<<<<<<< HEAD
 static inline trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page,
                                                 uint32_t undo_offset,
                                                 mem_heap_t *heap) {
   ut_ad(undo_offset < UNIV_PAGE_SIZE);
   trx_undo_rec_t *undo_rec = (trx_undo_rec_t *)(undo_page + undo_offset);
+=======
+<<<<<<< HEAD
+/** Copies the undo record to the heap.
+ @return own: copy of undo log record */
+UNIV_INLINE
+trx_undo_rec_t *trx_undo_rec_copy(
+    const trx_undo_rec_t *undo_rec, /*!< in: undo log record */
+    mem_heap_t *heap)               /*!< in: heap where copied */
+{
+  ulint len;
+>>>>>>> pr/231
 
   /* Read the offset of next undo record from the current undo record
   and subtract it from current undo log record offset to get the length
@@ -94,5 +130,31 @@ static inline trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page,
   uint32_t len = next_undo_offset - undo_offset;
   ut_ad(len < UNIV_PAGE_SIZE);
   return ((trx_undo_rec_t *)mem_heap_dup(heap, undo_rec, len));
+=======
+UNIV_INLINE
+trx_undo_rec_t*
+trx_undo_rec_copy(
+	const page_t*	undo_page,
+	ulint		undo_offset,
+	mem_heap_t*	heap)
+{
+	ulint			len;
+	ulint			next_undo_offset;
+	trx_undo_rec_t*		undo_rec = (trx_undo_rec_t*) (undo_page + undo_offset);
+
+	/* Read the offset of next undo record from the current undo record
+	and subtract it from current undo record offset to get the length
+	of record */
+
+	ut_ad(undo_offset < UNIV_PAGE_SIZE);
+	next_undo_offset = mach_read_from_2(undo_rec);
+	ut_a(next_undo_offset > undo_offset);
+
+	len = next_undo_offset - undo_offset;
+	ut_a(len < UNIV_PAGE_SIZE);
+
+	return((trx_undo_rec_t*) mem_heap_dup(heap, undo_rec, len));
+>>>>>>> upstream/cluster-7.6
 }
+
 #endif /* !UNIV_HOTBACKUP */

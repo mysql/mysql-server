@@ -105,6 +105,7 @@
 static const Uint32 WaitTableStateChangeMillis = 10;
 
 
+<<<<<<< HEAD
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_MULTI_TRP 1
 //#define DEBUG_NODE_STOP 1
@@ -130,6 +131,12 @@ static const Uint32 WaitTableStateChangeMillis = 10;
 #define DEB_NODE_STOP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_NODE_STOP(arglist) do { } while (0)
+=======
+#ifdef VM_TRACE
+//#define DEBUG_REDO_CONTROL 1
+//#define DEBUG_LCP 1
+#define DEBUG_LCP_COMP 1
+>>>>>>> pr/231
 #endif
 
 #ifdef DEBUG_REDO_CONTROL
@@ -983,7 +990,16 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     cdata_size_in_words = ptr.sz;
     releaseSections(handle);
   }
+<<<<<<< HEAD
   else
+=======
+
+  ndbrequire(tstart <= (sizeof(cdata)/4 - CopyGCIReq::DATA_SIZE));
+  for(Uint32 i = 0; i<CopyGCIReq::DATA_SIZE; i++)
+    cdata[tstart+i] = copyGCI->data[i];
+  
+  if (ERROR_INSERTED(7177) && isMaster() && isdone)
+>>>>>>> pr/231
   {
     jam();
     const Uint32 tstart = copyGCI->startWord;
@@ -1674,6 +1690,7 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
     ndb_mgm_get_int_parameter(p, CFG_DB_2PASS_INR,
                               &val);
     c_2pass_inr = val ? true : false;
+    c_2pass_inr = false;
   }
 
   /**
@@ -2702,10 +2719,18 @@ void Dbdih::execSTART_MECONF(Signal* signal)
   
   CRASH_INSERTION(7130);
   ndbrequire(nodeId == cownNodeId);
+<<<<<<< HEAD
   bool v2_format = true;
   Uint32 cdata_size_in_words;
   if (ndbd_send_node_bitmask_in_section(getNodeInfo(cmasterNodeId).m_version))
   {
+=======
+  ndbrequire(startWord <= (sizeof(cdata)/4 - StartMeConf::DATA_SIZE));
+  for(i = 0; i < StartMeConf::DATA_SIZE; i++)
+    cdata[startWord+i] = startMe->data[i];
+  
+  if(startWord + StartMeConf::DATA_SIZE < Sysfile::SYSFILE_SIZE32){
+>>>>>>> pr/231
     jam();
     ndbrequire(signal->getNoOfSections() == 1);
     SegmentedSectionPtr ptr;
@@ -3904,7 +3929,11 @@ void Dbdih::stop_pause(Signal *signal)
   ndbassert(check_pause_state_sanity());
   dequeue_lcp_rep(signal);
 
+<<<<<<< HEAD
   checkLcpCompletedLab(signal, __LINE__);
+=======
+  checkLcpCompletedLab(signal);
+>>>>>>> pr/231
 }
 
 /**
@@ -4835,6 +4864,12 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   {
     c_fragments_per_node_ = 0;
   }
+
+  /*
+   * Reset default fragments per node which may depend the LDM count of all
+   * alive nodes.
+   */
+  c_fragments_per_node_ = 0;
 
   /*-------------------------------------------------------------------------*/
   //      WE WILL ALSO SEND THE INCLUDE NODE REQUEST TO THE LOCAL LQH BLOCK.
@@ -9066,6 +9101,22 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   jamEntry();
   CRASH_INSERTION(7142);
 
+  if (ERROR_INSERTED(7249))
+  {
+    jam();
+    if (refToNode(signal->senderBlockRef()) != getOwnNodeId())
+    {
+      jam();
+      g_eventLogger->info("ERROR INSERT 7249 : Delaying COPY_FRAGCONF");
+      sendSignalWithDelay(reference(),
+                          GSN_COPY_FRAGCONF,
+                          signal,
+                          5000,
+                          signal->getLength());
+      return;
+    }
+  }
+
   TakeOverRecordPtr takeOverPtr;
   ndbrequire(c_takeOverPool.getPtr(takeOverPtr, conf->userPtr));
 
@@ -9889,6 +9940,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
    * the node failure.
    */
 
+<<<<<<< HEAD
   LinearSectionPtr lsptr[1];
   lsptr[0].p = allFailed.rep.data;
   lsptr[0].sz = allFailed.getPackedLengthInWords();
@@ -9963,6 +10015,37 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
     }
   }
+=======
+  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(DBUTIL_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(DBTUP_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(TSMAN_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(LGMAN_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(DBSPJ_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+>>>>>>> pr/231
 
 
   if (ERROR_INSERTED(7179) || ERROR_INSERTED(7217))
@@ -10007,10 +10090,14 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
    * Reset default fragments per node which may depend the LDM count of all
    * alive nodes.
    */
+<<<<<<< HEAD
   if (m_use_classic_fragmentation)
   {
     c_fragments_per_node_ = 0;
   }
+=======
+  c_fragments_per_node_ = 0;
+>>>>>>> pr/231
 
   /*-------------------------------------------------------------------------*/
   // Verify that we can continue to operate the cluster. If we cannot we will
@@ -12477,7 +12564,11 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
        * lcpId under the old master before it failed.
 
        * When I, the new master, take over and send MASTER_LCP_REQ and
+<<<<<<< HEAD
        * execute MASTER_LCPCONF from participants, exempt the
+=======
+       * execute MASTER_LCPCONF from participants, excempt the
+>>>>>>> pr/231
        * already-completed participants from the requirement to be
        * "not in IDLE state". Those who sent MASTER_LCPREF had not
        * completed the current LCP under the old master and thus
@@ -12485,8 +12576,42 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
        */
       ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE ||
                  lcp_already_completed);
+<<<<<<< HEAD
    
       if (c_lcpState.lcpStatus == LCP_STATUS_IDLE)
+=======
+
+      if (c_lcpState.lcpStatus == LCP_STATUS_IDLE)
+      {
+        jam();
+        /**
+         * From our point of view the LCP is completed since we heard the old
+         * master conclude the LCP. But there are other nodes that still
+         * haven't heard about the conclusion of the LCP since not all have
+         * reached the IDLE state yet. To handle this in the code for
+         * handling LCP_COMPLETE_REP we need to get back to the state
+         * LCP_TAB_SAVED and ensure that we send LCP_COMPLETE_REP with
+         * block 0 for all nodes that haven't heard of the completed LCP yet.
+         *
+         * We accomplish this by transferring the bitmap for the wait for
+         * LCP_COMPLETE_REP to m_participatingDIH bitmask that is used to
+         * send the LCP_COMPLETE_REP for block 0.
+         */
+        DEB_LCP_COMP(("LCP_IDLE => LCP_TAB_SAVED"));
+        c_lcpState.setLcpStatus(LCP_TAB_SAVED, __LINE__);
+        m_local_lcp_state.init_master_take_over_idle_to_tab_saved();
+        for (Uint32 node = 1; node < MAX_NDB_NODES; node++)
+        {
+          if (c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.isWaitingFor(node))
+          {
+            jam();
+            c_lcpState.m_participatingDIH.set(node);
+          }
+        }
+      }
+      c_lcp_runs_with_pause_support = check_if_pause_lcp_possible();
+      if (!c_lcp_runs_with_pause_support)
+>>>>>>> pr/231
       {
         jam();
         /**
@@ -13110,6 +13235,7 @@ Dbdih::find_next_log_part(TabRecord *primTabPtrP, Uint32 & next_log_part)
  */
 void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   CreateFragmentationReq * const req = 
     (CreateFragmentationReq*)signal->getDataPtr();
@@ -18292,7 +18418,11 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
     Ensure that SUB_GCP_COMPLETE_REP is send once per epoch to Dblqh.
   */
   ndbrequire(gci == m_micro_gcp.m_old_gci);
+<<<<<<< HEAD
 #if defined(ERROR_INSERT) || defined(VM_TRACE)
+=======
+#if defined(ERROR_INSER) || defined(VM_TRACE)
+>>>>>>> pr/231
   /**
     Detect if some test actually provoke a double send.
     At point of writing no test have failed yet.
@@ -18300,6 +18430,21 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
   ndbrequire(gci > m_micro_gcp.m_last_sent_gci);
 #endif
   if (gci > m_micro_gcp.m_last_sent_gci)
+<<<<<<< HEAD
+=======
+  {
+    /**
+     * To handle multiple LDM instances, this need to be passed though
+     * each LQH...(so that no fire-trig-ord can arrive "too" late)
+     */
+    sendSignal(DBLQH_REF, GSN_SUB_GCP_COMPLETE_REP, signal,
+               signal->length(), JBB);
+    m_micro_gcp.m_last_sent_gci = gci;
+  }
+reply:
+  Uint32 nodeId = refToNode(masterRef);
+  if (!ndbd_dih_sub_gcp_complete_ack(getNodeInfo(nodeId).m_version))
+>>>>>>> pr/231
   {
     /**
      * To handle multiple LDM instances, this need to be passed though
@@ -22680,7 +22825,10 @@ void Dbdih::checkLcpCompletedLab(Signal* signal, Uint32 line)
   if (c_lcp_id_paused != RNIL)
   {
     jam();
+<<<<<<< HEAD
     DEB_LCP_COMP(("c_lcp_id_paused = %u", c_lcp_id_paused));
+=======
+>>>>>>> pr/231
     return;
   }
 
@@ -25752,8 +25900,12 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   case CheckNodeGroups::GetNodeGroupMembers: {
     ok = true;
     ndbrequire(sd->nodeId < MAX_NDB_NODES);
+<<<<<<< HEAD
     Uint32 ng = SYSFILE->getNodeGroup(sd->nodeId);
     DEB_MULTI_TRP(("My node group is %u", ng));
+=======
+    Uint32 ng = Sysfile::getNodeGroup(sd->nodeId, SYSFILE->nodeGroups);
+>>>>>>> pr/231
     if (ng == NO_NODE_GROUP_ID)
       ng = RNIL;
 
@@ -26897,7 +27049,10 @@ void Dbdih::setNodeActiveStatus()
 /***************************************************************************/
 void Dbdih::setNodeGroups()
 {
+<<<<<<< HEAD
   DEB_MULTI_TRP(("setNodeGroups"));
+=======
+>>>>>>> pr/231
   /*
    * Remember the current next nodegroup and try keep it even if nodegroups
    * moves around in c_node_group list.
@@ -26934,7 +27089,10 @@ void Dbdih::setNodeGroups()
       NGPtr.p->nodeCount++;
       ndbrequire(NGPtr.p->nodeCount <= cnoReplicas);
       add_nodegroup(NGPtr);
+<<<<<<< HEAD
       DEB_MULTI_TRP(("Node %u into node group %u", sngNodeptr.i, NGPtr.i));
+=======
+>>>>>>> pr/231
       /*
        * If the next nodegroup has moved in nodegroup list (can happen if an
        * earlier nodegroup is dropped) we make sure that the next nodegroup
@@ -29040,8 +29198,11 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
        * containing the next epoch.
        */
       ptr.p->waitGCI = Uint32(m_micro_gcp.m_current_gci >> 32);
+<<<<<<< HEAD
       DEB_NODE_STOP(("waitGCI = %u",
                      Uint32(m_micro_gcp.m_current_gci >> 32)));
+=======
+>>>>>>> pr/231
       
       if (m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_COMMIT)
       {
@@ -29057,8 +29218,11 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
          * CONF.
          */
         ptr.p->waitGCI = Uint32(m_micro_gcp.m_master.m_new_gci >> 32);
+<<<<<<< HEAD
         DEB_NODE_STOP(("2: waitGCI = %u",
           Uint32(m_micro_gcp.m_master.m_new_gci >> 32)));
+=======
+>>>>>>> pr/231
       }
 
       if (requestType == WaitGCPReq::CompleteForceStart)
@@ -29089,7 +29253,11 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
     }
     default:
       jamLine(requestType);
+<<<<<<< HEAD
       ndbabort();
+=======
+      ndbrequire(false);
+>>>>>>> pr/231
     }
     
     return;

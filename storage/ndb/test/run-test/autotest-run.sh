@@ -1,6 +1,10 @@
 #!/bin/bash
 
+<<<<<<< HEAD
 # Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +37,11 @@
 ##############
 
 save_args=$*
+<<<<<<< HEAD
 VERSION="autotest-run.sh version 1.25"
+=======
+VERSION="autotest-run.sh version 1.24"
+>>>>>>> pr/231
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -72,6 +80,7 @@ LOCK=$HOME/.autotest-lock
 # Read command line entries#
 ############################
 
+<<<<<<< HEAD
 while [ "${1}" ]; do
   case "${1}" in
     --atrt-*) atrt_arg=$(echo "${1}" | sed s/--atrt-/--/);
@@ -97,6 +106,39 @@ while [ "${1}" ]; do
     --clonename=*) clonename=$(echo "${1}" | sed s/--clonename=//);;
   esac
   shift
+=======
+while [ "$1" ]
+do
+        case "$1" in
+                --verbose=*) verbose=`echo $1 | sed s/--verbose=//`;;
+                --verbose) verbose=`expr $verbose + 1`;;
+                --conf=*) conf=`echo $1 | sed s/--conf=//`;;
+                --version) echo $VERSION; exit;;
+	        --suite=*) RUN=`echo $1 | sed s/--suite=//`;;
+          --suite-suffix=*) suite_suffix=`echo $1 | sed s/--suite-suffix=//`;;
+	        --run-dir=*) run_dir=`echo $1 | sed s/--run-dir=//`;;
+          --custom-atrt=*) custom_atrt=`echo $1 | sed s/--custom-atrt=//`;;
+          --custom-cpcc=*) custom_cpcc=`echo $1 | sed s/--custom-cpcc=//`;;
+	        --install-dir=*) install_dir=`echo $1 | sed s/--install-dir=//`;;
+	        --install-dir0=*) install_dir0=`echo $1 | sed s/--install-dir0=//`;;
+	        --install-dir1=*) install_dir1=`echo $1 | sed s/--install-dir1=//`;;
+	        --clone=*) clone0=`echo $1 | sed s/--clone=//`;;
+	        --clone0=*) clone0=`echo $1 | sed s/--clone0=//`;;
+	        --clone1=*) clone1=`echo $1 | sed s/--clone1=//`;;
+	        --nolock) nolock=true;;
+	        --clonename=*) clonename=`echo $1 | sed s/--clonename=//`;;
+                --baseport=*) baseport_arg="$1";;
+                --base-dir=*) base_dir=`echo $1 | sed s/--base-dir=//`;;
+                --clusters=*) clusters_arg="$1";;
+                --atrt-defaults-group-suffix=*)
+                    atrt_defaults_group_suffix_arg="${1/#--atrt-/--}"
+                    ;;
+                --site=*) site_arg="$1";;
+                --default-max-retries=*) default_max_retries_arg="$1";;
+                --default-force-cluster-restart) default_force_cluster_restart_arg="$1";;
+        esac
+        shift
+>>>>>>> pr/231
 done
 
 #################################
@@ -176,6 +218,7 @@ on_exit() {
 ####################################
 # Revert copy of test programs
 ####################################
+<<<<<<< HEAD
   for f in "${run_dir}/revert_copy_missing_ndbclient_test_programs"*
   do
     if [ -f "${f}" ]
@@ -183,6 +226,12 @@ on_exit() {
       source "${f}"
     fi
   done
+=======
+  if [ -f "${run_dir}/revert_copy_missing_ndbclient_test_programs" ]
+  then
+    source "${run_dir}/revert_copy_missing_ndbclient_test_programs"
+  fi
+>>>>>>> pr/231
 ####################################
 # Remove the lock file before exit #
 ####################################
@@ -271,7 +320,11 @@ choose(){
         i=1
         while [ $# -gt 0 ]
         do
+<<<<<<< HEAD
                 sed -E s/"CHOOSE_host${i}([^0-9]|\$)"/"${1}\1"/g < $TMP1 > $TMP2
+=======
+                sed -r s/"CHOOSE_host${i}[ ]*(, |\$)"/"${1}\1"/g < $TMP1 > $TMP2
+>>>>>>> pr/231
                 mv $TMP2 $TMP1
                 shift
                 i=`expr $i + 1`
@@ -374,11 +427,14 @@ done
 rm -f d.tmp.$$
 
 copy_missing_ndbclient_test_programs() {
+<<<<<<< HEAD
   if [ -f "${2}/bin/testDowngrade" ]
   then
     # Assume nothing need to be copied
     return
   fi
+=======
+>>>>>>> pr/231
   (
     export LD_LIBRARY_PATH="${1}/bin:${1}/lib"
     for prog in testDowngrade testUpgrade
@@ -391,8 +447,11 @@ copy_missing_ndbclient_test_programs() {
           cp -p "${1}/bin/${prog}" "${2}/bin/${prog}"
       fi
     done
+<<<<<<< HEAD
     # May for example copy suite files *grade*-tests.txt and
     # config files conf-*grade*.cnf
+=======
+>>>>>>> pr/231
     for file in "${1}"/mysql-test/ndb/*grade*
     do
       f=$(basename "${file}")
@@ -403,14 +462,23 @@ copy_missing_ndbclient_test_programs() {
           cp -p "${file}" "${2}/mysql-test/ndb/${f}"
       fi
     done
+<<<<<<< HEAD
   ) > revert_copy_missing_ndbclient_test_programs${3}
+=======
+  ) > revert_copy_missing_ndbclient_test_programs
+>>>>>>> pr/231
 }
 prefix="--prefix=$install_dir --prefix0=$install_dir0"
 if [ -n "$install_dir1" ]
 then
     prefix="$prefix --prefix1=$install_dir1"
+<<<<<<< HEAD
     copy_missing_ndbclient_test_programs ${install_dir0} ${install_dir1} _0_1
     copy_missing_ndbclient_test_programs ${install_dir1} ${install_dir0} _1_0
+=======
+    copy_missing_ndbclient_test_programs ${install_dir0} ${install_dir1}
+    copy_missing_ndbclient_test_programs ${install_dir1} ${install_dir0}
+>>>>>>> pr/231
 fi
 
 # If verbose level 0, use default verbose mode (1) for atrt anyway
@@ -419,6 +487,7 @@ if [ ${verbose} -gt 0 ] ; then
   verbose_arg=--verbose=${verbose}
 fi
 
+<<<<<<< HEAD
 # Setup configuration
 ${atrt} ${atrt_args} Cdq \
    ${prefix} \
@@ -426,22 +495,52 @@ ${atrt} ${atrt_args} Cdq \
    my.cnf \
    | tee log.txt
 
+=======
+return_code=0
+
+# Setup configuration
+$atrt ${atrt_defaults_group_suffix_arg} Cdq \
+   ${site_arg} \
+   ${clusters_arg} \
+   ${verbose_arg} \
+   $prefix \
+   my.cnf \
+   | tee log.txt
+
+>>>>>>> pr/231
 atrt_conf_status=${PIPESTATUS[0]}
 if [ ${atrt_conf_status} -ne 0 ]; then
     return_code=$atrt_conf_status
     echo "Setup configuration failure"
 else
+<<<<<<< HEAD
     args="${atrt_args}"
     args="${args} --report-file=report.txt"
     args="${args} --testcase-file=${test_file}"
     args="${args} ${prefix}"
     args="${args} ${verbose_arg}"
     ${atrt} ${args} my.cnf | tee -a log.txt
+=======
+    args="${atrt_defaults_group_suffix_arg}"
+    args="$args --report-file=report.txt"
+    args="$args --testcase-file=${test_file}"
+    args="$args ${baseport_arg}"
+    args="$args ${site_arg} ${clusters_arg}"
+    args="$args $prefix"
+    args="$args ${verbose_arg}"
+    args="$args ${default_max_retries_arg}"
+    args="$args ${default_force_cluster_restart_arg}"
+    $atrt $args my.cnf | tee -a log.txt
+>>>>>>> pr/231
 
     atrt_test_status=${PIPESTATUS[0]}
     if [ $atrt_test_status -ne 0 ]; then
         return_code=$atrt_test_status
+<<<<<<< HEAD
         echo "ERROR: ${atrt_test_status}: ${atrt} ${args} my.cnf"
+=======
+        echo "ERROR: $atrt_test_status: $atrt $args my.cnf"
+>>>>>>> pr/231
     fi
 fi
 

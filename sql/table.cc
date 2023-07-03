@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -270,10 +274,21 @@ View_creation_ctx *View_creation_ctx::create(THD *thd, Table_ref *view) {
 
 /*************************************************************************/
 
+<<<<<<< HEAD
 GRANT_INFO::GRANT_INFO() {
   grant_table = nullptr;
   version = 0;
   privilege = NO_ACCESS;
+=======
+GRANT_INFO::GRANT_INFO()
+{
+  grant_table= 0;
+  version= 0;
+  privilege= NO_ACCESS;
+#ifndef NDEBUG
+  want_privilege= 0;
+#endif
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -300,10 +315,26 @@ char *fn_rext(char *name) {
   return name + strlen(name);
 }
 
+<<<<<<< HEAD
 TABLE_CATEGORY get_table_category(const LEX_CSTRING &db,
                                   const LEX_CSTRING &name) {
   assert(db.str != nullptr);
   assert(name.str != nullptr);
+=======
+<<<<<<< HEAD
+TABLE_CATEGORY get_table_category(const LEX_STRING &db,
+                                  const LEX_STRING &name) {
+  DBUG_ASSERT(db.str != NULL);
+  DBUG_ASSERT(name.str != NULL);
+=======
+
+static TABLE_CATEGORY get_table_category(const LEX_STRING &db,
+                                         const LEX_STRING &name)
+{
+  assert(db.str != NULL);
+  assert(name.str != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (is_infoschema_db(db.str, db.length)) return TABLE_CATEGORY_INFORMATION;
 
@@ -399,8 +430,18 @@ TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
   if (multi_alloc_root(&mem_root, &share, sizeof(*share), &key_buff, key_length,
                        &path_buff, path_length + 1, &cache_element_array,
                        table_cache_instances * sizeof(*cache_element_array),
+<<<<<<< HEAD
                        NULL)) {
+<<<<<<< HEAD
     new (share) TABLE_SHARE(refresh_version, open_secondary);
+=======
+    new (share) TABLE_SHARE();
+=======
+                       NULL))
+  {
+    new (share) TABLE_SHARE;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     share->set_table_cache_key(key_buff, key, key_length);
 
@@ -462,7 +503,25 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
+<<<<<<< HEAD
   new (share) TABLE_SHARE();
+=======
+  new (share) TABLE_SHARE;
+  init_sql_alloc(key_memory_table_share,
+                 &share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  share->table_category=         TABLE_CATEGORY_TEMPORARY;
+  share->tmp_table=              INTERNAL_TMP_TABLE;
+  share->db.str=                 (char*) key;
+  share->db.length=		 strlen(key);
+  share->table_cache_key.str=    (char*) key;
+  share->table_cache_key.length= key_length;
+  share->table_name.str=         (char*) table_name;
+  share->table_name.length=      strlen(table_name);
+  share->path.str=               (char*) path;
+  share->normalized_path.str=    (char*) path;
+  share->path.length= share->normalized_path.length= strlen(path);
+  share->frm_version= 		 FRM_VER_TRUE_VARCHAR;
+>>>>>>> upstream/cluster-7.6
 
   if (mem_root)
     share->mem_root = std::move(*mem_root);
@@ -591,7 +650,11 @@ void TABLE_SHARE::destroy() {
 void free_table_share(TABLE_SHARE *share) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: %s.%s", share->db.str, share->table_name.str));
+<<<<<<< HEAD
   assert(share->ref_count() == 0);
+=======
+  assert(share->ref_count == 0);
+>>>>>>> pr/231
 
   if (share->m_flush_tickets.is_empty()) {
     /*
@@ -660,14 +723,231 @@ inline bool is_system_table_name(const char *name, size_t length) {
             my_tolower(ci, name[4]) == 't'))));
 }
 
+<<<<<<< HEAD
+=======
+
+/**
+  Check if a string contains path elements
+*/  
+
+static inline bool has_disabled_path_chars(const char *str)
+{
+  for (; *str; str++)
+    switch (*str)
+    {
+      case FN_EXTCHAR:
+      case '/':
+      case '\\':
+      case '~':
+      case '@':
+        return TRUE;
+    }
+  return FALSE;
+}
+
+
+/*
+  Read table definition from a binary / text based .frm file
+  
+  SYNOPSIS
+  open_table_def()
+  thd		Thread handler
+  share		Fill this with table definition
+  db_flags	Bit mask of the following flags: OPEN_VIEW
+
+  NOTES
+    This function is called when the table definition is not cached in
+    table_def_cache
+    The data is returned in 'share', which is alloced by
+    alloc_table_share().. The code assumes that share is initialized.
+
+  RETURN VALUES
+   0	ok
+   1	Error (see open_table_error)
+   2    Error (see open_table_error)
+   3    Wrong data in .frm file
+   4    Error (see open_table_error)
+   5    Error (see open_table_error: charset unavailable)
+   6    Unknown .frm version
+   8    Error while reading view definition from .FRM file.
+   9    Wrong type in view's .frm file.
+*/
+
+int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
+{
+  int error, table_type;
+  bool error_given;
+  File file;
+  uchar head[64];
+  char	path[FN_REFLEN + 1];
+  MEM_ROOT **root_ptr, *old_root;
+  DBUG_ENTER("open_table_def");
+  DBUG_PRINT("enter", ("table: '%s'.'%s'  path: '%s'", share->db.str,
+                       share->table_name.str, share->normalized_path.str));
+
+  error= 1;
+  error_given= 0;
+
+  strxnmov(path, sizeof(path) - 1, share->normalized_path.str, reg_ext, NullS);
+  if ((file= mysql_file_open(key_file_frm,
+                             path, O_RDONLY | O_SHARE, MYF(0))) < 0)
+  {
+    /*
+      We don't try to open 5.0 unencoded name, if
+      - non-encoded name contains '@' signs, 
+        because '@' can be misinterpreted.
+        It is not clear if '@' is escape character in 5.1,
+        or a normal character in 5.0.
+        
+      - non-encoded db or table name contain "#mysql50#" prefix.
+        This kind of tables must have been opened only by the
+        mysql_file_open() above.
+    */
+    if (has_disabled_path_chars(share->table_name.str) ||
+        has_disabled_path_chars(share->db.str) ||
+        !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
+                 MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
+        !strncmp(share->table_name.str, MYSQL50_TABLE_NAME_PREFIX,
+                 MYSQL50_TABLE_NAME_PREFIX_LENGTH))
+      goto err_not_open;
+
+    /*
+      Trying unencoded 5.0 name for temporary tables does not
+      make sense since such tables are not persistent.
+    */
+    if (share->tmp_table)
+      goto err_not_open;
+
+    /* Try unencoded 5.0 name */
+    size_t length;
+    strxnmov(path, sizeof(path)-1,
+             mysql_data_home, "/", share->db.str, "/",
+             share->table_name.str, reg_ext, NullS);
+    length= unpack_filename(path, path) - reg_ext_length;
+    /*
+      The following is a safety test and should never fail
+      as the old file name should never be longer than the new one.
+    */
+    assert(length <= share->normalized_path.length);
+    /*
+      If the old and the new names have the same length,
+      then table name does not have tricky characters,
+      so no need to check the old file name.
+    */
+    if (length == share->normalized_path.length ||
+        ((file= mysql_file_open(key_file_frm,
+                                path, O_RDONLY | O_SHARE, MYF(0))) < 0))
+      goto err_not_open;
+
+    /* Unencoded 5.0 table name found */
+    path[length]= '\0'; // Remove .frm extension
+    my_stpcpy(share->normalized_path.str, path);
+    share->normalized_path.length= length;
+  }
+
+  error= 4;
+  if (mysql_file_read(file, head, 64, MYF(MY_NABP)))
+    goto err;
+
+  if (head[0] == (uchar) 254 && head[1] == 1)
+  {
+    if (head[2] == FRM_VER || head[2] == FRM_VER+1 ||
+        (head[2] >= FRM_VER+3 && head[2] <= FRM_VER+4))
+    {
+      /* Open view only */
+      if (db_flags & OPEN_VIEW_ONLY)
+      {
+        error_given= 1;
+        goto err;
+      }
+      table_type= 1;
+    }
+    else
+    {
+      error= 6;                                 // Unkown .frm version
+      goto err;
+    }
+  }
+  else if (memcmp(head, STRING_WITH_LEN("TYPE=")) == 0)
+  {
+    error= 5;
+    if (memcmp(head+5, "VIEW", 4) == 0)
+    {
+      share->is_view= 1;
+      if (db_flags & OPEN_VIEW)
+        table_type= 2;
+      else
+        goto err;
+    }
+    else
+      goto err;
+  }
+  else
+    goto err;
+
+  if (table_type == 1)
+  {
+    root_ptr= my_thread_get_THR_MALLOC();
+    old_root= *root_ptr;
+    *root_ptr= &share->mem_root;
+    error= open_binary_frm(thd, share, head, file);
+    *root_ptr= old_root;
+    error_given= 1;
+  }
+  else if (table_type == 2)
+  {
+    LEX_STRING pathstr= { path, strlen(path) };
+
+    /*
+      Create view file parser and hold it in TABLE_SHARE member
+      view_def.
+      */ 
+    share->view_def= sql_parse_prepare(&pathstr, &share->mem_root, true);
+    if (!share->view_def)
+      error= 8;
+    else if (!is_equal(&view_type, share->view_def->type()))
+      error= 9;
+    else
+      error= 0;
+  }
+
+  share->table_category= get_table_category(share->db, share->table_name);
+
+  if (!error)
+    thd->status_var.opened_shares++;
+
+err:
+  mysql_file_close(file, MYF(MY_WME));
+
+err_not_open:
+  if (error && !error_given)
+  {
+    share->error= error;
+    open_table_error(share, error, (share->open_errno= my_errno()), 0);
+  }
+
+  DBUG_RETURN(error);
+}
+
+
+>>>>>>> upstream/cluster-7.6
 /**
   Initialize key_part_flag from source field.
 */
 
+<<<<<<< HEAD
 void KEY_PART_INFO::init_flags() {
   assert(field);
   if (field->type() == MYSQL_TYPE_BLOB || field->type() == MYSQL_TYPE_GEOMETRY)
     key_part_flag |= HA_BLOB_PART;
+=======
+void KEY_PART_INFO::init_flags()
+{
+  assert(field);
+  if (field->type() == MYSQL_TYPE_BLOB ||
+      field->type() == MYSQL_TYPE_GEOMETRY)
+    key_part_flag|= HA_BLOB_PART;
+>>>>>>> upstream/cluster-7.6
   else if (field->real_type() == MYSQL_TYPE_VARCHAR)
     key_part_flag |= HA_VAR_LENGTH_PART;
   else if (field->type() == MYSQL_TYPE_BIT)
@@ -794,6 +1074,7 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   @retval                      Number of added key parts
 */
 
+<<<<<<< HEAD
 uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
                         TABLE_SHARE *share, handler *handler_file,
                         uint *usable_parts, bool use_extended_sk) {
@@ -806,18 +1087,48 @@ uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
   bool is_unique_key = use_extended_sk;
   uint pk_part = 0;
   KEY_PART_INFO *current_key_part = &sk->key_part[sk->user_defined_key_parts];
+=======
+static uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
+                               TABLE_SHARE *share, handler *handler_file,
+                               uint *usable_parts, bool use_extended_sk)
+{
+  uint max_key_length= sk->key_length;
+  /*
+    Secondary key becomes unique if the key does not exceed
+    key length limitation(MAX_KEY_LENGTH) and key parts
+    limitation(MAX_REF_PARTS) and PK parts are added to SK.
+  */
+  bool is_unique_key = use_extended_sk;
+  uint pk_part = 0;
+  KEY_PART_INFO *current_key_part= &sk->key_part[sk->user_defined_key_parts];
+>>>>>>> upstream/cluster-7.6
 
   /*
      For each keypart in the primary key: check if the keypart is
      already part of the secondary key and add it if not.
   */
+<<<<<<< HEAD
   for (; pk_part < pk->user_defined_key_parts; pk_part++) {
     KEY_PART_INFO *pk_key_part = &pk->key_part[pk_part];
+=======
+<<<<<<< HEAD
+  for (uint pk_part = 0; pk_part < pk->user_defined_key_parts; pk_part++) {
+    KEY_PART_INFO *pk_key_part = &pk->key_part[pk_part];
+    /* MySQL does not supports more key parts than MAX_REF_LENGTH */
+    if (sk->actual_key_parts >= MAX_REF_PARTS) goto end;
+=======
+  for (; pk_part < pk->user_defined_key_parts; pk_part++) {
+    KEY_PART_INFO *pk_key_part= &pk->key_part[pk_part];
+>>>>>>> pr/231
     /* No more than MAX_REF_PARTS key parts are supported. */
     if (sk->actual_key_parts >= MAX_REF_PARTS) {
       is_unique_key = false;
       break;
     }
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     bool pk_field_is_in_sk = false;
     for (uint j = 0; j < sk->user_defined_key_parts; j++) {
@@ -829,9 +1140,20 @@ uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
       }
     }
 
+<<<<<<< HEAD
     /* Do not add key part if it's already present in SK. */
     if (!pk_field_is_in_sk) {
       /* MySQL does not support keys longer than MAX_KEY_LENGTH. */
+=======
+<<<<<<< HEAD
+    /* Add PK field to secondary key if it's not already  part of the key. */
+    if (!pk_field_is_in_sk) {
+      /* MySQL does not supports keys longer than MAX_KEY_LENGTH */
+      if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH) goto end;
+=======
+    if (!pk_field_is_in_sk)
+    {
+>>>>>>> pr/231
       if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH) {
         is_unique_key = false;
         break;
@@ -842,6 +1164,11 @@ uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
         if use_index_extensions is OFF.
       */
       if ((sk->flags & HA_NOSAME) || !use_extended_sk) continue;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
       *current_key_part = *pk_key_part;
       setup_key_part_field(share, handler_file, pk_n, sk, sk_n,
                            sk->actual_key_parts, usable_parts, false);
@@ -850,6 +1177,18 @@ uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
       sk->rec_per_key[sk->actual_key_parts - 1] = 0;
       sk->set_records_per_key(sk->actual_key_parts - 1, REC_PER_KEY_UNKNOWN);
       current_key_part++;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+      max_key_length += pk_key_part->length;
+      /*
+        Secondary key will be unique if the key  does not exceed
+        key length limitation and key parts limitation.
+      */
+      is_unique_key = true;
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
   }
   if (is_unique_key) sk->actual_flags |= HA_NOSAME;
@@ -912,6 +1251,7 @@ uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
 
 #define FIELD_NR_MASK 16383 /* To get fieldnumber */
 
+<<<<<<< HEAD
 inline int f_is_dec(int x) { return (x & FIELDFLAG_DECIMAL); }
 inline int f_is_num(int x) { return (x & FIELDFLAG_NUMBER); }
 inline int f_is_zerofill(int x) { return (x & FIELDFLAG_ZEROFILL); }
@@ -929,6 +1269,234 @@ inline int f_is_enum(int x) {
 }
 inline int f_is_bitfield(int x) {
   return ((x & (FIELDFLAG_BITFIELD | FIELDFLAG_NUMBER)) == FIELDFLAG_BITFIELD);
+=======
+  // Tablespace name to be returned.
+  const char *tablespace_name= NULL;
+
+  if (db_type == DB_TYPE_NDBCLUSTER &&            // Cluster table.
+      uint4korr(head + 51) < 50120)               // Version before 50120.
+  {
+    // Lock the plugin, and get the handlerton.
+    plugin_ref se_plugin= ha_lock_engine(NULL,
+                                         ha_checktype(thd,
+                                                      db_type, false, false));
+    handlerton *se_hton= plugin_data<handlerton*>(se_plugin);
+    assert(se_hton);
+
+    // Now, assemble the parameters:
+    // 1. The tablespace name (to be retrieved).
+    LEX_CSTRING ts_name= {NULL, 0};
+
+    // 2. The schema name for the table.
+    LEX_CSTRING schema_name= {table->db, table->db_length};
+
+    // 3. The table name.
+    LEX_CSTRING table_name= {table->table_name, table->table_name_length};
+
+    // If the handlerton supports the required function, invoke it.
+    if (se_hton->get_tablespace &&
+        !se_hton->get_tablespace(thd, schema_name, table_name, &ts_name))
+    {
+      Tablespace_name_error_handler error_handler;
+      thd->push_internal_handler(&error_handler);
+      // If an empty or valid tablespace name, assign the name to the
+      // output parameter. The string is allocated in THD::mem_root,
+      // so it is safe to return it.
+      if (ts_name.length == 0 ||
+          check_tablespace_name(ts_name.str) == IDENT_NAME_OK)
+        tablespace_name= ts_name.str;
+      thd->pop_internal_handler();
+    }
+    plugin_unlock(NULL, se_plugin);
+
+    if (tablespace_name &&
+        strlen(tablespace_name) &&
+        tablespace_set->insert(const_cast<char*>(tablespace_name)))
+    {
+      mysql_file_close(file, MYF(MY_WME));
+      return true;
+    }
+
+    // Proceed to read tablespace names used by // partitions.
+    // Reading them from partition_info_str string in .FRM
+  }
+
+  // For other engines, and for cluster tables with version >= 50120, we
+  // continue by checking that we have an extra data segment and a proper
+  // form position.
+  const ulong pos= get_form_pos(file, head);   //< Position of form info
+  const uint n_length= uint4korr(head + 55);   //< Length of extra segment
+  if (n_length == 0 || pos == 0)
+  {
+    // We close the file and return success, as we no form info
+    // or extra segment.
+    mysql_file_close(file, MYF(MY_WME));
+    return false;
+  }
+
+  // Now, we are done with the basic verification. The outline of the
+  // processing below is as follows:
+  //
+  // 1. Scan the key information buffer to determine how many keys
+  //    that will have an associated parser name represented in the
+  //    extra segment (see below).
+  // 2. Read the form information, allocate a buffer for the extra
+  //    data segment and read it into the buffer.
+  // 3. Get the length of various elements and advance the reading
+  //    position accordingly.
+  // 4. Loop over the full text key fields that have parser names
+  //    stored in the extra segment.
+  // 5. Finally, read the tablespace name from the format section.
+
+  // Read the number of keys. Needed to advance read position correctly
+  const uint key_info_length= uint2korr(head + 28);
+  uint n_keys= 0;
+  uchar *disk_buff= NULL;
+  mysql_file_seek(file, uint2korr(head + 6), MY_SEEK_SET, MYF(0));
+  if (!read_string(file, &disk_buff, key_info_length))
+  {
+    if (disk_buff[0] & 0x80)
+      n_keys= (disk_buff[1] << 7) | (disk_buff[0] & 0x7f);
+    else
+      n_keys= disk_buff[0];
+  }
+
+  // Get the FRM version, needed to interpret key fields correctly
+  const uint new_frm_ver= (head[2] - FRM_VER);
+
+  // Number of key fields with parser name in the extra segment, this is
+  // the relevant key information in this context (see below).
+  uint n_keys_parser= 0;
+
+  // Position to read from
+  uchar *strpos= disk_buff + 6;
+
+  // Find which keys have a parser name in the extra segment. Loop over
+  // all keys, get the flags, and interpret them according to the .FRM
+  // version present
+  for (uint i= 0; i < n_keys; i++)
+  {
+    uint user_defined_key_parts= 0;
+    // First, get the key information. Here, we only care about the
+    // flags (needed to increment n_keys_parser) and the number of
+    // user defined key parts (needed to advance read position).
+    if (new_frm_ver >= 3)
+    {
+      if (HA_USES_PARSER & uint2korr(strpos))
+        n_keys_parser++;
+      user_defined_key_parts= strpos[4];
+      strpos+= 8;
+    }
+    else
+    {
+      if (HA_USES_PARSER & strpos[0])
+        n_keys_parser++;
+      user_defined_key_parts= strpos[3];
+      strpos+= 4;
+    }
+
+    // Advance read position correctly
+    if (new_frm_ver >= 1)
+      strpos+= 9 * user_defined_key_parts;
+    else
+      strpos+= 7 * user_defined_key_parts;
+  }
+
+  // Read the form information, allocate and read the extra segment.
+  bool error= true;
+  mysql_file_seek(file, pos, MY_SEEK_SET,MYF(0));
+  uchar forminfo[288];
+  uchar *extra_segment_buff= static_cast<uchar*>(
+          my_malloc(key_memory_frm_extra_segment_buff,
+                    n_length, MYF(MY_WME)));
+  const uint reclength= uint2korr(head + 16);
+  const uint record_offset= uint2korr(head + 6) +
+          ((uint2korr(head + 14) == 0xffff ?
+            uint4korr(head + 47) : uint2korr(head + 14)));
+  if (!mysql_file_read(file, forminfo, sizeof(forminfo), MYF(MY_NABP)) &&
+      extra_segment_buff &&
+      !mysql_file_pread(file, extra_segment_buff, n_length,
+                        record_offset + reclength, MYF(MY_NABP)))
+  {
+    uchar *next_chunk= extra_segment_buff;                //< Read pos
+    const uchar *buff_end= extra_segment_buff + n_length; //< Buffer end
+
+    next_chunk+= uint2korr(next_chunk) + 2;   // Connect string
+    if (next_chunk + 2 < buff_end)
+      next_chunk+= uint2korr(next_chunk) + 2; // DB type
+    if (next_chunk + 5 < buff_end) // Partitioning
+    {
+      uint32 partition_info_str_len = uint4korr(next_chunk);
+      const char *partition_info_str= NULL;
+
+      if (partition_info_str_len)
+      {
+        if (!(partition_info_str= (const char*)
+              memdup_root(thd->mem_root, next_chunk + 4,
+                          partition_info_str_len + 1)))
+        {
+          goto err;
+        }
+
+        // Fill tablespace names used by partition into tablespace_set.
+        if (get_partition_tablespace_names(
+              thd, partition_info_str, partition_info_str_len, tablespace_set))
+        {
+          goto err;
+        }
+      }
+      next_chunk+= 5 + partition_info_str_len;
+    }
+    if (uint4korr(head + 51) >= 50110 && next_chunk < buff_end)
+      next_chunk++;                           // Auto_partitioned
+
+    // Read parser names for full text keys (this is why we needed to
+    // get the key information above)
+    for (uint i= 0; i < n_keys_parser; i++)
+      if (next_chunk < buff_end)
+        next_chunk+= strlen(reinterpret_cast<char*>(next_chunk)) + 1;
+
+    if (forminfo[46] == static_cast<uchar>(255) &&
+        (next_chunk + 2 < buff_end))
+      next_chunk+= 2 + uint2korr(next_chunk); // Long table comment
+
+    // At last we got to the point where the tablespace name is located
+    const uint format_section_header_size= 8;
+    if (next_chunk + format_section_header_size < buff_end)
+    {
+      const uint format_section_length= uint2korr(next_chunk);
+      if (next_chunk + format_section_length <= buff_end)
+      {
+        tablespace_name= thd->mem_strdup((char*)next_chunk +
+                format_section_header_size);
+        if (strlen(tablespace_name) > 0)
+        {
+          Tablespace_name_error_handler error_handler;
+          thd->push_internal_handler(&error_handler);
+          if (check_tablespace_name(tablespace_name) != IDENT_NAME_OK)
+            tablespace_name= NULL; // Allocated memory is implicitly freed.
+          thd->pop_internal_handler();
+        }
+      }
+    }
+  }
+
+  // Fill tablespace name used by table, if present.
+  if (tablespace_name &&
+      strlen(tablespace_name) &&
+      tablespace_set->insert(const_cast<char*>(tablespace_name)))
+    error= true;
+  else
+    error= false;
+
+err:
+  // Free the dynamically allocated buffers and close the .FRM file
+  my_free(extra_segment_buff);
+  my_free(disk_buff);
+  mysql_file_close(file, MYF(MY_WME));
+
+  return error;
+>>>>>>> upstream/cluster-7.6
 }
 
 inline int f_is_blob(int x) {
@@ -1249,8 +1817,17 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
       gcol_info = new (thd->mem_root) Value_generator();
       if ((uint)(*gcol_screen_pos)[0] != 1) return 4;
 
+<<<<<<< HEAD
       gcol_info_length = uint2korr(*gcol_screen_pos + 1);
+<<<<<<< HEAD
       assert(gcol_info_length);  // Expect non-null expression
+=======
+      DBUG_ASSERT(gcol_info_length);  // Expect non-null expression
+=======
+      gcol_info_length= uint2korr(*gcol_screen_pos + 1);
+      assert(gcol_info_length); // Expect non-null expression
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       fld_stored_in_db = (bool)(uint)(*gcol_screen_pos)[3];
       gcol_info->set_field_stored(fld_stored_in_db);
@@ -1421,6 +1998,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   uint extra_rec_buf_length;
   uint i, j;
   bool use_extended_sk;  // Supported extending of secondary keys with PK parts
+<<<<<<< HEAD
+=======
+  bool use_hash;
+  bool use_packed_keys;   // Supports packed keys.
+>>>>>>> pr/231
   char *keynames, *names, *comment_pos, *gcol_screen_pos;
   char *orig_comment_pos, *orig_gcol_screen_pos;
   uchar forminfo[288];
@@ -1467,8 +2049,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
             thd, (enum legacy_db_type)(uint) * (head + 61), true, false)))
     goto err;
   DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
+<<<<<<< HEAD
   legacy_db_type = (enum legacy_db_type)(uint) * (head + 3);
+<<<<<<< HEAD
   assert(share->db_plugin == nullptr);
+=======
+  DBUG_ASSERT(share->db_plugin == NULL);
+=======
+  legacy_db_type= (enum legacy_db_type) (uint) *(head+3);
+  assert(share->db_plugin == NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
     if the storage engine is dynamic, no point in resolving it by its
     dynamically allocated legacy_db_type. We will resolve it later by name.
@@ -1550,6 +2141,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   key_part = share->mem_root.ArrayAlloc<KEY_PART_INFO>(total_key_parts);
   if (key_part == nullptr) goto err;
 
+<<<<<<< HEAD
   for (i = 0; i < keys; i++, keyinfo++) {
     keyinfo->table = nullptr;  // Updated in open_frm
     if (new_frm_ver >= 3) {
@@ -1569,6 +2161,51 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     }
 
     keyinfo->key_part = key_part;
+=======
+  use_packed_keys=
+    ha_check_storage_engine_flag(share->db_type(),
+                                 HTON_SUPPORTS_PACKED_KEYS);
+
+  for (i=0 ; i < keys ; i++, keyinfo++)
+  {
+    keyinfo->table= 0;                           // Updated in open_frm
+    if (new_frm_ver >= 3)
+    {
+      keyinfo->flags=	   (uint) uint2korr(strpos) ^ HA_NOSAME;
+      keyinfo->key_length= (uint) uint2korr(strpos+2);
+      keyinfo->user_defined_key_parts= (uint) strpos[4];
+      keyinfo->algorithm=  (enum ha_key_alg) strpos[5];
+      keyinfo->block_size= uint2korr(strpos+6);
+      strpos+=8;
+    }
+    else
+    {
+      keyinfo->flags=	 ((uint) strpos[0]) ^ HA_NOSAME;
+      keyinfo->key_length= (uint) uint2korr(strpos+1);
+      keyinfo->user_defined_key_parts= (uint) strpos[3];
+      keyinfo->algorithm= HA_KEY_ALG_UNDEF;
+      strpos+=4;
+    }
+
+    /*
+      Beginning in 5.7.23, HA_PACK_KEY and HA_BINARY_PACK_KEY are no longer set
+      if the SE does not support it. If the index was created prior to 5.7.23
+      these bits may be set in the flags option, and when being added to
+      key_info->flags, the ALTER algorithm analysis will be broken because the
+      intermediate table is created without these flags, and hence, the
+      analysis will incorrectly conclude that all indexes have changed.
+
+      To workaround this issue, we remove the flags below, depending on the SE
+      capabilities, when preparing the table share. Thus, if we ALTER the table
+      at a later stage, indexes not being touched by the ALTER statement will
+      have the same flags both in the source table and the intermediate table,
+      and hence, the algorithm analysis will come to the right conclusion.
+    */
+    if (!use_packed_keys)
+      keyinfo->flags &= ~(HA_PACK_KEY | HA_BINARY_PACK_KEY);
+
+    keyinfo->key_part= key_part;
+>>>>>>> upstream/cluster-7.6
     keyinfo->set_rec_per_key_array(rec_per_key, rec_per_key_float);
     keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
 
@@ -1618,6 +2255,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   if (keynames == nullptr) goto err;
   strpos += (my_stpcpy(keynames, (char *)strpos) - keynames) + 1;
 
+<<<<<<< HEAD
   // reading index comments
   for (keyinfo = share->key_info, i = 0; i < keys; i++, keyinfo++) {
     if (keyinfo->flags & HA_USES_COMMENT) {
@@ -1626,8 +2264,27 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                                           keyinfo->comment.length);
       strpos += 2 + keyinfo->comment.length;
     }
+<<<<<<< HEAD
     assert(((keyinfo->flags & HA_USES_COMMENT) != 0) ==
            (keyinfo->comment.length > 0));
+=======
+    DBUG_ASSERT(MY_TEST(keyinfo->flags & HA_USES_COMMENT) ==
+                (keyinfo->comment.length > 0));
+=======
+  //reading index comments
+  for (keyinfo= share->key_info, i=0; i < keys; i++, keyinfo++)
+  {
+    if (keyinfo->flags & HA_USES_COMMENT)
+    {
+      keyinfo->comment.length= uint2korr(strpos);
+      keyinfo->comment.str= strmake_root(&share->mem_root, (char*) strpos+2,
+                                         keyinfo->comment.length);
+      strpos+= 2 + keyinfo->comment.length;
+    } 
+    assert(MY_TEST(keyinfo->flags & HA_USES_COMMENT) ==
+           (keyinfo->comment.length > 0));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   share->reclength = uint2korr((head + 16));
@@ -1680,12 +2337,70 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
           we unlock the old value of share->db_plugin before
           replacing it with a globally locked version of tmp_plugin
         */
+<<<<<<< HEAD
         plugin_unlock(nullptr, share->db_plugin);
         share->db_plugin = my_plugin_lock(nullptr, &tmp_plugin);
+=======
+        plugin_unlock(NULL, share->db_plugin);
+<<<<<<< HEAD
+        share->db_plugin = my_plugin_lock(NULL, &tmp_plugin);
+>>>>>>> pr/231
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)", str_db_type_length,
                             next_chunk + 2, ha_legacy_type(share->db_type())));
       } else if (!tmp_plugin && name.length == 18 &&
                  !strncmp(name.str, "PERFORMANCE_SCHEMA", name.length)) {
+=======
+        share->db_plugin= my_plugin_lock(NULL, &tmp_plugin);
+        DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
+                            str_db_type_length, next_chunk + 2,
+                            ha_legacy_type(share->db_type())));
+      }
+      else if (!tmp_plugin && str_db_type_length == 9 &&
+               !strncmp((char *) next_chunk + 2, "partition", 9))
+      {
+        /*
+          An I_S query during server restart will provoke deprecation warnings.
+          Since there is no client connection for this query, make sure we
+          write the deprecation warning in the error log. Otherwise, push
+          warnings to the client.
+        */
+        if (mysqld_server_started)
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_WARN_DEPRECATED_SYNTAX,
+                              ER_THD(thd,
+                                     ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                              share->db.str, share->table_name.str);
+        else
+          /*
+            Use the same string as above, not for localization, but for
+            making sure the wording is equal.
+          */
+          sql_print_warning(
+                  ER_DEFAULT(ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                  share->db.str, share->table_name.str);
+
+        /* Check if the partitioning engine is ready */
+        if (!ha_checktype(thd, DB_TYPE_PARTITION_DB, true, false))
+        {
+          error= 8;
+          my_error(ER_FEATURE_NOT_AVAILABLE, MYF(0), "partitioning",
+                   "--skip-partition", "-DWITH_PARTITION_STORAGE_ENGINE=1");
+          goto err;
+        }
+	/*
+          Partition engine is ready, share->db_plugin must already contain a
+          properly locked reference to it.
+        */
+	assert(is_ha_partition_handlerton(plugin_data<handlerton*>(
+                                                                   share->db_plugin)));
+        DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
+                            str_db_type_length, next_chunk + 2,
+                            ha_legacy_type(share->db_type())));
+      }
+      else if (!tmp_plugin && name.length == 18 &&
+               !strncmp(name.str, "PERFORMANCE_SCHEMA", name.length))
+      {
+>>>>>>> upstream/cluster-7.6
         /*
           A FRM file is present on disk,
           for a PERFORMANCE_SCHEMA table,
@@ -2003,11 +2718,23 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     comment_pos = orig_comment_pos;
     gcol_screen_pos = orig_gcol_screen_pos;
     // Generated columns can be present only in new .FRMs.
+<<<<<<< HEAD
     assert(new_frm_ver >= 3);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(new_frm_ver >= 3);
+>>>>>>> pr/231
     for (i = 0; i < share->fields; i++, strpos += field_pack_length) {
       if ((strpos[10] &
            FRM_context::GENERATED_FIELD) &&   // former Field::unireg_check
           !(bool)(uint)(gcol_screen_pos[3]))  // Field::stored_in_db
+=======
+    assert(new_frm_ver >= 3);
+    for (i=0 ; i < share->fields; i++, strpos+=field_pack_length)
+    {
+      if ((strpos[10] & Field::GENERATED_FIELD) && // Field::unireg_check
+          !(bool) (uint) (gcol_screen_pos[3]))     // Field::stored_in_db
+>>>>>>> upstream/cluster-7.6
       {
         if ((error = make_field_from_frm(thd, share, frm_context, new_frm_ver,
                                          i, strpos, format_section_fields,
@@ -2032,8 +2759,18 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   error = 4;
   share->field[share->fields] = nullptr;  // End marker
   /* Sanity checks: */
+<<<<<<< HEAD
   assert(share->fields >= frm_context->stored_fields);
   assert(share->reclength >= share->stored_rec_length);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(share->fields >= frm_context->stored_fields);
+  DBUG_ASSERT(share->reclength >= share->stored_rec_length);
+=======
+  assert(share->fields >= share->stored_fields);
+  assert(share->reclength >= share->stored_rec_length);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Fix key->name and key_part->field */
   if (key_parts) {
@@ -2052,6 +2789,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       if (share->key_info[key].flags & HA_FULLTEXT)
         share->key_info[key].algorithm = HA_KEY_ALG_FULLTEXT;
 
+<<<<<<< HEAD
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME)) {
         /*
           If the UNIQUE key doesn't have NULL columns and is not a part key
@@ -2059,7 +2797,23 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         */
         primary_key = key;
         for (i = 0; i < keyinfo->user_defined_key_parts; i++) {
+<<<<<<< HEAD
           assert(key_part[i].fieldnr > 0);
+=======
+          DBUG_ASSERT(key_part[i].fieldnr > 0);
+=======
+      if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
+      {
+	/*
+	  If the UNIQUE key doesn't have NULL columns and is not a part key
+	  declare this as a primary key.
+	*/
+	primary_key=key;
+	for (i=0 ; i < keyinfo->user_defined_key_parts ;i++)
+	{
+          assert(key_part[i].fieldnr > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
           // Table field corresponding to the i'th key part.
           Field *table_field = share->field[key_part[i].fieldnr - 1];
 
@@ -2168,11 +2922,25 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         }
       }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+      if (use_extended_sk && primary_key < MAX_KEY && key &&
+          !(keyinfo->flags & HA_NOSAME))
+        key_part +=
+            add_pk_parts_to_sk(keyinfo, key, share->key_info, primary_key,
+                               share, handler_file, &usable_parts);
+=======
+>>>>>>> pr/231
       if (primary_key < MAX_KEY && key != primary_key &&
           (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX))
         key_part += add_pk_parts_to_sk(keyinfo, key, share->key_info,
                                        primary_key, share, handler_file,
                                        &usable_parts, use_extended_sk);
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       /* Skip unused key parts if they exist */
       key_part += keyinfo->unused_key_parts;
@@ -2260,7 +3028,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   bitmap_init(&share->all_set, bitmaps, share->fields);
   bitmap_set_all(&share->all_set);
 
+<<<<<<< HEAD
   destroy(handler_file);
+=======
+  delete handler_file;
+#ifndef NDEBUG
+  if (use_hash)
+    (void) my_hash_check(&share->name_hash);
+#endif
+>>>>>>> upstream/cluster-7.6
   my_free(extra_segment_buff);
   return 0;
 
@@ -2292,12 +3068,26 @@ err:
   @retval true  The generated expression has some invalid objects
   @retval false No illegal objects in the generated expression
  */
+<<<<<<< HEAD
 static bool validate_value_generator_expr(Item *expr,
                                           Value_generator_source source,
                                           const char *source_name,
                                           int column_index) {
   DBUG_TRACE;
   assert(expr);
+=======
+static bool validate_generated_expr(Field *field) {
+  DBUG_ENTER("validate_generate_expr");
+<<<<<<< HEAD
+  Item *expr = field->gcol_info->expr_item;
+  const char *field_name = field->field_name;
+  DBUG_ASSERT(expr);
+=======
+  Item* expr= field->gcol_info->expr_item;
+  const char *field_name= field->field_name;
+  assert(expr);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   // Map to get actual error code from error_type for the source.
   enum error_type { ER_NAME_FUNCTION, ER_FUNCTION, ER_VARIABLES, MAX_ERROR };
@@ -2330,6 +3120,7 @@ static bool validate_value_generator_expr(Item *expr,
       return true;
     }
   }
+<<<<<<< HEAD
   // System variables or parameters are not allowed
   else if (expr->type() == Item::PARAM_ITEM ||
            (func_item != nullptr &&
@@ -2345,6 +3136,13 @@ static bool validate_value_generator_expr(Item *expr,
 
   // Sub-queries are not allowed (already checked by parser, hence the assert)
   assert(!expr->has_subquery());
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!expr->has_subquery());  // 4)
+=======
+  assert(!expr->has_subquery());           // 4)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
     Walk through the Item tree, checking the validity of items
     belonging to the expression.
@@ -2389,6 +3187,7 @@ static bool validate_value_generator_expr(Item *expr,
   @retval true An error occurred, something was wrong with the function.
   @retval false Ok, generated expression is fixed successfully
  */
+<<<<<<< HEAD
 static bool fix_value_generator_fields(THD *thd, TABLE *table,
                                        Value_generator *val_generator,
                                        Value_generator_source source,
@@ -2396,6 +3195,29 @@ static bool fix_value_generator_fields(THD *thd, TABLE *table,
   DBUG_TRACE;
   Item *val_generator_expr = val_generator->expr_item;
   assert(val_generator_expr != nullptr);
+=======
+static bool fix_fields_gcol_func(THD *thd, Field *field) {
+  uint dir_length, home_dir_length;
+  bool result = true;
+  Item *func_expr = field->gcol_info->expr_item;
+  TABLE *table = field->table;
+  TABLE_LIST tables;
+  TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
+  int error;
+  Name_resolution_context *context;
+  const char *save_where;
+  char *db_name;
+  char db_name_string[FN_REFLEN];
+  bool save_use_only_table_context;
+<<<<<<< HEAD
+  enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
+  DBUG_ASSERT(func_expr);
+=======
+  enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
+  assert(func_expr);
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("fix_fields_gcol_func");
+>>>>>>> pr/231
 
   // Insert a error handler that takes care of converting column names to
   // functional index names. Since functional indexes is implemented as
@@ -2503,11 +3325,22 @@ static bool fix_value_generator_fields(THD *thd, TABLE *table,
   }
   thd->where = save_where;
 
+<<<<<<< HEAD
   // Check whether the expression is valid as a value generator.
   if (validate_value_generator_expr(val_generator_expr, source, source_name,
                                     field ? field->field_index() : 0)) {
     return true;
   }
+=======
+  // Virtual columns expressions that substitute themselves are invalid
+<<<<<<< HEAD
+  DBUG_ASSERT(new_func == func_expr);
+  result = false;
+=======
+  assert(new_func == func_expr);
+  result= FALSE;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   // Strip the db/table name off of the generated fields as inplace ALTER
   // can reallocate them, making pointers invalid.
@@ -2526,12 +3359,28 @@ static bool fix_value_generator_fields(THD *thd, TABLE *table,
   @retval true if error
  */
 
+<<<<<<< HEAD
 bool Value_generator::register_base_columns(TABLE *table) {
   DBUG_TRACE;
   my_bitmap_map *bitbuf = static_cast<my_bitmap_map *>(
       table->mem_root.Alloc(bitmap_buffer_size(table->s->fields)));
   assert(num_non_virtual_base_cols == 0);
   bitmap_init(&base_columns_map, bitbuf, table->s->fields);
+=======
+bool Generated_column::register_base_columns(TABLE *table) {
+  DBUG_ENTER("register_base_columns");
+<<<<<<< HEAD
+  my_bitmap_map *bitbuf = static_cast<my_bitmap_map *>(
+      alloc_root(&table->mem_root, bitmap_buffer_size(table->s->fields)));
+  DBUG_ASSERT(num_non_virtual_base_cols == 0);
+=======
+  my_bitmap_map *bitbuf=
+    static_cast<my_bitmap_map *>(alloc_root(&table->mem_root,
+                                bitmap_buffer_size(table->s->fields)));
+  assert(num_non_virtual_base_cols == 0);
+>>>>>>> upstream/cluster-7.6
+  bitmap_init(&base_columns_map, bitbuf, table->s->fields, 0);
+>>>>>>> pr/231
 
   MY_BITMAP *save_old_read_set = table->read_set;
   table->read_set = &base_columns_map;
@@ -2564,6 +3413,7 @@ void Value_generator::print_expr(THD *thd, String *out) {
   expr_item->print(thd, out, flags);
 }
 
+<<<<<<< HEAD
 bool unpack_value_generator(THD *thd, TABLE *table,
                             Value_generator **val_generator,
                             Value_generator_source source,
@@ -2571,6 +3421,60 @@ bool unpack_value_generator(THD *thd, TABLE *table,
                             bool is_create_table, bool *error_reported) {
   DBUG_TRACE;
   assert(field == nullptr || field->table == table);
+=======
+<<<<<<< HEAD
+/*
+   Unpack the definition of a virtual column. Parses the text obtained from
+   TABLE_SHARE and produces an Item.
+*/
+bool unpack_gcol_info(THD *thd, TABLE *table, Field *field,
+                      bool is_create_table, bool *error_reported) {
+  DBUG_ENTER("unpack_gcol_info");
+  DBUG_ASSERT(field->table == table);
+  LEX_STRING *gcol_expr = &field->gcol_info->expr_str;
+  DBUG_ASSERT(gcol_expr);
+  DBUG_ASSERT(!field->gcol_info->expr_item);  // No Item in TABLE_SHARE
+=======
+/**
+  @brief  unpack_gcol_info_from_frm
+    Unpack the definition of a virtual column
+
+  @param thd                  Thread handler
+  @param table                Table with the checked field
+  @param field                Pointer to Field object
+  @param is_create_table      Indicates that table is opened as part
+                              of CREATE or ALTER and does not yet exist in SE
+  @param error_reported       updated flag for the caller that no other error
+                              messages are to be generated.
+
+  @return
+    TRUE            Failure
+  @return
+    FALSE           Success
+ */
+
+static bool unpack_gcol_info_from_frm(THD *thd,
+                                      TABLE *table,
+                                      Field *field,
+                                      bool is_create_table,
+                                      bool *error_reported)
+{
+  DBUG_ENTER("unpack_gcol_info_from_frm");
+  assert(field->table == table);
+  LEX_STRING *gcol_expr= &field->gcol_info->expr_str;
+  assert(gcol_expr);
+>>>>>>> upstream/cluster-7.6
+  /*
+    Step 1: Construct a statement for the parser.
+    The parsed string needs to take the following format:
+    "PARSE_GCOL_EXPR (<expr_string_from_frm>)"
+  */
+  char *gcol_expr_str;
+  int str_len = 0;
+  const CHARSET_INFO *old_character_set_client;
+  bool disable_strict_mode = false;
+  bool status;
+>>>>>>> pr/231
 
   LEX_STRING *val_gen_expr = &(*val_generator)->expr_str;
   // There is a val_generator in text format and it is not unpacked yet.
@@ -2720,6 +3624,203 @@ bool unpack_partition_info(THD *thd, TABLE *outparam, TABLE_SHARE *share,
     And then fill in the missing parts from the part_info on the share.
   */
 
+<<<<<<< HEAD
+=======
+/*
+  Open a table based on a TABLE_SHARE
+
+  SYNOPSIS
+    open_table_from_share()
+    thd			Thread handler
+    share		Table definition
+    alias       	Alias for table
+    db_stat		open flags (for example HA_OPEN_KEYFILE|
+    			HA_OPEN_RNDFILE..) can be 0 (example in
+                        ha_example_table)
+    prgflag   		READ_ALL etc..
+    ha_open_flags	HA_OPEN_ABORT_IF_LOCKED etc..
+    outparam       	result table
+    is_create_table     Indicates that table is opened as part
+                        of CREATE or ALTER and does not yet exist in SE
+
+  RETURN VALUES
+   0	ok
+   1	Error (see open_table_error)
+   2    Error (see open_table_error)
+   3    Wrong data in .frm file
+   4    Error (see open_table_error)
+   5    Error (see open_table_error: charset unavailable)
+   7    Table definition has changed in engine
+*/
+
+int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
+                          uint db_stat, uint prgflag, uint ha_open_flags,
+                          TABLE *outparam, bool is_create_table)
+{
+  int error;
+  uint records, i, bitmap_size;
+  bool error_reported= FALSE;
+  uchar *record, *bitmaps;
+  Field **field_ptr, **vfield_ptr= NULL;
+  Field *fts_doc_id_field = NULL;
+  DBUG_ENTER("open_table_from_share");
+  DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
+                      share->table_name.str, (long) outparam));
+
+  error= 1;
+  new (outparam) TABLE;
+  outparam->in_use= thd;
+  outparam->s= share;
+  outparam->db_stat= db_stat;
+  outparam->write_row_record= NULL;
+
+  init_sql_alloc(key_memory_TABLE,
+                 &outparam->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+
+  if (!(outparam->alias= my_strdup(key_memory_TABLE,
+                                   alias, MYF(MY_WME))))
+    goto err;
+  outparam->quick_keys.init();
+  outparam->possible_quick_keys.init();
+  outparam->covering_keys.init();
+  outparam->merge_keys.init();
+  outparam->keys_in_use_for_query.init();
+
+  /* Allocate handler */
+  outparam->file= 0;
+  if (!(prgflag & OPEN_FRM_FILE_ONLY))
+  {
+    if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
+                                          share->db_type())))
+      goto err;
+    if (outparam->file->set_ha_share_ref(&share->ha_share))
+      goto err;
+  }
+  else
+  {
+    assert(!db_stat);
+  }
+
+  error= 4;
+  outparam->reginfo.lock_type= TL_UNLOCK;
+  outparam->current_lock= F_UNLCK;
+  records=0;
+  if ((db_stat & HA_OPEN_KEYFILE) || (prgflag & DELAYED_OPEN))
+    records=1;
+  if (prgflag & (READ_ALL+EXTRA_RECORD))
+    records++;
+
+  if (!(record= (uchar*) alloc_root(&outparam->mem_root,
+                                   share->rec_buff_length * records)))
+    goto err;                                   /* purecov: inspected */
+
+  if (records == 0)
+  {
+    /* We are probably in hard repair, and the buffers should not be used */
+    outparam->record[0]= outparam->record[1]= share->default_values;
+  }
+  else
+  {
+    outparam->record[0]= record;
+    if (records > 1)
+      outparam->record[1]= record+ share->rec_buff_length;
+    else
+      outparam->record[1]= outparam->record[0];   // Safety
+  }
+
+  if (!(field_ptr = (Field **) alloc_root(&outparam->mem_root,
+                                          (uint) ((share->fields+1)*
+                                                  sizeof(Field*)))))
+    goto err;                                   /* purecov: inspected */
+
+  outparam->field= field_ptr;
+
+  record= outparam->record[0]-1;	/* Fieldstart = 1 */
+  if (share->null_field_first)
+    outparam->null_flags= record+1;
+  else
+    outparam->null_flags= (record+ 1+ share->reclength -
+                           share->null_bytes);
+
+  /* Setup copy of fields from share, but use the right alias and record */
+  for (i=0 ; i < share->fields; i++, field_ptr++)
+  {
+    Field *new_field= share->field[i]->clone(&outparam->mem_root);
+    *field_ptr= new_field;
+    if (new_field == NULL)
+      goto err;
+    new_field->init(outparam);
+    new_field->move_field_offset((my_ptrdiff_t) (outparam->record[0] -
+                                                 outparam->s->default_values));
+    /* Check if FTS_DOC_ID column is present in the table */
+    if (outparam->file &&
+        (outparam->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) &&
+        !strcmp(outparam->field[i]->field_name, FTS_DOC_ID_COL_NAME))
+      fts_doc_id_field= new_field;
+  }
+  (*field_ptr)= 0;                              // End marker
+
+  if (share->found_next_number_field)
+    outparam->found_next_number_field=
+      outparam->field[(uint) (share->found_next_number_field - share->field)];
+
+  /* Fix key->name and key_part->field */
+  if (share->key_parts)
+  {
+    KEY	*key_info, *key_info_end;
+    KEY_PART_INFO *key_part;
+    uint n_length;
+    n_length= share->keys * sizeof(KEY) +
+      share->key_parts * sizeof(KEY_PART_INFO);
+
+    if (!(key_info= (KEY*) alloc_root(&outparam->mem_root, n_length)))
+      goto err;
+    outparam->key_info= key_info;
+    key_part= (reinterpret_cast<KEY_PART_INFO*>(key_info+share->keys));
+
+    memcpy(key_info, share->key_info, sizeof(*key_info)*share->keys);
+    memcpy(key_part, share->key_info[0].key_part, (sizeof(*key_part) *
+                                                   share->key_parts));
+
+    for (key_info_end= key_info + share->keys ;
+         key_info < key_info_end ;
+         key_info++)
+    {
+      KEY_PART_INFO *key_part_end;
+
+      key_info->table= outparam;
+      key_info->key_part= key_part;
+
+      for (key_part_end= key_part + key_info->actual_key_parts ;
+           key_part < key_part_end ;
+           key_part++)
+      {
+        Field *field= key_part->field= outparam->field[key_part->fieldnr-1];
+
+        if (field->key_length() != key_part->length &&
+            !(field->flags & BLOB_FLAG))
+        {
+          /*
+            We are using only a prefix of the column as a key:
+            Create a new field for the key part that matches the index
+          */
+          field= key_part->field=field->new_field(&outparam->mem_root,
+                                                  outparam, 0);
+          field->field_length= key_part->length;
+        }
+      }
+      /* Skip unused key parts if they exist */
+      key_part+= key_info->unused_key_parts;
+      
+      /* Set TABLE::fts_doc_id_field for tables with FT KEY */
+      if ((key_info->flags & HA_FULLTEXT))
+        outparam->fts_doc_id_field= fts_doc_id_field;
+    }
+  }
+
+  if (share->partition_info_str_len && outparam->file)
+  {
+>>>>>>> upstream/cluster-7.6
   /*
     In this execution we must avoid calling thd->change_item_tree since
     we might release memory before statement is completed. We do this
@@ -3199,8 +4300,17 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
             In case of Innodb table space header may be corrupted or
             ibd file might be missing
           */
+<<<<<<< HEAD
           error = 1;
+<<<<<<< HEAD
           assert(my_errno() == HA_ERR_TABLESPACE_MISSING);
+=======
+          DBUG_ASSERT(my_errno() == HA_ERR_TABLESPACE_MISSING);
+=======
+          error= 1;
+          assert(my_errno() == HA_ERR_TABLESPACE_MISSING);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
           break;
         case HA_ERR_NO_SUCH_TABLE:
           /*
@@ -3494,9 +4604,142 @@ void append_unescaped(String *res, const char *pos, size_t length) {
   res->append('\'');
 }
 
+<<<<<<< HEAD
 void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table) {
   TABLE_SHARE *share = table->s;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+=======
+
+	/* Create a .frm file */
+
+File create_frm(THD *thd, const char *name, const char *db,
+                const char *table, uint reclength, uchar *fileinfo,
+  		HA_CREATE_INFO *create_info, uint keys, KEY *key_info)
+{
+  File file;
+  ulong length;
+  uchar fill[IO_SIZE];
+  int create_flags= O_RDWR | O_TRUNC;
+  size_t key_comment_total_bytes= 0;
+  uint i;
+
+  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+    create_flags|= O_EXCL | O_NOFOLLOW;
+
+  /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
+  if (create_info->max_rows > UINT_MAX32)
+    create_info->max_rows= UINT_MAX32;
+  if (create_info->min_rows > UINT_MAX32)
+    create_info->min_rows= UINT_MAX32;
+
+  if ((file= mysql_file_create(key_file_frm,
+                               name, CREATE_MODE, create_flags, MYF(0))) >= 0)
+  {
+    size_t key_length, tmp_key_length;
+    uint tmp, csid;
+    memset(fileinfo, 0, 64);
+    /* header */
+    fileinfo[0]=(uchar) 254;
+    fileinfo[1]= 1;
+    fileinfo[2]= FRM_VER+3+ MY_TEST(create_info->varchar);
+
+    fileinfo[3]= (uchar) ha_legacy_type(
+          ha_checktype(thd,ha_legacy_type(create_info->db_type),0,0));
+    fileinfo[4]=1;
+    int2store(fileinfo+6,IO_SIZE);		/* Next block starts here */
+    /*
+      Keep in sync with pack_keys() in unireg.cc
+      For each key:
+      8 bytes for the key header
+      9 bytes for each key-part (MAX_REF_PARTS)
+      NAME_LEN bytes for the name
+      1 byte for the NAMES_SEP_CHAR (before the name)
+      For all keys:
+      6 bytes for the header
+      1 byte for the NAMES_SEP_CHAR (after the last name)
+      9 extra bytes (padding for safety? alignment?)
+    */
+    for (i= 0; i < keys; i++)
+    {
+      assert(MY_TEST(key_info[i].flags & HA_USES_COMMENT) ==
+             (key_info[i].comment.length > 0));
+      if (key_info[i].flags & HA_USES_COMMENT)
+        key_comment_total_bytes += 2 + key_info[i].comment.length;
+    }
+
+    key_length= keys * (8 + MAX_REF_PARTS * 9 + NAME_LEN + 1) + 16
+                + key_comment_total_bytes;
+
+    length= next_io_size((ulong) (IO_SIZE+key_length+reclength+
+                                  create_info->extra_size));
+    int4store(fileinfo+10,length);
+    tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
+    int2store(fileinfo+14, static_cast<uint16>(tmp_key_length));
+    int2store(fileinfo+16,reclength);
+    int4store(fileinfo+18, static_cast<uint32>(create_info->max_rows));
+    int4store(fileinfo+22, static_cast<uint32>(create_info->min_rows));
+    /* fileinfo[26] is set in mysql_create_frm() */
+    fileinfo[27]=2;				// Use long pack-fields
+    /* fileinfo[28 & 29] is set to key_info_length in mysql_create_frm() */
+    create_info->table_options|=HA_OPTION_LONG_BLOB_PTR; // Use portable blob pointers
+    int2store(fileinfo+30, static_cast<uint16>(create_info->table_options));
+    fileinfo[32]=0;				// No filename anymore
+    fileinfo[33]=5;                             // Mark for 5.0 frm file
+    int4store(fileinfo+34,create_info->avg_row_length);
+    csid= (create_info->default_table_charset ?
+           create_info->default_table_charset->number : 0);
+    fileinfo[38]= (uchar) csid;
+    /*
+      In future versions, we will store in fileinfo[39] the values of the
+      TRANSACTIONAL and PAGE_CHECKSUM clauses of CREATE TABLE.
+    */
+    fileinfo[39]= 0;
+    fileinfo[40]= (uchar) create_info->row_type;
+    /* Bytes 41-46 were for RAID support; now reused for other purposes */
+    fileinfo[41]= (uchar) (csid >> 8);
+    int2store(fileinfo+42, create_info->stats_sample_pages & 0xffff);
+    fileinfo[44]= (uchar) create_info->stats_auto_recalc;
+    fileinfo[45]= 0;
+    fileinfo[46]= 0;
+    int4store(fileinfo+47, static_cast<uint32>(key_length));
+    tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
+    int4store(fileinfo+51, tmp);
+    int4store(fileinfo+55, create_info->extra_size);
+    /*
+      59-60 is reserved for extra_rec_buf_length,
+      61 for default_part_db_type
+    */
+    int2store(fileinfo+62, static_cast<uint16>(create_info->key_block_size));
+    memset(fill, 0, IO_SIZE);
+    for (; length > IO_SIZE ; length-= IO_SIZE)
+    {
+      if (mysql_file_write(file, fill, IO_SIZE, MYF(MY_WME | MY_NABP)))
+      {
+        (void) mysql_file_close(file, MYF(0));
+        (void) mysql_file_delete(key_file_frm, name, MYF(0));
+	return(-1);
+      }
+    }
+  }
+  else
+  {
+    if (my_errno() == ENOENT)
+      my_error(ER_BAD_DB_ERROR,MYF(0),db);
+    else
+      my_error(ER_CANT_CREATE_TABLE,MYF(0),table,my_errno());
+  }
+  return (file);
+} /* create_frm */
+
+
+void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
+{
+  TABLE_SHARE *share= table->s;
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("update_create_info_from_table");
+>>>>>>> pr/231
 
   create_info->max_rows = share->max_rows;
   create_info->min_rows = share->min_rows;
@@ -3922,8 +5165,18 @@ end_leave_node:
 
 end:
   gvisitor->m_lock_open_count--;
+<<<<<<< HEAD
   if (locked) {
+<<<<<<< HEAD
     assert(gvisitor->m_lock_open_count == 0);
+=======
+    DBUG_ASSERT(gvisitor->m_lock_open_count == 0);
+=======
+  if (locked)
+  {
+    assert(gvisitor->m_lock_open_count == 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     table_cache_manager.unlock_all_and_tdc();
   }
 
@@ -3983,7 +5236,11 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     up to date and the share is referenced. Otherwise our
     thread will never be woken up from wait.
   */
+<<<<<<< HEAD
   assert(has_old_version() && ref_count() != 0);
+=======
+  assert(version != refresh_version && ref_count != 0);
+>>>>>>> pr/231
 
   m_flush_tickets.push_front(&ticket);
 
@@ -4027,6 +5284,7 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     we first destroy the share, and then look at
     wait_status.
   */
+<<<<<<< HEAD
   switch (wait_status) {
     case MDL_wait::GRANTED:
       return false;
@@ -4041,6 +5299,23 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     default:
       assert(0);
       return true;
+=======
+  switch (wait_status)
+  {
+  case MDL_wait::GRANTED:
+    return FALSE;
+  case MDL_wait::VICTIM:
+    my_error(ER_LOCK_DEADLOCK, MYF(0));
+    return TRUE;
+  case MDL_wait::TIMEOUT:
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+    return TRUE;
+  case MDL_wait::KILLED:
+    return TRUE;
+  default:
+    assert(0);
+    return TRUE;
+>>>>>>> upstream/cluster-7.6
   }
 }
 
@@ -4071,6 +5346,7 @@ Blob_mem_storage::~Blob_mem_storage() { storage.Clear(); }
   @param tl   Table_ref element.
 */
 
+<<<<<<< HEAD
 void TABLE::init(THD *thd, Table_ref *tl) {
 #ifndef NDEBUG
   if (s->tmp_table == NO_TMP_TABLE) {
@@ -4079,6 +5355,16 @@ void TABLE::init(THD *thd, Table_ref *tl) {
     mysql_mutex_unlock(&LOCK_open);
   }
 #endif
+=======
+<<<<<<< HEAD
+void TABLE::init(THD *thd, TABLE_LIST *tl) {
+  DBUG_ASSERT(s->ref_count > 0 || s->tmp_table != NO_TMP_TABLE);
+=======
+void TABLE::init(THD *thd, TABLE_LIST *tl)
+{
+  assert(s->ref_count > 0 || s->tmp_table != NO_TMP_TABLE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (thd->lex->need_correct_ident())
     alias_name_used =
@@ -4107,18 +5393,44 @@ void TABLE::init(THD *thd, Table_ref *tl) {
   assert(merge_keys.is_clear_all() && possible_quick_keys.is_clear_all());
   assert(!autoinc_field_has_explicit_non_null_value);
 
+<<<<<<< HEAD
   covering_keys = s->keys_for_keyread;
 
   set_not_started();
+=======
+  /* Catch wrong handling of the auto_increment_field_not_null. */
+<<<<<<< HEAD
+  DBUG_ASSERT(!auto_increment_field_not_null);
+  auto_increment_field_not_null = false;
+=======
+  assert(!auto_increment_field_not_null);
+  auto_increment_field_not_null= FALSE;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   pos_in_table_list = tl;
   tl->table = this;
 
   clear_column_bitmaps();
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(key_read == 0);
+  no_keyread = false;
+
+>>>>>>> pr/231
   /* Tables may be reused in a sub statement. */
   assert(!db_stat || !file->ha_extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 
+=======
+  assert(key_read == 0);
+  no_keyread= false;
+
+  /* Tables may be reused in a sub statement. */
+  assert(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+  
+>>>>>>> upstream/cluster-7.6
   /*
     Do not call bind_value_generators_to_fields() for tables which are not
     directly used by the statement (i.e. used by the substatements of routines
@@ -4133,8 +5445,20 @@ void TABLE::init(THD *thd, Table_ref *tl) {
     placeholder will miss corresponding call to cleanup_value_generator_items()
     if substatement which uses the table is not executed for some reason.
   */
+<<<<<<< HEAD
   if (!pos_in_table_list->prelocking_placeholder) {
+<<<<<<< HEAD
     bind_value_generators_to_fields();
+=======
+    bool error MY_ATTRIBUTE((unused)) = refix_gc_items(thd);
+    DBUG_ASSERT(!error);
+=======
+  if (!pos_in_table_list->prelocking_placeholder)
+  {
+    bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
+    assert(!error);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 }
 
@@ -4171,6 +5495,7 @@ void TABLE::reset() {
 /**
   Initialize table as internal tmp table
 
+<<<<<<< HEAD
   @param thd        thread handle
   @param share      table share
   @param m_root     table's mem root
@@ -4237,6 +5562,7 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
 
 void TABLE::bind_value_generators_to_fields() {
   if (vfield) {
+<<<<<<< HEAD
     for (Field **val_generator = vfield; *val_generator; val_generator++) {
       assert((*val_generator)->gcol_info &&
              (*val_generator)->gcol_info->expr_item);
@@ -4257,6 +5583,79 @@ void TABLE::bind_value_generators_to_fields() {
       Value_generator *cc_expr = table_cc.value_generator();
       assert(cc_expr != nullptr && cc_expr->expr_item != nullptr);
       bind_fields(cc_expr->expr_item);
+=======
+    for (Field **vfield_ptr = vfield; *vfield_ptr; vfield_ptr++) {
+      Field *vfield = *vfield_ptr;
+      DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
+      if (!vfield->gcol_info->expr_item->fixed) {
+        bool res = false;
+=======
+bool TABLE::refix_gc_items(THD *thd)
+{
+  if (vfield)
+  {
+    for (Field **vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    {
+      Field *vfield= *vfield_ptr;
+      assert(vfield->gcol_info && vfield->gcol_info->expr_item);
+      if (!vfield->gcol_info->expr_item->fixed)
+      {
+        bool res= false;
+>>>>>>> upstream/cluster-7.6
+        /*
+          The call to fix_fields_gcol_func() may create new item objects in the
+          item tree for the generated column expression. If these are permanent
+          changes to the item tree, the new items must have the same life-span
+          as the ones created during parsing of the generated expression
+          string. We achieve this by temporarily switching to use the TABLE's
+          mem_root if the permanent changes to the item tree haven't been
+          completed (by checking the status of
+          gcol_info->permanent_changes_completed) and this call is not part of
+          context analysis (like prepare or show create table).
+        */
+        Query_arena *backup_stmt_arena_ptr = thd->stmt_arena;
+        Query_arena backup_arena;
+        Query_arena gcol_arena(&vfield->table->mem_root,
+                               Query_arena::STMT_CONVENTIONAL_EXECUTION);
+        if (!vfield->gcol_info->permanent_changes_completed &&
+            !thd->lex->is_ps_or_view_context_analysis()) {
+          thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
+          thd->stmt_arena = &gcol_arena;
+        }
+
+        /*
+          Temporarily disable privileges check; already done when first fixed,
+          and then based on definer's (owner's) rights: this thread has
+          invoker's rights
+        */
+        ulong sav_want_priv = thd->want_privilege;
+        thd->want_privilege = 0;
+
+        if (fix_fields_gcol_func(thd, vfield)) res = true;
+
+        if (!vfield->gcol_info->permanent_changes_completed &&
+            !thd->lex->is_ps_or_view_context_analysis()) {
+          // Switch back to the original stmt_arena.
+          thd->stmt_arena = backup_stmt_arena_ptr;
+          thd->restore_active_arena(&gcol_arena, &backup_arena);
+
+          // Append the new items to the original item_free_list.
+          Item *item = vfield->gcol_info->item_free_list;
+          while (item->next) item = item->next;
+          item->next = gcol_arena.free_list;
+
+          // Permanent changes to the item_tree are completed.
+          vfield->gcol_info->permanent_changes_completed = true;
+        }
+
+        // Restore any privileges check
+        thd->want_privilege = sav_want_priv;
+        get_fields_in_item_tree = false;
+
+        /* error occurs */
+        if (res) return res;
+      }
+>>>>>>> pr/231
     }
   }
 }
@@ -4307,7 +5706,41 @@ bool TABLE::fill_item_list(mem_root_deque<Item *> *item_list) const {
 }
 
 /**
+<<<<<<< HEAD
   Create a Table_ref object representing a nested join
+=======
+  Reset an existing list of Item_field items to point to the
+  Fields of this table.
+
+  SYNPOSIS
+    TABLE::reset_item_list()
+      item_list          a non-empty list with Item_fields
+
+    This is a counterpart of fill_item_list used to redirect
+    Item_fields to the fields of a newly created table.
+*/
+
+void TABLE::reset_item_list(List<Item> *item_list) const {
+  List_iterator_fast<Item> it(*item_list);
+<<<<<<< HEAD
+  uint i = 0;
+  for (Field **ptr = visible_field_ptr(); *ptr; ptr++, i++) {
+    Item_field *item_field = (Item_field *)it++;
+    DBUG_ASSERT(item_field != 0);
+=======
+  uint i= 0;
+  for (Field **ptr= visible_field_ptr(); *ptr; ptr++, i++)
+  {
+    Item_field *item_field= (Item_field*) it++;
+    assert(item_field != 0);
+>>>>>>> upstream/cluster-7.6
+    item_field->reset_field(*ptr);
+  }
+}
+
+/**
+  Create a TABLE_LIST object representing a nested join
+>>>>>>> pr/231
 
   @param allocator  Mem root allocator that object is created from.
   @param alias      Name of nested join object
@@ -4318,17 +5751,47 @@ bool TABLE::fill_item_list(mem_root_deque<Item *> *item_list) const {
   @returns Pointer to created join nest object, or NULL if error.
 */
 
+<<<<<<< HEAD
 Table_ref *Table_ref::new_nested_join(MEM_ROOT *allocator, const char *alias,
                                       Table_ref *embedding,
                                       mem_root_deque<Table_ref *> *belongs_to,
                                       Query_block *select) {
   assert(belongs_to && select);
+=======
+<<<<<<< HEAD
+TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator, const char *alias,
+                                        TABLE_LIST *embedding,
+                                        List<TABLE_LIST> *belongs_to,
+                                        SELECT_LEX *select) {
+  DBUG_ASSERT(belongs_to && select);
+>>>>>>> pr/231
 
   Table_ref *const join_nest = new (allocator) Table_ref;
   if (join_nest == nullptr) return nullptr;
 
   join_nest->nested_join = new (allocator) NESTED_JOIN;
   if (join_nest->nested_join == nullptr) return nullptr;
+=======
+TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
+                            const char *alias,
+                            TABLE_LIST *embedding,
+                            List<TABLE_LIST> *belongs_to,
+                            class st_select_lex *select)
+{
+  assert(belongs_to && select);
+
+  TABLE_LIST *const join_nest=
+    (TABLE_LIST*) alloc_root(allocator, sizeof(TABLE_LIST));
+  if (join_nest == NULL)
+    return NULL;
+  new (join_nest) TABLE_LIST;
+
+  join_nest->nested_join=
+    (NESTED_JOIN*) alloc_root(allocator, sizeof(NESTED_JOIN));
+  if (join_nest->nested_join == NULL)
+    return NULL;
+  new (join_nest->nested_join) NESTED_JOIN;
+>>>>>>> upstream/cluster-7.6
 
   join_nest->db = "";
   join_nest->db_length = 0;
@@ -4354,8 +5817,19 @@ Table_ref *Table_ref::new_nested_join(MEM_ROOT *allocator, const char *alias,
   @return false if success, true if error
 */
 
+<<<<<<< HEAD
 bool Table_ref::merge_underlying_tables(Query_block *select) {
   assert(nested_join->m_tables.empty());
+=======
+<<<<<<< HEAD
+bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select) {
+  DBUG_ASSERT(nested_join->join_list.is_empty());
+=======
+bool TABLE_LIST::merge_underlying_tables(class st_select_lex *select)
+{
+  assert(nested_join->join_list.is_empty());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   for (Table_ref *tl : select->m_table_nest) {
     tl->embedding = this;
@@ -4617,8 +6091,13 @@ static bool merge_join_conditions(THD *thd, Table_ref *table, Item **pcond) {
   @returns false if success, true if error
 */
 
+<<<<<<< HEAD
 bool Table_ref::prepare_check_option(THD *thd, bool is_cascaded) {
   DBUG_TRACE;
+=======
+bool TABLE_LIST::prepare_check_option(THD *thd, bool is_cascaded) {
+  DBUG_ENTER("TABLE_LIST::prepare_check_option");
+>>>>>>> pr/231
   assert(is_view());
 
   /*
@@ -4775,7 +6254,12 @@ bool Table_ref::check_single_table(Table_ref **table_ref, table_map map) {
   @returns false if success, true if error (out of memory)
 */
 
+<<<<<<< HEAD
 bool Table_ref::set_insert_values(MEM_ROOT *mem_root) {
+=======
+<<<<<<< HEAD
+bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root) {
+>>>>>>> pr/231
   if (table) {
     assert(table->insert_values == nullptr);
     if (!table->insert_values &&
@@ -4783,8 +6267,28 @@ bool Table_ref::set_insert_values(MEM_ROOT *mem_root) {
               (uchar *)mem_root->Alloc(table->s->rec_buff_length)))
       return true; /* purecov: inspected */
   } else {
+<<<<<<< HEAD
     assert(view && merge_underlying_list);
     for (Table_ref *tbl = merge_underlying_list; tbl; tbl = tbl->next_local)
+=======
+    DBUG_ASSERT(view && merge_underlying_list);
+    for (TABLE_LIST *tbl = merge_underlying_list; tbl; tbl = tbl->next_local)
+=======
+bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root)
+{
+  if (table)
+  {
+    if (!table->insert_values &&
+        !(table->insert_values= (uchar *)alloc_root(mem_root,
+                                                    table->s->rec_buff_length)))
+      return true;                       /* purecov: inspected */
+  }
+  else
+  {
+    assert(view && merge_underlying_list);
+    for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       if (tbl->set_insert_values(mem_root))
         return true; /* purecov: inspected */
   }
@@ -4830,8 +6334,18 @@ Table_ref *Table_ref::first_leaf_for_name_resolution() {
   Table_ref *cur_table_ref = nullptr;
   NESTED_JOIN *cur_nested_join;
 
+<<<<<<< HEAD
   if (is_leaf_for_name_resolution()) return this;
+<<<<<<< HEAD
   assert(nested_join);
+=======
+  DBUG_ASSERT(nested_join);
+=======
+  if (is_leaf_for_name_resolution())
+    return this;
+  assert(nested_join);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   for (cur_nested_join = nested_join; cur_nested_join;
        cur_nested_join = cur_table_ref->nested_join) {
@@ -4846,8 +6360,18 @@ Table_ref *Table_ref::last_leaf_for_name_resolution() {
   Table_ref *cur_table_ref = this;
   NESTED_JOIN *cur_nested_join;
 
+<<<<<<< HEAD
   if (is_leaf_for_name_resolution()) return this;
+<<<<<<< HEAD
   assert(nested_join);
+=======
+  DBUG_ASSERT(nested_join);
+=======
+  if (is_leaf_for_name_resolution())
+    return this;
+  assert(nested_join);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   for (cur_nested_join = nested_join; cur_nested_join;
        cur_nested_join = cur_table_ref->nested_join) {
@@ -4858,6 +6382,30 @@ Table_ref *Table_ref::last_leaf_for_name_resolution() {
 }
 
 /**
+<<<<<<< HEAD
+=======
+  Set privileges needed for columns of underlying tables
+
+  @param want_privilege  Required privileges
+*/
+
+void TABLE_LIST::set_want_privilege(ulong want_privilege)
+{
+#ifndef NDEBUG
+  // Remove SHOW_VIEW_ACL, because it will be checked during making view
+  want_privilege&= ~SHOW_VIEW_ACL;
+
+  grant.want_privilege= want_privilege & ~grant.privilege;
+  if (table)
+    table->grant.want_privilege= want_privilege & ~table->grant.privilege;
+  for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+    tbl->set_want_privilege(want_privilege);
+#endif
+}
+
+
+/*
+>>>>>>> upstream/cluster-7.6
   Load security context information for this view
 
   @param thd                  thread handler
@@ -4870,12 +6418,36 @@ bool Table_ref::prepare_view_security_context(THD *thd) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: %s", alias));
 
+<<<<<<< HEAD
   assert(!prelocking_placeholder && view);
   if (view_suid) {
     DBUG_PRINT("info", ("This table is suid view => load contest"));
     assert(view && view_sctx);
     if (acl_getroot(thd, view_sctx, definer.user.str, definer.host.str,
                     definer.host.str, thd->db().str)) {
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!prelocking_placeholder && view);
+  if (view_suid) {
+    DBUG_PRINT("info", ("This table is suid view => load contest"));
+    DBUG_ASSERT(view && view_sctx);
+    if (acl_getroot(thd, view_sctx, const_cast<char *>(definer.user.str),
+                    const_cast<char *>(definer.host.str),
+                    const_cast<char *>(definer.host.str), thd->db().str)) {
+=======
+  assert(!prelocking_placeholder && view);
+  if (view_suid)
+  {
+    DBUG_PRINT("info", ("This table is suid view => load contest"));
+    assert(view && view_sctx);
+    if (acl_getroot(view_sctx,
+                    const_cast<char*>(definer.user.str),
+                    const_cast<char*>(definer.host.str),
+                    const_cast<char*>(definer.host.str),
+                    thd->db().str))
+    {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) {
         push_warning_printf(thd, Sql_condition::SL_NOTE, ER_NO_SUCH_USER,
@@ -4916,7 +6488,12 @@ Security_context *Table_ref::find_view_security_context(THD *thd) {
   Table_ref *upper_view = this;
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(view);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(view);
+>>>>>>> pr/231
   while (upper_view && !upper_view->view_suid) {
     assert(!upper_view->prelocking_placeholder);
     upper_view = upper_view->referencing_view;
@@ -4927,6 +6504,23 @@ Security_context *Table_ref::find_view_security_context(THD *thd) {
     sctx = upper_view->view_sctx;
     assert(sctx);
   } else {
+=======
+  assert(view);
+  while (upper_view && !upper_view->view_suid)
+  {
+    assert(!upper_view->prelocking_placeholder);
+    upper_view= upper_view->referencing_view;
+  }
+  if (upper_view)
+  {
+    DBUG_PRINT("info", ("Securety context of view %s will be used",
+                        upper_view->alias));
+    sctx= upper_view->view_sctx;
+    assert(sctx);
+  }
+  else
+  {
+>>>>>>> upstream/cluster-7.6
     DBUG_PRINT("info", ("Current global context will be used"));
     sctx = thd->security_context();
   }
@@ -4946,6 +6540,7 @@ bool Table_ref::prepare_security(THD *thd) {
   DBUG_TRACE;
   Security_context *save_security_ctx = thd->security_context();
 
+<<<<<<< HEAD
   assert(!prelocking_placeholder);
   if (prepare_view_security_context(thd)) return true;
   /* Acl_map was previously checked out by get_aclroot */
@@ -4954,6 +6549,31 @@ bool Table_ref::prepare_security(THD *thd) {
   for (Table_ref *tbl : *view_tables) {
     assert(tbl->referencing_view);
     if (tbl->is_derived()) {
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!prelocking_placeholder);
+  if (prepare_view_security_context(thd)) DBUG_RETURN(true);
+  /* Acl_map was previously checked out by get_aclroot */
+  thd->set_security_context(find_view_security_context(thd));
+  opt_trace_disable_if_no_security_context_access(thd);
+  while ((tbl = tb++)) {
+    DBUG_ASSERT(tbl->referencing_view);
+=======
+  assert(!prelocking_placeholder);
+  if (prepare_view_securety_context(thd))
+    DBUG_RETURN(TRUE);
+  thd->set_security_context(find_view_security_context(thd));
+  opt_trace_disable_if_no_security_context_access(thd);
+  while ((tbl= tb++))
+  {
+    assert(tbl->referencing_view);
+>>>>>>> upstream/cluster-7.6
+    const char *local_db, *local_table_name;
+    if (tbl->is_view()) {
+      local_db = tbl->view_db.str;
+      local_table_name = tbl->view_name.str;
+    } else if (tbl->is_derived()) {
+>>>>>>> pr/231
       /* Initialize privileges for derived tables */
       tbl->grant.privilege = SELECT_ACL;
       continue;
@@ -4966,18 +6586,45 @@ bool Table_ref::prepare_security(THD *thd) {
 }
 
 Natural_join_column::Natural_join_column(Field_translator *field_param,
+<<<<<<< HEAD
                                          Table_ref *tab) {
   assert(tab->field_translation);
+=======
+<<<<<<< HEAD
+                                         TABLE_LIST *tab) {
+  DBUG_ASSERT(tab->field_translation);
+>>>>>>> pr/231
   view_field = field_param;
   table_field = nullptr;
   table_ref = tab;
   is_common = false;
+=======
+                                         TABLE_LIST *tab)
+{
+  assert(tab->field_translation);
+  view_field= field_param;
+  table_field= NULL;
+  table_ref= tab;
+  is_common= FALSE;
+>>>>>>> upstream/cluster-7.6
 }
 
 Natural_join_column::Natural_join_column(Item_field *field_param,
+<<<<<<< HEAD
                                          Table_ref *tab) {
   assert(tab->table == field_param->field->table);
+=======
+<<<<<<< HEAD
+                                         TABLE_LIST *tab) {
+  DBUG_ASSERT(tab->table == field_param->field->table);
+>>>>>>> pr/231
   table_field = field_param;
+=======
+                                         TABLE_LIST *tab)
+{
+  assert(tab->table == field_param->field->table);
+  table_field= field_param;
+>>>>>>> upstream/cluster-7.6
   /*
     Cache table, to have no resolution problem after natural join nests have
     been changed to ordinary join nests.
@@ -4988,35 +6635,88 @@ Natural_join_column::Natural_join_column(Item_field *field_param,
   is_common = false;
 }
 
+<<<<<<< HEAD
 const char *Natural_join_column::name() {
   if (view_field) {
+<<<<<<< HEAD
     assert(table_field == nullptr);
+=======
+    DBUG_ASSERT(table_field == NULL);
+=======
+
+const char *Natural_join_column::name()
+{
+  if (view_field)
+  {
+    assert(table_field == NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return view_field->name;
   }
 
   return table_field->field_name;
 }
 
+<<<<<<< HEAD
 Item *Natural_join_column::create_item(THD *thd) {
   if (view_field) {
+<<<<<<< HEAD
     assert(table_field == nullptr);
     Query_block *select = thd->lex->current_query_block();
+=======
+    DBUG_ASSERT(table_field == NULL);
+    SELECT_LEX *select = thd->lex->current_select();
+=======
+
+Item *Natural_join_column::create_item(THD *thd)
+{
+  if (view_field)
+  {
+    assert(table_field == NULL);
+    SELECT_LEX *select= thd->lex->current_select();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return create_view_field(thd, table_ref, &view_field->item,
                              view_field->name, &select->context);
   }
   return table_field;
 }
 
+<<<<<<< HEAD
 Field *Natural_join_column::field() {
   if (view_field) {
+<<<<<<< HEAD
     assert(table_field == nullptr);
     return nullptr;
+=======
+    DBUG_ASSERT(table_field == NULL);
+=======
+
+Field *Natural_join_column::field()
+{
+  if (view_field)
+  {
+    assert(table_field == NULL);
+>>>>>>> upstream/cluster-7.6
+    return NULL;
+>>>>>>> pr/231
   }
   return table_field->field;
 }
 
+<<<<<<< HEAD
 const char *Natural_join_column::table_name() {
+<<<<<<< HEAD
   assert(table_ref);
+=======
+  DBUG_ASSERT(table_ref);
+=======
+
+const char *Natural_join_column::table_name()
+{
+  assert(table_ref);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return table_ref->alias;
 }
 
@@ -5026,21 +6726,58 @@ const char *Natural_join_column::db_name() {
     ensure consistency. An exception are I_S schema tables, which
     are inconsistent in this respect.
   */
+<<<<<<< HEAD
   assert(!table_ref->is_base_table() ||
          !strcmp(table_ref->db, table_ref->table->s->db.str) ||
          (table_ref->schema_table &&
           is_infoschema_db(table_ref->table->s->db.str,
                            table_ref->table->s->db.length)));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db.str) ||
+              (table_ref->schema_table &&
+               is_infoschema_db(table_ref->table->s->db.str,
+                                table_ref->table->s->db.length)));
+=======
+  assert(!strcmp(table_ref->db,
+                 table_ref->table->s->db.str) ||
+         (table_ref->schema_table &&
+          is_infoschema_db(table_ref->table->s->db.str,
+                           table_ref->table->s->db.length)));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return table_ref->db;
 }
 
 GRANT_INFO *Natural_join_column::grant() { return &table_ref->grant; }
 
+<<<<<<< HEAD
 void Field_iterator_view::set(Table_ref *table) {
   assert(table->field_translation);
+=======
+<<<<<<< HEAD
+void Field_iterator_view::set(TABLE_LIST *table) {
+  DBUG_ASSERT(table->field_translation);
+>>>>>>> pr/231
   view = table;
   ptr = table->field_translation;
   array_end = table->field_translation_end;
+=======
+GRANT_INFO *Natural_join_column::grant()
+{
+  if (view_field)
+    return &(table_ref->grant);
+  return &(table_ref->table->grant);
+}
+
+
+void Field_iterator_view::set(TABLE_LIST *table)
+{
+  assert(table->field_translation);
+  view= table;
+  ptr= table->field_translation;
+  array_end= table->field_translation_end;
+>>>>>>> upstream/cluster-7.6
 }
 
 const char *Field_iterator_table::name() { return (*ptr)->field_name; }
@@ -5084,7 +6821,25 @@ static Item *create_view_field(THD *, Table_ref *view, Item **field_ref,
       ('mysql_schema_table' function). So we can return directly the
       field. This case happens only for 'show & where' commands.
     */
+<<<<<<< HEAD
     return field;
+=======
+    assert(field && field->fixed);
+    DBUG_RETURN(field);
+  }
+
+<<<<<<< HEAD
+  DBUG_ASSERT(field);
+  if (!field->fixed) {
+=======
+  assert(field);
+  if (!field->fixed)
+  {
+>>>>>>> upstream/cluster-7.6
+    if (field->fix_fields(thd, field_ref))
+      DBUG_RETURN(NULL); /* purecov: inspected */
+    field = *field_ref;
+>>>>>>> pr/231
   }
 
   /*
@@ -5094,11 +6849,27 @@ static Item *create_view_field(THD *, Table_ref *view, Item **field_ref,
       base table.
     - For an expression that is not a simple column reference, empty strings.
   */
+<<<<<<< HEAD
   const char *table_name;
   const char *db_name;
   field = field->real_item();
   if (view->is_view()) {
     db_name = view->db;
+=======
+  if (view->is_derived()) {
+    while (field->type() == Item::REF_ITEM) {
+      field = down_cast<Item_ref *>(field)->ref[0];
+    }
+    if (field->type() == Item::FIELD_ITEM)
+<<<<<<< HEAD
+      table_name = thd->mem_strdup(down_cast<Item_field *>(field)->table_name);
+=======
+      table_name= thd->mem_strdup(down_cast<Item_field *>(field)->table_name);
+>>>>>>> upstream/cluster-7.6
+    else
+      table_name = "";
+  } else {
+>>>>>>> pr/231
     table_name = view->table_name;
   } else if (field->type() == Item::FIELD_ITEM) {
     db_name = nullptr;
@@ -5120,17 +6891,45 @@ static Item *create_view_field(THD *, Table_ref *view, Item **field_ref,
   return item;
 }
 
+<<<<<<< HEAD
 void Field_iterator_natural_join::set(Table_ref *table_ref) {
   assert(table_ref->join_columns);
+=======
+<<<<<<< HEAD
+void Field_iterator_natural_join::set(TABLE_LIST *table_ref) {
+  DBUG_ASSERT(table_ref->join_columns);
+=======
+
+void Field_iterator_natural_join::set(TABLE_LIST *table_ref)
+{
+  assert(table_ref->join_columns);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   column_ref_it.init(*(table_ref->join_columns));
   cur_column_ref = column_ref_it++;
 }
 
+<<<<<<< HEAD
 void Field_iterator_natural_join::next() {
   cur_column_ref = column_ref_it++;
+<<<<<<< HEAD
   assert(!cur_column_ref || !cur_column_ref->table_field ||
          cur_column_ref->table_ref->table ==
              cur_column_ref->table_field->field->table);
+=======
+  DBUG_ASSERT(!cur_column_ref || !cur_column_ref->table_field ||
+              cur_column_ref->table_ref->table ==
+                  cur_column_ref->table_field->field->table);
+=======
+
+void Field_iterator_natural_join::next()
+{
+  cur_column_ref= column_ref_it++;
+  assert(!cur_column_ref || ! cur_column_ref->table_field ||
+         cur_column_ref->table_ref->table ==
+         cur_column_ref->table_field->field->table);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 void Field_iterator_table_ref::set_field_iterator() {
@@ -5143,8 +6942,14 @@ void Field_iterator_table_ref::set_field_iterator() {
     columns of the join operator.
   */
   if (table_ref->is_join_columns_complete) {
+<<<<<<< HEAD
     /* Necessary, but insufficient conditions. */
     assert(
+=======
+    /* Necesary, but insufficient conditions. */
+<<<<<<< HEAD
+    DBUG_ASSERT(
+>>>>>>> pr/231
         table_ref->is_natural_join || table_ref->nested_join ||
         (table_ref->join_columns &&
          /* This is a merge view. */
@@ -5172,16 +6977,65 @@ void Field_iterator_table_ref::set_field_iterator() {
     field_it = &table_field_it;
     DBUG_PRINT("info",
                ("field_it for '%s' is Field_iterator_table", table_ref->alias));
+=======
+    assert(table_ref->is_natural_join ||
+           table_ref->nested_join ||
+           (table_ref->join_columns &&
+            /* This is a merge view. */
+            ((table_ref->field_translation &&
+              table_ref->join_columns->elements ==
+              (ulong)(table_ref->field_translation_end -
+                      table_ref->field_translation)) ||
+             /* This is stored table or a tmptable view. */
+             (!table_ref->field_translation &&
+              table_ref->join_columns->elements ==
+              table_ref->table->s->fields))));
+    field_it= &natural_join_it;
+    DBUG_PRINT("info",("field_it for '%s' is Field_iterator_natural_join",
+                       table_ref->alias));
+  }
+  /* This is a merge view, so use field_translation. */
+  else if (table_ref->field_translation)
+  {
+    assert(table_ref->is_merged());
+    field_it= &view_field_it;
+    DBUG_PRINT("info", ("field_it for '%s' is Field_iterator_view",
+                        table_ref->alias));
+  }
+  /* This is a base table or stored view. */
+  else
+  {
+    assert(table_ref->table || table_ref->is_view());
+    field_it= &table_field_it;
+    DBUG_PRINT("info", ("field_it for '%s' is Field_iterator_table",
+                        table_ref->alias));
+>>>>>>> upstream/cluster-7.6
   }
   field_it->set(table_ref);
 }
 
+<<<<<<< HEAD
 void Field_iterator_table_ref::set(Table_ref *table) {
   assert(table);
+=======
+<<<<<<< HEAD
+void Field_iterator_table_ref::set(TABLE_LIST *table) {
+  DBUG_ASSERT(table);
+>>>>>>> pr/231
   first_leaf = table->first_leaf_for_name_resolution();
   last_leaf = table->last_leaf_for_name_resolution();
   assert(first_leaf && last_leaf);
   table_ref = first_leaf;
+=======
+
+void Field_iterator_table_ref::set(TABLE_LIST *table)
+{
+  assert(table);
+  first_leaf= table->first_leaf_for_name_resolution();
+  last_leaf=  table->last_leaf_for_name_resolution();
+  assert(first_leaf && last_leaf);
+  table_ref= first_leaf;
+>>>>>>> upstream/cluster-7.6
   set_field_iterator();
 }
 
@@ -5192,9 +7046,20 @@ void Field_iterator_table_ref::next() {
     If all fields of the current table reference are exhausted, move to
     the next leaf table reference.
   */
+<<<<<<< HEAD
   if (field_it->end_of_fields() && table_ref != last_leaf) {
     table_ref = table_ref->next_name_resolution_table;
+<<<<<<< HEAD
     assert(table_ref);
+=======
+    DBUG_ASSERT(table_ref);
+=======
+  if (field_it->end_of_fields() && table_ref != last_leaf)
+  {
+    table_ref= table_ref->next_name_resolution_table;
+    assert(table_ref);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     set_field_iterator();
   }
 }
@@ -5203,6 +7068,17 @@ const char *Field_iterator_table_ref::get_table_name() {
   if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->table_name();
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(
+      table_ref->is_table_function() ||
+      !strcmp(table_ref->table_name, table_ref->table->s->table_name.str));
+=======
+  assert(!strcmp(table_ref->table_name,
+                 table_ref->table->s->table_name.str));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return table_ref->table_name;
 }
 
@@ -5216,9 +7092,13 @@ const char *Field_iterator_table_ref::get_db_name() {
     are inconsistent in this respect and any_db (used in the handler
     interface to manage aliases).
   */
+<<<<<<< HEAD
   assert(!table_ref->is_base_table() ||
          !strcmp(table_ref->db, table_ref->table->s->db.str) ||
          table_ref->db == any_db ||
+=======
+  assert(!strcmp(table_ref->db, table_ref->table->s->db.str) ||
+>>>>>>> pr/231
          (table_ref->schema_table &&
           is_infoschema_db(table_ref->table->s->db.str,
                            table_ref->table->s->db.length)));
@@ -5296,10 +7176,24 @@ Natural_join_column *Field_iterator_table_ref::get_or_create_column_ref(
       already created via one of the two constructor calls above. In this case
       we just return the already created column reference.
     */
+<<<<<<< HEAD
     assert(table_ref->is_join_columns_complete);
     is_created = false;
     nj_col = natural_join_it.column_ref();
     assert(nj_col);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(table_ref->is_join_columns_complete);
+    is_created = false;
+    nj_col = natural_join_it.column_ref();
+    DBUG_ASSERT(nj_col);
+=======
+    assert(table_ref->is_join_columns_complete);
+    is_created= FALSE;
+    nj_col= natural_join_it.column_ref();
+    assert(nj_col);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   assert(!nj_col->table_field ||
          nj_col->table_ref->table == nj_col->table_field->field->table);
@@ -5311,8 +7205,18 @@ Natural_join_column *Field_iterator_table_ref::get_or_create_column_ref(
   */
   if (is_created) {
     /* Make sure not all columns were materialized. */
+<<<<<<< HEAD
     assert(!add_table_ref->is_join_columns_complete);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(!add_table_ref->is_join_columns_complete);
+>>>>>>> pr/231
     if (!add_table_ref->join_columns) {
+=======
+    assert(!add_table_ref->is_join_columns_complete);
+    if (!add_table_ref->join_columns)
+    {
+>>>>>>> upstream/cluster-7.6
       /* Create a list of natural join columns on demand. */
       if (!(add_table_ref->join_columns =
                 new (thd->mem_root) List<Natural_join_column>))
@@ -5356,10 +7260,23 @@ Natural_join_column *Field_iterator_table_ref::get_natural_column_ref() {
     already created via one of the two constructor calls above. In this case
     we just return the already created column reference.
   */
+<<<<<<< HEAD
   nj_col = natural_join_it.column_ref();
+<<<<<<< HEAD
   assert(nj_col &&
          (!nj_col->table_field ||
           nj_col->table_ref->table == nj_col->table_field->field->table));
+=======
+  DBUG_ASSERT(nj_col &&
+              (!nj_col->table_field ||
+               nj_col->table_ref->table == nj_col->table_field->field->table));
+=======
+  nj_col= natural_join_it.column_ref();
+  assert(nj_col &&
+         (!nj_col->table_field ||
+          nj_col->table_ref->table == nj_col->table_field->field->table));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return nj_col;
 }
 
@@ -5444,9 +7361,25 @@ void TABLE::mark_column_used(Field *field, enum enum_mark_columns mark) {
       if (field->is_virtual_gcol()) mark_gcol_in_maps(field);
       break;
     }
+<<<<<<< HEAD
     case MARK_COLUMNS_WRITE:
+<<<<<<< HEAD
       bitmap_set_bit(write_set, field->field_index());
       assert(!get_fields_in_item_tree);
+=======
+      if (bitmap_fast_test_and_set(write_set, field->field_index)) {
+        /*
+          This is relevant for INSERT only, but duplicate indication is set
+          for all fields that are updated.
+        */
+        DBUG_PRINT("warning", ("Found duplicated field"));
+        thd->dup_field = field;
+      }
+      DBUG_ASSERT(!get_fields_in_item_tree);
+=======
+    assert(!get_fields_in_item_tree);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       if (field->is_gcol()) mark_gcol_in_maps(field);
       break;
@@ -5527,8 +7460,18 @@ void TABLE::mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *bitmap,
     always set and sometimes read.
 */
 
+<<<<<<< HEAD
 void TABLE::mark_auto_increment_column() {
+<<<<<<< HEAD
   assert(found_next_number_field);
+=======
+  DBUG_ASSERT(found_next_number_field);
+=======
+void TABLE::mark_auto_increment_column()
+{
+  assert(found_next_number_field);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
     We must set bit in read set as update_auto_increment() is using the
     store() to check overflow of auto_increment values
@@ -5708,7 +7651,11 @@ void TABLE::mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns) {
   execution).
  */
 void TABLE::mark_columns_per_binlog_row_image(THD *thd) {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("mark_columns_per_binlog_row_image");
+>>>>>>> pr/231
   assert(read_set->bitmap);
   assert(write_set->bitmap);
 
@@ -5753,8 +7700,17 @@ void TABLE::mark_columns_per_binlog_row_image(THD *thd) {
           mark_columns_used_by_index_no_reset(s->primary_key, read_set);
         break;
 
+<<<<<<< HEAD
       default:
+<<<<<<< HEAD
         assert(false);
+=======
+        DBUG_ASSERT(false);
+=======
+      default: 
+        assert(FALSE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
     file->column_bitmaps_signal();
   }
@@ -5789,10 +7745,25 @@ void TABLE::mark_columns_per_binlog_row_image(THD *thd) {
   @returns false if success, true if error
 */
 
+<<<<<<< HEAD
 bool TABLE::alloc_tmp_keys(uint new_key_count, uint new_key_part_count,
                            bool modify_share) {
   const uint old_key_count = s->keys;
   const uint old_key_part_count = s->key_parts;
+=======
+<<<<<<< HEAD
+bool TABLE::alloc_tmp_keys(uint key_count, bool modify_share) {
+  const size_t bytes = sizeof(KEY) * key_count;
+=======
+bool TABLE::alloc_keys(uint key_count)
+{
+  assert(!s->keys);
+  max_keys= key_count;
+  if (!(key_info= s->key_info=
+        (KEY*) alloc_root(&mem_root, sizeof(KEY)*max_keys)))
+    return TRUE;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (modify_share) {
     Key_name *old_key_names = s->key_names;
@@ -5904,9 +7875,21 @@ bool TABLE::alloc_tmp_keys(uint new_key_count, uint new_key_part_count,
         purposes
 */
 
+<<<<<<< HEAD
 bool TABLE::add_tmp_key(Field_map *key_parts, bool invisible,
                         bool modify_share) {
   assert(!created && key_parts);
+=======
+<<<<<<< HEAD
+bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name, bool invisible,
+                        bool modify_share) {
+  DBUG_ASSERT(!created && key_parts);
+=======
+bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
+{
+  assert(!created && s->keys < max_keys && key_parts);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Field **reg_field;
   bool key_start = true;
@@ -5918,7 +7901,11 @@ bool TABLE::add_tmp_key(Field_map *key_parts, bool invisible,
     if (key_parts->is_set(i)) {
       KEY_PART_INFO tkp;
       // Ensure that we're not creating a key over a blob field.
+<<<<<<< HEAD
       assert(!(*reg_field)->is_flag_set(BLOB_FLAG));
+=======
+      assert(!((*reg_field)->flags & BLOB_FLAG));
+>>>>>>> pr/231
       /*
         Check if possible key is too long, ignore it if so.
         The reason to use MI_MAX_KEY_LENGTH (myisam's default) is that it is
@@ -6027,6 +8014,7 @@ uint TABLE_SHARE::find_first_unused_tmp_key(const Key_map &k) {
         trap invalid accesses after the move. memset is considered cheap
         in this context.
 
+<<<<<<< HEAD
   The function needs to move the following entries:
   - The KEY (both for TABLE and TABLE_SHARE)
   - The KEY_PART_INFO objects (TABLE only, TABLE_SHARE shares with first TABLE)
@@ -6067,6 +8055,9 @@ void TABLE::move_tmp_key(int old_idx, bool modify_share) {
         s->base_rec_per_key + key_partno,
         s->base_rec_per_key_float + key_partno);
   }
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   for (auto reg_field = field; *reg_field; reg_field++) {
     auto f = *reg_field;
     f->key_start.clear_bit(new_idx);
@@ -6085,6 +8076,11 @@ void TABLE::move_tmp_key(int old_idx, bool modify_share) {
   if (keys_in_use_for_order_by.is_set(old_idx))
     keys_in_use_for_order_by.set_bit(new_idx);
 }
+=======
+void TABLE::use_index(int key_to_save)
+{
+  assert(!created && s->keys && key_to_save < (int)s->keys);
+>>>>>>> upstream/cluster-7.6
 
 /**
   For a materialized derived table: after move_tmp_key() has moved all
@@ -6209,9 +8205,20 @@ void TABLE::mark_generated_columns(bool is_update) {
         bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
     bitmap_init(&dependent_fields, bitbuf, s->fields);
 
+<<<<<<< HEAD
     for (vfield_ptr = vfield; *vfield_ptr; vfield_ptr++) {
       tmp_vfield = *vfield_ptr;
+<<<<<<< HEAD
       assert(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+=======
+      DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+=======
+    for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    {
+      tmp_vfield= *vfield_ptr;
+      assert(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       /*
         We need to evaluate the GC if:
@@ -6236,10 +8243,23 @@ void TABLE::mark_generated_columns(bool is_update) {
     }
   } else  // Insert needs to evaluate all generated columns
   {
+<<<<<<< HEAD
     for (vfield_ptr = vfield; *vfield_ptr; vfield_ptr++) {
       tmp_vfield = *vfield_ptr;
+<<<<<<< HEAD
       assert(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
       tmp_vfield->table->mark_column_used(tmp_vfield, MARK_COLUMNS_WRITE);
+=======
+      DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+=======
+    for (vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    {
+      tmp_vfield= *vfield_ptr;
+      assert(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+>>>>>>> upstream/cluster-7.6
+      tmp_vfield->table->mark_column_used(in_use, tmp_vfield,
+                                          MARK_COLUMNS_WRITE);
+>>>>>>> pr/231
       bitmap_updated = true;
     }
   }
@@ -6262,6 +8282,7 @@ void TABLE::mark_generated_columns(bool is_update) {
 void TABLE::mark_check_constraint_columns(bool is_update) {
   assert(table_check_constraint_list != nullptr);
 
+<<<<<<< HEAD
   bool bitmap_updated = false;
   for (Sql_table_check_constraint &tbl_cc : *table_check_constraint_list) {
     if (tbl_cc.is_enforced()) {
@@ -6283,6 +8304,24 @@ void TABLE::mark_check_constraint_columns(bool is_update) {
         mark_column_used(field[i], MARK_COLUMNS_READ);
       }
       bitmap_updated = true;
+=======
+<<<<<<< HEAD
+  for (Field **vfield_ptr = vfield; *vfield_ptr; vfield_ptr++) {
+    Field *tmp_vfield = *vfield_ptr;
+    DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+=======
+  for (Field **vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+  {
+    Field *tmp_vfield= *vfield_ptr;
+    assert(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+>>>>>>> upstream/cluster-7.6
+    Mark_field mark_fld(MARK_COLUMNS_TEMP);
+    tmp_vfield->gcol_info->expr_item->walk(
+        &Item::mark_field_in_map, Item::WALK_PREFIX, (uchar *)&mark_fld);
+    if (bitmap_is_set(read_set, field_index)) {
+      read_set = save_old_read_set;
+      return true;
+>>>>>>> pr/231
     }
   }
 
@@ -6495,12 +8534,25 @@ bool Table_ref::is_mergeable() const {
   return derived->is_mergeable();
 }
 
+<<<<<<< HEAD
 bool Table_ref::materializable_is_const() const {
   assert(uses_materialization());
   const Query_expression *unit = derived_query_expression();
   return unit->query_result()->estimated_rowcount <= 1 &&
          (unit->first_query_block()->active_options() &
           OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;
+=======
+///  @returns true if materializable table contains one or zero rows
+<<<<<<< HEAD
+bool TABLE_LIST::materializable_is_const() const {
+  DBUG_ASSERT(uses_materialization());
+=======
+bool TABLE_LIST::materializable_is_const() const
+{
+  assert(uses_materialization());
+>>>>>>> upstream/cluster-7.6
+  return derived_unit()->query_result()->estimated_rowcount <= 1;
+>>>>>>> pr/231
 }
 
 /**
@@ -6509,7 +8561,11 @@ bool Table_ref::materializable_is_const() const {
 
 uint Table_ref::leaf_tables_count() const {
   // Join nests are not permissible, except as merged views
+<<<<<<< HEAD
   assert(nested_join == nullptr || is_merged());
+=======
+  assert(nested_join == NULL || is_merged());
+>>>>>>> pr/231
   if (!is_merged())  // Base table or materialized view
     return 1;
 
@@ -6903,8 +8959,23 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2) {
   @return false all keys were successfully added.
 */
 
+<<<<<<< HEAD
 bool Table_ref::generate_keys() {
   assert(uses_materialization());
+=======
+<<<<<<< HEAD
+bool TABLE_LIST::generate_keys() {
+  DBUG_ASSERT(uses_materialization());
+=======
+bool TABLE_LIST::generate_keys()
+{
+  List_iterator<Derived_key> it(derived_key_list);
+  Derived_key *entry;
+  uint key= 0;
+  char buf[NAME_CHAR_LEN];
+  assert(uses_materialization());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (!derived_key_list.elements) return false;
 
@@ -7015,7 +9086,11 @@ void TABLE::update_const_key_parts(Item *conds) {
 bool TABLE::check_read_removal(uint index) {
   bool retval = false;
 
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("check_read_removal");
+>>>>>>> pr/231
   assert(file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL);
   assert(index != MAX_KEY);
 
@@ -7139,10 +9214,22 @@ static bool update_generated_columns(TABLE *table, const MY_BITMAP *columns,
   @todo see below for potential conflict with Bug#21815348 .
  */
 bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(table != nullptr && table->has_gcol());
   if (current_thd->is_error()) return true;
+=======
+  DBUG_ENTER("update_generated_read_fields");
+<<<<<<< HEAD
+  DBUG_ASSERT(table && table->vfield);
+  DBUG_ASSERT(!table->in_use->is_error());
+>>>>>>> pr/231
   if (active_index != MAX_KEY && table->key_read) {
+=======
+  assert(table && table->vfield);
+  if (active_index != MAX_KEY && table->key_read)
+  {
+>>>>>>> upstream/cluster-7.6
     /*
       The covering index is providing all necessary columns, including
       generated ones.
@@ -7167,8 +9254,45 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
   if (buf != table->record[0])
     repoint_field_to_record(table, table->record[0], buf);
 
+<<<<<<< HEAD
   const bool error =
       update_generated_columns(table, table->read_set, true, nullptr);
+=======
+<<<<<<< HEAD
+  for (Field **vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
+    Field *vfield = *vfield_ptr;
+    DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
+=======
+  for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+  {
+    Field *vfield= *vfield_ptr;
+    assert(vfield->gcol_info && vfield->gcol_info->expr_item);
+>>>>>>> upstream/cluster-7.6
+    /*
+      Only calculate those virtual generated fields that are marked in the
+      read_set bitmap.
+    */
+    if (vfield->is_virtual_gcol() &&
+        bitmap_is_set(table->read_set, vfield->field_index)) {
+      if ((vfield->flags & BLOB_FLAG) != 0) {
+        (down_cast<Field_blob *>(vfield))->keep_old_value();
+        (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
+      }
+
+      error = vfield->gcol_info->expr_item->save_in_field(vfield, 0);
+      DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
+      if (error && !table->in_use->is_error()) {
+        /*
+          Most likely a calculation error which only triggered a warning, so
+          let's not make the read fail.
+        */
+        error = 0;
+      }
+    } else {
+      DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
+    }
+  }
+>>>>>>> pr/231
 
   if (buf != table->record[0])
     repoint_field_to_record(table, buf, table->record[0]);
@@ -7201,9 +9325,59 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
                  field value
  */
 bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
+<<<<<<< HEAD
   DBUG_TRACE;
   return update_generated_columns(table, bitmap, false,
                                   table->fields_set_during_insert);
+=======
+  DBUG_ENTER("update_generated_write_fields");
+  Field **vfield_ptr;
+  int error = 0;
+
+<<<<<<< HEAD
+  DBUG_ASSERT(table->vfield);
+  DBUG_ASSERT(!table->in_use->is_error());
+=======
+  assert(table->vfield);
+>>>>>>> upstream/cluster-7.6
+  /* Iterate over generated fields in the table */
+  for (vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
+    Field *vfield;
+<<<<<<< HEAD
+    vfield = (*vfield_ptr);
+    DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
+=======
+    vfield= (*vfield_ptr);
+    assert(vfield->gcol_info && vfield->gcol_info->expr_item);
+>>>>>>> upstream/cluster-7.6
+
+    /* Only update those fields that are marked in the bitmap */
+    if (bitmap_is_set(bitmap, vfield->field_index)) {
+      /*
+        For a virtual generated column based on the blob type, we have to keep
+        the current blob value since this might be needed by the
+        storage engine during updates.
+      */
+      if ((vfield->flags & BLOB_FLAG) != 0 && vfield->is_virtual_gcol()) {
+        (down_cast<Field_blob *>(vfield))->keep_old_value();
+        (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
+      }
+
+      /* Generate the actual value of the generated fields */
+      error = vfield->gcol_info->expr_item->save_in_field(vfield, 0);
+
+      DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
+      if (error && !table->in_use->is_error()) error = 0;
+      if (table->fields_set_during_insert)
+        bitmap_set_bit(table->fields_set_during_insert, vfield->field_index);
+    } else {
+      DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
+    }
+  }
+
+  if (error > 0) DBUG_RETURN(true);
+  DBUG_RETURN(false);
+>>>>>>> pr/231
 }
 
 /**
@@ -7896,6 +10070,7 @@ void TABLE::blobs_need_not_keep_old_value() {
   }
 }
 
+<<<<<<< HEAD
 void TABLE::set_binlog_drop_if_temp(bool should_binlog) {
   should_binlog_drop_if_temp_flag = should_binlog;
 }
@@ -7974,3 +10149,14 @@ bool assert_invalid_stats_is_locked(const TABLE *table) {
 }
 #endif
 //////////////////////////////////////////////////////////////////////////
+=======
+void TABLE::set_binlog_drop_if_temp(bool should_binlog)
+{
+  should_binlog_drop_if_temp_flag= should_binlog;
+}
+
+bool TABLE::should_binlog_drop_if_temp(void) const
+{
+  return should_binlog_drop_if_temp_flag;
+}
+>>>>>>> upstream/cluster-7.6

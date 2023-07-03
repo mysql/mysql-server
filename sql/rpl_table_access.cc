@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,13 +136,31 @@ bool System_table_access::close_table(THD *thd, TABLE *table,
     }
     if (need_commit) {
       if (error)
+<<<<<<< HEAD
         res = ha_rollback_trans(thd, true) || res;
+=======
+<<<<<<< HEAD
+        res = ha_rollback_trans(thd, true);
+>>>>>>> pr/231
       else {
+=======
+        res= ha_rollback_trans(thd, true) || res;
+      else
+      {
+>>>>>>> upstream/cluster-7.6
         /*
           To make the commit not to block with global read lock set
           "ignore_global_read_lock" flag to true.
          */
+<<<<<<< HEAD
         res = ha_commit_trans(thd, true, true) || res;
+=======
+<<<<<<< HEAD
+        res = ha_commit_trans(thd, true, true);
+=======
+        res= ha_commit_trans(thd, true, true) || res;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
     /*

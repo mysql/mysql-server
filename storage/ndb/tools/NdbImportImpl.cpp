@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -652,7 +656,11 @@ NdbImportImpl::Job::start_resume()
       m_util.set_error_gen(m_error, __LINE__,
                            "inconsistent counts from old state files"
                            " (*.stt vs *.map)"
+<<<<<<< HEAD
                            " rows %" PRIu64 " vs %" PRIu64 " reject %" PRIu64 " vs %" PRIu64,
+=======
+                           " rows %llu vs %llu reject %llu vs %llu",
+>>>>>>> pr/231
                            m_old_rows, old_rows, m_old_reject, old_reject);
       return;
     }
@@ -1896,6 +1904,7 @@ NdbImportImpl::CsvInputWorker::state_parse()
   log_debug(2, "state_parse");
   m_csvinput->do_parse();
   log_debug(2, "lines parsed:" << m_csvinput->m_line_list.cnt());
+<<<<<<< HEAD
   if(m_csvinput->has_error())
   {
     /* Cannot recover from parser error */
@@ -1906,6 +1915,9 @@ NdbImportImpl::CsvInputWorker::state_parse()
   {
     m_inputstate = InputState::State_movetail;
   }
+=======
+  m_inputstate = InputState::State_movetail;
+>>>>>>> pr/231
 }
 
 void
@@ -3170,10 +3182,17 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
       if (ai_value_not_provided) {
         // No auto inc value was provided in the input file for an
         // auto inc field, generate one
+<<<<<<< HEAD
         Uint64 val;
         /**
          * Each and every worker caches opt.m_ai_prefetch_sz auto inc
          * values by calling getAutoIncrementValue(). If no cached
+=======
+        uint64 val;
+        /**
+         * Each and every worker caches opt.m_ai_prefetch_sz auto inc
+         * values by calling getAutoIncrementValue(). If no cahced
+>>>>>>> pr/231
          * value available, this call will update the table meta data
          * next-autoincrement value in SYSTAB to cache another
          * opt.m_ai_prefetch_sz range exclusively for this worker.
@@ -3498,7 +3517,11 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     return;
   }
   // csv input requires at least 2 instances
+<<<<<<< HEAD
   Buf buf[2] = {{true}, {true}};
+=======
+  Buf buf[2] = {true, true};
+>>>>>>> pr/231
   CsvInput* csvinput[2];
   RowList rows_reject;
   RowMap rowmap_in[] = {m_util, m_util};

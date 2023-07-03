@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -88,11 +96,35 @@ bool PFS_index_setup_actors::match(PFS_setup_actor *pfs) {
     }
   }
 
+<<<<<<< HEAD
   if (m_fields >= 3) {
     if (!m_key_3.match(pfs)) {
       return false;
     }
   }
+=======
+PFS_engine_table_share_state
+table_setup_actors::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_setup_actors::m_share=
+{
+  { C_STRING_WITH_LEN("setup_actors") },
+  &pfs_editable_acl,
+  table_setup_actors::create,
+  table_setup_actors::write_row,
+  table_setup_actors::delete_all_rows,
+  table_setup_actors::get_row_count,
+  sizeof(PFS_simple_index),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+>>>>>>> upstream/cluster-7.6
 
   return true;
 }
@@ -115,6 +147,7 @@ int table_setup_actors::write_row(PFS_engine_table *, TABLE *table,
   bool enabled;
   bool history;
 
+<<<<<<< HEAD
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
@@ -134,7 +167,36 @@ int table_setup_actors::write_row(PFS_engine_table *, TABLE *table,
           history_value = (enum_yes_no)get_field_enum(f);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  for (; (f= *fields) ; fields++)
+  {
+    if (bitmap_is_set(table->write_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* HOST */
+        host= get_field_char_utf8(f, &host_data);
+        break;
+      case 1: /* USER */
+        user= get_field_char_utf8(f, &user_data);
+        break;
+      case 2: /* ROLE */
+        role= get_field_char_utf8(f, &role_data);
+        break;
+      case 3: /* ENABLED */
+        enabled_value= (enum_yes_no) get_field_enum(f);
+        break;
+      case 4: /* HISTORY */
+        history_value= (enum_yes_no) get_field_enum(f);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -265,6 +327,7 @@ int table_setup_actors::read_row_values(TABLE *table, unsigned char *,
   /* Set the null bits */
   assert(table->s->null_bytes == 1);
 
+<<<<<<< HEAD
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
@@ -287,7 +350,36 @@ int table_setup_actors::read_row_values(TABLE *table, unsigned char *,
           set_field_enum(f, (*m_row.m_history_ptr) ? ENUM_YES : ENUM_NO);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* HOST */
+        set_field_char_utf8(f, m_row.m_hostname, m_row.m_hostname_length);
+        break;
+      case 1: /* USER */
+        set_field_char_utf8(f, m_row.m_username, m_row.m_username_length);
+        break;
+      case 2: /* ROLE */
+        set_field_char_utf8(f, m_row.m_rolename, m_row.m_rolename_length);
+        break;
+      case 3: /* ENABLED */
+        set_field_enum(f, (*m_row.m_enabled_ptr) ? ENUM_YES : ENUM_NO);
+        break;
+      case 4: /* HISTORY */
+        set_field_enum(f, (*m_row.m_history_ptr) ? ENUM_YES : ENUM_NO);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -301,6 +393,7 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
   Field *f;
   enum_yes_no value;
 
+<<<<<<< HEAD
   for (; (f = *fields); fields++) {
     if (bitmap_is_set(table->write_set, f->field_index())) {
       switch (f->field_index()) {
@@ -321,7 +414,39 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
           *m_row.m_history_ptr = (value == ENUM_YES) ? true : false;
           break;
         default:
+<<<<<<< HEAD
           return HA_ERR_WRONG_COMMAND;
+=======
+          DBUG_ASSERT(false);
+=======
+  for (; (f= *fields) ; fields++)
+  {
+    if (bitmap_is_set(table->write_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* HOST */
+      case 1: /* USER */
+      case 2: /* ROLE */
+        return HA_ERR_WRONG_COMMAND;
+      case 3: /* ENABLED */
+        value= (enum_yes_no) get_field_enum(f);
+        /* Reject illegal enum values in ENABLED */
+        if ((value != ENUM_YES) && (value != ENUM_NO))
+          return HA_ERR_NO_REFERENCED_ROW;
+        *m_row.m_enabled_ptr= (value == ENUM_YES) ? true : false;
+        break;
+      case 4: /* HISTORY */
+        value= (enum_yes_no) get_field_enum(f);
+        /* Reject illegal enum values in HISTORY */
+        if ((value != ENUM_YES) && (value != ENUM_NO))
+          return HA_ERR_NO_REFERENCED_ROW;
+        *m_row.m_history_ptr= (value == ENUM_YES) ? true : false;
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -330,8 +455,27 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
   return result;
 }
 
+<<<<<<< HEAD
 int table_setup_actors::delete_row_values(TABLE *, const unsigned char *,
                                           Field **) {
+<<<<<<< HEAD
   return delete_setup_actor(&m_row.m_user_name, &m_row.m_host_name,
                             &m_row.m_role_name);
+=======
+  CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
+=======
+int table_setup_actors::delete_row_values(TABLE *table,
+                                          const unsigned char *buf,
+                                          Field **fields)
+{
+  assert(m_row_exists);
+
+  CHARSET_INFO *cs= &my_charset_utf8_bin;
+>>>>>>> upstream/cluster-7.6
+  String user(m_row.m_username, m_row.m_username_length, cs);
+  String role(m_row.m_rolename, m_row.m_rolename_length, cs);
+  String host(m_row.m_hostname, m_row.m_hostname_length, cs);
+
+  return delete_setup_actor(&user, &host, &role);
+>>>>>>> pr/231
 }

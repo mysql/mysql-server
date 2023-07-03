@@ -1,4 +1,15 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+#ifndef ITEM_STRFUNC_INCLUDED
+#define ITEM_STRFUNC_INCLUDED
+
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,6 +109,7 @@ class Item_str_func : public Item_func {
   Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
       : Item_func(pos, a, b, c, d) {}
 
+<<<<<<< HEAD
   Item_str_func(Item *a, Item *b, Item *c, Item *d, Item *e)
       : Item_func(a, b, c, d, e) {}
 
@@ -108,6 +120,18 @@ class Item_str_func : public Item_func {
       : Item_func(pos, a, b, c, d, e, f) {}
   explicit Item_str_func(mem_root_deque<Item *> *list) : Item_func(list) {}
 
+=======
+  Item_str_func(Item *a, Item *b, Item *c, Item *d, Item* e)
+    :Item_func(a, b, c, d, e)
+  {decimals=NOT_FIXED_DEC; }
+  Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item* e)
+    :Item_func(pos, a, b, c, d, e)
+  {decimals=NOT_FIXED_DEC; }
+  Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item* e, Item* f)
+    :Item_func(pos, a, b, c, d, e, f)
+  {decimals=NOT_FIXED_DEC; }
+  Item_str_func(List<Item> &list) :Item_func(list) {decimals=NOT_FIXED_DEC; }
+>>>>>>> upstream/cluster-7.6
   Item_str_func(const POS &pos, PT_item_list *opt_list)
       : Item_func(pos, opt_list) {}
 
@@ -280,6 +304,7 @@ class Item_func_aes_encrypt final : public Item_str_func {
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b)
       : Item_str_func(pos, a, b) {}
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c)
+<<<<<<< HEAD
       : Item_str_func(pos, a, b, c) {}
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d)
       : Item_str_func(pos, a, b, c, d) {}
@@ -293,10 +318,28 @@ class Item_func_aes_encrypt final : public Item_str_func {
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
   const char *func_name() const override { return "aes_encrypt"; }
+=======
+    :Item_str_func(pos, a, b, c)
+  {}
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
+  {}
+  Item_func_aes_encrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
+    :Item_str_func(pos, a, b, c, d, e)
+  {}
+  Item_func_aes_encrypt(const POS& pos, Item* a, Item* b, Item* c, Item* d, Item* e, Item* f)
+    :Item_str_func(pos, a, b, c, d, e, f)
+  {}
+  virtual bool itemize(Parse_context *pc, Item **res);
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "aes_encrypt"; }
+>>>>>>> upstream/cluster-7.6
 };
 
 class Item_func_aes_decrypt : public Item_str_func {
   typedef Item_str_func super;
+<<<<<<< HEAD
 
  public:
   Item_func_aes_decrypt(const POS &pos, Item *a, Item *b)
@@ -315,6 +358,28 @@ class Item_func_aes_decrypt : public Item_str_func {
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "aes_decrypt"; }
+=======
+public:
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b)
+    :Item_str_func(pos, a, b)
+  {}
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c)
+    :Item_str_func(pos, a, b, c)
+  {}
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+    :Item_str_func(pos, a, b, c, d)
+  {}
+  Item_func_aes_decrypt(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
+    :Item_str_func(pos, a, b, c, d, e)
+  {}
+  Item_func_aes_decrypt(const POS& pos, Item* a, Item* b, Item* c, Item* d, Item* e, Item* f)
+    :Item_str_func(pos, a, b, c, d, e, f)
+  {}
+  virtual bool itemize(Parse_context *pc, Item **res);
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "aes_decrypt"; }
+>>>>>>> upstream/cluster-7.6
 };
 
 class Item_func_random_bytes : public Item_str_func {
@@ -337,6 +402,7 @@ class Item_func_concat : public Item_str_func {
   String tmp_value{"", 0, collation.collation};  // Initialize to empty
  public:
   Item_func_concat(const POS &pos, PT_item_list *opt_list)
+<<<<<<< HEAD
       : Item_str_func(pos, opt_list) {}
   Item_func_concat(Item *a, Item *b) : Item_str_func(a, b) {}
   Item_func_concat(const POS &pos, Item *a, Item *b)
@@ -361,6 +427,32 @@ class Item_func_concat_ws : public Item_str_func {
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "concat_ws"; }
+=======
+      : Item_str_func(pos, opt_list), tmp_value("", 0, collation.collation) {}
+  Item_func_concat(Item *a, Item *b)
+      : Item_str_func(a, b), tmp_value("", 0, collation.collation) {}
+  Item_func_concat(const POS &pos, Item *a, Item *b)
+      : Item_str_func(pos, a, b), tmp_value("", 0, collation.collation) {}
+
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "concat"; }
+};
+
+class Item_func_concat_ws :public Item_str_func
+{
+  String tmp_value;
+public:
+  Item_func_concat_ws(List<Item> &list)
+      : Item_str_func(list), tmp_value("", 0, collation.collation) {}
+  Item_func_concat_ws(const POS &pos, PT_item_list *opt_list)
+      : Item_str_func(pos, opt_list), tmp_value("", 0, collation.collation) {}
+
+  String *val_str(String *);
+  void fix_length_and_dec();
+  const char *func_name() const { return "concat_ws"; }
+  table_map not_null_tables() const { return 0; }
+>>>>>>> upstream/cluster-7.6
 };
 
 class Item_func_reverse : public Item_str_func {
@@ -641,12 +733,24 @@ class Item_func_user : public Item_func_sysconst {
 
   bool itemize(Parse_context *pc, Item **res) override;
 
+<<<<<<< HEAD
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(
             checker_args);
     func_arg->banned_function_name = func_name();
     return true;
+=======
+<<<<<<< HEAD
+  String *val_str(String *) override {
+    DBUG_ASSERT(fixed == 1);
+=======
+  String *val_str(String *)
+  {
+    assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+    return (null_value ? 0 : &str_value);
+>>>>>>> pr/231
   }
   bool resolve_type(THD *) override {
     set_data_type_string(uint32{USERNAME_CHAR_LENGTH + HOSTNAME_LENGTH + 1U});
@@ -717,13 +821,29 @@ class Item_func_make_set final : public Item_str_func {
   Item_func_make_set(const POS &pos, Item *a, PT_item_list *opt_list)
       : Item_str_func(pos, opt_list), item(a) {}
 
+<<<<<<< HEAD
   bool itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *str) override;
   bool fix_fields(THD *thd, Item **ref) override {
     assert(fixed == 0);
     bool res = ((!item->fixed && item->fix_fields(thd, &item)) ||
                 item->check_cols(1) || Item_func::fix_fields(thd, ref));
+<<<<<<< HEAD
     set_nullable(is_nullable() || item->is_nullable());
+=======
+    maybe_null |= item->maybe_null;
+=======
+  virtual bool itemize(Parse_context *pc, Item **res);
+  String *val_str(String *str);
+  bool fix_fields(THD *thd, Item **ref)
+  {
+    assert(fixed == 0);
+    bool res= ((!item->fixed && item->fix_fields(thd, &item)) ||
+               item->check_cols(1) ||
+               Item_func::fix_fields(thd, ref));
+    maybe_null|= item->maybe_null;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return res;
   }
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
@@ -900,9 +1020,20 @@ class Item_func_unhex final : public Item_str_func {
   bool resolve_type(THD *thd) override;
 };
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
 class Item_func_like_range : public Item_str_func {
  protected:
+=======
+#ifndef NDEBUG
+class Item_func_like_range :public Item_str_func
+{
+protected:
+>>>>>>> upstream/cluster-7.6
   String min_str;
   String max_str;
   const bool is_min;
@@ -1011,8 +1142,49 @@ class Item_typecast_char final : public Item_charset_conversion {
   enum Functype functype() const override { return TYPECAST_FUNC; }
   bool eq(const Item *item, bool binary_cmp) const override;
   const char *func_name() const override { return "cast_as_char"; }
+<<<<<<< HEAD
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+=======
+  String *val_str(String *a) override;
+  bool resolve_type(THD *) override;
+  void print(String *str, enum_query_type query_type) override;
+};
+
+<<<<<<< HEAD
+class Item_func_binary final : public Item_str_func {
+ public:
+  Item_func_binary(const POS &pos, Item *a) : Item_str_func(pos, a) {}
+  String *val_str(String *a) override {
+    DBUG_ASSERT(fixed == 1);
+    String *tmp = args[0]->val_str(a);
+    null_value = args[0]->null_value;
+    if (tmp) tmp->set_charset(&my_charset_bin);
+=======
+
+class Item_func_binary :public Item_str_func
+{
+public:
+  Item_func_binary(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+  String *val_str(String *a)
+  {
+    assert(fixed == 1);
+    String *tmp=args[0]->val_str(a);
+    null_value=args[0]->null_value;
+    if (tmp)
+      tmp->set_charset(&my_charset_bin);
+>>>>>>> upstream/cluster-7.6
+    return tmp;
+  }
+  bool resolve_type(THD *) override {
+    // Determine binary string length from max length of argument in bytes
+    set_data_type_string(args[0]->max_length, &my_charset_bin);
+    return false;
+  }
+  void print(String *str, enum_query_type query_type) override;
+  const char *func_name() const override { return "cast_as_binary"; }
+  enum Functype functype() const override { return TYPECAST_FUNC; }
+>>>>>>> pr/231
 };
 
 class Item_load_file final : public Item_str_func {
@@ -1072,14 +1244,52 @@ class Item_func_quote : public Item_str_func {
 class Item_func_conv_charset final : public Item_charset_conversion {
  public:
   Item_func_conv_charset(const POS &pos, Item *a, const CHARSET_INFO *cs)
+<<<<<<< HEAD
       : Item_charset_conversion(pos, a, cs) {
     m_safe = false;
+=======
+<<<<<<< HEAD
+      : Item_str_func(pos, a) {
+    conv_charset = cs;
+    use_cached_value = false;
+    safe = false;
+>>>>>>> pr/231
   }
 
   Item_func_conv_charset(THD *thd, Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const)
+<<<<<<< HEAD
       : Item_charset_conversion(thd, a, cs, cache_if_const) {
     assert(args[0]->fixed);
+=======
+      : Item_str_func(a) {
+    DBUG_ASSERT(is_fixed_or_outer_ref(args[0]));
+=======
+  : Item_str_func(pos, a) 
+  { conv_charset= cs; use_cached_value= 0; safe= 0; }
+  Item_func_conv_charset(Item *a, const CHARSET_INFO *cs,
+                         bool cache_if_const) :Item_str_func(a)
+  {
+    assert(is_fixed_or_outer_ref(args[0]));
+>>>>>>> upstream/cluster-7.6
+
+    conv_charset = cs;
+    if (cache_if_const && args[0]->may_evaluate_const(thd)) {
+      uint errors = 0;
+      String tmp, *str = args[0]->val_str(&tmp);
+      if (!str || str_value.copy(str->ptr(), str->length(), str->charset(),
+                                 conv_charset, &errors))
+        null_value = 1;
+      use_cached_value = true;
+      str_value.mark_as_const();
+      safe = (errors == 0);
+    } else {
+      use_cached_value = false;
+      // Marks weather the conversion is safe
+      safe = (args[0]->collation.collation == &my_charset_bin ||
+              cs == &my_charset_bin || (cs->state & MY_CS_UNICODE));
+    }
+>>>>>>> pr/231
   }
   const char *func_name() const override { return "convert"; }
   void print(const THD *thd, String *str,
@@ -1236,9 +1446,11 @@ class Item_func_uuid final : public Item_str_func {
   table_map get_initial_pseudo_tables() const override {
     return RAND_TABLE_BIT;
   }
+<<<<<<< HEAD
   bool resolve_type(THD *) override;
   const char *func_name() const override { return "uuid"; }
   String *val_str(String *) override;
+<<<<<<< HEAD
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(
@@ -1247,6 +1459,30 @@ class Item_func_uuid final : public Item_str_func {
     return ((func_arg->source == VGS_GENERATED_COLUMN) ||
             (func_arg->source == VGS_CHECK_CONSTRAINT));
   }
+=======
+  bool check_gcol_func_processor(uchar *) override { return true; }
+=======
+  const char *func_name() const{ return "uuid"; }
+  String *val_str(String *);
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
+  // set RAND_TABLE_BIT in the used_tables_cache
+  table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
+  // uuid is not constant and so non-cacheable
+  bool const_item() const { return (used_tables() == 0); }
+>>>>>>> upstream/cluster-7.6
+};
+
+class Item_func_gtid_subtract final : public Item_str_ascii_func {
+  String buf1, buf2;
+
+ public:
+  Item_func_gtid_subtract(const POS &pos, Item *a, Item *b)
+      : Item_str_ascii_func(pos, a, b) {}
+  bool resolve_type(THD *) override;
+  const char *func_name() const override { return "gtid_subtract"; }
+  String *val_str_ascii(String *) override;
+>>>>>>> pr/231
 };
 
 class Item_func_current_role final : public Item_func_sysconst {

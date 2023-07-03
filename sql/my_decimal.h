@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -10,6 +18,14 @@
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
    separately licensed software that they have included with MySQL.
+<<<<<<< HEAD
+=======
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
+>>>>>>> upstream/cluster-7.6
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -90,6 +106,7 @@ inline int my_decimal_int_part(uint precision, uint decimals) {
   or assignment operator, rather than memcpy/memmove.
 */
 
+<<<<<<< HEAD
 class my_decimal : public decimal_t {
 /*
   Several of the routines in strings/decimal.c have had buffer
@@ -97,7 +114,22 @@ class my_decimal : public decimal_t {
   To catch them, we allocate dummy fields around the buffer,
   and test that their values do not change.
  */
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+#if !defined(DBUG_OFF)
+=======
+class my_decimal :public decimal_t
+{
+  /*
+    Several of the routines in strings/decimal.c have had buffer
+    overrun/underrun problems. These are *not* caught by valgrind.
+    To catch them, we allocate dummy fields around the buffer,
+    and test that their values do not change.
+   */
+#if !defined(NDEBUG)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   int foo1;
 #endif
 
@@ -111,9 +143,19 @@ class my_decimal : public decimal_t {
  public:
   my_decimal(const my_decimal &rhs) : decimal_t(rhs) {
     rhs.sanity_check();
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
     foo1 = test_value;
     foo2 = test_value;
+=======
+#if !defined(NDEBUG)
+    foo1= test_value;
+    foo2= test_value;
+>>>>>>> upstream/cluster-7.6
 #endif
     for (uint i = 0; i < DECIMAL_BUFF_LENGTH; i++) buffer[i] = rhs.buffer[i];
     buf = buffer;
@@ -129,10 +171,18 @@ class my_decimal : public decimal_t {
     return *this;
   }
 
+<<<<<<< HEAD
   void init() {
 #if !defined(NDEBUG)
     foo1 = test_value;
     foo2 = test_value;
+=======
+  void init()
+  {
+#if !defined(NDEBUG)
+    foo1= test_value;
+    foo2= test_value;
+>>>>>>> upstream/cluster-7.6
 #endif
     /*
       Do not initialize more of the base class,
@@ -144,14 +194,32 @@ class my_decimal : public decimal_t {
 
   my_decimal() { init(); }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   ~my_decimal() { sanity_check(); }
 #endif  // NDEBUG
 
   void sanity_check() const {
+<<<<<<< HEAD
     assert(foo1 == test_value);
     assert(foo2 == test_value);
     assert(buf == buffer);
+=======
+    DBUG_ASSERT(foo1 == test_value);
+    DBUG_ASSERT(foo2 == test_value);
+    DBUG_ASSERT(buf == buffer);
+=======
+  void sanity_check() const
+  {
+    assert(foo1 == test_value);
+    assert(foo2 == test_value);
+    assert(buf  == buffer);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   bool sign() const { return decimal_t::sign; }
@@ -169,7 +237,16 @@ class my_decimal : public decimal_t {
 #endif
 };
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+=======
+
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 void print_decimal(const my_decimal *dec);
 void print_decimal_buff(const my_decimal *dec, const uchar *ptr, int length);
 const char *dbug_decimal_as_string(char *buff, const my_decimal *val);
@@ -182,8 +259,22 @@ bool str_set_decimal(uint mask, const my_decimal *val, String *str,
 
 extern my_decimal decimal_zero;
 
+<<<<<<< HEAD
 inline void max_my_decimal(my_decimal *to, int precision, int frac) {
+<<<<<<< HEAD
   assert((precision <= DECIMAL_MAX_PRECISION) && (frac <= DECIMAL_MAX_SCALE));
+=======
+  DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
+              (frac <= DECIMAL_MAX_SCALE));
+=======
+
+inline
+void max_my_decimal(my_decimal *to, int precision, int frac)
+{
+  assert((precision <= DECIMAL_MAX_PRECISION)&&
+         (frac <= DECIMAL_MAX_SCALE));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   max_decimal(precision, frac, to);
 }
 
@@ -210,9 +301,19 @@ inline int check_result_and_overflow(uint mask, int result, my_decimal *val) {
 inline uint my_decimal_length_to_precision(uint length, uint scale,
                                            bool unsigned_flag) {
   /* Precision can't be negative thus ignore unsigned_flag when length is 0. */
+<<<<<<< HEAD
   assert(length || !scale);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(length || !scale);
+>>>>>>> pr/231
   uint retval =
       (uint)(length - (scale > 0 ? 1 : 0) - (unsigned_flag || !length ? 0 : 1));
+=======
+  assert(length || !scale);
+  uint retval= (uint) (length - (scale>0 ? 1:0) -
+                 (unsigned_flag || !length ? 0:1));
+>>>>>>> upstream/cluster-7.6
   return retval;
 }
 
@@ -223,10 +324,22 @@ inline uint32 my_decimal_precision_to_length_no_truncation(uint precision,
     When precision is 0 it means that original length was also 0. Thus
     unsigned_flag is ignored in this case.
   */
+<<<<<<< HEAD
   assert(precision || !scale);
   uint32 retval = (uint32)(precision + (scale > 0 ? 1 : 0) +
                            (unsigned_flag || !precision ? 0 : 1));
   if (retval == 0) return 1;
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(precision || !scale);
+  uint32 retval = (uint32)(precision + (scale > 0 ? 1 : 0) +
+                           (unsigned_flag || !precision ? 0 : 1));
+=======
+  assert(precision || !scale);
+  uint32 retval= (uint32)(precision + (scale > 0 ? 1 : 0) +
+                  (unsigned_flag || !precision ? 0 : 1));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return retval;
 }
 
@@ -237,7 +350,11 @@ inline uint32 my_decimal_precision_to_length(uint precision, uint8 scale,
     unsigned_flag is ignored in this case.
   */
   assert(precision || !scale);
+<<<<<<< HEAD
   precision = std::min(precision, uint(DECIMAL_MAX_PRECISION));
+=======
+  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
+>>>>>>> pr/231
   return my_decimal_precision_to_length_no_truncation(precision, scale,
                                                       unsigned_flag);
 }

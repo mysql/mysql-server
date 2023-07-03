@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,11 +142,26 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
       else
         lock->assert_some_lock();
     }
+<<<<<<< HEAD
     const rpl_sid &sid = sid_map->sidno_to_sid(sidno);
     if (lock && need_lock) lock->unlock();
     ret = to_string(sid, buf);
   } else {
+<<<<<<< HEAD
 #ifdef NDEBUG
+=======
+#ifdef DBUG_OFF
+=======
+    const rpl_sid &sid= sid_map->sidno_to_sid(sidno);
+    if (lock && need_lock)
+      lock->unlock();
+    ret= to_string(sid, buf);
+  }
+  else
+  {
+#ifdef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     /*
       NULL is only allowed in debug mode, since the sidno does not
       make sense for users but is useful to include in debug
@@ -186,7 +209,12 @@ bool Gtid::is_valid(const char *text) {
   return true;
 }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
 void check_return_status(enum_return_status status, const char *action,
                          const char *status_name, int allow_unreported) {
   if (status != RETURN_STATUS_OK) {
@@ -194,6 +222,20 @@ void check_return_status(enum_return_status status, const char *action,
     if (status == RETURN_STATUS_REPORTED_ERROR) {
 #if defined(MYSQL_SERVER) && !defined(NDEBUG)
       THD *thd = current_thd;
+=======
+
+#ifndef NDEBUG
+void check_return_status(enum_return_status status, const char *action,
+                         const char *status_name, int allow_unreported)
+{
+  if (status != RETURN_STATUS_OK)
+  {
+    assert(allow_unreported || status == RETURN_STATUS_REPORTED_ERROR);
+    if (status == RETURN_STATUS_REPORTED_ERROR)
+    {
+#if !defined(MYSQL_CLIENT) && !defined(NDEBUG)
+      THD *thd= current_thd;
+>>>>>>> upstream/cluster-7.6
       /*
         We create a new system THD with 'SYSTEM_THREAD_COMPRESS_GTID_TABLE'
         when initializing gtid state by fetching gtids during server startup,
@@ -201,7 +243,11 @@ void check_return_status(enum_return_status status, const char *action,
         assert in this case. We assert that diagnostic area logged the error
         outside server startup since the assert is really useful.
      */
+<<<<<<< HEAD
       assert(thd == nullptr ||
+=======
+      assert(thd == NULL ||
+>>>>>>> pr/231
              thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR ||
              (thd->get_stmt_da()->status() == Diagnostics_area::DA_EMPTY &&
               thd->system_thread == SYSTEM_THREAD_COMPRESS_GTID_TABLE));
@@ -210,7 +256,15 @@ void check_return_status(enum_return_status status, const char *action,
     DBUG_PRINT("info", ("%s error %d (%s)", action, status, status_name));
   }
 }
+<<<<<<< HEAD
 #endif  // ! NDEBUG
+=======
+<<<<<<< HEAD
+#endif  // ! DBUG_OFF
+=======
+#endif // ! NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #ifdef MYSQL_SERVER
 rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid) {

@@ -2185,7 +2185,11 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
         len = 1 + *((const Uint8*)(m_value.raw));
 
         assert(column.getType() == NdbDictionary::Column::Varchar ||
+<<<<<<< HEAD
                     column.getType() == NdbDictionary::Column::Varbinary);
+=======
+               column.getType() == NdbDictionary::Column::Varbinary);
+>>>>>>> pr/231
         if (unlikely(len > 1+static_cast<Uint32>(column.getLength())))
           return QRY_CHAR_PARAMETER_TRUNCATED;
 
@@ -2196,7 +2200,11 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
         len = 2 + uint2korr((const Uint8*)m_value.raw);
 
         assert(column.getType() == NdbDictionary::Column::Longvarchar ||
+<<<<<<< HEAD
                     column.getType() == NdbDictionary::Column::Longvarbinary);
+=======
+               column.getType() == NdbDictionary::Column::Longvarbinary);
+>>>>>>> pr/231
         if (unlikely(len > 2+static_cast<Uint32>(column.getLength())))
           return QRY_CHAR_PARAMETER_TRUNCATED;
         dst.appendBytes(m_value.raw, len);
@@ -2213,7 +2221,11 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
         return QRY_PARAMETER_HAS_WRONG_TYPE;
 
       assert(column.getType() == NdbDictionary::Column::Varchar ||
+<<<<<<< HEAD
                   column.getType() == NdbDictionary::Column::Varbinary);
+=======
+             column.getType() == NdbDictionary::Column::Varbinary);
+>>>>>>> pr/231
 
       {
         // Convert from two-byte to one-byte length field.
@@ -2609,7 +2621,11 @@ int
 NdbQueryImpl::getRangeNo() const
 {
   const NdbWorker* worker = m_applFrags.getCurrent();
+<<<<<<< HEAD
   if (worker != nullptr) {
+=======
+  if (worker != NULL) {
+>>>>>>> pr/231
     const int range_no = worker->getResultStream(0).getCurrentRangeNo();
     if (range_no >= 0) return range_no;
     assert(!needRangeNo());
@@ -4033,11 +4049,19 @@ NdbQueryImpl::OrderedFragSet::OrderedFragSet():
   m_finalResultReceivedCount(0),
   m_finalResultConsumedCount(0),
   m_ordering(NdbQueryOptions::ScanOrdering_void),
+<<<<<<< HEAD
   m_keyRecord(nullptr),
   m_resultRecord(nullptr),
   m_resultMask(nullptr),
   m_activeWorkers(nullptr),
   m_fetchMoreWorkers(nullptr)
+=======
+  m_keyRecord(NULL),
+  m_resultRecord(NULL),
+  m_resultMask(NULL),
+  m_activeWorkers(NULL),
+  m_fetchMoreWorkers(NULL)
+>>>>>>> pr/231
 {
 }
 
@@ -4770,8 +4794,13 @@ int NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
     }
     else
     {
+<<<<<<< HEAD
       assert(m_resultBuffer!=nullptr);
       if (unlikely(m_resultBuffer == nullptr)) return -1;
+=======
+      assert(m_resultBuffer!=NULL);
+      if (unlikely(m_resultBuffer == NULL)) return -1;
+>>>>>>> pr/231
       // Copy result to buffer supplied by application.
       memcpy(m_resultBuffer, buff, m_ndbRecord->m_row_size);
     }

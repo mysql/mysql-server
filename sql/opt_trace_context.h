@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,8 +272,19 @@ class Opt_trace_context {
   */
   void restore_I_S() {
     --I_S_disabled;
+<<<<<<< HEAD
     assert(I_S_disabled >= 0);
     if (unlikely(pimpl != nullptr)) pimpl->restore_I_S();
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(I_S_disabled >= 0);
+    if (unlikely(pimpl != NULL)) pimpl->restore_I_S();
+=======
+    assert(I_S_disabled >= 0);
+    if (unlikely(pimpl != NULL))
+      pimpl->restore_I_S();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
  private:

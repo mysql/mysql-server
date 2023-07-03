@@ -401,7 +401,11 @@ Suma::execSTTOR(Signal* signal) {
     if (ERROR_INSERTED(13053))
     {
       jam();
+<<<<<<< HEAD
       g_eventLogger->info("SUMA : ERROR 13053 : Stalling phase 101");
+=======
+      ndbout_c("SUMA : ERROR 13053 : Stalling phase 101");
+>>>>>>> pr/231
       sendSignalWithDelay(SUMA_REF, GSN_STTOR, signal,
                           1000, signal->getLength());
       return;
@@ -639,7 +643,11 @@ Suma::execREAD_NODESCONF(Signal* signal)
   if(getNodeState().getNodeRestartInProgress())
   {
     NdbNodeBitmask started_nodes;
+<<<<<<< HEAD
     started_nodes.assign(conf->startedNodes);
+=======
+    started_nodes.assign(NdbNodeBitmask::Size, conf->startedNodes);
+>>>>>>> pr/231
     c_alive_nodes.bitOR(started_nodes);
     c_alive_nodes.set(getOwnNodeId()); 
   }
@@ -3360,7 +3368,11 @@ Suma::execSCAN_FRAGREF(Signal* signal){
   DBUG_ENTER("Suma::execSCAN_FRAGREF");
   ScanFragRef * const ref = (ScanFragRef*)signal->getDataPtr();
   Ptr<SyncRecord> syncPtr;
+<<<<<<< HEAD
   ndbrequire(c_syncPool.getPtr(syncPtr, ref->senderData));
+=======
+  c_syncPool.getPtr(syncPtr, ref->senderData);
+>>>>>>> pr/231
   syncPtr.p->completeScan(signal, ref->errorCode);
   DBUG_VOID_RETURN;
 }
@@ -5155,6 +5167,44 @@ Suma::doFIRE_TRIG_ORD(Signal* signal, LinearSectionPtr lsptr[3])
 
   ndbrequire(gci > m_last_complete_gci);
 
+<<<<<<< HEAD
+=======
+  if (signal->getNoOfSections())
+  {
+    jam();
+    ndbassert(isNdbMtLqh());
+    SectionHandle handle(this, signal);
+
+    ndbrequire( setTriggerBufferLock(trigId) );
+
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0); // Keys
+    const Uint32 sz = ptr.sz;
+    ndbrequire(sz <= SUMA_BUF_SZ);
+    copy(f_buffer, ptr);
+
+    handle.getSection(ptr, 2); // After values
+    ndbrequire(ptr.sz <= (SUMA_BUF_SZ - sz));
+    copy(f_buffer + sz, ptr);
+    f_trigBufferSize = sz + ptr.sz;
+
+    handle.getSection(ptr, 1); // Before values
+    ndbrequire(ptr.sz <= SUMA_BUF_SZ);
+    copy(b_buffer, ptr);
+    b_trigBufferSize = ptr.sz;
+    releaseSections(handle);
+  }
+
+  jam();
+  ndbrequire( checkTriggerBufferLock(trigId) );
+  /**
+   * Reset bufferlock 
+   * We will use the buffers until the end of 
+   * signal processing, but not after
+   */
+  ndbrequire( clearBufferLock() );
+  
+>>>>>>> pr/231
   Uint32 tableId = subPtr.p->m_tableId;
   Uint32 schemaVersion =
     c_tablePool.getPtr(subPtr.p->m_table_ptrI)->m_schemaVersion;
@@ -6035,8 +6085,12 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   // dict coordinator sends info to API
   
 #ifndef NDEBUG
+<<<<<<< HEAD
   g_eventLogger->info("DICT_TAB_INFO in SUMA,  tabInfoPtr.sz = %d",
                       tabInfoPtr.sz);
+=======
+  ndbout_c("DICT_TAB_INFO in SUMA,  tabInfoPtr.sz = %d", tabInfoPtr.sz);
+>>>>>>> pr/231
   SimplePropertiesSectionReader reader(handle.m_ptr[0],
 				       getSectionSegmentPool());
   reader.printAll(g_eventLogger);

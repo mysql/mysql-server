@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,7 +163,16 @@ int ignored_error_code(int err_code);
     if (!(COND)) return ERRNO;              \
   } while (0)
 #else
+<<<<<<< HEAD
 #define ASSERT_OR_RETURN_ERROR(COND, ERRNO) assert(COND)
+=======
+<<<<<<< HEAD
+#define ASSERT_OR_RETURN_ERROR(COND, ERRNO) DBUG_ASSERT(COND)
+=======
+#define ASSERT_OR_RETURN_ERROR(COND, ERRNO) \
+  assert(COND)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif
 
 #define LOG_EVENT_OFFSET 4
@@ -1022,9 +1035,23 @@ class Log_event {
     Factually that's a sequential mode where a Worker remains to
     be the applier.
   */
+<<<<<<< HEAD
   virtual void set_mts_isolate_group() {
+<<<<<<< HEAD
     assert(ends_group() || get_type_code() == binary_log::QUERY_EVENT ||
            get_type_code() == binary_log::EXECUTE_LOAD_QUERY_EVENT);
+=======
+    DBUG_ASSERT(ends_group() || get_type_code() == binary_log::QUERY_EVENT ||
+                get_type_code() == binary_log::EXECUTE_LOAD_QUERY_EVENT);
+=======
+  virtual void set_mts_isolate_group()
+  {
+    assert(ends_group() ||
+           get_type_code() == binary_log::QUERY_EVENT ||
+           get_type_code() == binary_log::EXEC_LOAD_EVENT ||
+           get_type_code() == binary_log::EXECUTE_LOAD_QUERY_EVENT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
   }
 
@@ -2326,9 +2353,20 @@ class Table_map_log_event : public binary_log::Table_map_event,
 
   ~Table_map_log_event() override;
 
+<<<<<<< HEAD
 #ifndef MYSQL_SERVER
   table_def *create_table_def() {
+<<<<<<< HEAD
     assert(m_colcnt > 0);
+=======
+    DBUG_ASSERT(m_colcnt > 0);
+=======
+#ifdef MYSQL_CLIENT
+  table_def *create_table_def()
+  {
+    assert(m_colcnt > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits, m_flags);
   }
@@ -2674,10 +2712,42 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     @param[in] table The table to compare this events bitmaps
                      against.
 
+<<<<<<< HEAD
     @retval true if sets match
     @retval false otherwise (following bitmap_cmp return logic).
   */
   virtual bool read_write_bitmaps_cmp(const TABLE *table) const = 0;
+=======
+    @return TRUE if sets match, FALSE otherwise. (following
+                 bitmap_cmp return logic).
+
+   */
+  virtual bool read_write_bitmaps_cmp(TABLE *table)
+  {
+    bool res= FALSE;
+
+    switch (get_general_type_code())
+    {
+      case binary_log::DELETE_ROWS_EVENT:
+        res= bitmap_cmp(get_cols(), table->read_set);
+        break;
+      case binary_log::UPDATE_ROWS_EVENT:
+        res= (bitmap_cmp(get_cols(), table->read_set) &&
+              bitmap_cmp(get_cols_ai(), table->write_set));
+        break;
+      case binary_log::WRITE_ROWS_EVENT:
+        res= bitmap_cmp(get_cols(), table->write_set);
+        break;
+      default:
+        /*
+          We should just compare bitmaps for Delete, Write
+          or Update rows events.
+        */
+        assert(0);
+    }
+    return res;
+  }
+>>>>>>> upstream/cluster-7.6
 #endif
 
 #ifdef MYSQL_SERVER
@@ -2800,8 +2870,16 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
   */
   uchar *m_distinct_key_spare_buf;
 
+<<<<<<< HEAD
   /**
     Unpack the current row image from the event into m_table->record[0].
+=======
+  // Unpack the current row into m_table->record[0]
+  int unpack_current_row(const Relay_log_info *const rli,
+                         MY_BITMAP const *cols)
+  {
+    assert(m_table);
+>>>>>>> upstream/cluster-7.6
 
     @param rli The applier context.
 
@@ -2867,6 +2945,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     @return true if there is an autoincrement field on the extra
             columns, false otherwise.
    */
+<<<<<<< HEAD
   bool is_auto_inc_in_extra_columns(const Relay_log_info *const rli);
 
   /**
@@ -2878,6 +2957,19 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     @retval false if the error is non-retryable.
    */
   static bool is_trx_retryable_upon_engine_error(int error);
+=======
+<<<<<<< HEAD
+  inline bool is_auto_inc_in_extra_columns() {
+    DBUG_ASSERT(m_table);
+=======
+  inline bool is_auto_inc_in_extra_columns()
+  {
+    assert(m_table);
+>>>>>>> upstream/cluster-7.6
+    return (m_table->next_number_field &&
+            m_table->next_number_field->field_index >= m_width);
+  }
+>>>>>>> pr/231
 #endif
 
   bool is_rbr_logging_format() const override { return true; }
@@ -3018,10 +3110,23 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     @retval 0 Success
     @retval ER_* Error code returned by unpack_current_row
   */
+<<<<<<< HEAD
   virtual int skip_after_image_for_update_event(const Relay_log_info *rli
                                                 [[maybe_unused]],
                                                 const uchar *curr_bi_start
                                                 [[maybe_unused]]) {
+=======
+<<<<<<< HEAD
+  virtual int skip_after_image_for_update_event(
+      const Relay_log_info *rli MY_ATTRIBUTE((unused)),
+      const uchar *curr_bi_start MY_ATTRIBUTE((unused))) {
+=======
+  virtual int skip_after_image_for_update_event(const Relay_log_info *rli
+                                                MY_ATTRIBUTE((unused)),
+                                                const uchar *curr_bi_start
+                                                MY_ATTRIBUTE((unused))) {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return 0;
   }
 
@@ -3263,6 +3368,7 @@ class Update_rows_log_event : public Rows_log_event,
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
 #endif
 
+<<<<<<< HEAD
 #if defined(MYSQL_SERVER)
   int do_before_row_operations(const Relay_log_info *const) override;
   int do_after_row_operations(const Relay_log_info *const, int) override;
@@ -3284,6 +3390,17 @@ class Update_rows_log_event : public Rows_log_event,
   static binary_log::Log_event_type get_update_rows_event_type(
       const THD *thd_arg);
 #endif /* defined(MYSQL_SERVER) */
+=======
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  virtual int do_before_row_operations(const Slave_reporting_capability *const);
+  virtual int do_after_row_operations(const Slave_reporting_capability *const,int);
+  virtual int do_exec_row(const Relay_log_info *const);
+
+  int skip_after_image_for_update_event(const Relay_log_info *rli,
+                                        const uchar *curr_bi_start);
+
+#endif /* defined(MYSQL_SERVER) && defined(HAVE_REPLICATION) */
+>>>>>>> upstream/cluster-7.6
 };
 
 /**
@@ -3411,12 +3528,26 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
       : binary_log::Incident_event(incident_arg),
         Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
                   Log_event::EVENT_IMMEDIATE_LOGGING, header(), footer()) {
+<<<<<<< HEAD
     DBUG_TRACE;
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
                                 incident_arg < INCIDENT_COUNT);
     assert(message == nullptr && message_length == 0);
     return;
+=======
+    DBUG_ENTER("Incident_log_event::Incident_log_event");
+    DBUG_PRINT("enter", ("incident: %d", incident));
+    if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
+<<<<<<< HEAD
+      is_valid_param = true;
+    DBUG_ASSERT(message == NULL && message_length == 0);
+=======
+      is_valid_param= true;
+    assert(message == NULL && message_length == 0);
+>>>>>>> upstream/cluster-7.6
+    DBUG_VOID_RETURN;
+>>>>>>> pr/231
   }
 
   Incident_log_event(THD *thd_arg, enum_incident incident_arg,
@@ -3424,6 +3555,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
       : binary_log::Incident_event(incident_arg),
         Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
                   Log_event::EVENT_IMMEDIATE_LOGGING, header(), footer()) {
+<<<<<<< HEAD
     DBUG_TRACE;
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
@@ -3434,6 +3566,30 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
       // The allocation failed. Mark this binlog event as invalid.
       common_header->set_is_valid(false);
       return;
+=======
+    DBUG_ENTER("Incident_log_event::Incident_log_event");
+    DBUG_PRINT("enter", ("incident: %d", incident));
+    if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
+<<<<<<< HEAD
+      is_valid_param = true;
+    DBUG_ASSERT(message == NULL && message_length == 0);
+    if (!(message = (char *)my_malloc(key_memory_Incident_log_event_message,
+                                      msg.length + 1, MYF(MY_WME)))) {
+=======
+      is_valid_param= true;
+    assert(message == NULL && message_length == 0);
+    if (!(message= (char*) my_malloc(key_memory_Incident_log_event_message,
+                                           msg.length+1, MYF(MY_WME))))
+    {
+>>>>>>> upstream/cluster-7.6
+      /*
+        If the incident is not recognized, this binlog event is
+        invalid.  If we set incident_number to INCIDENT_NONE, the
+        invalidity will be detected by is_valid in both the ctors.
+      */
+      incident = INCIDENT_NONE;
+      DBUG_VOID_RETURN;
+>>>>>>> pr/231
     }
     strmake(message, msg.str, msg.length);
     message_length = msg.length;
@@ -4233,6 +4389,14 @@ class View_change_log_event : public binary_log::View_change_event,
   char *get_view_id() { return view_id; }
 
   /**
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    Sets the certification info
+  */
+  void set_certification_info(std::map<std::string, std::string> *info);
+=======
+>>>>>>> pr/231
      Sets the certification info in the event
 
      @note size is calculated on this method as the size of the data
@@ -4244,6 +4408,10 @@ class View_change_log_event : public binary_log::View_change_event,
    */
   void set_certification_info(std::map<std::string, std::string> *info,
                               size_t *event_size);
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /**
     Returns the certification info

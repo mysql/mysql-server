@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -108,8 +132,31 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
                                                &m_old_rec_buf, &m_buf_size);
   m_block_when_stored.store(block);
 
+<<<<<<< HEAD
   m_modify_clock = block->get_modify_clock(
       IF_DEBUG(fsp_is_system_temporary(block->page.id.space())));
+=======
+<<<<<<< HEAD
+  /* Function try to check if block is S/X latch. */
+  cursor->modify_clock = buf_block_get_modify_clock(block);
+  cursor->withdraw_clock = buf_withdraw_clock;
+=======
+		cursor->rel_pos = BTR_PCUR_BEFORE;
+	} else {
+		cursor->rel_pos = BTR_PCUR_ON;
+	}
+
+	cursor->old_stored = true;
+	cursor->old_rec = dict_index_copy_rec_order_prefix(
+		index, rec, &cursor->old_n_fields,
+		&cursor->old_rec_buf, &cursor->buf_size);
+
+	cursor->block_when_stored.store(block);
+
+	/* Function try to check if block is S/X latch. */
+	cursor->modify_clock = buf_block_get_modify_clock(block);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
@@ -143,8 +190,79 @@ void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
   dst->m_old_n_fields = src->m_old_n_fields;
 }
 
+<<<<<<< HEAD
 bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
                                   ut::Location location) {
+=======
+<<<<<<< HEAD
+/** Restores the stored position of a persistent cursor bufferfixing the page
+ and obtaining the specified latches. If the cursor position was saved when the
+ (1) cursor was positioned on a user record: this function restores the position
+ to the last record LESS OR EQUAL to the stored record;
+ (2) cursor was positioned on a page infimum record: restores the position to
+ the last record LESS than the user record which was the successor of the page
+ infimum;
+ (3) cursor was positioned on the page supremum: restores to the first record
+ GREATER than the user record which was the predecessor of the supremum.
+ (4) cursor was positioned before the first or after the last in an empty tree:
+ restores to before first or after the last in the tree.
+ @return true if the cursor position was stored when it was on a user
+ record and it can be restored on a user record whose ordering fields
+ are identical to the ones of the original user record */
+ibool btr_pcur_restore_position_func(
+    ulint latch_mode,   /*!< in: BTR_SEARCH_LEAF, ... */
+    btr_pcur_t *cursor, /*!< in: detached persistent cursor */
+    const char *file,   /*!< in: file name */
+    ulint line,         /*!< in: line where called */
+    mtr_t *mtr)         /*!< in: mtr */
+=======
+/** This is a backported version of a lambda expression:
+  [&](buf_block_t *hint) {
+     return hint != nullptr && btr_cur_optimistic_latch_leaves(hint...);
+  }
+for compilers which do not support lambda expressions, nor passing local types
+as template arguments. */
+struct Btr_cur_optimistic_latch_leaves_functor_t{
+	btr_pcur_t * &cursor;
+	ulint &latch_mode;
+	const char * &file;
+	ulint &line;
+	mtr_t * &mtr;
+	bool operator() (buf_block_t *hint) const {
+		return hint != NULL && btr_cur_optimistic_latch_leaves(
+			hint, cursor->modify_clock, &latch_mode,
+			btr_pcur_get_btr_cur(cursor), file, line, mtr
+		);
+	}
+};
+
+/**************************************************************//**
+Restores the stored position of a persistent cursor bufferfixing the page and
+obtaining the specified latches. If the cursor position was saved when the
+(1) cursor was positioned on a user record: this function restores the position
+to the last record LESS OR EQUAL to the stored record;
+(2) cursor was positioned on a page infimum record: restores the position to
+the last record LESS than the user record which was the successor of the page
+infimum;
+(3) cursor was positioned on the page supremum: restores to the first record
+GREATER than the user record which was the predecessor of the supremum.
+(4) cursor was positioned before the first or after the last in an empty tree:
+restores to before first or after the last in the tree.
+@return TRUE if the cursor position was stored when it was on a user
+record and it can be restored on a user record whose ordering fields
+are identical to the ones of the original user record */
+ibool
+btr_pcur_restore_position_func(
+/*===========================*/
+	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
+	btr_pcur_t*	cursor,		/*!< in: detached persistent cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
+	mtr_t*		mtr)		/*!< in: mtr */
+>>>>>>> upstream/cluster-7.6
+{
+  dict_index_t *index;
+>>>>>>> pr/231
   dtuple_t *tuple;
   page_cur_mode_t mode;
 
@@ -165,12 +283,23 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
     m_latch_mode = BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode);
 
+<<<<<<< HEAD
     m_pos_state = BTR_PCUR_IS_POSITIONED;
 
     m_block_when_stored.clear();
 
     return (false);
+=======
+<<<<<<< HEAD
+    return (FALSE);
+>>>>>>> pr/231
   }
+=======
+		cursor->latch_mode =
+			BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode);
+		cursor->pos_state = BTR_PCUR_IS_POSITIONED;
+		cursor->block_when_stored.clear();
+>>>>>>> upstream/cluster-7.6
 
   ut_a(m_old_rec != nullptr);
   ut_a(m_old_n_fields > 0);
@@ -191,9 +320,20 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
       m_latch_mode = latch_mode;
 
+<<<<<<< HEAD
       buf_block_dbg_add_level(get_block(), dict_index_is_ibuf(index)
                                                ? SYNC_IBUF_TREE_NODE
                                                : SYNC_TREE_NODE);
+=======
+<<<<<<< HEAD
+      buf_block_dbg_add_level(
+          btr_pcur_get_block(cursor),
+          dict_index_is_ibuf(index) ? SYNC_IBUF_TREE_NODE : SYNC_TREE_NODE);
+=======
+		Btr_cur_optimistic_latch_leaves_functor_t functor={cursor,latch_mode,file,line,mtr};
+		if (cursor->block_when_stored.run_with_hint(functor)) {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       if (m_rel_pos == BTR_PCUR_ON) {
 #ifdef UNIV_DEBUG
@@ -203,6 +343,7 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
         rec = get_rec();
 
+<<<<<<< HEAD
         auto heap = mem_heap_create(256, UT_LOCATION_HERE);
 
         offsets1 = rec_get_offsets(m_old_rec, index, nullptr, m_old_n_fields,
@@ -214,7 +355,17 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
         ut_ad(!cmp_rec_rec(m_old_rec, rec, offsets1, offsets2, index,
                            page_is_spatial_non_leaf(rec, index), nullptr,
                            false));
+=======
+<<<<<<< HEAD
+        ut_ad(!cmp_rec_rec(cursor->old_rec, rec, offsets1, offsets2, index));
+>>>>>>> pr/231
         mem_heap_free(heap);
+=======
+				ut_ad(!cmp_rec_rec(cursor->old_rec,
+						   rec, offsets1, offsets2,
+						   index,page_is_spatial_non_leaf(rec, index)));
+				mem_heap_free(heap);
+>>>>>>> upstream/cluster-7.6
 #endif /* UNIV_DEBUG */
         return (true);
       }
@@ -276,7 +427,14 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
     m_old_stored = true;
 
+<<<<<<< HEAD
     mem_heap_free(heap);
+=======
+		buf_block_t * block = btr_pcur_get_block(cursor);
+		cursor->block_when_stored.store(block);
+		cursor->modify_clock = buf_block_get_modify_clock(block);
+		cursor->old_stored = true;
+>>>>>>> upstream/cluster-7.6
 
     return (true);
   }
@@ -331,6 +489,7 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
   auto next_page = buf_block_get_frame(next_block);
 
 #ifdef UNIV_BTR_DEBUG
+<<<<<<< HEAD
   if (!import_ctx) {
     ut_a(page_is_comp(next_page) == page_is_comp(page));
     ut_a(btr_page_get_prev(next_page, mtr) == get_block()->page.id.page_no());
@@ -343,6 +502,31 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
     }
     DBUG_EXECUTE_IF("ib_import_page_corrupt", import_ctx->is_error = true;);
   }
+=======
+<<<<<<< HEAD
+  ut_a(page_is_comp(next_page) == page_is_comp(page));
+  ut_a(btr_page_get_prev(next_page, mtr) ==
+       btr_pcur_get_block(cursor)->page.id.page_no());
+=======
+	if (!cursor->import_ctx) {
+		ut_a(page_is_comp(next_page) == page_is_comp(page));
+		ut_a(btr_page_get_prev(next_page, mtr)
+			== btr_pcur_get_block(cursor)->page.id.page_no());
+	}
+	else {
+		if (page_is_comp(next_page) != page_is_comp(page)
+			|| btr_page_get_prev(next_page, mtr) !=
+			btr_pcur_get_block(cursor)->page.id.page_no()) {
+			/* next page does not contain valid previous page
+			number, next page is corrupted, can't move cursor
+			to the next page */
+			cursor->import_ctx->is_error = true;
+		}
+		DBUG_EXECUTE_IF("ib_import_page_corrupt",
+				cursor->import_ctx->is_error = true;);
+	}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif /* UNIV_BTR_DEBUG */
 
   btr_leaf_page_release(get_block(), mode, mtr);

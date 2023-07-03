@@ -1,5 +1,13 @@
 /* -*- C++ -*- */
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,8 +158,20 @@ class sp_condition_value {
     sql_state[SQLSTATE_LENGTH] = 0;
   }
 
+<<<<<<< HEAD
   sp_condition_value(enum_type _type) : type(_type) {
+<<<<<<< HEAD
     assert(type != ERROR_CODE && type != SQLSTATE);
+=======
+    DBUG_ASSERT(type != ERROR_CODE && type != SQLSTATE);
+=======
+  sp_condition_value(enum_type _type)
+   :Sql_alloc(),
+    type(_type)
+  {
+    assert(type != ERROR_CODE && type != SQLSTATE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   /// Print a condition_value in human-readable form.

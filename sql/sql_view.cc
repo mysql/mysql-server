@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -266,16 +274,28 @@ void make_valid_column_names(LEX *lex) {
 static bool fill_defined_view_parts(THD *thd, Table_ref *view) {
   const char *cache_key;
   size_t cache_key_length = get_table_def_key(view, &cache_key);
+<<<<<<< HEAD
 
   Table_ref decoy = *view;
+=======
+  TABLE_LIST decoy;
+<<<<<<< HEAD
+  decoy = *view;
+=======
+  decoy= *view;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
     It's not clear what the above assignment actually wants to
     accomplish. What we do know is that it does *not* want to copy the MDL
     request, so we overwrite it with an uninitialized request.
   */
   decoy.mdl_request = MDL_request();
+<<<<<<< HEAD
 
   mysql_mutex_lock(&LOCK_open);
+=======
+>>>>>>> upstream/cluster-7.6
 
   TABLE_SHARE *share;
   if (!(share = get_table_share(thd, view->db, view->table_name, cache_key,
@@ -450,7 +470,16 @@ bool mysql_create_view(THD *thd, Table_ref *views, enum_view_create_mode mode) {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /* This is ensured in the parser. */
+<<<<<<< HEAD
   assert(!lex->result && !lex->param_list.elements);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!lex->result && !lex->param_list.elements);
+=======
+  assert(!lex->proc_analyse && !lex->result &&
+         !lex->param_list.elements);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     We can't allow taking exclusive meta-data locks of unlocked view under
@@ -589,6 +618,18 @@ bool mysql_create_view(THD *thd, Table_ref *views, enum_view_create_mode mode) {
         res = true;
         goto err;
       }
+<<<<<<< HEAD
+=======
+      /*
+        Copy the privileges of the underlying VIEWs which were filled by
+        fill_effective_table_privileges
+        (they were not copied at derived tables processing)
+      */
+      tbl->table->grant.privilege= tbl->grant.privilege;
+#ifndef NDEBUG
+      tbl->table->grant.want_privilege= tbl->grant.want_privilege;
+#endif
+>>>>>>> upstream/cluster-7.6
     }
   }
 
@@ -658,11 +699,27 @@ bool mysql_create_view(THD *thd, Table_ref *views, enum_view_create_mode mode) {
        This will hold the intersection of the privileges on all columns in the
        view.
      */
+<<<<<<< HEAD
     uint final_priv = VIEW_ANY_ACL;
 
+<<<<<<< HEAD
     for (sl = query_block; sl; sl = sl->next_query_block()) {
       assert(view->db); /* Must be set in the parser */
       for (Item *item : sl->visible_fields()) {
+=======
+    for (sl = select_lex; sl; sl = sl->next_select()) {
+      DBUG_ASSERT(view->db); /* Must be set in the parser */
+=======
+    uint final_priv= VIEW_ANY_ACL;
+    
+    for (sl= select_lex; sl; sl= sl->next_select())
+    {
+      assert(view->db);                     /* Must be set in the parser */
+>>>>>>> upstream/cluster-7.6
+      List_iterator_fast<Item> it(sl->item_list);
+      Item *item;
+      while ((item = it++)) {
+>>>>>>> pr/231
         Item_field *fld = item->field_for_view_update();
         uint priv = (get_column_grant(thd, &view->grant, view->db,
                                       view->table_name, item->item_name.ptr()) &
@@ -1211,6 +1268,7 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
   if (view_ref->is_view()) {
     /*
       It's an execution of a PS/SP and the view has already been unfolded
+<<<<<<< HEAD
       into a list of used tables. Now we only need to update the information
       about granted privileges in the view tables with the actual data
       stored in MySQL privilege system.  We don't need to restore the
@@ -1224,13 +1282,132 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
       them are checked as done for explicitly listed tables, in constructor
       of Opt_trace_start. Security context change is checked in
       prepare_security() below.
+=======
+      into a list of used tables.
+>>>>>>> pr/231
     */
+<<<<<<< HEAD
     if (!view_ref->prelocking_placeholder && view_ref->prepare_security(thd))
       return true;
 
+<<<<<<< HEAD
     return false;
   }
 
+=======
+=======
+    DBUG_PRINT("info",
+               ("VIEW %s.%s is already processed on previous PS/SP execution",
+                view_ref->view_db.str, view_ref->view_name.str));
+>>>>>>> upstream/cluster-7.6
+    DBUG_RETURN(false);
+  }
+
+  // Save view's name, which will be wiped out by materialization
+  view_ref->save_name_temporary();
+
+<<<<<<< HEAD
+=======
+  // Check that view is not referenced recursively 
+  for (TABLE_LIST *precedent= view_ref->referencing_view;
+       precedent;
+       precedent= precedent->referencing_view)
+  {
+    if (precedent->view_name.length == view_ref->table_name_length &&
+        precedent->view_db.length == view_ref->db_length &&
+        my_strcasecmp(system_charset_info,
+                      precedent->view_name.str, view_ref->table_name) == 0 &&
+        my_strcasecmp(system_charset_info,
+                      precedent->view_db.str, view_ref->db) == 0)
+    {
+      my_error(ER_VIEW_RECURSIVE, MYF(0),
+               top_view->view_db.str, top_view->view_name.str);
+      DBUG_RETURN(true);
+    }
+  }
+
+  // Initialize timestamp
+  if (!view_ref->timestamp.str)
+    view_ref->timestamp.str= view_ref->timestamp_buffer;
+
+  // Prepare default values for old format
+  view_ref->view_suid= TRUE;
+  view_ref->definer.user.str= view_ref->definer.host.str= 0;
+  view_ref->definer.user.length= view_ref->definer.host.length= 0;
+
+  assert(share->view_def != NULL);
+  if (share->view_def->parse((uchar*)view_ref, thd->mem_root,
+                             view_parameters, required_view_parameters,
+                             &file_parser_dummy_hook))
+    DBUG_RETURN(true);
+
+  // Check old format view .frm file
+  if (!view_ref->definer.user.str)
+  {
+    assert(!view_ref->definer.host.str &&
+           !view_ref->definer.user.length &&
+           !view_ref->definer.host.length);
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
+                        view_ref->db, view_ref->table_name);
+    get_default_definer(thd, &view_ref->definer);
+  }
+
+  /*
+    Initialize view definition context by character set names loaded from
+    the view definition file. Use UTF8 character set if view definition
+    file is of old version and does not contain the character set names.
+  */
+  view_ref->view_creation_ctx= View_creation_ctx::create(thd, view_ref);
+
+  DBUG_RETURN(false);
+}
+
+/**
+  Merge a view query expression into the parent expression.
+  Update all LEX pointers inside the view expression to point to the parent LEX.
+
+  @param view_lex  View's LEX object.
+  @param parent_lex   Original LEX object.
+*/
+void merge_query_blocks(LEX *view_lex, LEX *parent_lex)
+{
+  for (SELECT_LEX *select= view_lex->all_selects_list;
+       select != NULL; select= select->next_select_in_list())
+    select->parent_lex= parent_lex;
+}
+
+/**
+  Parse a view definition.
+
+  @param[in]  thd                 Thread handler
+  @param[in,out] view_ref         TABLE_LIST structure for view reference
+
+  @return false-in case of success, true-in case of error.
+
+  @note In case true value returned an error has been already set in DA.
+*/
+
+bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
+{
+  DBUG_ENTER("parse_view_definition");
+
+  TABLE_LIST *const top_view= view_ref->top_table();
+
+  if (view_ref->is_view())
+    /*
+      It's an execution of a PS/SP and the view has already been unfolded
+      into a list of used tables.
+    */
+    DBUG_RETURN(false);
+
+  // Save VIEW parameters, which will be wiped out by derived table processing
+  view_ref->view_db.str= view_ref->db;
+  view_ref->view_db.length= view_ref->db_length;
+  view_ref->view_name.str= view_ref->table_name;
+  view_ref->view_name.length= view_ref->table_name_length;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
     We don't invalidate a prepared statement when a view changes,
     or when someone creates a temporary table.
@@ -1283,6 +1460,13 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
   // Needed for correct units markup for EXPLAIN
   view_lex->explain_format = old_lex->explain_format;
 
+<<<<<<< HEAD
+=======
+  // Do not pollute the current statement
+  // with a digest of the view definition
+  assert(! parser_state.m_input.m_has_digest);
+
+>>>>>>> pr/231
   /*
     Push error handler allowing DD table access. Creating views referring
     to DD tables is rejected except for the I_S views. Thus, when parsing
@@ -1377,7 +1561,11 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
     view_no_suid.db = view_ref->db;
     view_no_suid.table_name = view_ref->table_name;
 
+<<<<<<< HEAD
     assert(view_tables == nullptr || view_tables->security_ctx == nullptr);
+=======
+    assert(view_tables == NULL || view_tables->security_ctx == NULL);
+>>>>>>> pr/231
 
     if (check_table_access(thd, SELECT_ACL, view_tables, false, UINT_MAX,
                            true) ||
@@ -1604,11 +1792,21 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
   }
 
   // Assign the context to the tables referenced in the view
+<<<<<<< HEAD
   if (view_tables) {
     assert(view_tables_tail);
     for (Table_ref *tbl = view_tables; tbl != view_tables_tail->next_global;
          tbl = tbl->next_global)
       tbl->security_ctx = security_ctx;
+=======
+  if (view_tables)
+  {
+    assert(view_tables_tail);
+    for (TABLE_LIST *tbl= view_tables;
+         tbl != view_tables_tail->next_global;
+         tbl= tbl->next_global)
+      tbl->security_ctx= security_ctx;
+>>>>>>> upstream/cluster-7.6
   }
 
   // Assign security context to name resolution contexts of view
@@ -1634,9 +1832,15 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
   assert(!view_ref->is_updatable());
 
   // another level of nesting would exceed the max supported nesting level
+<<<<<<< HEAD
   if (view_ref->query_block->nest_level >= MAX_SELECT_NESTING) {
     my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
     return true;
+=======
+  if (view_ref->select_lex->nest_level >= (int) MAX_SELECT_NESTING) {
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0));
+    DBUG_RETURN(true);
+>>>>>>> pr/231
   }
   // Link query expression of view into the outer query
   view_lex->unit->include_down(old_lex, view_ref->query_block);
@@ -1655,12 +1859,27 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
 
   view_ref->derived_key_list.clear();
 
+<<<<<<< HEAD
   assert(view_lex == thd->lex);
   thd->lex = old_lex;  // Needed for prepare_security
 
   result = view_ref->prepare_security(thd);
 
   if (!result && old_lex->sql_command == SQLCOM_LOCK_TABLES && view_tables) {
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(view_lex == thd->lex);
+  thd->lex = old_lex;  // Needed for prepare_security
+  result = !view_ref->prelocking_placeholder && view_ref->prepare_security(thd);
+=======
+  assert(view_lex == thd->lex);
+  thd->lex= old_lex;                            // Needed for prepare_security
+
+  result= view_ref->prepare_security(thd);
+
+  if (!result && old_lex->sql_command == SQLCOM_LOCK_TABLES && view_tables)
+  {
+>>>>>>> pr/231
     /*
       For LOCK TABLES we need to check if user which security context is used
       for view execution has necessary privileges for acquiring strong locks
@@ -1670,6 +1889,7 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
       revoked from user since then in any case.
     */
     assert(view_tables_tail);
+<<<<<<< HEAD
     for (Table_ref *tbl = view_tables; tbl != view_tables_tail->next_global;
          tbl = tbl->next_global) {
       bool fake_lock_tables_acl;
@@ -1680,10 +1900,26 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
       }
 
       if (fake_lock_tables_acl) {
+=======
+    for (TABLE_LIST *tbl= view_tables; tbl != view_tables_tail->next_global;
+         tbl= tbl->next_global)
+    {
+      bool fake_lock_tables_acl;
+      if (check_lock_view_underlying_table_access(thd, tbl,
+                                                  &fake_lock_tables_acl))
+      {
+        result= true;
+        break;
+      }
+
+      if (fake_lock_tables_acl)
+      {
+>>>>>>> pr/231
         /*
           Do not acquire strong metadata locks for I_S and read-only/
           truncatable-only P_S tables (i.e. for cases when we override
           refused LOCK_TABLES_ACL). It is safe to do this since:
+<<<<<<< HEAD
           1) For I_S tables which are views on top of data-dictionary
              tables and read-only/truncatable-only P_S tables under
              LOCK TABLES we do not look at locked tables, and open
@@ -1707,6 +1943,26 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
       }
     }
   }
+=======
+          1) For read-only/truncatable-only P_S tables under LOCK TABLES
+             we do not look at locked tables, and open them separately.
+          2) Before 8.0 all I_S tables are implemented as temporary tables
+             populated by special hook, so we do not acquire metadata
+             locks or do normal open for them at all.
+        */
+        assert(belongs_to_p_s(tbl) || tbl->schema_table);
+        tbl->mdl_request.set_type(MDL_SHARED_READ);
+        /*
+          We must override thr_lock_type (which can be a write type) as
+          well. This is necessary to keep consistency with MDL and to allow
+          concurrent access to read-only and truncatable-only P_S tables.
+        */
+        tbl->lock_type= TL_READ_DEFAULT;
+      }
+    }
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   lex_end(view_lex);
 
@@ -2028,3 +2284,128 @@ bool insert_view_fields(mem_root_deque<Item *> *list, Table_ref *view) {
   }
   return false;
 }
+<<<<<<< HEAD
+=======
+
+/*
+  checking view md5 check suum
+
+  SINOPSYS
+    view_checksum()
+    thd     threar handler
+    view    view for check
+
+  RETUIRN
+    HA_ADMIN_OK               OK
+    HA_ADMIN_NOT_IMPLEMENTED  it is not VIEW
+    HA_ADMIN_WRONG_CHECKSUM   check sum is wrong
+*/
+
+int view_checksum(THD *thd, TABLE_LIST *view)
+{
+  char md5[MD5_BUFF_LENGTH];
+  if (!view->is_view() || view->md5.length != 32)
+    return HA_ADMIN_NOT_IMPLEMENTED;
+  view->calc_md5(md5);
+  return (strncmp(md5, view->md5.str, 32) ?
+          HA_ADMIN_WRONG_CHECKSUM :
+          HA_ADMIN_OK);
+}
+
+/*
+  rename view
+
+  Synopsis:
+    renames a view
+
+  Parameters:
+    thd        thread handler
+    new_db     new name of database
+    new_name   new name of view
+    view       view
+
+  Return values:
+    FALSE      Ok 
+    TRUE       Error
+*/
+bool
+mysql_rename_view(THD *thd,
+                  const char *new_db,
+                  const char *new_name,
+                  TABLE_LIST *view)
+{
+  LEX_STRING pathstr;
+  File_parser *parser;
+  char path_buff[FN_REFLEN + 1];
+  bool error= TRUE;
+  bool was_truncated;
+  DBUG_ENTER("mysql_rename_view");
+
+  pathstr.str= (char *) path_buff;
+  pathstr.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
+                                       view->db, view->table_name,
+                                       reg_ext, 0);
+
+  if ((parser= sql_parse_prepare(&pathstr, thd->mem_root, 1)) && 
+       is_equal(&view_type, parser->type()))
+  {
+    TABLE_LIST view_def;
+    char dir_buff[FN_REFLEN + 1];
+    LEX_STRING dir, file;
+
+    /*
+      To be PS-friendly we should either to restore state of
+      TABLE_LIST object pointed by 'view' after using it for
+      view definition parsing or use temporary 'view_def'
+      object for it.
+    */
+    view_def.timestamp.str= view_def.timestamp_buffer;
+    view_def.view_suid= TRUE;
+
+    /* get view definition and source */
+    if (parser->parse((uchar*)&view_def, thd->mem_root, view_parameters,
+                      array_elements(view_parameters)-1,
+                      &file_parser_dummy_hook))
+      goto err;
+
+    dir.str= dir_buff;
+    dir.length= build_table_filename(dir_buff, sizeof(dir_buff) - 1,
+                                     new_db, "", "", 0);
+
+    pathstr.str= path_buff;
+    pathstr.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
+                                         new_db, new_name, reg_ext, 0,
+                                         &was_truncated);
+    // Check if we hit FN_REFLEN characters in path length
+    if (was_truncated)
+    {
+      my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path_buff)-1,
+               path_buff);
+      goto err;
+    }
+    file.str= pathstr.str + dir.length;
+    file.length= pathstr.length - dir.length;
+
+    /* rename view and it's backups */
+    if (rename_in_schema_file(thd, view->db, view->table_name, new_db, new_name))
+      goto err;
+
+    if (sql_create_definition_file(&dir, &file, view_file_type,
+                                   (uchar*)&view_def, view_parameters))
+    {
+      /* restore renamed view in case of error */
+      rename_in_schema_file(thd, new_db, new_name, view->db, view->table_name);
+      goto err;
+    }
+  } else
+    DBUG_RETURN(1);  
+
+  /* remove cache entries */
+  query_cache.invalidate(thd, view, FALSE);
+  sp_cache_invalidate();
+  error= FALSE;
+
+err:
+  DBUG_RETURN(error);
+}
+>>>>>>> upstream/cluster-7.6

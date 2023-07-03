@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +28,12 @@
 #include <ndb_global.h>
 #include <ndb_version.h>
 
+<<<<<<< HEAD
 #include <memory>
 
+=======
+#include <stdint.h>
+>>>>>>> pr/231
 #include "angel.hpp"
 #include "ndbd.hpp"
 #include "main.hpp"
@@ -42,13 +50,164 @@
 #include "util/ndb_opts.h"
 #include <EventLogger.hpp>
 
+#include "../mgmapi/mgmapi_configuration.hpp"
+
+#ifdef _WIN32
+#include <process.h>
+#include <io.h>
+#include <windows.h>
+#endif
+
+#define JAM_FILE_ID 333
+
+/*
+ * process_waiter class provides a check_child_exit_status method that works on
+ * both Windows and POSIX systems.
+ *
+ * On POSIX the child process id (pid) are valid until parent has waited for
+ * child or ignoring SIGCHLD.
+ *
+ * On Windows there is no such guarantee, instead parent should keep an open
+ * process handle to child until it has fetched the exit status.
+ *
+ * Not this class is specifically designed to work against data nodes, the
+ * class in not generally suitable for other types of processes.
+ */
+struct process_waiter {
+#ifdef _WIN32
+  typedef HANDLE native_handle;
+  static const HANDLE invalid;
+#else
+  typedef pid_t native_handle;
+  static const pid_t invalid;
+#endif
+  process_waiter(): h(invalid) {}
+  process_waiter(native_handle h): h(h) {}
+
+  bool valid() const { return h != invalid; }
+  /*
+   * On Windows pid is a 32 bit unsigned int (DWORD).
+   * On POSIX a signed int.
+   * Using intmax_t that should be able to hold both and still be able to use
+   * -1 as invalid pid.
+   * This function simplifies printf calls there the format type can be %jd on
+   * both Windows and other platforms independent on int size.
+   */
+  intmax_t get_pid_as_intmax() const;
+  /*
+   * check_child_exit_status returns
+   *  1 - if child have stopped, stat_loc will be filled in.
+   *  0 - if child is still running, call check_child_exit_status again.
+   * -1 - if check_child_exit_status failed and not retryable.
+   */
+  int check_child_exit_status(int *stat_loc);
+  /*
+   * kill_child kills the child data node.
+   * On POSIX it sends SIGINT signal.
+   * On Windows it uses a special event that child data node has setup.
+   */
+  int kill_child() const;
+private:
+  int close_handle();
+  native_handle h;
+};
+
+#ifdef _WIN32
+const HANDLE process_waiter::invalid = INVALID_HANDLE_VALUE;
+#else
+const pid_t process_waiter::invalid = -1;
+#endif
+
+inline intmax_t process_waiter::get_pid_as_intmax() const
+{
+#ifdef _WIN32
+  if (!valid()) return -1;
+  return GetProcessId(h);
+#else
+  return h;
+#endif
+}
+
+int process_waiter::check_child_exit_status(int *stat_loc)
+{
+  assert(valid());
+  if (!valid()) return -1;
+#ifndef _WIN32
+  pid_t p = waitpid(h, stat_loc, WNOHANG);
+  if (p == 0) return 0;
+  if (p != h) return -1;
+#else
+  DWORD exit_code;
+  if (!GetExitCodeProcess(h, &exit_code))
+  {
+    g_eventLogger->error("waitpid: GetExitCodeProcess failed, pid: %jd, "
+                         "error: %d", get_pid_as_intmax(), GetLastError());
+    close_handle();
+    return -1;
+  }
+
+  if (exit_code == STILL_ACTIVE)
+  {
+    /* Still alive */
+    return 0;
+  }
+
+  *stat_loc = exit_code;
+#endif
+  // wait successful, pid no longer valid
+  close_handle();
+  return 1;
+}
+
+int process_waiter::kill_child() const
+{
+  assert(valid());
+  if (!valid()) return -1;
+
+#ifndef _WIN32
+  return ::kill(h, SIGINT);
+#else
+  char shutdown_event_name[14+10+1]; // pid is DWORD
+  _snprintf(shutdown_event_name, sizeof(shutdown_event_name),
+            "ndbd_shutdown_%jd", get_pid_as_intmax());
+
+  /* Open the event to signal */
+  HANDLE shutdown_event;
+  if ((shutdown_event =
+          OpenEvent(EVENT_MODIFY_STATE, false, shutdown_event_name)) == NULL)
+  {
+    g_eventLogger->error("Failed to open shutdown_event '%s', error: %d",
+                         shutdown_event_name, GetLastError());
+    return -1;
+  }
+
+  int retval = 0;
+  if (SetEvent(shutdown_event) == 0)
+  {
+    g_eventLogger->error("Failed to signal shutdown_event '%s', error: %d",
+                         shutdown_event_name, GetLastError());
+    retval = -1;
+  }
+  CloseHandle(shutdown_event);
+  return retval;
+#endif
+}
+
+int process_waiter::close_handle()
+{
+  if (!valid()) return -1;
+#ifdef _WIN32
+  CloseHandle(h);
+#endif
+  h = invalid;
+  return 0;
+}
+
 static void
 angel_exit(int code)
 {
   ndb_daemon_exit(code);
 }
-
-#include "../mgmapi/mgmapi_configuration.hpp"
 
 static void
 reportShutdown(const ndb_mgm_configuration* config,
@@ -206,6 +365,7 @@ int pipe(int pipefd[2]){
   return _pipe(pipefd, buffer_size, flags);
 }
 
+<<<<<<< HEAD
 #undef getpid
 #include <process.h>
 #include <io.h>
@@ -251,6 +411,8 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
   return pid;
 }
 
+=======
+>>>>>>> pr/231
 static inline
 bool WIFEXITED(int status)
 {
@@ -275,6 +437,7 @@ int WTERMSIG(int status)
   return 0;
 }
 
+<<<<<<< HEAD
 static int
 kill(pid_t pid, int sig)
 {
@@ -335,9 +498,9 @@ kill(pid_t pid, int sig)
   CloseHandle(shutdown_event);
   return pid;
 }
+=======
+>>>>>>> pr/231
 #endif
-
-#define JAM_FILE_ID 333
 
 
 extern int real_main(int, char**);
@@ -370,8 +533,9 @@ void free_argv(char** argv)
 }
 
 
-static pid_t
-spawn_process(const char* progname, const Vector<BaseString>& args)
+static process_waiter
+spawn_process(const char* progname,
+              const Vector<BaseString>& args)
 {
 #ifdef _WIN32
   // Get full path name of this executeble
@@ -395,7 +559,7 @@ spawn_process(const char* progname, const Vector<BaseString>& args)
   {
     g_eventLogger->error("spawn_process: Failed to create argv, errno: %d",
                          errno);
-    return -1;
+    return process_waiter::invalid;
   }
 
 #ifdef _WIN32
@@ -412,28 +576,17 @@ spawn_process(const char* progname, const Vector<BaseString>& args)
       g_eventLogger->error("argv: '%s'", *argp++);
 
     free_argv(argv);
-    return -1;
+    return process_waiter::invalid;
   }
   free_argv(argv);
-
-  // Convert the handle returned from spawnv_ to a pid
-  DWORD pid = GetProcessId((HANDLE)spawn_handle);
-  if (pid == 0)
-  {
-    g_eventLogger->error("spawn_process: Failed to convert handle %d "
-                         "to pid, error: %d", spawn_handle, GetLastError());
-    CloseHandle((HANDLE)spawn_handle);
-    return -1;
-  }
-  CloseHandle((HANDLE)spawn_handle);
-  return pid;
+  return (HANDLE)spawn_handle;
 #else
   pid_t pid = fork();
   if (pid == -1)
   {
     g_eventLogger->error("Failed to fork, errno: %d", errno);
     free_argv(argv);
-    return -1;
+    return process_waiter::invalid;
   }
 
   if (pid)
@@ -442,6 +595,8 @@ spawn_process(const char* progname, const Vector<BaseString>& args)
     // Parent
     return pid;
   }
+
+  // Child path (pid == 0)
 
   // Count number of arguments
   int argc = 0;
@@ -453,7 +608,7 @@ spawn_process(const char* progname, const Vector<BaseString>& args)
   (void)real_main(argc, argv);
   assert(false); // main should never return
   exit(1);
-  return -1; // Never reached
+  return process_waiter::invalid; // Never reached
 #endif
 }
 
@@ -462,15 +617,15 @@ spawn_process(const char* progname, const Vector<BaseString>& args)
   max number of retries occurs
 */
 
-static pid_t
+static process_waiter
 retry_spawn_process(const char* progname, const Vector<BaseString>& args)
 {
   const unsigned max_retries = 10;
   unsigned retry_counter = 0;
   while(true)
   {
-    pid_t pid = spawn_process(progname, args);
-    if (pid == -1)
+    process_waiter proc(spawn_process(progname, args));
+    if (!proc.valid())
     {
       if (retry_counter++ == max_retries)
       {
@@ -484,7 +639,7 @@ retry_spawn_process(const char* progname, const Vector<BaseString>& args)
       NdbSleep_SecSleep(1);
       continue;
     }
-    return pid;
+    return proc;
   }
 }
 
@@ -714,6 +869,7 @@ angel_run(const char* progname,
     one_arg.assfmt("--angel-pid=%d", getpid());
     args.push_back(one_arg);
 
+<<<<<<< HEAD
 
     if(have_password_option) {
       /**
@@ -739,17 +895,22 @@ angel_run(const char* progname,
     pid_t child = retry_spawn_process(progname, args);
     g_is_forked = false;
     if (child <= 0)
+=======
+    process_waiter child = retry_spawn_process(progname, args);
+    if (!child.valid())
+>>>>>>> pr/231
     {
       // safety, retry_spawn_process returns valid child or give up
-      g_eventLogger->error("retry_spawn_process, child: %d", child);
+      g_eventLogger->error("retry_spawn_process");
       angel_exit(1);
     }
+    const intmax_t child_pid = child.get_pid_as_intmax();
 
     /**
      * Parent
      */
-    g_eventLogger->info("Angel pid: %d started child: %d",
-                        getpid(), child);
+    g_eventLogger->info("Angel pid: %d started child: %jd",
+                        getpid(), child_pid);
 
     ignore_signals();
 
@@ -783,23 +944,24 @@ angel_run(const char* progname,
     int status=0, error_exit=0;
     while(true)
     {
-      pid_t ret_pid = waitpid(child, &status, WNOHANG);
-      if (ret_pid == child)
+      int retval = child.check_child_exit_status(&status);
+      if (retval == 1)
       {
-        g_eventLogger->debug("Angel got child %d", child);
+        g_eventLogger->debug("Angel got child %jd", child_pid);
         break;
       }
-      if (ret_pid > 0)
+      if (retval == -1)
       {
-        g_eventLogger->warning("Angel got unexpected pid %d "
-                               "when waiting for %d",
-                               ret_pid, child);
+        g_eventLogger->warning("Angel failed waiting for child with pid %jd",
+                               child_pid);
+        break;
       }
 
       if (stop_child)
       {
-        g_eventLogger->info("Angel shutting down ndbd with pid %d", child);
-        kill(child, SIGINT);
+        g_eventLogger->info("Angel shutting down ndbd with pid %jd",
+                            child_pid);
+        child.kill_child();
        }
       NdbSleep_MilliSleep(100);
     }
@@ -931,7 +1093,9 @@ angel_run(const char* progname,
                    no_start,
                    initial,
                    child_error, child_signal, child_sphase);
-    g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
+    g_eventLogger->info("Child has terminated (pid %jd). "
+                        "Angel restarting child process",
+                        child_pid);
 
     g_eventLogger->debug("Angel reconnecting to management server");
     (void)retriever.disconnect();

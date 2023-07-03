@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -599,6 +607,7 @@ void PFS_account_row::set_field(uint index, Field *f) {
       break;
     default:
       assert(false);
+<<<<<<< HEAD
       break;
   }
 }
@@ -613,6 +622,8 @@ void PFS_account_row::set_nullable_field(uint index, Field *f) {
       break;
     default:
       assert(false);
+=======
+>>>>>>> pr/231
       break;
   }
 }
@@ -963,6 +974,7 @@ void PFS_index_row::set_field(uint index, Field *f) {
       break;
     default:
       assert(false);
+<<<<<<< HEAD
   }
 }
 
@@ -982,6 +994,8 @@ void PFS_index_row::set_nullable_field(uint index, Field *f) {
       break;
     default:
       assert(false);
+=======
+>>>>>>> pr/231
   }
 }
 
@@ -1174,6 +1188,7 @@ void PFS_connection_stat_row::set_field(uint index, Field *f) {
   }
 }
 
+<<<<<<< HEAD
 void set_field_object_type(Field *f, enum_object_type object_type) {
   const char *name;
   size_t length;
@@ -1309,6 +1324,186 @@ void set_field_mdl_status(Field *f, opaque_mdl_status mdl_status) {
 }
 
 void PFS_memory_stat_row::set_field(uint index, Field *f) {
+=======
+void set_field_object_type(Field *f, enum_object_type object_type)
+{
+  switch (object_type)
+  {
+  case OBJECT_TYPE_EVENT:
+    PFS_engine_table::set_field_varchar_utf8(f, "EVENT", 5);
+    break;
+  case OBJECT_TYPE_FUNCTION:
+    PFS_engine_table::set_field_varchar_utf8(f, "FUNCTION", 8);
+    break;
+  case OBJECT_TYPE_PROCEDURE:
+    PFS_engine_table::set_field_varchar_utf8(f, "PROCEDURE", 9);
+    break;
+  case OBJECT_TYPE_TABLE:
+    PFS_engine_table::set_field_varchar_utf8(f, "TABLE", 5);
+    break;
+  case OBJECT_TYPE_TEMPORARY_TABLE:
+    PFS_engine_table::set_field_varchar_utf8(f, "TEMPORARY TABLE", 15);
+    break;
+  case OBJECT_TYPE_TRIGGER:
+    PFS_engine_table::set_field_varchar_utf8(f, "TRIGGER", 7);
+    break;
+  case OBJECT_TYPE_GLOBAL:
+    PFS_engine_table::set_field_varchar_utf8(f, "GLOBAL", 6);
+    break;
+  case OBJECT_TYPE_SCHEMA:
+    PFS_engine_table::set_field_varchar_utf8(f, "SCHEMA", 6);
+    break;
+  case OBJECT_TYPE_COMMIT:
+    PFS_engine_table::set_field_varchar_utf8(f, "COMMIT", 6);
+    break;
+  case OBJECT_TYPE_USER_LEVEL_LOCK:
+    PFS_engine_table::set_field_varchar_utf8(f, "USER LEVEL LOCK", 15);
+    break;
+  case OBJECT_TYPE_TABLESPACE:
+    PFS_engine_table::set_field_varchar_utf8(f, "TABLESPACE", 10);
+    break;
+  case OBJECT_TYPE_LOCKING_SERVICE:
+    PFS_engine_table::set_field_varchar_utf8(f, "LOCKING SERVICE", 15);
+    break;
+  case NO_OBJECT_TYPE:
+  default:
+    assert(false);
+    PFS_engine_table::set_field_varchar_utf8(f, "", 0);
+    break;
+  }
+}
+
+void set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type)
+{
+  switch (lock_type)
+  {
+  case PFS_TL_READ:
+    PFS_engine_table::set_field_varchar_utf8(f, "READ", 4);
+    break;
+  case PFS_TL_READ_WITH_SHARED_LOCKS:
+    PFS_engine_table::set_field_varchar_utf8(f, "READ WITH SHARED LOCKS", 22);
+    break;
+  case PFS_TL_READ_HIGH_PRIORITY:
+    PFS_engine_table::set_field_varchar_utf8(f, "READ HIGH PRIORITY", 18);
+    break;
+  case PFS_TL_READ_NO_INSERT:
+    PFS_engine_table::set_field_varchar_utf8(f, "READ NO INSERT", 14);
+    break;
+  case PFS_TL_WRITE_ALLOW_WRITE:
+    PFS_engine_table::set_field_varchar_utf8(f, "WRITE ALLOW WRITE", 17);
+    break;
+  case PFS_TL_WRITE_CONCURRENT_INSERT:
+    PFS_engine_table::set_field_varchar_utf8(f, "WRITE CONCURRENT INSERT", 23);
+    break;
+  case PFS_TL_WRITE_LOW_PRIORITY:
+    PFS_engine_table::set_field_varchar_utf8(f, "WRITE LOW PRIORITY", 18);
+    break;
+  case PFS_TL_WRITE:
+    PFS_engine_table::set_field_varchar_utf8(f, "WRITE", 5);
+    break;
+  case PFS_TL_READ_EXTERNAL:
+    PFS_engine_table::set_field_varchar_utf8(f, "READ EXTERNAL", 13);
+    break;
+  case PFS_TL_WRITE_EXTERNAL:
+    PFS_engine_table::set_field_varchar_utf8(f, "WRITE EXTERNAL", 14);
+    break;
+  case PFS_TL_NONE:
+    f->set_null();
+    break;
+  default:
+    assert(false);
+  }
+}
+
+void set_field_mdl_type(Field *f, opaque_mdl_type mdl_type)
+{
+  enum_mdl_type e= (enum_mdl_type) mdl_type;
+  switch (e)
+  {
+  case MDL_INTENTION_EXCLUSIVE:
+    PFS_engine_table::set_field_varchar_utf8(f, "INTENTION_EXCLUSIVE", 19);
+    break;
+  case MDL_SHARED:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED", 6);
+    break;
+  case MDL_SHARED_HIGH_PRIO:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_HIGH_PRIO", 16);
+    break;
+  case MDL_SHARED_READ:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_READ", 11);
+    break;
+  case MDL_SHARED_WRITE:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_WRITE", 12);
+    break;
+  case MDL_SHARED_WRITE_LOW_PRIO:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_WRITE_LOW_PRIO", 21);
+    break;
+  case MDL_SHARED_UPGRADABLE:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_UPGRADABLE", 17);
+    break;
+  case MDL_SHARED_READ_ONLY:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_READ_ONLY", 16);
+    break;
+  case MDL_SHARED_NO_WRITE:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_NO_WRITE", 15);
+    break;
+  case MDL_SHARED_NO_READ_WRITE:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_NO_READ_WRITE", 20);
+    break;
+  case MDL_EXCLUSIVE:
+    PFS_engine_table::set_field_varchar_utf8(f, "EXCLUSIVE", 9);
+    break;
+  default:
+    assert(false);
+  }
+}
+
+void set_field_mdl_duration(Field *f, opaque_mdl_duration mdl_duration)
+{
+  enum_mdl_duration e= (enum_mdl_duration) mdl_duration;
+  switch (e)
+  {
+  case MDL_STATEMENT:
+    PFS_engine_table::set_field_varchar_utf8(f, "STATEMENT", 9);
+    break;
+  case MDL_TRANSACTION:
+    PFS_engine_table::set_field_varchar_utf8(f, "TRANSACTION", 11);
+    break;
+  case MDL_EXPLICIT:
+    PFS_engine_table::set_field_varchar_utf8(f, "EXPLICIT", 8);
+    break;
+  case MDL_DURATION_END:
+  default:
+    assert(false);
+  }
+}
+
+void set_field_mdl_status(Field *f, opaque_mdl_status mdl_status)
+{
+  MDL_ticket::enum_psi_status e=
+    static_cast<MDL_ticket::enum_psi_status>(mdl_status);
+  switch (e)
+  {
+  case MDL_ticket::PENDING:
+    PFS_engine_table::set_field_varchar_utf8(f, "PENDING", 7);
+    break;
+  case MDL_ticket::GRANTED:
+    PFS_engine_table::set_field_varchar_utf8(f, "GRANTED", 7);
+    break;
+  case MDL_ticket::PRE_ACQUIRE_NOTIFY:
+    PFS_engine_table::set_field_varchar_utf8(f, "PRE_ACQUIRE_NOTIFY", 18);
+    break;
+  case MDL_ticket::POST_RELEASE_NOTIFY:
+    PFS_engine_table::set_field_varchar_utf8(f, "POST_RELEASE_NOTIFY", 19);
+    break;
+  default:
+    assert(false);
+  }
+}
+
+void PFS_memory_stat_row::set_field(uint index, Field *f)
+{
+>>>>>>> upstream/cluster-7.6
   ssize_t val;
 
   switch (index) {
@@ -1350,6 +1545,7 @@ void PFS_memory_stat_row::set_field(uint index, Field *f) {
       break;
     default:
       assert(false);
+<<<<<<< HEAD
       break;
   }
 }
@@ -1378,10 +1574,13 @@ void PFS_session_all_memory_stat_row::set_field(uint index, Field *f) {
       break;
     default:
       assert(false);
+=======
+>>>>>>> pr/231
       break;
   }
 }
 
+<<<<<<< HEAD
 void set_field_isolation_level(Field *f, enum_isolation_level iso_level) {
   switch (iso_level) {
     case TRANS_LEVEL_READ_UNCOMMITTED:
@@ -1427,8 +1626,67 @@ void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state) {
 }
 
 int PFS_variable_name_row::make_row(const char *str, size_t length) {
+<<<<<<< HEAD
   assert(length <= sizeof(m_str));
   assert(length <= NAME_CHAR_LEN);
+=======
+  DBUG_ASSERT(length <= sizeof(m_str));
+  DBUG_ASSERT(length <= NAME_CHAR_LEN);
+=======
+void set_field_isolation_level(Field *f, enum_isolation_level iso_level)
+{
+  switch (iso_level)
+  {
+  case TRANS_LEVEL_READ_UNCOMMITTED:
+    PFS_engine_table::set_field_varchar_utf8(f, "READ UNCOMMITTED", 16);
+    break;
+  case TRANS_LEVEL_READ_COMMITTED:
+    PFS_engine_table::set_field_varchar_utf8(f, "READ COMMITTED", 14);
+    break;
+  case TRANS_LEVEL_REPEATABLE_READ:
+    PFS_engine_table::set_field_varchar_utf8(f, "REPEATABLE READ", 15);
+    break;
+  case TRANS_LEVEL_SERIALIZABLE:
+    PFS_engine_table::set_field_varchar_utf8(f, "SERIALIZABLE", 12);
+    break;
+  default:
+    assert(false);
+  }
+}
+
+void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state)
+{
+  switch (xa_state)
+  {
+  case TRANS_STATE_XA_NOTR:
+    PFS_engine_table::set_field_varchar_utf8(f, "NOTR", 4);
+    break;
+  case TRANS_STATE_XA_ACTIVE:
+    PFS_engine_table::set_field_varchar_utf8(f, "ACTIVE", 6);
+    break;
+  case TRANS_STATE_XA_IDLE:
+    PFS_engine_table::set_field_varchar_utf8(f, "IDLE", 4);
+    break;
+  case TRANS_STATE_XA_PREPARED:
+    PFS_engine_table::set_field_varchar_utf8(f, "PREPARED", 8);
+    break;
+  case TRANS_STATE_XA_ROLLBACK_ONLY:
+    PFS_engine_table::set_field_varchar_utf8(f, "ROLLBACK ONLY", 13);
+    break;
+  case TRANS_STATE_XA_COMMITTED:
+    PFS_engine_table::set_field_varchar_utf8(f, "COMMITTED", 9);
+    break;
+  default:
+    assert(false);
+  }
+}
+
+void PFS_variable_name_row::make_row(const char* str, size_t length)
+{
+  assert(length <= sizeof(m_str));
+  assert(length <= NAME_CHAR_LEN);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* enforce max name length */
   m_length = std::min(length, size_t{NAME_CHAR_LEN});
@@ -1448,11 +1706,20 @@ int PFS_variable_value_row::make_row(const System_variable *var) {
   return make_row(var->m_charset, var->m_value_str, var->m_value_length);
 }
 
+<<<<<<< HEAD
 int PFS_variable_value_row::make_row(const CHARSET_INFO *cs, const char *str,
                                      size_t length) {
   assert(cs != nullptr);
   assert(length <= sizeof(m_str));
   if (length > 0) {
+=======
+void PFS_variable_value_row::make_row(const CHARSET_INFO *cs, const char* str, size_t length)
+{
+  assert(cs != NULL);
+  assert(length <= sizeof(m_str));
+  if (length > 0)
+  {
+>>>>>>> upstream/cluster-7.6
     memcpy(m_str, str, length);
   }
   m_length = (uint)length;

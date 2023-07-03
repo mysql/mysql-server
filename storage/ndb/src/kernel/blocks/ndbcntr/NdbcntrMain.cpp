@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,6 +101,7 @@
 //#define DEBUG_LOCAL_SYSFILE 1
 //#define DEBUG_UNDO 1
 //#define DEBUG_REDO_CONTROL 1
+<<<<<<< HEAD
 //#define DEBUG_NODE_GROUP_START 1
 //#define DEBUG_LCP 1
 #endif
@@ -111,6 +116,8 @@
 #define DEB_NODE_STOP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_NODE_STOP(arglist) do { } while (0)
+=======
+>>>>>>> pr/231
 #endif
 
 #ifdef DEBUG_REDO_CONTROL
@@ -3729,6 +3736,20 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   jamEntry();
 
   CRASH_INSERTION(1006);
+<<<<<<< HEAD
+=======
+
+  /**
+   * It isn't valid to delay execution of NODE_FAILREP, quite a few
+   * measures have been made to ensure that NODE_FAILREP with perfect
+   * timing, this delay signal causes other errors, so is not a good
+   * method for testing.
+  */
+  
+  const NodeFailRep * nodeFail = (NodeFailRep *)&signal->theData[0];
+  NdbNodeBitmask allFailed; 
+  allFailed.assign(NdbNodeBitmask::Size, nodeFail->theNodes);
+>>>>>>> pr/231
 
   Uint32 senderRef = signal->getSendersBlockRef();
   Uint32 senderVersion = getNodeInfo(refToNode(senderRef)).m_version;
@@ -3846,6 +3867,7 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   NodeFailRep * rep = (NodeFailRep *)&signal->theData[0];  
   rep->masterNodeId = cmasterNodeId;
 
+<<<<<<< HEAD
   // sending signals to self
   // Send node bitmask in linear section.
   LinearSectionPtr lsptr[3];
@@ -3863,6 +3885,17 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
              NodeFailRep::SignalLength, JBB, lsptr, 1);
 
   /* DBDIH sends NODE_FAILREP to the other blocks that needs it. */
+=======
+  /* QMGR and DBDIH are notified first since some of the other blocks will
+   * send NF_COMPLETREP when they complete NODE_FAILREP.
+   */
+  sendSignal(QMGR_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+  
+  sendSignal(DBDIH_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+  /* DBDIH sends NODE_FAILREP to the other blocks that need it. */
+>>>>>>> pr/231
 
   if (c_stopRec.stopReq.senderRef)
   {
@@ -4707,7 +4740,11 @@ Ndbcntr::execSTOP_REQ(Signal* signal)
       ERROR_INSERTED(1024))
   {
     jam();
+<<<<<<< HEAD
     g_eventLogger->info("Extending TcTimeout by 5000 millis");
+=======
+    ndbout_c("Extending TcTimeout by 5000 millis");
+>>>>>>> pr/231
     c_stopRec.stopReq.transactionTimeout += 5000;
   }
 
@@ -4948,7 +4985,10 @@ Ndbcntr::StopRecord::checkTcTimeout(Signal* signal){
       } 
       else
       {
+<<<<<<< HEAD
         DEB_NODE_STOP(("WAIT_GCP_REQ ShutdownSync"));
+=======
+>>>>>>> pr/231
 #ifdef ERROR_INSERT
         if (cntr.ERROR_INSERT_VALUE == 1023)
         {
@@ -7343,6 +7383,10 @@ void Ndbcntr::execWAIT_ALL_COMPLETE_LCP_REQ(Signal* signal)
 {
   jamEntry();
   ndbrequire(m_local_lcp_started);
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
   if (signal->theData[1] == 0)
   {
     /**

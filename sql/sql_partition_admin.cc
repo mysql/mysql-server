@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +102,11 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
   if (thd->is_fatal_error()) /* out of memory creating a copy of alter_info */
     return true;
 
+<<<<<<< HEAD
+=======
+  /* Must be set in the parser */
+  assert(select_lex->db);
+>>>>>>> upstream/cluster-7.6
   /* also check the table to be exchanged with the partition */
   assert(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION);
 
@@ -177,17 +190,32 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table) {
   @param table      Non partitioned table.
   @param part_table Partitioned table.
   @param part_elem  Partition element to use for partition specific compare.
+<<<<<<< HEAD
   @param part_id    Id of specific partition
 */
 static bool compare_table_with_partition(THD *thd, TABLE *table,
                                          TABLE *part_table,
                                          partition_element *part_elem,
                                          uint part_id) {
+=======
+  @param part_id    Id of the specific partition.
+*/
+static bool compare_table_with_partition(THD *thd, TABLE *table,
+                                         TABLE *part_table,
+<<<<<<< HEAD
+                                         partition_element *part_elem) {
+=======
+                                         partition_element *part_elem,
+                                         uint part_id)
+{
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   HA_CREATE_INFO table_create_info, part_create_info;
   Alter_info part_alter_info(thd->mem_root);
   Alter_table_ctx part_alter_ctx;  // Not used
   DBUG_TRACE;
 
+<<<<<<< HEAD
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *part_table_def = nullptr;
   if (!part_table->s->tmp_table) {
@@ -201,6 +229,9 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   }
 
   bool metadata_equal = false;
+=======
+  bool metadata_equal= false;
+>>>>>>> upstream/cluster-7.6
 
   update_create_info_from_table(&table_create_info, table);
   /* get the current auto_increment value */
@@ -227,6 +258,7 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
       table_create_info.auto_increment_value;
 
   /* Check compatible row_types and set create_info accordingly. */
+<<<<<<< HEAD
   Partition_handler *part_handler;
   part_handler = part_table->file->get_partition_handler();
   auto part_row_type =
@@ -235,6 +267,28 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   if (part_row_type != table->s->real_row_type) {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), "ROW_FORMAT");
     return true;
+=======
+<<<<<<< HEAD
+  if (part_table->s->real_row_type != table->s->real_row_type) {
+    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), "ROW_FORMAT");
+    DBUG_RETURN(true);
+=======
+  {
+    enum row_type part_row_type;
+    Partition_handler *part_handler;
+    part_handler = part_table->file->get_partition_handler();
+    part_row_type = part_handler->get_partition_row_type(part_id);
+
+    enum row_type table_row_type= table->file->get_row_type();
+    if (part_row_type != table_row_type)
+    {
+      my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+               "ROW_FORMAT");
+      DBUG_RETURN(true);
+    }
+    part_create_info.row_type= table->s->row_type;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   part_create_info.row_type = table->s->row_type;
 
@@ -255,8 +309,20 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
     return true;
   }
+<<<<<<< HEAD
   assert(table->s->db_create_options == part_table->s->db_create_options);
   assert(table->s->db_options_in_use == part_table->s->db_options_in_use);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->db_create_options == part_table->s->db_create_options);
+  DBUG_ASSERT(table->s->db_options_in_use == part_table->s->db_options_in_use);
+=======
+  assert(table->s->db_create_options ==
+         part_table->s->db_create_options);
+  assert(table->s->db_options_in_use ==
+         part_table->s->db_options_in_use);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (table_create_info.avg_row_length != part_create_info.avg_row_length) {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), "AVG_ROW_LENGTH");
@@ -315,7 +381,11 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
   uint swap_part_id;
   Alter_table_prelocking_strategy alter_prelocking_strategy;
   uint table_counter;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("mysql_exchange_partition");
+>>>>>>> pr/231
   assert(alter_info->flags & Alter_info::ALTER_EXCHANGE_PARTITION);
 
   /* Don't allow to exchange with log table */
@@ -368,15 +438,36 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
     return true;
   }
 
+<<<<<<< HEAD
   if (swap_part_id == NOT_A_PARTITION_ID) {
+<<<<<<< HEAD
     assert(part_table->part_info->is_sub_partitioned());
+=======
+    DBUG_ASSERT(part_table->part_info->is_sub_partitioned());
+=======
+  if (swap_part_id == NOT_A_PARTITION_ID)
+  {
+    assert(part_table->part_info->is_sub_partitioned());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     my_error(ER_PARTITION_INSTEAD_OF_SUBPARTITION, MYF(0));
     return true;
   }
 
+<<<<<<< HEAD
   if (compare_table_with_partition(thd, swap_table, part_table, part_elem,
                                    swap_part_id))
     return true;
+=======
+<<<<<<< HEAD
+  if (compare_table_with_partition(thd, swap_table, part_table, part_elem))
+    DBUG_RETURN(true);
+=======
+  if (compare_table_with_partition(thd, swap_table, part_table, part_elem,
+                                   swap_part_id))
+    DBUG_RETURN(TRUE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Table and partition has same structure/options */
 
@@ -804,7 +895,26 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
 
   (void)thd->locked_tables_list.reopen_tables(thd);
 
+<<<<<<< HEAD
+=======
+  /*
+    A locked table ticket was upgraded to a exclusive lock. After the
+    the query has been written to the binary log, downgrade the lock
+    to a shared one.
+  */
+  if (thd->locked_tables_mode) ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+
+<<<<<<< HEAD
+>>>>>>> pr/231
   if (!error) my_ok(thd);
+=======
+  if (! error)
+    my_ok(thd);
+
+  // Invalidate query cache
+  assert(!first_table->next_local);
+  query_cache.invalidate(thd, first_table, FALSE);
+>>>>>>> upstream/cluster-7.6
 
   return error;
 }

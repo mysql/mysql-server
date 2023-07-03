@@ -1,7 +1,15 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -943,6 +951,7 @@ class Item_sum_num : public Item_sum {
   Item_sum_num(const POS &pos, Item *item_par, PT_window *window)
       : Item_sum(pos, item_par, window), is_evaluated(false) {}
 
+<<<<<<< HEAD
   Item_sum_num(const POS &pos, PT_item_list *list, PT_window *w)
       : Item_sum(pos, list, w), is_evaluated(false) {}
 
@@ -956,8 +965,22 @@ class Item_sum_num : public Item_sum {
 
   bool fix_fields(THD *, Item **) override;
   longlong val_int() override {
+<<<<<<< HEAD
     assert(fixed == 1);
     return llrint_with_overflow_check(val_real()); /* Real as default */
+=======
+    DBUG_ASSERT(fixed == 1);
+    return (longlong)rint(val_real()); /* Real as default */
+=======
+  Item_sum_num(THD *thd, Item_sum_num *item) 
+    :Item_sum(thd, item),is_evaluated(item->is_evaluated) {}
+  bool fix_fields(THD *, Item **);
+  longlong val_int()
+  {
+    assert(fixed == 1);
+    return (longlong) rint(val_real());             /* Real as default */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
@@ -982,6 +1005,7 @@ class Item_sum_int : public Item_sum_num {
     set_data_type_longlong();
   }
 
+<<<<<<< HEAD
   Item_sum_int(THD *thd, Item_sum_int *item) : Item_sum_num(thd, item) {
     set_data_type_longlong();
   }
@@ -997,6 +1021,15 @@ class Item_sum_int : public Item_sum_num {
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
+=======
+  Item_sum_int(const POS &pos, PT_item_list *list) :Item_sum_num(pos, list) {}
+  Item_sum_int(THD *thd, Item_sum_int *item) :Item_sum_num(thd, item) {}
+  double val_real() { assert(fixed == 1); return (double) val_int(); }
+  String *val_str(String*str);
+  my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  {
+>>>>>>> upstream/cluster-7.6
     return get_date_from_int(ltime, fuzzydate);
   }
   bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
@@ -1168,6 +1201,7 @@ class Item_avg_field : public Item_sum_num_field {
   uint f_precision, f_scale, dec_bin_size;
   uint prec_increment;
   Item_avg_field(Item_result res_type, Item_sum_avg *item);
+<<<<<<< HEAD
   enum Type type() const override { return FIELD_AVG_ITEM; }
   double val_real() override;
   my_decimal *val_decimal(my_decimal *) override;
@@ -1177,6 +1211,14 @@ class Item_avg_field : public Item_sum_num_field {
     assert(0);
     return "avg_field";
   }
+=======
+  enum Type type() const { return FIELD_AVG_ITEM; }
+  double val_real();
+  my_decimal *val_decimal(my_decimal *);
+  String *val_str(String*);
+  void fix_length_and_dec() {}
+  const char *func_name() const { assert(0); return "avg_field"; }
+>>>>>>> upstream/cluster-7.6
 };
 
 /// This is used in connection with an Item_sum_bit, @see Item_sum_hybrid_field
@@ -1347,6 +1389,21 @@ class Item_sum_variance;
 class Item_variance_field : public Item_sum_num_field {
  protected:
   uint sample;
+<<<<<<< HEAD
+=======
+  uint prec_increment;
+public:
+  Item_variance_field(Item_sum_variance *item);
+  enum Type type() const {return FIELD_VARIANCE_ITEM; }
+  double val_real();
+  String *val_str(String *str)
+  { return val_string_from_real(str); }
+  my_decimal *val_decimal(my_decimal *dec_buf)
+  { return val_decimal_from_real(dec_buf); }
+  void fix_length_and_dec() {}
+  const char *func_name() const { assert(0); return "variance_field"; }
+};
+>>>>>>> upstream/cluster-7.6
 
  public:
   Item_variance_field(Item_sum_variance *item);
@@ -1484,6 +1541,7 @@ class Item_sum_std;
 class Item_std_field final : public Item_variance_field {
  public:
   Item_std_field(Item_sum_std *item);
+<<<<<<< HEAD
   enum Type type() const override { return FIELD_STD_ITEM; }
   double val_real() override;
   my_decimal *val_decimal(my_decimal *) override;
@@ -1492,12 +1550,23 @@ class Item_std_field final : public Item_variance_field {
     assert(0);
     return "std_field";
   }
+<<<<<<< HEAD
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
     func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
+=======
+=======
+  enum Type type() const { return FIELD_STD_ITEM; }
+  double val_real();
+  my_decimal *val_decimal(my_decimal *);
+  enum Item_result result_type () const { return REAL_RESULT; }
+  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE;}
+  const char *func_name() const { assert(0); return "std_field"; }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /*
@@ -1944,10 +2013,22 @@ class Item_udf_sum : public Item_sum {
     if (udf.m_original && udf.is_initialized()) udf.free_handler();
   }
 
+<<<<<<< HEAD
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return udf.name(); }
   bool fix_fields(THD *thd, Item **ref) override {
+<<<<<<< HEAD
     assert(fixed == 0);
+=======
+    DBUG_ASSERT(fixed == 0);
+=======
+  virtual bool itemize(Parse_context *pc, Item **res);
+  const char *func_name() const { return udf.name(); }
+  bool fix_fields(THD *thd, Item **ref)
+  {
+    assert(fixed == 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     if (init_sum_func_check(thd)) return true;
 
@@ -1972,10 +2053,18 @@ class Item_sum_udf_float final : public Item_udf_sum {
   Item_sum_udf_float(const POS &pos, udf_func *udf_arg, PT_item_list *opt_list)
       : Item_udf_sum(pos, udf_arg, opt_list) {}
   Item_sum_udf_float(THD *thd, Item_sum_udf_float *item)
+<<<<<<< HEAD
       : Item_udf_sum(thd, item) {}
   longlong val_int() override {
     assert(fixed == 1);
     return (longlong)rint(Item_sum_udf_float::val_real());
+=======
+    :Item_udf_sum(thd, item) {}
+  longlong val_int()
+  {
+    assert(fixed == 1);
+    return (longlong) rint(Item_sum_udf_float::val_real());
+>>>>>>> upstream/cluster-7.6
   }
   double val_real() override;
   String *val_str(String *str) override;
@@ -1999,6 +2088,7 @@ class Item_sum_udf_int final : public Item_udf_sum {
   Item_sum_udf_int(const POS &pos, udf_func *udf_arg, PT_item_list *opt_list)
       : Item_udf_sum(pos, udf_arg, opt_list) {}
   Item_sum_udf_int(THD *thd, Item_sum_udf_int *item)
+<<<<<<< HEAD
       : Item_udf_sum(thd, item) {}
   longlong val_int() override;
   double val_real() override {
@@ -2008,6 +2098,16 @@ class Item_sum_udf_int final : public Item_udf_sum {
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
+=======
+    :Item_udf_sum(thd, item) {}
+  longlong val_int();
+  double val_real()
+  { assert(fixed == 1); return (double) Item_sum_udf_int::val_int(); }
+  String *val_str(String*str);
+  my_decimal *val_decimal(my_decimal *);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  {
+>>>>>>> upstream/cluster-7.6
     return get_date_from_int(ltime, fuzzydate);
   }
   bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
@@ -2160,6 +2260,7 @@ class Item_func_group_concat final : public Item_sum {
   bool itemize(Parse_context *pc, Item **res) override;
   void cleanup() override;
 
+<<<<<<< HEAD
   enum Sumfunctype sum_func() const override { return GROUP_CONCAT_FUNC; }
   const char *func_name() const override { return "group_concat"; }
   Item_result result_type() const override { return STRING_RESULT; }
@@ -2171,7 +2272,38 @@ class Item_func_group_concat final : public Item_sum {
   bool fix_fields(THD *, Item **) override;
   bool setup(THD *thd) override;
   void make_unique() override;
+<<<<<<< HEAD
   double val_real() override;
+=======
+  double val_real() override {
+    String *res;
+    res = val_str(&str_value);
+=======
+  enum Sumfunctype sum_func () const {return GROUP_CONCAT_FUNC;}
+  const char *func_name() const { return "group_concat"; }
+  virtual Item_result result_type () const { return STRING_RESULT; }
+  virtual Field *make_string_field(TABLE *table_arg);
+  enum_field_types field_type() const
+  {
+    if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB )
+      return MYSQL_TYPE_BLOB;
+    else
+      return MYSQL_TYPE_VARCHAR;
+  }
+  void clear();
+  bool add();
+  void reset_field() { assert(0); }        // not used
+  void update_field() { assert(0); }       // not used
+  bool fix_fields(THD *,Item **);
+  bool setup(THD *thd);
+  void make_unique();
+  double val_real()
+  {
+    String *res;  res=val_str(&str_value);
+>>>>>>> upstream/cluster-7.6
+    return res ? my_atof(res->c_ptr()) : 0.0;
+  }
+>>>>>>> pr/231
   longlong val_int() override {
     String *res;
     int error;

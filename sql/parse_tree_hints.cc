@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -230,6 +238,7 @@ bool PT_qb_level_hint::contextualize(Parse_context *pc) {
   bool no_warn = false;   // If true, do not print a warning
   bool conflict = false;  // true if this hint conflicts with a previous hint
   switch (type()) {
+<<<<<<< HEAD
     case SEMIJOIN_HINT_ENUM:
       if (qb->subquery_hint)
         conflict = true;
@@ -271,7 +280,27 @@ bool PT_qb_level_hint::contextualize(Parse_context *pc) {
         pc->select->add_base_options(SELECT_STRAIGHT_JOIN);
       break;
     default:
+<<<<<<< HEAD
       assert(0);
+=======
+      DBUG_ASSERT(0);
+=======
+  case SEMIJOIN_HINT_ENUM:
+    if (qb->subquery_hint)
+      conflict= true;
+    else if(!qb->semijoin_hint)
+      qb->semijoin_hint= this;
+    break;
+  case SUBQUERY_HINT_ENUM:
+    if (qb->semijoin_hint)
+      conflict= true;
+    else if (!qb->subquery_hint)
+      qb->subquery_hint= this;
+    break;
+  default:
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   if (conflict ||
@@ -317,6 +346,7 @@ void PT_qb_level_hint::append_args(const THD *thd, String *str) const {
           assert(false);
       }
       break;
+<<<<<<< HEAD
     case JOIN_PREFIX_HINT_ENUM:
     case JOIN_SUFFIX_HINT_ENUM:
     case JOIN_ORDER_HINT_ENUM:
@@ -330,7 +360,19 @@ void PT_qb_level_hint::append_args(const THD *thd, String *str) const {
     case JOIN_FIXED_ORDER_HINT_ENUM:
       break;
     default:
+<<<<<<< HEAD
       assert(false);
+=======
+      DBUG_ASSERT(false);
+=======
+    default:      // Exactly one of above strategies should always be specified
+      assert(false);
+    }
+    break;
+  default:
+    assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 }
 

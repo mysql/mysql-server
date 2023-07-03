@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -335,10 +343,22 @@ struct BUFFPEK {
   ulong max_keys;    /* Max keys in buffert */
 };
 
+<<<<<<< HEAD
 struct MI_SORT_PARAM {
   IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
   DYNAMIC_ARRAY buffpek;
+<<<<<<< HEAD
   MI_BIT_BUFF bit_buff; /* For sort repair of packrec. */
+=======
+  MI_BIT_BUFF bit_buff; /* For parallel repair of packrec. */
+=======
+typedef struct st_mi_sort_param
+{
+  IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
+  DYNAMIC_ARRAY buffpek;
+  MI_BIT_BUFF   bit_buff;               /* For sort repair of packrec. */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     The next two are used to collect statistics, see update_key_parts for
@@ -842,7 +862,17 @@ extern thread_local st_keycache_thread_var *keycache_tls;
 #endif
 
 #ifdef HAVE_PSI_INTERFACE
+<<<<<<< HEAD
 extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock;
+=======
+C_MODE_START
+<<<<<<< HEAD
+extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
+    mi_key_mutex_MI_SORT_INFO_mutex, mi_key_mutex_MI_CHECK_print_msg;
+=======
+extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 extern PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock,
     mi_key_rwlock_MYISAM_SHARE_mmap_lock;

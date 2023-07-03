@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -184,9 +192,20 @@ class Opt_trace_stmt {
     return trace_buffer.alloced_length() + query_buffer.alloced_length();
   }
 
+<<<<<<< HEAD
   void assert_current_struct(const Opt_trace_struct *s [[maybe_unused]]) const {
     assert(current_struct == s);
+=======
+<<<<<<< HEAD
+  void assert_current_struct(
+      const Opt_trace_struct *s MY_ATTRIBUTE((unused))) const {
+    DBUG_ASSERT(current_struct == s);
+>>>>>>> pr/231
   }
+=======
+  void assert_current_struct(const Opt_trace_struct *s) const
+  { assert(current_struct == s); }
+>>>>>>> upstream/cluster-7.6
 
   /// @see Opt_trace_context::missing_privilege()
   void missing_privilege();
@@ -267,9 +286,15 @@ void Opt_trace_struct::do_construct(Opt_trace_context *ctx,
   requires_key = requires_key_arg;
 
   DBUG_PRINT("opt", ("%s: starting struct", key));
+<<<<<<< HEAD
   stmt = ctx->get_current_stmt_in_gen();
 #ifndef NDEBUG
   previous_key[0] = 0;
+=======
+  stmt= ctx->get_current_stmt_in_gen();
+#ifndef NDEBUG
+  previous_key[0]= 0;
+>>>>>>> upstream/cluster-7.6
 #endif
   has_disabled_I_S = !ctx->feature_enabled(feature);
   empty = true;
@@ -286,9 +311,29 @@ void Opt_trace_struct::do_destruct() {
   started = false;
 }
 
+<<<<<<< HEAD
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, const char *val,
                                            size_t val_length, bool escape) {
+<<<<<<< HEAD
   assert(started);
+=======
+  DBUG_ASSERT(started);
+=======
+
+/**
+   @note add() has an up-front if(), hopefully inlined, so that in the common
+   case - tracing run-time disabled - we have no function call. If tracing is
+   enabled, we call do_add().
+   In a 20-table plan search (as in BUG#50595), the execution time was
+   decreased from 2.6 to 2.0 seconds thanks to this inlined-if trick.
+*/
+Opt_trace_struct& Opt_trace_struct::do_add(const char *key, const char *val,
+                                           size_t val_length,
+                                           bool escape)
+{
+  assert(started);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   DBUG_PRINT("opt", ("%s: \"%.*s\"", key, (int)val_length, val));
   stmt->add(key, val, val_length, true, escape);
   return *this;
@@ -300,25 +345,54 @@ LEX_CSTRING bool_as_text[] = {{STRING_WITH_LEN("false")},
                               {STRING_WITH_LEN("true")}};
 }  // namespace
 
+<<<<<<< HEAD
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, bool val) {
+<<<<<<< HEAD
   assert(started);
+=======
+  DBUG_ASSERT(started);
+=======
+Opt_trace_struct& Opt_trace_struct::do_add(const char *key, bool val)
+{
+  assert(started);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   DBUG_PRINT("opt", ("%s: %d", key, (int)val));
   const LEX_CSTRING *text = &bool_as_text[val];
   stmt->add(key, text->str, text->length, false, false);
   return *this;
 }
 
+<<<<<<< HEAD
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, longlong val) {
   assert(started);
   char buf[22];  // 22 is enough for digits of a 64-bit int
+=======
+
+Opt_trace_struct& Opt_trace_struct::do_add(const char *key, longlong val)
+{
+  assert(started);
+  char buf[22];                     // 22 is enough for digits of a 64-bit int
+>>>>>>> upstream/cluster-7.6
   llstr(val, buf);
   DBUG_PRINT("opt", ("%s: %s", key, buf));
   stmt->add(key, buf, strlen(buf), false, false);
   return *this;
 }
 
+<<<<<<< HEAD
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, ulonglong val) {
+<<<<<<< HEAD
   assert(started);
+=======
+  DBUG_ASSERT(started);
+=======
+
+Opt_trace_struct& Opt_trace_struct::do_add(const char *key, ulonglong val)
+{
+  assert(started);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   char buf[22];
   ullstr(val, buf);
   DBUG_PRINT("opt", ("%s: %s", key, buf));
@@ -326,19 +400,45 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key, ulonglong val) {
   return *this;
 }
 
+<<<<<<< HEAD
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, double val) {
+<<<<<<< HEAD
   assert(started);
   // The buffer must be big enough to hold six digits of precision, sign,
   // decimal point and exponent.
   char buf[sizeof("-1.23456e+308")];
   const int len = std::snprintf(buf, sizeof(buf), "%g", val);
+=======
+  DBUG_ASSERT(started);
+  char buf[32];  // 32 is enough for digits of a double
+  my_gcvt(val, MY_GCVT_ARG_DOUBLE, FLT_DIG, buf, nullptr);
+=======
+
+Opt_trace_struct& Opt_trace_struct::do_add(const char *key, double val)
+{
+  assert(started);
+  char buf[32];                         // 32 is enough for digits of a double
+  my_snprintf(buf, sizeof(buf), "%g", val);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   DBUG_PRINT("opt", ("%s: %s", key, buf));
   stmt->add(key, buf, len, false, false);
   return *this;
 }
 
+<<<<<<< HEAD
 Opt_trace_struct &Opt_trace_struct::do_add_null(const char *key) {
+<<<<<<< HEAD
   assert(started);
+=======
+  DBUG_ASSERT(started);
+=======
+
+Opt_trace_struct& Opt_trace_struct::do_add_null(const char *key)
+{
+  assert(started);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   DBUG_PRINT("opt", ("%s: null", key));
   stmt->add(key, STRING_WITH_LEN("null"), false, false);
   return *this;
@@ -364,8 +464,45 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key,
   return do_add(key, value.total_cost());
 }
 
+<<<<<<< HEAD
 Opt_trace_struct &Opt_trace_struct::do_add_utf8_table(const Table_ref *tl) {
   if (tl != nullptr) {
+=======
+<<<<<<< HEAD
+Opt_trace_struct &Opt_trace_struct::do_add_hex(const char *key, uint64 val) {
+  DBUG_ASSERT(started);
+  char buf[2 + 16], *p_end = buf + sizeof(buf) - 1, *p = p_end;
+  for (;;) {
+    *p-- = _dig_vec_lower[val & 15];
+    *p-- = _dig_vec_lower[(val & 240) >> 4];
+    val >>= 8;
+    if (val == 0) break;
+=======
+
+Opt_trace_struct& Opt_trace_struct::do_add_hex(const char *key, uint64 val)
+{
+  assert(started);
+  char buf[2 + 16], *p_end= buf + sizeof(buf) - 1, *p= p_end;
+  for ( ; ; )
+  {
+    *p--= _dig_vec_lower[val & 15];
+    *p--= _dig_vec_lower[(val & 240) >> 4];
+    val>>= 8;
+    if (val == 0)
+      break;
+>>>>>>> upstream/cluster-7.6
+  }
+  *p-- = 'x';
+  *p = '0';
+  const size_t len = p_end + 1 - p;
+  DBUG_PRINT("opt", ("%s: %.*s", key, static_cast<int>(len), p));
+  stmt->add(check_key(key), p, len, false, false);
+  return *this;
+}
+
+Opt_trace_struct &Opt_trace_struct::do_add_utf8_table(const TABLE_LIST *tl) {
+  if (tl != NULL) {
+>>>>>>> pr/231
     StringBuffer<32> str;
     tl->print(current_thd, &str,
               enum_query_type(QT_TO_SYSTEM_CHARSET | QT_SHOW_SELECT_NUMBER |
@@ -375,8 +512,19 @@ Opt_trace_struct &Opt_trace_struct::do_add_utf8_table(const Table_ref *tl) {
   return *this;
 }
 
+<<<<<<< HEAD
 const char *Opt_trace_struct::check_key(const char *key) {
+<<<<<<< HEAD
   assert(started);
+=======
+  DBUG_ASSERT(started);
+=======
+
+const char *Opt_trace_struct::check_key(const char *key)
+{
+  assert(started);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   //  User should always add to the innermost open object, not outside.
   stmt->assert_current_struct(this);
   bool has_key = key != nullptr;
@@ -385,8 +533,18 @@ const char *Opt_trace_struct::check_key(const char *key) {
     key = has_key ? nullptr : stmt->make_unknown_key();
     has_key = !has_key;
   }
+<<<<<<< HEAD
   if (has_key) {
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+#ifndef DBUG_OFF
+=======
+  if (has_key)
+  {
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     /*
       Check that we're not having two identical consecutive keys in one
       object; though the real restriction should not have 'consecutive'.
@@ -411,13 +569,26 @@ Opt_trace_stmt::Opt_trace_stmt(Opt_trace_context *ctx_arg)
       unknown_key_count(0) {
   // Trace is always in UTF8. This is the only charset which JSON accepts.
   trace_buffer.set_charset(system_charset_info);
+<<<<<<< HEAD
   assert(system_charset_info == &my_charset_utf8mb3_general_ci);
+=======
+  assert(system_charset_info == &my_charset_utf8_general_ci);
+>>>>>>> pr/231
 }
 
+<<<<<<< HEAD
 void Opt_trace_stmt::end() {
   assert(stack_of_current_structs.size() == 0);
   assert(I_S_disabled >= 0);
   ended = true;
+=======
+
+void Opt_trace_stmt::end()
+{
+  assert(stack_of_current_structs.size() == 0);
+  assert(I_S_disabled >= 0);
+  ended= true;
+>>>>>>> upstream/cluster-7.6
   /*
     Because allocation is done in big chunks, buffer->Ptr[str_length]
     may be uninitialized while buffer->Ptr[allocated length] is 0, so we
@@ -447,7 +618,11 @@ void Opt_trace_stmt::set_allowed_mem_size(size_t size) {
 void Opt_trace_stmt::set_query(const char *query, size_t length,
                                const CHARSET_INFO *charset) {
   // Should be called only once per statement.
+<<<<<<< HEAD
   assert(query_buffer.ptr() == nullptr);
+=======
+  assert(query_buffer.ptr() == NULL);
+>>>>>>> pr/231
   query_buffer.set_charset(charset);
   if (!support_I_S()) {
     /*
@@ -536,8 +711,19 @@ void Opt_trace_stmt::close_struct(const char *saved_key, bool has_disabled_I_S,
   if (has_disabled_I_S) ctx->restore_I_S();
 }
 
+<<<<<<< HEAD
 void Opt_trace_stmt::separator() {
+<<<<<<< HEAD
   assert(support_I_S());
+=======
+  DBUG_ASSERT(support_I_S());
+=======
+
+void Opt_trace_stmt::separator()
+{
+  assert(support_I_S());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   // Put a comma first, if we have already written an object at this level.
   if (current_struct != nullptr) {
     if (!current_struct->set_not_empty()) trace_buffer.append(',');
@@ -936,14 +1122,35 @@ bool Opt_trace_context::start(bool support_I_S_arg,
   err:
     delete stmt;
     assert(0);
+<<<<<<< HEAD
     return true;
+=======
+    DBUG_RETURN(true);
+>>>>>>> pr/231
   }
 }
 
+<<<<<<< HEAD
 void Opt_trace_context::end() {
+<<<<<<< HEAD
   assert(I_S_disabled >= 0);
   if (likely(pimpl == nullptr)) return;
   if (pimpl->current_stmt_in_gen != nullptr) {
+=======
+  DBUG_ASSERT(I_S_disabled >= 0);
+  if (likely(pimpl == NULL)) return;
+  if (pimpl->current_stmt_in_gen != NULL) {
+=======
+
+void Opt_trace_context::end()
+{
+  assert(I_S_disabled >= 0);
+  if (likely(pimpl == NULL))
+    return;
+  if (pimpl->current_stmt_in_gen != NULL)
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     pimpl->current_stmt_in_gen->end();
     /*
       pimpl was constructed with current_stmt_in_gen=NULL which was pushed in
@@ -978,8 +1185,18 @@ void Opt_trace_context::end() {
          to free-ing it only when the new sub_stmt ends.
     */
     purge_stmts(false);
+<<<<<<< HEAD
   } else
+<<<<<<< HEAD
     assert(pimpl->stack_of_current_stmts.size() == 0);
+=======
+    DBUG_ASSERT(pimpl->stack_of_current_stmts.size() == 0);
+=======
+  }
+  else
+    assert(pimpl->stack_of_current_stmts.size() == 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 bool Opt_trace_context::support_I_S() const {
@@ -1032,11 +1249,20 @@ void Opt_trace_context::purge_stmts(bool purge_all) {
     }
   }
   /* Examine list of "to be freed" traces and free what can be */
+<<<<<<< HEAD
   for (idx = (pimpl->all_stmts_to_del.size() - 1); idx >= 0; idx--) {
     Opt_trace_stmt *stmt = pimpl->all_stmts_to_del.at(idx);
 #ifndef NDEBUG
     bool skip_del = false;
     DBUG_EXECUTE_IF("opt_trace_oom_in_purge", skip_del = true;);
+=======
+  for (idx= (pimpl->all_stmts_to_del.size() - 1) ; idx >= 0 ; idx--)
+  {
+    Opt_trace_stmt *stmt= pimpl->all_stmts_to_del.at(idx);
+#ifndef NDEBUG
+    bool skip_del= false;
+    DBUG_EXECUTE_IF("opt_trace_oom_in_purge", skip_del= true;);
+>>>>>>> upstream/cluster-7.6
 #else
     const bool skip_del = false;
 #endif
@@ -1133,10 +1359,25 @@ const Opt_trace_stmt *Opt_trace_context::get_next_stmt_for_I_S(
   const Opt_trace_stmt *p;
   if ((pimpl == nullptr) || (*got_so_far >= pimpl->limit) ||
       (*got_so_far >= static_cast<long>(pimpl->all_stmts_for_I_S.size())))
+<<<<<<< HEAD
     p = nullptr;
   else {
     p = pimpl->all_stmts_for_I_S.at(*got_so_far);
     assert(p != nullptr);
+=======
+<<<<<<< HEAD
+    p = NULL;
+  else {
+    p = pimpl->all_stmts_for_I_S.at(*got_so_far);
+    DBUG_ASSERT(p != NULL);
+=======
+    p= NULL;
+  else
+  {
+    p= pimpl->all_stmts_for_I_S.at(*got_so_far);
+    assert(p != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     (*got_so_far)++;
   }
   return p;

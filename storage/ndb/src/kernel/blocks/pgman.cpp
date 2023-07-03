@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1909,6 +1913,20 @@ Pgman::finish_lcp(Signal *signal,
   conf->tableId = m_sync_page_cache_req.tableId;
   conf->fragmentId = m_sync_page_cache_req.fragmentId;
   conf->diskDataExistFlag = fragPtrP == NULL ? 0 : 1;
+<<<<<<< HEAD
+=======
+  ndbrequire(m_lcp_outstanding == 0);
+  ndbrequire(!m_lcp_loop_ongoing);
+  m_lcp_table_id = RNIL;
+  m_lcp_fragment_id = 0;
+  ndbrequire(m_dirty_list_lcp.isEmpty());
+  ndbrequire(m_dirty_list_lcp_out.isEmpty());
+  DEB_PGMAN(("(%u)finish_lcp tab(%u,%u), ref: %x",
+             instance(),
+             m_sync_page_cache_req.tableId,
+             m_sync_page_cache_req.fragmentId,
+             m_sync_page_cache_req.senderRef));
+>>>>>>> pr/231
   sendSignal(m_sync_page_cache_req.senderRef,
              GSN_SYNC_PAGE_CACHE_CONF,
              signal,
@@ -2054,7 +2072,10 @@ Pgman::check_restart_lcp(Signal *signal, bool check_prepare_lcp)
      * that we were blocked by too much IO, so we'll start up the
      * process again here.
      */
+<<<<<<< HEAD
     ndbrequire(m_lcp_ongoing == true);
+=======
+>>>>>>> pr/231
     if (m_sync_extent_next_page_entry != RNIL)
     {
       /**
@@ -2085,9 +2106,12 @@ Pgman::check_restart_lcp(Signal *signal, bool check_prepare_lcp)
        * process_lcp_locked_fswriteconf). No need to use CONTINUEB to
        * wait for it, it will arrive in a FSWRITECONF signal.
        */
+<<<<<<< HEAD
       DEB_PGMAN_LCP(("(%u)Sync extent completed, but still %u LCP pages out",
                      instance(),
                      m_lcp_outstanding));
+=======
+>>>>>>> pr/231
       jam();
     }
     return;
@@ -3424,11 +3448,15 @@ Pgman::copy_back_page(Ptr<Page_entry> ptr)
   ptr.p->m_copy_page_i = RNIL;
 }
 
+<<<<<<< HEAD
 void
 Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 {
   jam();
   ndbrequire(m_lcp_ongoing);
+=======
+  jam();
+>>>>>>> pr/231
   /**
    * We have already checked that m_sync_extent_pages_ongoing is true
    * when arriving here. Extent pages are only written during LCPs since
@@ -3443,10 +3471,14 @@ Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
    */
   m_locked_pages_written++;
   sendSYNC_PAGE_WAIT_REP(signal, false);
+<<<<<<< HEAD
   DEB_PGMAN_LCP_EXTRA(("(%u) Written an extent page to disk, "
                        "m_locked_pages_written: %u",
                        instance(),
                        m_locked_pages_written));
+=======
+
+>>>>>>> pr/231
   if (!m_lcp_loop_ongoing)
   {
     /* No CONTINUEB outstanding, we can finish sync if done */
@@ -3754,6 +3786,12 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
        */
       jam();
       ndbrequire(m_sync_extent_pages_ongoing);
+<<<<<<< HEAD
+=======
+      Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0, 0);
+      process_lcp_locked_fswriteconf(signal, ptr);
+      if (ptr.p->m_dirty_during_pageout)
+>>>>>>> pr/231
       {
         bool made_dirty = false;
         {
@@ -3789,6 +3827,7 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
     }
     else
     {
+<<<<<<< HEAD
       jam();
       ndbrequire(!m_extra_pgman);
       m_current_lcp_flushes++;
@@ -3816,6 +3855,10 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
                     m_prep_lcp_outstanding));
     m_stats.m_pages_written_lcp++;
     m_current_lcp_flushes++;
+=======
+      ndbrequire(!m_sync_extent_pages_ongoing);
+    }
+>>>>>>> pr/231
   }
   else
   {
@@ -3896,7 +3939,11 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
   File_map::ConstDataBufferIterator it;
   ndbrequire(m_file_map.first(it));
   ndbrequire(m_file_map.next(it, ptr.p->m_file_no));
+<<<<<<< HEAD
   ndbrequire(m_file_entry_pool.getPtr(file_ptr, *it.data));
+=======
+  m_file_entry_pool.getPtr(file_ptr, *it.data);
+>>>>>>> pr/231
   Uint32 fd = file_ptr.p->m_fd;
 
   /**
@@ -4683,7 +4730,11 @@ Pgman::free_data_file(Uint32 file_no, Uint32 fd)
   File_map::DataBufferIterator it;
   ndbrequire(m_file_map.first(it));
   ndbrequire(m_file_map.next(it, file_no));
+<<<<<<< HEAD
   ndbrequire(m_file_entry_pool.getPtr(file_ptr, *it.data));
+=======
+  m_file_entry_pool.getPtr(file_ptr, *it.data);
+>>>>>>> pr/231
   
   if (fd == RNIL)
   {
@@ -6947,6 +6998,7 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
       ((100 * locked) / avail_for_extent_pages) : 0;
     Uint32 lockedpct3 = (max_pages > 0) ? ((100 * locked) / max_pages) : 0;
 
+<<<<<<< HEAD
     g_eventLogger->info(
         "pgman(%u)"
         " page_entry_pool: size %u used: %u (%u %%)"
@@ -6957,6 +7009,22 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
         " related to Total pages in disk page buffer memory %u (%u %%)",
         instance(), size, used, usedpct, high, highpct, locked, size, lockedpct,
         avail_for_extent_pages, lockedpct2, max_pages, lockedpct3);
+=======
+    ndbout_c("pgman(%u)\n"
+             " page_entry_pool: size %u used: %u (%u %%)\n"
+             " high: %u (%u %%)\n"
+             " locked pages: %u\n"
+             " \t related to entries %u (%u %%)\n"
+             " \t related to available pages for extent pages %u (%u %%)\n"
+             " \t related to Total pages in disk page buffer memory %u (%u %%)\n",
+             instance(),
+             size, used, usedpct,
+             high, highpct,
+             locked,
+             size, lockedpct,
+             avail_for_extent_pages, lockedpct2,
+             max_pages, lockedpct3);
+>>>>>>> pr/231
   }
 
   if (signal->theData[0] == 11101)

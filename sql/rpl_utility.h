@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -316,8 +324,18 @@ class table_def {
     <code>index</code>. Currently, only the type identifier is
     returned.
    */
+<<<<<<< HEAD
   enum_field_types type(ulong index) const {
+<<<<<<< HEAD
     assert(index < m_size);
+=======
+    DBUG_ASSERT(index < m_size);
+=======
+  enum_field_types type(ulong index) const
+  {
+    assert(index < m_size);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     /*
       If the source type is MYSQL_TYPE_STRING, it can in reality be
       either MYSQL_TYPE_STRING, MYSQL_TYPE_ENUM, or MYSQL_TYPE_SET, so
@@ -361,8 +379,19 @@ class table_def {
     corresponding fields to properly extract the data from the binary log
     in the event that the master's field is smaller than the slave.
   */
+<<<<<<< HEAD
   uint field_metadata(uint index) const {
     assert(index < m_size);
+=======
+<<<<<<< HEAD
+  uint16 field_metadata(uint index) const {
+    DBUG_ASSERT(index < m_size);
+=======
+  uint16 field_metadata(uint index) const
+  {
+    assert(index < m_size);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     if (m_field_metadata_size)
       return m_field_metadata[index];
     else
@@ -384,10 +413,18 @@ class table_def {
     This function returns whether the field on the master can be null.
     This value is derived from field->maybe_null().
   */
+<<<<<<< HEAD
   bool maybe_null(uint index) const {
     assert(index < m_size);
     return ((m_null_bits[(index / 8)] & (1 << (index % 8))) ==
             (1 << (index % 8)));
+=======
+  my_bool maybe_null(uint index) const
+  {
+    assert(index < m_size);
+    return ((m_null_bits[(index / 8)] & 
+            (1 << (index % 8))) == (1 << (index %8)));
+>>>>>>> upstream/cluster-7.6
   }
 
   /*

@@ -2,7 +2,15 @@
 #define OPT_COSTMODEL_INCLUDED
 
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +32,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD
 #include <assert.h>
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "sql/opt_costconstants.h"
+<<<<<<< HEAD
 
 /*
   For sequential disk seeks the cost formula is:
@@ -40,6 +53,14 @@
 constexpr const double DISK_SEEK_BASE_COST{0.9};
 constexpr const int BLOCKS_IN_AVG_SEEK{128};
 constexpr const double DISK_SEEK_PROP_COST{0.1 / BLOCKS_IN_AVG_SEEK};
+=======
+#include "sql/sql_const.h"  // defines for cost constants
+=======
+#include "my_dbug.h"                            // assert
+#include "sql_const.h"                          // defines for cost constants
+#include "opt_costconstants.h"
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 struct TABLE;
 
@@ -55,10 +76,22 @@ class Cost_model_server {
   */
   enum enum_tmptable_type { MEMORY_TMPTABLE, DISK_TMPTABLE };
 
+<<<<<<< HEAD
   Cost_model_server()
       : m_cost_constants(nullptr), m_server_cost_constants(nullptr) {
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+  Cost_model_server() : m_cost_constants(NULL), m_server_cost_constants(NULL) {
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
     m_initialized = false;
+=======
+  Cost_model_server() : m_cost_constants(NULL), m_server_cost_constants(NULL)
+  {
+#if !defined(NDEBUG)
+    m_initialized= false;
+>>>>>>> upstream/cluster-7.6
 #endif
   }
 
@@ -91,9 +124,21 @@ class Cost_model_server {
     @return Cost of evaluating the records
   */
 
+<<<<<<< HEAD
   double row_evaluate_cost(double rows) const {
+<<<<<<< HEAD
     assert(m_initialized);
     assert(rows >= 0.0);
+=======
+    DBUG_ASSERT(m_initialized);
+    DBUG_ASSERT(rows >= 0.0);
+=======
+  double row_evaluate_cost(double rows) const
+  {
+    assert(m_initialized);
+    assert(rows >= 0.0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return rows * m_server_cost_constants->row_evaluate_cost();
   }
@@ -106,9 +151,21 @@ class Cost_model_server {
     @return Cost of comparing the keys
   */
 
+<<<<<<< HEAD
   double key_compare_cost(double keys) const {
+<<<<<<< HEAD
     assert(m_initialized);
     assert(keys >= 0.0);
+=======
+    DBUG_ASSERT(m_initialized);
+    DBUG_ASSERT(keys >= 0.0);
+=======
+  double key_compare_cost(double keys) const
+  {
+    assert(m_initialized);
+    assert(keys >= 0.0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return keys * m_server_cost_constants->key_compare_cost();
   }
@@ -168,8 +225,18 @@ class Cost_model_server {
     @return Cost estimate
   */
 
+<<<<<<< HEAD
   double tmptable_create_cost(enum_tmptable_type tmptable_type) const {
+<<<<<<< HEAD
     assert(m_initialized);
+=======
+    DBUG_ASSERT(m_initialized);
+=======
+  double tmptable_create_cost(enum_tmptable_type tmptable_type) const
+  {
+    assert(m_initialized);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     if (tmptable_type == MEMORY_TMPTABLE) return memory_tmptable_create_cost();
     return disk_tmptable_create_cost();
@@ -186,11 +253,26 @@ class Cost_model_server {
     @return The estimated cost
   */
 
+<<<<<<< HEAD
   double tmptable_readwrite_cost(enum_tmptable_type tmptable_type,
                                  double write_rows, double read_rows) const {
+<<<<<<< HEAD
     assert(m_initialized);
     assert(write_rows >= 0.0);
     assert(read_rows >= 0.0);
+=======
+    DBUG_ASSERT(m_initialized);
+    DBUG_ASSERT(write_rows >= 0.0);
+    DBUG_ASSERT(read_rows >= 0.0);
+=======
+  double tmptable_readwrite_cost(enum_tmptable_type tmptable_type, 
+                                 double write_rows, double read_rows) const
+  {
+    assert(m_initialized);
+    assert(write_rows >= 0.0);
+    assert(read_rows >= 0.0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return (write_rows + read_rows) * tmptable_row_cost(tmptable_type);
   }
@@ -203,8 +285,18 @@ class Cost_model_server {
     @return Cost constants
   */
 
+<<<<<<< HEAD
   const Cost_model_constants *get_cost_constants() const {
+<<<<<<< HEAD
     assert(m_initialized);
+=======
+    DBUG_ASSERT(m_initialized);
+=======
+  const Cost_model_constants *get_cost_constants() const
+  {
+    assert(m_initialized);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return m_cost_constants;
   }
@@ -236,6 +328,7 @@ class Cost_model_server {
   cost constants for basic operations.
 */
 
+<<<<<<< HEAD
 class Cost_model_table {
  public:
   Cost_model_table()
@@ -244,6 +337,16 @@ class Cost_model_table {
         m_table(nullptr) {
 #if !defined(NDEBUG)
     m_initialized = false;
+=======
+class Cost_model_table
+{
+public:
+  Cost_model_table() : m_cost_model_server(NULL), m_se_cost_constants(NULL),
+    m_table(NULL)
+  {
+#if !defined(NDEBUG)
+    m_initialized= false;
+>>>>>>> upstream/cluster-7.6
 #endif
   }
 
@@ -270,9 +373,21 @@ class Cost_model_table {
     @return Cost of evaluating the records
   */
 
+<<<<<<< HEAD
   double row_evaluate_cost(double rows) const {
+<<<<<<< HEAD
     assert(m_initialized);
     assert(rows >= 0.0);
+=======
+    DBUG_ASSERT(m_initialized);
+    DBUG_ASSERT(rows >= 0.0);
+=======
+  double row_evaluate_cost(double rows) const
+  {
+    assert(m_initialized);
+    assert(rows >= 0.0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return m_cost_model_server->row_evaluate_cost(rows);
   }
@@ -285,9 +400,21 @@ class Cost_model_table {
     @return Cost of comparing the keys
   */
 
+<<<<<<< HEAD
   double key_compare_cost(double keys) const {
+<<<<<<< HEAD
     assert(m_initialized);
     assert(keys >= 0.0);
+=======
+    DBUG_ASSERT(m_initialized);
+    DBUG_ASSERT(keys >= 0.0);
+=======
+  double key_compare_cost(double keys) const
+   {
+     assert(m_initialized);
+     assert(keys >= 0.0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return m_cost_model_server->key_compare_cost(keys);
   }
@@ -300,9 +427,21 @@ class Cost_model_table {
     @return Cost estimate
   */
 
+<<<<<<< HEAD
   double io_block_read_cost(double blocks) const {
+<<<<<<< HEAD
     assert(m_initialized);
     assert(blocks >= 0.0);
+=======
+    DBUG_ASSERT(m_initialized);
+    DBUG_ASSERT(blocks >= 0.0);
+=======
+  double io_block_read_cost(double blocks) const
+  {
+    assert(m_initialized);
+    assert(blocks >= 0.0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return blocks * m_se_cost_constants->io_block_read_cost();
   }
@@ -316,9 +455,21 @@ class Cost_model_table {
     @return Cost estimate
   */
 
+<<<<<<< HEAD
   double buffer_block_read_cost(double blocks) const {
+<<<<<<< HEAD
     assert(m_initialized);
     assert(blocks >= 0.0);
+=======
+    DBUG_ASSERT(m_initialized);
+    DBUG_ASSERT(blocks >= 0.0);
+=======
+  double buffer_block_read_cost(double blocks) const
+  {
+    assert(m_initialized);
+    assert(blocks >= 0.0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return blocks * m_se_cost_constants->memory_block_read_cost();
   }
@@ -351,8 +502,18 @@ class Cost_model_table {
     for get_sweep_read_cost() in handler.cc).
   */
 
+<<<<<<< HEAD
   double disk_seek_base_cost() const {
+<<<<<<< HEAD
     assert(m_initialized);
+=======
+    DBUG_ASSERT(m_initialized);
+=======
+  double disk_seek_base_cost() const
+  {
+    assert(m_initialized);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return DISK_SEEK_BASE_COST * io_block_read_cost(1.0);
   }
@@ -382,9 +543,21 @@ class Cost_model_table {
     @return The cost estimate for the seek operation
   */
 
+<<<<<<< HEAD
   double disk_seek_cost(double seek_blocks) const {
+<<<<<<< HEAD
     assert(seek_blocks >= 0.0);
     assert(m_initialized);
+=======
+    DBUG_ASSERT(seek_blocks >= 0.0);
+    DBUG_ASSERT(m_initialized);
+=======
+  double disk_seek_cost(double seek_blocks) const
+  {
+    assert(seek_blocks >= 0.0);
+    assert(m_initialized);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     const double cost =
         disk_seek_base_cost() + disk_seek_prop_cost() * seek_blocks;

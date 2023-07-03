@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -366,7 +370,11 @@ Dbtux::findNodeToScan(Frag& frag,
       break;
     }
     // ret == 0 never
+<<<<<<< HEAD
     ndbabort();
+=======
+    ndbrequire(ret != 0);
+>>>>>>> pr/231
   }
 }
 
@@ -416,7 +424,11 @@ Dbtux::findPosToScan(Frag& frag,
     else
     {
       // ret == 0 never
+<<<<<<< HEAD
       ndbabort();
+=======
+      ndbrequire(ret != 0);
+>>>>>>> pr/231
     }
   }
   // return hi pos, caller handles ascending vs descending

@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -225,8 +229,12 @@ Dbtux::nodePushUp(TuxCtx & ctx,
                   NodeHandle& node,
                   unsigned pos,
                   const TreeEnt& ent,
+<<<<<<< HEAD
                   Uint32 scanList,
                   Uint32 scanInstance)
+=======
+                  Uint32 scanList)
+>>>>>>> pr/231
 {
   Frag& frag = node.m_frag;
   TreeHead& tree = frag.m_tree;
@@ -409,8 +417,12 @@ Dbtux::nodePushDown(TuxCtx& ctx,
                     NodeHandle& node,
                     unsigned pos,
                     TreeEnt& ent,
+<<<<<<< HEAD
                     Uint32& scanList,
                     Uint32& scanInstance)
+=======
+                    Uint32& scanList)
+>>>>>>> pr/231
 {
   Frag& frag = node.m_frag;
   TreeHead& tree = frag.m_tree;
@@ -717,6 +729,7 @@ Dbtux::moveScanList(NodeHandle& node, unsigned pos)
         tuxDebugOut << "At pos=" << pos << " " << node << endl;
       }
 #endif
+<<<<<<< HEAD
       /**
        * We are about to move the scan position for an ongoing scan that
        * is currently not active. This means that scan.m_scanPos is pointing
@@ -755,6 +768,11 @@ Dbtux::moveScanList(NodeHandle& node, unsigned pos)
       scanNext(scanPtr, true, frag);
       relinkScan(scan, frag, false, __LINE__);
       ndbassert(scanPtr.p->m_scanLinkedPos == NullTupLoc);
+=======
+      prepare_move_scan_ctx(scanPtr);
+      Frag& frag = *c_ctx.fragPtr.p;
+      scanNext(scanPtr, true, frag);
+>>>>>>> pr/231
       ndbrequire(! (scanPos.m_loc == node.m_loc && scanPos.m_pos == pos));
     }
     scanPtr.i = nextPtrI;
@@ -769,10 +787,16 @@ Dbtux::moveScanList(NodeHandle& node, unsigned pos)
 void
 Dbtux::linkScan(NodeHandle& node, ScanOpPtr scanPtr, Uint32 scanInstance)
 {
+<<<<<<< HEAD
   ndbassert(! islinkScan(node, scanPtr, scanInstance) &&
             scanPtr.p->m_nodeScanPtrI == RNIL);
   node.getNodeScan(scanPtr.p->m_nodeScanPtrI, scanPtr.p->m_nodeScanInstance);
   node.setNodeScan(scanPtr.i, scanInstance);
+=======
+  ndbassert(! islinkScan(node, scanPtr) && scanPtr.p->m_nodeScan == RNIL);
+  scanPtr.p->m_nodeScan = node.getNodeScan();
+  node.setNodeScan(scanPtr.i);
+>>>>>>> pr/231
 }
 
 /*
@@ -816,7 +840,11 @@ Dbtux::unlinkScan(NodeHandle& node,
       scanPtr.p->m_nodeScanPtrI = RNIL;
       scanPtr.p->m_nodeScanInstance = 0;
       // check for duplicates
+<<<<<<< HEAD
       ndbassert(!islinkScan(node, scanPtr, scanInstance));
+=======
+      ndbassert(!islinkScan(node, scanPtr));
+>>>>>>> pr/231
       return;
     }
     prevPtr = currPtr;

@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -191,8 +215,14 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
                                 DB_TRX_ID and DB_ROLL_PTR
 @param[in]      trx             transaction (for diagnostics),
                                 or NULL
+<<<<<<< HEAD
 @param[in]      heap            memory heap from which allocated
 @param[in]      mysql_table     NULL, or mysql table object when
+=======
+@param[in]	heap		memory heap from which allocated
+<<<<<<< HEAD
+@param[in]	mysql_table	NULL, or mysql table object when
+>>>>>>> pr/231
                                 user thread invokes dml
 @param[out]     error           error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
@@ -219,6 +249,7 @@ void row_upd_index_replace_new_col_vals_index_pos(dtuple_t *entry,
                                                   mem_heap_t *heap);
 
 /** Replaces the new column values stored in the update vector to the index
+<<<<<<< HEAD
  entry given.
 @param[in,out] entry Index entry where replaced; the clustered index record must
 be covered by a lock or a page latch to prevent deletion (rollback or purge)
@@ -241,6 +272,108 @@ or purge)
 void row_upd_replace(dtuple_t *row, row_ext_t **ext, const dict_index_t *index,
                      const upd_t *update, mem_heap_t *heap);
 
+=======
+ entry given. */
+void row_upd_index_replace_new_col_vals(
+    dtuple_t *entry,     /*!< in/out: index entry where replaced;
+                         the clustered index record must be
+                         covered by a lock or a page latch to
+                         prevent deletion (rollback or purge) */
+    dict_index_t *index, /*!< in: index; NOTE that this may also be a
+                         non-clustered index */
+    const upd_t *update, /*!< in: an update vector built for the
+                         CLUSTERED index so that the field number in
+                         an upd_field is the clustered index position */
+    mem_heap_t *heap);   /*!< in: memory heap for allocating and
+                         copying the new values */
+/** Replaces the new column values stored in the update vector. */
+void row_upd_replace(
+    trx_t *trx,                /*!< in: current transaction. */
+    dtuple_t *row,             /*!< in/out: row where replaced,
+                               indexed by col_no;
+                               the clustered index record must be
+                               covered by a lock or a page latch to
+                               prevent deletion (rollback or purge) */
+    row_ext_t **ext,           /*!< out, own: NULL, or externally
+                               stored column prefixes */
+    const dict_index_t *index, /*!< in: clustered index */
+    const upd_t *update,       /*!< in: an update vector built for the
+                               clustered index */
+    mem_heap_t *heap);         /*!< in: memory heap */
+=======
+@param[in,out]	mysql_table	NULL, or mysql table object when
+				user thread invokes dml
+@param[out]	error		error number in case of failure
+@return own: update vector of differing fields, excluding roll ptr and
+trx id */
+upd_t*
+row_upd_build_difference_binary(
+	dict_index_t*	index,
+	const dtuple_t*	entry,
+	const rec_t*	rec,
+	const ulint*	offsets,
+	bool		no_sys,
+	trx_t*		trx,
+	mem_heap_t*	heap,
+	TABLE*		mysql_table,
+	dberr_t*	error)
+	MY_ATTRIBUTE((warn_unused_result));
+/***********************************************************//**
+Replaces the new column values stored in the update vector to the index entry
+given. */
+void
+row_upd_index_replace_new_col_vals_index_pos(
+/*=========================================*/
+	dtuple_t*	entry,	/*!< in/out: index entry where replaced;
+				the clustered index record must be
+				covered by a lock or a page latch to
+				prevent deletion (rollback or purge) */
+	dict_index_t*	index,	/*!< in: index; NOTE that this may also be a
+				non-clustered index */
+	const upd_t*	update,	/*!< in: an update vector built for the index so
+				that the field number in an upd_field is the
+				index position */
+	ibool		order_only,
+				/*!< in: if TRUE, limit the replacement to
+				ordering fields of index; note that this
+				does not work for non-clustered indexes. */
+	mem_heap_t*	heap);	/*!< in: memory heap for allocating and
+				copying the new values */
+/***********************************************************//**
+Replaces the new column values stored in the update vector to the index entry
+given. */
+void
+row_upd_index_replace_new_col_vals(
+/*===============================*/
+	dtuple_t*	entry,	/*!< in/out: index entry where replaced;
+				the clustered index record must be
+				covered by a lock or a page latch to
+				prevent deletion (rollback or purge) */
+	dict_index_t*	index,	/*!< in: index; NOTE that this may also be a
+				non-clustered index */
+	const upd_t*	update,	/*!< in: an update vector built for the
+				CLUSTERED index so that the field number in
+				an upd_field is the clustered index position */
+	mem_heap_t*	heap);	/*!< in: memory heap for allocating and
+				copying the new values */
+/***********************************************************//**
+Replaces the new column values stored in the update vector. */
+void
+row_upd_replace(
+/*============*/
+	dtuple_t*		row,	/*!< in/out: row where replaced,
+					indexed by col_no;
+					the clustered index record must be
+					covered by a lock or a page latch to
+					prevent deletion (rollback or purge) */
+	row_ext_t**		ext,	/*!< out, own: NULL, or externally
+					stored column prefixes */
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const upd_t*		update,	/*!< in: an update vector built for the
+					clustered index */
+	mem_heap_t*		heap);	/*!< in: memory heap */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /** Replaces the virtual column values stored in a dtuple with that of
 a update vector.
 @param[in,out]  row     dtuple whose column to be updated

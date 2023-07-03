@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,6 +73,7 @@ class ha_heap : public handler {
                 ? HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE
                 : HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
   }
+<<<<<<< HEAD
   uint max_supported_keys() const override { return MAX_KEY; }
   uint max_supported_key_part_length(HA_CREATE_INFO *create_info
                                      [[maybe_unused]]) const override {
@@ -76,6 +85,26 @@ class ha_heap : public handler {
   double read_time(uint, uint, ha_rows rows) override {
     return (double)rows / 20.0 + 1;
   }
+=======
+<<<<<<< HEAD
+  uint max_supported_keys() const { return MAX_KEY; }
+  uint max_supported_key_part_length() const { return MAX_KEY_LENGTH; }
+  double scan_time() {
+    return (double)(stats.records + stats.deleted) / 20.0 + 10;
+  }
+  double read_time(uint, uint, ha_rows rows) { return (double)rows / 20.0 + 1; }
+=======
+  const key_map *keys_to_use_for_scanning() { return &btree_keys; }
+  uint max_supported_keys()          const { return MAX_KEY; }
+  uint max_supported_key_part_length(HA_CREATE_INFO
+                    *create_info MY_ATTRIBUTE((unused))) const
+  { return MAX_KEY_LENGTH; }
+  double scan_time()
+  { return (double) (stats.records+stats.deleted) / 20.0+10; }
+  double read_time(uint index, uint ranges, ha_rows rows)
+  { return (double) rows /  20.0+1; }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   int open(const char *name, int mode, uint test_if_locked,
            const dd::Table *table_def) override;

@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,6 +103,7 @@
  *   node where the actual node starts.
  */
 
+<<<<<<< HEAD
 inline static void
 prefetch_scan_record_3(Uint32* scan_ptr)
 {
@@ -107,6 +112,8 @@ prefetch_scan_record_3(Uint32* scan_ptr)
   NDB_PREFETCH_WRITE(scan_ptr + 32);
 }
 
+=======
+>>>>>>> pr/231
 void
 Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
 {
@@ -114,6 +121,7 @@ Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
   FragPtr fragPtr;
   ScanOpPtr scanPtr;
   IndexPtr indexPtr;
+<<<<<<< HEAD
   if (unlikely(scanPtrI == RNIL))
   {
     jam();
@@ -124,6 +132,10 @@ Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
   scanPtr.i = scanPtrI;
   ndbrequire(c_scanOpPool.getUncheckedPtrRW(scanPtr));
   prefetch_scan_record_3((Uint32*)scanPtr.p);
+=======
+  scanPtr.i = scanPtrI;
+  c_scanOpPool.getPtr(scanPtr);
+>>>>>>> pr/231
   c_ctx.scanPtr = scanPtr;
   fragPtr.i = scanPtr.p->m_fragPtrI;
   c_fragPool.getPtr(fragPtr);
@@ -131,6 +143,7 @@ Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
   c_ctx.fragPtr = fragPtr;
   c_indexPool.getPtr(indexPtr);
   c_ctx.indexPtr = indexPtr;
+<<<<<<< HEAD
   prepare_scan_bounds(scanPtr.p, indexPtr.p, this);
   prepare_all_tup_ptrs(c_ctx);
   ndbrequire(Magic::check_ptr(scanPtr.p));
@@ -142,6 +155,10 @@ Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
   jamLine(Uint16(scanPtr.i));
   ndbrequire(scanPtr.p->m_scanLinkedPos == NullTupLoc);
   scanPtr.p->m_scanLinkedPos = scanPtr.p->m_scanPos.m_loc;
+=======
+  prepare_scan_bounds(scanPtr.p, indexPtr.p);
+  prepare_all_tup_ptrs(c_ctx);
+>>>>>>> pr/231
 }
 
 /**
@@ -161,11 +178,19 @@ Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
  * cannot execute any scan operation.
  */
 void
+<<<<<<< HEAD
 Dbtux::prepare_move_scan_ctx(ScanOpPtr scanPtr, Dbtux *tux_block)
 {
   Index *indexPtrP = c_ctx.indexPtr.p;
   c_ctx.scanPtr = scanPtr;
   prepare_scan_bounds(scanPtr.p, indexPtrP, tux_block);
+=======
+Dbtux::prepare_move_scan_ctx(ScanOpPtr scanPtr)
+{
+  Index *indexPtrP = c_ctx.indexPtr.p;
+  c_ctx.scanPtr = scanPtr;
+  prepare_scan_bounds(scanPtr.p, indexPtrP);
+>>>>>>> pr/231
 }
 
 /**
@@ -203,9 +228,13 @@ Dbtux::prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr)
  * of the scan context there as well.
  */
 void
+<<<<<<< HEAD
 Dbtux::prepare_scan_bounds(const ScanOp *scanPtrP,
                            const Index *indexPtrP,
                            Dbtux *tux_block)
+=======
+Dbtux::prepare_scan_bounds(const ScanOp *scanPtrP, const Index *indexPtrP)
+>>>>>>> pr/231
 {
   jamDebug();
   const ScanOp& scan = *scanPtrP;
@@ -218,7 +247,11 @@ Dbtux::prepare_scan_bounds(const ScanOp *scanPtrP,
     jamDebug();
     KeyDataC searchBoundData(index.m_keySpec, true);
     KeyBoundC searchBound(searchBoundData);
+<<<<<<< HEAD
     tux_block->unpackBound(c_ctx.c_nextKey, scanBound, searchBound);
+=======
+    unpackBound(c_ctx.c_nextKey, scanBound, searchBound);
+>>>>>>> pr/231
     KeyDataArray *key_data = new (&c_ctx.searchScanDataArray)
                              KeyDataArray();
     key_data->init_bound(searchBound, scanBound.m_cnt);
@@ -235,7 +268,10 @@ Dbtux::prepare_scan_bounds(const ScanOp *scanPtrP,
   c_ctx.scanBoundCnt = scanBound.m_cnt;
 }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 void
 Dbtux::execACC_CHECK_SCAN(Signal* signal)
 {
@@ -246,6 +282,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
   Frag& frag = *c_ctx.fragPtr.p;
 #ifdef VM_TRACE
   if (debugFlags & DebugScan) {
+<<<<<<< HEAD
     tuxDebugOut << "ACC_CHECK_SCAN scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
@@ -258,10 +295,21 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     /**
      * Go to sleep for one millisecond if we encounter a locked row.
      * Or if we could not allocate a ScanLock record.
+=======
+    debugOut << "ACC_CHECK_SCAN scan " << scanPtr.i << " " << scan << endl;
+  }
+#endif
+  if (req->checkLcpStop == AccCheckScan::ZCHECK_LCP_STOP &&
+      scan.m_lockwait)
+  {
+    /**
+     * Go to sleep for one millisecond if we encounter a locked row.
+>>>>>>> pr/231
      */
     jam();
     CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
     cls->scanPtrI = scan.m_userPtr;
+<<<<<<< HEAD
     if (wait_scan_lock_record)
     {
       jam();
@@ -287,6 +335,15 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
   }
   continue_scan(signal, scanPtr, frag, wait_scan_lock_record);
   ndbassert(c_freeScanLock == RNIL); // No ndbrequire, will destroy tail call
+=======
+    cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+    EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+    jamEntry();
+    ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
+    return;   // stop
+  }
+  continue_scan(signal, scanPtr, frag);
+>>>>>>> pr/231
 }
 
 /*
@@ -314,8 +371,12 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     // check for index not Online (i.e. Dropping)
     c_ctx.indexPtr = indexPtr;
     c_ctx.fragPtr = fragPtr;
+<<<<<<< HEAD
     if (unlikely(indexPtr.p->m_state != Index::Online))
     {
+=======
+    if (unlikely(indexPtr.p->m_state != Index::Online)) {
+>>>>>>> pr/231
       jam();
 #ifdef VM_TRACE
       if (debugFlags & (DebugMeta | DebugScan))
@@ -391,7 +452,10 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     scanPtr.p->m_lockMode = AccScanReq::getLockMode(req->requestInfo);
     scanPtr.p->m_descending = AccScanReq::getDescendingFlag(req->requestInfo);
     c_ctx.scanPtr = scanPtr;
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
     /*
      * readCommitted lockMode keyInfo
      * 1 0 0 - read committed (no lock)
@@ -400,6 +464,14 @@ Dbtux::execACC_SCANREQ(Signal* signal)
      */
     if (unlikely(isStatScan)) {
       jam();
+      // Check if index stat can handle this index length
+      Uint32 indexMaxKeyBytes = indexPtr.p->m_keySpec.get_max_data_len(false);
+      if (indexMaxKeyBytes > (StatOp::MaxKeySize * 4)) {
+        jam();
+        errorCode = AccScanRef::TuxInvalidKeySize;
+        break;
+      }
+
       if (!scanPtr.p->m_readCommitted) {
         jam();
         errorCode = AccScanRef::TuxInvalidLockMode;
@@ -641,7 +713,11 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     req->errorCode = scan.m_errorCode;
     return;
   }
+<<<<<<< HEAD
   prepare_scan_bounds(scanPtr.p, c_ctx.indexPtr.p, this);
+=======
+  prepare_scan_bounds(scanPtr.p, c_ctx.indexPtr.p);
+>>>>>>> pr/231
   prepare_all_tup_ptrs(c_ctx);
   // no error
   req->errorCode = 0;
@@ -656,8 +732,12 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
   Uint32 scanFlag = req->scanFlag;
 #ifdef VM_TRACE
   if (debugFlags & DebugScan) {
+<<<<<<< HEAD
     tuxDebugOut << "NEXT_SCANREQ scan " << c_ctx.scanPtr.i << " "
                 << scan << endl;
+=======
+    debugOut << "NEXT_SCANREQ scan " << c_ctx.scanPtr.i << " " << scan << endl;
+>>>>>>> pr/231
   }
 #endif
   // handle unlock previous and close scan
@@ -667,19 +747,29 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     break;
   case NextScanReq::ZSCAN_COMMIT:
     jamDebug();
+<<<<<<< HEAD
     [[fallthrough]];
+=======
+>>>>>>> pr/231
   case NextScanReq::ZSCAN_NEXT_COMMIT:
     jamDebug();
     if (! scan.m_readCommitted)
     {
       jam();
+<<<<<<< HEAD
       ndbassert(!m_is_query_block);
+=======
+>>>>>>> pr/231
       Uint32 accOperationPtr = req->accOperationPtr;
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::Unlock;
       lockReq->accOpPtr = accOperationPtr;
+<<<<<<< HEAD
       c_acc->execACC_LOCKREQ(signal);
+=======
+      EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
+>>>>>>> pr/231
       jamEntryDebug();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
       removeAccLockOp(c_ctx.scanPtr, accOperationPtr);
@@ -698,9 +788,19 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
   case NextScanReq::ZSCAN_CLOSE:
     jamDebug();
     // unlink from tree node first to avoid state changes
+<<<<<<< HEAD
     if (scan.m_scanLinkedPos != NullTupLoc)
     {
       jam();
+=======
+    if (scan.m_scanPos.m_loc != NullTupLoc)
+    {
+      jam();
+      const TupLoc loc = scan.m_scanPos.m_loc;
+      NodeHandle node(frag);
+      selectNode(c_ctx, node, loc);
+      unlinkScan(node, c_ctx.scanPtr);
+>>>>>>> pr/231
       scan.m_scanPos.m_loc = NullTupLoc;
       relinkScan(scan, frag, true, __LINE__);
       ndbassert(scan.m_scanLinkedPos == NullTupLoc);
@@ -744,16 +844,24 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     jam();
     ndbabort();
   }
+<<<<<<< HEAD
   bool wait_scan_lock_record = check_freeScanLock(scan);
   continue_scan(signal, c_ctx.scanPtr, frag, wait_scan_lock_record);
   ndbassert(c_freeScanLock == RNIL); // No ndbrequire, will destroy tail call
+=======
+  continue_scan(signal, c_ctx.scanPtr, frag);
+>>>>>>> pr/231
 }
 
 void
 Dbtux::continue_scan(Signal *signal,
                      ScanOpPtr scanPtr,
+<<<<<<< HEAD
                      Frag& frag,
                      bool wait_scan_lock_record)
+=======
+                     Frag& frag)
+>>>>>>> pr/231
 {
   ScanOp& scan = *scanPtr.p;
 #ifdef VM_TRACE
@@ -762,6 +870,7 @@ Dbtux::continue_scan(Signal *signal,
   }
 #endif
   const Index& index = *c_ctx.indexPtr.p;
+<<<<<<< HEAD
   if (unlikely(scan.m_lockwait || wait_scan_lock_record))
   {
     jam();
@@ -773,6 +882,12 @@ Dbtux::continue_scan(Signal *signal,
     release_c_free_scan_lock();
     jamLine(Uint16(scanPtr.i));
     relinkScan(*scanPtr.p, frag, true, __LINE__);
+=======
+  if (unlikely(scan.m_lockwait))
+  {
+    jam();
+    // LQH asks if we are waiting for lock and we tell it to ask again
+>>>>>>> pr/231
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;       // no tuple returned
@@ -802,7 +917,10 @@ Dbtux::continue_scan(Signal *signal,
   if (unlikely(scan.m_errorCode != 0))
   {
     jamDebug();
+<<<<<<< HEAD
     release_c_free_scan_lock();
+=======
+>>>>>>> pr/231
     NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;
@@ -867,13 +985,21 @@ Dbtux::continue_scan(Signal *signal,
       {
       case AccLockReq::Success:
       {
+<<<<<<< HEAD
+=======
+        jam();
+>>>>>>> pr/231
         scan.m_state = ScanOp::Locked;
         scan.m_accLockOp = lockReq->accOpPtr;
 #ifdef VM_TRACE
         if (debugFlags & (DebugScan | DebugLock))
         {
+<<<<<<< HEAD
           tuxDebugOut << "Lock immediate scan " << scanPtr.i << " "
                       << scan << endl;
+=======
+          debugOut << "Lock immediate scan " << scanPtr.i << " " << scan << endl;
+>>>>>>> pr/231
         }
 #endif
         break;
@@ -888,13 +1014,18 @@ Dbtux::continue_scan(Signal *signal,
 #ifdef VM_TRACE
         if (debugFlags & (DebugScan | DebugLock))
         {
+<<<<<<< HEAD
           tuxDebugOut << "Lock wait scan " << scanPtr.i << " " << scan << endl;
+=======
+          debugOut << "Lock wait scan " << scanPtr.i << " " << scan << endl;
+>>>>>>> pr/231
         }
 #endif
         // LQH will wake us up
         CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+<<<<<<< HEAD
         c_lqh->execCHECK_LCP_STOP(signal);
         if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
         {
@@ -910,6 +1041,12 @@ Dbtux::continue_scan(Signal *signal,
         ndbrequire(signal->theData[0] == CheckLcpStop::ZABORT_SCAN);
         /* Ensure that we send NEXT_SCANCONF immediately to close */
         scan.m_state = ScanOp::Last;
+=======
+        EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+        jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
+        return;  // stop
+>>>>>>> pr/231
         break;
       }
       case AccLockReq::Refused:
@@ -928,6 +1065,7 @@ Dbtux::continue_scan(Signal *signal,
         CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
         cls->scanPtrI = scan.m_userPtr;
         cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+<<<<<<< HEAD
         c_lqh->execCHECK_LCP_STOP(signal);
         if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK)
         {
@@ -972,6 +1110,34 @@ Dbtux::continue_scan(Signal *signal,
       default:
         ndbabort();
       }
+=======
+        EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+        jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
+        return;  // stop
+        break;
+      }
+      case AccLockReq::NoFreeOp:
+      {
+        jam();
+        // max ops should depend on max scans (assert only)
+        ndbassert(false);
+        // stay in Found state
+        scan.m_state = ScanOp::Found;
+        CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+        cls->scanPtrI = scan.m_userPtr;
+        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
+        EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+        jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
+        return;  // stop
+        break;
+      }
+      default:
+        ndbrequire(false);
+        break;
+      }
+>>>>>>> pr/231
     }
     else
     {
@@ -982,6 +1148,7 @@ Dbtux::continue_scan(Signal *signal,
   {
     jam();
     // Taking a break from searching the tree
+<<<<<<< HEAD
     release_c_free_scan_lock();
     CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
     cls->scanPtrI = scan.m_userPtr;
@@ -991,6 +1158,14 @@ Dbtux::continue_scan(Signal *signal,
     ndbrequire(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
     relinkScan(scan, frag, true, __LINE__);
     /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
+=======
+    CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+    cls->scanPtrI = scan.m_userPtr;
+    cls->scanState = CheckLcpStop::ZSCAN_RUNNABLE_YIELD;
+    EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+    jam();
+    ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
+>>>>>>> pr/231
     return;
   }
   if (likely(scan.m_state == ScanOp::Locked))
@@ -1171,7 +1346,11 @@ Dbtux::execACC_ABORTCONF(Signal* signal)
     tuxDebugOut << "ACC_ABORTCONF scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
+<<<<<<< HEAD
   c_lqh->setup_scan_pointers(scan.m_userPtr, __LINE__);
+=======
+  c_lqh->setup_scan_pointers(scan.m_userPtr);
+>>>>>>> pr/231
   ndbrequire(scan.m_state == ScanOp::Aborting);
   // most likely we are still in lock wait
   if (scan.m_lockwait) {
@@ -1214,6 +1393,10 @@ Dbtux::scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index)
     // link the scan to node found
     NodeHandle node(frag);
     selectNode(c_ctx, node, treePos.m_loc);
+<<<<<<< HEAD
+=======
+    linkScan(node, scanPtr);
+>>>>>>> pr/231
     if (likely(treePos.m_dir == 3))
     {
       jamDebug();
@@ -1364,6 +1547,10 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
   // get and remember original node
   NodeHandle origNode(frag);
   selectNode(c_ctx, origNode, pos.m_loc);
+<<<<<<< HEAD
+=======
+  ndbassert(islinkScan(origNode, scanPtr));
+>>>>>>> pr/231
   if (unlikely(scan_state == ScanOp::Locked))
   {
     // bug#32040 - no fix, just unlock and continue
@@ -1396,7 +1583,11 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
     Uint32 dir = pos.m_dir;
     {
       /* Search in node we are currently scanning. */
+<<<<<<< HEAD
       const Uint32 node_occup = node.getOccup();
+=======
+      const register Uint32 node_occup = node.getOccup();
+>>>>>>> pr/231
       const Uint32 node_pos = pos.m_pos;
       // advance position - becomes large (> occup) if 0 and descending
       const Uint32 new_node_pos = node_pos + jdir;
@@ -1514,6 +1705,7 @@ found:
   // copy back position
   jamDebug();
   scan.m_scanPos = pos;
+<<<<<<< HEAD
   ndbassert(pos.m_dir == 3);
   ndbassert(pos.m_loc == node.m_loc);
   if (likely(scan.m_state != ScanOp::Blocked))
@@ -1628,6 +1820,48 @@ Dbtux::relinkScan(ScanOp& scan,
     c_lqh->unlock_index_fragment();
   }
   scan.m_scanLinkedPos = NullTupLoc;
+=======
+  // relink
+  ndbassert(pos.m_dir == 3);
+  ndbassert(pos.m_loc == node.m_loc);
+  if (unlikely(origNode.m_loc != node.m_loc))
+  {
+    jamDebug();
+    unlinkScan(origNode, scanPtr);
+    linkScan(node, scanPtr);
+  }
+  if (likely(scan.m_state != ScanOp::Blocked))
+  {
+    c_ctx.m_current_ent = ent;
+    scan.m_state = ScanOp::Current;
+  }
+  else
+  {
+    jamDebug();
+    ndbrequire(fromMaintReq);
+    TreeEnt& scanEnt = scan.m_scanEnt;
+    ndbrequire(scanEnt.m_tupLoc != NullTupLoc);
+    if (scanEnt.eqtuple(ent))
+    {
+      // remains blocked on another version
+      scanEnt = ent;
+    } else {
+      jamDebug();
+      scanEnt.m_tupLoc = NullTupLoc;
+      c_ctx.m_current_ent = ent;
+      scan.m_state = ScanOp::Current;
+    }
+  }
+  return scan.m_state;
+
+found_none:
+  jamDebug();
+  scan.m_scanPos = pos;
+  unlinkScan(origNode, scanPtr);
+  scan.m_state = ScanOp::Last;
+  return ScanOp::Last;
+
+>>>>>>> pr/231
 }
 
 /*

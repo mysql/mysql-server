@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,10 +103,25 @@ void Table_cache::check_unused() {
 
     Table_cache_element::TABLE_list::Iterator it(el->free_tables);
     TABLE *entry;
+<<<<<<< HEAD
     while ((entry = it++)) {
       /* We must not have TABLEs in the free list that have their file closed.
        */
+<<<<<<< HEAD
       assert(entry->db_stat && entry->file);
+=======
+      DBUG_ASSERT(entry->db_stat && entry->file);
+      /* Merge children should be detached from a merge parent */
+      DBUG_ASSERT(!entry->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+=======
+    while ((entry= it++))
+    {
+      /* We must not have TABLEs in the free list that have their file closed. */
+      assert(entry->db_stat && entry->file);
+      /* Merge children should be detached from a merge parent */
+      assert(! entry->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       if (entry->in_use)
         DBUG_PRINT("error", ("Used table is in share's list of unused tables"));
@@ -129,7 +152,16 @@ void Table_cache::free_all_unused_tables() {
   }
 }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+=======
+
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /**
   Print debug information for the contents of the table cache.
 */
@@ -311,8 +343,19 @@ void Table_cache_manager::free_table(THD *thd [[maybe_unused]],
       else if (remove_type == TDC_RT_REMOVE_NOT_OWN ||
                remove_type == TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE) {
         Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
+<<<<<<< HEAD
         while ((table = it2++)) {
+<<<<<<< HEAD
           if (table->in_use != thd) assert(0);
+=======
+          if (table->in_use != thd) DBUG_ASSERT(0);
+=======
+        while ((table= it2++))
+        {
+          if (table->in_use != thd)
+            assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         }
       }
 #endif
@@ -340,7 +383,16 @@ void Table_cache_manager::free_all_unused_tables() {
     m_table_cache[i].free_all_unused_tables();
 }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+=======
+
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 /**
   Print debug information for the contents of all table cache instances.
 */

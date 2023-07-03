@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -92,6 +100,7 @@ bool PFS_index_status_by_account::match(PFS_account *pfs) {
   return true;
 }
 
+<<<<<<< HEAD
 bool PFS_index_status_by_account::match(const Status_variable *pfs) {
   if (m_fields >= 3) {
     if (!m_key_3.match(pfs)) {
@@ -100,6 +109,29 @@ bool PFS_index_status_by_account::match(const Status_variable *pfs) {
   }
   return true;
 }
+=======
+PFS_engine_table_share_state
+table_status_by_account::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_status_by_account::m_share=
+{
+  { C_STRING_WITH_LEN("status_by_account") },
+  &pfs_truncatable_acl,
+  table_status_by_account::create,
+  NULL, /* write_row */
+  table_status_by_account::delete_all_rows,
+  table_status_by_account::get_row_count,
+  sizeof(pos_t),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+>>>>>>> upstream/cluster-7.6
 
 PFS_engine_table *table_status_by_account::create(PFS_engine_table_share *) {
   return new table_status_by_account();
@@ -255,7 +287,12 @@ int table_status_by_account::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -273,7 +310,34 @@ int table_status_by_account::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_variable_value.set_field(f);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* USER */
+      case 1: /* HOST */
+        m_row.m_account.set_field(f->field_index, f);
+        break;
+      case 2: /* VARIABLE_NAME */
+        set_field_varchar_utf8(f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
+        break;
+      case 3: /* VARIABLE_VALUE */
+        m_row.m_variable_value.set_field(f);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

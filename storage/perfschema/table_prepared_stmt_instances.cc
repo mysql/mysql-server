@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -128,6 +136,7 @@ bool PFS_index_prepared_stmt_instances_by_instance::match(
   return true;
 }
 
+<<<<<<< HEAD
 bool PFS_index_prepared_stmt_instances_by_owner_thread::match(
     const PFS_prepared_stmt *pfs) {
   if (m_fields >= 1) {
@@ -135,6 +144,29 @@ bool PFS_index_prepared_stmt_instances_by_owner_thread::match(
       return false;
     }
   }
+=======
+PFS_engine_table_share_state
+table_prepared_stmt_instances::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_prepared_stmt_instances::m_share=
+{
+  { C_STRING_WITH_LEN("prepared_statements_instances") },
+  &pfs_truncatable_acl,
+  table_prepared_stmt_instances::create,
+  NULL, /* write_row */
+  table_prepared_stmt_instances::delete_all_rows,
+  table_prepared_stmt_instances::get_row_count,
+  sizeof(PFS_simple_index),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+>>>>>>> upstream/cluster-7.6
 
   if (m_fields >= 2) {
     if (!m_key_2.match_owner(pfs)) {
@@ -338,8 +370,17 @@ int table_prepared_stmt_instances::read_row_values(TABLE *table,
   /*
     Set the null bits.
   */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+>>>>>>> upstream/cluster-7.6
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {

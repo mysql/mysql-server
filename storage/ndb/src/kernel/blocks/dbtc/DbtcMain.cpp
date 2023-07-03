@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 /*
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +113,10 @@
 #include <kernel/Interpreter.hpp>
 #include <signaldata/TuxBound.hpp>
 #include "../dbdih/Dbdih.hpp"
+<<<<<<< HEAD
 #include "portlib/mt-asm.h"
+=======
+>>>>>>> pr/231
 
 #define JAM_FILE_ID 353
 
@@ -133,6 +140,7 @@
 #else
 #define DEBUG(x)
 #endif
+<<<<<<< HEAD
 
 
 #ifdef DEBUG_NODE_FAILURE
@@ -152,6 +160,9 @@
 #else
 #define DEB_EXEC_WRITE_COUNT(arglist) do { } while (0)
 #endif
+=======
+  
+>>>>>>> pr/231
 
 #ifdef VM_TRACE
 NdbOut &
@@ -452,7 +463,11 @@ void Dbtc::execCONTINUEB(Signal* signal)
     jam();
     ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = Tdata0;
+<<<<<<< HEAD
     c_apiConnectRecordPool.getPtr(apiConnectptr);
+=======
+    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+>>>>>>> pr/231
     {
       if (unlikely(! (apiConnectptr.p->transid[0] == Tdata1 &&
                       apiConnectptr.p->transid[1] == Tdata2 &&
@@ -479,6 +494,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
   case TcContinueB::ZSTART_FRAG_SCANS:
   {
     jam();
+<<<<<<< HEAD
     ScanRecordPtr scanptr;
     scanptr.i = signal->theData[1];
     if (likely(scanRecordPool.getUncheckedPtrRW(scanptr)))
@@ -489,11 +505,30 @@ void Dbtc::execCONTINUEB(Signal* signal)
       ndbrequire(c_apiConnectRecordPool.getValidPtr(apiConnectptr));
       sendDihGetNodesLab(signal, scanptr, apiConnectptr);
     }
+=======
+    apiConnectptr.i = Tdata0;
+    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+
+    /* Check state is valid for continuation */
+    if (unlikely(! (apiConnectptr.p->transid[0] == Tdata1 &&
+                    apiConnectptr.p->transid[1] == Tdata2 &&
+                    apiConnectptr.p->apiConnectstate == CS_START_SCAN)))
+    {
+      jam();
+      return;
+    }
+
+    ScanRecordPtr scanptr;
+    scanptr.i = apiConnectptr.p->apiScanRec;
+    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+    sendDihGetNodesLab(signal, scanptr);
+>>>>>>> pr/231
     return;
   }
   case TcContinueB::ZSEND_FRAG_SCANS:
   {
     jam();
+<<<<<<< HEAD
     ScanRecordPtr scanptr;
     scanptr.i = signal->theData[1];
     if (likely(scanRecordPool.getUncheckedPtrRW(scanptr)))
@@ -504,6 +539,24 @@ void Dbtc::execCONTINUEB(Signal* signal)
       ndbrequire(c_apiConnectRecordPool.getValidPtr(apiConnectptr));
       sendFragScansLab(signal, scanptr, apiConnectptr);
     }
+=======
+    apiConnectptr.i = Tdata0;
+    ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
+
+    /* Check state is valid for continuation */
+    if (unlikely(! (apiConnectptr.p->transid[0] == Tdata1 &&
+                    apiConnectptr.p->transid[1] == Tdata2 &&
+                    apiConnectptr.p->apiConnectstate == CS_START_SCAN)))
+    {
+      jam();
+      return;
+    }
+
+    ScanRecordPtr scanptr;
+    scanptr.i = apiConnectptr.p->apiScanRec;
+    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+    sendFragScansLab(signal, scanptr);
+>>>>>>> pr/231
     return;
   }
 #ifdef ERROR_INSERT
@@ -1142,6 +1195,7 @@ void Dbtc::execSTTOR(Signal* signal)
   {
     jam();
     c_dih = (Dbdih*)globalData.getBlock(DBDIH, 0);
+<<<<<<< HEAD
     bool first_instance = false;
     if (globalData.ndbMtTcWorkers <= 1 ||
         instance() == 1)
@@ -1189,6 +1243,8 @@ void Dbtc::execSTTOR(Signal* signal)
     {
       print_static_distr_info(&m_distribution_handle);
     }
+=======
+>>>>>>> pr/231
     startphase1x010Lab(signal);
     return;
   }
@@ -2087,6 +2143,7 @@ void Dbtc::printState(Signal* signal, int place, ApiConnectRecordPtr const apiCo
 
   if (!force_trace)
     return;
+<<<<<<< HEAD
 
   g_eventLogger->info(
       "-- Dbtc::printState -- "
@@ -2121,6 +2178,32 @@ void Dbtc::printState(Signal* signal, int place, ApiConnectRecordPtr const apiCo
 
   if (apiConnectptr.p->cachePtr != RNIL)
   {
+=======
+  
+  ndbout << "-- Dbtc::printState -- " << endl;
+  ndbout << "Received from place = " << place
+	 << " apiConnectptr.i = " << apiConnectptr.i
+	 << " apiConnectstate = " << apiConnectptr.p->apiConnectstate << endl;
+  ndbout << "ctcTimer = " << ctcTimer
+	 << " ndbapiBlockref = " << hex <<apiConnectptr.p->ndbapiBlockref
+	 << " Transid = " << apiConnectptr.p->transid[0]
+	 << " " << apiConnectptr.p->transid[1] << endl;
+  ndbout << "apiTimer = " << getApiConTimer(apiConnectptr.i)
+	 << " counter = " << apiConnectptr.p->counter
+	 << " lqhkeyconfrec = " << apiConnectptr.p->lqhkeyconfrec
+	 << " lqhkeyreqrec = " << apiConnectptr.p->lqhkeyreqrec
+         << " cascading_scans = " << apiConnectptr.p->cascading_scans_count
+         << endl;
+  ndbout << "executing_trigger_ops = "
+         << apiConnectptr.p->m_executing_trigger_ops
+         << " abortState = " << apiConnectptr.p->abortState
+	 << " apiScanRec = " << apiConnectptr.p->apiScanRec
+	 << " returncode = " << apiConnectptr.p->returncode << endl;
+  ndbout << "tckeyrec = " << apiConnectptr.p->tckeyrec
+	 << " returnsignal = " << apiConnectptr.p->returnsignal
+	 << " apiFailState = " << apiConnectptr.p->apiFailState << endl;
+  if (apiConnectptr.p->cachePtr != RNIL) {
+>>>>>>> pr/231
     jam();
     CacheRecordPtr cachePtr;
     cachePtr.i = apiConnectptr.p->cachePtr;
@@ -3098,7 +3181,10 @@ void Dbtc::initApiConnectRec(Signal* signal,
 
   regApiPtr->m_outstanding_fire_trig_req = 0;
   regApiPtr->m_write_count = 0;
+<<<<<<< HEAD
   regApiPtr->m_exec_write_count = 0;
+=======
+>>>>>>> pr/231
   regApiPtr->m_firstTcConnectPtrI_FT = RNIL;
   regApiPtr->m_lastTcConnectPtrI_FT = RNIL;
 }//Dbtc::initApiConnectRec()
@@ -4585,7 +4671,11 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal,
       //ndbassert(false); // see above
       TcConnectRecordPtr opPtr;
       opPtr.i = trigOp;
+<<<<<<< HEAD
       tcConnectRecord.getPtr(opPtr);
+=======
+      ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+>>>>>>> pr/231
       ndbrequire(apiConnectptr.p->m_executing_trigger_ops > 0);
       apiConnectptr.p->m_executing_trigger_ops--;
       trigger_op_finished(signal, apiConnectptr, RNIL, opPtr.p, 0);
@@ -4616,8 +4706,24 @@ void Dbtc::packLqhkeyreq(Signal* signal,
 
   ndbassert( signal->getNoOfSections() == 0 );
 
+<<<<<<< HEAD
   ApiConnectRecord* const regApiPtr = apiConnectptr.p;
   sendlqhkeyreq(signal, TBRef, regCachePtr, regApiPtr);
+=======
+  sendlqhkeyreq(signal, TBRef);
+
+  /* Do we need to send a KeyInfo signal train? */
+  if ((! regCachePtr->useLongLqhKeyReq) &&
+      (Tkeylen > LqhKeyReq::MaxKeyInfo)) 
+  {
+    /* Build KeyInfo train from KeyInfo long signal section */
+    sendKeyInfoTrain(signal, 
+                     TBRef,
+                     tcConnectptr.i,
+                     LqhKeyReq::MaxKeyInfo,
+                     regCachePtr->keyInfoSectionI);
+  }//if
+>>>>>>> pr/231
 
   /* Release key storage */ 
   releaseKeys(regCachePtr);
@@ -5731,7 +5837,11 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     }
   }//if
 
+<<<<<<< HEAD
   if (unlikely(triggeringOp.i != RNIL))
+=======
+  if (regTcPtr->triggeringOperation != RNIL)
+>>>>>>> pr/231
   {
     // A trigger op execution ends.
     jam();
@@ -5804,6 +5914,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
                                   regTcPtr->tcNodedata[0]);
     ndbrequire(tcConnectRecord.getValidPtr(triggeringOp));
     trigger_op_finished(signal, regApiPtr, regTcPtr->currentTriggerId,
+<<<<<<< HEAD
                         triggeringOp.p, 0);
     executeTriggers(signal, &regApiPtr);
   }
@@ -5813,6 +5924,10 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     releaseTcCon();
     checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                         tcConnectRecord);
+=======
+                        opPtr.p, 0);
+    executeTriggers(signal, &regApiPtr);
+>>>>>>> pr/231
   }
 }//Dbtc::execLQHKEYCONF()
  
@@ -6223,8 +6338,13 @@ Dbtc::startSendFireTrigReq(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
 
   ndbassert(regApiPtr.p->m_firstTcConnectPtrI_FT == RNIL);
   ndbassert(regApiPtr.p->m_lastTcConnectPtrI_FT == RNIL);
+<<<<<<< HEAD
   regApiPtr.p->m_firstTcConnectPtrI_FT = regApiPtr.p->tcConnect.getFirst();
   regApiPtr.p->m_lastTcConnectPtrI_FT = regApiPtr.p->tcConnect.getLast();
+=======
+  regApiPtr.p->m_firstTcConnectPtrI_FT = regApiPtr.p->firstTcConnect;
+  regApiPtr.p->m_lastTcConnectPtrI_FT = regApiPtr.p->lastTcConnect;
+>>>>>>> pr/231
   sendFireTrigReq(signal, regApiPtr);
 }
 
@@ -6265,6 +6385,7 @@ void Dbtc::diverify010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectpt
 
   if (regApiPtr->lqhkeyreqrec)
   {
+<<<<<<< HEAD
     ndbrequire(regApiPtr->apiCopyRecord != RNIL);
     tc_clearbit(regApiPtr->m_flags,
                 ApiConnectRecord::TF_TRIGGER_PENDING);
@@ -6295,6 +6416,63 @@ void Dbtc::diverify010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectpt
        * have a queue since there can be DIVERIFYCONF still in flight.
        */
       signal->theData[0] = RNIL;
+=======
+    if (TfirstfreeApiConnectCopy != RNIL) {
+      seizeApiConnectCopy(signal);
+      regApiPtr->apiConnectstate = CS_PREPARE_TO_COMMIT;
+      /*-----------------------------------------------------------------------
+       * WE COME HERE ONLY IF THE TRANSACTION IS PREPARED ON ALL TC CONNECTIONS
+       * THUS WE CAN START THE COMMIT PHASE BY SENDING DIVERIFY ON ALL TC     
+       * CONNECTIONS AND THEN WHEN ALL DIVERIFYCONF HAVE BEEN RECEIVED THE 
+       * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
+       *---------------------------------------------------------------------*/
+      * (EmulatedJamBuffer**)(signal->theData+2) = jamBuffer();
+      c_dih->execDIVERIFYREQ(signal);
+      if (clastApiConnectPREPARE_TO_COMMIT != RNIL ||
+          signal->theData[3] != 0)
+      {
+        /* Put transaction last in verification queue */
+        ndbrequire(regApiPtr->nextApiConnect == RNIL);
+        if (clastApiConnectPREPARE_TO_COMMIT != RNIL)
+        {
+          ApiConnectRecord* apiPtr;
+          apiPtr = &apiConnectRecord[clastApiConnectPREPARE_TO_COMMIT];
+          ndbrequire(apiPtr->nextApiConnect == RNIL);
+          apiPtr->nextApiConnect = apiConnectptr.i;
+        }
+        else
+        {
+          ndbassert(cfirstApiConnectPREPARE_TO_COMMIT == RNIL);
+          cfirstApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
+        }
+        clastApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
+        /**
+         * If execDIVERIFYCONF is called below, make it pop a transaction
+         * from verifiction queue.
+         * Note, that even if DBDIH says ok without queue, DBTC can still
+         * have a queue since there can be DIVERIFYCONF still in flight.
+         */
+        signal->theData[0] = RNIL;
+      }
+      if (signal->theData[3] == 0)
+      {
+        execDIVERIFYCONF(signal);
+      }
+      return;
+    } else {
+      /*-----------------------------------------------------------------------
+       * There were no free copy connections available. We must abort the 
+       * transaction since otherwise we will have a problem with the report 
+       * to the application.
+       * This should more or less not happen but if it happens we do 
+       * not want to crash and we do not want to create code to handle it 
+       * properly since it is difficult to test it and will be complex to 
+       * handle a problem more or less not occurring.
+       *---------------------------------------------------------------------*/
+      terrorCode = ZSEIZE_API_COPY_ERROR;
+      abortErrorLab(signal);
+      return;
+>>>>>>> pr/231
     }
     if (signal->theData[3] == 0)
     {
@@ -7237,6 +7415,11 @@ Dbtc::sendFireTrigReq(Signal* signal,
                       Ptr<ApiConnectRecord> regApiPtr)
 {
   ndbrequire(regApiPtr.p->apiConnectstate != CS_WAIT_FIRE_TRIG_REQ);
+<<<<<<< HEAD
+=======
+  UintR TtcConnectFilesize = ctcConnectFilesize;
+  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
+>>>>>>> pr/231
   TcConnectRecordPtr localTcConnectptr;
 
   setApiConTimer(regApiPtr, ctcTimer, __LINE__);
@@ -7252,6 +7435,38 @@ Dbtc::sendFireTrigReq(Signal* signal,
   const Uint32 pass = regApiPtr.p->m_pre_commit_pass;
   const Uint32 passflag = getTcConnectRecordDeferredFlag(pass);
   Uint32 prevOpPtrI = RNIL;
+<<<<<<< HEAD
+=======
+
+  /**
+   * We iterate over a range of Operation records, sending
+   * FIRE_TRIG_REQ for them if appropriate
+   *
+   * We only iterate a few at a time, and we only send a few
+   * signals at a time, and have a limit on the max
+   * outstanding
+   *
+   * CONTINUEB is used for real-time breaks.
+   * FIRE_TRIG_CONF is used to wake the iteration when the
+   * max outstanding limit is reached
+   */
+  Uint32 currentFireTrigReqs = regApiPtr.p->m_outstanding_fire_trig_req;
+  const Uint32 ProcessingUnitsLimit = 16; /* Avoid excessive work and fan-out */
+  ndbassert(currentFireTrigReqs <= MaxOutstandingFireTrigReqPerTrans);
+  Uint32 concurrentLimit =
+    MaxOutstandingFireTrigReqPerTrans - currentFireTrigReqs;
+
+  for (Uint32 i = 0;
+       prevOpPtrI != TlastOpPtrI &&
+         i < ProcessingUnitsLimit &&
+         concurrentLimit > 0 &&
+         (regApiPtr.p->m_executing_trigger_ops <
+          MaxExecutingTriggerOpsPerTrans);
+       i++)
+  {
+    ptrCheckGuard(localTcConnectptr,
+                  TtcConnectFilesize, localTcConnectRecord);
+>>>>>>> pr/231
 
   /**
    * We iterate over a range of Operation records, sending
@@ -7300,7 +7515,11 @@ Dbtc::sendFireTrigReq(Signal* signal,
       ndbrequire(localTcConnectptr.p->tcConnectstate == OS_PREPARED);
       localTcConnectptr.p->tcConnectstate = OS_FIRE_TRIG_REQ;
       localTcConnectptr.p->m_special_op_flags = flags;
+<<<<<<< HEAD
       i += sendFireTrigReqLqh(signal, localTcConnectptr, pass, regApiPtr.p);
+=======
+      i += sendFireTrigReqLqh(signal, localTcConnectptr, pass, regApiPtr);
+>>>>>>> pr/231
       Tlqhkeyreqrec++;
       currentFireTrigReqs++;
       concurrentLimit--;
@@ -7309,6 +7528,7 @@ Dbtc::sendFireTrigReq(Signal* signal,
     prevOpPtrI = localTcConnectptr.i;
 
     /**
+<<<<<<< HEAD
      * next TcConnectRecord can go beyond the TlastOpPtrI.
      * However at this point, apiConnectState will go over to
      * CS_WAIT_FIRE_TRIG_REQ.
@@ -7317,6 +7537,16 @@ Dbtc::sendFireTrigReq(Signal* signal,
      */
     tcConList.next(localTcConnectptr);
     regApiPtr.p->m_firstTcConnectPtrI_FT = localTcConnectptr.i;
+=======
+     * nextTcConnect can go beyond the TlastOpPtrI.
+     * However at this point, apiConnectState will go over to
+     * CS_WAIT_FIRE_TRIG_REQ.
+     * After reaching this state, this method will not be called.
+     * So no need to check nextTCconnect going out of range.
+     */
+    localTcConnectptr.i = nextTcConnect;
+    regApiPtr.p->m_firstTcConnectPtrI_FT = nextTcConnect;
+>>>>>>> pr/231
   }
 
   regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec;
@@ -7375,7 +7605,11 @@ Uint32
 Dbtc::sendFireTrigReqLqh(Signal* signal,
                          Ptr<TcConnectRecord> regTcPtr,
                          Uint32 pass,
+<<<<<<< HEAD
                          ApiConnectRecord* const regApiPtr)
+=======
+                         Ptr<ApiConnectRecord> regApiPtr)
+>>>>>>> pr/231
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
@@ -7390,8 +7624,8 @@ Dbtc::sendFireTrigReqLqh(Signal* signal,
   Uint32 Tdata[FireTrigReq::SignalLength];
   FireTrigReq * req = CAST_PTR(FireTrigReq, Tdata);
   req->tcOpRec = regTcPtr.i;
-  req->transId[0] = regApiPtr->transid[0];
-  req->transId[1] = regApiPtr->transid[1];
+  req->transId[0] = regApiPtr.p->transid[0];
+  req->transId[1] = regApiPtr.p->transid[1];
   req->pass = pass;
   Uint32 len = FireTrigReq::SignalLength;
   Uint32 instanceNo = getInstanceNo(Tnode, instanceKey);
@@ -7571,7 +7805,11 @@ Dbtc::execFIRE_TRIG_REF(Signal* signal)
     return;
   }//if
 
+<<<<<<< HEAD
   if (!apiConnectptr.p->isExecutingDeferredTriggers())
+=======
+  if (!regApiPtr.p->isExecutingDeferredTriggers())
+>>>>>>> pr/231
   {
     jam();
     warningReport(signal, 28);
@@ -9696,6 +9934,26 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
   /*       THIS TRANSACTION HAVE EXPERIENCED A TIME-OUT AND WE NEED TO*/
   /*       FIND OUT WHAT WE NEED TO DO BASED ON THE STATE INFORMATION.*/
   /*------------------------------------------------------------------*/
+<<<<<<< HEAD
+=======
+  DEBUG("[ H'" << hex << apiConnectptr.p->transid[0] 
+	<< " H'" << apiConnectptr.p->transid[1] << "] " << dec 
+	<< "Time-out in state = " << apiConnectptr.p->apiConnectstate
+	<< " apiConnectptr.i = " << apiConnectptr.i 
+	<< " - exec: "
+        << tc_testbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG)
+	<< " - place: " << c_apiConTimer_line[apiConnectptr.i]
+	<< " code: " << errCode
+        << " lqhkeyreqrec: " << apiConnectptr.p->lqhkeyreqrec
+        << " lqhkeyconfrec: " << apiConnectptr.p->lqhkeyconfrec
+        << " pendingTriggers: " << apiConnectptr.p->pendingTriggers
+        << " outstanding_fire_trig_req: "
+        << apiConnectptr.p->m_outstanding_fire_trig_req
+        << " cascading_scans = " << apiConnectptr.p->cascading_scans_count
+        << " executing_trigger_operations: "
+        << apiConnectptr.p->m_executing_trigger_ops
+        );
+>>>>>>> pr/231
   switch (apiConnectptr.p->apiConnectstate) {
   case CS_STARTED:
     if(apiConnectptr.p->lqhkeyreqrec == apiConnectptr.p->lqhkeyconfrec &&
@@ -10926,7 +11184,11 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
                                       Uint32 failedNodeId)
 {
   ScanRecordPtr scanptr;
+<<<<<<< HEAD
   while (scanPtrI != RNIL)
+=======
+  for (scanptr.i = scanPtrI; scanptr.i < cscanrecFileSize; scanptr.i++)
+>>>>>>> pr/231
   {
     jam();
     if (unlikely(scanRecordPool.getUncheckedPtrs(&scanPtrI, &scanptr, 1) == 0))
@@ -10942,6 +11204,7 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
     {
       jam();
       ScanFragRecPtr ptr;
+<<<<<<< HEAD
       Local_ScanFragRec_dllist run(c_scan_frag_pool,
                                    scanptr.p->m_running_scan_frags);
       
@@ -10965,6 +11228,27 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
       {
         checkPoolShrinkNeed(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
                             c_scan_frag_pool);
+=======
+      {
+        Local_ScanFragRec_dllist run(c_scan_frag_pool,
+                                     scanptr.p->m_running_scan_frags);
+      
+        for(run.first(ptr); !ptr.isNull(); )
+        {
+          jam();
+          ScanFragRecPtr curr = ptr;
+          run.next(ptr);
+          if (curr.p->scanFragState == ScanFragRec::LQH_ACTIVE && 
+              refToNode(curr.p->lqhBlockref) == failedNodeId)
+          {
+            jam();
+            curr.p->scanFragState = ScanFragRec::COMPLETED;
+            curr.p->stopFragTimer();
+            run.release(curr);
+            found = true;
+          }
+        }
+>>>>>>> pr/231
       }
       if (!found)
       {
@@ -10986,6 +11270,7 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
         ScanFragLocationPtr ptr;
         Local_ScanFragLocation_list frags(m_fragLocationPool,
                                           scanptr.p->m_fragLocations);
+<<<<<<< HEAD
         for (frags.first(ptr); !found && !ptr.isNull(); frags.next(ptr))
         {
           for (Uint32 j = ptr.p->m_first_index; j < ptr.p->m_next_index; j++)
@@ -10999,6 +11284,16 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
               found = true;
               break;
             }
+=======
+        for (frags.first(ptr); !ptr.isNull(); frags.next(ptr))
+        {
+          Uint32 nodeId = refToNode(ptr.p->blockRef);
+          if (nodeId == failedNodeId)
+          {
+            jam();
+            found = true;
+            break;
+>>>>>>> pr/231
           }
         }
       }
@@ -13551,6 +13846,25 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     }
   }
   ndbassert(transP->ndbapiBlockref == apiBlockRef);
+<<<<<<< HEAD
+=======
+
+  if(tabptr.i >= ctabrecFilesize)
+  {
+    errCode = ZUNKNOWN_TABLE_ERROR;
+    goto SCAN_TAB_error;
+  }
+
+  if (unlikely (ScanTabReq::getViaSPJFlag(ri) &&
+                /* Check that all nodes can handle SPJ requests. */
+                !ndbd_join_pushdown(getNodeVersionInfo().m_type[NodeInfo::DB]
+                                    .m_min_version)))
+  {
+    jam();
+    errCode = 4003; // Function not implemented
+    goto SCAN_TAB_error;
+  }
+>>>>>>> pr/231
 
   if (unlikely(ScanTabReq::getMultiFragFlag(ri) &&
                !ScanTabReq::getViaSPJFlag(ri)))
@@ -13655,7 +13969,11 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     if (scanptr.p->m_scan_dist_key_flag)
     {
       jam();
+<<<<<<< HEAD
       g_eventLogger->info("Forcing scan distribution key to 0xffffffff");
+=======
+      ndbout_c("Forcing scan distribution key to 0xffffffff");
+>>>>>>> pr/231
       scanptr.p->m_scan_dist_key = 0xffffffff;
     }
   }
@@ -14208,12 +14526,27 @@ void Dbtc::sendDihGetNodesLab(Signal* signal,
      * one signal to ensure we keep the rules of not executing
      * for more than 5-10 microseconds per signal.
      */
-    if (fragCnt >= DiGetNodesReq::MAX_DIGETNODESREQS)
+    if (fragCnt >= DiGetNodesReq::MAX_DIGETNODESREQS ||
+        ERROR_INSERTED(8120))
     {
       jam();
       signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
-      signal->theData[1] = scanptr.i;
-      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+      signal->theData[1] = apiConnectptr.i;
+      signal->theData[2] = apiConnectptr.p->transid[0];
+      signal->theData[3] = apiConnectptr.p->transid[1];
+      if (ERROR_INSERTED(8120))
+      {
+        jam();
+        // Delay CONTINUEB
+        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 4);
+
+        // Disconnect API
+        signal->theData[0] = 900;
+        signal->theData[1] = refToNode(apiConnectptr.p->ndbapiBlockref);
+        sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 2, JBA);
+        return;
+      }
+      sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
       return;
     }
 
@@ -14744,12 +15077,30 @@ void Dbtc::sendFragScansLab(Signal* signal,
            * A max fanout of 1::4 of consumed::produced signals are allowed.
            * If we are about to produce more, we have to continue later.
            */
-	  if (cntLocSignals > 4)
+	  if ((cntLocSignals > 4) ||
+              (ERROR_INSERTED(8121)) ||
+              (ERROR_INSERTED(8122) && fragCnt >= 2))
           {
             jam();
             signal->theData[0] = TcContinueB::ZSEND_FRAG_SCANS;
-            signal->theData[1] = scanptr.i;
-            sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+            signal->theData[1] = apiConnectptr.i;
+            signal->theData[2] = apiConnectptr.p->transid[0];
+            signal->theData[3] = apiConnectptr.p->transid[1];
+
+            if (ERROR_INSERTED(8121) ||
+                ERROR_INSERTED(8122))
+            {
+              jam();
+              /* Delay CONTINUEB */
+              sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2000, 4);
+
+              // Disconnect API
+              signal->theData[0] = 900;
+              signal->theData[1] = refToNode(apiConnectptr.p->ndbapiBlockref);
+              sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 2, JBA);
+              return;
+            }
+            sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
             return;
           }
           if (fragCnt > 0 &&
@@ -14758,8 +15109,10 @@ void Dbtc::sendFragScansLab(Signal* signal,
           {
             jam();
             signal->theData[0] = TcContinueB::ZSEND_FRAG_SCANS;
-            signal->theData[1] = scanptr.i;
-            sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2, 10);
+            signal->theData[1] = apiConnectptr.i;
+            signal->theData[2] = apiConnectptr.p->transid[0];
+            signal->theData[3] = apiConnectptr.p->transid[1];
+            sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
             return;
           }
 
@@ -15688,6 +16041,19 @@ bool Dbtc::sendScanFragReq(Signal* signal,
   if (ScanFragReq::getMultiFragFlag(scanP->scanRequestInfo))
   {
     jam();
+<<<<<<< HEAD
+=======
+    Uint32 fragIdPtrI = RNIL;
+    if (unlikely(!appendToSection(fragIdPtrI, &fragId, 1)))
+    {
+      jam();
+      releaseSection(fragIdPtrI);
+      sections.clear();
+      scanError(signal, scanptr, ZGET_DATAREC_ERROR);
+      return false;
+    }
+
+>>>>>>> pr/231
     /**
      * Fragment locations use a bit more involved model for SPJ queries
      * that use multiple SPJ workers. We want as much execution of the
@@ -15725,6 +16091,7 @@ bool Dbtc::sendScanFragReq(Signal* signal,
     Uint32 fragIdPtrI = RNIL;
     if (unlikely(!appendToSection(fragIdPtrI, &fragId, 1)))
     {
+<<<<<<< HEAD
       jam();
       releaseSection(fragIdPtrI);
       sections.clear();
@@ -15757,6 +16124,12 @@ bool Dbtc::sendScanFragReq(Signal* signal,
       if ((ERROR_INSERTED(8116)) ||
           (ERROR_INSERTED(8117) && (rand() % 3) == 0) ||
           unlikely(!appendToSection(fragIdPtrI, &fragId, 1)))
+=======
+      jamDebug();
+      if ((ERROR_INSERTED(8116)) ||
+          (ERROR_INSERTED(8117) && (rand() % 3) == 0) ||
+          unlikely(!appendToSection(fragIdPtrI, &ptr.p->fragId, 1)))
+>>>>>>> pr/231
       {
         jam();
         releaseSection(fragIdPtrI);
@@ -15765,6 +16138,7 @@ bool Dbtc::sendScanFragReq(Signal* signal,
         return false;
       }
       scanP->scanNextFragId++;
+<<<<<<< HEAD
       get_and_step_next_frag_location(fragLocationPtr,
                                       scanptr.p,
                                       fragId,
@@ -15772,6 +16146,12 @@ bool Dbtc::sendScanFragReq(Signal* signal,
                                       thisPreferredLqhBlockRef);
     }
     jam();
+=======
+      frags.removeFirst(ptr);
+      m_fragLocationPool.release(ptr);  //Consumed it
+    }
+    jamDebug();
+>>>>>>> pr/231
     sections.m_ptr[sections.m_cnt++].i = fragIdPtrI;
   } //MultiFrag
 
@@ -15810,11 +16190,23 @@ bool Dbtc::sendScanFragReq(Signal* signal,
   // Encode variable part
   ndbassert(ScanFragReq::getCorrFactorFlag(requestInfo) == 0);
 
+<<<<<<< HEAD
+=======
+  const Uint32 version= getNodeInfo(nodeId).m_version;
+
+>>>>>>> pr/231
   HostRecordPtr host_ptr;
   host_ptr.i = nodeId;
   ptrCheckGuard(host_ptr, chostFilesize, hostRecord);
   ndbrequire(host_ptr.p->hostStatus == HS_ALIVE);
 
+<<<<<<< HEAD
+=======
+  const bool longFragReq= ((version >= NDBD_LONG_SCANFRAGREQ) &&
+                           (! ERROR_INSERTED(8070) &&
+		            ! ERROR_INSERTED(8088)));
+  if (likely(longFragReq))
+>>>>>>> pr/231
   {
     jamDebug();
     /* Send long, possibly fragmented SCAN_FRAGREQ */
@@ -16143,10 +16535,15 @@ void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
   if (ERROR_INSERTED(8099))
   {
     /* Slow it down */
+<<<<<<< HEAD
     g_eventLogger->info(
         "TC : Sending delayed GCP_TCFINISHED (%u/%u), failNo %u to local "
         "DIH(%x)",
         conf->gci_hi, conf->gci_lo, cfailure_nr, cdihblockref);
+=======
+    ndbout_c("TC : Sending delayed GCP_TCFINISHED (%u/%u), failNo %u to local DIH(%x)",
+             conf->gci_hi, conf->gci_lo, cfailure_nr, cdihblockref);
+>>>>>>> pr/231
     sendSignalWithDelay(c_gcp_ref, GSN_GCP_TCFINISHED, signal,
                         2000, GCPTCFinished::SignalLength);
     return;
@@ -16425,6 +16822,7 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
     checkPoolShrinkNeed(DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                         c_apiConnectRecordPool);
   }
+<<<<<<< HEAD
   if (apiConnectptr.p->cachePtr != RNIL)
   {
     CacheRecordPtr cachePtr;
@@ -16442,6 +16840,15 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
     releaseKeys(cachePtr.p);
     jamDebug();
     releaseAttrinfo(cachePtr, apiConnectptr.p);
+=======
+  if (apiConnectptr.p->cachePtr != RNIL) {
+    jam();
+    cachePtr.i = apiConnectptr.p->cachePtr;
+    ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
+    releaseAttrinfo();
+    jamDebug();
+    releaseKeys();
+>>>>>>> pr/231
     jamDebug();
   }//if
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, apiConnectptr.p->tcConnect);
@@ -19040,8 +19447,12 @@ void Dbtc::execTRIG_ATTRINFO(Signal* signal)
   key.nodeId = refToNode(signal->getSendersBlockRef());
   if(!c_firedTriggerHash.find(firedTrigPtr, key)){
     jam();
+<<<<<<< HEAD
     if(!c_theFiredTriggerPool.seize(firedTrigPtr))
     {
+=======
+    if(!c_firedTriggerHash.seize(firedTrigPtr)){
+>>>>>>> pr/231
       jam();
       /**
        * Will be handled when FIRE_TRIG_ORD arrives
@@ -21154,7 +21565,11 @@ Dbtc::fk_readFromChildTable(Signal* signal,
     jam();
     /**
      * Let an update/delete triggers be made with same save point
+<<<<<<< HEAD
      *   as operation it originated from.
+=======
+     *   as operation it orginated from.
+>>>>>>> pr/231
      */
     regApiPtr->currSavePointId = opRecord->savePointId;
     if (fkData->childTableId != fkData->childIndexId)
@@ -21360,7 +21775,11 @@ Dbtc::fk_buildKeyInfo(Uint32& keyIVal, bool& hasNull,
 void
 Dbtc::fk_scanFromChildTable(Signal* signal,
                             TcFiredTriggerData* firedTriggerData,
+<<<<<<< HEAD
                             ApiConnectRecordPtr const* transPtr,
+=======
+                            ApiConnectRecordPtr* transPtr,
+>>>>>>> pr/231
                             const Uint32 opPtrI,
                             TcFKData* fkData,
                             Uint32 op,

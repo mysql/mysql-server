@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,6 +210,7 @@ constexpr const uint64_t OPTIMIZER_SWITCH_MRR{1ULL << 6};
    off, MRR is "forced" (i.e. used as long as the storage engine is capable of
    doing it).
 */
+<<<<<<< HEAD
 constexpr const uint64_t OPTIMIZER_SWITCH_MRR_COST_BASED{1ULL << 7};
 constexpr const uint64_t OPTIMIZER_SWITCH_BNL{1ULL << 8};
 constexpr const uint64_t OPTIMIZER_SWITCH_BKA{1ULL << 9};
@@ -223,6 +232,72 @@ constexpr const uint64_t OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER{1ULL << 24};
 constexpr const uint64_t OPTIMIZER_SWITCH_DERIVED_CONDITION_PUSHDOWN{1ULL
                                                                      << 25};
 constexpr const uint64_t OPTIMIZER_SWITCH_LAST{1ULL << 26};
+=======
+<<<<<<< HEAD
+#define OPTIMIZER_SWITCH_MRR_COST_BASED (1ULL << 7)
+#define OPTIMIZER_SWITCH_BNL (1ULL << 8)
+#define OPTIMIZER_SWITCH_BKA (1ULL << 9)
+#define OPTIMIZER_SWITCH_MATERIALIZATION (1ULL << 10)
+#define OPTIMIZER_SWITCH_SEMIJOIN (1ULL << 11)
+#define OPTIMIZER_SWITCH_LOOSE_SCAN (1ULL << 12)
+#define OPTIMIZER_SWITCH_FIRSTMATCH (1ULL << 13)
+#define OPTIMIZER_SWITCH_DUPSWEEDOUT (1ULL << 14)
+#define OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED (1ULL << 15)
+#define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS (1ULL << 16)
+#define OPTIMIZER_SWITCH_COND_FANOUT_FILTER (1ULL << 17)
+#define OPTIMIZER_SWITCH_DERIVED_MERGE (1ULL << 18)
+#define OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES (1ULL << 19)
+#define OPTIMIZER_SWITCH_LAST (1ULL << 20)
+
+#define OPTIMIZER_SWITCH_DEFAULT                                         \
+  (OPTIMIZER_SWITCH_INDEX_MERGE | OPTIMIZER_SWITCH_INDEX_MERGE_UNION |   \
+   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION |                             \
+   OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT |                              \
+   OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |                          \
+   OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | OPTIMIZER_SWITCH_MRR |    \
+   OPTIMIZER_SWITCH_MRR_COST_BASED | OPTIMIZER_SWITCH_BNL |              \
+   OPTIMIZER_SWITCH_MATERIALIZATION | OPTIMIZER_SWITCH_SEMIJOIN |        \
+   OPTIMIZER_SWITCH_LOOSE_SCAN | OPTIMIZER_SWITCH_FIRSTMATCH |           \
+   OPTIMIZER_SWITCH_DUPSWEEDOUT | OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
+   OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS |                               \
+   OPTIMIZER_SWITCH_COND_FANOUT_FILTER | OPTIMIZER_SWITCH_DERIVED_MERGE)
+=======
+#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 7)
+#define OPTIMIZER_SWITCH_BNL                       (1ULL << 8)
+#define OPTIMIZER_SWITCH_BKA                       (1ULL << 9)
+#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 10)
+#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 11)
+#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 12)
+#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 13)
+#define OPTIMIZER_SWITCH_DUPSWEEDOUT               (1ULL << 14)
+#define OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED       (1ULL << 15)
+#define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 16)
+#define OPTIMIZER_SWITCH_COND_FANOUT_FILTER        (1ULL << 17)
+#define OPTIMIZER_SWITCH_DERIVED_MERGE             (1ULL << 18)
+#define OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX     (1ULL << 19)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 20)
+
+#define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
+                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
+                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
+                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
+                                  OPTIMIZER_SWITCH_MRR | \
+                                  OPTIMIZER_SWITCH_MRR_COST_BASED | \
+                                  OPTIMIZER_SWITCH_BNL | \
+                                  OPTIMIZER_SWITCH_MATERIALIZATION | \
+                                  OPTIMIZER_SWITCH_SEMIJOIN | \
+                                  OPTIMIZER_SWITCH_LOOSE_SCAN | \
+                                  OPTIMIZER_SWITCH_FIRSTMATCH | \
+                                  OPTIMIZER_SWITCH_DUPSWEEDOUT | \
+                                  OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
+                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS | \
+                                  OPTIMIZER_SWITCH_COND_FANOUT_FILTER | \
+                                  OPTIMIZER_SWITCH_DERIVED_MERGE | \
+                                  OPTIMIZER_SWITCH_PREFER_ORDERING_INDEX)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED };
 

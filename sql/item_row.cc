@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,11 +98,25 @@ void Item_row::illegal_method_call(const char *method [[maybe_unused]]) const {
   my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
 }
 
+<<<<<<< HEAD
 bool Item_row::fix_fields(THD *thd, Item **) {
+<<<<<<< HEAD
   assert(fixed == 0);
   null_value = false;
   set_nullable(false);
   bool types_assigned = true;
+=======
+  DBUG_ASSERT(fixed == 0);
+  null_value = 0;
+  maybe_null = false;
+=======
+bool Item_row::fix_fields(THD *thd, Item **ref)
+{
+  assert(fixed == 0);
+  null_value= 0;
+  maybe_null= 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   Item **arg, **arg_end;
   for (arg = items, arg_end = items + arg_count; arg != arg_end; arg++) {
     if ((!(*arg)->fixed && (*arg)->fix_fields(thd, arg))) return true;
@@ -197,10 +219,37 @@ bool Item_row::walk(Item_processor processor, enum_walk walk, uchar *arg) {
   return (walk & enum_walk::POSTFIX) && (this->*processor)(arg);
 }
 
+<<<<<<< HEAD
 Item *Item_row::transform(Item_transformer transformer, uchar *arg) {
   for (uint i = 0; i < arg_count; i++) {
+<<<<<<< HEAD
     items[i] = items[i]->transform(transformer, arg);
     if (items[i] == nullptr) return nullptr; /* purecov: inspected */
+=======
+    Item *new_item = items[i]->transform(transformer, arg);
+    if (new_item == NULL) return NULL; /* purecov: inspected */
+=======
+
+Item *Item_row::transform(Item_transformer transformer, uchar *arg)
+{
+  assert(!current_thd->stmt_arena->is_stmt_prepare());
+
+  for (uint i= 0; i < arg_count; i++)
+  {
+    Item *new_item= items[i]->transform(transformer, arg);
+    if (!new_item)
+      return 0;
+>>>>>>> upstream/cluster-7.6
+
+    /*
+      THD::change_item_tree() should be called only if the tree was
+      really transformed, i.e. when a new item has been created.
+      Otherwise we'll be allocating a lot of unnecessary memory for
+      change records at each execution.
+    */
+    if (items[i] != new_item)
+      current_thd->change_item_tree(&items[i], new_item);
+>>>>>>> pr/231
   }
   return (this->*transformer)(arg);
 }

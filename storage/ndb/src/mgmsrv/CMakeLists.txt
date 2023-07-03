@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +75,7 @@ MYSQL_ADD_EXECUTABLE(ndb_mgmd
   Services.cpp
   main.cpp
 
+<<<<<<< HEAD
   DESTINATION ${INSTALL_SBINDIR}
   COMPONENT ClusterManagementServer
   ENABLE_EXPORTS
@@ -84,3 +89,9 @@ MYSQL_ADD_EXECUTABLE(ndb_mgmd
 NDB_ADD_TEST(MgmConfig-t testConfig.cpp
   LIBS ndbmgmapi ndbmgmcommon ndbtrace ndblogger ndbgeneral ndbportlib
   )
+=======
+NDB_ADD_TEST(MgmConfig-t testConfig.cpp
+  LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib)
+NDB_ADD_TEST(InitConfigFileParser-t InitConfigFileParser.cpp
+  LIBS ndbconf ndbgeneral ndbportlib)
+>>>>>>> pr/231

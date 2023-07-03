@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +50,11 @@ private:
   /**
    * overloads TCP_Transporter::doSend
    */
+<<<<<<< HEAD
   bool doSend(bool need_wakeup = true) override;
+=======
+  virtual bool doSend(bool need_wakeup = true);
+>>>>>>> pr/231
 
   /**
    * setup socket pair

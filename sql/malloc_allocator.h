@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,10 +91,23 @@ class Malloc_allocator {
   Malloc_allocator(const Malloc_allocator<U> &other [[maybe_unused]])
       : m_key(other.psi_key()) {}
 
+<<<<<<< HEAD
   template <class U>
+<<<<<<< HEAD
   Malloc_allocator &operator=(const Malloc_allocator<U> &other
                               [[maybe_unused]]) {
     assert(m_key == other.psi_key());  // Don't swap key.
+=======
+  Malloc_allocator &operator=(
+      const Malloc_allocator<U> &other MY_ATTRIBUTE((unused))) {
+    DBUG_ASSERT(m_key == other.psi_key());  // Don't swap key.
+=======
+  template <class U> Malloc_allocator & operator=
+    (const Malloc_allocator<U> &other)
+  {
+    assert(m_key == other.psi_key()); // Don't swap key.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   pointer allocate(size_type n, const_pointer hint [[maybe_unused]] = nullptr) {
@@ -101,13 +122,28 @@ class Malloc_allocator {
 
   void deallocate(pointer p, size_type) { my_free(p); }
 
+<<<<<<< HEAD
   template <class U, class... Args>
   void construct(U *p, Args &&... args) {
+<<<<<<< HEAD
     assert(p != nullptr);
     try {
       ::new ((void *)p) U(std::forward<Args>(args)...);
     } catch (...) {
       assert(false);  // Constructor should not throw an exception.
+=======
+    DBUG_ASSERT(p != NULL);
+=======
+  void construct(pointer p, const T& val)
+  {
+    assert(p != NULL);
+>>>>>>> upstream/cluster-7.6
+    try {
+      ::new ((void *)p) U(std::forward<Args>(args)...);
+    } catch (...) {
+<<<<<<< HEAD
+      DBUG_ASSERT(false);  // Constructor should not throw an exception.
+>>>>>>> pr/231
     }
   }
 
@@ -116,7 +152,24 @@ class Malloc_allocator {
     try {
       p->~T();
     } catch (...) {
+<<<<<<< HEAD
       assert(false);  // Destructor should not throw an exception
+=======
+      DBUG_ASSERT(false);  // Destructor should not throw an exception
+=======
+      assert(false); // Constructor should not throw an exception.
+    }
+  }
+
+  void destroy(pointer p)
+  {
+    assert(p != NULL);
+    try {
+      p->~T();
+    } catch (...) {
+      assert(false); // Destructor should not throw an exception
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
   }
 

@@ -1,6 +1,14 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -17,6 +25,7 @@ documentation. The contributions by Percona Inc. are incorporated with
 their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -32,6 +41,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -2149,10 +2175,33 @@ dberr_t srv_start(bool create_new_db) {
       if (log_upgrade) {
         ut_a(!srv_read_only_mode);
 
+<<<<<<< HEAD
         if (recv_sys->is_cloned_db) {
           ib::error(ER_IB_MSG_LOG_UPGRADE_CLONED_DB,
                     ulong{to_int(log_sys->m_format)});
           return srv_init_abort(DB_ERROR);
+=======
+<<<<<<< HEAD
+      if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
+        /* Open this table in case srv_dict_metadata
+        should be applied to this table before
+        checkpoint. And because DD is not fully up yet,
+        the table can be opened by internal APIs. */
+
+        fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
+        if (space == nullptr) {
+          dberr_t error =
+              fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
+                           predefined_flags, dict_sys_t::s_dd_space_name,
+                           dict_sys_t::s_dd_space_name,
+                           dict_sys_t::s_dd_space_file_name, true, false);
+          if (error != DB_SUCCESS) {
+            ib::error(ER_IB_MSG_1142);
+            return (srv_init_abort(DB_ERROR));
+          }
+        } else {
+          fil_space_release(space);
+>>>>>>> pr/231
         }
 
         /* For non-empty redo log, upgrade is rejected, so there is even
@@ -2688,6 +2737,341 @@ void srv_start_threads(bool bootstrap) {
   fts_optimize_init();
 
   srv_start_state_set(SRV_START_STATE_STAT);
+=======
+		if (!srv_force_recovery
+		    && !recv_sys->found_corrupt_log
+		    && (srv_log_file_size_requested != srv_log_file_size
+			|| srv_n_log_files_found != srv_n_log_files)) {
+
+			/* Prepare to replace the redo log files. */
+
+			if (srv_read_only_mode) {
+				ib::error() << "Cannot resize log files"
+					" in read-only mode.";
+				return(srv_init_abort(DB_READ_ONLY));
+			}
+
+			/* Prepare to delete the old redo log files */
+			flushed_lsn = srv_prepare_to_delete_redo_log_files(i);
+
+			/* Prohibit redo log writes from any other
+			threads until creating a log checkpoint at the
+			end of create_log_files(). */
+			ut_d(recv_no_log_write = true);
+			ut_ad(!buf_pool_check_no_pending_io());
+
+			RECOVERY_CRASH(3);
+
+			/* Stamp the LSN to the data files. */
+			fil_write_flushed_lsn(flushed_lsn);
+
+			RECOVERY_CRASH(4);
+
+			/* Close and free the redo log files, so that
+			we can replace them. */
+			fil_close_log_files(true);
+
+			RECOVERY_CRASH(5);
+
+			/* Free the old log file space. */
+			log_group_close_all();
+
+			ib::warn() << "Starting to delete and rewrite log"
+				" files.";
+
+			srv_log_file_size = srv_log_file_size_requested;
+
+			err = create_log_files(
+				logfilename, dirnamelen, flushed_lsn,
+				logfile0);
+
+			if (err != DB_SUCCESS) {
+				return(srv_init_abort(err));
+			}
+
+			create_log_files_rename(
+				logfilename, dirnamelen, flushed_lsn,
+				logfile0);
+		}
+
+		recv_recovery_rollback_active();
+
+		/* It is possible that file_format tag has never
+		been set. In this case we initialize it to minimum
+		value.  Important to note that we can do it ONLY after
+		we have finished the recovery process so that the
+		image of TRX_SYS_PAGE_NO is not stale. */
+		trx_sys_file_format_tag_init();
+	}
+
+	if (!create_new_db) {
+		/* Check and reset any no-redo rseg slot on disk used by
+		pre-5.7.2 redo resg with no data to purge. */
+		trx_rseg_reset_pending();
+	}
+
+	if (!create_new_db && sum_of_new_sizes > 0) {
+		/* New data file(s) were added */
+		mtr_start(&mtr);
+
+		fsp_header_inc_size(0, sum_of_new_sizes, &mtr);
+
+		mtr_commit(&mtr);
+
+		/* Immediately write the log record about increased tablespace
+		size to disk, so that it is durable even if mysqld would crash
+		quickly */
+
+		log_buffer_flush_to_disk();
+	}
+
+	/* Open temp-tablespace and keep it open until shutdown. */
+
+	err = srv_open_tmp_tablespace(create_new_db, &srv_tmp_space);
+
+	if (err != DB_SUCCESS) {
+		return(srv_init_abort(err));
+	}
+
+	/* Create the doublewrite buffer to a new tablespace */
+	if (buf_dblwr == NULL && !buf_dblwr_create()) {
+		return(srv_init_abort(DB_ERROR));
+	}
+
+	/* Here the double write buffer has already been created and so
+	any new rollback segments will be allocated after the double
+	write buffer. The default segment should already exist.
+	We create the new segments only if it's a new database or
+	the database was shutdown cleanly. */
+
+	/* Note: When creating the extra rollback segments during an upgrade
+	we violate the latching order, even if the change buffer is empty.
+	We make an exception in sync0sync.cc and check srv_is_being_started
+	for that violation. It cannot create a deadlock because we are still
+	running in single threaded mode essentially. Only the IO threads
+	should be running at this stage. */
+
+	/* Deprecate innodb_undo_logs.  But still use it if it is set to
+	non-default and innodb_rollback_segments is default. */
+	ut_a(srv_rollback_segments > 0);
+	ut_a(srv_rollback_segments <= TRX_SYS_N_RSEGS);
+	ut_a(srv_undo_logs > 0);
+	ut_a(srv_undo_logs <= TRX_SYS_N_RSEGS);
+	if (srv_undo_logs < TRX_SYS_N_RSEGS) {
+		ib::warn() << deprecated_undo_logs;
+		if (srv_rollback_segments == TRX_SYS_N_RSEGS) {
+			srv_rollback_segments = srv_undo_logs;
+		}
+	}
+
+	/* The number of rsegs that exist in InnoDB is given by status
+	variable srv_available_undo_logs. The number of rsegs to use can
+	be set using the dynamic global variable srv_rollback_segments. */
+
+	srv_available_undo_logs = trx_sys_create_rsegs(
+		srv_undo_tablespaces, srv_rollback_segments, srv_tmp_undo_logs);
+
+	if (srv_available_undo_logs == ULINT_UNDEFINED) {
+		/* Can only happen if server is read only. */
+		ut_a(srv_read_only_mode);
+		srv_rollback_segments = ULONG_UNDEFINED;
+	} else if (srv_available_undo_logs < srv_rollback_segments
+		   && !srv_force_recovery && !recv_needed_recovery) {
+		ib::error() << "System or UNDO tablespace is running of out"
+			    << " of space";
+		/* Should due to out of file space. */
+		return(srv_init_abort(DB_ERROR));
+	}
+
+	srv_startup_is_before_trx_rollback_phase = false;
+
+	if (!srv_read_only_mode) {
+		/* Create the thread which watches the timeouts
+		for lock waits */
+		os_thread_create(
+			lock_wait_timeout_thread,
+			NULL, thread_ids + 2 + SRV_MAX_N_IO_THREADS);
+
+		/* Create the thread which warns of long semaphore waits */
+		os_thread_create(
+			srv_error_monitor_thread,
+			NULL, thread_ids + 3 + SRV_MAX_N_IO_THREADS);
+
+		/* Create the thread which prints InnoDB monitor info */
+		os_thread_create(
+			srv_monitor_thread,
+			NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
+		srv_start_state_set(SRV_START_STATE_MONITOR);
+	}
+
+	/* Create the SYS_FOREIGN and SYS_FOREIGN_COLS system tables */
+	err = dict_create_or_check_foreign_constraint_tables();
+	if (err != DB_SUCCESS) {
+		return(srv_init_abort(err));
+	}
+
+	/* Create the SYS_TABLESPACES system table */
+	err = dict_create_or_check_sys_tablespace();
+	if (err != DB_SUCCESS) {
+		return(srv_init_abort(err));
+	}
+	srv_sys_tablespaces_open = true;
+
+	/* Create the SYS_VIRTUAL system table */
+	err = dict_create_or_check_sys_virtual();
+	if (err != DB_SUCCESS) {
+		return(srv_init_abort(err));
+	}
+
+	srv_is_being_started = false;
+
+	ut_a(trx_purge_state() == PURGE_STATE_INIT);
+
+	/* Create the master thread which does purge and other utility
+	operations */
+
+	if (!srv_read_only_mode) {
+
+		os_thread_create(
+			srv_master_thread,
+			NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
+
+		srv_start_state_set(SRV_START_STATE_MASTER);
+	}
+
+	if (!srv_read_only_mode
+	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
+
+		os_thread_create(
+			srv_purge_coordinator_thread,
+			NULL, thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+
+		ut_a(UT_ARR_SIZE(thread_ids)
+		     > 5 + srv_n_purge_threads + SRV_MAX_N_IO_THREADS);
+
+		/* We've already created the purge coordinator thread above. */
+		for (i = 1; i < srv_n_purge_threads; ++i) {
+			os_thread_create(
+				srv_worker_thread, NULL,
+				thread_ids + 5 + i + SRV_MAX_N_IO_THREADS);
+		}
+
+		srv_start_wait_for_purge_to_start();
+
+		srv_start_state_set(SRV_START_STATE_PURGE);
+	} else {
+		purge_sys->state = PURGE_STATE_DISABLED;
+	}
+
+	/* wake main loop of page cleaner up */
+	os_event_set(buf_flush_event);
+
+	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
+	ut_a(sum_of_new_sizes != ULINT_UNDEFINED);
+
+	tablespace_size_in_header = fsp_header_get_tablespace_size();
+
+	if (!srv_read_only_mode
+	    && !srv_sys_space.can_auto_extend_last_file()
+	    && sum_of_data_file_sizes != tablespace_size_in_header) {
+
+		ib::error() << "Tablespace size stored in header is "
+			<< tablespace_size_in_header << " pages, but the sum"
+			" of data file sizes is " << sum_of_data_file_sizes
+			<< " pages";
+
+		if (srv_force_recovery == 0
+		    && sum_of_data_file_sizes < tablespace_size_in_header) {
+			/* This is a fatal error, the tail of a tablespace is
+			missing */
+
+			ib::error()
+				<< "Cannot start InnoDB."
+				" The tail of the system tablespace is"
+				" missing. Have you edited"
+				" innodb_data_file_path in my.cnf in an"
+				" inappropriate way, removing"
+				" ibdata files from there?"
+				" You can set innodb_force_recovery=1"
+				" in my.cnf to force"
+				" a startup if you are trying"
+				" to recover a badly corrupt database.";
+
+			return(srv_init_abort(DB_ERROR));
+		}
+	}
+
+	if (!srv_read_only_mode
+	    && srv_sys_space.can_auto_extend_last_file()
+	    && sum_of_data_file_sizes < tablespace_size_in_header) {
+
+		ib::error() << "Tablespace size stored in header is "
+			<< tablespace_size_in_header << " pages, but the sum"
+			" of data file sizes is only "
+			<< sum_of_data_file_sizes << " pages";
+
+		if (srv_force_recovery == 0) {
+
+			ib::error()
+				<< "Cannot start InnoDB. The tail of"
+				" the system tablespace is"
+				" missing. Have you edited"
+				" innodb_data_file_path in my.cnf in an"
+				" InnoDB: inappropriate way, removing"
+				" ibdata files from there?"
+				" You can set innodb_force_recovery=1"
+				" in my.cnf to force"
+				" InnoDB: a startup if you are trying to"
+				" recover a badly corrupt database.";
+
+			return(srv_init_abort(DB_ERROR));
+		}
+	}
+
+	if (srv_print_verbose_log) {
+		ib::info() << INNODB_VERSION_STR
+			<< " started; log sequence number "
+			<< srv_start_lsn;
+	}
+
+	if (srv_force_recovery > 0) {
+		ib::info() << "!!! innodb_force_recovery is set to "
+			<< srv_force_recovery << " !!!";
+	}
+
+	if (srv_force_recovery == 0) {
+		/* In the insert buffer we may have even bigger tablespace
+		id's, because we may have dropped those tablespaces, but
+		insert buffer merge has not had time to clean the records from
+		the ibuf tree. */
+
+		ibuf_update_max_tablespace_id();
+	}
+
+	if (!srv_read_only_mode) {
+		if (create_new_db) {
+			srv_buffer_pool_load_at_startup = FALSE;
+		}
+
+		/* Create the buffer pool dump/load thread */
+		os_thread_create(buf_dump_thread, NULL, NULL);
+
+		/* Create the dict stats gathering thread */
+		os_thread_create(dict_stats_thread, NULL, NULL);
+
+		/* Create the thread that will optimize the FTS sub-system. */
+		fts_optimize_init();
+
+		srv_start_state_set(SRV_START_STATE_STAT);
+	}
+
+	/* Create the buffer pool resize thread */
+	os_thread_create(buf_resize_thread, NULL, NULL);
+
+	srv_was_started = TRUE;
+	return(DB_SUCCESS);
+>>>>>>> upstream/cluster-7.6
 }
 
 void srv_start_threads_after_ddl_recovery() {

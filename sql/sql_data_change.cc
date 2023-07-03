@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +61,18 @@ static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap) {
   MY_BITMAP *the_struct;
   my_bitmap_map *the_bits;
 
+<<<<<<< HEAD
   if (multi_alloc_root(current_thd->mem_root, &the_struct, sizeof(MY_BITMAP),
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(current_thd == table->in_use);
+  if (multi_alloc_root(table->in_use->mem_root, &the_struct, sizeof(MY_BITMAP),
+=======
+  assert(current_thd == table->in_use);
+  if (multi_alloc_root(table->in_use->mem_root,
+                       &the_struct, sizeof(MY_BITMAP),
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
                        &the_bits, bitmap_buffer_size(number_bits),
                        NULL) == nullptr)
     return true;
@@ -131,11 +146,16 @@ bool COPY_INFO::get_function_default_columns(TABLE *table) {
 bool COPY_INFO::set_function_defaults(TABLE *table) {
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(m_function_default_columns != nullptr);
+=======
+  assert(m_function_default_columns != NULL);
+>>>>>>> pr/231
 
   /* Quick reject test for checking the case when no defaults are invoked. */
   if (bitmap_is_clear_all(m_function_default_columns)) return false;
 
+<<<<<<< HEAD
   for (uint i = 0; i < table->s->fields; ++i)
     if (bitmap_is_set(m_function_default_columns, i)) {
       assert(bitmap_is_set(table->write_set, i));
@@ -146,6 +166,20 @@ bool COPY_INFO::set_function_defaults(TABLE *table) {
         case UPDATE_OPERATION:
           table->field[i]->evaluate_update_default_function();
           break;
+=======
+  for (uint i= 0; i < table->s->fields; ++i)
+    if (bitmap_is_set(m_function_default_columns, i))
+    {
+      assert(bitmap_is_set(table->write_set, i));
+      switch (m_optype)
+      {
+      case INSERT_OPERATION:
+        table->field[i]->evaluate_insert_default_function();
+        break;
+      case UPDATE_OPERATION:
+        table->field[i]->evaluate_update_default_function();
+        break;
+>>>>>>> upstream/cluster-7.6
       }
       // If there was an error while executing the default expression
       if (current_thd->is_error()) return true;

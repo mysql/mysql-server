@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +58,10 @@
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/FsRef.hpp>
 #include <signaldata/GetTabInfo.hpp>
+<<<<<<< HEAD
+=======
+#include <signaldata/HotSpareRep.hpp>
+>>>>>>> pr/231
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ReadNodesConf.hpp>
@@ -1250,6 +1258,8 @@ Dbdict::packFileIntoPages(SimpleProperties::Writer & w,
 void
 Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
+
   CreateFragmentationReq* req = (CreateFragmentationReq*)signal->getDataPtr();
   D("execCREATE_FRAGMENTATION_REQ");
   if (req->primaryTableId == RNIL) {
@@ -5518,6 +5528,13 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   c_masterNodeId = nodeFail->masterNodeId;
 
   c_noNodesFailed += numberOfFailedNodes;
+<<<<<<< HEAD
+=======
+  Uint32 theFailedNodes[NdbNodeBitmask::Size];
+  memcpy(theFailedNodes, nodeFail->theNodes, sizeof(theFailedNodes));
+  c_reservedCounterMgr.execNODE_FAILREP(signal);
+  c_counterMgr.execNODE_FAILREP(signal);
+>>>>>>> pr/231
 
   NdbNodeBitmask failedNodes;
   failedNodes.assign(NdbNodeBitmask::Size, nodeFail->theNodes);
@@ -12333,7 +12350,11 @@ Dbdict::doGET_TABINFOREQ(Signal* signal)
 
     Uint32 tableName[(PATH_MAX + 3) / 4];
     SegmentedSectionPtr ssPtr;
+<<<<<<< HEAD
     ndbrequire(handle.getSection(ssPtr, GetTabInfoReq::TABLE_NAME));
+=======
+    handle.getSection(ssPtr,GetTabInfoReq::TABLE_NAME);
+>>>>>>> pr/231
     ndbrequire(ssPtr.sz <= NDB_ARRAY_SIZE(tableName));
     copy(tableName, ssPtr);
 
@@ -17130,7 +17151,7 @@ Dbdict::indexStatBg_process(Signal* signal)
     TxHandlePtr tx_ptr;
     if (!seizeTxHandle(tx_ptr)) {
       jam();
-      return; // wait for one
+      break; // wait for one
     }
     Callback c = {
       safe_cast(&Dbdict::indexStatBg_fromBeginTrans),
@@ -22275,11 +22296,15 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
     Uint32 nodeId = refToNode(ord->senderRef);
     jam();
     ndbrequire(nodeId <= MAX_DATA_NODE_ID);
+<<<<<<< HEAD
     g_eventLogger->info("clearing %s dict lock for %u",
                         ord->lockType == DictLockReq::SumaStartMe ?
                           "SumaStartMe" : "SumaHandover",
                         nodeId);
     ndbrequire(c_sub_startstop_lock.get(nodeId));
+=======
+    g_eventLogger->info("clearing SumaStartMe dict lock for %u", nodeId);
+>>>>>>> pr/231
     c_sub_startstop_lock.clear(nodeId);
     if (ord->lockType == DictLockReq::SumaHandOver)
     {
@@ -27118,7 +27143,8 @@ Dbdict::createFK_parse(Signal* signal, bool master,
       return;
     }
 
-    if (fk.ParentIndexVersion != parentIndexEntry->m_tableVersion)
+    if (table_version_major(fk.ParentIndexVersion) !=
+        table_version_major(parentIndexEntry->m_tableVersion))
     {
       jam();
       setError(error, CreateFKRef::InvalidParentIndexVersion, __LINE__);
@@ -27176,7 +27202,8 @@ Dbdict::createFK_parse(Signal* signal, bool master,
       return;
     }
 
-    if (fk.ChildIndexVersion != childIndexEntry->m_tableVersion)
+    if (table_version_major(fk.ChildIndexVersion) !=
+        table_version_major(childIndexEntry->m_tableVersion))
     {
       jam();
       setError(error, CreateFKRef::InvalidChildIndexVersion, __LINE__);
@@ -27567,6 +27594,7 @@ Dbdict::createFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
     ndbrequire(find_object(fk_ptr, impl_req->fkId));
 
     release_object(fk_ptr.p->m_obj_ptr_i);
+    c_fk_pool.release(fk_ptr);
   }
 
   sendTransConf(signal, op_ptr);
@@ -28859,6 +28887,7 @@ Dbdict::dropFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
     ndbrequire(find_object(fk_ptr, impl_req->fkId));
 
     release_object(fk_ptr.p->m_obj_ptr_i);
+    c_fk_pool.release(fk_ptr);
 
     sendTransConf(signal, op_ptr);
   } else {

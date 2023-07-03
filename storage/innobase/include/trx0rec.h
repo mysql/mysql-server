@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -49,6 +73,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "que0types.h"
 
 /** Copies the undo record to the heap.
+<<<<<<< HEAD
 @param[in]      undo_page       Undo Page
 @param[in]      undo_offset     offset of the undo record in the page
 @param[in]      heap            heap where copied
@@ -56,6 +81,60 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static inline trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page,
                                                 uint32_t undo_offset,
                                                 mem_heap_t *heap);
+=======
+<<<<<<< HEAD
+@param[in]	undo_rec	undo log record
+@param[in]	heap		heap where copied
+@return own: copy of undo log record */
+UNIV_INLINE
+trx_undo_rec_t *trx_undo_rec_copy(const trx_undo_rec_t *undo_rec,
+                                  mem_heap_t *heap);
+=======
+@param[in]	undo_page	Undo Page
+@param[in]	undo_offset     Offset of the undo record in the page
+@param[in]	heap		Heap where undo record is copied
+@return copy of undo log record */
+UNIV_INLINE
+trx_undo_rec_t*
+trx_undo_rec_copy(
+	const page_t*		undo_page,
+	ulint			undo_offset,
+	mem_heap_t*		heap);
+
+/**********************************************************************//**
+Reads the undo log record type.
+@return record type */
+UNIV_INLINE
+ulint
+trx_undo_rec_get_type(
+/*==================*/
+	const trx_undo_rec_t*	undo_rec);	/*!< in: undo log record */
+/**********************************************************************//**
+Reads from an undo log record the record compiler info.
+@return compiler info */
+UNIV_INLINE
+ulint
+trx_undo_rec_get_cmpl_info(
+/*=======================*/
+	const trx_undo_rec_t*	undo_rec);	/*!< in: undo log record */
+/**********************************************************************//**
+Returns TRUE if an undo log record contains an extern storage field.
+@return TRUE if extern */
+UNIV_INLINE
+ibool
+trx_undo_rec_get_extern_storage(
+/*============================*/
+	const trx_undo_rec_t*	undo_rec);	/*!< in: undo log record */
+/**********************************************************************//**
+Reads the undo log record number.
+@return undo no */
+UNIV_INLINE
+undo_no_t
+trx_undo_rec_get_undo_no(
+/*=====================*/
+	const trx_undo_rec_t*	undo_rec);	/*!< in: undo log record */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /** Reads the undo log record type.
  @return record type */

@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -982,6 +1006,7 @@ int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
   return 0;
 }
 
+<<<<<<< HEAD
 int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
                            const ulint *offsets1, const ulint *offsets2,
                            const dict_index_t *index,
@@ -990,6 +1015,68 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
   ut_ad(rec1 != nullptr);
   ut_ad(rec2 != nullptr);
   ut_ad(index != nullptr);
+=======
+/** Compare two B-tree records.
+@param[in] rec1 B-tree record
+@param[in] rec2 B-tree record
+@param[in] offsets1 rec_get_offsets(rec1, index)
+@param[in] offsets2 rec_get_offsets(rec2, index)
+@param[in] index B-tree index
+@param[in] spatial_index_non_leaf true if record present in spatial index non leaf
+@param[in] nulls_unequal true if this is for index cardinality
+statistics estimation, and innodb_stats_method=nulls_unequal
+or innodb_stats_method=nulls_ignored
+@param[out] matched_fields number of completely matched fields
+within the first field not completely matched
+@return the comparison result
+@retval 0 if rec1 is equal to rec2
+@retval negative if rec1 is less than rec2
+@retval positive if rec2 is greater than rec2 */
+<<<<<<< HEAD
+int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
+                           const ulint *offsets1, const ulint *offsets2,
+                           const dict_index_t *index, bool nulls_unequal,
+                           ulint *matched_fields) {
+  ulint rec1_n_fields;    /* the number of fields in rec */
+  ulint rec1_f_len;       /* length of current field in rec */
+  const byte *rec1_b_ptr; /* pointer to the current byte
+                          in rec field */
+  ulint rec2_n_fields;    /* the number of fields in rec */
+  ulint rec2_f_len;       /* length of current field in rec */
+  const byte *rec2_b_ptr; /* pointer to the current byte
+                          in rec field */
+  ulint cur_field = 0;    /* current field number */
+  int ret = 0;            /* return value */
+  ulint comp;
+=======
+int
+cmp_rec_rec_with_match(
+	const rec_t*		rec1,
+	const rec_t*		rec2,
+	const ulint*		offsets1,
+	const ulint*		offsets2,
+	const dict_index_t*	index,
+	bool			spatial_index_non_leaf,
+	bool			nulls_unequal,
+	ulint*			matched_fields)
+{
+	ulint		rec1_n_fields;	/* the number of fields in rec */
+	ulint		rec1_f_len;	/* length of current field in rec */
+	const byte*	rec1_b_ptr;	/* pointer to the current byte
+					in rec field */
+	ulint		rec2_n_fields;	/* the number of fields in rec */
+	ulint		rec2_f_len;	/* length of current field in rec */
+	const byte*	rec2_b_ptr;	/* pointer to the current byte
+					in rec field */
+	ulint		cur_field = 0;	/* current field number */
+	int		ret = 0;	/* return value */
+	ulint		comp;
+>>>>>>> upstream/cluster-7.6
+
+  ut_ad(rec1 != NULL);
+  ut_ad(rec2 != NULL);
+  ut_ad(index != NULL);
+>>>>>>> pr/231
   ut_ad(rec_offs_validate(rec1, index, offsets1));
   ut_ad(rec_offs_validate(rec2, index, offsets2));
   ut_ad(rec_offs_comp(offsets1) == rec_offs_comp(offsets2));
@@ -1046,7 +1133,12 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
       auto col = index->get_col(i);
       const auto field = index->get_field(i);
 
+<<<<<<< HEAD
       ut_ad(col == field->col);
+=======
+<<<<<<< HEAD
+      col = index->get_col(cur_field);
+>>>>>>> pr/231
 
       mtype = col->mtype;
       prtype = col->prtype;
@@ -1059,6 +1151,29 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
       ut_ad(DATA_GEOMETRY_MTYPE(mtype));
       prtype |= DATA_GIS_MBR;
     }
+=======
+		if (dict_index_is_ibuf(index)) {
+			/* This is for the insert buffer B-tree. */
+			mtype = DATA_BINARY;
+			prtype = 0;
+		} else {
+			/* When the page is non-leaf spatial index page
+			we should not depend upon the dictionary information because the
+			page doesnt hold any primary key information. The non leaf node
+			of a spatial index has only two fields 1)MBR 2)page number of
+			child node. */
+
+			if ((cur_field == 1) && spatial_index_non_leaf) {
+				ut_ad(dict_index_is_spatial(index));
+				mtype = DATA_SYS_CHILD;
+				prtype = 0;
+			} else {
+				const dict_col_t* col;
+				col= dict_index_get_nth_col(index, cur_field);
+				mtype = col->mtype;
+				prtype = col->prtype;
+			}
+>>>>>>> upstream/cluster-7.6
 
     /* We should never encounter an externally stored field.
     Externally stored fields only exist in clustered index

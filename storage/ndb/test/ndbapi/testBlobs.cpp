@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -578,6 +586,7 @@ createTable(int storageType)
 
     // Assume at least one node group had all replicas alive.
     const Uint32 numReplicas = max_alive_replicas;
+<<<<<<< HEAD
     /**
      * The maximum number of partitions that may be defined explicitly
      * for any NDB table is =
@@ -587,6 +596,9 @@ createTable(int storageType)
      * higher number of LDMs as well.
      */
     const Uint32 numFragsPerNode = (rand() % (8 / numReplicas)) + 1;
+=======
+    const Uint32 numFragsPerNode = 2 + (rand() % 3);
+>>>>>>> pr/231
     const Uint32 numPartitions = numReplicas * numNgs * numFragsPerNode;
 
     tab.setFragmentCount(numPartitions);
@@ -4195,6 +4207,7 @@ static int bugtest_28746560()
   return 0;
 }
 
+<<<<<<< HEAD
 static
 int testOpBatching(OpTypes opType, int ao, int minRts, int maxRts)
 {
@@ -4687,6 +4700,8 @@ testBatching()
   return 0;
 }
 
+=======
+>>>>>>> pr/231
 // main
 
 // from here on print always
@@ -5818,6 +5833,7 @@ read_blob_rows(int style, uint inline_size, uint part_size, bool corrupted=false
 
     // blob reads have an optimisation to reduce one round-trip in case
     // read contains at least one full part + partial last part
+<<<<<<< HEAD
     // readData() has this optimisation, GetValue does not
     if (style != 0)
     {
@@ -5826,6 +5842,11 @@ read_blob_rows(int style, uint inline_size, uint part_size, bool corrupted=false
       {
         expected_round_trips--;
       }
+=======
+    if ((total_part_len > (full_parts_read * part_size)) && (parts_read > 1))
+    {
+      expected_round_trips--;
+>>>>>>> pr/231
     }
     CHK(round_trips == expected_round_trips);
   }
@@ -5947,7 +5968,11 @@ bugtest_27772916()
     switch(v)
     {
     case 0:
+<<<<<<< HEAD
       [[fallthrough]];
+=======
+      /* Fall through */
+>>>>>>> pr/231
     case 1:
     {
       /* Define a scan, reading blobs */
@@ -5961,7 +5986,11 @@ bugtest_27772916()
       break;
     }
     case 2:
+<<<<<<< HEAD
       [[fallthrough]];
+=======
+      /* Fall through */
+>>>>>>> pr/231
     case 3:
     {
       /* Define an update operation */

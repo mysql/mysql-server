@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,6 +113,38 @@ static Query_block *build_query(const POS &pos, THD *thd,
       0 /* query_spec_options */
   };
 
+<<<<<<< HEAD
+=======
+  static const Select_lock_type lock_type=
+  {
+    false, /* is_set */
+    TL_READ, /* lock_type */
+    false /* is_safe_to_cache_query */
+  };
+
+
+  /* * */
+  Item *star= new (thd->mem_root) Item_asterisk(pos, NULL, NULL);
+
+  PT_select_item_list *item_list2;
+  item_list2= new (thd->mem_root) PT_select_item_list();
+  if (item_list2 == NULL)
+    return NULL;
+  item_list2->push_back(star);
+
+  /* SELECT * ... */
+  PT_select_options_and_item_list *options_and_item_list2;
+  options_and_item_list2= new (thd->mem_root) PT_select_options_and_item_list(options, item_list2);
+  if (options_and_item_list2 == NULL)
+    return NULL;
+
+
+ /*
+    ... (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
+           FROM performance_schema.<table_name>) ...
+  */
+
+>>>>>>> upstream/cluster-7.6
   /* ... VARIABLE_NAME ... */
   PTI_simple_ident_ident *ident_name;
   ident_name = new (thd->mem_root) PTI_simple_ident_ident(pos, col_name);

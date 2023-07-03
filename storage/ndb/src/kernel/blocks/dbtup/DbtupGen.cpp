@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +28,10 @@
 
 #define DBTUP_C
 #define DBTUP_GEN_CPP
+<<<<<<< HEAD
 #include "util/require.h"
+=======
+>>>>>>> pr/231
 #include <dblqh/Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
@@ -53,6 +60,10 @@
 
 #define JAM_FILE_ID 420
 
+<<<<<<< HEAD
+=======
+extern EventLogger * g_eventLogger;
+>>>>>>> pr/231
 
 void Dbtup::initData() 
 {
@@ -431,9 +442,15 @@ void Dbtup::execCONTINUEB(Signal* signal)
     jam();
     {
       ScanOpPtr scanPtr;
+<<<<<<< HEAD
       scanPtr.i = dataPtr;
       ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
       c_lqh->checkLcpStopBlockedLab(signal, scanPtr.p->m_userPtr);
+=======
+      c_scanOpPool.getPtr(scanPtr, dataPtr);
+      c_lqh->setup_scan_pointers(scanPtr.p->m_userPtr);
+      scanCont(signal, scanPtr);
+>>>>>>> pr/231
     }
     return;
   case ZFREE_EXTENT:
@@ -493,7 +510,11 @@ void Dbtup::execCONTINUEB(Signal* signal)
     SectionHandle handle(this, signal);
     ndbrequire(handle.m_cnt == 1);
     SegmentedSectionPtr ssptr;
+<<<<<<< HEAD
     ndbrequire(handle.getSection(ssptr, 0));
+=======
+    handle.getSection(ssptr, 0);
+>>>>>>> pr/231
     ndbrequire(ssptr.sz <= NDB_ARRAY_SIZE(f_undo.m_data));
     ::copy(f_undo.m_data, ssptr);
     releaseSections(handle);

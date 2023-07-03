@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -171,6 +179,7 @@ class qep_row {
    public:
     column() { cleanup(); }
     bool is_empty() const { return nil; }
+<<<<<<< HEAD
     void cleanup() { nil = true; }
     void set(T value_arg) {
       value = value_arg;
@@ -180,6 +189,11 @@ class qep_row {
       assert(!nil);
       return value;
     }
+=======
+    void cleanup() { nil= true; }
+    void set(T value_arg) { value= value_arg; nil= false; }
+    T get() const { assert(!nil); return value; }
+>>>>>>> upstream/cluster-7.6
   };
 
   /**
@@ -201,10 +215,44 @@ class qep_row {
         deferred;  ///< encapsulated expression to evaluate it later (on demand)
 
     mem_root_str() { cleanup(); }
+<<<<<<< HEAD
     void cleanup() {
       str = nullptr;
       length = 0;
+<<<<<<< HEAD
       deferred = nullptr;
+=======
+      deferred = NULL;
+=======
+    void cleanup()
+    {
+      str= NULL;
+      length= 0;
+      deferred= NULL;
+    }
+    bool is_empty()
+    {
+      if (deferred)
+      {
+        StringBuffer<128> buff(system_charset_info);
+        if (deferred->eval(&buff) || set(buff))
+        {
+          assert(!"OOM!");
+          return true; // ignore OOM
+        }
+        deferred= NULL; // prevent double evaluation, if any
+      }
+      return str == NULL;
+    }
+    bool set(const char *str_arg)
+    {
+      return set(str_arg, strlen(str_arg));
+    }
+    bool set(const String &s)
+    {
+      return set(s.ptr(), s.length());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
     bool is_empty();
     bool set(const char *str_arg) { return set(str_arg, strlen(str_arg)); }

@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,15 +122,23 @@ void Dbacc::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
   ndbassert(pages.getCount() - cfreepages.getCount() + cnoOfAllocatedPages ==
             cpageCount);
 
+<<<<<<< HEAD
   if (m_is_query_block)
   {
     cfragmentsize = 0;
     ctablesize = 0;
   }
+=======
+  operationrec = (Operationrec*)allocRecord("Operationrec",
+					    sizeof(Operationrec),
+					    coprecsize);
+
+>>>>>>> pr/231
   fragmentrec = (Fragmentrec*)allocRecord("Fragmentrec",
 					  sizeof(Fragmentrec), 
 					  cfragmentsize);
 
+<<<<<<< HEAD
   tabrec = (Tabrec*)allocRecord("Tabrec",
 				sizeof(Tabrec),
 				ctablesize);
@@ -186,12 +198,26 @@ Dbacc::Dbacc(Block_context& ctx,
              Uint32 instanceNumber,
              Uint32 blockNo):
   SimulatedBlock(blockNo, ctx, instanceNumber),
+=======
+  scanRec = (ScanRec*)allocRecord("ScanRec",
+				  sizeof(ScanRec), 
+				  cscanRecSize);
+
+  tabrec = (Tabrec*)allocRecord("Tabrec",
+				sizeof(Tabrec),
+				ctablesize);
+}//Dbacc::initRecords()
+
+Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
+  SimulatedBlock(DBACC, ctx, instanceNumber),
+>>>>>>> pr/231
   c_tup(0),
   c_page8_pool(c_page_pool)
 {
   BLOCK_CONSTRUCTOR(Dbacc);
 
   // Transit signals
+<<<<<<< HEAD
   if (blockNo == DBACC)
   {
     addRecSignal(GSN_DUMP_STATE_ORD, &Dbacc::execDUMP_STATE_ORD);
@@ -245,6 +271,36 @@ Dbacc::Dbacc(Block_context& ctx,
     &oprec_pool;
   static_assert(c_transient_pool_count == 2);
   c_transient_pools_shrinking.clear();
+=======
+  addRecSignal(GSN_DUMP_STATE_ORD, &Dbacc::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DEBUG_SIG, &Dbacc::execDEBUG_SIG);
+  addRecSignal(GSN_CONTINUEB, &Dbacc::execCONTINUEB);
+  addRecSignal(GSN_ACC_CHECK_SCAN, &Dbacc::execACC_CHECK_SCAN);
+  addRecSignal(GSN_EXPANDCHECK2, &Dbacc::execEXPANDCHECK2);
+  addRecSignal(GSN_SHRINKCHECK2, &Dbacc::execSHRINKCHECK2);
+
+  // Received signals
+  addRecSignal(GSN_STTOR, &Dbacc::execSTTOR);
+  addRecSignal(GSN_ACCKEYREQ, &Dbacc::execACCKEYREQ);
+  addRecSignal(GSN_ACCSEIZEREQ, &Dbacc::execACCSEIZEREQ);
+  addRecSignal(GSN_ACCFRAGREQ, &Dbacc::execACCFRAGREQ);
+  addRecSignal(GSN_NEXT_SCANREQ, &Dbacc::execNEXT_SCANREQ);
+  addRecSignal(GSN_ACC_ABORTREQ, &Dbacc::execACC_ABORTREQ);
+  addRecSignal(GSN_ACC_SCANREQ, &Dbacc::execACC_SCANREQ);
+  addRecSignal(GSN_ACCMINUPDATE, &Dbacc::execACCMINUPDATE);
+  addRecSignal(GSN_ACC_COMMITREQ, &Dbacc::execACC_COMMITREQ);
+  addRecSignal(GSN_ACC_TO_REQ, &Dbacc::execACC_TO_REQ);
+  addRecSignal(GSN_ACC_LOCKREQ, &Dbacc::execACC_LOCKREQ);
+  addRecSignal(GSN_NDB_STTOR, &Dbacc::execNDB_STTOR);
+  addRecSignal(GSN_DROP_TAB_REQ, &Dbacc::execDROP_TAB_REQ);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dbacc::execREAD_CONFIG_REQ, true);
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dbacc::execDROP_FRAG_REQ);
+
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbacc::execDBINFO_SCANREQ);
+
+  initData();
+
+>>>>>>> pr/231
 }//Dbacc::Dbacc()
 
 Dbacc::~Dbacc() 

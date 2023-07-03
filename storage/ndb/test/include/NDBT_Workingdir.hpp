@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    Use is subject to license terms.
 

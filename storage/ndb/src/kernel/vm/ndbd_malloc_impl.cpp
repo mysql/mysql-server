@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -633,6 +637,7 @@ Ndbd_mem_manager::ndb_log2(Uint32 input)
 
 Ndbd_mem_manager::Ndbd_mem_manager()
 : m_base_page(NULL),
+<<<<<<< HEAD
   m_dump_on_alloc_fail(false),
   m_mapped_pages_count(0),
   m_mapped_pages_new_count(0)
@@ -645,6 +650,10 @@ Ndbd_mem_manager::Ndbd_mem_manager()
         system_page_size, MAX_SYSTEM_PAGE_SIZE);
     abort();
   }
+=======
+  m_dump_on_alloc_fail(false)
+{
+>>>>>>> pr/231
   memset(m_buddy_lists, 0, sizeof(m_buddy_lists));
 
   if (sizeof(Free_page_data) != (4 * (1 << FPD_2LOG)))
@@ -716,24 +725,33 @@ Ndbd_mem_manager::get_resource_limit_nolock(Uint32 id, Resource_limit& rl) const
 Uint32
 Ndbd_mem_manager::get_allocated() const
 {
+<<<<<<< HEAD
   mt_mem_manager_lock();
   const Uint32 val = m_resource_limits.get_allocated();
   mt_mem_manager_unlock();
   return val;
+=======
+  return m_resource_limits.get_allocated();
+>>>>>>> pr/231
 }
 
 Uint32
 Ndbd_mem_manager::get_reserved() const
 {
+<<<<<<< HEAD
   mt_mem_manager_lock();
   const Uint32 val = m_resource_limits.get_reserved();
   mt_mem_manager_unlock();
   return val;
+=======
+  return m_resource_limits.get_reserved();
+>>>>>>> pr/231
 }
 
 Uint32
 Ndbd_mem_manager::get_shared() const
 {
+<<<<<<< HEAD
   mt_mem_manager_lock();
   const Uint32 val = m_resource_limits.get_shared();
   mt_mem_manager_unlock();
@@ -755,42 +773,61 @@ Ndbd_mem_manager::get_free_shared_nolock() const
   /* Used by mt_getSendBufferLevel for quick read. */
   const Uint32 val = m_resource_limits.get_free_shared(); // racy
   return val;
+=======
+  return m_resource_limits.get_shared();
+>>>>>>> pr/231
 }
 
 Uint32
 Ndbd_mem_manager::get_spare() const
 {
+<<<<<<< HEAD
   mt_mem_manager_lock();
   const Uint32 val = m_resource_limits.get_spare();
   mt_mem_manager_unlock();
   return val;
+=======
+  return m_resource_limits.get_spare();
+>>>>>>> pr/231
 }
 
 Uint32
 Ndbd_mem_manager::get_in_use() const
 {
+<<<<<<< HEAD
   mt_mem_manager_lock();
   const Uint32 val = m_resource_limits.get_in_use();
   mt_mem_manager_unlock();
   return val;
+=======
+  return m_resource_limits.get_in_use();
+>>>>>>> pr/231
 }
 
 Uint32
 Ndbd_mem_manager::get_reserved_in_use() const
 {
+<<<<<<< HEAD
   mt_mem_manager_lock();
   const Uint32 val = m_resource_limits.get_reserved_in_use();
   mt_mem_manager_unlock();
   return val;
+=======
+  return m_resource_limits.get_reserved_in_use();
+>>>>>>> pr/231
 }
 
 Uint32
 Ndbd_mem_manager::get_shared_in_use() const
 {
+<<<<<<< HEAD
   mt_mem_manager_lock();
   const Uint32 val = m_resource_limits.get_shared_in_use();
   mt_mem_manager_unlock();
   return val;
+=======
+  return m_resource_limits.get_shared_in_use();
+>>>>>>> pr/231
 }
 
 int
@@ -1357,10 +1394,19 @@ Ndbd_mem_manager::alloc(AllocZone zone,
     {
       if (unlikely(m_dump_on_alloc_fail))
       {
+<<<<<<< HEAD
         g_eventLogger->info(
             "Page allocation failed in %s: zone=%u pages=%u (at least %u)",
             __func__, zone, save, min);
         dump(true);
+=======
+        printf("%s: Page allocation failed: zone=%u pages=%u (at least %u)\n",
+               __func__,
+               zone,
+               save,
+               min);
+        dump();
+>>>>>>> pr/231
       }
       return;
     }
@@ -1536,6 +1582,12 @@ Ndbd_mem_manager::dump(bool locked) const
   g_eventLogger->info("End Ndbd_mem_manager::dump");
   if (!locked)
     mt_mem_manager_unlock();
+}
+
+void
+Ndbd_mem_manager::dump_on_alloc_fail(bool on)
+{
+  m_dump_on_alloc_fail = on;
 }
 
 void

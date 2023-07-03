@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +76,7 @@ static const uchar *user_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_user *const *typed_entry;
   const PFS_user *user;
   const void *result;
+<<<<<<< HEAD
   typed_entry = reinterpret_cast<const PFS_user *const *>(entry);
   assert(typed_entry != nullptr);
   user = *typed_entry;
@@ -75,6 +84,15 @@ static const uchar *user_hash_get_key(const uchar *entry, size_t *length) {
   *length = sizeof(user->m_key);
   result = &user->m_key;
   return reinterpret_cast<const uchar *>(result);
+=======
+  typed_entry= reinterpret_cast<const PFS_user* const *> (entry);
+  assert(typed_entry != NULL);
+  user= *typed_entry;
+  assert(user != NULL);
+  *length= user->m_key.m_key_length;
+  result= user->m_key.m_hash_key;
+  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+>>>>>>> upstream/cluster-7.6
 }
 
 static uint user_hash_func(const LF_HASH *, const uchar *key,
@@ -146,8 +164,30 @@ static LF_PINS *get_user_hash_pins(PFS_thread *thread) {
   return thread->m_user_hash_pins;
 }
 
+<<<<<<< HEAD
 static void set_user_key(PFS_user_key *key, const PFS_user_name *user) {
   key->m_user_name = *user;
+=======
+<<<<<<< HEAD
+static void set_user_key(PFS_user_key *key, const char *user,
+                         uint user_length) {
+  DBUG_ASSERT(user_length <= USERNAME_LENGTH);
+=======
+static void set_user_key(PFS_user_key *key,
+                         const char *user, uint user_length)
+{
+  assert(user_length <= USERNAME_LENGTH);
+>>>>>>> upstream/cluster-7.6
+
+  char *ptr = &key->m_hash_key[0];
+  if (user_length > 0) {
+    memcpy(ptr, user, user_length);
+    ptr += user_length;
+  }
+  ptr[0] = 0;
+  ptr++;
+  key->m_key_length = ptr - &key->m_hash_key[0];
+>>>>>>> pr/231
 }
 
 PFS_user *find_or_create_user(PFS_thread *thread, const PFS_user_name *user) {
@@ -329,12 +369,35 @@ static void purge_user(PFS_thread *thread, PFS_user *user) {
   }
 
   PFS_user **entry;
+<<<<<<< HEAD
   entry = reinterpret_cast<PFS_user **>(
       lf_hash_search(&user_hash, pins, &user->m_key, sizeof(user->m_key)));
+=======
+<<<<<<< HEAD
+  entry = reinterpret_cast<PFS_user **>(lf_hash_search(
+      &user_hash, pins, user->m_key.m_hash_key, user->m_key.m_key_length));
+>>>>>>> pr/231
   if (entry && (entry != MY_LF_ERRPTR)) {
     assert(*entry == user);
     if (user->get_refcount() == 0) {
+<<<<<<< HEAD
       lf_hash_delete(&user_hash, pins, &user->m_key, sizeof(user->m_key));
+=======
+      lf_hash_delete(&user_hash, pins, user->m_key.m_hash_key,
+                     user->m_key.m_key_length);
+=======
+  entry= reinterpret_cast<PFS_user**>
+    (lf_hash_search(&user_hash, pins,
+                    user->m_key.m_hash_key, user->m_key.m_key_length));
+  if (entry && (entry != MY_ERRPTR))
+  {
+    assert(*entry == user);
+    if (user->get_refcount() == 0)
+    {
+      lf_hash_delete(&user_hash, pins,
+                     user->m_key.m_hash_key, user->m_key.m_key_length);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       user->aggregate(false);
       global_user_container.deallocate(user);
     }

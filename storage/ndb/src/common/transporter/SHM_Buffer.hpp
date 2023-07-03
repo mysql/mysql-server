@@ -1,5 +1,14 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (C) 2003-2006, 2008 MySQL AB
+    Use is subject to license terms.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +36,11 @@
 
 #include "util/require.h"
 #include <ndb_global.h>
+<<<<<<< HEAD
 #include "portlib/mt-asm.h"
+=======
+#include "../../kernel/vm/mt-asm.h"
+>>>>>>> pr/231
 
 #include <NdbSleep.h>
 
@@ -49,7 +62,11 @@
 class SHM_Reader {
 public:
   SHM_Reader() :
+<<<<<<< HEAD
     m_startOfBuffer(nullptr),
+=======
+    m_startOfBuffer(0),
+>>>>>>> pr/231
     m_readIndex(0)
   {
   }
@@ -181,10 +198,17 @@ SHM_Reader::updateReadPtr(Uint32 *ptr)
 class SHM_Writer {
 public:
   SHM_Writer() :
+<<<<<<< HEAD
     m_startOfBuffer(nullptr),
     m_totalBufferSize(0),
     m_bufferSize(0),
     m_sharedWriteIndex(nullptr)
+=======
+    m_startOfBuffer(0),
+    m_totalBufferSize(0),
+    m_bufferSize(0),
+    m_sharedWriteIndex(0)
+>>>>>>> pr/231
   {
   }
   SHM_Writer(char * const _startOfBuffer,

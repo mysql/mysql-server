@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,6 +168,7 @@ void Hint_scanner::add_hint_token_digest() {
   }
 
   switch (prev_token) {
+<<<<<<< HEAD
     case HINT_ARG_NUMBER:
     case HINT_ARG_FLOATING_POINT_NUMBER:
       add_digest(NUM);
@@ -230,7 +239,51 @@ void Hint_scanner::add_hint_token_digest() {
           default:
             assert(false);
         }
+<<<<<<< HEAD
         add_digest(prev_token);
+=======
+        add_digest(TOK_HINT_ADJUST(prev_token));
+=======
+  case HINT_ARG_NUMBER:
+    add_digest(NUM);
+    break;
+  case HINT_ARG_IDENT:
+    add_digest((peek_class() == HINT_CHR_AT) ? TOK_IDENT_AT : IDENT);
+    break;
+  case HINT_ARG_QB_NAME:
+    add_digest('@');
+    add_digest(IDENT);
+    break;
+  default:
+    if (prev_token <= UCHAR_MAX) // Single-char token.
+      add_digest(prev_token);
+    else // keyword
+    {
+      /* Make sure this is a known hint keyword: */
+      switch (prev_token) {
+      case BKA_HINT:
+      case BNL_HINT:
+      case DUPSWEEDOUT_HINT:
+      case FIRSTMATCH_HINT:
+      case INTOEXISTS_HINT:
+      case LOOSESCAN_HINT:
+      case MATERIALIZATION_HINT:
+      case MAX_EXECUTION_TIME_HINT:
+      case MRR_HINT:
+      case NO_BKA_HINT:
+      case NO_BNL_HINT:
+      case NO_ICP_HINT:
+      case NO_MRR_HINT:
+      case NO_RANGE_OPTIMIZATION_HINT:
+      case NO_SEMIJOIN_HINT:
+      case QB_NAME_HINT:
+      case SEMIJOIN_HINT:
+      case SUBQUERY_HINT:
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
   }
 }

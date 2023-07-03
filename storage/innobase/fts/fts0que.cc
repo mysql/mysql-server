@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -171,10 +195,22 @@ struct fts_query_t {
   /** limit value for the fts query */
   ulonglong limit;
 
+<<<<<<< HEAD
   /** number of docs fetched by query. This is to restrict the
   result with limit value */
   ulonglong n_docs;
+<<<<<<< HEAD
   ulint nested_exp_count; /*!< number of nested sub expression limit */
+=======
+=======
+	/** number of docs fetched by query. This is to restrict the
+	result with limit value */
+	ulonglong		n_docs;
+
+	ulint		nested_exp_count; /*!< number of nested sub expression
+					  limit */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /** For phrase matching, first we collect the documents and the positions
@@ -2844,7 +2880,22 @@ static dberr_t fts_ast_visit_sub_exp(fts_ast_node_t *node,
   }
   query->nested_exp_count++;
 
+<<<<<<< HEAD
   ut_a(node->type == FTS_AST_SUBEXP_LIST);
+=======
+	/* sub-expression list may contains sub-expressions.
+	So we increase sub-expression depth counter.
+	If this counter reaches to the threshold then
+	we abort the search opertion and reports an error */
+	if (query->nested_exp_count > FTS_MAX_NESTED_EXP) {
+		query->error = DB_FTS_TOO_MANY_NESTED_EXP;
+		DBUG_RETURN(query->error);
+	}
+	query->nested_exp_count++;
+
+
+	ut_a(node->type == FTS_AST_SUBEXP_LIST);
+>>>>>>> upstream/cluster-7.6
 
   cur_oper = query->oper;
 
@@ -3615,6 +3666,7 @@ static void fts_query_can_optimize(
 @param[in,out]  result          result doc ids
 @param[in]      limit           limit value
 @return DB_SUCCESS if successful otherwise error code */
+<<<<<<< HEAD
 dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
                   const byte *query_str, ulint query_len, fts_result_t **result,
                   ulonglong limit) {
@@ -3627,6 +3679,28 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
   trx_t *query_trx;
   CHARSET_INFO *charset;
   bool will_be_ignored = false;
+=======
+dberr_t
+fts_query(
+	trx_t*		trx,
+	dict_index_t*	index,
+	uint		flags,
+	const byte*	query_str,
+	ulint		query_len,
+	fts_result_t**	result,
+	ulonglong	limit)
+{
+	fts_query_t	query;
+	dberr_t		error = DB_SUCCESS;
+	byte*		lc_query_str;
+	ulint		lc_query_str_len;
+	ulint		result_len;
+	bool		boolean_mode;
+	trx_t*		query_trx;
+	CHARSET_INFO*	charset;
+	ib_time_monotonic_ms_t		start_time_ms;
+	bool		will_be_ignored = false;
+>>>>>>> upstream/cluster-7.6
 
   boolean_mode = flags & FTS_BOOL;
 
@@ -3635,7 +3709,15 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
   query_trx = trx_allocate_for_background();
   query_trx->op_info = "FTS query";
 
+<<<<<<< HEAD
   const auto start_time = std::chrono::steady_clock::now();
+=======
+<<<<<<< HEAD
+  start_time_ms = ut_time_ms();
+=======
+	start_time_ms = ut_time_monotonic_ms();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   query.trx = query_trx;
   query.index = index;
@@ -3747,6 +3829,7 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
     DBUG_EXECUTE_IF("fts_instrument_result_cache_limit",
                     fts_result_cache_limit = 2048;);
 
+<<<<<<< HEAD
     /* Optimisation is allowed for limit value
     when
     i)  No ranking involved
@@ -3754,6 +3837,12 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
     if (query.limit != ULONG_UNDEFINED && !fts_ast_node_check_union(ast)) {
       query.limit = ULONG_UNDEFINED;
     }
+=======
+	/* Parse the input query string. */
+	if (fts_query_parse(&query, lc_query_str, result_len)) {
+		fts_ast_node_t*	ast = query.root;
+		ast->trx = trx;
+>>>>>>> upstream/cluster-7.6
 
     DBUG_EXECUTE_IF("fts_union_limit_off", query.limit = ULONG_UNDEFINED;);
 
@@ -3777,11 +3866,13 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
       fts_query_calculate_idf(&query);
     }
 
+<<<<<<< HEAD
     /* Copy the result from the query state, so that we can
     return it to the caller. */
     if (query.error == DB_SUCCESS) {
       *result = fts_query_get_result(&query, *result);
     }
+<<<<<<< HEAD
     if (trx_is_interrupted(trx)) {
       ut::free(lc_query_str);
       if (result != nullptr) {
@@ -3790,6 +3881,21 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
       error = DB_INTERRUPTED;
       goto func_exit;
     }
+=======
+=======
+		/* Traverse the Abstract Syntax Tree (AST) and execute
+		the query. */
+		query.error = fts_ast_visit(
+			FTS_NONE, ast, fts_query_visitor,
+			&query, &will_be_ignored);
+		if (query.error == DB_INTERRUPTED) {
+			error = DB_INTERRUPTED;
+			ut_free(lc_query_str);
+			goto func_exit;
+		}
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
     error = query.error;
   } else {
     /* still return an empty result set */
@@ -3811,12 +3917,44 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
         << ((*result)->rankings_by_id ? rbt_size((*result)->rankings_by_id)
                                       : -1);
 
+<<<<<<< HEAD
     /* Log memory consumption & result size */
     ib::info(ER_IB_MSG_517)
         << "Full Search Memory: " << query.total_size << " (bytes),  Row: "
         << ((*result)->rankings_by_id ? rbt_size((*result)->rankings_by_id) : 0)
         << ".";
   }
+=======
+	if (trx_is_interrupted(trx)) {
+		error = DB_INTERRUPTED;
+		ut_free(lc_query_str);
+		if (result != NULL) {
+			fts_query_free_result(*result);
+		}
+		goto func_exit;
+	}
+
+	ut_free(lc_query_str);
+
+	if (fts_enable_diag_print && (*result)) {
+		uint64_t diff_time = ut_time_monotonic_ms() - start_time_ms;
+
+		ib::info() << "FTS Search Processing time: "
+			<< diff_time / 1000 << " secs: " << diff_time % 1000
+			<< " millisec: row(s) "
+			<< ((*result)->rankings_by_id
+			    ? rbt_size((*result)->rankings_by_id)
+			    : -1);
+
+		/* Log memory consumption & result size */
+		ib::info() << "Full Search Memory: " << query.total_size
+			<< " (bytes),  Row: "
+			<< ((*result)->rankings_by_id
+			    ? rbt_size((*result)->rankings_by_id)
+			    : 0)
+			<< ".";
+	}
+>>>>>>> upstream/cluster-7.6
 
 func_exit:
   fts_query_free(&query);
@@ -4095,10 +4233,37 @@ static bool fts_phrase_or_proximity_search(
           }
         }
 
+<<<<<<< HEAD
         if (match[j]->doc_id != match[0]->doc_id) {
           goto func_exit;
         }
       }
+=======
+				if (query->flags & FTS_PHRASE) {
+					ulint	s;
+					/* Since i is the last doc id in the
+					match_array[j], remove all doc ids > i
+					from the match_array[0]. */
+					fts_match_t*    match_temp;
+					for (s = i + 1; s < n_matched; s++) {
+						match_temp = static_cast<
+						fts_match_t*>(ib_vector_get(
+						query->match_array[0], s));
+						match_temp->doc_id = 0;
+					}
+
+					if (match[j]->doc_id !=
+						match[0]->doc_id) {
+						/* no match */
+						match[0]->doc_id = 0;
+					}
+				}
+
+				if (match[j]->doc_id != match[0]->doc_id) {
+					goto func_exit;
+				}
+			}
+>>>>>>> upstream/cluster-7.6
 
       /* FIXME: A better solution will be a counter array
       remember each run's last position. So we don't

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +77,7 @@ SET(INNOBASE_ZIP_DECOMPRESS_SOURCES
   ut/ut0new.cc)
 
 SET(INNOBASE_SOURCES
+<<<<<<< HEAD
   api/api0api.cc
   api/api0misc.cc
   arch/arch0arch.cc
@@ -253,6 +262,160 @@ SET(INNOBASE_SOURCES
   ut/ut0ut.cc
   ut/ut0vec.cc
   ut/ut0wqueue.cc)
+=======
+	api/api0api.cc
+	api/api0misc.cc
+	arch/arch0arch.cc
+	arch/arch0page.cc
+	arch/arch0log.cc
+	btr/btr0btr.cc
+	btr/btr0cur.cc
+	btr/btr0pcur.cc
+	btr/btr0sea.cc
+	btr/btr0bulk.cc
+	buf/buf0block_hint.cc
+	buf/buf0buddy.cc
+	buf/buf0buf.cc
+	buf/buf0dblwr.cc
+	buf/buf0dump.cc
+	buf/buf0flu.cc
+	buf/buf0lru.cc
+	buf/buf0rea.cc
+	clone/clone0api.cc
+	clone/clone0clone.cc
+	clone/clone0copy.cc
+	clone/clone0apply.cc
+	clone/clone0desc.cc
+	clone/clone0snapshot.cc
+	data/data0data.cc
+	data/data0type.cc
+	dict/dict0boot.cc
+	dict/dict0crea.cc
+	dict/dict0dict.cc
+	dict/dict0dd.cc
+	dict/dict0load.cc
+	dict/dict0mem.cc
+	dict/dict0sdi.cc
+	dict/dict0stats.cc
+	dict/dict0stats_bg.cc
+	dict/dict0upgrade.cc
+	eval/eval0eval.cc
+	eval/eval0proc.cc
+	fil/fil0fil.cc
+	fsp/fsp0fsp.cc
+	fsp/fsp0file.cc
+	fsp/fsp0space.cc
+	fsp/fsp0sysspace.cc
+	fut/fut0lst.cc
+	ha/ha0ha.cc
+	ha/ha0storage.cc
+	ha/hash0hash.cc
+	fts/fts0fts.cc
+	fts/fts0ast.cc
+	fts/fts0blex.cc
+	fts/fts0config.cc
+	fts/fts0opt.cc
+	fts/fts0pars.cc
+	fts/fts0que.cc
+	fts/fts0sql.cc
+	fts/fts0tlex.cc
+	gis/gis0geo.cc
+	gis/gis0rtree.cc
+	gis/gis0sea.cc
+	fts/fts0plugin.cc
+	handler/ha_innodb.cc
+	handler/ha_innopart.cc
+	handler/handler0alter.cc
+	handler/i_s.cc
+	handler/p_s.cc
+	ibuf/ibuf0ibuf.cc
+        lob/lob0first.cc
+        lob/lob0index.cc
+        lob/lob0ins.cc
+        lob/lob0pages.cc
+        lob/lob0purge.cc
+        lob/lob0update.cc
+        lob/lob0impl.cc
+	lob/lob0lob.cc
+	lob/lob0del.cc
+	lob/lob0util.cc
+        lob/zlob0index.cc
+        lob/zlob0ins.cc
+        lob/zlob0update.cc
+        lob/zlob0first.cc
+        lob/zlob0read.cc
+	lock/lock0iter.cc
+	lock/lock0prdt.cc
+	lock/lock0lock.cc
+	lock/lock0wait.cc
+	log/log0buf.cc
+	log/log0chkp.cc
+	log/log0ddl.cc
+	log/log0log.cc
+	log/log0recv.cc
+	log/log0test.cc
+	log/log0write.cc
+	mach/mach0data.cc
+	mtr/mtr0log.cc
+	mtr/mtr0mtr.cc
+	os/os0file.cc
+	os/os0proc.cc
+	os/os0event.cc
+	page/page0cur.cc
+	page/page0page.cc
+	page/page0zip.cc
+	pars/lexyy.cc
+	pars/pars0grm.cc
+	pars/pars0opt.cc
+	pars/pars0pars.cc
+	pars/pars0sym.cc
+	que/que0que.cc
+	read/read0read.cc
+	rem/rem0cmp.cc
+	rem/rem0rec.cc
+	row/row0ext.cc
+	row/row0ftsort.cc
+	row/row0import.cc
+	row/row0ins.cc
+	row/row0merge.cc
+	row/row0mysql.cc
+	row/row0log.cc
+	row/row0purge.cc
+	row/row0row.cc
+	row/row0sel.cc
+	row/row0uins.cc
+	row/row0umod.cc
+	row/row0undo.cc
+	row/row0upd.cc
+	row/row0quiesce.cc
+	row/row0vers.cc
+	srv/srv0conc.cc
+	srv/srv0mon.cc
+	srv/srv0srv.cc
+	srv/srv0start.cc
+	sync/sync0arr.cc
+	sync/sync0rw.cc
+	sync/sync0debug.cc
+	sync/sync0sync.cc
+	trx/trx0i_s.cc
+	trx/trx0purge.cc
+	trx/trx0rec.cc
+	trx/trx0roll.cc
+	trx/trx0rseg.cc
+	trx/trx0sys.cc
+	trx/trx0trx.cc
+	trx/trx0undo.cc
+	usr/usr0sess.cc
+	ut/ut0dbg.cc
+	ut/ut0list.cc
+	ut/ut0mem.cc
+	ut/ut0new.cc
+	ut/ut0rbt.cc
+	ut/ut0rnd.cc
+	ut/ut0ut.cc
+	ut/ut0vec.cc
+	ut/ut0wqueue.cc)
+>>>>>>> pr/231
 
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
 IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
@@ -338,6 +501,7 @@ MYSQL_ADD_PLUGIN(innobase
   MODULE_OUTPUT_NAME ha_innodb
   LINK_LIBRARIES sql_dd sql_gis ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
 
+<<<<<<< HEAD
 # On linux: /usr/include/stdio.h:#define BUFSIZ 8192
 # On Solaris: /usr/include/iso/stdio_iso.h:#define    BUFSIZ  1024
 IF(SOLARIS AND MY_COMPILER_IS_GNU)
@@ -345,10 +509,27 @@ IF(SOLARIS AND MY_COMPILER_IS_GNU)
     row/row0import.cc
     row/row0quiesce.cc
     COMPILE_FLAGS "-Wno-format-truncation"
+=======
+
+IF(WITH_INNOBASE_STORAGE_ENGINE)
+  ADD_DEPENDENCIES(innobase GenError)
+ENDIF()
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+# Avoid generating Hardware Capabilities due to crc32 instructions
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+  MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
+  IF(HAVE_WA_NH)
+    ADD_COMPILE_FLAGS(
+      ut/crc32.cc
+      COMPILE_FLAGS "-Wa,-nH"
+>>>>>>> pr/231
     )
 ENDIF()
 
+<<<<<<< HEAD
 # Generated code with logical-op warnings
+<<<<<<< HEAD
 MY_CHECK_CXX_COMPILER_WARNING("-Wlogical-op" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(fts/fts0pars.cc
@@ -363,6 +544,33 @@ MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-variable" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(fts/fts0pars.cc
     COMPILE_FLAGS "${HAS_WARN_FLAG}")
+=======
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
+  IF(HAVE_LOGICAL_OP)
+    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+    ADD_COMPILE_FLAGS(fts/fts0pars.cc
+                      COMPILE_FLAGS "-Wno-logical-op")
+  ENDIF()
+  MY_CHECK_CXX_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
+  IF(HAVE_CAST_FUNCTION_TYPE)
+    ADD_COMPILE_FLAGS(fts/fts0pars.cc
+                      COMPILE_FLAGS "-Wno-cast-function-type")
+  ENDIF()
+=======
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
+IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_COMPILE_FLAGS(
+    pars/pars0grm.cc
+    COMPILE_FLAGS "-Wno-free-nonheap-object")
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
+IF(HAVE_CAST_FUNCTION_TYPE)
+  ADD_COMPILE_FLAGS(fts/fts0pars.cc
+    COMPILE_FLAGS "-Wno-cast-function-type")
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 ENDIF()
 
 IF(MSVC AND NOT WIN32_CLANG)

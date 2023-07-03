@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,10 +66,24 @@ using std::max;
 */
 
 rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
+<<<<<<< HEAD
                                 uint used_keyparts) {
+<<<<<<< HEAD
   assert(used_keyparts >= 1);
   assert(used_keyparts <= key->actual_key_parts);
   assert(!key->has_records_per_key(used_keyparts - 1));
+=======
+  DBUG_ASSERT(used_keyparts >= 1);
+  DBUG_ASSERT(used_keyparts <= key->actual_key_parts);
+  DBUG_ASSERT(!key->has_records_per_key(used_keyparts - 1));
+=======
+                                uint used_keyparts)
+{
+  assert(used_keyparts >= 1);
+  assert(used_keyparts <= key->user_defined_key_parts);
+  assert(!key->has_records_per_key(used_keyparts - 1));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   const ha_rows table_rows = table->file->stats.records;
 
@@ -111,8 +133,17 @@ rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
       else
         rec_per_key = rec_per_key_first;  // Non-unique index
     }
+<<<<<<< HEAD
 
+<<<<<<< HEAD
     assert(rec_per_key >= rec_per_key_all);
+=======
+    DBUG_ASSERT(rec_per_key >= rec_per_key_all);
+=======
+      
+    assert(rec_per_key >= rec_per_key_all);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   return rec_per_key;

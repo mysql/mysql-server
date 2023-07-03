@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 /*
    Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -366,10 +370,23 @@ Request::actionName(Request::Action action)
     return "closeRemove";
   case Request::read:
     return "read";
+<<<<<<< HEAD
   case Request::write:
     return "write";
   case Request::writeSync:
     return "writeSync";
+=======
+  case Request::readv:
+    return "readv";
+  case Request::write:
+    return "write";
+  case Request::writev:
+    return "writev";
+  case Request::writeSync:
+    return "writeSync";
+  case Request::writevSync:
+    return "writevSync";
+>>>>>>> pr/231
   case Request::sync:
     return "sync";
   case Request::end:

@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -204,15 +228,34 @@ within the first field not completely matched
 @retval 0 if rec1 is equal to rec2
 @retval negative if rec1 is less than rec2
 @retval positive if rec2 is greater than rec2 */
+<<<<<<< HEAD
 int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
                            const ulint *offsets1, const ulint *offsets2,
+<<<<<<< HEAD
                            const dict_index_t *index,
                            bool spatial_index_non_leaf, bool nulls_unequal,
                            ulint *matched_fields, bool cmp_btree_recs = true);
+=======
+                           const dict_index_t *index, bool nulls_unequal,
+                           ulint *matched_fields);
+=======
+int
+cmp_rec_rec_with_match(
+	const rec_t*		rec1,
+	const rec_t*		rec2,
+	const ulint*		offsets1,
+	const ulint*		offsets2,
+	const dict_index_t*	index,
+	bool			spatial_index_non_leaf,
+	bool			nulls_unequal,
+	ulint*			matched_fields);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 /** Compare two B-tree records.
 Only the common first fields are compared, and externally stored field
 are treated as equal.
+<<<<<<< HEAD
 @param[in]      rec1                    B-tree record
 @param[in]      rec2                    B-tree record
 @param[in]      offsets1                rec_get_offsets(rec1, index)
@@ -230,6 +273,41 @@ static inline int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2,
                               bool spatial_index_non_leaf,
                               ulint *matched_fields = nullptr,
                               bool cmp_btree_recs = true);
+=======
+<<<<<<< HEAD
+@param[in]	rec1		B-tree record
+@param[in]	rec2		B-tree record
+@param[in]	offsets1	rec_get_offsets(rec1, index)
+@param[in]	offsets2	rec_get_offsets(rec2, index)
+@param[in]	index		B-tree index
+=======
+@param[in]	rec1				B-tree record
+@param[in]	rec2				B-tree record
+@param[in]	offsets1			rec_get_offsets(rec1, index)
+@param[in]	offsets2			rec_get_offsets(rec2, index)
+@param[in]	spatial_index_non_leaf		true if spatial index non leaf records
+>>>>>>> upstream/cluster-7.6
+@param[out]	matched_fields	number of completely matched fields
+                                within the first field not completely matched
+@return positive, 0, negative if rec1 is greater, equal, less, than rec2,
+respectively */
+UNIV_INLINE
+<<<<<<< HEAD
+int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
+                const ulint *offsets2, const dict_index_t *index,
+                ulint *matched_fields = NULL);
+=======
+int
+cmp_rec_rec(
+	const rec_t*		rec1,
+	const rec_t*		rec2,
+	const ulint*		offsets1,
+	const ulint*		offsets2,
+	const dict_index_t*	index,
+	bool			spatial_index_non_leaf,
+	ulint*			matched_fields = NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #ifndef UNIV_HOTBACKUP
 /** Compare two data fields.

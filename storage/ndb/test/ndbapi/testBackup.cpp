@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +34,10 @@
 #include <NdbMgmd.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbHistory.hpp>
+<<<<<<< HEAD
 #include <NdbSleep.h>
+=======
+>>>>>>> pr/231
 
 int runDropTable(NDBT_Context* ctx, NDBT_Step* step);
 
@@ -647,9 +654,12 @@ int createNdbApplyStatusIfMissing(NDBT_Context* ctx, NDBT_Step* step)
 
 int runRestoreEpoch(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup;
+<<<<<<< HEAD
   backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
                                                           (char*)NULL),
                                          -1);
+=======
+>>>>>>> pr/231
   unsigned backupId = ctx->getProperty("BackupId");
 
   ndbout << "Restoring epoch from backup " << backupId << endl;
@@ -1385,7 +1395,11 @@ public:
   NdbHistory::Version* m_version;
   
   DbVersion(): m_version(NULL)
+<<<<<<< HEAD
   {}
+=======
+  {};
+>>>>>>> pr/231
 
   ~DbVersion()
   {
@@ -2055,9 +2069,12 @@ runGCPStallDuringBackupStart(NDBT_Context* ctx, NDBT_Step* step)
   const Uint32 stepNo = step->getStepNo();
   NdbRestarter restarter;
   NdbBackup backup;
+<<<<<<< HEAD
   backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
                                                           (char*)NULL),
                                          -1);
+=======
+>>>>>>> pr/231
 
   g_err << stepNo << " : runGCPStallDuringBackupStart" << endl;
 
@@ -2101,7 +2118,11 @@ runGCPStallDuringBackup(NDBT_Context* ctx, NDBT_Step* step)
    * avoid Backup weirdness around 3 GCIs
    * We then cause GCP itself to stall
    * We then wait a little longer
+<<<<<<< HEAD
    * We then uninstall the backup scan and GCP stall
+=======
+   * We then unstall the backup scan and GCP stall
+>>>>>>> pr/231
    */
 
   g_err << stepNo << " : stalling backup scan" << endl;
@@ -2146,9 +2167,12 @@ int
 runCheckPrintout(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
+<<<<<<< HEAD
   backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
                                                           (char*)NULL),
                                          -1);
+=======
+>>>>>>> pr/231
   NdbRestarter res;
   NdbMgmd mgmd;
 
@@ -2572,7 +2596,11 @@ TESTCASE("CheckBackupCompletedPrintout",
   FINALIZER(runClearTable);
 }
 
+<<<<<<< HEAD
 NDBT_TESTSUITE_END(testBackup)
+=======
+NDBT_TESTSUITE_END(testBackup);
+>>>>>>> pr/231
 
 int main(int argc, const char** argv){
   ndb_init();

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -229,6 +237,7 @@ void pfs_automated_sizing(PFS_global_param *param) {
     heuristic = estimate_hints(param);
     apply_heuristic(param, heuristic);
 
+<<<<<<< HEAD
     assert(param->m_events_waits_history_sizing >= 0);
     assert(param->m_events_waits_history_long_sizing >= 0);
     assert(param->m_events_stages_history_sizing >= 0);
@@ -238,7 +247,33 @@ void pfs_automated_sizing(PFS_global_param *param) {
     assert(param->m_events_transactions_history_sizing >= 0);
     assert(param->m_events_transactions_history_long_sizing >= 0);
     assert(param->m_session_connect_attrs_sizing >= 0);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(param->m_events_waits_history_sizing >= 0);
+    DBUG_ASSERT(param->m_events_waits_history_long_sizing >= 0);
+    DBUG_ASSERT(param->m_events_stages_history_sizing >= 0);
+    DBUG_ASSERT(param->m_events_stages_history_long_sizing >= 0);
+    DBUG_ASSERT(param->m_events_statements_history_sizing >= 0);
+    DBUG_ASSERT(param->m_events_statements_history_long_sizing >= 0);
+    DBUG_ASSERT(param->m_events_transactions_history_sizing >= 0);
+    DBUG_ASSERT(param->m_events_transactions_history_long_sizing >= 0);
+    DBUG_ASSERT(param->m_session_connect_attrs_sizing >= 0);
+>>>>>>> pr/231
   } else {
+=======
+    assert(param->m_events_waits_history_sizing >= 0);
+    assert(param->m_events_waits_history_long_sizing >= 0);
+    assert(param->m_events_stages_history_sizing >= 0);
+    assert(param->m_events_stages_history_long_sizing >= 0);
+    assert(param->m_events_statements_history_sizing >= 0);
+    assert(param->m_events_statements_history_long_sizing >= 0);
+    assert(param->m_events_transactions_history_sizing >= 0);
+    assert(param->m_events_transactions_history_long_sizing >= 0);
+    assert(param->m_session_connect_attrs_sizing >= 0);
+  }
+  else
+  {
+>>>>>>> upstream/cluster-7.6
     /*
       The Performance Schema is disabled. Set the instrument sizings to zero to
       disable all instrumentation while retaining support for the status and

@@ -1,5 +1,10 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -11,6 +16,25 @@
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
   separately licensed software that they have included with MySQL.
+=======
+      Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+
+      This program is free software; you can redistribute it and/or modify
+      it under the terms of the GNU General Public License, version 2.0,
+      as published by the Free Software Foundation.
+
+      This program is also distributed with certain software (including
+      but not limited to OpenSSL) that is licensed under separate terms,
+      as designated in a particular file or component or in included license
+      documentation.  The authors of MySQL hereby grant you an additional
+      permission to link the program and your derivative works with the
+      separately licensed software that they have included with MySQL.
+
+      This program is distributed in the hope that it will be useful,
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
+      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+      GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -81,7 +105,13 @@ Plugin_table table_replication_applier_status_by_coordinator::m_table_def(
     /* Tablespace */
     nullptr);
 
+PFS_engine_table_share_state
+table_replication_applier_status_by_coordinator::m_share_state = {
+  false /* m_checked */
+};
+
 PFS_engine_table_share
+<<<<<<< HEAD
     table_replication_applier_status_by_coordinator::m_share = {
         &pfs_readonly_acl,
         table_replication_applier_status_by_coordinator::create,
@@ -95,6 +125,22 @@ PFS_engine_table_share
         PFS_engine_table_proxy(),
         {0},
         false /* m_in_purgatory */
+=======
+table_replication_applier_status_by_coordinator::m_share=
+{
+  { C_STRING_WITH_LEN("replication_applier_status_by_coordinator") },
+  &pfs_readonly_acl,
+  table_replication_applier_status_by_coordinator::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_replication_applier_status_by_coordinator::get_row_count,
+  sizeof(pos_t), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+>>>>>>> upstream/cluster-7.6
 };
 
 bool PFS_index_rpl_applier_status_by_coord_by_channel::match(Master_info *mi) {
@@ -164,11 +210,25 @@ ha_rows table_replication_applier_status_by_coordinator::get_row_count() {
 
 int table_replication_applier_status_by_coordinator::rnd_next(void) {
   Master_info *mi;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+
+>>>>>>> pr/231
   channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels(); m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
+=======
+  channel_map.rdlock();
+
+  for(m_pos.set_at(&m_next_pos);
+      m_pos.m_index < channel_map.get_max_channels();
+      m_pos.next())
+  {
+    mi= channel_map.get_mi_at_pos(m_pos.m_index);
+>>>>>>> upstream/cluster-7.6
 
     /*
       Construct and display SQL Thread's (Coordinator) information in
@@ -181,13 +241,30 @@ int table_replication_applier_status_by_coordinator::rnd_next(void) {
     if (mi && mi->host[0] && mi->rli && mi->rli->get_worker_count() > 0) {
       make_row(mi);
       m_next_pos.set_after(&m_pos);
+<<<<<<< HEAD
       channel_map.unlock();
       return 0;
+=======
+<<<<<<< HEAD
+=======
+      channel_map.unlock();
+      return 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
   }
 
   channel_map.unlock();
+<<<<<<< HEAD
   return HA_ERR_END_OF_FILE;
+=======
+<<<<<<< HEAD
+
+  return res;
+=======
+  return HA_ERR_END_OF_FILE;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos) {
@@ -212,6 +289,7 @@ int table_replication_applier_status_by_coordinator::index_init(uint idx,
                                                                 bool) {
   PFS_index_rpl_applier_status_by_coord *result = nullptr;
 
+<<<<<<< HEAD
   switch (idx) {
     case 0:
       result = PFS_NEW(PFS_index_rpl_applier_status_by_coord_by_channel);
@@ -262,8 +340,17 @@ int table_replication_applier_status_by_coordinator::index_next(void) {
 }
 
 int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
+<<<<<<< HEAD
   assert(mi != nullptr);
   assert(mi->rli != nullptr);
+=======
+  DBUG_ASSERT(mi != NULL);
+  DBUG_ASSERT(mi->rli != NULL);
+=======
+  assert(mi != NULL);
+  assert(mi->rli != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   mysql_mutex_lock(&mi->rli->data_lock);
 
@@ -338,7 +425,12 @@ int table_replication_applier_status_by_coordinator::read_row_values(
     TABLE *table, unsigned char *buf, Field **fields, bool read_all) {
   Field *f;
 
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -403,7 +495,49 @@ int table_replication_applier_status_by_coordinator::read_row_values(
           set_field_timestamp(f, m_row.processing_trx_start_buffer_timestamp);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  if (unlikely(! m_row_exists))
+    return HA_ERR_RECORD_DELETED;
+
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* channel_name */
+         set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+         break;
+      case 1: /*thread_id*/
+        if (!m_row.thread_id_is_null)
+          set_field_ulonglong(f, m_row.thread_id);
+        else
+          f->set_null();
+        break;
+      case 2: /*service_state*/
+        set_field_enum(f, m_row.service_state);
+        break;
+      case 3: /*last_error_number*/
+        set_field_ulong(f, m_row.last_error_number);
+        break;
+      case 4: /*last_error_message*/
+        set_field_varchar_utf8(f, m_row.last_error_message,
+                               m_row.last_error_message_length);
+        break;
+      case 5: /*last_error_timestamp*/
+        set_field_timestamp(f, m_row.last_error_timestamp);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

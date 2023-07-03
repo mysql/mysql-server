@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:storage/heap/hp_rfirst.cc
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:storage/heap/hp_rfirst.c
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,10 +72,26 @@ int heap_rfirst(HP_INFO *info, uchar *record, int inx) {
       set_my_errno(HA_ERR_END_OF_FILE);
       return my_errno();
     }
+<<<<<<< HEAD
     assert(0); /* TODO fix it */
+=======
+<<<<<<< HEAD:storage/heap/hp_rfirst.cc
+    DBUG_ASSERT(0); /* TODO fix it */
+>>>>>>> pr/231
     info->current_record = 0;
     info->current_hash_ptr = nullptr;
     info->update = HA_STATE_PREV_FOUND;
+<<<<<<< HEAD
     return heap_rnext(info, record);
+=======
+    DBUG_RETURN(heap_rnext(info, record));
+=======
+    assert(0); /* TODO fix it */
+    info->current_record=0;
+    info->current_hash_ptr=0;
+    info->update=HA_STATE_PREV_FOUND;
+    DBUG_RETURN(heap_rnext(info,record));
+>>>>>>> upstream/cluster-7.6:storage/heap/hp_rfirst.c
+>>>>>>> pr/231
   }
 }

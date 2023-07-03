@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -688,8 +692,15 @@ public:
 
   NdbInfo::Table* get_instance() const override
   {
+<<<<<<< HEAD
     NdbInfo::Table* tab = new NdbInfo::Table("blocks", this,
                                              NO_OF_BLOCK_NAMES);
+=======
+    NdbInfo::Table* tab = new NdbInfo::Table("blocks",
+                                             NdbInfo::Table::InvalidTableId,
+                                             NO_OF_BLOCK_NAMES,
+                                             this);
+>>>>>>> pr/231
     if (!tab)
       return nullptr;
     if (!tab->addColumn(NdbInfo::Column("block_number", 0,
@@ -705,13 +716,18 @@ public:
 #include "kernel/signaldata/DictTabInfo.hpp"
 class DictObjTypesTable : public VirtualTable
 {
+<<<<<<< HEAD
 private:
   // The compiler will catch if the array size is too small
   static constexpr int OBJ_TYPES_TABLE_SIZE = 20;
+=======
+public:
+>>>>>>> pr/231
   struct Entry {
      const DictTabInfo::TableType type;
      const char* name;
     };
+<<<<<<< HEAD
     struct Entry entries[OBJ_TYPES_TABLE_SIZE] =
      {
        {DictTabInfo::SystemTable, "System table"},
@@ -760,11 +776,26 @@ public:
     w.write_string(e.name);
     return 1;
   }
+=======
+    static const Uint32 OBJ_TYPES_TABLE_SIZE = 20;
+
+public:
+  DictObjTypesTable() { }
+
+  bool read_row(VirtualTable::Row&, Uint32 row_number) const;
+>>>>>>> pr/231
 
   NdbInfo::Table* get_instance() const override
   {
+<<<<<<< HEAD
     NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types", this,
                                              OBJ_TYPES_TABLE_SIZE);
+=======
+    NdbInfo::Table* tab = new NdbInfo::Table("dict_obj_types",
+                                             NdbInfo::Table::InvalidTableId,
+                                             OBJ_TYPES_TABLE_SIZE,
+                                             this);
+>>>>>>> pr/231
     if (!tab)
       return nullptr;
     if (!tab->addColumn(NdbInfo::Column("type_id", 0,
@@ -895,8 +926,15 @@ public:
 
   NdbInfo::Table* get_instance() const override
   {
+<<<<<<< HEAD
     NdbInfo::Table* tab = new NdbInfo::Table("error_messages", this,
                                              m_error_messages.size());
+=======
+    NdbInfo::Table* tab = new NdbInfo::Table("error_messages",
+                                             NdbInfo::Table::InvalidTableId,
+                                             m_error_messages.size(),
+                                             this);
+>>>>>>> pr/231
     if (!tab)
       return nullptr;
     if (!tab->addColumn(NdbInfo::Column("error_code", 0,
@@ -912,6 +950,44 @@ public:
   }
 
 };
+
+static const DictObjTypesTable::Entry dictObjTypesEntries[] =
+{
+    {DictTabInfo::SystemTable, "System table"},
+    {DictTabInfo::UserTable, "User table"},
+    {DictTabInfo::UniqueHashIndex, "Unique hash index"},
+    {DictTabInfo::HashIndex, "Hash index"},
+    {DictTabInfo::UniqueOrderedIndex, "Unique ordered index"},
+    {DictTabInfo::OrderedIndex, "Ordered index"},
+    {DictTabInfo::HashIndexTrigger, "Hash index trigger"},
+    {DictTabInfo::SubscriptionTrigger, "Subscription trigger"},
+    {DictTabInfo::ReadOnlyConstraint, "Read only constraint"},
+    {DictTabInfo::IndexTrigger, "Index trigger"},
+    {DictTabInfo::ReorgTrigger, "Reorganize trigger"},
+    {DictTabInfo::Tablespace, "Tablespace"},
+    {DictTabInfo::LogfileGroup,  "Log file group"},
+    {DictTabInfo::Datafile, "Data file"},
+    {DictTabInfo::Undofile, "Undo file"},
+    {DictTabInfo::HashMap, "Hash map"},
+    {DictTabInfo::ForeignKey, "Foreign key definition"},
+    {DictTabInfo::FKParentTrigger, "Foreign key parent trigger"},
+    {DictTabInfo::FKChildTrigger, "Foreign key child trigger"},
+    {DictTabInfo::SchemaTransaction, "Schema transaction"}
+};
+
+bool DictObjTypesTable::read_row(VirtualTable::Row& w, Uint32 row_number) const
+{
+  if (row_number >= OBJ_TYPES_TABLE_SIZE)
+  {
+    return false;
+  }
+
+  const Entry& e = dictObjTypesEntries[row_number];
+  w.write_number(e.type);
+  w.write_string(e.name);
+  return true;
+}
+
 
 #include "mgmapi/mgmapi_config_parameters.h"
 #include "mgmcommon/ConfigInfo.hpp"
@@ -1073,8 +1149,15 @@ public:
 
   NdbInfo::Table* get_instance() const override
   {
+<<<<<<< HEAD
     NdbInfo::Table* tab = new NdbInfo::Table("config_params", this,
                                              m_config_params.size());
+=======
+    NdbInfo::Table* tab = new NdbInfo::Table("config_params",
+                                             NdbInfo::Table::InvalidTableId,
+                                             m_config_params.size(),
+                                             this);
+>>>>>>> pr/231
     if (!tab)
       return nullptr;
     if (!tab->addColumn(NdbInfo::Column("param_number", 0,
@@ -1148,8 +1231,15 @@ public:
 
   NdbInfo::Table* get_instance() const override
   {
+<<<<<<< HEAD
     NdbInfo::Table* tab = new NdbInfo::Table(m_table_name, this, m_array_count);
 
+=======
+    NdbInfo::Table* tab = new NdbInfo::Table(m_table_name,
+                                             NdbInfo::Table::InvalidTableId,
+                                             m_array_count,
+                                             this);
+>>>>>>> pr/231
     if (!tab)
       return nullptr;
     if (!tab->addColumn(NdbInfo::Column("state_int_value", 0,

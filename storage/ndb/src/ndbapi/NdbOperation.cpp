@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +94,11 @@ NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
  *****************************************************************************/
 NdbOperation::~NdbOperation( )
 {
+<<<<<<< HEAD
   assert(theRequest == nullptr);  // The same as theTCREQ
+=======
+  assert(theRequest == NULL);  // The same as theTCREQ
+>>>>>>> pr/231
 }
 /******************************************************************************
  *void setErrorCode(int anErrorCode);
@@ -182,7 +190,11 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_interpreted_code = nullptr;
   m_extraSetValues = nullptr;
   m_numExtraSetValues = 0;
+<<<<<<< HEAD
   m_customData = nullptr;
+=======
+  m_customData = NULL;
+>>>>>>> pr/231
 
   if (theReceiver.init(NdbReceiver::NDB_OPERATION, this))
   {
@@ -191,7 +203,11 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   }
 
   NdbApiSignal* tSignal = theNdb->getSignal();
+<<<<<<< HEAD
   if (tSignal == nullptr)
+=======
+  if (tSignal == NULL)
+>>>>>>> pr/231
   {
     setErrorCode(4000);
     return -1;

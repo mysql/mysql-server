@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +40,14 @@
 
 enum_return_status Gtid_specification::parse(Sid_map *sid_map,
                                              const char *text) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(text != nullptr);
+=======
+  DBUG_ENTER("Gtid_specification::parse");
+<<<<<<< HEAD
+  DBUG_ASSERT(text != NULL);
+>>>>>>> pr/231
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0) {
     type = AUTOMATIC_GTID;
     gtid.sidno = 0;
@@ -43,6 +57,23 @@ enum_return_status Gtid_specification::parse(Sid_map *sid_map,
     gtid.sidno = 0;
     gtid.gno = 0;
   } else {
+=======
+  assert(text != NULL);
+  if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0)
+  {
+    type= AUTOMATIC_GROUP;
+    gtid.sidno= 0;
+    gtid.gno= 0;
+  }
+  else if (my_strcasecmp(&my_charset_latin1, text, "ANONYMOUS") == 0)
+  {
+    type= ANONYMOUS_GROUP;
+    gtid.sidno= 0;
+    gtid.gno= 0;
+  }
+  else
+  {
+>>>>>>> upstream/cluster-7.6
     PROPAGATE_REPORTED_ERROR(gtid.parse(sid_map, text));
     type = ASSIGNED_GTID;
   }
@@ -50,8 +81,13 @@ enum_return_status Gtid_specification::parse(Sid_map *sid_map,
 }
 
 bool Gtid_specification::is_valid(const char *text) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(text != nullptr);
+=======
+  DBUG_ENTER("Gtid_specification::is_valid");
+  assert(text != NULL);
+>>>>>>> pr/231
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0)
     return true;
   else if (my_strcasecmp(&my_charset_latin1, text, "ANONYMOUS") == 0)
@@ -91,7 +127,11 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const {
       return 17;
   }
   assert(0);
+<<<<<<< HEAD
   return 0;
+=======
+  DBUG_RETURN(0);
+>>>>>>> pr/231
 }
 
 int Gtid_specification::to_string(const Sid_map *sid_map, char *buf,

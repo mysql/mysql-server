@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -342,7 +350,6 @@ public:
     int desc_all(Uint32 cnt, Endian::Value from_endian);
     // getters
     Uint32 get_max_len() const;
-    Uint32 get_max_len4() const;
     Uint32 get_var_bytes() const;
     void* get_full_buf();
     const void* get_full_buf() const;
@@ -456,7 +463,11 @@ public:
     ~DataEntry() {}
   private:
     friend class DataArray;
+<<<<<<< HEAD
     const Uint8* m_data_ptr;
+=======
+    Uint8* m_data_ptr;
+>>>>>>> pr/231
     Uint32 m_data_len;
   };
 
@@ -814,16 +825,6 @@ NdbPack::Data::get_max_len() const
 }
 
 inline Uint32
-NdbPack::Data::get_max_len4() const
-{
-  Uint32 len4 = get_max_len();
-  len4 += 3;
-  len4 /= 4;
-  len4 *= 4;
-  return len4;
-}
-
-inline Uint32
 NdbPack::Data::get_var_bytes() const
 {
   return m_varBytes;
@@ -949,8 +950,13 @@ NdbPack::DataArray::get_data_len() const
 }
 
 inline NdbPack::BoundArray::BoundArray() :
+<<<<<<< HEAD
   m_spec(nullptr),
   m_data_array(nullptr),
+=======
+  m_spec(NULL),
+  m_data_array(NULL),
+>>>>>>> pr/231
   m_side(0)
 {
 }

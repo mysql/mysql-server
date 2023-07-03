@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +41,11 @@
 #include <NdbEnv.h>
 #include <signaldata/DumpStateOrd.hpp>
 #include <string>
+<<<<<<< HEAD
 #include "../../src/ndbapi/NdbInfo.hpp"
+=======
+#include <NdbInfo.hpp>
+>>>>>>> pr/231
 
 static Vector<BaseString> table_list;
 
@@ -502,6 +510,162 @@ static bool check_arbitration_setup(Ndb_cluster_connection* connection) {
   ndbinfo.releaseScanOperation(scanOp);
   ndbinfo.closeTable(table);
   return arbitration_setup;
+}
+
+/**
+ * Perform up/downgrade of MGMDs
+ */
+int runChangeMgmds(NDBT_Context* ctx,
+                   NDBT_Step* step,
+                   NdbRestarter& restarter,
+                   AtrtClient& atrt,
+                   const uint clusterId,
+                   const NodeSet mgmdNodeSet)
+{
+  SqlResultSet mgmds;
+  if (!atrt.getMgmds(clusterId, mgmds))
+    return NDBT_FAILED;
+
+  const uint mgmdCount = mgmds.numRows();
+  uint restartCount = getNodeCount(mgmdNodeSet, mgmdCount);
+
+  if (ctx->getProperty("InitialMgmdRestart", Uint32(0)) == 1)
+  {
+    /**
+     * MGMD initial restart requires that all MGMDs are stopped,
+     * up/downgraded and started together
+     */
+    const char* mgmd_args = "--initial=1";
+
+    if (mgmdNodeSet != All &&
+        mgmdNodeSet != None)
+    {
+      ndbout << "Error cannot restart MGMDs --initial without restarting all."
+             << endl;
+      return NDBT_FAILED;
+    }
+
+    ndbout << "Restarting "
+             << restartCount << " of " << mgmdCount
+            << " mgmds with --initial" << endl;
+
+    uint startCount = restartCount;
+    while (mgmds.next() && restartCount --)
+    {
+      ndbout << "Stop mgmd " << mgmds.columnAsInt("node_id") << endl;
+      if (!atrt.stopProcess(mgmds.columnAsInt("id")) ||
+          !atrt.switchConfig(mgmds.columnAsInt("id"), mgmd_args))
+        return NDBT_FAILED;
+    }
+    mgmds.reset();
+    while (mgmds.next() && startCount --)
+    {
+      ndbout << "Start mgmd " << mgmds.columnAsInt("node_id") << endl;
+      if (!atrt.startProcess(mgmds.columnAsInt("id")))
+        return NDBT_FAILED;
+    }
+  }
+  else
+  {
+    /**
+     * MGMD rolling restart without initial, do one MGMD at a time
+     */
+    const char* mgmd_args = "--initial=0";
+
+    ndbout << "Restarting "
+             << restartCount << " of " << mgmdCount
+            << " mgmds" << endl;
+
+    while (mgmds.next() && restartCount --)
+    {
+      ndbout << "Restart mgmd " << mgmds.columnAsInt("node_id") << endl;
+      if (!atrt.changeVersion(mgmds.columnAsInt("id"), mgmd_args))
+        return NDBT_FAILED;
+
+      if(restarter.waitConnected())
+        return NDBT_FAILED;
+    }
+  }
+
+  bool arbitration_complete = false;
+  const int attempts = 10;
+  const int wait_time_ms = 500;
+  for (int a = 0; !arbitration_complete && a < attempts; a++) {
+    arbitration_complete = check_arbitration_setup(&ctx->m_cluster_connection);
+    if (!arbitration_complete) {
+      NdbSleep_MilliSleep(wait_time_ms);
+    }
+  }
+
+  if (!arbitration_complete) {
+    ndberr << "Failed to complete arbitration after "
+           << (attempts * wait_time_ms) / 1000 << " seconds" << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+static bool check_arbitration_setup(Ndb_cluster_connection* connection) {
+  NdbInfo ndbinfo(connection, "ndbinfo/");
+  if (!ndbinfo.init()) {
+    g_err << "ndbinfo.init failed" << endl;
+    return false;
+  }
+
+  const NdbInfo::Table* table;
+  if (ndbinfo.openTable("ndbinfo/membership", &table) != 0) {
+    g_err << "Failed to openTable(membership)" << endl;
+    return false;
+  }
+
+  NdbInfoScanOperation* scanOp = NULL;
+  if (ndbinfo.createScanOperation(table, &scanOp)) {
+    g_err << "No NdbInfoScanOperation" << endl;
+    ndbinfo.closeTable(table);
+    return false;
+  }
+
+  if (scanOp->readTuples() != 0) {
+    g_err << "scanOp->readTuples failed" << endl;
+    ndbinfo.releaseScanOperation(scanOp);
+    ndbinfo.closeTable(table);
+    return false;
+  }
+
+  const NdbInfoRecAttr* arbitrator_nodeid_colval =
+      scanOp->getValue("arbitrator");
+  const NdbInfoRecAttr* arbitration_connection_status_colval =
+      scanOp->getValue("arb_connected");
+
+  if (scanOp->execute() != 0) {
+    g_err << "scanOp->execute failed" << endl;
+    ndbinfo.releaseScanOperation(scanOp);
+    ndbinfo.closeTable(table);
+    return false;
+  }
+
+  bool arbitration_still_complete = true;
+  int ret;
+  while (arbitration_still_complete && (ret = scanOp->nextResult()) == 1) {
+    bool known_arbitrator = (arbitrator_nodeid_colval->u_32_value() != 0);
+    bool connected =
+        static_cast<bool>(arbitration_connection_status_colval->u_32_value());
+
+    arbitration_still_complete = known_arbitrator && connected;
+  }
+  ndbinfo.releaseScanOperation(scanOp);
+  ndbinfo.closeTable(table);
+
+  if (ret == -1) {
+    g_err << "Failure to process ndbinfo records" << endl;
+    return false;
+  }
+  if (!arbitration_still_complete) {
+    ndbout << "Waiting for arbitration to be setup" << endl;
+  }
+
+  return arbitration_still_complete;
 }
 
 /**
@@ -1660,6 +1824,11 @@ static int checkForUpgrade(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+<<<<<<< HEAD
+=======
+#define NDB_USE_CONFIG_VERSION_V2_80 NDB_MAKE_VERSION(8,0,18)
+
+>>>>>>> pr/231
 /**
  * This function skips the test case if it is configured to do a non-initial restart
  * but actually requires an initial restart.
@@ -3277,7 +3446,12 @@ TESTCASE("Downgrade_Newer_LCP_FS_Fail_WithMGMDInitialStart",
   // No postupgradecheck required as the downgrade is expected to fail
 }
 
+<<<<<<< HEAD
 NDBT_TESTSUITE_END(testUpgrade)
+=======
+
+NDBT_TESTSUITE_END(testUpgrade);
+>>>>>>> pr/231
 
 int main(int argc, const char** argv){
   ndb_init();

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -147,6 +155,7 @@ void init_timers(void) {
   }
 }
 
+<<<<<<< HEAD
 time_normalizer *time_normalizer::get_idle() {
   return &to_pico_data[USED_TIMER_NAME];
 }
@@ -157,14 +166,95 @@ time_normalizer *time_normalizer::get_wait() {
 
 time_normalizer *time_normalizer::get_stage() {
   return &to_pico_data[USED_TIMER_NAME];
+=======
+ulonglong get_timer_raw_value(enum_timer_name timer_name)
+{
+  switch (timer_name)
+  {
+  case TIMER_NAME_CYCLE:
+    return my_timer_cycles();
+  case TIMER_NAME_NANOSEC:
+    return my_timer_nanoseconds();
+  case TIMER_NAME_MICROSEC:
+    return my_timer_microseconds();
+  case TIMER_NAME_MILLISEC:
+    return my_timer_milliseconds();
+  case TIMER_NAME_TICK:
+    return my_timer_ticks();
+  default:
+    assert(false);
+  }
+  return 0;
+}
+
+ulonglong get_timer_raw_value_and_function(enum_timer_name timer_name, timer_fct_t *fct)
+{
+  switch (timer_name)
+  {
+  case TIMER_NAME_CYCLE:
+    *fct= my_timer_cycles;
+    return my_timer_cycles();
+  case TIMER_NAME_NANOSEC:
+    *fct= my_timer_nanoseconds;
+    return my_timer_nanoseconds();
+  case TIMER_NAME_MICROSEC:
+    *fct= my_timer_microseconds;
+    return my_timer_microseconds();
+  case TIMER_NAME_MILLISEC:
+    *fct= my_timer_milliseconds;
+    return my_timer_milliseconds();
+  case TIMER_NAME_TICK:
+    *fct= my_timer_ticks;
+    return my_timer_ticks();
+  default:
+    *fct= NULL;
+    assert(false);
+  }
+  return 0;
+}
+
+ulonglong get_timer_pico_value(enum_timer_name timer_name)
+{
+  ulonglong result;
+
+  switch (timer_name)
+  {
+  case TIMER_NAME_CYCLE:
+    result= (my_timer_cycles() - cycle_v0) * cycle_to_pico;
+    break;
+  case TIMER_NAME_NANOSEC:
+    result= (my_timer_nanoseconds() - nanosec_v0) * nanosec_to_pico;
+    break;
+  case TIMER_NAME_MICROSEC:
+    result= (my_timer_microseconds() - microsec_v0) * microsec_to_pico;
+    break;
+  case TIMER_NAME_MILLISEC:
+    result= (my_timer_milliseconds() - millisec_v0) * millisec_to_pico;
+    break;
+  case TIMER_NAME_TICK:
+    result= (my_timer_ticks() - tick_v0) * tick_to_pico;
+    break;
+  default:
+    result= 0;
+    assert(false);
+  }
+  return result;
+>>>>>>> upstream/cluster-7.6
 }
 
 time_normalizer *time_normalizer::get_statement() {
   return &to_pico_data[USED_TIMER_NAME];
 }
 
+<<<<<<< HEAD
 time_normalizer *time_normalizer::get_transaction() {
   return &to_pico_data[USED_TIMER_NAME];
+=======
+  assert(index >= FIRST_TIMER_NAME);
+  assert(index <= LAST_TIMER_NAME);
+
+  return & to_pico_data[index];
+>>>>>>> upstream/cluster-7.6
 }
 
 void time_normalizer::to_pico(ulonglong start, ulonglong end,

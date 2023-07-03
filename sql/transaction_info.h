@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,11 +48,178 @@ class Ha_trx_info_list;
 class THD;
 struct handlerton;
 
+<<<<<<< HEAD
 struct SAVEPOINT {
   SAVEPOINT *prev;
   char *name;
   size_t length;
   Ha_trx_info *ha_list;
+=======
+typedef struct st_changed_table_list
+{
+  struct	st_changed_table_list *next;
+  char		*key;
+  uint32        key_length;
+} CHANGED_TABLE_LIST;
+
+
+/**
+  Either statement transaction or normal transaction - related
+  thread-specific storage engine data.
+
+  If a storage engine participates in a statement/transaction,
+  an instance of this class is present in
+  thd->m_transaction.m_scope_info[STMT|SESSION].ha_list. The addition
+  this list is made by trans_register_ha().
+
+  When it's time to commit or rollback, each element of ha_list
+  is used to access storage engine's prepare()/commit()/rollback()
+  methods, and also to evaluate if a full two phase commit is
+  necessary.
+
+  @sa General description of transaction handling in handler.cc.
+*/
+
+class Ha_trx_info
+{
+public:
+
+  /**
+    Register this storage engine in the given transaction context.
+  */
+
+  void register_ha(Ha_trx_info *ha_info, handlerton *ht_arg)
+  {
+    DBUG_ENTER("Ha_trx_info::register_ha");
+    DBUG_PRINT("enter", ("ht: 0x%llx (%s)",
+                         (ulonglong) ht_arg,
+                         ha_legacy_type_name(ht_arg->db_type)));
+    assert(m_flags == 0);
+    assert(m_ht == NULL);
+    assert(m_next == NULL);
+
+    m_ht= ht_arg;
+    m_flags= (int) TRX_READ_ONLY; /* Assume read-only at start. */
+
+    m_next= ha_info;
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Clear, prepare for reuse.
+  */
+
+  void reset()
+  {
+    DBUG_ENTER("Ha_trx_info::reset");
+    m_next= NULL;
+    m_ht= NULL;
+    m_flags= 0;
+    DBUG_VOID_RETURN;
+  }
+
+  Ha_trx_info()
+  {
+    reset();
+  }
+
+  void set_trx_read_write()
+  {
+    assert(is_started());
+    m_flags|= (int) TRX_READ_WRITE;
+  }
+
+  bool is_trx_read_write() const
+  {
+    assert(is_started());
+    return m_flags & (int) TRX_READ_WRITE;
+  }
+
+  /**
+    Set the transaction flag to noop_read_write
+    If the transaction has no operation dml statement.
+  */
+  void set_trx_noop_read_write()
+  {
+    assert(is_started());
+    m_flags|= (int) TRX_NOOP_READ_WRITE;
+  }
+
+  /**
+    Check if the stmt transaction has noop_read_write flag set.
+  */
+  bool is_trx_noop_read_write() const
+  {
+    assert(is_started());
+    return m_flags & (int) TRX_NOOP_READ_WRITE;
+  }
+
+  bool is_started() const
+  {
+    return m_ht != NULL;
+  }
+
+
+  /**
+    Mark this transaction read-write if the argument is read-write.
+  */
+
+  void coalesce_trx_with(const Ha_trx_info *stmt_trx)
+  {
+    /*
+      Must be called only after the transaction has been started.
+      Can be called many times, e.g. when we have many
+      read-write statements in a transaction.
+    */
+    assert(is_started());
+    if (stmt_trx->is_trx_read_write())
+      set_trx_read_write();
+    if (stmt_trx->is_trx_noop_read_write())
+      set_trx_noop_read_write();
+  }
+
+  Ha_trx_info *next() const
+  {
+    assert(is_started());
+    return m_next;
+  }
+
+  handlerton *ht() const
+  {
+    assert(is_started());
+    return m_ht;
+  }
+
+private:
+  enum { TRX_READ_ONLY= 0, TRX_READ_WRITE= 1, TRX_NOOP_READ_WRITE= 2 };
+  /**
+    Auxiliary, used for ha_list management
+  */
+  Ha_trx_info *m_next;
+
+  /**
+    Although a given Ha_trx_info instance is currently always used
+    for the same storage engine, 'ht' is not-NULL only when the
+    corresponding storage is a part of a transaction.
+  */
+  handlerton *m_ht;
+
+  /**
+    Transaction flags related to this engine.
+    Not-null only if this instance is a part of transaction.
+    May assume a combination of enum values above.
+  */
+  uchar       m_flags;
+};
+
+struct st_savepoint
+{
+  struct st_savepoint *prev;
+  char                *name;
+  size_t              length;
+  Ha_trx_info         *ha_list;
+>>>>>>> upstream/cluster-7.6
   /** State of metadata locks before this savepoint was set. */
   MDL_savepoint mdl_savepoint;
 };
@@ -182,7 +357,9 @@ class Transaction_ctx {
     already caught a race condition case between xid_written and
     ready_preempt in MYSQL_BIN_LOG::ordered_commit.
   */
+<<<<<<< HEAD
   struct {
+<<<<<<< HEAD
     bool enabled{false};      // see ha_enable_transaction()
     bool xid_written{false};  // The session wrote an XID
     bool real_commit{false};  // Is this a "real" commit?
@@ -190,6 +367,28 @@ class Transaction_ctx {
     bool run_hooks{false};    // Call the after_commit hook
 #ifndef NDEBUG
     bool ready_preempt{false};  // internal in MYSQL_BIN_LOG::ordered_commit
+=======
+    bool enabled;      // see ha_enable_transaction()
+    bool pending;      // Is the transaction commit pending?
+    bool xid_written;  // The session wrote an XID
+    bool real_commit;  // Is this a "real" commit?
+    bool commit_low;   // see MYSQL_BIN_LOG::ordered_commit
+    bool run_hooks;    // Call the after_commit hook
+#ifndef DBUG_OFF
+    bool ready_preempt;  // internal in MYSQL_BIN_LOG::ordered_commit
+=======
+  struct
+  {
+    bool enabled;                   // see ha_enable_transaction()
+    bool pending;                   // Is the transaction commit pending?
+    bool xid_written;               // The session wrote an XID
+    bool real_commit;               // Is this a "real" commit?
+    bool commit_low;                // see MYSQL_BIN_LOG::ordered_commit
+    bool run_hooks;                 // Call the after_commit hook
+#ifndef NDEBUG
+    bool ready_preempt;             // internal in MYSQL_BIN_LOG::ordered_commit
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif
   } m_flags;
   /* Binlog-specific logical timestamps. */
@@ -226,10 +425,21 @@ class Transaction_ctx {
     m_savepoints = nullptr;
     m_xid_state.cleanup();
     m_rpl_transaction_ctx.cleanup();
+<<<<<<< HEAD
     m_transaction_write_set_ctx.reset_state();
     trans_begin_hook_invoked = false;
     m_mem_root.ClearForReuse();
     return;
+=======
+<<<<<<< HEAD
+    m_transaction_write_set_ctx.clear_write_set();
+    free_root(&m_mem_root, MYF(MY_KEEP_PREALLOC));
+=======
+    m_transaction_write_set_ctx.reset_state();
+    free_root(&m_mem_root,MYF(MY_KEEP_PREALLOC));
+>>>>>>> upstream/cluster-7.6
+    DBUG_VOID_RETURN;
+>>>>>>> pr/231
   }
 
   bool is_active(enum_trx_scope scope) const {

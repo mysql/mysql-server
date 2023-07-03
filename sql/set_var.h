@@ -1,6 +1,14 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,9 +170,17 @@ class sys_var {
 
  protected:
   typedef bool (*on_check_function)(sys_var *self, THD *thd, set_var *var);
+<<<<<<< HEAD
   typedef bool (*pre_update_function)(sys_var *self, THD *thd, set_var *var);
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   typedef bool (*on_update_function)(sys_var *self, THD *thd,
                                      enum_var_type type);
+=======
+  typedef bool (*pre_update_function)(sys_var *self, THD *thd, set_var *var);
+  typedef bool (*on_update_function)(sys_var *self, THD *thd, enum_var_type type);
+>>>>>>> upstream/cluster-7.6
 
   int flags;                      ///< or'ed flag_enum values
   int m_parse_flag;               ///< either PARSE_EARLY or PARSE_NORMAL.
@@ -289,6 +305,7 @@ class sys_var {
     that support the syntax @@keycache_name.variable_name
   */
   bool is_struct() { return option.var_type & GET_ASK_ADDR; }
+<<<<<<< HEAD
   /*
     Indicates whether this system variable is written to the binlog or not.
 
@@ -297,9 +314,26 @@ class sys_var {
 
     @return true if the variable is written to the binlog, false otherwise.
   */
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   bool is_written_to_binlog(enum_var_type type) {
     return type != OPT_GLOBAL && binlog_status == SESSION_VARIABLE_IN_BINLOG;
   }
+=======
+  /**
+    Indicates whether this system variable is written to the binlog or not.
+
+    Variables are written to the binlog as part of "status_vars" in
+    Query_log_event, as an Intvar_log_event, or a Rand_log_event.
+
+    @param type  Scope of the system variable.
+
+    @return true if the variable is written to the binlog, false otherwise.
+  */
+  bool is_written_to_binlog(enum_var_type type)
+  { return type != OPT_GLOBAL && binlog_status == SESSION_VARIABLE_IN_BINLOG; }
+>>>>>>> upstream/cluster-7.6
   virtual bool check_update_type(Item_result type) = 0;
 
   /**
@@ -930,6 +964,26 @@ class System_variable_tracker final {
   };
 };
 
+class Sys_var_tracker
+{
+public:
+  explicit Sys_var_tracker(sys_var *var);
+
+  sys_var *bind_system_variable(THD *thd);
+
+  bool operator==(const Sys_var_tracker &x) const {
+    return m_var && m_var == x.m_var;
+  }
+
+  bool is_sys_var(sys_var *x) const { return m_var == x; }
+
+private:
+  bool m_is_dynamic;   ///< true if dynamic variable
+  LEX_CSTRING m_name;  ///< variable name
+
+  sys_var *m_var;  ///< variable pointer
+};
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
@@ -941,12 +995,32 @@ class System_variable_tracker final {
 */
 class set_var_base {
  public:
+<<<<<<< HEAD
   set_var_base() = default;
   virtual ~set_var_base() = default;
   virtual int resolve(THD *thd) = 0;  ///< Check privileges & fix_fields
   virtual int check(THD *thd) = 0;    ///< Evaluate the expression
   virtual int update(THD *thd) = 0;   ///< Set the value
   virtual bool print(const THD *thd, String *str) = 0;  ///< To self-print
+=======
+  set_var_base() {}
+  virtual ~set_var_base() {}
+<<<<<<< HEAD
+  virtual int resolve(THD *thd) = 0;  ///< Check privileges & fix_fields
+  virtual int check(THD *thd) = 0;    ///< Evaluate the expression
+  virtual int update(THD *thd) = 0;   ///< Set the value
+  virtual void print(THD *thd, String *str) = 0;  ///< To self-print
+=======
+  virtual int check(THD *thd)=0;           /* To check privileges etc. */
+  virtual int update(THD *thd)=0;                  /* To set the value */
+  virtual int light_check(THD *thd) { return check(thd); }   /* for PS */
+  virtual void print(THD *thd, String *str)=0;	/* To self-print */
+  /// @returns whether this variable is @@@@optimizer_trace.
+  virtual bool is_var_optimizer_trace() const { return false; }
+  virtual void cleanup() {}
+};
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /**
     @returns whether this variable is @@@@optimizer_trace.
@@ -981,8 +1055,17 @@ class set_var : public set_var_base {
     const void *ptr;            ///< for Sys_var_struct
   } save_result;
 
+<<<<<<< HEAD
   ///< Resolver of the variable at the left hand side of the assignment.
   const System_variable_tracker m_var_tracker;
+=======
+private:
+  Sys_var_tracker var_tracker;
+
+public:
+  set_var(enum_var_type type_arg, sys_var *var_arg,
+          const LEX_STRING *base_name_arg, Item *value_arg);
+>>>>>>> pr/231
 
  public:
   set_var(enum_var_type type_arg, const System_variable_tracker &var_arg,
@@ -1007,12 +1090,22 @@ class set_var : public set_var_base {
   }
   bool is_var_optimizer_trace() const override {
     extern sys_var *Sys_optimizer_trace_ptr;
+<<<<<<< HEAD
     return m_var_tracker.eq_static_sys_var(Sys_optimizer_trace_ptr);
   }
 
   bool is_sensitive() const override;
 
   void update_source_user_host_timestamp(THD *thd, sys_var *var);
+=======
+    return var_tracker.is_sys_var(Sys_optimizer_trace_ptr);
+  }
+<<<<<<< HEAD
+=======
+#endif
+  virtual void cleanup() { var= NULL; }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /* User variables like @my_own_variable */

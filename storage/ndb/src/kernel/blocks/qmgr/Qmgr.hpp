@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,10 +73,13 @@
 #define ZARBIT_HANDLING 5
 #define ZSTART_FAILURE_LIMIT 6
 #define ZNOTIFY_STATE_CHANGE 7
+<<<<<<< HEAD
 #define ZCHECK_MULTI_TRP_CONNECT 8
 #define ZRESEND_GET_NUM_MULTI_TRP_REQ 9
 #define ZSWITCH_MULTI_TRP 10
 #define ZSEND_TRP_KEEP_ALIVE 11
+=======
+>>>>>>> pr/231
 
 /* Error Codes ------------------------------*/
 #define ZERRTOOMANY 1101

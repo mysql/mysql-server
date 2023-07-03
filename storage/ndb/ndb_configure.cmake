@@ -1,4 +1,13 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -245,7 +254,18 @@ ADD_DEFINITIONS(-DHAVE_NDB_CONFIG_H)
 
 # check zlib
 IF(NOT DEFINED WITH_ZLIB)
+<<<<<<< HEAD
   MESSAGE(FATAL_ERROR "No WITH_ZLIB defined")
+=======
+  # Hardcode use of the bundled zlib if not set by MySQL
+  MESSAGE(STATUS "Using bundled zlib (hardcoded)")
+  SET(ZLIB_LIBRARY zlib)
+<<<<<<< HEAD
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/zlib)
+=======
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/zlib)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 ENDIF()
 NDB_REQUIRE_VARIABLE(ZLIB_LIBRARY)
 

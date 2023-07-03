@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +112,19 @@ static MYSQL_SYSVAR_SET(
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
     "Syntax: myisam-recover-options[=option[,option...]], where option can be "
     "DEFAULT, BACKUP, FORCE, QUICK, or OFF",
+<<<<<<< HEAD
     nullptr, nullptr, 0, &myisam_recover_typelib);
+=======
+    NULL, NULL, 0, &myisam_recover_typelib);
+
+<<<<<<< HEAD
+static MYSQL_THDVAR_ULONG(
+    repair_threads, PLUGIN_VAR_RQCMDARG,
+    "If larger than 1, when repairing a MyISAM table all indexes will be "
+    "created in parallel, with one thread per index. The value of 1 "
+    "disables parallel repair",
+    NULL, NULL, 1, 1, ULONG_MAX, 1);
+>>>>>>> pr/231
 
 static MYSQL_THDVAR_ULONGLONG(
     sort_buffer_size, PLUGIN_VAR_RQCMDARG,
@@ -112,6 +132,12 @@ static MYSQL_THDVAR_ULONGLONG(
     "a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE",
     nullptr, nullptr, 8192 * 1024, (long)(MIN_SORT_BUFFER + MALLOC_OVERHEAD),
     SIZE_T_MAX, 1);
+=======
+static MYSQL_THDVAR_ULONGLONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
+  "The buffer that is allocated when sorting the index when doing "
+  "a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE", NULL, NULL,
+  8192 * 1024, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD), SIZE_T_MAX, 1);
+>>>>>>> upstream/cluster-7.6
 
 static MYSQL_SYSVAR_BOOL(
     use_mmap, opt_myisam_use_mmap, PLUGIN_VAR_NOCMDARG,
@@ -199,6 +225,14 @@ static void mi_check_print_msg(MI_CHECK *param, const char *msg_type,
     it yet is parallel repair. Due to following trace:
     mi_check_print_msg/push_warning/sql_alloc/my_pthread_getspecific_ptr.
   */
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  if (param->need_print_msg_lock) mysql_mutex_lock(&param->print_msg_mutex);
+
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   protocol->start_row();
   protocol->store_string(name, length, system_charset_info);
   protocol->store(param->op_name, system_charset_info);
@@ -207,6 +241,14 @@ static void mi_check_print_msg(MI_CHECK *param, const char *msg_type,
   if (protocol->end_row())
     LogErr(ERROR_LEVEL, ER_MY_NET_WRITE_FAILED_FALLING_BACK_ON_STDERR, msgbuf);
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  if (param->need_print_msg_lock) mysql_mutex_unlock(&param->print_msg_mutex);
+
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return;
 }
 
@@ -818,7 +860,16 @@ int ha_myisam::write_row(uchar *buf) {
     If we have an auto_increment column and we are writing a changed row
     or a new row, then update the auto_increment value in the record.
   */
+<<<<<<< HEAD
   if (table && table->next_number_field && buf == table->record[0]) {
+=======
+<<<<<<< HEAD
+  if (table->next_number_field && buf == table->record[0]) {
+=======
+  if (table && table->next_number_field && buf == table->record[0])
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     int error;
     if ((error = update_auto_increment())) return error;
   }
@@ -1039,6 +1090,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
       Since mixing mmap I/O and file I/O may cause various artifacts,
       memory mapping must be disabled.
     */
+<<<<<<< HEAD
     if (remap) mi_munmap_file(file);
     if (mi_test_if_sort_rep(file, file->state->records, key_map, false) &&
         (local_testflag & T_REP_BY_SORT)) {
@@ -1053,6 +1105,26 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
       error = mi_repair_by_sort(&param, file, fixed_name,
                                 param.testflag & T_QUICK, true);
     } else {
+=======
+    if (remap)
+      mi_munmap_file(file);
+    if (mi_test_if_sort_rep(file,file->state->records,key_map,0) &&
+	(local_testflag & T_REP_BY_SORT))
+    {
+      local_testflag|= T_STATISTICS;
+      param.testflag|= T_STATISTICS;		// We get this for free
+      statistics_done=1;
+      thd_proc_info(thd, "Repair by sorting");
+      /*
+        The new file is created with the right stats, so we can skip
+        copying file stats from old to new.
+      */
+      error= mi_repair_by_sort(&param, file, fixed_name,
+                               param.testflag & T_QUICK, TRUE);
+    }
+    else
+    {
+>>>>>>> upstream/cluster-7.6
       thd_proc_info(thd, "Repair with keycache");
       param.testflag &= ~T_REP_BY_SORT;
       /*
@@ -1099,15 +1171,34 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
     */
     if (file->state != &file->s->state.state)
       file->s->state.state = *file->state;
+<<<<<<< HEAD
     if (file->s->base.auto_key) update_auto_increment_key(&param, file, true);
     if (optimize_done) {
       mysql_mutex_lock(&share->intern_lock);
+=======
+    if (file->s->base.auto_key) update_auto_increment_key(&param, file, 1);
+    if (optimize_done)
+<<<<<<< HEAD
+>>>>>>> pr/231
       error = update_state_info(
           &param, file,
           UPDATE_TIME | UPDATE_OPEN_COUNT |
               (local_testflag & T_STATISTICS ? UPDATE_STAT : 0));
+<<<<<<< HEAD
       mysql_mutex_unlock(&share->intern_lock);
     }
+=======
+=======
+    {
+      mysql_mutex_lock(&share->intern_lock);
+      error = update_state_info(&param, file,
+				UPDATE_TIME | UPDATE_OPEN_COUNT |
+				(local_testflag &
+				 T_STATISTICS ? UPDATE_STAT : 0));
+      mysql_mutex_unlock(&share->intern_lock);
+    }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
          HA_STATUS_CONST);
     if (rows != file->state->records && !(param.testflag & T_VERY_SILENT)) {
@@ -1514,6 +1605,7 @@ int ha_myisam::rnd_end() {
 
 int ha_myisam::index_read_map(uchar *buf, const uchar *key,
                               key_part_map keypart_map,
+<<<<<<< HEAD
                               enum ha_rkey_function find_flag) {
   assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
@@ -1522,11 +1614,22 @@ int ha_myisam::index_read_map(uchar *buf, const uchar *key,
     return HA_ERR_KEY_NOT_FOUND;
   }
   int error = mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
+=======
+                              enum ha_rkey_function find_flag)
+{
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_key_count);
+  int error=mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+>>>>>>> upstream/cluster-7.6
   return error;
 }
 
 int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                   key_part_map keypart_map,
+<<<<<<< HEAD
                                   enum ha_rkey_function find_flag) {
   assert(pushed_idx_cond == nullptr);
   assert(pushed_idx_cond_keyno == MAX_KEY);
@@ -1536,13 +1639,30 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
     return HA_ERR_KEY_NOT_FOUND;
   }
   int error = mi_rkey(file, buf, index, key, keypart_map, find_flag);
+=======
+                                  enum ha_rkey_function find_flag)
+{
+  assert(pushed_idx_cond == NULL);
+  assert(pushed_idx_cond_keyno == MAX_KEY);
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  ha_statistic_increment(&SSV::ha_read_key_count);
+  int error=mi_rkey(file, buf, index, key, keypart_map, find_flag);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+>>>>>>> upstream/cluster-7.6
   return error;
 }
 
 int ha_myisam::index_read_last_map(uchar *buf, const uchar *key,
                                    key_part_map keypart_map) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(inited == INDEX);
+=======
+  DBUG_ENTER("ha_myisam::index_read_last");
+<<<<<<< HEAD
+  DBUG_ASSERT(inited == INDEX);
+>>>>>>> pr/231
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   if (file->s->keyinfo[active_index].flag & HA_FULLTEXT) {
     set_my_errno(HA_ERR_KEY_NOT_FOUND);
@@ -1578,16 +1698,81 @@ int ha_myisam::index_last(uchar *buf) {
   assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_last_count);
   int error = mi_rlast(file, buf, active_index);
+=======
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_key_count);
+  int error=mi_rkey(file, buf, active_index, key, keypart_map,
+                    HA_READ_PREFIX_LAST);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+  DBUG_RETURN(error);
+}
+
+int ha_myisam::index_next(uchar *buf)
+{
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_next_count);
+  int error=mi_rnext(file,buf,active_index);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+  return error;
+}
+
+int ha_myisam::index_prev(uchar *buf)
+{
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_prev_count);
+  int error=mi_rprev(file,buf, active_index);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+  return error;
+}
+
+int ha_myisam::index_first(uchar *buf)
+{
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_first_count);
+  int error=mi_rfirst(file, buf, active_index);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+  return error;
+}
+
+int ha_myisam::index_last(uchar *buf)
+{
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  assert(inited==INDEX);
+  ha_statistic_increment(&SSV::ha_read_last_count);
+  int error=mi_rlast(file, buf, active_index);
+  table->status=error ? STATUS_NOT_FOUND: 0;
+  MYSQL_INDEX_READ_ROW_DONE(error);
+>>>>>>> upstream/cluster-7.6
   return error;
 }
 
 int ha_myisam::index_next_same(uchar *buf, const uchar *key [[maybe_unused]],
                                uint length [[maybe_unused]]) {
   int error;
+<<<<<<< HEAD
   assert(inited == INDEX);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(inited == INDEX);
+>>>>>>> pr/231
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   do {
     error = mi_rnext_same(file, buf);
+=======
+  assert(inited==INDEX);
+  MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  ha_statistic_increment(&SSV::ha_read_next_count);
+  do
+  {
+    error= mi_rnext_same(file,buf);
+>>>>>>> upstream/cluster-7.6
   } while (error == HA_ERR_RECORD_DELETED);
   return error;
 }
@@ -1693,9 +1878,15 @@ int ha_myisam::extra(enum ha_extra_function operation) {
 
 int ha_myisam::reset(void) {
   /* Reset MyISAM specific part for index condition pushdown */
+<<<<<<< HEAD
   assert(pushed_idx_cond == nullptr);
   assert(pushed_idx_cond_keyno == MAX_KEY);
   mi_set_index_cond_func(file, nullptr, nullptr);
+=======
+  assert(pushed_idx_cond == NULL);
+  assert(pushed_idx_cond_keyno == MAX_KEY);
+  mi_set_index_cond_func(file, NULL, 0);
+>>>>>>> pr/231
   ds_mrr.reset();
   return mi_reset(file);
 }
@@ -1978,6 +2169,7 @@ static int myisam_init(void *p) {
 
   myisam_block_size = (uint)1 << my_bit_log2(opt_myisam_block_size);
 
+<<<<<<< HEAD
   myisam_hton = (handlerton *)p;
   myisam_hton->state = SHOW_OPTION_YES;
   myisam_hton->db_type = DB_TYPE_MYISAM;
@@ -1989,6 +2181,17 @@ static int myisam_init(void *p) {
   myisam_hton->is_supported_system_table = myisam_is_supported_system_table;
   myisam_hton->file_extensions = ha_myisam_exts;
   myisam_hton->rm_tmp_tables = default_rm_tmp_tables;
+=======
+  myisam_hton= (handlerton *)p;
+  myisam_hton->state= SHOW_OPTION_YES;
+  myisam_hton->db_type= DB_TYPE_MYISAM;
+  myisam_hton->create= myisam_create_handler;
+  myisam_hton->panic= myisam_panic;
+  myisam_hton->close_connection= myisam_close_connection;
+  myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES |
+                      HTON_SUPPORTS_PACKED_KEYS;
+  myisam_hton->is_supported_system_table= myisam_is_supported_system_table;
+>>>>>>> upstream/cluster-7.6
 
   main_thread_keycache_var = st_keycache_thread_var();
   mysql_cond_init(mi_keycache_thread_var_suspend,
@@ -2080,8 +2283,22 @@ static SYS_VAR *myisam_sysvars[] = {MYSQL_SYSVAR(block_size),
                                     MYSQL_SYSVAR(stats_method),
                                     nullptr};
 
+<<<<<<< HEAD
 struct st_mysql_storage_engine myisam_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
+=======
+static struct st_mysql_sys_var* myisam_sysvars[]= {
+  MYSQL_SYSVAR(block_size),
+  MYSQL_SYSVAR(data_pointer_size),
+  MYSQL_SYSVAR(max_sort_file_size),
+  MYSQL_SYSVAR(recover_options),
+  MYSQL_SYSVAR(sort_buffer_size),
+  MYSQL_SYSVAR(use_mmap),
+  MYSQL_SYSVAR(mmap_size),
+  MYSQL_SYSVAR(stats_method),
+  0
+};
+>>>>>>> upstream/cluster-7.6
 
 mysql_declare_plugin(myisam){
     MYSQL_STORAGE_ENGINE_PLUGIN,

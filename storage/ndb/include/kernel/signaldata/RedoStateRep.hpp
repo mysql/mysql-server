@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +46,11 @@ class RedoStateRep
   friend bool printREDO_STATE_REP(FILE*, const Uint32*, Uint32, Uint16);
 
 public:
+<<<<<<< HEAD
   static constexpr Uint32 SignalLength = 2;
+=======
+  STATIC_CONST( SignalLength = 2);
+>>>>>>> pr/231
 
   enum ReceiverInfo
   {

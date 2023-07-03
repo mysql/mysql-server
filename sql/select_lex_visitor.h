@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 #ifndef Query_block_VISITOR_INCLUDED
 #define Query_block_VISITOR_INCLUDED
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+#ifndef SELECT_LEX_VISITOR_INCLUDED
+#define SELECT_LEX_VISITOR_INCLUDED
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

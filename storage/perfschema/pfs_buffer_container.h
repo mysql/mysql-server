@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -166,8 +174,18 @@ class PFS_buffer_default_allocator {
     return 0;
   }
 
+<<<<<<< HEAD
   void free_array(array_type *array) {
+<<<<<<< HEAD
     assert(array->m_max > 0);
+=======
+    DBUG_ASSERT(array->m_max > 0);
+=======
+  void free_array(array_type *array)
+  {
+    assert(array->m_max > 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     PFS_FREE_ARRAY(m_builtin_class, array->m_max, sizeof(T), array->m_ptr);
     array->m_ptr = nullptr;
@@ -238,8 +256,18 @@ class PFS_buffer_container {
 
   iterator_type iterate() { return PFS_buffer_iterator<T, U, V>(this, 0); }
 
+<<<<<<< HEAD
   iterator_type iterate(uint index) {
+<<<<<<< HEAD
     assert(index <= m_max);
+=======
+    DBUG_ASSERT(index <= m_max);
+=======
+  iterator_type iterate(uint index)
+  {
+    assert(index <= m_max);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return PFS_buffer_iterator<T, U, V>(this, index);
   }
 
@@ -287,8 +315,18 @@ class PFS_buffer_container {
     }
   }
 
+<<<<<<< HEAD
   inline value_type *get(uint index) {
+<<<<<<< HEAD
     assert(index < m_max);
+=======
+    DBUG_ASSERT(index < m_max);
+=======
+  inline value_type* get(uint index)
+  {
+    assert(index < m_max);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     value_type *pfs = m_array.m_ptr + index;
     if (pfs->m_lock.is_populated()) {
@@ -325,9 +363,20 @@ class PFS_buffer_container {
 
   ulong m_lost;
 
+<<<<<<< HEAD
  private:
   value_type *scan_next(uint &index, uint *found_index) {
+<<<<<<< HEAD
     assert(index <= m_max);
+=======
+    DBUG_ASSERT(index <= m_max);
+=======
+private:
+  value_type* scan_next(uint & index, uint * found_index)
+  {
+    assert(index <= m_max);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     value_type *pfs_first = m_array.get_first();
     value_type *pfs = pfs_first + index;
@@ -626,9 +675,22 @@ class PFS_buffer_scalable_container {
         // ==================================================================
       }
 
+<<<<<<< HEAD
       assert(array != nullptr);
       pfs = array->allocate(dirty_state);
       if (pfs != nullptr) {
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(array != NULL);
+      pfs = array->allocate(dirty_state);
+      if (pfs != NULL) {
+=======
+      assert(array != NULL);
+      pfs= array->allocate(dirty_state);
+      if (pfs != NULL)
+      {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         /* Keep a pointer to the parent page, for deallocate(). */
         pfs->m_page = reinterpret_cast<PFS_opaque_container_page *>(array);
         return pfs;
@@ -682,10 +744,17 @@ class PFS_buffer_scalable_container {
         this, 0);
   }
 
+<<<<<<< HEAD
   iterator_type iterate(uint index) {
     assert(index <= m_max);
     return PFS_buffer_scalable_iterator<T, PFS_PAGE_SIZE, PFS_PAGE_COUNT, U, V>(
         this, index);
+=======
+  iterator_type iterate(uint index)
+  {
+    assert(index <= m_max);
+    return PFS_buffer_scalable_iterator<T, PFS_PAGE_SIZE, PFS_PAGE_COUNT, U, V>(this, index);
+>>>>>>> upstream/cluster-7.6
   }
 
   void apply(function_type fct) {
@@ -772,8 +841,18 @@ class PFS_buffer_scalable_container {
     }
   }
 
+<<<<<<< HEAD
   value_type *get(uint index) {
+<<<<<<< HEAD
     assert(index < m_max);
+=======
+    DBUG_ASSERT(index < m_max);
+=======
+  value_type* get(uint index)
+  {
+    assert(index < m_max);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     uint index_1 = index / PFS_PAGE_SIZE;
     array_type *page = m_pages[index_1];
@@ -856,13 +935,27 @@ class PFS_buffer_scalable_container {
   uint get_page_logical_size(uint page_index) {
     if (page_index + 1 < m_max_page_count) {
       return PFS_PAGE_SIZE;
+<<<<<<< HEAD
     }
     assert(page_index + 1 == m_max_page_count);
     return m_last_page_size;
   }
 
   value_type *scan_next(uint &index, uint *found_index) {
+<<<<<<< HEAD
     assert(index <= m_max);
+=======
+    DBUG_ASSERT(index <= m_max);
+=======
+    assert(page_index + 1 == m_max_page_count);
+    return m_last_page_size;
+  }
+
+  value_type* scan_next(uint & index, uint * found_index)
+  {
+    assert(index <= m_max);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     uint index_1 = index / PFS_PAGE_SIZE;
     uint index_2 = index % PFS_PAGE_SIZE;
@@ -1045,8 +1138,18 @@ class PFS_partitioned_buffer_scalable_container {
     return sum;
   }
 
+<<<<<<< HEAD
   value_type *allocate(pfs_dirty_state *dirty_state, uint partition) {
+<<<<<<< HEAD
     assert(partition < PFS_PARTITION_COUNT);
+=======
+    DBUG_ASSERT(partition < PFS_PARTITION_COUNT);
+=======
+  value_type *allocate(pfs_dirty_state *dirty_state, uint partition)
+  {
+    assert(partition < PFS_PARTITION_COUNT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return m_partitions[partition]->allocate(dirty_state);
   }
@@ -1151,10 +1254,22 @@ class PFS_partitioned_buffer_scalable_container {
     *sub_index = user_index & 0x00FFFFFF;
   }
 
+<<<<<<< HEAD
   value_type *scan_next(uint &partition_index, uint &sub_index,
                         uint *found_partition, uint *found_sub_index) {
+<<<<<<< HEAD
     value_type *record = nullptr;
     assert(partition_index < PFS_PARTITION_COUNT);
+=======
+    value_type *record = NULL;
+    DBUG_ASSERT(partition_index < PFS_PARTITION_COUNT);
+=======
+  value_type* scan_next(uint & partition_index, uint & sub_index, uint * found_partition, uint * found_sub_index)
+  {
+    value_type *record= NULL;
+    assert(partition_index < PFS_PARTITION_COUNT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     while (partition_index < PFS_PARTITION_COUNT) {
       sub_iterator_type sub_iterator =

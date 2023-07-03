@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -89,11 +97,35 @@ bool PFS_index_table_handles_by_object::match(PFS_table *pfs) {
 
   PFS_table_share *share = sanitize_table_share(pfs->m_share);
 
+<<<<<<< HEAD
   if (m_fields >= 2) {
     if (!m_key_2.match(share)) {
       return false;
     }
   }
+=======
+PFS_engine_table_share_state
+table_table_handles::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_table_handles::m_share=
+{
+  { C_STRING_WITH_LEN("table_handles") },
+  &pfs_readonly_acl,
+  table_table_handles::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_table_handles::get_row_count,
+  sizeof(PFS_simple_index),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+>>>>>>> upstream/cluster-7.6
 
   if (m_fields >= 3) {
     if (!m_key_3.match(share)) {
@@ -261,7 +293,12 @@ int table_table_handles::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -296,7 +333,44 @@ int table_table_handles::read_row_values(TABLE *table, unsigned char *buf,
           set_field_lock_type(f, m_row.m_external_lock);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* OBJECT_TYPE */
+      case 1: /* SCHEMA_NAME */
+      case 2: /* OBJECT_NAME */
+        m_row.m_object.set_field(f->field_index, f);
+        break;
+      case 3: /* OBJECT_INSTANCE_BEGIN */
+        set_field_ulonglong(f, (intptr) m_row.m_identity);
+        break;
+      case 4: /* OWNER_THREAD_ID */
+        set_field_ulonglong(f, m_row.m_owner_thread_id);
+        break;
+      case 5: /* OWNER_EVENT_ID */
+        set_field_ulonglong(f, m_row.m_owner_event_id);
+        break;
+      case 6: /* INTERNAL_LOCK */
+        set_field_lock_type(f, m_row.m_internal_lock);
+        break;
+      case 7: /* EXTERNAL_LOCK */
+        set_field_lock_type(f, m_row.m_external_lock);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

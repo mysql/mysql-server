@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,14 +31,31 @@
 #ifndef RPL_GROUP_REPLICATION_INCLUDED
 #define RPL_GROUP_REPLICATION_INCLUDED
 
+<<<<<<< HEAD
 #include <violite.h>
 #include <string>
 
 class THD;
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 class View_change_log_event;
 struct GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS;
 struct GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS;
 struct GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS;
+=======
+#include <string>
+#include "sql_plugin.h"
+#include <mysql/plugin.h>
+#include <mysql/plugin_group_replication.h>
+#include "replication.h"
+#include "log_event.h"
+
+#include "mysql/plugin_group_replication.h"
+
+class View_change_log_event;
+
+>>>>>>> upstream/cluster-7.6
 
 /*
   Group Replication plugin handler function accessors.

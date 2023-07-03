@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +90,11 @@ public:
    */
   SignalSender(TransporterFacade *facade, int blockNo = -1, bool deliverAll = false);
   SignalSender(Ndb_cluster_connection* connection, bool deliverAll = false);
+<<<<<<< HEAD
   ~SignalSender() override;
+=======
+  virtual ~SignalSender();
+>>>>>>> pr/231
   
   int lock();
   int unlock();
@@ -116,10 +124,15 @@ private:
   TransporterFacade * theFacade;
   bool m_locked;
   bool m_deliverAll;
+<<<<<<< HEAD
 
   NodeId find_node(const NodeBitmask& mask, bool (*cond)(const trp_node&));
 
  public:
+=======
+  
+public:
+>>>>>>> pr/231
   /**
    * trp_client interface
    */

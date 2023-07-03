@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +55,14 @@
 
 //#define DEBUG_ODIRECT
 
+<<<<<<< HEAD
 AsyncFile::AsyncFile(Ndbfs& fs) : theFileName(), m_thread_bound(false), m_fs(fs)
+=======
+AsyncFile::AsyncFile(SimulatedBlock& fs) :
+  theFileName(),
+  m_thread_bound(false),
+  m_fs(fs)
+>>>>>>> pr/231
 {
   m_thread = 0;
 

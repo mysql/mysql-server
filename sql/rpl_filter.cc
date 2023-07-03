@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1315,9 +1323,16 @@ bool Sql_cmd_change_repl_filter::execute(THD *thd) {
   return rc;
 }
 
+<<<<<<< HEAD
 void Sql_cmd_change_repl_filter::set_filter_value(
     mem_root_deque<Item *> *item_list, options_mysqld filter_type) {
   DBUG_TRACE;
+=======
+void Sql_cmd_change_repl_filter::set_filter_value(List<Item> *item_list,
+                                                  options_mysqld filter_type) {
+  DBUG_ENTER("Sql_cmd_change_repl_filter::set_filter_rule");
+<<<<<<< HEAD
+>>>>>>> pr/231
   switch (filter_type) {
     case OPT_REPLICATE_DO_DB:
       do_db_list = item_list;
@@ -1345,6 +1360,36 @@ void Sql_cmd_change_repl_filter::set_filter_value(
       assert(0);
       break;
       /* purecov: end */
+=======
+  switch (filter_type)
+  {
+  case OPT_REPLICATE_DO_DB:
+    do_db_list= item_list;
+    break;
+  case OPT_REPLICATE_IGNORE_DB:
+    ignore_db_list= item_list;
+    break;
+  case OPT_REPLICATE_DO_TABLE:
+    do_table_list= item_list;
+    break;
+  case OPT_REPLICATE_IGNORE_TABLE:
+    ignore_table_list= item_list;
+    break;
+  case OPT_REPLICATE_WILD_DO_TABLE:
+    wild_do_table_list= item_list;
+    break;
+  case OPT_REPLICATE_WILD_IGNORE_TABLE:
+    wild_ignore_table_list= item_list;
+    break;
+  case OPT_REPLICATE_REWRITE_DB:
+    rewrite_db_pair_list= item_list;
+    break;
+  default:
+    /* purecov: begin deadcode */
+    assert(0);
+    break;
+    /* purecov: end */
+>>>>>>> upstream/cluster-7.6
   }
 }
 

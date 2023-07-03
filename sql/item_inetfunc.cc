@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,10 +62,18 @@ static const char HEX_DIGITS[] = "0123456789abcdef";
 
 ///////////////////////////////////////////////////////////////////////////
 
+<<<<<<< HEAD
 longlong Item_func_inet_aton::val_int() {
   assert(fixed);
   assert(arg_count == 1);
   null_value = true;
+=======
+longlong Item_func_inet_aton::val_int()
+{
+  assert(fixed);
+  assert(arg_count == 1);
+  null_value= true;
+>>>>>>> upstream/cluster-7.6
 
   uint byte_result = 0;
   ulonglong result = 0;
@@ -126,11 +142,20 @@ err:
 
 ///////////////////////////////////////////////////////////////////////////
 
+<<<<<<< HEAD
 String *Item_func_inet_ntoa::val_str(String *str) {
   assert(fixed);
   assert(arg_count == 1);
   null_value = true;
   ulonglong n = (ulonglong)args[0]->val_int();
+=======
+String* Item_func_inet_ntoa::val_str(String* str)
+{
+  assert(fixed);
+  assert(arg_count == 1);
+  null_value= true;
+  ulonglong n= (ulonglong) args[0]->val_int();
+>>>>>>> upstream/cluster-7.6
 
   /*
     We do not know if args[0] is NULL until we have called
@@ -190,8 +215,18 @@ String *Item_func_inet_ntoa::val_str(String *str) {
   @return The function value.
 */
 
+<<<<<<< HEAD
 longlong Item_func_inet_bool_base::val_int() {
+<<<<<<< HEAD
   assert(fixed);
+=======
+  DBUG_ASSERT(fixed);
+=======
+longlong Item_func_inet_bool_base::val_int()
+{
+  assert(fixed);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (args[0]->result_type() != STRING_RESULT)  // String argument expected
     return 0;
@@ -219,10 +254,18 @@ longlong Item_func_inet_bool_base::val_int() {
   @return The function value.
 */
 
+<<<<<<< HEAD
 String *Item_func_inet_str_base::val_str_ascii(String *buffer) {
   assert(fixed);
   assert(arg_count == 1);
   null_value = true;
+=======
+String *Item_func_inet_str_base::val_str_ascii(String *buffer)
+{
+  assert(fixed);
+  assert(arg_count == 1);
+  null_value= true;
+>>>>>>> upstream/cluster-7.6
   String *arg_str;
 
   /*

@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +64,14 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
         destroySessionFactory();
     }
 
+<<<<<<< HEAD
+=======
+    @Override
+    protected void localTearDown() {
+        destroySessionFactory();
+    }
+
+>>>>>>> pr/231
     /**
      * A test to check the default cpu bind settings and to test the api calls
      * to change those values.
@@ -133,6 +145,7 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
         }
         destroySessionFactory();
 
+<<<<<<< HEAD
         // disable connection pooling and test the cpu locking properties
         testProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 0);
         // create session factory with modified cpu locking properties
@@ -150,6 +163,8 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
         }
         destroySessionFactory();
 
+=======
+>>>>>>> pr/231
         // use a custom dummy database to force creation of new session factory
         testProperties.put(Constants.PROPERTY_CLUSTER_DATABASE, "testDb4");
         // negative tests with invalid property settings

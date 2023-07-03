@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,12 +167,35 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
   else
     result = new (pc->mem_root) Item_func_ne(left, expr);
 
+<<<<<<< HEAD
   return result;
+=======
+  DBUG_RETURN(result);
+}
+
+bool PTI_table_wild::itemize(Parse_context *pc, Item **item) {
+  if (super::itemize(pc, item)) return true;
+
+<<<<<<< HEAD
+  schema = pc->thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA)
+               ? NullS
+               : schema;
+  *item = new (pc->mem_root) Item_field(POS(), schema, table, "*");
+  if (*item == NULL || (*item)->itemize(pc, item)) return true;
+  pc->select->with_wild++;
+  return false;
+>>>>>>> pr/231
 }
 
 bool PTI_comp_op::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res) || left->itemize(pc, &left) ||
       right->itemize(pc, &right))
+=======
+bool PTI_comp_op::itemize(Parse_context *pc, Item **res)
+{
+  if (super::itemize(pc, res) ||
+      left->itemize(pc, &left) || right->itemize(pc, &right))
+>>>>>>> upstream/cluster-7.6
     return true;
 
   *res = (*boolfunc2creator)(false)->create(left, right);
@@ -432,16 +463,43 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
       return true;
     }
 
+<<<<<<< HEAD
     assert(!new_row || (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
                         sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(!new_row || (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
+                             sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+>>>>>>> pr/231
     const bool read_only =
         !(new_row && sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE);
     Item_trigger_field *trg_fld = new (pc->mem_root)
         Item_trigger_field(POS(), new_row ? TRG_NEW_ROW : TRG_OLD_ROW, field,
                            SELECT_ACL, read_only);
+<<<<<<< HEAD
     if (trg_fld == nullptr || trg_fld->itemize(pc, (Item **)&trg_fld))
       return true;
     assert(trg_fld->type() == TRIGGER_FIELD_ITEM);
+=======
+    if (trg_fld == NULL || trg_fld->itemize(pc, (Item **)&trg_fld)) return true;
+    DBUG_ASSERT(trg_fld->type() == TRIGGER_FIELD_ITEM);
+=======
+    assert(!new_row ||
+           (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
+            sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+    const bool read_only=
+      !(new_row && sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE);
+    Item_trigger_field *trg_fld= new (pc->mem_root)
+               Item_trigger_field(POS(),
+                                  new_row ? TRG_NEW_ROW : TRG_OLD_ROW,
+                                  field,
+                                  SELECT_ACL,
+                                  read_only);
+    if (trg_fld == NULL || trg_fld->itemize(pc, (Item **) &trg_fld))
+      return true;
+    assert(trg_fld->type() == TRIGGER_FIELD_ITEM);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     /*
       Let us add this item to list of all Item_trigger_field objects

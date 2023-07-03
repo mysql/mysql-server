@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -437,12 +461,42 @@ static inline bool page_rec_is_infimum_low(ulint offset);
 [[nodiscard]] static inline bool page_rec_is_infimum(
     const rec_t *rec); /*!< in: record */
 
+<<<<<<< HEAD
 /** true if the record is the first user record on a page.
+<<<<<<< HEAD
 @param[in] rec  Record.
 @param[in] page Page.
 @return true if the first user record */
 [[nodiscard]] static inline bool page_rec_is_first(const rec_t *rec,
                                                    const page_t *page);
+=======
+ @return true if the first user record */
+=======
+/************************************************************//**
+true if distance between the records (measured in number of times we have to
+move to the next record) is at most the specified value
+@param[in]	left_rec	lefter record
+@param[in]	right_rec	righter record
+@param[in]	val		specified value to compare
+@return true if the distance is smaller than the value */
+UNIV_INLINE
+bool
+page_rec_distance_is_at_most(
+/*=========================*/
+	const rec_t*	left_rec,
+	const rec_t*	right_rec,
+	ulint		val)
+	MY_ATTRIBUTE((warn_unused_result));
+
+/************************************************************//**
+true if the record is the second last user record on a page.
+@return true if the second last user record */
+>>>>>>> upstream/cluster-7.6
+UNIV_INLINE
+bool page_rec_is_first(const rec_t *rec,   /*!< in: record */
+                       const page_t *page) /*!< in: page */
+    MY_ATTRIBUTE((warn_unused_result));
+>>>>>>> pr/231
 
 /** true if the record is the second user record on a page.
 @param[in] rec  Record.
@@ -796,8 +850,21 @@ inline ulong page_size_validate(ulong page_size);
 non-leaf node of a spatial index.
 param[in]       rec     Btree record
 param[in]       index   index
+<<<<<<< HEAD
 @return true if ok */
 bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index);
+=======
+@return TRUE if ok */
+bool page_is_spatial_non_leaf(
+/*==========================*/
+	const rec_t* rec,/*!< in: Btree record */
+	dict_index_t* index);/*!< in: index */
+
+#ifdef UNIV_MATERIALIZE
+#undef UNIV_INLINE
+#define UNIV_INLINE UNIV_INLINE_ORIGINAL
+#endif
+>>>>>>> pr/231
 
 #include "page0page.ic"
 

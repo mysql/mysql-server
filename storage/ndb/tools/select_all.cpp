@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,21 +140,47 @@ int main(int argc, char** argv){
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub);
   const char* _tabname;
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   opt_debug= "d:t:O,/tmp/ndb_select_all.trace";
 #endif
   if (opts.handle_options())
+=======
+  int ho_error;
+#ifndef NDEBUG
+  opt_debug= "d:t:O,/tmp/ndb_select_all.trace";
+#endif
+  if ((ho_error=handle_options(&argc, &argv, my_long_options,
+			       ndb_std_get_one_option)))
+  {
+    ndb_free_defaults(argv);
+>>>>>>> upstream/cluster-7.6
     return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
   if (argc == 0) {
     ndbout << "Missing table name. Please see the below usage for correct command." << endl;
+<<<<<<< HEAD
     opts.usage();
+=======
+    usage();
+    ndb_free_defaults(argv);
+>>>>>>> upstream/cluster-7.6
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   if (argc > (!_order? 1 : 2))
   {
     ndbout << "Error. TOO MANY ARGUMENTS GIVEN." << endl;
     ndbout << "Please see the below usage for correct command." << endl;
+<<<<<<< HEAD
     opts.usage();
+=======
+    usage();
+    ndb_free_defaults(argv);
+>>>>>>> upstream/cluster-7.6
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -156,17 +190,20 @@ int main(int argc, char** argv){
   if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   if (con.wait_until_ready(30,0) < 0)
   {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
   Ndb MyNdb(&con, _dbname );
   if(MyNdb.init() != 0){
     NDB_ERR(MyNdb.getNdbError());
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -176,6 +213,7 @@ int main(int argc, char** argv){
 
   if(pTab == NULL){
     ndbout << " Table " << _tabname << " does not exist!" << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -185,17 +223,21 @@ int main(int argc, char** argv){
       if(pIdx == 0)
       {
         ndbout << " Index " << argv[1] << " does not exists" << endl;
+        ndb_free_defaults(argv);
         return NDBT_ProgramExit(NDBT_WRONGARGS);
       }
     }
-    else{
+    else
+    {
       ndbout << " Order flag given without an index" << endl;
+      ndb_free_defaults(argv);
       return NDBT_ProgramExit(NDBT_WRONGARGS);
     }
   }
 
   if (_descending && ! _order) {
     ndbout << " Descending flag given without order flag" << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -206,12 +248,14 @@ int main(int argc, char** argv){
 		      _lock,
 		      _header, 
 		      _useHexFormat, 
-		      (char)*_delimiter, _order, _descending) != 0){
+		      (char)*_delimiter, _order, _descending) != 0)
+  {
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
+  ndb_free_defaults(argv);
   return NDBT_ProgramExit(NDBT_OK);
-
 }
 
 int scanReadRecords(Ndb* pNdb, 
@@ -237,6 +281,7 @@ int scanReadRecords(Ndb* pNdb,
     if (retryAttempt >= retryMax){
       ndbout << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
+      delete row;
       return -1;
     }
 
@@ -250,6 +295,7 @@ int scanReadRecords(Ndb* pNdb,
 	continue;
       }
       NDB_ERR(err);
+      delete row;
       return -1;
     }
 
@@ -260,6 +306,7 @@ int scanReadRecords(Ndb* pNdb,
     if (pOp == NULL) {
       NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
+      delete row;
       return -1;
     }
 
@@ -291,6 +338,7 @@ int scanReadRecords(Ndb* pNdb,
     if( rs != 0 ){
       NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
+      delete row;
       return -1;
     }
 
@@ -306,6 +354,7 @@ int scanReadRecords(Ndb* pNdb,
 	{
 	  NDB_ERR(pTrans->getNdbError());
 	  pNdb->closeTransaction(pTrans);
+          delete row;
 	  return -1;
 	}
     }
@@ -348,6 +397,7 @@ int scanReadRecords(Ndb* pNdb,
       }
       NDB_ERR(err);
       pNdb->closeTransaction(pTrans);
+      delete row;
       return -1;
     }
 
@@ -472,6 +522,7 @@ int scanReadRecords(Ndb* pNdb,
       }
       NDB_ERR(err);
       pNdb->closeTransaction(pTrans);
+      delete row;
       return -1;
     }
     
@@ -479,7 +530,9 @@ int scanReadRecords(Ndb* pNdb,
     
     ndbout << rows << " rows returned" << endl;
     
+    delete row;
     return 0;
   }
+  delete row;
   return -1;
 }

@@ -1,7 +1,16 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights
+ * reserved.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -234,6 +243,21 @@ bool construct_lookup(THD *thd, TABLE *table, Index_lookup *ref);
 int report_handler_error(TABLE *table, int error);
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
+<<<<<<< HEAD
+=======
+void join_read_key_unlock_row(st_join_table *tab);
+void join_const_unlock_row(st_join_table *tab);
+int join_init_quick_read_record(QEP_TAB *tab);
+int read_first_record_seq(QEP_TAB *tab);
+int join_init_read_record(QEP_TAB *tab);
+int join_read_first(QEP_TAB *tab);
+int join_read_last(QEP_TAB *tab);
+int join_read_last_key(QEP_TAB *tab);
+int join_materialize_derived(QEP_TAB *tab);
+int join_materialize_table_function(QEP_TAB *tab);
+int join_materialize_semijoin(QEP_TAB *tab);
+int join_read_prev_same(READ_RECORD *info);
+>>>>>>> pr/231
 
 int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 int update_item_cache_if_changed(List<Cached_item> &list);
@@ -256,6 +280,7 @@ bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(const Field *field, ulonglong *hash);
 int read_const(TABLE *table, Index_lookup *ref);
 
+<<<<<<< HEAD
 class QEP_TAB : public QEP_shared_owner {
  public:
   QEP_TAB()
@@ -274,7 +299,64 @@ class QEP_TAB : public QEP_shared_owner {
         ref_item_slice(REF_SLICE_SAVED_BASE),
         m_keyread_optim(false),
         m_reversed_access(false),
+<<<<<<< HEAD
         lateral_derived_tables_depend_on_me(0) {}
+=======
+        m_fetched_rows(0) {}
+=======
+class Opt_trace_object;
+
+class QEP_TAB : public Sql_alloc, public QEP_shared_owner
+{
+public:
+  QEP_TAB() :
+    QEP_shared_owner(),
+    table_ref(NULL),
+    flush_weedout_table(NULL),
+    check_weed_out_table(NULL),
+    firstmatch_return(NO_PLAN_IDX),
+    loosescan_key_len(0),
+    loosescan_buf(NULL),
+    match_tab(NO_PLAN_IDX),
+    found_match(false),
+    found(false),
+    not_null_compl(false),
+    first_unmatched(NO_PLAN_IDX),
+    materialized(false),
+    materialize_table(NULL),
+    read_first_record(NULL),
+    next_select(NULL),
+    read_record(),
+    save_read_first_record(NULL),
+    save_read_record(NULL),
+    used_null_fields(false),
+    used_uneven_bit_fields(false),
+    keep_current_rowid(false),
+    copy_current_rowid(NULL),
+    distinct(false),
+    not_used_in_distinct(false),
+    cache_idx_cond(NULL),
+    having(NULL),
+    op(NULL),
+    tmp_table_param(NULL),
+    filesort(NULL),
+    fields(NULL),
+    all_fields(NULL),
+    ref_array(NULL),
+    send_records(0),
+    quick_traced_before(false),
+    m_condition_optim(NULL),
+    m_quick_optim(NULL),
+    m_keyread_optim(false)
+  {
+    /**
+       @todo Add constructor to READ_RECORD.
+       All users do init_read_record(), which does memset(),
+       rather than invoking a constructor.
+    */
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /// Initializes the object from a JOIN_TAB
   void init(JOIN_TAB *jt);

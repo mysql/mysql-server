@@ -1,7 +1,15 @@
 #ifndef SQL_SORT_INCLUDED
 #define SQL_SORT_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,10 +75,21 @@ struct Merge_chunk {
     m_buffer_start = start;
     m_buffer_end = end;
   }
+<<<<<<< HEAD
   void set_buffer_start(uchar *start) { m_buffer_start = start; }
   void set_buffer_end(uchar *end) {
     assert(m_buffer_end == nullptr || end <= m_buffer_end);
     m_buffer_end = end;
+=======
+  void set_buffer_start(uchar *start)
+  {
+    m_buffer_start= start;
+  }
+  void set_buffer_end(uchar *end)
+  {
+    assert(m_buffer_end == NULL || end <= m_buffer_end);
+    m_buffer_end= end;
+>>>>>>> upstream/cluster-7.6
   }
   void set_valid_buffer_end(uchar *end) {
     assert(end <= m_buffer_end);
@@ -141,6 +160,7 @@ struct Merge_chunk {
 
 typedef Bounds_checked_array<Merge_chunk> Merge_chunk_array;
 
+<<<<<<< HEAD
 /*
   The result of Unique or filesort; can either be stored on disk
   (in which case io_cache points to the file) or in memory in one
@@ -157,6 +177,269 @@ class Sort_result {
   Sort_result() : sorted_result_in_fsbuf(false), sorted_result_end(nullptr) {}
 
   bool has_result_in_memory() const {
+=======
+/**
+  This class wraps information about usage of addon fields.
+  An Addon_fields object is used both during packing of data in the filesort
+  buffer, and later during unpacking in 'Filesort_info::unpack_addon_fields'.
+  
+  @see documentation for the Sort_addon_field struct.
+  @see documentation for get_addon_fields()
+ */
+class Addon_fields {
+public:
+  Addon_fields(Addon_fields_array arr)
+    : m_field_descriptors(arr),
+      m_addon_buf(NULL),
+      m_addon_buf_length(0),
+      m_using_packed_addons(false)
+  {
+    assert(!arr.is_null());
+  }
+
+  Sort_addon_field *begin() { return m_field_descriptors.begin(); }
+  Sort_addon_field *end()   { return m_field_descriptors.end(); }
+  size_t num_field_descriptors() const { return m_field_descriptors.size(); }
+
+  /// rr_unpack_from_tempfile needs an extra buffer when unpacking.
+  uchar *allocate_addon_buf(uint sz)
+  {
+    if (m_addon_buf != NULL)
+    {
+      assert(m_addon_buf_length == sz);
+      return m_addon_buf;
+    }
+    m_addon_buf= static_cast<uchar*>(sql_alloc(sz));
+    if (m_addon_buf)
+      m_addon_buf_length= sz;
+    return m_addon_buf;
+  }
+
+  uchar *get_addon_buf()              { return m_addon_buf; }
+  uint   get_addon_buf_length() const { return m_addon_buf_length; }
+
+  void set_using_packed_addons(bool val)
+  {
+    m_using_packed_addons= val;
+  }
+
+  bool using_packed_addons() const
+  {
+    return m_using_packed_addons;
+  }
+
+  static bool can_pack_addon_fields(uint record_length)
+  {
+    return (record_length <= (0xFFFF));
+  }
+
+  /**
+    @returns Total number of bytes used for packed addon fields.
+    the size of the length field + size of null bits + sum of field sizes.
+   */
+  static uint read_addon_length(uchar *p)
+  {
+    return size_of_length_field + uint2korr(p);
+  }
+
+  /**
+    Stores the number of bytes used for packed addon fields.
+   */
+  static void store_addon_length(uchar *p, uint sz)
+  {
+    // We actually store the length of everything *after* the length field.
+    int2store(p, sz - size_of_length_field);
+  }
+
+  static const uint size_of_length_field= 2;
+
+private:
+  Addon_fields_array m_field_descriptors;
+
+  uchar    *m_addon_buf;            ///< Buffer for unpacking addon fields.
+  uint      m_addon_buf_length;     ///< Length of the buffer.
+  bool      m_using_packed_addons;  ///< Are we packing the addon fields?
+};
+
+/**
+  There are two record formats for sorting:
+    |<key a><key b>...|<rowid>|
+    /  sort_length    / ref_l /
+
+  or with "addon fields"
+    |<key a><key b>...|<null bits>|<field a><field b>...|
+    /  sort_length    /         addon_length            /
+
+  The packed format for "addon fields"
+    |<key a><key b>...|<length>|<null bits>|<field a><field b>...|
+    /  sort_length    /         addon_length                     /
+
+  <key>       Fields are fixed-size, specially encoded with
+              Field::make_sort_key() so we can do byte-by-byte compare.
+  <length>    Contains the *actual* packed length (after packing) of
+              everything after the sort keys.
+              The size of the length field is 2 bytes,
+              which should cover most use cases: addon data <= 65535 bytes.
+              This is the same as max record size in MySQL.
+  <null bits> One bit for each nullable field, indicating whether the field
+              is null or not. May have size zero if no fields are nullable.
+  <field xx>  Are stored with field->pack(), and retrieved with field->unpack().
+              Addon fields within a record are stored consecutively, with no
+              "holes" or padding. They will have zero size for NULL values.
+
+ */
+class Sort_param {
+public:
+  uint rec_length;            // Length of sorted records.
+  uint sort_length;           // Length of sorted columns.
+  uint ref_length;            // Length of record ref.
+  uint addon_length;          // Length of added packed fields.
+  uint res_length;            // Length of records in final sorted file/buffer.
+  uint max_keys_per_buffer;   // Max keys / buffer.
+  ha_rows max_rows;           // Select limit, or HA_POS_ERROR if unlimited.
+  ha_rows examined_rows;      // Number of examined rows.
+  TABLE *sort_form;           // For quicker make_sortkey.
+  bool use_hash;              // Whether to use hash to distinguish cut JSON
+
+  /**
+    ORDER BY list with some precalculated info for filesort.
+    Array is created and owned by a Filesort instance.
+   */
+  Bounds_checked_array<st_sort_field> local_sortorder;
+
+  Addon_fields *addon_fields; ///< Descriptors for addon fields.
+  uchar *unique_buff;
+  bool not_killable;
+  bool using_pq;
+  char* tmp_buffer;
+
+  // The fields below are used only by Unique class.
+  Merge_chunk_compare_context cmp_context;
+  typedef int (*chunk_compare_fun)(Merge_chunk_compare_context* ctx,
+                                   uchar* arg1, uchar* arg2);
+  chunk_compare_fun compare;
+
+  Sort_param()
+  {
+    memset(this, 0, sizeof(*this));
+  }
+  /**
+    Initialize this struct for filesort() usage.
+    @see description of record layout above.
+    @param [in,out] file_sort Sorting information which may be re-used on
+                              subsequent invocations of filesort().
+    @param sortlen   Length of sorted columns.
+    @param table     Table to be sorted.
+    @param max_length_for_sort_data From thd->variables.
+    @param maxrows   HA_POS_ERROR or possible LIMIT value.
+    @param sort_positions @see documentation for the filesort() function.
+  */
+  void init_for_filesort(Filesort *file_sort,
+                         uint sortlen, TABLE *table,
+                         ulong max_length_for_sort_data,
+                         ha_rows maxrows, bool sort_positions);
+
+  /// Enables the packing of addons if possible.
+  void try_to_pack_addons(ulong max_length_for_sort_data);
+
+  /// Are we packing the "addon fields"?
+  bool using_packed_addons() const
+  {
+    assert(m_using_packed_addons ==
+           (addon_fields != NULL && addon_fields->using_packed_addons()));
+    return m_using_packed_addons;
+  }
+
+  /// Are we using "addon fields"?
+  bool using_addon_fields() const
+  {
+    return addon_fields != NULL;
+  }
+
+  /**
+    Stores key fields in *to.
+    Then appends either *ref_pos (the <rowid>) or the "addon fields".
+    @param  to      out Where to store the result
+    @param  ref_pos in  Where to find the <rowid>
+    @returns Number of bytes stored.
+   */
+  uint make_sortkey(uchar *to, const uchar *ref_pos);
+
+  /// @returns The number of bytes used for sorting.
+  size_t compare_length() const {
+    return sort_length;
+  }
+
+  /**
+    Getter for record length and result length.
+    @param record_start Pointer to record.
+    @param [out] recl   Store record length here.
+    @param [out] resl   Store result length here.
+   */
+  void get_rec_and_res_len(uchar *record_start, uint *recl, uint *resl)
+  {
+    if (!using_packed_addons())
+    {
+      *recl= rec_length;
+      *resl= res_length;
+      return;
+    }
+    uchar *plen= record_start + sort_length;
+    *resl= Addon_fields::read_addon_length(plen);
+    assert(*resl <= res_length);
+    const uchar *record_end= plen + *resl;
+    *recl= static_cast<uint>(record_end - record_start);
+  }
+
+private:
+  uint m_packable_length;     ///< total length of fields which have a packable type
+  bool m_using_packed_addons; ///< caches the value of using_packed_addons()
+
+  // Not copyable.
+  Sort_param(const Sort_param&);
+  Sort_param &operator=(const Sort_param&);
+};
+
+
+/**
+  A class wrapping misc buffers used for sorting.
+  It is part of 'struct TABLE' which is still initialized using memset(),
+  so do not add any virtual functions to this class.
+ */
+class Filesort_info
+{
+  /// Buffer for sorting keys.
+  Filesort_buffer filesort_buffer;
+
+public:
+  IO_CACHE *io_cache;             ///< If sorted through filesort
+  Merge_chunk_array merge_chunks; ///< Array of chunk descriptors
+
+  Addon_fields *addon_fields;     ///< Addon field descriptors.
+
+  /**
+    If the entire result of filesort fits in memory, we skip the merge phase.
+    We may leave the result in filesort_buffer
+    (indicated by sorted_result_in_fsbuf), or we may strip away
+    the sort keys, and copy the sorted result into a new buffer.
+    This new buffer is [sorted_result ... sorted_result_end]
+    @see save_index()
+   */
+  bool      sorted_result_in_fsbuf;
+  uchar     *sorted_result;
+  uchar     *sorted_result_end;
+
+  ha_rows   found_records;        ///< How many records in sort.
+
+  // Note that we use the default copy CTOR / assignment operator in filesort().
+  Filesort_info()
+    : sorted_result_in_fsbuf(false),
+      sorted_result(NULL), sorted_result_end(NULL)
+  {};
+
+  bool has_filesort_result_in_memory() const
+  {
+>>>>>>> upstream/cluster-7.6
     return sorted_result || sorted_result_in_fsbuf;
   }
 

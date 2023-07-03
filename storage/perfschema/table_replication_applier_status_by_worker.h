@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,8 +119,16 @@ struct st_row_worker {
   - position [0] is for Single Thread Slave (Master_info)
   - position [1] .. [N] is for Multi Thread Slave (Slave_worker)
 */
+<<<<<<< HEAD
 struct pos_replication_applier_status_by_worker : public PFS_double_index {
   pos_replication_applier_status_by_worker() : PFS_double_index(0, 0) {}
+=======
+struct pos_replication_applier_status_by_worker : public PFS_double_index
+{
+
+  pos_replication_applier_status_by_worker() : PFS_double_index(0, 0)
+  {}
+>>>>>>> upstream/cluster-7.6
 
   inline void reset(void) {
     m_index_1 = 0;
@@ -130,6 +146,18 @@ struct pos_replication_applier_status_by_worker : public PFS_double_index {
 
   inline void set_channel_after(
       const pos_replication_applier_status_by_worker *other) {
+    m_index_1 = other->m_index_1 + 1;
+    m_index_2 = 0;
+  }
+
+  inline void next_worker()
+  {
+    m_index_2++;
+  }
+
+  inline void
+  set_channel_after(const pos_replication_applier_status_by_worker *other)
+  {
     m_index_1 = other->m_index_1 + 1;
     m_index_2 = 0;
   }
@@ -184,11 +212,20 @@ class PFS_index_rpl_applier_status_by_worker_by_thread
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_status_by_worker */
+<<<<<<< HEAD
 class table_replication_applier_status_by_worker : public PFS_engine_table {
   typedef pos_replication_applier_status_by_worker pos_t;
 
  private:
   int make_row(Slave_worker *);
+=======
+class table_replication_applier_status_by_worker: public PFS_engine_table
+{
+  typedef pos_replication_applier_status_by_worker pos_t;
+
+private:
+  void make_row(Slave_worker *);
+>>>>>>> upstream/cluster-7.6
   /*
     Master_info to construct a row to display SQL Thread's status
     information in STS mode
@@ -199,8 +236,21 @@ class table_replication_applier_status_by_worker : public PFS_engine_table {
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
+<<<<<<< HEAD
   /** Table definition. */
   static Plugin_table m_table_def;
+=======
+  /** Fields definition. */
+  static TABLE_FIELD_DEF m_field_def;
+  /** current row*/
+  st_row_worker m_row;
+  /** True is the current row exists. */
+  bool m_row_exists;
+  /** Current position. */
+  pos_t m_pos;
+  /** Next position. */
+  pos_t m_next_pos;
+>>>>>>> upstream/cluster-7.6
 
   /** current row. */
   st_row_worker m_row;
@@ -226,6 +276,7 @@ class table_replication_applier_status_by_worker : public PFS_engine_table {
  public:
   ~table_replication_applier_status_by_worker() override;
 
+  static PFS_engine_table_share_state m_share_state;
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);

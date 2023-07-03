@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +41,7 @@
 
 THR_LOCK table_session_connect_attrs::m_table_lock;
 
+<<<<<<< HEAD
 Plugin_table table_session_connect_attrs::m_table_def(
     /* Schema name */
     "performance_schema",
@@ -62,6 +71,28 @@ PFS_engine_table_share table_session_connect_attrs::m_share = {
     PFS_engine_table_proxy(),
     {0},
     false /* m_in_purgatory */
+=======
+PFS_engine_table_share_state
+table_session_connect_attrs::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_session_connect_attrs::m_share=
+{
+  { C_STRING_WITH_LEN("session_connect_attrs") },
+  &pfs_readonly_acl,
+  table_session_connect_attrs::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  cursor_by_thread_connect_attr::get_row_count,
+  sizeof(pos_connect_attr_by_thread_by_attr), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+>>>>>>> upstream/cluster-7.6
 };
 
 PFS_engine_table *table_session_connect_attrs::create(

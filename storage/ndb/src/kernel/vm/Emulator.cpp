@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -456,7 +460,11 @@ static const char* const jamFileNames[] =
    "arrayPoolTest.cpp",                  // 321 DELETED FILE
    "SimBlockList.hpp",                   // 322
    "mt-lock.hpp",                        // 323
+<<<<<<< HEAD
    "rr.cpp",                             // 324 DELETED FILE
+=======
+   "rr.cpp",                             // 324
+>>>>>>> pr/231
    "testCopy.cpp",                       // 325
    "Ndbinfo.cpp",                        // 326
    "SectionReader.cpp",                  // 327
@@ -522,7 +530,11 @@ static const char* const jamFileNames[] =
    "AsyncFile.cpp",                      // 387
    "AsyncIoThread.cpp",                  // 388
    "AsyncFileTest.cpp",                  // 389 DELETED FILE
+<<<<<<< HEAD
    "MemoryChannel.cpp",                  // 390 DELETED FILE
+=======
+   "MemoryChannel.cpp",                  // 390
+>>>>>>> pr/231
    "AsyncFile.hpp",                      // 391
    "Filename.hpp",                       // 392
    "Ndbfs.cpp",                          // 393
@@ -634,6 +646,7 @@ static const char* const jamFileNames[] =
    "UndoLogLevel.hpp",                   // 499
    "RedoStateRep.hpp",                   // 500
    "printFragfile.cpp",                  // 501
+<<<<<<< HEAD
    "TransientPagePool.hpp",              // 502
    "TransientPagePool.cpp",              // 503
    "TransientSlotPool.hpp",              // 504
@@ -675,6 +688,8 @@ static const char* const jamFileNames[] =
    "QRestoreProxy.cpp",                  // 540
    "TrpKeepAlive.hpp",                   // 541
    "TrpKeepAlive.cpp",                   // 542
+=======
+>>>>>>> pr/231
    };
 
 bool 

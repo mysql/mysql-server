@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +29,7 @@ IF(WIN32)
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(ndblogger
+<<<<<<< HEAD
   BufferedLogHandler.cpp
   ConsoleLogHandler.cpp
   FileLogHandler.cpp
@@ -35,3 +40,14 @@ ADD_CONVENIENCE_LIBRARY(ndblogger
   ${EXTRA_SRC}
   LINK_LIBRARIES ndbgeneral
   )
+=======
+            Logger.cpp
+            LogHandlerList.cpp
+            LogHandler.cpp
+            ConsoleLogHandler.cpp
+	    SysLogHandler.cpp
+            EventLogHandler.cpp
+            FileLogHandler.cpp
+            BufferedLogHandler.cpp)
+TARGET_LINK_LIBRARIES(ndblogger ndbgeneral)
+>>>>>>> pr/231

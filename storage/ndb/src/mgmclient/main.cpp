@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -238,6 +246,8 @@ int main(int argc, char** argv){
   // Don't allow negative return code
   if (ret < 0)
     ret = 255;
+
+  ndb_free_defaults(argv);
   return ret;
 }
 

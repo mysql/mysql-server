@@ -26,9 +26,14 @@
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyConf.hpp>
 #include <signaldata/DictTabInfo.hpp>
+<<<<<<< HEAD
 #include "portlib/ndb_compiler.h"
 #include <cstddef>
 #include <cstdint>
+=======
+#include <stddef.h>
+#include <stdint.h>
+>>>>>>> pr/231
 
 /**
  * 'class NdbReceiveBuffer' takes care of buffering multi-row
@@ -524,7 +529,11 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
   UintPtr pos = 0;
 
   bool pk_is_known = false;
+<<<<<<< HEAD
   if (likely(result_record != nullptr))
+=======
+  if (likely(result_record != NULL))
+>>>>>>> pr/231
   {
     for (Uint32 i= 0; i<result_record->noOfColumns; i++)
     {
@@ -824,7 +833,11 @@ Uint32 NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
                                   const Uint32* const aDataPtr,
                                   Uint32 aLength)
 {
+<<<<<<< HEAD
   constexpr Uint32 ERROR = UINT32_MAX;
+=======
+  const Uint32 ERROR = UINT32_MAX;
+>>>>>>> pr/231
   if (unlikely(bmlen > aLength)) return ERROR;
   NdbRecAttr* currRecAttr = *recAttr;
   const Uint8* src = (const Uint8*)(aDataPtr + bmlen);
@@ -863,7 +876,10 @@ Uint32 NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
         handle_packed_bit((const char*)src, bitPos, len, currRecAttr->aRef());
         src += byte_len;
         bitPos = (bitPos + len) & 31;
+<<<<<<< HEAD
         currRecAttr->set_size_in_bytes(sz);
+=======
+>>>>>>> pr/231
         goto next;
       }
       default:
@@ -886,7 +902,11 @@ Uint32 NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
       
       bitPos = 0;
       if (unlikely(end < src + sz)) return ERROR;
+<<<<<<< HEAD
       currRecAttr->receive_data((const Uint32*)src, sz);
+=======
+      currRecAttr->receive_data((Uint32*)src, sz);
+>>>>>>> pr/231
       src += sz;
   next:
       currRecAttr = currRecAttr->next();
@@ -895,7 +915,11 @@ Uint32 NdbReceiver::unpackRecAttr(NdbRecAttr** recAttr,
   * recAttr = currRecAttr;
   const Uint8* read_src = pad(src, 0, bitPos);
   if (unlikely(end < read_src)) return ERROR;
+<<<<<<< HEAD
   const std::ptrdiff_t read_words = (const Uint32*)read_src - aDataPtr;
+=======
+  const ptrdiff_t read_words = (const Uint32*)read_src - aDataPtr;
+>>>>>>> pr/231
   if (unlikely(read_words < 0) || unlikely(read_words > INT32_MAX))
     return ERROR;
   return (Uint32)read_words;

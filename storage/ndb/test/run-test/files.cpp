@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +26,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+<<<<<<< HEAD
 #include "util/require.h"
 #include <time.h>
 
 #include "portlib/ndb_compiler.h"
+=======
+>>>>>>> pr/231
 #include <portlib/NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include "atrt.hpp"
@@ -122,6 +129,22 @@ static void printfile(FILE* out, Properties& props, const char* section, ...) {
   fflush(out);
 }
 
+<<<<<<< HEAD
+=======
+static char* dirname(const char* path) {
+  char* s = strdup(path);
+  size_t len = strlen(s);
+  for (size_t i = 1; i < len; i++) {
+    if (s[len - i] == '/') {
+      s[len - i] = 0;
+      return s;
+    }
+  }
+  free(s);
+  return 0;
+}
+
+>>>>>>> pr/231
 #ifdef _WIN32
 #define popen _popen
 #define pclose _pclose
@@ -269,14 +292,22 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
   }
 
   if (setup == 2 || config.m_generated) {
+<<<<<<< HEAD
     bool use_mysqld =
         (g_resources.getExecutableFullPath(g_resources.MYSQL_INSTALL_DB) == "");
+=======
+    bool use_mysqld = (g_mysql_install_db_bin_path == NULL);
+>>>>>>> pr/231
     if (!use_mysqld) {
       // Even if mysql_install_db exists, prefer use of mysqld if possible
       BaseString mysqld_bin_path =
           g_resources.getExecutableFullPath(g_resources.MYSQLD).c_str();
       BaseString tmp;
+<<<<<<< HEAD
       tmp.assfmt("%s --help --verbose", mysqld_bin_path.c_str());
+=======
+      tmp.assfmt("%s --help --verbose", g_mysqld_bin_path);
+>>>>>>> pr/231
       FILE* f = popen(tmp.c_str(), "re");
       char buf[1000];
       while (NULL != fgets(buf, sizeof(buf), f)) {
@@ -309,12 +340,16 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
               return false;
             }
 
+<<<<<<< HEAD
             BaseString mysqld_bin_path =
                 g_resources.getExecutableFullPath(g_resources.MYSQLD).c_str();
+=======
+>>>>>>> pr/231
             tmp.assfmt(
                 "%s --defaults-file=%s/my.cnf --basedir=%s "
                 "--datadir=%s --initialize-insecure --init-file=%s"
                 "> %s/mysqld-initialize.log 2>&1",
+<<<<<<< HEAD
                 mysqld_bin_path.c_str(), g_basedir, g_prefix, val,
                 initFile.c_str(), proc.m_proc.m_cwd.c_str());
           } else {
@@ -326,6 +361,16 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
                 "%s --defaults-file=%s/my.cnf --basedir=%s "
                 "--datadir=%s > %s/mysql_install_db.log 2>&1",
                 mysql_install_db_bin_path.c_str(), g_basedir, g_prefix0, val,
+=======
+                g_mysqld_bin_path, g_basedir, g_prefix, val, initFile.c_str(),
+                proc.m_proc.m_cwd.c_str());
+          } else {
+            assert(g_mysql_install_db_bin_path != NULL);
+            tmp.assfmt(
+                "%s --defaults-file=%s/my.cnf --basedir=%s "
+                "--datadir=%s > %s/mysql_install_db.log 2>&1",
+                g_mysql_install_db_bin_path, g_basedir, g_prefix0, val,
+>>>>>>> pr/231
                 proc.m_proc.m_cwd.c_str());
           }
           to_fwd_slashes(tmp);
@@ -415,12 +460,22 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
         keys.push_back("PATH");
 
         {
+<<<<<<< HEAD
         /**
          * In 5.5...binaries aren't compiled with rpath
          * So we need an explicit LD_LIBRARY_PATH
          *
          * Use path from libmysqlclient.so
          */
+=======
+          /**
+           * In 5.5...binaries aren't compiled with rpath
+           * So we need an explicit LD_LIBRARY_PATH
+           *
+           * Use path from libmysqlclient.so
+           */
+          char* dir = dirname(g_libmysqlclient_so_path);
+>>>>>>> pr/231
 #if defined(__MACH__)
           BaseString libdir =
               g_resources.getLibraryDirectory(g_resources.LIBMYSQLCLIENT_DYLIB)

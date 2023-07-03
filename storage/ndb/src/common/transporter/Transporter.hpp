@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +51,9 @@
                   ((e == SOCKET_EAGAIN) || \
                    (e == SOCKET_EWOULDBLOCK) || \
                    (e == SOCKET_EINTR)))))
+
+#define DISCONNECT_ERRNO(e, sz) ((sz == 0) || \
+                                 (!((sz == -1) && ((e == SOCKET_EAGAIN) || (e == SOCKET_EWOULDBLOCK) || (e == SOCKET_EINTR)))))
 
 class Transporter {
   friend class TransporterRegistry;
@@ -138,6 +145,13 @@ public:
   ndb_socket_t getSocket() const;
 
   /**
+   * Returns socket used (sockets are used for all transporters to ensure
+   * we can wake up also shared memory transporters and other types of
+   * transporters in consistent manner.
+   */
+  NDB_SOCKET_TYPE getSocket() const;
+
+  /**
    * Blocking
    */
   void doDisconnect();
@@ -215,6 +229,8 @@ public:
    */
   virtual void shutdown() { abort();}
 
+  TransporterType getTransporterType() const;
+
 protected:
   Transporter(TransporterRegistry &,
               TrpId transporter_index,
@@ -287,7 +303,11 @@ protected:
   Uint32 m_slowdown_count;
 
   // Sending/Receiving socket used by both client and server
+<<<<<<< HEAD
   ndb_socket_t theSocket;
+=======
+  NDB_SOCKET_TYPE theSocket;
+>>>>>>> pr/231
 private:
   SocketClient *m_socket_client;
   struct in6_addr m_connect_address;
@@ -308,6 +328,15 @@ protected:
   Uint32 m_recv_thread_idx;
   bool m_is_active;
 
+<<<<<<< HEAD
+=======
+  virtual bool send_is_possible(int timeout_millisec) const = 0;
+  virtual bool send_limit_reached(int bufsize) = 0;
+
+  void update_connect_state(bool connected);
+
+protected:
+>>>>>>> pr/231
   Uint32 m_os_max_iovec;
   Uint32 m_timeOutMillis;
   bool m_connected;     // Are we connected
@@ -330,7 +359,11 @@ protected:
   Uint32 fetch_send_iovec_data(struct iovec dst[], Uint32 cnt);
   void iovec_data_sent(int nBytesSent);
 
+<<<<<<< HEAD
   void set_get(ndb_socket_t fd,
+=======
+  void set_get(NDB_SOCKET_TYPE fd,
+>>>>>>> pr/231
                int level,
                int optval,
                const char *optname, 
@@ -368,7 +401,11 @@ protected:
 };
 
 inline
+<<<<<<< HEAD
 ndb_socket_t
+=======
+NDB_SOCKET_TYPE
+>>>>>>> pr/231
 Transporter::getSocket() const {
   return theSocket;
 }

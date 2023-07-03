@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -239,9 +247,20 @@ class sp_rcontext {
 
   /// @return the continue instruction pointer of the last activated CONTINUE
   /// handler. This function must not be called for the EXIT handlers.
+<<<<<<< HEAD
   uint get_last_handler_continue_ip() const {
     uint ip = m_activated_handlers.back()->continue_ip;
+<<<<<<< HEAD
     assert(ip != 0);
+=======
+    DBUG_ASSERT(ip != 0);
+=======
+  uint get_last_handler_continue_ip() const
+  {
+    uint ip= m_activated_handlers.back()->continue_ip;
+    assert(ip != 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return ip;
   }

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +29,7 @@
   TABLE PROCESSLIST.
 */
 
+<<<<<<< HEAD
 #include "storage/perfschema/table_processlist.h"
 
 #include <assert.h>
@@ -92,12 +97,112 @@ PFS_engine_table *table_processlist::create(PFS_engine_table_share *) {
 }
 
 table_processlist::table_processlist() : cursor_by_thread(&m_share) {
+=======
+#include "my_global.h"
+
+#include "table_processlist.h"
+
+#include <assert.h>
+// #include "lex_string.h"
+#include "my_compiler.h"
+
+#include "my_thread.h"
+#include "auth_acls.h"
+#include "field.h"
+#include "sql_class.h"
+#include "sql_parse.h"
+#include "table.h"
+#include "pfs_buffer_container.h"
+#include "pfs_global.h"
+#include "pfs_instr.h"
+#include "pfs_instr_class.h"
+
+THR_LOCK table_processlist::m_table_lock;
+
+static const TABLE_FIELD_TYPE field_types[] =
+{
+  {
+    { C_STRING_WITH_LEN("ID") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("USER") },
+    { C_STRING_WITH_LEN("varchar(" USERNAME_CHAR_LENGTH_STR ")") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("HOST") },
+    { C_STRING_WITH_LEN("varchar(" HOST_AND_PORT_LENGTH_STR ")") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("DB") },
+    { C_STRING_WITH_LEN("varchar(64)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("COMMAND") },
+    { C_STRING_WITH_LEN("varchar(16)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("TIME") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("STATE") },
+    { C_STRING_WITH_LEN("varchar(64)") },
+    { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("INFO") },
+    { C_STRING_WITH_LEN("longtext") },
+    { NULL, 0}
+  },
+};
+
+TABLE_FIELD_DEF
+table_processlist::m_field_def = {8, field_types};
+
+PFS_engine_table_share_state
+table_processlist::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share table_processlist::m_share = {
+  {C_STRING_WITH_LEN("processlist")},
+  &pfs_readonly_processlist_acl,
+  table_processlist::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  cursor_by_thread::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  true, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table *table_processlist::create() {
+  return new table_processlist();
+}
+
+table_processlist::table_processlist()
+    : cursor_by_thread(&m_share), m_row_exists(false) {
+>>>>>>> pr/231
   m_row_priv.m_auth = PROCESSLIST_DENIED;
 }
 
 int table_processlist::set_access(void) {
   THD *thd = current_thd;
+<<<<<<< HEAD
   if (thd == nullptr) {
+=======
+  if (thd == NULL) {
+>>>>>>> pr/231
     /* Robustness, no user session. */
     m_row_priv.m_auth = PROCESSLIST_DENIED;
     return 0;
@@ -125,11 +230,16 @@ int table_processlist::set_access(void) {
   return 0;
 }
 
+<<<<<<< HEAD
 int table_processlist::rnd_init(bool scan [[maybe_unused]]) {
+=======
+int table_processlist::rnd_init(bool scan) {
+>>>>>>> pr/231
   set_access();
   return 0;
 }
 
+<<<<<<< HEAD
 bool PFS_index_processlist_by_processlist_id::match(PFS_thread *pfs) {
   if (m_fields >= 1) {
     if (!m_key.match(pfs)) {
@@ -155,20 +265,31 @@ int table_processlist::index_init(uint idx, bool) {
 }
 
 int table_processlist::make_row(PFS_thread *pfs) {
+=======
+void table_processlist::make_row(PFS_thread *pfs) {
+>>>>>>> pr/231
   pfs_optimistic_state lock;
   pfs_optimistic_state session_lock;
   pfs_optimistic_state stmt_lock;
   PFS_stage_class *stage_class;
   PFS_thread_class *safe_class;
 
+<<<<<<< HEAD
   if (m_row_priv.m_auth == PROCESSLIST_DENIED) {
     return HA_ERR_END_OF_FILE;
+=======
+  m_row_exists = false;
+
+  if (m_row_priv.m_auth == PROCESSLIST_DENIED) {
+    return;
+>>>>>>> pr/231
   }
 
   /* Protect this reader against thread termination */
   pfs->m_lock.begin_optimistic_lock(&lock);
 
   safe_class = sanitize_thread_class(pfs->m_class);
+<<<<<<< HEAD
   if (unlikely(safe_class == nullptr)) {
     return HA_ERR_RECORD_DELETED;
   }
@@ -176,6 +297,14 @@ int table_processlist::make_row(PFS_thread *pfs) {
   /* Ignore background threads. */
   if (pfs->m_user_name.length() == 0 || pfs->m_processlist_id == 0)
     return HA_ERR_RECORD_DELETED;
+=======
+  if (unlikely(safe_class == NULL)) {
+    return;
+  }
+
+  /* Ignore background threads. */
+  if (pfs->m_username_length == 0 || pfs->m_processlist_id == 0) return;
+>>>>>>> pr/231
 
   m_row.m_processlist_id = pfs->m_processlist_id;
 
@@ -183,24 +312,35 @@ int table_processlist::make_row(PFS_thread *pfs) {
   pfs->m_session_lock.begin_optimistic_lock(&session_lock);
 
   /* Maintain user/host compatibility with the legacy SHOW PROCESSLIST. */
+<<<<<<< HEAD
   const char *username = pfs->m_user_name.ptr();
   uint username_len = pfs->m_user_name.length();
   uint hostname_len = pfs->m_host_name.length();
   bool user_name_set = false;
+=======
+  const char *username = pfs->m_username;
+  uint username_len = pfs->m_username_length;
+  uint hostname_len = pfs->m_hostname_length;
+>>>>>>> pr/231
 
   if (pfs->m_class->is_system_thread()) {
     if (username_len == 0 ||
         (!strncmp(username, "root", 4) && username_len == 4)) {
       username = "system user";
       username_len = strlen(username);
+<<<<<<< HEAD
       m_row.m_user_name.set(username, username_len);
       hostname_len = 0;
       user_name_set = true;
+=======
+      hostname_len = 0;
+>>>>>>> pr/231
     }
   } else {
     if (username_len == 0) {
       username = "unauthenticated user";
       username_len = strlen(username);
+<<<<<<< HEAD
       m_row.m_user_name.set(username, username_len);
       hostname_len = 0;
       user_name_set = true;
@@ -209,15 +349,36 @@ int table_processlist::make_row(PFS_thread *pfs) {
 
   if (!user_name_set) {
     m_row.m_user_name = pfs->m_user_name;
+=======
+      hostname_len = 0;
+    }
+  }
+
+  m_row.m_username_length = username_len;
+  if (unlikely(m_row.m_username_length > sizeof(m_row.m_username))) {
+    return;
+  }
+
+  if (m_row.m_username_length != 0) {
+    memcpy(m_row.m_username, username, username_len);
+>>>>>>> pr/231
   }
 
   m_row.m_hostname_length = hostname_len;
   if (unlikely(m_row.m_hostname_length > sizeof(m_row.m_hostname))) {
+<<<<<<< HEAD
     return HA_ERR_RECORD_DELETED;
   }
 
   if (m_row.m_hostname_length != 0) {
     memcpy(m_row.m_hostname, pfs->m_host_name.ptr(), m_row.m_hostname_length);
+=======
+    return;
+  }
+
+  if (m_row.m_hostname_length != 0) {
+    memcpy(m_row.m_hostname, pfs->m_hostname, m_row.m_hostname_length);
+>>>>>>> pr/231
   }
 
   if (!pfs->m_session_lock.end_optimistic_lock(&session_lock)) {
@@ -230,25 +391,49 @@ int table_processlist::make_row(PFS_thread *pfs) {
       Do not loop waiting for a stable value.
       Just return NULL values.
     */
+<<<<<<< HEAD
     m_row.m_user_name.reset();
+=======
+    m_row.m_username_length = 0;
+>>>>>>> pr/231
     m_row.m_hostname_length = 0;
   }
 
   /* Enforce row filtering. */
   if (m_row_priv.m_auth == PROCESSLIST_USER_ONLY) {
+<<<<<<< HEAD
     if (m_row.m_user_name.length() != m_row_priv.m_priv_user_length) {
       return HA_ERR_RECORD_DELETED;
     }
     if (strncmp(m_row.m_user_name.ptr(), m_row_priv.m_priv_user,
                 m_row_priv.m_priv_user_length) != 0) {
       return HA_ERR_RECORD_DELETED;
+=======
+    if (m_row.m_username_length != m_row_priv.m_priv_user_length) {
+      return;
+    }
+    if (strncmp(m_row.m_username, m_row_priv.m_priv_user,
+                m_row_priv.m_priv_user_length) != 0) {
+      return;
+>>>>>>> pr/231
     }
   }
 
   /* Protect this reader against statement attributes changes */
   pfs->m_stmt_lock.begin_optimistic_lock(&stmt_lock);
 
+<<<<<<< HEAD
   m_row.m_db_name = pfs->m_db_name;
+=======
+  m_row.m_dbname_length = pfs->m_dbname_length;
+  if (unlikely(m_row.m_dbname_length > sizeof(m_row.m_dbname))) {
+    return;
+  }
+
+  if (m_row.m_dbname_length != 0) {
+    memcpy(m_row.m_dbname, pfs->m_dbname, m_row.m_dbname_length);
+  }
+>>>>>>> pr/231
 
   m_row.m_processlist_info_ptr = &pfs->m_processlist_info[0];
   m_row.m_processlist_info_length = pfs->m_processlist_info_length;
@@ -263,7 +448,11 @@ int table_processlist::make_row(PFS_thread *pfs) {
       Do not loop waiting for a stable value.
       Just return NULL values.
     */
+<<<<<<< HEAD
     m_row.m_db_name.reset();
+=======
+    m_row.m_dbname_length = 0;
+>>>>>>> pr/231
     m_row.m_processlist_info_length = 0;
   }
 
@@ -276,11 +465,19 @@ int table_processlist::make_row(PFS_thread *pfs) {
   m_row.m_start_time = pfs->m_start_time;
 
   stage_class = find_stage_class(pfs->m_stage);
+<<<<<<< HEAD
   if (stage_class != nullptr) {
     m_row.m_processlist_state_ptr =
         stage_class->m_name.str() + stage_class->m_prefix_length;
     m_row.m_processlist_state_length =
         stage_class->m_name.length() - stage_class->m_prefix_length;
+=======
+  if (stage_class != NULL) {
+    m_row.m_processlist_state_ptr =
+        stage_class->m_name + stage_class->m_prefix_length;
+    m_row.m_processlist_state_length =
+        stage_class->m_name_length - stage_class->m_prefix_length;
+>>>>>>> pr/231
     if (m_row.m_processlist_state_length > 64) {
       /*
         Column STATE is VARCHAR(64)
@@ -297,15 +494,27 @@ int table_processlist::make_row(PFS_thread *pfs) {
     m_row.m_processlist_state_length = 0;
   }
 
+<<<<<<< HEAD
   if (m_row.m_hostname_length > 0 && pfs->m_peer_port != 0) {
     /* Create HOST:PORT. */
     std::string host(m_row.m_hostname, m_row.m_hostname_length);
     std::string host_ip = host + ":" + std::to_string(pfs->m_peer_port);
+=======
+  m_row.m_port = pfs->m_peer_port;
+
+  if (m_row.m_hostname_length > 0 && m_row.m_port != 0) {
+    /* Create HOST:PORT. */
+    char str_port[10];
+    sprintf(str_port, ":%d", m_row.m_port);
+    std::string host(m_row.m_hostname, m_row.m_hostname_length);
+    std::string host_ip = host + str_port;
+>>>>>>> pr/231
     m_row.m_hostname_length =
         std::min((int)HOST_AND_PORT_LENGTH, (int)host_ip.length());
     memcpy(m_row.m_hostname, host_ip.c_str(), m_row.m_hostname_length);
   }
 
+<<<<<<< HEAD
   m_row.m_secondary = pfs->m_secondary;
 
   if (!pfs->m_lock.end_optimistic_lock(&lock)) {
@@ -313,17 +522,33 @@ int table_processlist::make_row(PFS_thread *pfs) {
   }
 
   return 0;
+=======
+  if (!pfs->m_lock.end_optimistic_lock(&lock)) {
+    return;
+  }
+
+  m_row_exists = true;
+  return;
+>>>>>>> pr/231
 }
 
 int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
                                        Field **fields, bool read_all) {
   Field *f;
 
+<<<<<<< HEAD
+=======
+  if (unlikely(!m_row_exists)) {
+    return HA_ERR_RECORD_DELETED;
+  }
+
+>>>>>>> pr/231
   /* Set the null bits */
   assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
+<<<<<<< HEAD
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
         case 0: /* ID */
@@ -337,27 +562,51 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           if (m_row.m_user_name.length() > 0) {
             set_field_varchar_utf8mb4(f, m_row.m_user_name.ptr(),
                                       m_row.m_user_name.length());
+=======
+    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
+      switch (f->field_index) {
+        case 0: /* ID */
+          set_field_ulonglong(f, m_row.m_processlist_id);
+          break;
+        case 1: /* USER */
+          if (m_row.m_username_length > 0) {
+            set_field_varchar_utf8(f, m_row.m_username,
+                                   m_row.m_username_length);
+>>>>>>> pr/231
           } else {
             f->set_null();
           }
           break;
+<<<<<<< HEAD
         case 2: /* HOST (and PORT) */
           if (m_row.m_hostname_length > 0) {
             set_field_varchar_utf8mb4(f, m_row.m_hostname,
                                       m_row.m_hostname_length);
+=======
+        case 2: /* HOST */
+          if (m_row.m_hostname_length > 0) {
+            set_field_varchar_utf8(f, m_row.m_hostname,
+                                   m_row.m_hostname_length);
+>>>>>>> pr/231
           } else {
             f->set_null();
           }
           break;
         case 3: /* DB */
+<<<<<<< HEAD
           if (m_row.m_db_name.length() > 0) {
             set_field_varchar_utf8mb4(f, m_row.m_db_name.ptr(),
                                       m_row.m_db_name.length());
+=======
+          if (m_row.m_dbname_length > 0) {
+            set_field_varchar_utf8(f, m_row.m_dbname, m_row.m_dbname_length);
+>>>>>>> pr/231
           } else {
             f->set_null();
           }
           break;
         case 4: /* COMMAND */
+<<<<<<< HEAD
           if (m_row.m_processlist_id != 0) {
             const std::string &cn = Command_names::str_session(m_row.m_command);
             set_field_varchar_utf8mb4(f, cn.c_str(), cn.length());
@@ -368,6 +617,14 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
         case 5: /* TIME */
           if (m_row.m_start_time) {
             time_t now = time(nullptr);
+=======
+          set_field_varchar_utf8(f, command_name[m_row.m_command].str,
+                                 command_name[m_row.m_command].length);
+          break;
+        case 5: /* TIME */
+          if (m_row.m_start_time) {
+            time_t now = my_time(0);
+>>>>>>> pr/231
             ulonglong elapsed =
                 (now > m_row.m_start_time ? now - m_row.m_start_time : 0);
             set_field_ulonglong(f, elapsed);
@@ -377,8 +634,13 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 6: /* STATE */
           /* For compatibility, leave blank if state is NULL. */
+<<<<<<< HEAD
           set_field_varchar_utf8mb4(f, m_row.m_processlist_state_ptr,
                                     m_row.m_processlist_state_length);
+=======
+          set_field_varchar_utf8(f, m_row.m_processlist_state_ptr,
+                                 m_row.m_processlist_state_length);
+>>>>>>> pr/231
           break;
         case 7: /* INFO */
           if (m_row.m_processlist_info_length > 0)
@@ -388,9 +650,12 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
             f->set_null();
           }
           break;
+<<<<<<< HEAD
         case 8: /* EXECUTION_ENGINE */
           set_field_enum(f, m_row.m_secondary ? ENUM_SECONDARY : ENUM_PRIMARY);
           break;
+=======
+>>>>>>> pr/231
         default:
           assert(false);
       }

@@ -1,6 +1,14 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -370,11 +378,23 @@ class base_list_iterator {
     el = &tmp->next;
     return tmp->info;
   }
+<<<<<<< HEAD
   inline void rewind(void) { el = &list->first; }
   inline void *replace(void *element) {  // Return old element
     void *tmp = current->info;
     assert(current->info != nullptr);
     current->info = element;
+=======
+  inline void rewind(void)
+  {
+    el= &list->first;
+  }
+  inline void *replace(void *element)
+  {						// Return old element
+    void *tmp=current->info;
+    assert(current->info != 0);
+    current->info=element;
+>>>>>>> upstream/cluster-7.6
     return tmp;
   }
   void *replace(base_list &new_list) {
@@ -768,11 +788,23 @@ class base_ilist {
                                Should be empty in input.
   */
 
+<<<<<<< HEAD
   void move_elements_to(base_ilist *new_owner) {
     assert(new_owner->is_empty());
     new_owner->first = first;
     new_owner->sentinel = sentinel;
+<<<<<<< HEAD
     clear();
+=======
+=======
+  void move_elements_to(base_ilist *new_owner)
+  {
+    assert(new_owner->is_empty());
+    new_owner->first= first;
+    new_owner->sentinel= sentinel;
+>>>>>>> upstream/cluster-7.6
+    empty();
+>>>>>>> pr/231
   }
 
   friend class base_ilist_iterator<T>;

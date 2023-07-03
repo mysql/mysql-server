@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD:storage/ndb/plugin/ndb_component.h
    Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231:sql/ndb_component.h
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,19 +56,29 @@ class Ndb_component {
   virtual int deinit();
 
   /*
+<<<<<<< HEAD
     Set the server as started, this means that the Ndb_component
     can continue processing and use parts of the MySQL Server which are
     not available unilt it's been fully started
   */
   void set_server_started();
 
+<<<<<<< HEAD:storage/ndb/plugin/ndb_component.h
  protected:
   /*
+=======
+=======
+>>>>>>> pr/231:sql/ndb_component.h
     Check if the server has started. This checks if the Ndb_component
     has been informed that the server has started.
    */
   bool is_server_started();
+<<<<<<< HEAD:storage/ndb/plugin/ndb_component.h
 
+=======
+>>>>>>> upstream/cluster-7.6
+protected:
+>>>>>>> pr/231:sql/ndb_component.h
   /**
    * Con/de-structor is protected...so that sub-class needs to provide own
    */

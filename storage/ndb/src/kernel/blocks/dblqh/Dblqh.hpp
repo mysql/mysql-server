@@ -273,6 +273,7 @@ class FsReadWriteReq;
 #define ZSTART_LOCAL_LCP 28
 #define ZCHECK_SYSTEM_SCANS 29
 #define ZSTART_QUEUED_SCAN 30
+<<<<<<< HEAD
 #define ZLQH_SHRINK_TRANSIENT_POOLS 31
 #define ZLQH_TRANSIENT_POOL_STAT 32
 #define ZPGMAN_PREP_LCP_ACTIVE_CHECK 33
@@ -283,6 +284,8 @@ class FsReadWriteReq;
 #define ZCONTINUE_WRITE_LOG 38
 #define ZSTART_SEND_EXEC_CONF 39
 #define ZPRINT_MUTEX_STATS 40
+=======
+>>>>>>> pr/231
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -663,7 +666,10 @@ public:
     BlockReference scanBlockref;
     ScanState scanState;
     ScanType scanType;
+<<<<<<< HEAD
     Uint32 scan_startLine;
+=======
+>>>>>>> pr/231
     NodeId scanNodeId;
     Uint16 scanReleaseCounter;
     Uint16 scanNumber;
@@ -715,11 +721,14 @@ public:
  * Mainly used to keep the scheduling rules.
  */
 #define ZMAX_SCAN_DIRECT_COUNT 16
+<<<<<<< HEAD
 
 #define DEBUG_FRAGMENT_LOCK 0
 #define LOCK_LINE_MASK 2047
 #define LOCK_READ_SPIN_TIME 30
 #define LOCK_WRITE_SPIN_TIME 40
+=======
+>>>>>>> pr/231
 
   struct Fragrecord {
     Fragrecord()
@@ -1588,6 +1597,7 @@ public:
       LES_EXEC_LOG_INVALIDATE = 10
     };
 
+<<<<<<< HEAD
     NdbMutex m_log_part_mutex;
 
     /**
@@ -1597,6 +1607,8 @@ public:
  
     RedoWorkStats m_redoWorkStats;
 
+=======
+>>>>>>> pr/231
     Uint64 m_total_written_words;
     Uint64 m_last_total_written_words;
 
@@ -2518,12 +2530,18 @@ public:
     Uint8 m_disk_table;
     bool  m_informed_backup_drop_tab;
 
+<<<<<<< HEAD
     std::atomic<unsigned int> usageCountR; // readers
     std::atomic<unsigned int> usageCountW; // writers
     Uint32 m_addfragptr_i;
     Uint32 m_senderData;
     Uint32 m_senderRef;
     bool m_restore_started;
+=======
+    Uint32 usageCountR; // readers
+    Uint32 usageCountW; // writers
+    Uint32 m_addfragptr_i;
+>>>>>>> pr/231
   }; // Size 100 bytes
   typedef Ptr<Tablerec> TablerecPtr;
   struct TcConnectionrec {
@@ -2741,6 +2759,10 @@ public:
     UintR readlenAi;
     UintR reqinfo;
     UintR schemaVersion;
+<<<<<<< HEAD
+=======
+    UintR simpleTcConnect;
+>>>>>>> pr/231
     UintR tableref;
     UintR tcOprec;
     UintR hashIndex;
@@ -2783,7 +2805,10 @@ public:
     Uint8 tcNodeFailrec;
     Uint8 m_disk_table;
     Uint8 m_use_rowid;
+<<<<<<< HEAD
     Uint8 m_query_thread;
+=======
+>>>>>>> pr/231
     enum dealloc_states {
       /*
        * Example set of dealloc ops:
@@ -2823,7 +2848,11 @@ public:
       OP_NOWAIT                 = 0x80
     };
     Uint32 m_flags;
+<<<<<<< HEAD
     LogPartRecord *m_log_part_ptr_p;
+=======
+    Uint32 m_log_part_ptr_i;
+>>>>>>> pr/231
     union {
       // op count, m_dealloc_state = DA_DEALLOC_COUNT[_ZOMBIE]
       Uint32 m_dealloc_ref_count;
@@ -2832,6 +2861,10 @@ public:
       // unused, m_dealloc_state = DA_IDLE
       Uint32 m_unused;
     } m_dealloc_data;
+<<<<<<< HEAD
+=======
+    SectionReader::PosInfo scanKeyInfoPos;
+>>>>>>> pr/231
     Local_key m_row_id;
 
     /**
@@ -2942,11 +2975,18 @@ public:
   Uint32 getCreateSchemaVersion(Uint32 tableId);
 
   void execNEXT_SCANCONF(Signal* signal);
+<<<<<<< HEAD
   void setup_scan_pointers(Uint32 scanPtrI, Uint32 line);
   void setup_scan_pointers_from_tc_con(TcConnectionrecPtr, Uint32 line);
   void setup_key_pointers(Uint32 tcIndex, bool acquire_lock = true);
   void exec_next_scan_conf(Signal *signal);
   void exec_next_scan_ref(Signal *signal);
+=======
+  void setup_scan_pointers(Uint32 scanPtrI);
+  void setup_scan_pointers_from_tc_con(TcConnectionrecPtr);
+  void setup_key_pointers(Uint32 tcIndex);
+  void exec_next_scan_conf(Signal *signal);
+>>>>>>> pr/231
   void continue_next_scan_conf(Signal *signal,
                                ScanRecord::ScanState scanState,
                                ScanRecord * const scanPtr);
@@ -3154,6 +3194,10 @@ private:
   void LQHKEY_error(Signal* signal, int errortype, TcConnectionrecPtr);
   void nextRecordCopy(Signal* signal, TcConnectionrecPtr);
   Uint32 calculateHash(Uint32 tableId, const Uint32* src);
+<<<<<<< HEAD
+=======
+  void checkLcpStopBlockedLab(Signal* signal, Uint32);
+>>>>>>> pr/231
   void sendCommittedTc(Signal* signal,
                        BlockReference atcBlockref,
                        const TcConnectionrec*);
@@ -3422,9 +3466,15 @@ private:
   void releaseAddfragrec(Signal* signal);
   void releaseFragrec();
   void releaseOprec(Signal* signal, TcConnectionrecPtr);
+<<<<<<< HEAD
   void releasePageRef(PageRefRecordPtr);
   void releaseMmPages(LogPartRecord *logPartPtrP);
   void releasePrPages(PageRefRecordPtr, LogPartRecord *logPartPtrP);
+=======
+  void releasePageRef(Signal* signal);
+  void releaseMmPages(Signal* signal);
+  void releasePrPages(Signal* signal);
+>>>>>>> pr/231
   void releaseTcrec(Signal* signal, TcConnectionrecPtr);
   void releaseTcrecLog(Signal* signal, TcConnectionrecPtr);
   void removeLogTcrec(const TcConnectionrec* tcPtrP,
@@ -3457,6 +3507,7 @@ private:
   void systemError(Signal* signal, int line);
   void writeAbortLog(Signal* signal,
                      TcConnectionrec*,
+<<<<<<< HEAD
                      LogPageRecordPtr & logPagePtr,
                      LogFileRecordPtr & logFilePtr,
                      LogPartRecord *logPartPtrP);
@@ -3503,6 +3554,23 @@ private:
                     LogPageRecordPtr & logPagePtr,
                     LogFileRecordPtr & logFilePtr,
                     LogPartRecord *logPartPtrP);
+=======
+                     LogPartRecord*);
+  void writeCommitLog(Signal* signal,
+                      LogPartRecordPtr regLogPartPtr,
+                      TcConnectionrec*);
+  void writeCompletedGciLog(Signal* signal);
+  void writeDbgInfoPageHeader(LogPageRecordPtr logPagePtr, Uint32 place,
+                              Uint32 pageNo, Uint32 wordWritten);
+  void writeDirty(Signal* signal, Uint32 place);
+  void writeKey(Signal* signal, const TcConnectionrec*);
+  void writeLogHeader(Signal* signal,
+                      const TcConnectionrec*,
+                      LogPartRecord*);
+  void writeLogWord(Signal* signal, Uint32 data);
+  void writeLogWords(Signal* signal, const Uint32* data, Uint32 len);
+  void writeNextLog(Signal* signal);
+>>>>>>> pr/231
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
   void invalidateLogAfterLastGCI(Signal *signal,
@@ -3603,7 +3671,7 @@ private:
   void srFourthComp(Signal* signal);
   void timeSup(Signal* signal);
   void closeCopyRequestLab(Signal* signal, TcConnectionrecPtr);
-  void closeScanRequestLab(Signal* signal, TcConnectionrecPtr);
+  void closeScanRequestLab(Signal* signal, TcConnectionrecPtr, bool setup);
   void scanTcConnectLab(Signal* signal, Uint32 startTcCon, Uint32 fragId);
   void initGcpRecLab(Signal* signal);
   void prepareContinueAfterBlockedLab(Signal* signal, TcConnectionrecPtr);
@@ -4014,7 +4082,10 @@ private:
   Uint32 c_active_add_frag_ptr_i;
 
 // Configurable
+<<<<<<< HEAD
 public:
+=======
+>>>>>>> pr/231
   Fragrecord_pool c_fragment_pool;
   RSS_AP_SNAPSHOT(c_fragment_pool);
 
@@ -4072,7 +4143,15 @@ private:
   UintR cpageRefFileSize;
 
 // Configurable
+<<<<<<< HEAD
 public:
+=======
+  ScanRecord_pool c_scanRecordPool;
+  Uint32 cscanrecFileSize;
+  ScanRecord_list m_reserved_scans; // LCP + NR
+
+// Configurable
+>>>>>>> pr/231
   Tablerec *tablerec;
   UintR ctabrecFileSize;
 
@@ -4091,6 +4170,10 @@ private:
    * Most of them are set up again after each real-time break.
    */
   ScanRecordPtr scanptr;
+<<<<<<< HEAD
+=======
+  TcConnectionrecPtr m_tc_connect_ptr;
+>>>>>>> pr/231
   FragrecordPtr fragptr;
   FragrecordPtr prim_tab_fragptr;
   TablerecPtr tabptr;
@@ -4664,6 +4747,7 @@ public:
   bool is_restore_phase_done();
   bool is_full_local_lcp_running();
   bool is_lcp_idle(LcpRecord *lcpPtrP);
+<<<<<<< HEAD
   bool has_key_info(Uint32 opPtrI);
   Uint32 m_restart_local_latest_lcp_id;
 private:
@@ -4833,6 +4917,9 @@ private:
   bool is_exclusive_condition_ready(Fragrecord*);
 #ifdef DEBUG_FRAGMENT_LOCK
   void debug_fragment_lock(Fragrecord *fragPtrP, Uint32 line);
+=======
+  Uint32 m_restart_local_latest_lcp_id;
+>>>>>>> pr/231
 #endif
   void acquire_frag_abort_access(Fragrecord *fragPtrP,
                                  TcConnectionrec *regTcPtr);
@@ -4932,6 +5019,20 @@ inline void Dblqh::checkPoolShrinkNeed(const Uint32 pool_index,
   {
     sendPoolShrink(pool_index);
   }
+}
+
+inline
+bool
+Dblqh::is_full_local_lcp_running()
+{
+  return c_full_local_lcp_started;
+}
+
+inline
+bool
+Dblqh::is_restore_phase_done()
+{
+  return (csrExecUndoLogState != EULS_IDLE);
 }
 
 inline

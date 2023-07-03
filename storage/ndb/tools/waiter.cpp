@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,8 +113,21 @@ int main(int argc, char** argv){
   signal(SIGUSR1, catch_signal);
 #endif
 
+<<<<<<< HEAD
   if (opts.handle_options())
+<<<<<<< HEAD
     return NdbToolsProgramExitCode::WRONG_ARGS;
+=======
+    return NDBT_ProgramExit(NDBT_WRONGARGS);
+=======
+  if (handle_options(&argc, &argv, my_long_options,
+                     ndb_std_get_one_option))
+  {
+    ndb_free_defaults(argv);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   const char* connect_string = argv[0];
   if (connect_string == 0)
@@ -174,8 +195,17 @@ int main(int argc, char** argv){
   }
 
   if (waitClusterStatus(connect_string, wait_status) != 0)
+<<<<<<< HEAD
     return NdbToolsProgramExitCode::FAILED;
 
+=======
+  {
+    ndb_free_defaults(argv);
+    return NdbToolsProgramExitCode::FAILED;
+  }
+
+  ndb_free_defaults(argv);
+>>>>>>> pr/231
   return NdbToolsProgramExitCode::OK;
 }
 
@@ -205,14 +235,18 @@ getStatus(){
       ndb_mgm_disconnect(handle);
       if (ndb_mgm_connect(handle, opt_connect_retries - 1, opt_connect_retry_delay, 1)) {
         MGMERR(handle);
+<<<<<<< HEAD
         ndberr  << "Reconnect failed" << endl;
+=======
+        ndberr << "Reconnect failed" << endl;
+>>>>>>> pr/231
         break;
       }
       continue;
     }
     int count = status->no_of_nodes;
     for (int i = 0; i < count; i++){
-      node = &status->node_states[i];      
+      node = &status->node_states[i];
       switch(node->node_type){
       case NDB_MGM_NODE_TYPE_NDB:
         if (!nowait_nodes_bitmask.get(node->node_id))
@@ -288,16 +322,40 @@ waitClusterStatus(const char* _addr,
     ndberr << "Could not create ndb_mgm handle" << endl;
     return -1;
   }
+<<<<<<< HEAD
   ndbout << "Connecting to mgmsrv at " << _addr << endl;
   if (ndb_mgm_set_connectstring(handle, _addr))
   {
     MGMERR(handle);
     ndberr  << "Connectstring " << _addr << " invalid" << endl;
+=======
+
+  if (ndb_mgm_set_connectstring(handle, _addr))
+  {
+    MGMERR(handle);
+    if (_addr != NULL)
+    {
+      ndberr << "Connectstring " << _addr << " is invalid" << endl;
+    }
+    else
+    {
+      ndberr << "Connectstring is invalid" << endl;
+    }
+>>>>>>> pr/231
     return -1;
   }
+  char buf[1024];
+  ndbout << "Connecting to management server at "
+         << ndb_mgm_get_connectstring(handle, buf, sizeof(buf)) << endl;
   if (ndb_mgm_connect(handle, opt_connect_retries - 1, opt_connect_retry_delay, 1)) {
     MGMERR(handle);
+<<<<<<< HEAD
     ndberr  << "Connection to " << _addr << " failed" << endl;
+=======
+    ndberr << "Connection to "
+           << ndb_mgm_get_connectstring(handle, buf, sizeof(buf)) << " failed"
+           << endl;
+>>>>>>> pr/231
     return -1;
   }
 
@@ -388,7 +446,7 @@ waitClusterStatus(const char* _addr,
     }
 
     attempts++;
-    
+
     now = NdbTick_getCurrentTicks();
   }
   return 0;

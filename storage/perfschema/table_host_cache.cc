@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -114,11 +122,47 @@ bool PFS_index_host_cache_by_host::match(const row_host_cache *row) {
   return true;
 }
 
+<<<<<<< HEAD
 PFS_engine_table *table_host_cache::create(PFS_engine_table_share *) {
   table_host_cache *t = new table_host_cache();
   if (t != nullptr) {
     THD *thd = current_thd;
+<<<<<<< HEAD
     assert(thd != nullptr);
+=======
+    DBUG_ASSERT(thd != NULL);
+=======
+PFS_engine_table_share_state
+table_host_cache::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_host_cache::m_share=
+{
+  { C_STRING_WITH_LEN("host_cache") },
+  &pfs_truncatable_acl,
+  table_host_cache::create,
+  NULL, /* write_row */
+  table_host_cache::delete_all_rows,
+  table_host_cache::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_host_cache::create(void)
+{
+  table_host_cache *t= new table_host_cache();
+  if (t != NULL)
+  {
+    THD *thd= current_thd;
+    assert(thd != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     t->materialize(thd);
   }
   return t;
@@ -156,7 +200,11 @@ void table_host_cache::materialize(THD *thd) {
   row_host_cache *rows;
   row_host_cache *row;
 
+<<<<<<< HEAD
   assert(m_all_rows == nullptr);
+=======
+  assert(m_all_rows == NULL);
+>>>>>>> pr/231
   assert(m_row_count == 0);
 
   hostname_cache_lock();
@@ -265,8 +313,17 @@ int table_host_cache::rnd_next(void) {
 
 int table_host_cache::rnd_pos(const void *pos) {
   set_position(pos);
+<<<<<<< HEAD
   assert(m_pos.m_index < m_row_count);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(m_pos.m_index < m_row_count);
+>>>>>>> pr/231
   m_row = &m_all_rows[m_pos.m_index];
+=======
+  assert(m_pos.m_index < m_row_count);
+  m_row= &m_all_rows[m_pos.m_index];
+>>>>>>> upstream/cluster-7.6
   return 0;
 }
 
@@ -316,7 +373,12 @@ int table_host_cache::read_row_values(TABLE *table, unsigned char *buf,
   assert(m_row);
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -424,7 +486,120 @@ int table_host_cache::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* IP */
+        set_field_varchar_utf8(f, m_row->m_ip, m_row->m_ip_length);
+        break;
+      case 1: /* HOST */
+        if (m_row->m_hostname_length > 0)
+          set_field_varchar_utf8(f, m_row->m_hostname, m_row->m_hostname_length);
+        else
+          f->set_null();
+        break;
+      case 2: /* HOST_VALIDATED */
+        set_field_enum(f, m_row->m_host_validated ? ENUM_YES : ENUM_NO);
+        break;
+      case 3: /* SUM_CONNECT_ERRORS */
+        set_field_ulonglong(f, m_row->m_sum_connect_errors);
+        break;
+      case 4: /* COUNT_HOST_BLOCKED_ERRORS. */
+        set_field_ulonglong(f, m_row->m_count_host_blocked_errors);
+        break;
+      case 5: /* COUNT_NAMEINFO_TRANSIENT_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_nameinfo_transient_errors);
+        break;
+      case 6: /* COUNT_NAMEINFO_PERSISTENT_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_nameinfo_permanent_errors);
+        break;
+      case 7: /* COUNT_FORMAT_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_format_errors);
+        break;
+      case 8: /* COUNT_ADDRINFO_TRANSIENT_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_addrinfo_transient_errors);
+        break;
+      case 9: /* COUNT_ADDRINFO_PERSISTENT_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_addrinfo_permanent_errors);
+        break;
+      case 10: /* COUNT_FCRDNS_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_fcrdns_errors);
+        break;
+      case 11: /* COUNT_HOST_ACL_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_host_acl_errors);
+        break;
+      case 12: /* COUNT_NO_AUTH_PLUGIN_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_no_auth_plugin_errors);
+        break;
+      case 13: /* COUNT_AUTH_PLUGIN_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_auth_plugin_errors);
+        break;
+      case 14: /* COUNT_HANDSHAKE_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_handshake_errors);
+        break;
+      case 15: /* COUNT_PROXY_USER_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_proxy_user_errors);
+        break;
+      case 16: /* COUNT_PROXY_USER_ACL_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_proxy_user_acl_errors);
+        break;
+      case 17: /* COUNT_AUTHENTICATION_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_authentication_errors);
+        break;
+      case 18: /* COUNT_SSL_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_ssl_errors);
+        break;
+      case 19: /* COUNT_MAX_USER_CONNECTION_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_max_user_connection_errors);
+        break;
+      case 20: /* COUNT_MAX_USER_CONNECTION_PER_HOUR_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_max_user_connection_per_hour_errors);
+        break;
+      case 21: /* COUNT_DEFAULT_DATABASE_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_default_database_errors);
+        break;
+      case 22: /* COUNT_INIT_CONNECT_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_init_connect_errors);
+        break;
+      case 23: /* COUNT_LOCAL_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_local_errors);
+        break;
+      case 24: /* COUNT_UNKNOWN_ERRORS */
+        set_field_ulonglong(f, m_row->m_count_unknown_errors);
+        break;
+      case 25: /* FIRST_SEEN */
+        set_field_timestamp(f, m_row->m_first_seen);
+        break;
+      case 26: /* LAST_SEEN */
+        set_field_timestamp(f, m_row->m_last_seen);
+        break;
+      case 27: /* FIRST_ERROR_SEEN */
+        if (m_row->m_first_error_seen != 0)
+          set_field_timestamp(f, m_row->m_first_error_seen);
+        else
+          f->set_null();
+        break;
+      case 28: /* LAST_ERROR_SEEN */
+        if (m_row->m_last_error_seen != 0)
+          set_field_timestamp(f, m_row->m_last_error_seen);
+        else
+          f->set_null();
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -182,10 +186,21 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   assert(join == nullptr);
   assert(!thd->is_error());
 
+<<<<<<< HEAD
   // If this query block is a table value constructor, a lot of the preparation
   // done in Query_block::prepare becomes irrelevant. Thus we call our own
   // Query_block::prepare_values in this case.
   if (is_table_value_constructor) return prepare_values(thd);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(this == thd->lex->current_select());
+  DBUG_ASSERT(join == NULL);
+  DBUG_ASSERT(!thd->is_error());
+=======
+  assert(this == thd->lex->current_select());
+  assert(join == NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Query_expression *const unit = master_query_expression();
 
@@ -268,8 +283,17 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     We are not parsing anymore: any new Items created now are due to
     query rewriting, so stop incrementing counters.
    */
+<<<<<<< HEAD
   assert(parsing_place == CTX_NONE);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(parsing_place == CTX_NONE);
+>>>>>>> pr/231
   parsing_place = CTX_NONE;
+=======
+  assert(parsing_place == CTX_NONE);
+  parsing_place= CTX_NONE;
+>>>>>>> upstream/cluster-7.6
 
   resolve_place = RESOLVE_SELECT_LIST;
 
@@ -549,6 +573,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
 
   set_sj_candidates(nullptr);
 
+<<<<<<< HEAD
   /*
     When reaching the top-most query block, or the next-to-top query block for
     the SQL command SET and for SP instructions (indicated with SQLCOM_END),
@@ -561,7 +586,26 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
          parent_lex->sql_command == SQLCOM_END ||
          parent_lex->sql_command == SQLCOM_LOAD) &&
         outer_query_block()->outer_query_block() == nullptr)) &&
+=======
+<<<<<<< HEAD
+  if ((outer_select() == NULL ||
+       (parent_lex->sql_command == SQLCOM_SET_OPTION &&
+        outer_select()->outer_select() == NULL)) &&
+>>>>>>> pr/231
       !skip_local_transforms) {
+=======
+  /*
+    When reaching the top-most query block, or the next-to-top query block for
+    the SQL command SET and for SP instructions (indicated with SQLCOM_END),
+    apply local transformations to this query block and all underlying query
+    blocks.
+  */
+  if (outer_select() == NULL ||
+      ((parent_lex->sql_command == SQLCOM_SET_OPTION ||
+       parent_lex->sql_command == SQLCOM_END) &&
+       outer_select()->outer_select() == NULL))
+  {
+>>>>>>> upstream/cluster-7.6
     /*
       This code is invoked in the following cases:
       - if this is not a create view statement as transformations are
@@ -592,6 +636,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     if (apply_local_transforms(thd, true)) return true;
   }
 
+<<<<<<< HEAD
   // Eliminate unused window definitions, redundant sorts etc.
   if (!m_windows.is_empty()) Window::eliminate_unused_objects(&m_windows);
 
@@ -602,6 +647,20 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
 
   assert(!thd->is_error());
   return false;
+=======
+<<<<<<< HEAD
+  /*
+    If the query directly contains windowing, remove any unused explicit window
+    definitions.
+  */
+  if (m_windows.elements != 0) Window::remove_unused_windows(thd, m_windows);
+
+  DBUG_ASSERT(!thd->is_error());
+=======
+  assert(!thd->is_error());
+>>>>>>> upstream/cluster-7.6
+  DBUG_RETURN(false);
+>>>>>>> pr/231
 }
 
 /*
@@ -978,12 +1037,22 @@ static bool simplify_const_condition(THD *thd, Item **cond, bool remove_cond,
   @return true if subquery allows materialization, false otherwise.
 */
 
+<<<<<<< HEAD
 bool Item_in_subselect::subquery_allows_materialization(
     THD *thd, Query_block *query_block, const Query_block *outer) {
   const uint elements = unit->first_query_block()->num_visible_fields();
   DBUG_TRACE;
   assert(elements >= 1);
   assert(left_expr->cols() == elements);
+=======
+bool subquery_allows_materialization(Item_in_subselect *predicate, THD *thd,
+                                     SELECT_LEX *select_lex,
+                                     const SELECT_LEX *outer) {
+  const uint elements = predicate->unit->first_select()->item_list.elements;
+  DBUG_ENTER("subquery_allows_materialization");
+  assert(elements >= 1);
+  assert(predicate->left_expr->cols() == elements);
+>>>>>>> pr/231
 
   OPT_TRACE_TRANSFORM(&thd->opt_trace, trace_wrapper, trace_mat,
                       query_block->select_number, "IN (SELECT)",
@@ -1035,7 +1104,11 @@ bool Item_in_subselect::subquery_allows_materialization(
       This is a temporary fix for BUG#36752; see bug report for
       description of restrictions we need to put on the compared expressions.
     */
+<<<<<<< HEAD
     assert(left_expr->fixed);
+=======
+    assert(predicate->left_expr->fixed);
+>>>>>>> pr/231
     // @see comment in Item_subselect::element_index()
     bool has_nullables = left_expr->is_nullable();
 
@@ -1077,7 +1150,11 @@ bool Item_in_subselect::subquery_allows_materialization(
       }
     }
   }
+<<<<<<< HEAD
   assert(cause != nullptr);
+=======
+  assert(cause != NULL);
+>>>>>>> pr/231
   trace_mat.add("possible", false).add_alnum("cause", cause);
   return false;
 }
@@ -1092,12 +1169,28 @@ bool Item_in_subselect::subquery_allows_materialization(
   @returns pointer on pointer to next_leaf of last element
 */
 
+<<<<<<< HEAD
 static Table_ref **make_leaf_tables(Table_ref **list, Table_ref *tables) {
   for (Table_ref *table = tables; table; table = table->next_local) {
     // A mergeable view is not allowed to have a table pointer.
     assert(!(table->is_view() && table->is_merged() && table->table));
     if (table->merge_underlying_list) {
       assert(table->is_merged());
+=======
+static TABLE_LIST **make_leaf_tables(TABLE_LIST **list, TABLE_LIST *tables) {
+  for (TABLE_LIST *table = tables; table; table = table->next_local) {
+    // A mergable view is not allowed to have a table pointer.
+<<<<<<< HEAD
+    DBUG_ASSERT(!(table->is_view() && table->is_merged() && table->table));
+    if (table->merge_underlying_list) {
+      DBUG_ASSERT(table->is_merged());
+=======
+    assert(!(table->is_view() && table->is_merged() && table->table));
+    if (table->merge_underlying_list)
+    {
+      assert(table->is_merged());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       list = make_leaf_tables(list, table->merge_underlying_list);
     } else {
@@ -1165,8 +1258,20 @@ bool Query_block::setup_tables(THD *thd, Table_ref *tables,
                                bool select_insert) {
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert((select_insert && !tables->next_name_resolution_table) || !tables ||
          (context.table_list && context.first_name_resolution_table));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT((select_insert && !tables->next_name_resolution_table) ||
+              !tables ||
+              (context.table_list && context.first_name_resolution_table));
+=======
+  assert ((select_insert && !tables->next_name_resolution_table) ||
+          !tables || 
+          (context.table_list && context.first_name_resolution_table));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   leaf_tables = nullptr;
   (void)make_leaf_tables(&leaf_tables, tables);
@@ -1279,7 +1384,43 @@ void Query_block::remap_tables(THD *thd) {
 bool Query_block::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(derived_table_count > 0 || table_func_count > 0);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(derived_table_count > 0 || table_func_count > 0);
+
+  /*
+    A table function TF may depend on a previous derived table DT in the same
+    FROM clause.
+    Thus DT must be resolved before TF.
+    It is the case, as the loops below progress from left to right in FROM.
+    Alas this progress misses formerly-nested derived tables which are handled
+    last, by the special branch 'if (!first_execution)'.
+    So, assume a prepared statement:
+    - SELECT FROM (SELECT FROM (SELECT ...) AS DT) AS DT1, JSON_TABLE(DT1.col);
+    - DT1 is resolved, which materializes DT
+    - JSON_TABLE is resolved
+    - DT1 is merged
+    Now we execute the statement:
+    - in the first loop in the function,
+        DT1 is not resolved again, as it was merged,
+        and DT is not reached
+    - we must thus defer resolution of JSON_TABLE
+    - until DT is reached and resolved by the special branch 'if
+    (!first_execution)' for formerly-nested derived tables
+    - and then we can resolve JSON_TABLE.
+    So, we run the code in this function twice: a first time for all
+    non-JSON_TABLE tables, a second time for JSON_TABLE.
+    @todo remove this in WL#6570.
+  */
+  bool do_tf = false;
+
+loop:
+=======
+  assert(derived_table_count);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   // Prepare derived tables and views that belong to this query block.
   for (Table_ref *tl = get_table_list(); tl; tl = tl->next_local) {
@@ -1292,9 +1433,28 @@ bool Query_block::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
       continue;
     }
 
+<<<<<<< HEAD
     assert(!tl->is_merged() && !tl->uses_materialization());
 
     if (tl->resolve_derived(thd, apply_semijoin)) return true;
+=======
+  // Prepare remaining derived tables for materialization
+  for (TABLE_LIST *tl = get_table_list(); tl; tl = tl->next_local) {
+    // Ensure that any derived table is merged or materialized after prepare:
+<<<<<<< HEAD
+    DBUG_ASSERT(first_execution || !tl->is_view_or_derived() ||
+                tl->is_merged() || tl->uses_materialization() ||
+                tl->is_table_function());
+    if (!(tl->is_view_or_derived() || tl->is_table_function()) ||
+        tl->is_merged())
+=======
+    assert(first_execution || !tl->is_view_or_derived() ||
+           tl->is_merged() || tl->uses_materialization());
+    if (!tl->is_view_or_derived() || tl->is_merged())
+>>>>>>> upstream/cluster-7.6
+      continue;
+    if (tl->is_table_function() ^ do_tf) continue;
+>>>>>>> pr/231
     /*
       Merge the derived tables that do not require materialization into
       the current query block, if possible.
@@ -1316,8 +1476,44 @@ bool Query_block::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
     materialized_derived_table_count++;
   }
 
+<<<<<<< HEAD
   return false;
 }
+=======
+  /*
+    The loops above will not reach derived tables that are contained within
+    other derived tables that have been merged into the enclosing query block.
+    To reach them, traverse the list of leaf tables and resolve and
+    setup for materialization those derived tables that have no TABLE
+    object (they have not been set up yet).
+  */
+  if (!first_execution) {
+    for (TABLE_LIST *tl = leaf_tables; tl; tl = tl->next_leaf) {
+      if (!(tl->is_view_or_derived() || tl->is_table_function()) ||
+          tl->table != NULL)
+        continue;
+<<<<<<< HEAD
+      if (tl->is_table_function() ^ do_tf) continue;
+      DBUG_ASSERT(!tl->is_merged());
+      if (tl->is_table_function()) {
+        end_lateral_table = tl;
+        if (tl->setup_table_function(thd)) DBUG_RETURN(true);
+        end_lateral_table = NULL;
+      }
+=======
+      assert(!tl->is_merged());
+>>>>>>> upstream/cluster-7.6
+      if (tl->resolve_derived(thd, apply_semijoin))
+        DBUG_RETURN(true); /* purecov: inspected */
+      if (tl->table == nullptr && tl->setup_materialized_derived(thd))
+        DBUG_RETURN(true); /* purecov: inspected */
+      /*
+        materialized_derived_table_count was incremented during preparation,
+        so do not do it once more.
+      */
+    }
+  }
+>>>>>>> pr/231
 
 /**
 
@@ -1375,8 +1571,18 @@ bool Query_block::resolve_subquery(THD *thd) {
     exec_method in class Item_subselect and exit immediately if unequal to
     SubqueryExecMethod::EXEC_UNSPECIFIED.
   */
+<<<<<<< HEAD
   Item_subselect *subq_predicate = master_query_expression()->item;
   assert(subq_predicate != nullptr);
+=======
+<<<<<<< HEAD
+  Item_subselect *subq_predicate = master_unit()->item;
+  DBUG_ASSERT(subq_predicate);
+=======
+  Item_subselect *subq_predicate= master_unit()->item;
+  assert(subq_predicate);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /**
     @note
     In this case: IN (SELECT ... UNION SELECT ...), Query_block::prepare() is
@@ -1476,6 +1682,7 @@ bool Query_block::resolve_subquery(THD *thd) {
       7. Parent query block accepts semijoins (i.e we are not in a subquery of
       a single table UPDATE/DELETE (TODO: We should handle this at some
       point by switching to multi-table UPDATE/DELETE)
+<<<<<<< HEAD
       8. We're not in a confluent table-less subquery, like "SELECT 1".
       9. No execution method was already chosen (by a prepared statement)
       10. Parent query block is not a confluent table-less query block.
@@ -1487,6 +1694,7 @@ bool Query_block::resolve_subquery(THD *thd) {
       15. Antijoins are supported, or it's not an antijoin (it's a semijoin).
       16. OFFSET starts from the first row and LIMIT is not 0.
   */
+<<<<<<< HEAD
   SecondaryEngineFlags engine_flags = 0;
   if (const handlerton *secondary_engine = SecondaryEngineHandlerton(thd);
       secondary_engine != nullptr) {
@@ -1518,6 +1726,48 @@ bool Query_block::resolve_subquery(THD *thd) {
       predicate->choose_semijoin_or_antijoin() &&                          // 14
       (!cannot_do_antijoin || !predicate->can_do_aj) &&                    // 15
       is_row_count_valid_for_semi_join()) {                                // 16
+=======
+  if (semijoin_enabled(thd) && in_predicate &&                    // 1
+      !is_part_of_union() &&                                      // 2
+      !group_list.elements &&                                     // 3
+      !m_having_cond && !with_sum_func &&                         // 4
+      m_windows.elements == 0 &&                                  // 5
+      (outer->resolve_place == SELECT_LEX::RESOLVE_CONDITION ||   // 6a
+       outer->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST) &&  // 6a
+      !outer->semijoin_disallowed &&                              // 6b
+      outer->sj_candidates &&                                     // 7
+      leaf_table_count &&                                         // 8
+=======
+      7. We're not in a confluent table-less subquery, like "SELECT 1".
+      8. No execution method was already chosen (by a prepared statement).
+      9. Parent query block is not a confluent table-less query block.
+      10. Neither parent nor child query block has straight join.
+      11. Parent query block does not prohibit semi-join.
+  */
+  if (semijoin_enabled(thd) &&
+      in_predicate &&                                                   // 1
+      !is_part_of_union() &&                                            // 2
+      !group_list.elements &&                                           // 3
+      !m_having_cond && !with_sum_func &&                               // 4
+      (outer->resolve_place == st_select_lex::RESOLVE_CONDITION ||      // 5a
+       outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5a
+      !outer->semijoin_disallowed &&                                    // 5b
+      outer->sj_candidates &&                                           // 6
+      leaf_table_count > 0 &&                                           // 7
+>>>>>>> upstream/cluster-7.6
+      in_predicate->exec_method ==
+          Item_exists_subselect::EXEC_UNSPECIFIED &&                 // 9
+      !(in_predicate->left_expr->used_tables() & RAND_TABLE_BIT) &&  // 1
+      outer->leaf_table_count &&                                     // 10
+      !((active_options() | outer->active_options()) &
+<<<<<<< HEAD
+        SELECT_STRAIGHT_JOIN))  // 11
+=======
+        SELECT_STRAIGHT_JOIN) &&                                        //10
+      !(outer->active_options() & SELECT_NO_SEMI_JOIN))                 //11
+>>>>>>> upstream/cluster-7.6
+  {
+>>>>>>> pr/231
     DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
 
     /* Notify in the subquery predicate where it belongs in the query graph */
@@ -1610,7 +1860,11 @@ bool Query_block::resolve_subquery(THD *thd) {
 bool Query_block::setup_wild(THD *thd) {
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(with_wild > 0);
+=======
+  assert(with_wild);
+>>>>>>> pr/231
 
   // PS/SP uses arena so that changes are made permanently.
   Prepared_stmt_arena_holder ps_arena_holder(thd);
@@ -1619,12 +1873,32 @@ bool Query_block::setup_wild(THD *thd) {
     Item *item = *it;
     if (item->hidden) continue;
     Item_field *item_field;
+<<<<<<< HEAD
     if (item->type() == Item::FIELD_ITEM &&
         (item_field = down_cast<Item_field *>(item)) &&
         item_field->is_asterisk()) {
       assert(item_field->field == nullptr);
       const bool any_privileges = item_field->any_privileges;
       Item_subselect *subsel = master_query_expression()->item;
+=======
+<<<<<<< HEAD
+    if (item->type() == Item::FIELD_ITEM && (item_field = (Item_field *)item) &&
+        item_field->field_name && item_field->field_name[0] == '*' &&
+        !item_field->field) {
+      const uint elem = fields_list.elements;
+      const bool any_privileges = item_field->any_privileges;
+      Item_subselect *subsel = master_unit()->item;
+=======
+    if (item->type() == Item::FIELD_ITEM &&
+        (item_field= down_cast<Item_field *>(item)) &&
+        item_field->is_asterisk())
+    {
+      assert(item_field->field == NULL);
+      const uint elem= fields_list.elements;
+      const bool any_privileges= item_field->any_privileges;
+      Item_subselect *subsel= master_unit()->item;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       /*
         In case of EXISTS(SELECT * ... HAVING ...), don't use this
@@ -1709,9 +1983,15 @@ bool Query_block::setup_conds(THD *thd) {
 
   is_item_list_lookup = save_is_item_list_lookup;
 
+<<<<<<< HEAD
   assert(thd->lex->current_query_block() == this);
   assert(!thd->is_error());
   return false;
+=======
+  assert(thd->lex->current_select() == this);
+  assert(!thd->is_error());
+  DBUG_RETURN(false);
+>>>>>>> pr/231
 }
 
 /**
@@ -1989,8 +2269,18 @@ bool Query_block::simplify_joins(THD *thd,
                 in_sj || table->is_sj_or_aj_nest(), &join_cond, changelog))
           return true;
 
+<<<<<<< HEAD
         if (join_cond != table->join_cond()) {
+<<<<<<< HEAD
           assert(join_cond);
+=======
+          DBUG_ASSERT(join_cond);
+=======
+        if (join_cond != table->join_cond())
+        {
+          assert(join_cond);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
           table->set_join_cond(join_cond);
         }
       }
@@ -2044,9 +2334,20 @@ bool Query_block::simplify_joins(THD *thd,
             It is always a new item as both the upper-level condition and a
             join condition existed
           */
+<<<<<<< HEAD
           assert(!new_cond->fixed);
           Item *cond_after_fix = new_cond;
           if (new_cond->fix_fields(thd, &cond_after_fix)) return true;
+=======
+<<<<<<< HEAD
+          DBUG_ASSERT(!new_cond->fixed);
+          if (new_cond->fix_fields(thd, NULL)) DBUG_RETURN(true);
+=======
+          assert(!new_cond->fixed);
+          if (new_cond->fix_fields(thd, NULL))
+            DBUG_RETURN(true);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
           if (new_cond == cond_after_fix) {
           }
@@ -2071,6 +2372,10 @@ bool Query_block::simplify_joins(THD *thd,
       table->dep_tables |= table->join_cond()->used_tables();
       // At this point the joined tables always have an embedding join nest:
       assert(table->embedding);
+<<<<<<< HEAD
+=======
+
+>>>>>>> pr/231
       table->dep_tables &= ~table->embedding->nested_join->used_tables;
 
       // Embedding table depends on tables used in embedded join conditions.
@@ -2228,6 +2533,23 @@ bool Query_block::record_join_nest_info(mem_root_deque<Table_ref *> *tables) {
   return false;
 }
 
+<<<<<<< HEAD
+=======
+
+static int subq_sj_candidate_cmp(Item_exists_subselect* const *el1, 
+                                 Item_exists_subselect* const *el2)
+{
+  /*
+    Remove this assert when we support semijoin on non-IN subqueries.
+  */
+  assert((*el1)->substype() == Item_subselect::IN_SUBS &&
+         (*el2)->substype() == Item_subselect::IN_SUBS);
+  return ((*el1)->sj_convert_priority < (*el2)->sj_convert_priority) ? 1 : 
+         ( ((*el1)->sj_convert_priority == (*el2)->sj_convert_priority)? 0 : -1);
+}
+
+
+>>>>>>> upstream/cluster-7.6
 /**
   Update table reference information for conditions and expressions due to
   query blocks having been merged in from derived tables/views and due to
@@ -2293,13 +2615,30 @@ static void fix_tables_after_pullout(Query_block *parent_query_block,
                                      table_map lateral_deps) {
   if (tr->is_merged()) {
     // Update select list of merged derived tables:
+<<<<<<< HEAD
     for (Field_translator *transl = tr->field_translation;
          transl < tr->field_translation_end; transl++) {
       assert(transl->item->fixed);
       transl->item->fix_after_pullout(parent_query_block, removed_query_block);
     }
     // Update used table info for the WHERE clause of the derived table
+<<<<<<< HEAD
     assert(!tr->derived_where_cond || tr->derived_where_cond->fixed);
+=======
+    DBUG_ASSERT(!tr->derived_where_cond || tr->derived_where_cond->fixed);
+=======
+    for (Field_translator *transl= tr->field_translation;
+         transl < tr->field_translation_end;
+         transl++)
+    {
+      assert(transl->item->fixed);
+      transl->item->fix_after_pullout(parent_select, removed_select);
+    }
+    // Update used table info for the WHERE clause of the derived table
+    assert(!tr->derived_where_cond ||
+           tr->derived_where_cond->fixed);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     if (tr->derived_where_cond)
       tr->derived_where_cond->fix_after_pullout(parent_query_block,
                                                 removed_query_block);
@@ -2967,6 +3306,7 @@ bool Query_block::convert_subquery_to_semijoin(
   mem_root_deque<Table_ref *> *emb_join_list = &m_table_nest;
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(subq_pred->substype() == Item_subselect::IN_SUBS ||
          subq_pred->substype() == Item_subselect::EXISTS_SUBS);
 
@@ -2975,6 +3315,9 @@ bool Query_block::convert_subquery_to_semijoin(
   if (unlikely(trace->is_started())) {
     trace_object.add("subquery_predicate", subq_pred);
   }
+=======
+  assert(subq_pred->substype() == Item_subselect::IN_SUBS);
+>>>>>>> pr/231
 
   bool outer_join = false;  // True if predicate is inner to an outer join
 
@@ -3068,12 +3411,25 @@ bool Query_block::convert_subquery_to_semijoin(
       }
 
       /*
+<<<<<<< HEAD
         outer_tbl is replaced by wrap_nest. Any subquery which was attached to
         outer_tbl must be attached to embedding_join_nest instead.
       */
       for (Item_exists_subselect *subquery : (*sj_candidates)) {
         if (subquery->embedding_join_nest == outer_tbl)
           subquery->embedding_join_nest = wrap_nest;
+=======
+        outer_tbl is replaced by wrap_nest.
+        For subselects, update embedding_join_nest to point to wrap_nest
+        instead of outer_tbl
+      */
+      for (Item_exists_subselect **subquery= sj_candidates->begin();
+           subquery < sj_candidates->end();
+           subquery++)
+      {
+        if ((*subquery)->embedding_join_nest == outer_tbl)
+          (*subquery)->embedding_join_nest= wrap_nest;
+>>>>>>> pr/231
       }
 
       /*
@@ -3240,6 +3596,7 @@ bool Query_block::convert_subquery_to_semijoin(
   nested_join->sj_inner_exprs.clear();
 
   if (subq_pred->substype() == Item_subselect::IN_SUBS) {
+<<<<<<< HEAD
     build_sj_exprs(thd, &nested_join->sj_outer_exprs,
                    &nested_join->sj_inner_exprs, subq_pred, subq_query_block);
   } else {  // this is EXISTS
@@ -3250,6 +3607,104 @@ bool Query_block::convert_subquery_to_semijoin(
       Item::Cleanup_after_removal_context ctx(this);
       item->walk(&Item::clean_up_after_removal, walk_options,
                  pointer_cast<uchar *>(&ctx));
+=======
+    Item_in_subselect *in_subq_pred = (Item_in_subselect *)subq_pred;
+
+    assert(is_fixed_or_outer_ref(in_subq_pred->left_expr));
+
+    in_subq_pred->exec_method = Item_exists_subselect::EXEC_SEMI_JOIN;
+    /*
+      sj_corr_tables is supposed to contain non-trivially correlated tables,
+      but here it is set to contain all correlated tables.
+      @todo: Add analysis step that assigns only the set of non-trivially
+      correlated tables to sj_corr_tables.
+    */
+    nested_join->sj_corr_tables = subq_pred->used_tables() & ~INNER_TABLE_BIT;
+
+    /*
+      sj_depends_on contains the set of outer tables referred in the
+      subquery's WHERE clause as well as tables referred in the IN predicate's
+      left-hand side.
+    */
+    nested_join->sj_depends_on =
+        (subq_pred->used_tables() | in_subq_pred->left_expr->used_tables()) &
+        ~INNER_TABLE_BIT;
+
+    // Put the subquery's WHERE into semi-join's condition.
+    Item *sj_cond = subq_select->where_cond();
+
+    /*
+    Create the IN-equalities and inject them into semi-join's ON condition.
+    Additionally, for LooseScan strategy
+     - Record the number of IN-equalities.
+     - Create list of pointers to (oe1, ..., ieN). We'll need the list to
+       see which of the expressions are bound and which are not (for those
+       we'll produce a distinct stream of (ie_i1,...ie_ik).
+
+       (TODO: can we just create a list of pointers and hope the expressions
+       will not substitute themselves on fix_fields()? or we need to wrap
+       them into Item_view_refs and store pointers to those. The
+       pointers to Item_view_refs are guaranteed to be stable as
+       Item_view_refs doesn't substitute itself with anything in
+       Item_view_ref::fix_fields.
+
+    We have a special case for IN predicates with a scalar subquery or a
+    row subquery in the predicand (left operand), such as this:
+       (SELECT 1,2 FROM t1) IN (SELECT x,y FROM t2)
+    We cannot make the join condition 1=x AND 2=y, since that might evaluate
+    to true even if t1 is empty. Instead make the join condition
+    (SELECT 1,2 FROM t1) = (x,y) in this case.
+
+    */
+
+    Item_subselect *left_subquery =
+        (in_subq_pred->left_expr->type() == Item::SUBSELECT_ITEM)
+            ? static_cast<Item_subselect *>(in_subq_pred->left_expr)
+            : NULL;
+
+    if (left_subquery &&
+        (left_subquery->substype() == Item_subselect::SINGLEROW_SUBS)) {
+      List<Item> ref_list;
+      Item *header = subq_select->base_ref_items[0];
+      for (uint i = 1; i < in_subq_pred->left_expr->cols(); i++) {
+        ref_list.push_back(subq_select->base_ref_items[i]);
+      }
+
+      Item_row *right_expr = new Item_row(header, ref_list);
+      if (!right_expr) DBUG_RETURN(true); /* purecov: inspected */
+
+      nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr);
+      nested_join->sj_inner_exprs.push_back(right_expr);
+      Item_func_eq *item_eq =
+          new Item_func_eq(in_subq_pred->left_expr, right_expr);
+      if (item_eq == NULL) DBUG_RETURN(true); /* purecov: inspected */
+
+      sj_cond = and_items(sj_cond, item_eq);
+      if (sj_cond == NULL) DBUG_RETURN(true); /* purecov: inspected */
+    } else {
+      for (uint i = 0; i < in_subq_pred->left_expr->cols(); i++) {
+        Item *const li = in_subq_pred->left_expr->element_index(i);
+        nested_join->sj_outer_exprs.push_back(li);
+        nested_join->sj_inner_exprs.push_back(subq_select->base_ref_items[i]);
+
+        Item_func_eq *item_eq =
+            new Item_func_eq(li, subq_select->base_ref_items[i]);
+
+        if (item_eq == NULL) DBUG_RETURN(true); /* purecov: inspected */
+
+        /*
+          li [left_expr->element_index(i)] can be a transient Item_outer_ref,
+          whose usage has already been marked for rollback, but we need to roll
+          back this location (inside Item_func_eq) in stead, since this is the
+          place that matters after this semijoin transformation. arguments()
+          gets the address of li as stored in item_eq ("place").
+        */
+        thd->replace_rollback_place(item_eq->arguments());
+
+        sj_cond = and_items(sj_cond, item_eq);
+        if (sj_cond == NULL) DBUG_RETURN(true); /* purecov: inspected */
+      }
+>>>>>>> pr/231
     }
   }
 
@@ -3441,7 +3896,11 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
       derived_table->derived_query_expression();
 
   // A derived table must be prepared before we can merge it
+<<<<<<< HEAD
   assert(derived_query_expression->is_prepared());
+=======
+  assert(derived_unit->is_prepared());
+>>>>>>> pr/231
 
   LEX *const lex = parent_lex;
 
@@ -3628,11 +4087,16 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
      the outer query contains only one table reference.
     */
     // LIMIT currently blocks derived table merge
+<<<<<<< HEAD
     assert(!derived_query_block->has_limit());
+=======
+    assert(!derived_select->has_limit());
+>>>>>>> pr/231
 
     if ((lex->sql_command == SQLCOM_SELECT ||
          lex->sql_command == SQLCOM_UPDATE ||
          lex->sql_command == SQLCOM_DELETE) &&
+<<<<<<< HEAD
         !(master_query_expression()->is_set_operation() || is_grouped() ||
           is_distinct() || is_ordered() ||
           get_table_list()->next_local != nullptr)) {
@@ -3652,11 +4116,50 @@ bool Query_block::merge_derived(THD *thd, Table_ref *derived_table) {
         if (!thd->derived_tables_processing) {
           Mark_field mf(thd->mark_used_columns);
           o->item[0]->walk(&Item::mark_field_in_map, enum_walk::POSTFIX,
+=======
+<<<<<<< HEAD
+        !(master_unit()->is_union() || is_grouped() || is_distinct() ||
+          is_ordered() || get_table_list()->next_local != NULL)) {
+=======
+        !(master_unit()->is_union() ||
+          is_grouped() ||
+          is_distinct() ||
+          is_ordered() ||
+          get_table_list()->next_local != NULL))
+    {
+>>>>>>> upstream/cluster-7.6
+      order_list.push_back(&derived_select->order_list);
+      /*
+        If at outer-most level (not within another derived table), ensure
+        the ordering columns are marked in read_set, since columns selected
+        from derived tables are not marked in initial resolving.
+      */
+<<<<<<< HEAD
+      if (!thd->derived_tables_processing) {
+=======
+      if (!thd->derived_tables_processing)
+      {
+>>>>>>> upstream/cluster-7.6
+        Mark_field mf(thd->mark_used_columns);
+        for (ORDER *o = derived_select->order_list.first; o != NULL;
+             o = o->next)
+          o->item[0]->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
+>>>>>>> pr/231
                            pointer_cast<uchar *>(&mf));
         }
       }
+<<<<<<< HEAD
     } else {
+<<<<<<< HEAD
       derived_query_block->empty_order_list(this);
+=======
+=======
+    }
+    else
+    {
+>>>>>>> upstream/cluster-7.6
+      derived_select->empty_order_list(this);
+>>>>>>> pr/231
       trace_derived.add_alnum("transformations_to_derived_table",
                               "removed_ordering");
     }
@@ -3723,10 +4226,22 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
         return false;
       }
     }
+<<<<<<< HEAD
   }
   // item not found
   // if it is the top call: error, else: no error.
   return (found_ptr == nullptr);
+=======
+  } else
+    // If we came here it means there were an error during prerequisites check.
+<<<<<<< HEAD
+    DBUG_ASSERT(false);
+=======
+    assert(FALSE);
+>>>>>>> upstream/cluster-7.6
+
+  return true;
+>>>>>>> pr/231
 }
 
 /**
@@ -3818,10 +4333,14 @@ bool Query_block::flatten_subqueries(THD *thd) {
       Some subqueries may have been deleted, remove them fully before sorting
       sj_candidates and subsequent processing:
     */
+<<<<<<< HEAD
     if (subq_item->strategy == Subquery_strategy::DELETED) {
       sj_candidates->erase_value(subq_item);
       subq--;  // So that the next iteration will handle the next subquery.
       subq_end = sj_candidates->end();  // array's end moved.
+=======
+    assert((*subq)->substype() == Item_subselect::IN_SUBS);
+>>>>>>> pr/231
 
       continue;
     }
@@ -3832,7 +4351,11 @@ bool Query_block::flatten_subqueries(THD *thd) {
     Query_block *child_query_block = subq_item->unit->first_query_block();
 
     // Check that we proceeded bottom-up
+<<<<<<< HEAD
     assert(child_query_block->sj_candidates == nullptr);
+=======
+    assert(child_select->sj_candidates == NULL);
+>>>>>>> pr/231
 
     bool dependent = subq_item->unit->uncacheable & UNCACHEABLE_DEPENDENT;
     subq_item->sj_convert_priority =
@@ -4004,6 +4527,19 @@ bool Query_block::flatten_subqueries(THD *thd) {
   return false;
 }
 
+bool SELECT_LEX::is_in_select_list(Item *cand) {
+  List_iterator<Item> li(fields_list);
+  Item *item;
+  while ((item = li++)) {
+    // Use a walker to detect if cand is present in this select item
+
+    if (item->walk(&Item::find_item_processor, Item::WALK_SUBQUERY_POSTFIX,
+                   pointer_cast<uchar *>(cand)))
+      return true;
+  }
+  return false;
+}
+
 /**
   Propagate nullability into inner tables of outer join operation
 
@@ -4110,7 +4646,12 @@ void Query_block::merge_contexts(Query_block *inner) {
                             by setup_group().
 */
 
+<<<<<<< HEAD
 void Query_block::remove_redundant_subquery_clauses(
+=======
+<<<<<<< HEAD
+void SELECT_LEX::remove_redundant_subquery_clauses(
+>>>>>>> pr/231
     THD *thd, int hidden_group_field_count) {
   Item_subselect *subq_predicate = master_query_expression()->item;
   enum change {
@@ -4118,6 +4659,35 @@ void Query_block::remove_redundant_subquery_clauses(
     REMOVE_ORDER = 1 << 0,
     REMOVE_DISTINCT = 1 << 1,
     REMOVE_GROUP = 1 << 2
+=======
+
+void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
+                                                   int hidden_group_field_count)
+{
+  Item_subselect *subq_predicate= master_unit()->item;
+  /*
+    The removal should happen for IN, ALL, ANY and EXISTS subqueries,
+    which means all but single row subqueries. Example single row
+    subqueries: 
+       a) SELECT * FROM t1 WHERE t1.a = (<single row subquery>) 
+       b) SELECT a, (<single row subquery) FROM t1
+   */
+  if (subq_predicate->substype() == Item_subselect::SINGLEROW_SUBS)
+    return;
+
+  // A subquery that is not single row should be one of IN/ALL/ANY/EXISTS.
+  assert (subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
+          subq_predicate->substype() == Item_subselect::IN_SUBS     ||
+          subq_predicate->substype() == Item_subselect::ALL_SUBS    ||
+          subq_predicate->substype() == Item_subselect::ANY_SUBS);
+
+  enum change
+  {
+    REMOVE_NONE=0,
+    REMOVE_ORDER= 1 << 0,
+    REMOVE_DISTINCT= 1 << 1,
+    REMOVE_GROUP= 1 << 2
+>>>>>>> upstream/cluster-7.6
   };
   uint possible_changes;
 
@@ -4190,7 +4760,12 @@ void Query_block::remove_redundant_subquery_clauses(
              been merged into an outer query block).
 */
 
+<<<<<<< HEAD
 void Query_block::empty_order_list(Query_block *sl) {
+=======
+<<<<<<< HEAD
+void SELECT_LEX::empty_order_list(SELECT_LEX *sl) {
+>>>>>>> pr/231
   if (m_windows.elements != 0) {
     /*
       The next lines doing cleanup of ORDER elements expect the
@@ -4202,11 +4777,30 @@ void Query_block::empty_order_list(Query_block *sl) {
     order_list.clear();
     return;
   }
+<<<<<<< HEAD
   for (ORDER *o = order_list.first; o != nullptr; o = o->next) {
     if (o->is_item_original()) {
       Item::Cleanup_after_removal_context ctx(sl);
       (*o->item)->walk(&Item::clean_up_after_removal, walk_options,
                        pointer_cast<uchar *>(&ctx));
+=======
+  for (ORDER *o = order_list.first; o != NULL; o = o->next) {
+    if (*o->item == o->item_ptr)
+=======
+void SELECT_LEX::empty_order_list(SELECT_LEX *sl)
+{
+  for (ORDER *o= order_list.first; o != NULL; o= o->next)
+  {
+    /*
+      Do not remove the order by expression if it has a view
+      reference. There is possibility that this view reference could
+      be used elsewhere in the query
+    */
+    if (*o->item == o->item_ptr) {
+>>>>>>> upstream/cluster-7.6
+      (*o->item)->walk(&Item::clean_up_after_removal, walk_subquery,
+                       pointer_cast<uchar *>(sl));
+>>>>>>> pr/231
     }
   }
   order_list.clear();
@@ -4457,9 +5051,19 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     item is removed from the query. In that case, we must call walk()
     with clean_up_after_removal() on the old order->item.
   */
+<<<<<<< HEAD
   assert(order_item == *order->item);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(order_item == *order->item);
+>>>>>>> pr/231
   order->item = &ref_item_array[el];
   return false;
+=======
+  assert(order_item == *order->item);
+  order->item= &ref_pointer_array[el];
+  return FALSE;
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -4478,11 +5082,26 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   @returns false if success, true if error.
 */
 
+<<<<<<< HEAD
 bool setup_order(THD *thd, Ref_item_array ref_item_array, Table_ref *tables,
                  mem_root_deque<Item *> *fields, ORDER *order) {
   DBUG_TRACE;
 
   assert(order);
+=======
+<<<<<<< HEAD
+bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
+                 List<Item> &fields, List<Item> &all_fields, ORDER *order) {
+  DBUG_ENTER("setup_order");
+
+  DBUG_ASSERT(order);
+=======
+bool setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
+                 List<Item> &fields, List<Item> &all_fields, ORDER *order)
+{
+  assert(order);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Query_block *const select = thd->lex->current_query_block();
 
@@ -4625,9 +5244,21 @@ bool Query_block::setup_order_final(THD *thd) {
   @returns false if success, true if error
 */
 
+<<<<<<< HEAD
 bool Query_block::setup_group(THD *thd) {
   DBUG_TRACE;
   assert(group_list.elements);
+=======
+<<<<<<< HEAD
+bool SELECT_LEX::setup_group(THD *thd) {
+  DBUG_ENTER("SELECT_LEX::setup_group");
+  DBUG_ASSERT(group_list.elements);
+=======
+bool SELECT_LEX::setup_group(THD *thd)
+{
+  assert(group_list.elements);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   thd->where = "group statement";
 
@@ -5206,6 +5837,7 @@ void Query_block::delete_unused_merged_columns(
         // select list.
         if (item->decrement_ref_count()) continue;
 
+<<<<<<< HEAD
         // Cleanup the item since its not referenced from
         // anywhere.
         assert(item->fixed);
@@ -5213,6 +5845,36 @@ void Query_block::delete_unused_merged_columns(
         item->walk(&Item::clean_up_after_removal, walk_options,
                    pointer_cast<uchar *>(&ctx));
         transl->item = nullptr;
+=======
+<<<<<<< HEAD
+        DBUG_ASSERT(item->fixed);
+        if (!item->has_subquery()) continue;
+=======
+        assert(item->fixed);
+        if (!item->has_subquery())
+          continue;
+>>>>>>> upstream/cluster-7.6
+
+        /*
+          All used columns selected from derived tables are already marked
+          as such. But unmarked columns may still refer to other columns
+          from underlying derived tables, and in that case we cannot
+          delete these columns as they share the same items.
+          Thus, dive into the expression and mark such columns as "used".
+          (This is a bit incorrect, as only a part of its underlying expression
+          is "used", but that has no practical meaning.)
+        */
+        if (!item->is_derived_used() &&
+            item->walk(&Item::propagate_derived_used, Item::WALK_POSTFIX, NULL))
+          item->walk(&Item::propagate_set_derived_used,
+                     Item::WALK_SUBQUERY_POSTFIX, NULL);
+
+        if (!item->is_derived_used()) {
+          item->walk(&Item::clean_up_after_removal, walk_subquery,
+                     pointer_cast<uchar *>(this));
+          transl->item = NULL;
+        }
+>>>>>>> pr/231
       }
     }
     delete_unused_merged_columns(&tl->nested_join->m_tables);

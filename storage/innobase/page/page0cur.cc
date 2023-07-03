@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -18,6 +23,26 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+Copyright (c) 2012, Facebook Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -51,6 +76,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static ulint page_cur_short_succ = 0;
 #endif /* UNIV_SEARCH_PERF_STAT */
 
+<<<<<<< HEAD
 #ifndef UNIV_HOTBACKUP
 /** This is a linear congruential generator PRNG. Returns a pseudo random
  number between 0 and 2^64-1 inclusive. The formula and the constants
@@ -61,6 +87,18 @@ static ulint page_cur_short_succ = 0;
  a = 1103515245 (3^5 * 5 * 7 * 129749)
  c = 12345 (3 * 5 * 823)
  m = 18446744073709551616 (2^64)
+=======
+/*******************************************************************//**
+This is a linear congruential generator PRNG. Returns a pseudo random
+number between 0 and 2^64-1 inclusive. The formula and the constants
+being used are:
+X[n+1] = (a * X[n] + c) mod m
+where:
+X[0] = ut_time_monotonic_us()
+a = 1103515245 (3^5 * 5 * 7 * 129749)
+c = 12345 (3 * 5 * 823)
+m = 18446744073709551616 (2^64)
+>>>>>>> upstream/cluster-7.6
 
  @return number between 0 and 2^64-1 */
 static uint64_t page_cur_lcg_prng(void) {
@@ -69,6 +107,7 @@ static uint64_t page_cur_lcg_prng(void) {
   static uint64_t lcg_current = 0;
   static bool initialized = false;
 
+<<<<<<< HEAD
   if (!initialized) {
     lcg_current = std::chrono::duration_cast<std::chrono::microseconds>(
                       std::chrono::steady_clock::now() -
@@ -76,6 +115,12 @@ static uint64_t page_cur_lcg_prng(void) {
                       .count();
     initialized = true;
   }
+=======
+	if (!initialized) {
+		lcg_current = (ib_uint64_t) ut_time_monotonic_us();
+		initialized = TRUE;
+	}
+>>>>>>> upstream/cluster-7.6
 
   /* no need to "% 2^64" explicitly because lcg_current is
   64 bit and this will be done anyway */

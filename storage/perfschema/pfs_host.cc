@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +77,7 @@ static const uchar *host_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_host *const *typed_entry;
   const PFS_host *host;
   const void *result;
+<<<<<<< HEAD
   typed_entry = reinterpret_cast<const PFS_host *const *>(entry);
   assert(typed_entry != nullptr);
   host = *typed_entry;
@@ -76,6 +85,15 @@ static const uchar *host_hash_get_key(const uchar *entry, size_t *length) {
   *length = sizeof(host->m_key);
   result = &host->m_key;
   return reinterpret_cast<const uchar *>(result);
+=======
+  typed_entry= reinterpret_cast<const PFS_host* const *> (entry);
+  assert(typed_entry != NULL);
+  host= *typed_entry;
+  assert(host != NULL);
+  *length= host->m_key.m_key_length;
+  result= host->m_key.m_hash_key;
+  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+>>>>>>> upstream/cluster-7.6
 }
 
 static uint host_hash_func(const LF_HASH *, const uchar *key,
@@ -147,8 +165,30 @@ static LF_PINS *get_host_hash_pins(PFS_thread *thread) {
   return thread->m_host_hash_pins;
 }
 
+<<<<<<< HEAD
 static void set_host_key(PFS_host_key *key, const PFS_host_name *host) {
   key->m_host_name = *host;
+=======
+<<<<<<< HEAD
+static void set_host_key(PFS_host_key *key, const char *host,
+                         uint host_length) {
+  DBUG_ASSERT(host_length <= HOSTNAME_LENGTH);
+=======
+static void set_host_key(PFS_host_key *key,
+                         const char *host, uint host_length)
+{
+  assert(host_length <= HOSTNAME_LENGTH);
+>>>>>>> upstream/cluster-7.6
+
+  char *ptr = &key->m_hash_key[0];
+  if (host_length > 0) {
+    memcpy(ptr, host, host_length);
+    ptr += host_length;
+  }
+  ptr[0] = 0;
+  ptr++;
+  key->m_key_length = ptr - &key->m_hash_key[0];
+>>>>>>> pr/231
 }
 
 PFS_host *find_or_create_host(PFS_thread *thread, const PFS_host_name *host) {
@@ -292,8 +332,22 @@ void PFS_host::aggregate_memory(bool alive) {
                        global_instr_class_memory_array);
 }
 
+<<<<<<< HEAD
 void PFS_host::aggregate_status() {
+<<<<<<< HEAD
   /* No parent to aggregate to, clean the stats */
+=======
+  /*
+    Aggregate STATUS_BY_HOST to:
+    - GLOBAL_STATUS
+  */
+  m_status_stats.aggregate_to(&global_status_var);
+=======
+void PFS_host::aggregate_status()
+{
+  /* No parent to aggregate to, clean the stats */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   m_status_stats.reset();
 }
 
@@ -380,12 +434,35 @@ static void purge_host(PFS_thread *thread, PFS_host *host) {
   }
 
   PFS_host **entry;
+<<<<<<< HEAD
   entry = reinterpret_cast<PFS_host **>(
       lf_hash_search(&host_hash, pins, &host->m_key, sizeof(host->m_key)));
+=======
+<<<<<<< HEAD
+  entry = reinterpret_cast<PFS_host **>(lf_hash_search(
+      &host_hash, pins, host->m_key.m_hash_key, host->m_key.m_key_length));
+>>>>>>> pr/231
   if (entry && (entry != MY_LF_ERRPTR)) {
     assert(*entry == host);
     if (host->get_refcount() == 0) {
+<<<<<<< HEAD
       lf_hash_delete(&host_hash, pins, &host->m_key, sizeof(host->m_key));
+=======
+      lf_hash_delete(&host_hash, pins, host->m_key.m_hash_key,
+                     host->m_key.m_key_length);
+=======
+  entry= reinterpret_cast<PFS_host**>
+    (lf_hash_search(&host_hash, pins,
+                    host->m_key.m_hash_key, host->m_key.m_key_length));
+  if (entry && (entry != MY_ERRPTR))
+  {
+    assert(*entry == host);
+    if (host->get_refcount() == 0)
+    {
+      lf_hash_delete(&host_hash, pins,
+                     host->m_key.m_hash_key, host->m_key.m_key_length);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       host->aggregate(false);
       global_host_container.deallocate(host);
     }

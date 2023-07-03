@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -12097,7 +12101,11 @@ runDropTableSpaceLG(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 /**
+<<<<<<< HEAD
  * Create up to the number of data files given in the test case until
+=======
+ * Create upto the number of data files given in the test case until
+>>>>>>> pr/231
  * DiskPageBufferMemory gets exhausted, indicated by error code 1517.
  *
  * Drop data files.
@@ -12612,7 +12620,11 @@ TESTCASE("CreateManyDataFiles", "Test lack of DiskPageBufferMemory "
   FINALIZER(changeStartDiskPageBufMem);
 }
 
+<<<<<<< HEAD
 NDBT_TESTSUITE_END(testDict)
+=======
+NDBT_TESTSUITE_END(testDict);
+>>>>>>> pr/231
 
 int main(int argc, const char** argv){
   ndb_init();

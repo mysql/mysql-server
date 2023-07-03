@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,9 +56,21 @@ const uchar *skip_trailing_orig(const uchar *ptr, size_t len) {
     const uchar *start_words = (const uchar *)(intptr)(
         (((ulonglong)(intptr)ptr) + SIZEOF_INT - 1) / SIZEOF_INT * SIZEOF_INT);
 
+<<<<<<< HEAD
     assert(((ulonglong)(intptr)ptr) >= SIZEOF_INT);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(((ulonglong)(intptr)ptr) >= SIZEOF_INT);
+>>>>>>> pr/231
     if (end_words > ptr) {
       while (end > end_words && end[-1] == 0x20) end--;
+=======
+    assert(((ulonglong)(intptr)ptr) >= SIZEOF_INT);
+    if (end_words > ptr)
+    {
+      while (end > end_words && end[-1] == 0x20)
+        end--;
+>>>>>>> upstream/cluster-7.6
       if (end[-1] == 0x20 && start_words < end_words)
         while (end > start_words &&
                (pointer_cast<const unsigned *>(end))[-1] == SPACE_INT)

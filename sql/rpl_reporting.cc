@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,6 +143,7 @@ void Slave_reporting_capability::va_report(loglevel level, int err_code,
     level = WARNING_LEVEL;
 
   mysql_mutex_lock(&err_lock);
+<<<<<<< HEAD
   switch (level) {
     case ERROR_LEVEL:
       /*
@@ -150,10 +159,39 @@ void Slave_reporting_capability::va_report(loglevel level, int err_code,
     case INFORMATION_LEVEL:
       break;
     default:
+<<<<<<< HEAD
       assert(0);  // should not come here
       // don't crash production builds, just do nothing
       mysql_mutex_unlock(&err_lock);
       return;
+=======
+      DBUG_ASSERT(0);  // should not come here
+      return;          // don't crash production builds, just do nothing
+=======
+  switch (level)
+  {
+  case ERROR_LEVEL:
+    /*
+      It's an error, it must be reported in Last_error and Last_errno in SHOW
+      SLAVE STATUS.
+    */
+    pbuff= m_last_error.message;
+    pbuffsize= sizeof(m_last_error.message);
+    m_last_error.number = err_code;
+    m_last_error.update_timestamp();
+    report_function= sql_print_error;
+    break;
+  case WARNING_LEVEL:
+    report_function= sql_print_warning;
+    break;
+  case INFORMATION_LEVEL:
+    report_function= sql_print_information;
+    break;
+  default:
+    assert(0);                            // should not come here
+    return;          // don't crash production builds, just do nothing
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   curr_buff = pbuff;
   if (prefix_msg)

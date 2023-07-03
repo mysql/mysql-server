@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,6 +268,7 @@ BackupProxy::execRESTORABLE_GCI_REP(Signal *signal)
   }
 }
 
+<<<<<<< HEAD
 // GSN_DEFINE_BACKUP_REQ
 
 void
@@ -550,6 +555,8 @@ BackupProxy::sendABORT_BACKUP_ORD(Signal* signal, Uint32 ssId,
                       signal, AbortBackupOrd::SignalLength, JBB);
 }
 
+=======
+>>>>>>> pr/231
 void
 BackupProxy::execNODE_START_REP(Signal *signal)
 {

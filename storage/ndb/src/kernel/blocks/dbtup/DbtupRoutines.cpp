@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -786,6 +790,7 @@ Dbtup::xfrm_reader(Uint8* dstPtr,
   CHARSET_INFO* cs = regTabPtr->charsetArray[i];
 
   Uint32 lb, len;
+<<<<<<< HEAD
   const bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
   const unsigned defLen = maxBytes - lb;
   const Uint32 maxDstLen = NdbSqlUtil::strnxfrm_hash_len(cs, defLen);
@@ -799,6 +804,19 @@ Dbtup::xfrm_reader(Uint8* dstPtr,
     const int n = NdbSqlUtil::strnxfrm_hash(cs, typeId,
                                        dstPtr, maxRead-indexBuf, 
                                        (const uchar*)srcPtr + lb, len, defLen);
+=======
+  bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
+  Uint32 xmul = cs->strxfrm_multiply;
+  if (xmul == 0)
+    xmul = 1;
+  Uint32 dstLen = xmul * (maxBytes - lb);
+  Uint32 maxIndexBuf = indexBuf + (dstLen >> 2);
+  if (likely(maxIndexBuf <= maxRead && ok))
+  {
+    thrjamDebug(req_struct->jamBuffer);
+    int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, 
+                                         (const Uint8*)srcPtr + lb, len);
+>>>>>>> pr/231
     require(n != -1);
     zero32(dstPtr, n);
     ahOut->setByteSize(n);
@@ -1967,6 +1985,24 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
   Uint32 attrDescriptor = attr_descr[attrDescriptorIndex].tabDescr;
   Uint32 attrDes2 = attr_descr[attrDescriptorIndex + 1].tabDescr;
   Uint64 attrDes = (Uint64(attrDes2) << 32) + Uint64(attrDescriptor);
+<<<<<<< HEAD
+=======
+
+  Uint32 xfrmBuffer[1 + MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
+  Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attrDes2);
+  if (charsetFlag)
+  {
+    Uint32 csIndex = AttributeOffset::getCharsetPos(attrDes2);
+    CHARSET_INFO* cs = regTabPtr->charsetArray[csIndex];
+    Uint32 srcPos = 0;
+    Uint32 dstPos = 0;
+    xfrm_attr(attrDescriptor, cs, &updateBuffer[1], srcPos,
+              &xfrmBuffer[1], dstPos, MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY);
+    ahIn.setDataSize(dstPos);
+    xfrmBuffer[0] = ahIn.m_value;
+    updateBuffer = xfrmBuffer;
+  }
+>>>>>>> pr/231
 
   Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attrDes2);
   ReadFunction f = regTabPtr->readFunctionArray[attributeId];
@@ -1975,6 +2011,7 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
   req_struct->out_buf_index = 0;
   req_struct->out_buf_bits = 0;
   req_struct->max_read = sizeof(keyReadBuffer);
+<<<<<<< HEAD
 
   bool tmp = req_struct->xfrm_flag;
   req_struct->xfrm_flag = false;
@@ -2020,6 +2057,29 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
       thrjam(req_struct->jamBuffer);
       return true;
     }
+=======
+  
+  bool tmp = req_struct->xfrm_flag;
+  req_struct->xfrm_flag = true;
+  ndbrequire((*f)((Uint8*)keyReadBuffer,
+                  req_struct,
+                  &attributeHeader,
+                  attrDes));
+  req_struct->xfrm_flag = tmp;
+  
+  ndbrequire(req_struct->out_buf_index == attributeHeader.getByteSize());
+  if (unlikely(ahIn.getDataSize() != attributeHeader.getDataSize()))
+  {
+    thrjam(req_struct->jamBuffer);
+    return true;
+  }
+  if (unlikely(memcmp(&keyReadBuffer[0],
+                      &updateBuffer[1],
+                      req_struct->out_buf_index) != 0))
+  {
+    thrjam(req_struct->jamBuffer);
+    return true;
+>>>>>>> pr/231
   }
   return false;
 }
@@ -2796,8 +2856,18 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   case AttributeHeader::INDEX_STAT_KEY:
   case AttributeHeader::INDEX_STAT_VALUE:
   {
+<<<<<<< HEAD
     Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
     ndbrequire(1 + MAX_INDEX_STAT_KEY_SIZE <= out_words);
+=======
+    /*
+     * One extra word, 2 bytes for preceding length, 2 bytes for zero padding
+     * to even words.
+     */
+    const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE + 1;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+>>>>>>> pr/231
 
     c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
                                attrId,
@@ -2906,6 +2976,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::CORR_FACTOR32:
   {
+<<<<<<< HEAD
     thrjam(req_struct->jamBuffer);
     Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
     ndbrequire(2 <= out_words);
@@ -2913,11 +2984,22 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
                                AttributeHeader::CORR_FACTOR64,
                                outBuffer + 1,
                                out_words);
+=======
+    const Uint32 DataSz = 2;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
+    thrjam(req_struct->jamBuffer);
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = AttributeHeader::CORR_FACTOR64;
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+>>>>>>> pr/231
     sz = 1;
     break;
   }
   case AttributeHeader::CORR_FACTOR64:
   {
+<<<<<<< HEAD
     thrjam(req_struct->jamBuffer);
     Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
     ndbrequire(2 <= out_words);
@@ -2925,6 +3007,16 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
                                AttributeHeader::CORR_FACTOR64,
                                outBuffer + 1,
                                out_words);
+=======
+    const Uint32 DataSz = 2;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
+    thrjam(req_struct->jamBuffer);
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = AttributeHeader::CORR_FACTOR64;
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+>>>>>>> pr/231
     sz = 2;
     break;
   }

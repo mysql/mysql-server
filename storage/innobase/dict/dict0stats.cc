@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2009, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -161,9 +185,121 @@ typedef std::map<const char *, dict_index_t *, ut_strcmp_functor,
 static inline bool dict_stats_should_ignore_index(
     const dict_index_t *index) /*!< in: index */
 {
+<<<<<<< HEAD
   return ((index->type & DICT_FTS) || index->is_corrupted() ||
           dict_index_is_spatial(index) || index->to_be_dropped ||
           !index->is_committed());
+=======
+	return((index->type & DICT_FTS)
+	       || dict_index_is_corrupted(index)
+	       || dict_index_is_spatial(index)
+	       || index->to_be_dropped
+	       || !index->is_committed());
+}
+
+/*********************************************************************//**
+Checks whether the persistent statistics storage exists and that all
+tables have the proper structure.
+@return true if exists and all tables are ok */
+static
+bool
+dict_stats_persistent_storage_check(
+/*================================*/
+	bool	caller_has_dict_sys_mutex)	/*!< in: true if the caller
+						owns dict_sys->mutex */
+{
+	/* definition for the table TABLE_STATS_NAME */
+	dict_col_meta_t	table_stats_columns[] = {
+		{"database_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192},
+
+		{"table_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 597},
+
+		{"last_update", DATA_FIXBINARY,
+			DATA_NOT_NULL, 4},
+
+		{"n_rows", DATA_INT,
+			DATA_NOT_NULL | DATA_UNSIGNED, 8},
+
+		{"clustered_index_size", DATA_INT,
+			DATA_NOT_NULL | DATA_UNSIGNED, 8},
+
+		{"sum_of_other_index_sizes", DATA_INT,
+			DATA_NOT_NULL | DATA_UNSIGNED, 8}
+	};
+	dict_table_schema_t	table_stats_schema = {
+		TABLE_STATS_NAME,
+		UT_ARR_SIZE(table_stats_columns),
+		table_stats_columns,
+		0 /* n_foreign */,
+		0 /* n_referenced */
+	};
+
+	/* definition for the table INDEX_STATS_NAME */
+	dict_col_meta_t	index_stats_columns[] = {
+		{"database_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192},
+
+		{"table_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 597},
+
+		{"index_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192},
+
+		{"last_update", DATA_FIXBINARY,
+			DATA_NOT_NULL, 4},
+
+		{"stat_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 64*3},
+
+		{"stat_value", DATA_INT,
+			DATA_NOT_NULL | DATA_UNSIGNED, 8},
+
+		{"sample_size", DATA_INT,
+			DATA_UNSIGNED, 8},
+
+		{"stat_description", DATA_VARMYSQL,
+			DATA_NOT_NULL, 1024*3}
+	};
+	dict_table_schema_t	index_stats_schema = {
+		INDEX_STATS_NAME,
+		UT_ARR_SIZE(index_stats_columns),
+		index_stats_columns,
+		0 /* n_foreign */,
+		0 /* n_referenced */
+	};
+
+	char		errstr[512];
+	dberr_t		ret;
+
+	if (!caller_has_dict_sys_mutex) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	/* first check table_stats */
+	ret = dict_table_schema_check(&table_stats_schema, errstr,
+				      sizeof(errstr));
+	if (ret == DB_SUCCESS) {
+		/* if it is ok, then check index_stats */
+		ret = dict_table_schema_check(&index_stats_schema, errstr,
+					      sizeof(errstr));
+	}
+
+	if (!caller_has_dict_sys_mutex) {
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	if (ret != DB_SUCCESS) {
+		ib::error() << errstr;
+		return(false);
+	}
+	/* else */
+
+	return(true);
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Executes a given SQL statement using the InnoDB internal SQL parser.
@@ -686,11 +822,19 @@ static void dict_stats_update_transient(
   dict_index_t *index;
   ulint sum_of_index_sizes = 0;
 
+<<<<<<< HEAD
   /* Find out the sizes of the indexes and how many different values
   for the key they approximately have */
+=======
+	dict_table_analyze_index_lock(table);
+
+	/* Find out the sizes of the indexes and how many different values
+	for the key they approximately have */
+>>>>>>> upstream/cluster-7.6
 
   index = table->first_index();
 
+<<<<<<< HEAD
   if (dict_table_is_discarded(table)) {
     /* Nothing to do. */
     dict_stats_empty_table(table);
@@ -703,6 +847,22 @@ static void dict_stats_update_transient(
     dict_stats_empty_table(table);
     return;
   }
+=======
+	if (dict_table_is_discarded(table)) {
+		/* Nothing to do. */
+		dict_stats_empty_table(table);
+		dict_table_analyze_index_unlock(table);
+		return;
+	} else if (index == NULL) {
+		/* Table definition is corrupt */
+
+		ib::warn() << "Table " << table->name
+			<< " has no indexes. Cannot calculate statistics.";
+		dict_stats_empty_table(table);
+		dict_table_analyze_index_unlock(table);
+		return;
+	}
+>>>>>>> upstream/cluster-7.6
 
   for (; index != nullptr; index = index->next()) {
     ut_ad(!dict_index_is_ibuf(index));
@@ -724,8 +884,14 @@ static void dict_stats_update_transient(
 
   index = table->first_index();
 
+<<<<<<< HEAD
   table->stat_n_rows =
       index->stat_n_diff_key_vals[dict_index_get_n_unique(index) - 1];
+=======
+	dict_table_stats_lock(table, RW_X_LATCH);
+
+	index = dict_table_get_first_index(table);
+>>>>>>> upstream/cluster-7.6
 
   table->stat_clustered_index_size = index->stat_index_size;
 
@@ -734,9 +900,26 @@ static void dict_stats_update_transient(
 
   table->stats_last_recalc = std::chrono::steady_clock::now();
 
+<<<<<<< HEAD
   table->stat_modified_counter = 0;
 
+<<<<<<< HEAD
   table->stat_initialized = true;
+=======
+  table->stat_initialized = TRUE;
+=======
+	table->stats_last_recalc = ut_time_monotonic();
+
+	table->stat_modified_counter = 0;
+
+	table->stat_initialized = TRUE;
+
+	dict_table_stats_unlock(table, RW_X_LATCH);
+
+	dict_table_analyze_index_unlock(table);
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /** Confirms long waiters for the index lock exist.
@@ -975,8 +1158,19 @@ static bool dict_stats_analyze_index_level(
           total_recs >= 2 */
           idx = *total_recs - 2;
 
+<<<<<<< HEAD
           n_diff_boundaries[i].push_back(idx);
         }
+=======
+			cmp_rec_rec_with_match(rec,
+					       prev_rec,
+					       rec_offsets,
+					       prev_rec_offsets,
+					       index,
+					       false,
+					       false,
+					       &matched_fields);
+>>>>>>> upstream/cluster-7.6
 
         /* increment the number of different keys
         for n_prefix=i+1 (e.g. if i=0 then we increment
@@ -1183,8 +1377,16 @@ static inline ulint *dict_stats_scan_page(const rec_t **out_rec,
     cmp_rec_rec_with_match(rec, next_rec, offsets_rec, offsets_next_rec, index,
                            false, false, &matched_fields);
 
+<<<<<<< HEAD
     if (matched_fields < n_prefix) {
       /* rec != next_rec, => rec is non-boring */
+=======
+		/* check whether rec != next_rec when looking at
+		the first n_prefix fields */
+		cmp_rec_rec_with_match(rec, next_rec,
+				       offsets_rec, offsets_next_rec,
+				       index, false, false, &matched_fields);
+>>>>>>> upstream/cluster-7.6
 
       (*n_diff)++;
 
@@ -1679,8 +1881,17 @@ static bool dict_stats_analyze_index_low(uint64_t &n_sample_pages,
   ulint size;
   DBUG_TRACE;
 
+<<<<<<< HEAD
   DBUG_PRINT("info", ("index: %s, online status: %d", index->name(),
                       dict_index_get_online_status(index)));
+=======
+	/* stats_latch is created on 1st lock. */
+	ut_ad(!(index->table->stats_latch_created) ||
+		!rw_lock_own(index->table->stats_latch, RW_X_LATCH));
+
+	DBUG_PRINT("info", ("index: %s, online status: %d", index->name(),
+			    dict_index_get_online_status(index)));
+>>>>>>> upstream/cluster-7.6
 
   /* Disable update statistic for Rtree */
   if (dict_index_is_spatial(index)) {
@@ -2012,7 +2223,13 @@ static dberr_t dict_stats_update_persistent(
 
   DEBUG_PRINTF("%s(table=%s)\n", __func__, table->name);
 
+<<<<<<< HEAD
   dict_table_stats_lock(table, RW_X_LATCH);
+=======
+	dict_table_analyze_index_lock(table);
+
+	DEBUG_SYNC_C("innodb_dict_stats_update_persistent");
+>>>>>>> upstream/cluster-7.6
 
   /* analyze the clustered index first */
 
@@ -2024,8 +2241,14 @@ static dberr_t dict_stats_update_persistent(
     dict_table_stats_unlock(table, RW_X_LATCH);
     dict_stats_empty_table(table);
 
+<<<<<<< HEAD
     return (DB_CORRUPTION);
   }
+=======
+		/* Table definition is corrupt */
+		dict_stats_empty_table(table);
+		dict_table_analyze_index_unlock(table);
+>>>>>>> upstream/cluster-7.6
 
   ut_ad(!dict_index_is_ibuf(index));
 
@@ -2035,14 +2258,28 @@ static dberr_t dict_stats_update_persistent(
 
   table->stat_n_rows = index->stat_n_diff_key_vals[n_unique - 1];
 
+<<<<<<< HEAD
   table->stat_clustered_index_size = index->stat_index_size;
 
   /* analyze other indexes from the table, if any */
+=======
+	ib_uint64_t stat_n_rows_tmp = index->stat_n_diff_key_vals[n_unique - 1];
+
+	ib_uint64_t stat_clustered_index_size_tmp = index->stat_index_size;
+>>>>>>> upstream/cluster-7.6
 
   table->stat_sum_of_other_index_sizes = 0;
 
+<<<<<<< HEAD
   for (index = index->next(); index != nullptr; index = index->next()) {
+=======
+<<<<<<< HEAD
+  for (index = index->next(); index != NULL; index = index->next()) {
+>>>>>>> pr/231
     ut_ad(!dict_index_is_ibuf(index));
+=======
+	ib_uint64_t stat_sum_of_other_index_sizes_tmp = 0;
+>>>>>>> upstream/cluster-7.6
 
     if (index->type & DICT_FTS || dict_index_is_spatial(index)) {
       continue;
@@ -2063,15 +2300,45 @@ static dberr_t dict_stats_update_persistent(
 
   table->stats_last_recalc = std::chrono::steady_clock::now();
 
+<<<<<<< HEAD
   table->stat_modified_counter = 0;
 
+<<<<<<< HEAD
   table->stat_initialized = true;
+=======
+  table->stat_initialized = TRUE;
+=======
+		stat_sum_of_other_index_sizes_tmp
+			+= index->stat_index_size;
+	}
+
+	dict_table_stats_lock(table, RW_X_LATCH);
+
+	table->stat_n_rows = stat_n_rows_tmp;
+
+	table->stat_clustered_index_size = stat_clustered_index_size_tmp;
+
+	table->stat_sum_of_other_index_sizes = stat_sum_of_other_index_sizes_tmp;
+
+	table->stats_last_recalc = ut_time_monotonic();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   dict_stats_assert_initialized(table);
 
   dict_table_stats_unlock(table, RW_X_LATCH);
 
+<<<<<<< HEAD
   return (DB_SUCCESS);
+=======
+	dict_stats_assert_initialized(table);
+
+	dict_table_stats_unlock(table, RW_X_LATCH);
+
+	dict_table_analyze_index_unlock(table);
+
+	return(DB_SUCCESS);
+>>>>>>> upstream/cluster-7.6
 }
 
 #include "mysql_com.h"
@@ -2805,9 +3072,29 @@ void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
     return;
   }
 
+<<<<<<< HEAD
   dict_table_stats_lock(index->table, RW_X_LATCH);
   dict_stats_update_transient_for_index(index);
   dict_table_stats_unlock(index->table, RW_X_LATCH);
+<<<<<<< HEAD
+=======
+=======
+		if (dict_stats_persistent_storage_check(false)) {
+			dict_table_analyze_index_lock(index->table);
+			dict_stats_analyze_index(index);
+			ulint stat_sum_of_other_index_sizes_tmp = index->stat_index_size;
+			dict_table_stats_lock(index->table, RW_X_LATCH);
+			index->table->stat_sum_of_other_index_sizes += stat_sum_of_other_index_sizes_tmp;
+			dict_table_stats_unlock(index->table, RW_X_LATCH);
+			dict_table_analyze_index_unlock(index->table);
+			dict_stats_save(index->table, &index->id);
+			DBUG_VOID_RETURN;
+		}
+		/* else */
+>>>>>>> upstream/cluster-7.6
+
+  DBUG_VOID_RETURN;
+>>>>>>> pr/231
 }
 
 /** Calculates new estimates for table and index statistics. The statistics
@@ -2847,16 +3134,32 @@ storage */
         break;
       }
 
+<<<<<<< HEAD
       /* wakes the last purge batch for exact recalculation */
       if (trx_sys->rseg_history_len.load() > 0) {
         srv_wake_purge_thread_if_not_active();
       }
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
       /* Persistent recalculation requested, called from
       1) ANALYZE TABLE, or
       2) the auto recalculation background thread, or
       3) open table if stats do not exist on disk and auto recalc
          is enabled */
+=======
+		/* wakes the last purge batch for exact recalculation */
+		if (trx_sys->rseg_history_len > 0) {
+			srv_wake_purge_thread_if_not_active();
+		}
+
+		/* Persistent recalculation requested, called from
+		1) ANALYZE TABLE, or
+		2) the auto recalculation background thread, or
+		3) open table if stats do not exist on disk and auto recalc
+		   is enabled */
+>>>>>>> upstream/cluster-7.6
 
       /* InnoDB internal tables (e.g. SYS_TABLES) cannot have
       persistent stats enabled */
@@ -2974,7 +3277,65 @@ storage */
 
   dict_table_stats_unlock(table, RW_X_LATCH);
 
+<<<<<<< HEAD
   return (DB_SUCCESS);
+=======
+			dict_table_stats_unlock(table, RW_X_LATCH);
+
+			dict_stats_table_clone_free(t);
+
+			return(DB_SUCCESS);
+		case DB_STATS_DO_NOT_EXIST:
+
+			dict_stats_table_clone_free(t);
+
+			if (srv_read_only_mode) {
+				goto transient;
+			}
+
+			if (dict_stats_auto_recalc_is_enabled(table)) {
+				return(dict_stats_update(
+						table,
+						DICT_STATS_RECALC_PERSISTENT));
+			}
+
+			ib::info() << "Trying to use table " << table->name
+				<< " which has persistent statistics enabled,"
+				" but auto recalculation turned off and the"
+				" statistics do not exist in "
+				TABLE_STATS_NAME_PRINT
+				" and " INDEX_STATS_NAME_PRINT
+				". Please either run \"ANALYZE TABLE "
+				<< table->name << ";\" manually or enable the"
+				" auto recalculation with \"ALTER TABLE "
+				<< table->name << " STATS_AUTO_RECALC=1;\"."
+				" InnoDB will now use transient statistics for "
+				<< table->name << ".";
+
+			goto transient;
+		default:
+
+			dict_stats_table_clone_free(t);
+
+			ib::error() << "Error fetching persistent statistics"
+				" for table "
+				<< table->name
+				<< " from " TABLE_STATS_NAME_PRINT " and "
+				INDEX_STATS_NAME_PRINT ": " << ut_strerr(err)
+				<< ". Using transient stats method instead.";
+
+			goto transient;
+		}
+	/* no "default:" in order to produce a compilation warning
+	about unhandled enumeration value */
+	}
+
+transient:
+
+	dict_stats_update_transient(table);
+
+	return(DB_SUCCESS);
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Removes the information for a particular index's stats from the persistent

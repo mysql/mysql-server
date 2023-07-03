@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,10 +48,24 @@ class Mock_create_field : public Create_field {
       Only TIMESTAMP is implemented for now.
       Other types would need different parameters (fld_length, etc).
     */
+<<<<<<< HEAD
     assert(field_type == MYSQL_TYPE_TIMESTAMP ||
            field_type == MYSQL_TYPE_TIMESTAMP2);
     init(nullptr,  // THD *thd
          nullptr,  // char *fld_name
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(field_type == MYSQL_TYPE_TIMESTAMP ||
+                field_type == MYSQL_TYPE_TIMESTAMP2);
+    init(NULL,  // THD *thd
+         NULL,  // char *fld_name
+=======
+    assert(field_type == MYSQL_TYPE_TIMESTAMP ||
+           field_type == MYSQL_TYPE_TIMESTAMP2);
+    init(NULL, // THD *thd
+         NULL, // char *fld_name
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
          field_type,
          nullptr,         // char *fld_length
          nullptr,         // char *fld_decimals,

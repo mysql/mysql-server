@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1061,6 +1085,7 @@ struct lock_sys_t {
 #endif /* UNIV_DEBUG */
 };
 
+<<<<<<< HEAD
 /** If a transaction has an implicit x-lock on a record, but no explicit x-lock
 set on the record, sets one for it.
 @param[in]  block     buffer block of rec
@@ -1070,10 +1095,37 @@ set on the record, sets one for it.
 void lock_rec_convert_impl_to_expl(const buf_block_t *block, const rec_t *rec,
                                    dict_index_t *index, const ulint *offsets);
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 /** Removes a record lock request, waiting or granted, from the queue. */
 void lock_rec_discard(lock_t *in_lock); /*!< in: record lock object: all
                                         record locks which are contained
                                         in this lock object are removed */
+=======
+/*********************************************************************//**
+This function is kind of wrapper to lock_rec_convert_impl_to_expl_for_trx()
+function with functionailty added to facilitate lock conversion from implicit
+to explicit for partial rollback cases */
+void
+lock_rec_convert_active_impl_to_expl(
+/*==================================*/
+        const buf_block_t*      block,  /*!< in: buffer block of rec */
+        const rec_t*            rec,    /*!< in: user record on page */
+        dict_index_t*           index,  /*!< in: index of record */
+        const ulint*            offsets,/*!< in: rec_get_offsets(rec, index) */
+        trx_t*                  trx,    /*!< in/out: active transaction */
+        ulint                   heap_no);/*!< in: rec heap number to lock */
+
+/*************************************************************//**
+Removes a record lock request, waiting or granted, from the queue. */
+void
+lock_rec_discard(
+/*=============*/
+	lock_t*		in_lock);	/*!< in: record lock object: all
+					record locks which are contained
+					in this lock object are removed */
+>>>>>>> upstream/cluster-7.6
 
 /** Moves the explicit locks on user records to another page if a record
  list start is moved to another page.

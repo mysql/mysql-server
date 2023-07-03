@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -202,6 +226,7 @@ enum dberr_t {
   /** Failed to read as read was beyond file size. */
   DB_FILE_READ_BEYOND_SIZE,
 
+<<<<<<< HEAD
   /* The following are partial failure codes */
 
   DB_FAIL = 1000,
@@ -212,10 +237,27 @@ enum dberr_t {
   DB_RECORD_NOT_FOUND = 1500,
   DB_END_OF_BLOCK,
   DB_END_OF_INDEX,
+<<<<<<< HEAD
   DB_END_SAMPLE_READ,
 
   /** Generic error code for "Not found" type of errors */
   DB_NOT_FOUND,
+=======
+  DB_NOT_FOUND, /*!< Generic error code for "Not found"
+                type of errors */
+=======
+	/* The following are API only error codes. */
+	DB_DATA_MISMATCH = 2000,	/*!< Column update or read failed
+					because the types mismatch */
+
+	DB_SCHEMA_NOT_LOCKED,		/*!< If an API function expects the
+					schema to be locked in exclusive mode
+					and if it's not then that API function
+					will return this error code */
+	DB_FTS_TOO_MANY_NESTED_EXP	/*< Too many nested sub expression
+					in full-text search string */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* The following are API only error codes. */
 

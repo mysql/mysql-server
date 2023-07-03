@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:storage/ndb/src/common/portlib/NdbMutex.cpp
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:storage/ndb/src/common/portlib/NdbMutex.c
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +96,11 @@ int NdbMutex_InitWithName_local(NdbMutex* pNdbMutex,
 
 int NdbMutex_Init(NdbMutex* pNdbMutex)
 {
+<<<<<<< HEAD
   return NdbMutex_InitWithName_local(pNdbMutex, nullptr, 0);
+=======
+  return NdbMutex_InitWithName_local(pNdbMutex, 0, 0);
+>>>>>>> pr/231
 }
 
 int NdbMutex_InitWithName(NdbMutex* pNdbMutex, const char * name)
@@ -98,7 +110,11 @@ int NdbMutex_InitWithName(NdbMutex* pNdbMutex, const char * name)
 
 int NdbMutex_Init_Shared(NdbMutex *pNdbMutex)
 {
+<<<<<<< HEAD
   return NdbMutex_InitWithName_local(pNdbMutex, nullptr, 1);
+=======
+  return NdbMutex_InitWithName_local(pNdbMutex, 0, 1);
+>>>>>>> pr/231
 }
 
 static

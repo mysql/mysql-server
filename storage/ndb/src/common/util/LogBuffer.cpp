@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +35,7 @@
 #include <BaseString.hpp>
 #include <NdbSleep.h>
 
+<<<<<<< HEAD
 size_t ByteStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes,
                                                   size_t /*lost_msgs*/)
 {
@@ -46,11 +51,28 @@ bool ByteStreamLostMsgHandler::writeLostMsg(char* buf,
 {
   cstrbuf strbuf({buf, buf_size});
   require(strbuf.appendf(LOST_BYTES_FMT, lost_bytes) != -1);
+=======
+size_t
+ByteStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs)
+{
+  size_t lost_msg_len = basestring_snprintf(NULL, 0, m_lost_msg_fmt, lost_bytes);
+  return lost_msg_len;
+}
+
+bool
+ByteStreamLostMsgHandler::writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs)
+{
+  basestring_snprintf(buf, buf_size, m_lost_msg_fmt, lost_bytes);
+>>>>>>> pr/231
   return true;
 }
 
 LogBuffer::LogBuffer(size_t size, LostMsgHandler* lost_msg_handler) :
+<<<<<<< HEAD
     m_log_buf(nullptr),
+=======
+    m_log_buf(0),
+>>>>>>> pr/231
     m_max_size(size),
     m_size(0),
     m_lost_bytes(0),
@@ -179,7 +201,11 @@ LogBuffer::checkForBufferSpace(size_t write_bytes)
   if(m_lost_bytes)// there are lost bytes
   {
     assert(m_lost_messages != 0);
+<<<<<<< HEAD
     char* write_ptr = nullptr;
+=======
+    char* write_ptr = NULL;
+>>>>>>> pr/231
     int lost_msg_len = m_lost_msg_handler->getSizeOfLostMsg(m_lost_bytes, m_lost_messages);
     assert(lost_msg_len > 0);
 
@@ -437,6 +463,15 @@ LogBuffer::getLostCount() const
   return m_lost_bytes;
 }
 
+<<<<<<< HEAD
+=======
+bool
+LogBuffer::is_stopped() const
+{
+  return m_stop;
+}
+
+>>>>>>> pr/231
 void
 LogBuffer::stop()
 {
@@ -614,9 +649,13 @@ void* thread_consumer1(void*)
   // flush remaining logs
   char* flush = (char*)malloc(buf_t2->getSize());
   bytes = buf_t2->get(flush, buf_t2->getSize());
+<<<<<<< HEAD
   if (bytes != 0) {
     require(fwrite(flush, bytes, 1, stdout) == 1);
   }
+=======
+  fwrite(flush, bytes, 1, stdout);
+>>>>>>> pr/231
   free(flush);
 
   // print lost bytes if any
@@ -853,6 +892,10 @@ TAPTEST(LogBuffer)
   NdbThread_WaitFor(prod_threadvar2, nullptr);
   stop_t2 = true;
   NdbThread_WaitFor(log_threadvar1, nullptr);
+
+  NdbThread_Destroy(&log_threadvar1);
+  NdbThread_Destroy(&prod_threadvar1);
+  NdbThread_Destroy(&prod_threadvar2);
 
   NdbThread_Destroy(&log_threadvar1);
   NdbThread_Destroy(&prod_threadvar1);

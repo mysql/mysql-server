@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +41,10 @@
 // big brother
 #include <dbtup/Dbtup.hpp>
 #include <dblqh/Dblqh.hpp>
+<<<<<<< HEAD
 #include <dbacc/Dbacc.hpp>
+=======
+>>>>>>> pr/231
 
 // packed index keys and bounds
 #include <NdbPack.hpp>
@@ -78,6 +85,7 @@ class Dbtux : public SimulatedBlock {
   friend struct mt_BuildIndxCtx;
   friend Uint32 Dbtux_mt_buildIndexFragment_wrapper_C(void*);
 
+<<<<<<< HEAD
   Uint32 m_acc_block;
   Uint32 m_lqh_block;
   Uint32 m_tux_block;
@@ -94,6 +102,12 @@ class Dbtux : public SimulatedBlock {
   Dbtup* c_tup;
   Dblqh* c_lqh;
   Dbacc* c_acc;
+=======
+  void prepare_scan_ctx(Uint32 scanPtrI);
+  // pointer to TUP and LQH instance in this thread
+  Dbtup* c_tup;
+  Dblqh* c_lqh;
+>>>>>>> pr/231
   void execTUX_BOUND_INFO(Signal* signal);
   void execREAD_PSEUDO_REQ(Uint32 scanPtrI, Uint32 attrId, Uint32* out, Uint32 out_words);
 
@@ -767,7 +781,11 @@ private:
   void execACCKEYREF(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
   void scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index);
+<<<<<<< HEAD
   void continue_scan(Signal *signal, ScanOpPtr scanPtr, Frag& frag, bool);
+=======
+  void continue_scan(Signal *signal, ScanOpPtr scanPtr, Frag& frag);
+>>>>>>> pr/231
   void scanFind(ScanOpPtr scanPtr, Frag& frag);
   Uint32 scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag);
   bool scanCheck(ScanOp& scan, TreeEnt ent);
@@ -819,6 +837,17 @@ private:
                     unsigned idir,
                     const KeyBoundArray& searchBound,
                     TreePos& treePos);
+<<<<<<< HEAD
+=======
+
+  /**
+   * Prepare methods
+   * These methods are setting up variables that are precomputed to avoid having
+   * to compute those every time we need them.
+   */
+  void prepare_scan_bounds(const ScanOp *scanPtrP, const Index *indexPtrP);
+  void prepare_move_scan_ctx(ScanOpPtr scanPtr);
+>>>>>>> pr/231
 
   /**
    * Prepare methods
@@ -1020,7 +1049,10 @@ public:
   void prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr);
   void prepare_tup_ptrs(TuxCtx& ctx);
   void prepare_all_tup_ptrs(TuxCtx& ctx);
+<<<<<<< HEAD
   void relinkScan(Uint32 line);
+=======
+>>>>>>> pr/231
 private:
   Uint32 mt_buildIndexFragment(struct mt_BuildIndxCtx*);
 
@@ -1318,9 +1350,19 @@ Dbtux::ScanBound::ScanBound() :
 
 inline
 Dbtux::ScanOp::ScanOp() :
+<<<<<<< HEAD
   m_magic(Magic::make(ScanOp::TYPE_ID)),
   m_errorCode(0),
   m_lockwait(false),
+=======
+  m_errorCode(0),
+  m_lockwait(false),
+  m_state(Undef),
+  m_userPtr(RNIL),
+  m_userRef(RNIL),
+  m_tableId(RNIL),
+  m_indexId(RNIL),
+>>>>>>> pr/231
   m_fragPtrI(RNIL),
   m_accLockOp(RNIL),
   m_accLockOps(),
@@ -1709,6 +1751,11 @@ Dbtux::max(unsigned x, unsigned y)
   return x > y ? x : y;
 }
 
+<<<<<<< HEAD
+=======
+// DbtuxCmp.cpp
+
+>>>>>>> pr/231
 /**
  * Can be called from MT-build of ordered indexes,
  * but it doesn't make use of the MT-context other
@@ -1764,6 +1811,7 @@ Dbtux::prepare_all_tup_ptrs(TuxCtx& ctx)
                           ctx.attrDataOffset,
                           ctx.tuxFixHeaderSize);
 }
+<<<<<<< HEAD
 
 inline
 void
@@ -1774,6 +1822,8 @@ Dbtux::relinkScan(Uint32 line)
   Frag& frag = *c_ctx.fragPtr.p;
   relinkScan(scan, frag, true, line);
 }
+=======
+>>>>>>> pr/231
 #undef JAM_FILE_ID
 
 #endif

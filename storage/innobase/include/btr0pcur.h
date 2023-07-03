@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -41,8 +65,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dict.h"
 #include "mtr0mtr.h"
 #include "page0cur.h"
+<<<<<<< HEAD
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
+=======
+#include "btr0cur.h"
+#include "btr0btr.h"
+#include "buf0block_hint.h"
+#include "btr0types.h"
+>>>>>>> upstream/cluster-7.6
 #include "gis0rtree.h"
 #endif /* UNIV_HOTBACKUP */
 
@@ -87,14 +118,21 @@ enum pcur_pos_t {
 };
 
 /* Import tablespace context for persistent B-tree cursor. */
+<<<<<<< HEAD
 struct import_ctx_t {
   /* true if cursor fails to move to the next page during import. */
   bool is_error{false};
+=======
+struct import_ctx_t{
+	/* true if cursor fails to move to the next page during import. */
+	bool	is_error;
+>>>>>>> pr/231
 };
 
 /* The persistent B-tree cursor structure. This is used mainly for SQL
 selects, updates, and deletes. */
 
+<<<<<<< HEAD
 struct btr_pcur_t {
   /** Sets the old_rec_buf field to nullptr.
   @param[in]  read_level  read level where the cursor would be positioned or
@@ -487,10 +525,52 @@ struct btr_pcur_t {
 
   /* NOTE that the following fields may possess dynamically allocated
   memory which should be freed if not needed anymore! */
+=======
+struct btr_pcur_t{
+	btr_pcur_t() { memset(this, 0, sizeof(*this)); }
+
+	/** a B-tree cursor */
+	btr_cur_t	btr_cur;
+	/** see TODO note below!
+	BTR_SEARCH_LEAF, BTR_MODIFY_LEAF, BTR_MODIFY_TREE or BTR_NO_LATCHES,
+	depending on the latching state of the page and tree where the cursor
+	is positioned; BTR_NO_LATCHES means that the cursor is not currently
+	positioned:
+	we say then that the cursor is detached; it can be restored to
+	attached if the old position was stored in old_rec */
+	ulint		latch_mode;
+	/** true if old_rec is stored */
+	bool		old_stored;
+	/** if cursor position is stored, contains an initial segment of the
+	latest record cursor was positioned either on, before or after */
+	rec_t*		old_rec;
+	/** number of fields in old_rec */
+	ulint		old_n_fields;
+	/** BTR_PCUR_ON, BTR_PCUR_BEFORE, or BTR_PCUR_AFTER, depending on
+	whether cursor was on, before, or after the old_rec record */
+	enum btr_pcur_pos_t	rel_pos;
+	/** buffer block when the position was stored */
+	buf::Block_hint	block_when_stored;
+	/** the modify clock value of the buffer block when the cursor position
+	was stored */
+	ib_uint64_t	modify_clock;
+
+	/** btr_pcur_store_position() and btr_pcur_restore_position() state. */
+	enum pcur_pos_t	pos_state;
+	/** PAGE_CUR_G, ... */
+	page_cur_mode_t	search_mode;
+	/** the transaction, if we know it; otherwise this field is not defined;
+	can ONLY BE USED in error prints in fatal assertion failures! */
+	trx_t*		trx_if_known;
+	/*-----------------------------*/
+	/* NOTE that the following fields may possess dynamically allocated
+	memory which should be freed if not needed anymore! */
+>>>>>>> upstream/cluster-7.6
 
   /** nullptr, or a dynamically allocated buffer for old_rec */
   byte *m_old_rec_buf{nullptr};
 
+<<<<<<< HEAD
   /** old_rec_buf size if old_rec_buf is not nullptr */
   size_t m_buf_size{0};
 
@@ -500,6 +580,19 @@ struct btr_pcur_t {
   /* NOTE that the following field is initialized only during import
   tablespace, otherwise undefined */
   import_ctx_t *import_ctx{nullptr};
+=======
+<<<<<<< HEAD
+  /** Return the index of this persistent cursor */
+  dict_index_t *index() const { return (btr_cur.index); }
+=======
+	/* NOTE that the following field is initialized only during import
+	tablespace, otherwise undefined */
+	import_ctx_t*	import_ctx;
+
+	/** Return the index of this persistent cursor */
+	dict_index_t*	index() const { return(btr_cur.index); }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 inline void btr_pcur_t::init(size_t read_level) {

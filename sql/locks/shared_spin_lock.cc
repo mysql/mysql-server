@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2020, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +24,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+<<<<<<< HEAD
 #include <atomic>
 #include <iostream>
 #include <map>
@@ -28,29 +33,54 @@
 #include <type_traits>
 
 #include "sql/locks/shared_spin_lock.h"
+=======
+#include <iostream>
+#include <map>
+#include <memory>
+
+#include "locks/shared_spin_lock.h"
+>>>>>>> pr/231
 
 lock::Shared_spin_lock::Guard::Guard(
     lock::Shared_spin_lock &target,
     lock::Shared_spin_lock::enum_lock_acquisition acquisition,
     bool try_and_fail)
+<<<<<<< HEAD
     : m_target{target},
       m_acquisition{enum_lock_acquisition::SL_NO_ACQUISITION} {
   if (acquisition != enum_lock_acquisition::SL_NO_ACQUISITION) {
+=======
+    : m_target(target), m_acquisition(Shared_spin_lock::SL_NO_ACQUISITION)
+{
+  if (acquisition != Shared_spin_lock::SL_NO_ACQUISITION)
+  {
+>>>>>>> pr/231
     this->acquire(acquisition, try_and_fail);
   }
 }
 
 lock::Shared_spin_lock::Guard::~Guard() { this->release(); }
 
+<<<<<<< HEAD
 lock::Shared_spin_lock *lock::Shared_spin_lock::Guard::operator->() {
   return &this->m_target;
 }
 
 lock::Shared_spin_lock &lock::Shared_spin_lock::Guard::operator*() {
+=======
+lock::Shared_spin_lock *lock::Shared_spin_lock::Guard::operator->()
+{
+  return &this->m_target;
+}
+
+lock::Shared_spin_lock &lock::Shared_spin_lock::Guard::operator*()
+{
+>>>>>>> pr/231
   return this->m_target;
 }
 
 lock::Shared_spin_lock::Guard &lock::Shared_spin_lock::Guard::acquire(
+<<<<<<< HEAD
     enum_lock_acquisition acquisition, bool try_and_fail) {
   assert(this->m_acquisition == enum_lock_acquisition::SL_NO_ACQUISITION);
   assert(acquisition == enum_lock_acquisition::SL_SHARED ||
@@ -66,10 +96,35 @@ lock::Shared_spin_lock::Guard &lock::Shared_spin_lock::Guard::acquire(
           this->m_acquisition = enum_lock_acquisition::SL_NO_ACQUISITION;
         }
       } else {
+=======
+    enum_lock_acquisition acquisition, bool try_and_fail)
+{
+  assert(this->m_acquisition == Shared_spin_lock::SL_NO_ACQUISITION);
+  assert(acquisition == Shared_spin_lock::SL_SHARED ||
+         acquisition == Shared_spin_lock::SL_EXCLUSIVE);
+
+  this->m_acquisition= acquisition;
+
+  switch (this->m_acquisition)
+  {
+    case Shared_spin_lock::SL_SHARED:
+    {
+      if (try_and_fail)
+      {
+        this->m_target.try_shared();
+        if (!this->m_target.is_shared_acquisition())
+        {
+          this->m_acquisition= Shared_spin_lock::SL_NO_ACQUISITION;
+        }
+      }
+      else
+      {
+>>>>>>> pr/231
         this->m_target.acquire_shared();
       }
       break;
     }
+<<<<<<< HEAD
     case enum_lock_acquisition::SL_EXCLUSIVE: {
       if (try_and_fail) {
         this->m_target.try_exclusive();
@@ -77,16 +132,35 @@ lock::Shared_spin_lock::Guard &lock::Shared_spin_lock::Guard::acquire(
           this->m_acquisition = enum_lock_acquisition::SL_NO_ACQUISITION;
         }
       } else {
+=======
+    case Shared_spin_lock::SL_EXCLUSIVE:
+    {
+      if (try_and_fail)
+      {
+        this->m_target.try_exclusive();
+        if (!this->m_target.is_exclusive_acquisition())
+        {
+          this->m_acquisition= Shared_spin_lock::SL_NO_ACQUISITION;
+        }
+      }
+      else
+      {
+>>>>>>> pr/231
         this->m_target.acquire_exclusive();
       }
       break;
     }
     default:
+<<<<<<< HEAD
       break; /* purecov: inspected */
+=======
+      break;
+>>>>>>> pr/231
   }
   return (*this);
 }
 
+<<<<<<< HEAD
 lock::Shared_spin_lock::Guard &lock::Shared_spin_lock::Guard::release() {
   if (this->m_acquisition == enum_lock_acquisition::SL_NO_ACQUISITION) {
     return (*this);
@@ -104,10 +178,35 @@ lock::Shared_spin_lock::Guard &lock::Shared_spin_lock::Guard::release() {
     }
     default:
       break; /* purecov: inspected */
+=======
+lock::Shared_spin_lock::Guard &lock::Shared_spin_lock::Guard::release()
+{
+  if (this->m_acquisition == Shared_spin_lock::SL_NO_ACQUISITION)
+  {
+    return (*this);
+  }
+  switch (this->m_acquisition)
+  {
+    case Shared_spin_lock::SL_SHARED:
+    {
+      this->m_target.release_shared();
+      this->m_acquisition= Shared_spin_lock::SL_NO_ACQUISITION;
+      break;
+    }
+    case Shared_spin_lock::SL_EXCLUSIVE:
+    {
+      this->m_target.release_exclusive();
+      this->m_acquisition= Shared_spin_lock::SL_NO_ACQUISITION;
+      break;
+    }
+    default:
+      break;
+>>>>>>> pr/231
   }
   return (*this);
 }
 
+<<<<<<< HEAD
 lock::Shared_spin_lock &lock::Shared_spin_lock::acquire_shared() {
   return this->try_or_spin_shared_lock(false);
 }
@@ -182,10 +281,102 @@ lock::Shared_spin_lock &lock::Shared_spin_lock::try_or_spin_shared_lock(
     return (*this);
   }
   ++count;
+=======
+lock::Shared_spin_lock::Guard::Guard(const Shared_spin_lock::Guard &rhs)
+    : m_target(rhs.m_target)
+{
+}
+
+lock::Shared_spin_lock::Guard &lock::Shared_spin_lock::Guard::operator=(
+    Shared_spin_lock::Guard const &)
+{
+  return (*this);
+}
+
+lock::Shared_spin_lock::Shared_spin_lock()
+    : m_shared_access(0), m_exclusive_access(0), m_exclusive_owner(0)
+{
+}
+
+lock::Shared_spin_lock::~Shared_spin_lock() {}
+
+lock::Shared_spin_lock &lock::Shared_spin_lock::acquire_shared()
+{
+  return this->try_or_spin_shared_lock(false);
+}
+
+lock::Shared_spin_lock &lock::Shared_spin_lock::acquire_exclusive()
+{
+  return this->try_or_spin_exclusive_lock(false);
+}
+
+lock::Shared_spin_lock &lock::Shared_spin_lock::try_shared()
+{
+  return this->try_or_spin_shared_lock(true);
+}
+
+lock::Shared_spin_lock &lock::Shared_spin_lock::try_exclusive()
+{
+  return this->try_or_spin_exclusive_lock(true);
+}
+
+lock::Shared_spin_lock &lock::Shared_spin_lock::release_shared()
+{
+  assert(my_atomic_load32(&this->m_shared_access) > 0);
+  my_atomic_add32(&this->m_shared_access, -1);
+  return (*this);
+}
+
+lock::Shared_spin_lock &lock::Shared_spin_lock::release_exclusive()
+{
+  my_thread_t self= my_thread_self();
+  my_thread_t owner= (my_thread_t)(my_atomic_load64(&this->m_exclusive_owner));
+  assert(self != 0);
+  assert(my_thread_equal(owner, self));
+  if (!my_thread_equal(owner, self)) return (*this);
+
+  if (my_atomic_load32(&this->m_exclusive_access) == 1)
+    my_atomic_store64(&this->m_exclusive_owner, 0);
+
+  assert(my_atomic_load32(&this->m_exclusive_access) > 0);
+  my_atomic_add32(&this->m_exclusive_access, -1);
+  return (*this);
+}
+
+bool lock::Shared_spin_lock::is_shared_acquisition()
+{
+  return my_atomic_load32(&this->m_shared_access) != 0;
+}
+
+bool lock::Shared_spin_lock::is_exclusive_acquisition()
+{
+  if (my_atomic_load32(&this->m_exclusive_access) != 0)
+  {
+    my_thread_t self= my_thread_self();
+    my_thread_t owner=
+        (my_thread_t)(my_atomic_load64(&this->m_exclusive_owner));
+    return my_thread_equal(owner, self);
+  }
+  return false;
+}
+
+lock::Shared_spin_lock &lock::Shared_spin_lock::try_or_spin_shared_lock(
+    bool try_and_fail)
+{
+  if (try_and_fail)
+  {
+    this->try_shared_lock();
+  }
+  else
+  {
+    this->spin_shared_lock();
+  }
+>>>>>>> pr/231
   return (*this);
 }
 
 lock::Shared_spin_lock &lock::Shared_spin_lock::try_or_spin_exclusive_lock(
+<<<<<<< HEAD
     bool try_and_fail) {
   auto &count = lock::Shared_spin_lock::acquired_spins()[this];
   if (count == 0) {
@@ -213,22 +404,79 @@ bool lock::Shared_spin_lock::try_shared_lock() {
 
   if (this->m_exclusive_access->load(std::memory_order_seq_cst)) {
     this->m_shared_access->fetch_sub(1, std::memory_order_release);
+=======
+    bool try_and_fail)
+{
+  my_thread_t self= my_thread_self();
+  my_thread_t owner= (my_thread_t)(my_atomic_load64(&this->m_exclusive_owner));
+  if (owner != 0 && my_thread_equal(owner, self))
+  {
+    my_atomic_add32(&this->m_exclusive_access, 1);
+    return (*this);
+  }
+
+  if (try_and_fail)
+  {
+    if (!this->try_exclusive_lock())
+    {
+      return (*this);
+    }
+  }
+  else
+  {
+    this->spin_exclusive_lock();
+  }
+#if defined(__APPLE__)
+  my_atomic_store64(&this->m_exclusive_owner, reinterpret_cast<int64>(self));
+#else
+  my_atomic_store64(&this->m_exclusive_owner, self);
+#endif
+  return (*this);
+}
+
+bool lock::Shared_spin_lock::try_shared_lock()
+{
+  if (my_atomic_load32(&this->m_exclusive_access) != 0)
+  {
+    return false;
+  }
+
+  my_atomic_add32(&this->m_shared_access, 1);
+
+  if (my_atomic_load32(&this->m_exclusive_access) != 0)
+  {
+    my_atomic_add32(&this->m_shared_access, -1);
+>>>>>>> pr/231
     return false;
   }
   return true;
 }
 
+<<<<<<< HEAD
 bool lock::Shared_spin_lock::try_exclusive_lock() {
   if (this->m_exclusive_access->exchange(true, std::memory_order_seq_cst)) {
     return false;
   }
   if (this->m_shared_access->load(std::memory_order_acquire) != 0) {
     this->m_exclusive_access->store(false, std::memory_order_seq_cst);
+=======
+bool lock::Shared_spin_lock::try_exclusive_lock()
+{
+  int32 expected= 0;
+  if (!my_atomic_cas32(&this->m_exclusive_access, &expected, 1))
+  {
+    return false;
+  }
+  if (my_atomic_load32(&this->m_shared_access) != 0)
+  {
+    my_atomic_store32(&this->m_exclusive_access, 0);
+>>>>>>> pr/231
     return false;
   }
   return true;
 }
 
+<<<<<<< HEAD
 void lock::Shared_spin_lock::spin_shared_lock() {
   do {
     if (this->m_exclusive_access->load(std::memory_order_seq_cst)) {
@@ -241,6 +489,24 @@ void lock::Shared_spin_lock::spin_shared_lock() {
     if (this->m_exclusive_access->load(std::memory_order_seq_cst)) {
       this->m_shared_access->fetch_sub(1, std::memory_order_release);
       std::this_thread::yield();
+=======
+void lock::Shared_spin_lock::spin_shared_lock()
+{
+  do
+  {
+    if (my_atomic_load32(&this->m_exclusive_access) != 0)
+    {
+      this->yield();
+      continue;
+    }
+
+    my_atomic_add32(&this->m_shared_access, 1);
+
+    if (my_atomic_load32(&this->m_exclusive_access) != 0)
+    {
+      my_atomic_add32(&this->m_shared_access, -1);
+      this->yield();
+>>>>>>> pr/231
       continue;
     }
 
@@ -248,6 +514,7 @@ void lock::Shared_spin_lock::spin_shared_lock() {
   } while (true);
 }
 
+<<<<<<< HEAD
 void lock::Shared_spin_lock::spin_exclusive_lock() {
   while (this->m_exclusive_access->exchange(true, std::memory_order_seq_cst)) {
     std::this_thread::yield();
@@ -262,4 +529,26 @@ std::map<lock::Shared_spin_lock *, long>
   // TODO: garbage collect this if spin-locks start to be used more dynamically
   static thread_local std::map<lock::Shared_spin_lock *, long> acquired_spins;
   return acquired_spins;
+=======
+void lock::Shared_spin_lock::spin_exclusive_lock()
+{
+  bool success= false;
+  do
+  {
+    int32 expected= 0;
+    success= my_atomic_cas32(&this->m_exclusive_access, &expected, 1);
+    if (!success) this->yield();
+  } while (!success);
+
+  while (my_atomic_load32(&this->m_shared_access) != 0)
+  {
+    this->yield();
+  }
+}
+
+lock::Shared_spin_lock &lock::Shared_spin_lock::yield()
+{
+  my_thread_yield();
+  return (*this);
+>>>>>>> pr/231
 }

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,20 +154,36 @@ TEST_F(FatalSignalDeathTest, Segfault) {
    caught by handle_fatal_signal(). We get an empty error message from the
    gtest library instead.
   */
+<<<<<<< HEAD
   EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
 #elif defined(HAVE_ASAN)
 /* gcc 4.8.1 with '-fsanitize=address -O1' */
 /* Newer versions of ASAN give other error message, disable it */
 // EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
+<<<<<<< HEAD
+=======
+=======
+  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
+#elif defined(HAVE_ASAN)
+  /* gcc 4.8.1 with '-fsanitize=address -O1' */
+  /* Newer versions of ASAN give other error message, disable it */
+  // EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
+>>>>>>> pr/231
 #elif defined(__APPLE__) && defined(__aarch64__) && defined(NDEBUG)
   // Disable also in non-debug mode on MacOS 11 arm, with -O1 or above, we get
   // Result: died but not with expected error.
   // Expected: contains regular expression ".* UTC - mysqld got signal .*"
   // Actual msg:
   // We do get: "Trace/BPT trap: 5" but not as part of the matcher input in
+<<<<<<< HEAD
   // EXPECT_DEATH(statement, matcher);
 #elif defined(HANDLE_FATAL_SIGNALS)
   int *pint = nullptr;
+=======
+>>>>>>> upstream/cluster-7.6
+#else
+  int *pint = NULL;
+>>>>>>> pr/231
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optimized mode).

@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +29,12 @@
 #ifndef atrt_config_hpp
 #define atrt_config_hpp
 
+<<<<<<< HEAD
 #include "util/require.h"
 #include <time.h>
 
+=======
+>>>>>>> pr/231
 #include <NDBT_ReturnCodes.h>
 #include <mgmapi.h>
 #include <my_default.h>
@@ -55,9 +62,20 @@ enum ErrorCodes {
   ERR_COMMAND_FAILED = 104,
   ERR_FAILED_TO_START = 105,
   ERR_NDB_AND_SERVERS_FAILED = 106,
+<<<<<<< HEAD
   ERR_CORRUPT_TESTCASE = 107,
   ERR_TEST_FAILED = NDBT_FAILED << 8,
   ERR_TEST_SKIPPED = NDBT_SKIPPED << 8
+=======
+  ERR_TEST_FAILED = NDBT_FAILED << 8,
+  ERR_TEST_SKIPPED = NDBT_SKIPPED << 8
+};
+
+enum AtrtExitCodes {
+  TESTSUITE_SUCCESS = 0,
+  TESTSUITE_FAILURES = 1,
+  ATRT_FAILURE = 2
+>>>>>>> pr/231
 };
 
 enum AtrtExitCodes {
@@ -178,8 +196,12 @@ struct atrt_testcase {
   BaseString m_name;
   BaseString m_mysqld_options;
   int m_max_retries;
+<<<<<<< HEAD
   RestartMode m_force_cluster_restart;
   FailureMode m_behaviour_on_failure;
+=======
+  bool m_force_cluster_restart;
+>>>>>>> pr/231
 
   struct Command {
     atrt_process::Type m_cmd_type;
@@ -211,6 +233,10 @@ int atrt_exit(int return_code);
 void update_atrt_result_code(const TestResult& test_result,
                              AtrtExitCodes* return_code);
 
+<<<<<<< HEAD
+=======
+int check_ndb_or_servers_failures(atrt_config& config);
+>>>>>>> pr/231
 bool is_client_running(atrt_config&);
 bool gather_result(atrt_config&, int* result);
 
@@ -219,6 +245,14 @@ bool read_test_cases(FILE*, std::vector<atrt_testcase>*);
 
 bool setup_hosts(atrt_config&);
 
+<<<<<<< HEAD
+=======
+bool do_command(atrt_config& config);
+
+bool start_process(atrt_process& proc, bool run_setup = true);
+bool stop_process(atrt_process& proc);
+
+>>>>>>> pr/231
 bool connect_mysqld(atrt_process& proc);
 bool disconnect_mysqld(atrt_process& proc);
 

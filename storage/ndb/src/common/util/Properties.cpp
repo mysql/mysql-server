@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,7 +176,11 @@ Properties& Properties::operator=(const Properties & org){
   propErrno = 0;
   osErrno = 0;
   impl = new PropertiesImpl(this, * org.impl);
+<<<<<<< HEAD
   parent = nullptr;
+=======
+  parent = NULL;
+>>>>>>> pr/231
 
   return *this;
 }

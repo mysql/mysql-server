@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -77,6 +101,29 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Index name prefix in fast index creation, as a string constant */
 #define TEMP_INDEX_PREFIX_STR "\377"
 
+<<<<<<< HEAD
+=======
+/** Get the format string for the logger.
+@param[in]	errcode		The error code from share/errmsg-*.txt
+@return the message string or nullptr */
+const char *srv_get_server_errmsgs(int errcode);
+
+/** Time stamp */
+typedef time_t ib_time_t;
+
+/** Time stamp read from the monotonic clock (returned by ut_time_monotonic()).
+ */
+typedef int64_t ib_time_monotonic_t;
+
+/** Number of milliseconds read from the monotonic clock (returned by
+ * ut_time_monotonic_ms()). */
+typedef int64_t ib_time_monotonic_ms_t;
+
+/** Number of microseconds read from the monotonic clock (returned by
+ * ut_time_monotonic_us()). */
+typedef int64_t ib_time_monotonic_us_t;
+
+>>>>>>> pr/231
 #ifndef UNIV_HOTBACKUP
 #if defined(HAVE_PAUSE_INSTRUCTION)
 /* According to the gcc info page, asm volatile means that the
@@ -112,9 +159,48 @@ performance. */
 #define UT_RESUME_PRIORITY_CPU() ((void)0)
 #endif
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+/** Delays execution for at most max_wait_us microseconds or returns earlier
+ if cond becomes true.
+ @param cond in: condition to wait for; evaluated every 2 ms
+ @param max_wait_us in: maximum delay to wait, in microseconds */
+#define UT_WAIT_FOR(cond, max_wait_us)                               \
+  do {                                                               \
+    uintmax_t start_us;                                              \
+    start_us = ut_time_us(NULL);                                     \
+    while (!(cond) && ut_time_us(NULL) - start_us < (max_wait_us)) { \
+      os_thread_sleep(2000 /* 2 ms */);                              \
+    }                                                                \
+  } while (0)
+>>>>>>> pr/231
 #else                  /* !UNIV_HOTBACKUP */
 #define UT_RELAX_CPU() /* No op */
 #endif                 /* !UNIV_HOTBACKUP */
+=======
+/*********************************************************************//**
+Delays execution for at most max_wait_us microseconds or returns earlier
+if cond becomes true.
+@param cond in: condition to wait for; evaluated every 2 ms
+@param max_wait_us in: maximum delay to wait, in microseconds */
+#define UT_WAIT_FOR(cond, max_wait_us)				\
+do {								\
+	uint64_t	start_us;				\
+	start_us = ut_time_monotonic_us();			\
+	while (!(cond)) {					\
+		ib_time_monotonic_us_t diff;                    \
+		diff = ut_time_monotonic_us() - start_us;       \
+		uint64_t limit = max_wait_us;			\
+		if(limit <= 0 || (diff > 0 &&			\
+			         ((uint64_t)diff > limit))) {	\
+			break;					\
+		}						\
+		os_thread_sleep(2000 /* 2 ms */);		\
+	}							\
+} while (0)
+#endif /* !UNIV_HOTBACKUP */
+>>>>>>> upstream/cluster-7.6
 
 #ifndef UNIV_HOTBACKUP
 
@@ -188,7 +274,77 @@ ulint ut_2_power_up(ulint n);
 store the given number of bits.
 @param b in: bits
 @return number of bytes (octets) needed to represent b */
+<<<<<<< HEAD
 #define UT_BITS_IN_BYTES(b) (((b) + 7UL) / 8UL)
+=======
+#define UT_BITS_IN_BYTES(b) (((b) + 7) / 8)
+
+<<<<<<< HEAD
+/** Returns system time. We do not specify the format of the time returned:
+ the only way to manipulate it is to use the function ut_difftime.
+ @return system time */
+ib_time_t ut_time(void);
+/** Returns system time.
+ Upon successful completion, the value 0 is returned; otherwise the
+ value -1 is returned and the global variable errno is set to indicate the
+ error.
+ @return 0 on success, -1 otherwise */
+int ut_usectime(ulint *sec, /*!< out: seconds since the Epoch */
+                ulint *ms); /*!< out: microseconds since the Epoch+*sec */
+
+/** Returns the number of microseconds since epoch. Similar to
+ time(3), the return value is also stored in *tloc, provided
+ that tloc is non-NULL.
+ @return us since epoch */
+uintmax_t ut_time_us(uintmax_t *tloc); /*!< out: us since epoch, if non-NULL */
+/** Returns the number of milliseconds since some epoch.  The
+ value may wrap around.  It should only be used for heuristic
+ purposes.
+ @return ms since epoch */
+ulint ut_time_ms(void);
+
+=======
+/**********************************************************//**
+Returns system time. We do not specify the format of the time returned:
+the only way to manipulate it is to use the function ut_difftime.
+@return system time */
+ib_time_t
+ut_time(void);
+/*=========*/
+#ifndef UNIV_HOTBACKUP
+/**********************************************************//**
+Returns the number of microseconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_us_t ut_time_monotonic_us(void);
+
+/** Returns the number of milliseconds since epoch. Uses the monotonic clock.
+ @return ms since epoch */
+ib_time_monotonic_ms_t ut_time_monotonic_ms(void);
+
+/** Returns the number of seconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_t ut_time_monotonic(void);
+
+/*============*/
+>>>>>>> upstream/cluster-7.6
+#ifdef _WIN32
+/** Initialise highest available time resolution API on Windows
+ @return false if all OK else true */
+bool ut_win_init_time();
+
+#endif /* _WIN32 */
+
+/** Returns the number of milliseconds since some epoch.  The
+ value may wrap around.  It should only be used for heuristic
+ purposes.
+ @return ms since epoch */
+ulint ut_time_ms(void);
+
+/** Returns the difference of two times in seconds.
+ @return time2 - time1 expressed in seconds */
+double ut_difftime(ib_time_t time2,  /*!< in: time */
+                   ib_time_t time1); /*!< in: time */
+>>>>>>> pr/231
 
 /** Determines if a number is zero or a power of two.
 @param[in]      n       number

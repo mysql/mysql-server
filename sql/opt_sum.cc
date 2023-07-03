@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -163,11 +167,24 @@ static int get_index_min_value(TABLE *table, Index_lookup *ref,
         Open interval is not used if the search key involves the last keypart,
         and it would not work.
       */
+<<<<<<< HEAD
       assert(prefix_len < ref->key_length);
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(prefix_len < ref->key_length);
+>>>>>>> pr/231
       error = table->file->ha_index_read_map(
           table->record[0], ref->key_buff,
           make_prev_keypart_map(ref->key_parts), HA_READ_AFTER_KEY);
       /*
+=======
+      assert(prefix_len < ref->key_length);
+      error= table->file->ha_index_read_map(table->record[0],
+                                            ref->key_buff,
+                                            make_prev_keypart_map(ref->key_parts),
+                                            HA_READ_AFTER_KEY);
+      /* 
+>>>>>>> upstream/cluster-7.6
          If the found record is outside the group formed by the search
          prefix, or there is no such record at all, check if all
          records in that group have NULL in the MIN argument
@@ -185,11 +202,21 @@ static int get_index_min_value(TABLE *table, Index_lookup *ref,
             NULL.
           */
           (error == HA_ERR_KEY_NOT_FOUND ||
+<<<<<<< HEAD
            key_cmp_if_same(table, ref->key_buff, ref->key, prefix_len))) {
         assert(item_field->field->is_nullable());
         error = table->file->ha_index_read_map(
             table->record[0], ref->key_buff,
             make_prev_keypart_map(ref->key_parts), HA_READ_KEY_EXACT);
+=======
+           key_cmp_if_same(table, ref->key_buff, ref->key, prefix_len)))
+      {
+        assert(item_field->field->real_maybe_null());
+        error= table->file->ha_index_read_map(table->record[0],
+                                             ref->key_buff,
+                                             make_prev_keypart_map(ref->key_parts),
+                                             HA_READ_KEY_EXACT);
+>>>>>>> upstream/cluster-7.6
       }
     }
   }
@@ -575,14 +602,81 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
             If row_count == 0 and there are no outer joins, set to NULL,
             otherwise set to the constant value.
           */
+<<<<<<< HEAD
           if (have_exact_count && row_count == 0 && !inner_tables) {
+=======
+<<<<<<< HEAD
+          if (!count && !outer_tables) {
+>>>>>>> pr/231
             item_sum->aggregator_clear();
             // Mark the aggregated value as based on no rows
             item->no_rows_in_result();
           } else
             item_sum->reset_and_add();
           item_sum->make_const();
+<<<<<<< HEAD
           recalc_const_item = true;
+=======
+          recalc_const_item = 1;
+=======
+          assert(table->read_set == &table->def_read_set);
+          assert(bitmap_is_clear_all(&table->tmp_set));
+          table->read_set= &table->tmp_set;
+          table->mark_columns_used_by_index_no_reset(ref.key, table->read_set,
+                                                     ref.key_parts);
+          // The aggregated column may or not be included in ref.key_parts.
+          bitmap_set_bit(table->read_set, item_field->field->field_index);
+          error= is_max ?
+                 get_index_max_value(table, &ref, range_fl) :
+                 get_index_min_value(table, &ref, item_field, range_fl,
+                                     prefix_len);
+
+          /*
+            Set TABLE::status to STATUS_GARBAGE since original and
+            real read_set are different, i.e. some field values
+            from original read set could be unread.
+          */
+          if (!bitmap_is_subset(&table->def_read_set, &table->tmp_set))
+            table->status|= STATUS_GARBAGE;
+
+          table->read_set= &table->def_read_set;
+          bitmap_clear_all(&table->tmp_set);
+          /* Verify that the read tuple indeed matches the search key */
+	  if (!error && reckey_in_range(is_max, &ref, item_field, 
+			                conds, range_fl, prefix_len))
+	    error= HA_ERR_KEY_NOT_FOUND;
+          table->set_keyread(FALSE);
+          table->file->ha_index_end();
+          if (error)
+	  {
+	    if (error == HA_ERR_KEY_NOT_FOUND || error == HA_ERR_END_OF_FILE)
+	      DBUG_RETURN(HA_ERR_KEY_NOT_FOUND); // No rows matching WHERE
+	    /* HA_ERR_LOCK_DEADLOCK or some other error */
+ 	    table->file->print_error(error, MYF(0));
+            DBUG_RETURN(error);
+	  }
+          removed_tables|= item_field->table_ref->map();
+        }
+        else if (!expr->const_item() || conds || !is_exact_count)
+        {
+          /*
+            We get here if the aggregate function is not based on a field.
+            Example: "SELECT MAX(1) FROM table ..."
+
+            This constant optimization is not applicable if
+            1. the expression is not constant, or
+            2. it is unknown if the query returns any rows. MIN/MAX must return
+               NULL if the query doesn't return any rows. We can't determine
+               this if:
+               - the query has a condition, because, in contrast to the
+                 "MAX(field)" case above, the condition will not be evaluated
+                 against an index for this case, or
+               - the storage engine does not provide exact count, which means
+                 that it doesn't know whether there are any rows.
+          */
+          const_result= 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
           break;
         }
         default:
@@ -1024,9 +1118,19 @@ static bool find_key_for_maxmin(bool max_fl, Index_lookup *ref,
             ref->key_buff[ref->key_length] = 1;
             ref->key_length += part->store_length;
             ref->key_parts++;
+<<<<<<< HEAD
             assert(ref->key_parts == jdx + 1);
+=======
+<<<<<<< HEAD
+            DBUG_ASSERT(ref->key_parts == jdx + 1);
+>>>>>>> pr/231
             *range_fl &= ~NO_MIN_RANGE;
             *range_fl |= NEAR_MIN;  // Open interval
+=======
+            assert(ref->key_parts == jdx+1);
+            *range_fl&= ~NO_MIN_RANGE;
+            *range_fl|= NEAR_MIN; // Open interval
+>>>>>>> upstream/cluster-7.6
           }
           /*
             The following test is false when the key in the key tree is
@@ -1124,5 +1228,16 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
       assert(false);  // Impossible
       break;
   }
+<<<<<<< HEAD
   return false;
+=======
+  case Item_func::EQ_FUNC:
+  case Item_func::EQUAL_FUNC:
+    break;
+  default:                                        // Keep compiler happy
+    assert(1);                               // Impossible
+    break;
+  }
+  return 0;
+>>>>>>> upstream/cluster-7.6
 }

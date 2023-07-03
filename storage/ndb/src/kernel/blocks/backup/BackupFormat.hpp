@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +47,12 @@ struct BackupFormat {
   static const Uint32 NDB_LCP_CTL_FILE_SIZE_SMALL = 4096;
   static const Uint32 NDB_LCP_CTL_FILE_SIZE_BIG = 8192;
   static const Uint32 BYTES_PER_PART_ON_DISK = 3;
+<<<<<<< HEAD
   static constexpr Uint32 MAX_BACKUP_FILE_LOG_DATA_SIZE =
     MAX_ATTRIBUTES_IN_INDEX + MAX_KEY_SIZE_IN_WORDS +
     MAX_ATTRIBUTES_IN_TABLE + MAX_TUPLE_SIZE_IN_WORDS;
+=======
+>>>>>>> pr/231
 
   enum RecordType
   {

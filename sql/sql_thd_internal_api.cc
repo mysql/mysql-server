@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,6 +130,18 @@ void thd_init(THD *thd, char *stack_start) {
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
     thd_manager->add_thd(thd);
   }
+<<<<<<< HEAD
+=======
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_thread *psi;
+  psi = PSI_THREAD_CALL(new_thread)(psi_key, thd, thd->thread_id());
+  if (bound) {
+    PSI_THREAD_CALL(set_thread_os_id)(psi);
+  }
+  PSI_THREAD_CALL(set_thread_THD)(psi, thd);
+  thd->set_psi(psi);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+>>>>>>> pr/231
 
   if (!thd->system_thread) {
     DBUG_PRINT("info",
@@ -339,9 +359,22 @@ bool is_mysql_datadir_path(const char *path) {
       reinterpret_cast<uchar *>(mysql_data_dir), mysql_data_home_len, true);
 }
 
+<<<<<<< HEAD
 int mysql_tmpfile_path(const char *path, const char *prefix) {
+<<<<<<< HEAD
   assert(path != nullptr);
   assert((strlen(path) + strlen(prefix)) <= FN_REFLEN);
+=======
+  DBUG_ASSERT(path != NULL);
+  DBUG_ASSERT((strlen(path) + strlen(prefix)) <= FN_REFLEN);
+=======
+
+int mysql_tmpfile_path(const char *path, const char *prefix)
+{
+  assert(path != NULL);
+  assert((strlen(path) + strlen(prefix)) <= FN_REFLEN);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   char filename[FN_REFLEN];
   int mode = O_CREAT | O_EXCL | O_RDWR;

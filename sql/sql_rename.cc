@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -624,6 +632,7 @@ static bool do_rename(THD *thd, Table_ref *ren_table, const char *new_db,
         acquire locks on parent and child tables relies on this
         invariant.
       */
+<<<<<<< HEAD
       assert(!(*int_commit_done) || fk_invalidator->is_empty());
 
       // Find if table uses general tablespace and is it encrypted.
@@ -661,6 +670,10 @@ static bool do_rename(THD *thd, Table_ref *ren_table, const char *new_db,
                        ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB));
         }
       }
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(!(*int_commit_done) || fk_invalidator->is_empty());
+>>>>>>> pr/231
 
       /*
         Obtain exclusive metadata lock on all tables being referenced by the
@@ -734,6 +747,22 @@ static bool do_rename(THD *thd, Table_ref *ren_table, const char *new_db,
           fk_invalidator->clear();
           return true;
         }
+=======
+      if (thd->lex->sql_command != SQLCOM_ALTER_DB_UPGRADE &&
+          strcmp(ren_table->db, new_db))
+        my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, 
+                 new_db);
+      else
+        rc= mysql_rename_view(thd, new_db, new_alias, ren_table);
+      break;
+    default:
+      assert(0); // should never happen
+    case FRMTYPE_ERROR:
+      { 
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(ER_FILE_NOT_FOUND, MYF(0), name,
+                 my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
+>>>>>>> upstream/cluster-7.6
       }
 
       if (lock_check_constraint_names_for_rename(

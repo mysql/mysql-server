@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,8 +250,12 @@ bool Table_trigger_dispatcher::create_trigger(
     of Field objects here.
    */
 
+<<<<<<< HEAD
   m_old_field = m_subject_table->field;
   m_new_field = m_subject_table->field;
+=======
+  assert(m_subject_table);
+>>>>>>> upstream/cluster-7.6
 
   if (lex->sphead->setup_trigger_fields(thd, this, nullptr, true)) return true;
 
@@ -280,6 +292,45 @@ bool Table_trigger_dispatcher::create_trigger(
                             lex->sphead->m_trg_chistics.anchor_trigger_name);
 }
 
+<<<<<<< HEAD
+=======
+
+/**
+  Drop trigger for table.
+
+  @param thd                  thread context
+  @param trigger_name         name of the trigger to drop
+  @param [out] trigger_found  out-flag to determine if the trigger found
+
+  @return Operation status.
+    @retval false Success
+    @retval true  Failure
+*/
+
+bool Table_trigger_dispatcher::drop_trigger(THD *thd,
+                                            const LEX_STRING &trigger_name,
+                                            bool *trigger_found)
+{
+  if (rebuild_trigger_list() ||
+      Trigger_loader::drop_trigger(m_db_name,
+                                   m_subject_table_name,
+                                   trigger_name,
+                                   get_mem_root(),
+                                   &m_triggers,
+                                   trigger_found))
+    return true;
+
+  if (*trigger_found)
+    return false;
+
+  assert (!*trigger_found);
+  my_message(ER_TRG_DOES_NOT_EXIST, ER(ER_TRG_DOES_NOT_EXIST), MYF(0));
+
+  return true;
+}
+
+
+>>>>>>> upstream/cluster-7.6
 /**
   Prepare array of Field objects referencing to TABLE::record[1] instead
   of record[0] (they will represent OLD.* row values in ON UPDATE trigger
@@ -388,10 +439,23 @@ bool Table_trigger_dispatcher::check_n_load(THD *thd, const dd::Table &table) {
 */
 
 Trigger_chain *Table_trigger_dispatcher::create_trigger_chain(
+<<<<<<< HEAD
     MEM_ROOT *mem_root, enum_trigger_event_type event,
     enum_trigger_action_time_type action_time) {
+<<<<<<< HEAD
   assert(event != TRG_EVENT_MAX);
   assert(action_time != TRG_ACTION_MAX);
+=======
+  DBUG_ASSERT(event != TRG_EVENT_MAX);
+  DBUG_ASSERT(action_time != TRG_ACTION_MAX);
+=======
+  enum_trigger_event_type event,
+  enum_trigger_action_time_type action_time)
+{
+  assert(event != TRG_EVENT_MAX);
+  assert(action_time != TRG_ACTION_MAX);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Trigger_chain *tc = get_triggers(event, action_time);
 
@@ -484,8 +548,18 @@ void Table_trigger_dispatcher::parse_triggers(THD *thd, List<Trigger> *triggers,
           the trigger instance (do not put it into the list).
     */
 
+<<<<<<< HEAD
     if (fatal_parse_error || t->has_parse_error()) {
+<<<<<<< HEAD
       assert(!t->get_sp());  // SP must be NULL.
+=======
+      DBUG_ASSERT(!t->get_sp());  // SP must be NULL.
+=======
+    if (fatal_parse_error || t->has_parse_error())
+    {
+      assert(!t->get_sp()); // SP must be NULL.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
       if (t->has_parse_error())
         set_parse_error_message(t->get_parse_error_message());
@@ -580,9 +654,24 @@ bool Table_trigger_dispatcher::process_triggers(
 */
 
 bool Table_trigger_dispatcher::add_tables_and_routines_for_triggers(
+<<<<<<< HEAD
     THD *thd, Query_tables_list *prelocking_ctx, Table_ref *table_list) {
   assert(static_cast<int>(table_list->lock_descriptor().type) >=
          static_cast<int>(TL_WRITE_ALLOW_WRITE));
+=======
+<<<<<<< HEAD
+    THD *thd, Query_tables_list *prelocking_ctx, TABLE_LIST *table_list) {
+  DBUG_ASSERT(static_cast<int>(table_list->lock_descriptor().type) >=
+              static_cast<int>(TL_WRITE_ALLOW_WRITE));
+=======
+  THD *thd,
+  Query_tables_list *prelocking_ctx,
+  TABLE_LIST *table_list)
+{
+  assert(static_cast<int>(table_list->lock_type) >=
+         static_cast<int>(TL_WRITE_ALLOW_WRITE));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   for (int i = 0; i < (int)TRG_EVENT_MAX; ++i) {
     if (table_list->trg_event_map & static_cast<uint8>(1 << i)) {
@@ -603,8 +692,18 @@ bool Table_trigger_dispatcher::add_tables_and_routines_for_triggers(
   @param thd Thread context.
 */
 
+<<<<<<< HEAD
 void Table_trigger_dispatcher::enable_fields_temporary_nullability(THD *thd) {
+<<<<<<< HEAD
   assert(m_subject_table);
+=======
+  DBUG_ASSERT(m_subject_table);
+=======
+void Table_trigger_dispatcher::enable_fields_temporary_nullability(THD *thd)
+{
+  assert(m_subject_table);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   for (Field **next_field = m_subject_table->field; *next_field; ++next_field) {
     (*next_field)->set_tmp_nullable();
@@ -631,8 +730,18 @@ void Table_trigger_dispatcher::enable_fields_temporary_nullability(THD *thd) {
   Reset "temporary nullable" flag from trigger fields.
 */
 
+<<<<<<< HEAD
 void Table_trigger_dispatcher::disable_fields_temporary_nullability() {
+<<<<<<< HEAD
   assert(m_subject_table);
+=======
+  DBUG_ASSERT(m_subject_table);
+=======
+void Table_trigger_dispatcher::disable_fields_temporary_nullability()
+{
+  assert(m_subject_table);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   for (Field **next_field = m_subject_table->field; *next_field; ++next_field)
     (*next_field)->reset_tmp_nullable();

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 # Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+# Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +33,7 @@ SET(MYISAM_SOURCES
   my_lock.cc
   my_redel.cc
   queues.cc
+<<<<<<< HEAD
   # Implementation of myisam storage engine.
   ft_boolean_search.cc
   ft_nlq_search.cc
@@ -79,6 +88,28 @@ SET(MYISAM_SOURCES
   sort.cc
   sp_key.cc
   )
+=======
+)
+
+<<<<<<< HEAD
+SET(MYISAM_SOURCES  ft_boolean_search.cc ft_nlq_search.cc ft_parser.cc ft_static.cc
+=======
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
+SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
+>>>>>>> upstream/cluster-7.6
+                                ha_myisam.cc
+				ft_stopwords.cc ft_update.cc mi_cache.cc mi_changed.cc mi_check.cc
+				mi_checksum.cc mi_close.cc mi_create.cc mi_dbug.cc mi_delete.cc
+				mi_delete_all.cc mi_delete_table.cc mi_dynrec.cc mi_extra.cc mi_info.cc
+				mi_key.cc mi_keycache.cc mi_locking.cc mi_log.cc mi_open.cc
+				mi_packrec.cc mi_page.cc mi_panic.cc mi_preload.cc mi_range.cc mi_rename.cc
+				mi_rfirst.cc mi_rlast.cc mi_rnext.cc mi_rnext_same.cc mi_rprev.cc mi_rrnd.cc
+				mi_rsame.cc mi_rsamepos.cc mi_scan.cc mi_search.cc mi_static.cc mi_statrec.cc
+				mi_unique.cc mi_update.cc mi_write.cc rt_index.cc rt_key.cc rt_mbr.cc
+				rt_split.cc sort.cc sp_key.cc mi_extrafunc.h myisamdef.h
+				rt_index.h mi_rkey.cc)
+>>>>>>> pr/231
 
 # MyISAM relies heavily on memset/memcpy of structs, including non-POD ones.
 # As MyISAM is not maintained anymore, it is not worth fixing these,
@@ -93,6 +124,7 @@ IF(MY_COMPILER_IS_GNU)
     COMPILE_FLAGS "-Wno-class-memaccess")
 ENDIF()
 
+<<<<<<< HEAD
 MY_CHECK_CXX_COMPILER_WARNING("-Wcast-function-type" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
   ADD_COMPILE_FLAGS(
@@ -107,6 +139,18 @@ TARGET_LINK_LIBRARIES(myisam_library mysys)
 
 MYSQL_ADD_PLUGIN(myisam ha_myisam.cc
   STORAGE_ENGINE
+=======
+MY_CHECK_CXX_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
+IF(HAVE_CAST_FUNCTION_TYPE)
+  ADD_COMPILE_FLAGS(
+    mi_write.c
+    myisamlog.c
+    COMPILE_FLAGS "-Wno-cast-function-type")
+ENDIF()
+
+MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 
+  STORAGE_ENGINE 
+>>>>>>> pr/231
   MANDATORY
   LINK_LIBRARIES myisam_library
 )

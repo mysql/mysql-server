@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -258,6 +266,7 @@ void udf_read_functions_table() {
   while (!(error = iterator->Read())) {
     DBUG_PRINT("info", ("init udf record"));
     LEX_STRING name;
+<<<<<<< HEAD
     name.str = get_field(&mem, table->field[0]);
 
     // Check the name.str is NULL or not.
@@ -279,6 +288,29 @@ void udf_read_functions_table() {
     Item_udftype udftype = UDFTYPE_FUNCTION;
     if (table->s->fields >= 4)  // New func table
       udftype = (Item_udftype)table->field[3]->val_int();
+=======
+    name.str=get_field(&mem, table->field[0]);
+
+    // Check the name.str is NULL or not.
+    if (name.str == NULL)
+    {
+      sql_print_error("Invalid row in mysql.func table for column 'name'");
+      continue;
+    }
+
+    name.length = strlen(name.str);
+    char *dl_name= get_field(&mem, table->field[2]);
+    if (dl_name == NULL)
+    {
+      sql_print_error("Invalid row in mysql.func table for function '%.64s'",
+                      name.str);
+      continue;
+    }
+    bool new_dl=0;
+    Item_udftype udftype=UDFTYPE_FUNCTION;
+    if (table->s->fields >= 4)			// New func table
+      udftype=(Item_udftype) table->field[3]->val_int();
+>>>>>>> upstream/cluster-7.6
 
     /*
       Ensure that the .dll doesn't have a path
@@ -747,7 +779,40 @@ bool mysql_create_function(THD *thd, udf_func *udf, bool if_not_exists) {
              my_strerror(errbuf, sizeof(errbuf), error));
     if (new_dl) dlclose(dl);
   }
+<<<<<<< HEAD
   return error;
+=======
+<<<<<<< HEAD
+  DBUG_RETURN(error);
+=======
+  mysql_rwlock_unlock(&THR_LOCK_udf);
+
+  /* Binlog the create function. */
+  if (write_bin_log(thd, true, thd->query().str, thd->query().length))
+  {
+    /* Restore the state of binlog format */
+    assert(!thd->is_current_stmt_binlog_format_row());
+    if (save_binlog_row_based)
+      thd->set_current_stmt_binlog_format_row();
+    DBUG_RETURN(1);
+  }
+  /* Restore the state of binlog format */
+  assert(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+  DBUG_RETURN(0);
+
+ err:
+  if (new_dl)
+    dlclose(dl);
+  mysql_rwlock_unlock(&THR_LOCK_udf);
+  /* Restore the state of binlog format */
+  assert(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+  DBUG_RETURN(1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /**
@@ -843,6 +908,7 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
     Binlog the drop function. Keep the table open and locked
     while binlogging, to avoid binlog inconsistency.
   */
+<<<<<<< HEAD
   if (!error)
     error = (write_bin_log(thd, true, thd->query().str, thd->query().length,
                            true) != 0);
@@ -855,7 +921,20 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
   */
   if (udf->dlhandle && !find_udf_dl(udf->dl)) dlclose(udf->dlhandle);
 
+<<<<<<< HEAD
   return error;
+=======
+=======
+  if (!write_bin_log(thd, true, thd->query().str, thd->query().length))
+    error= 0;
+exit:
+  /* Restore the state of binlog format */
+  assert(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+>>>>>>> upstream/cluster-7.6
+  DBUG_RETURN(error);
+>>>>>>> pr/231
 }
 
 bool mysql_udf_registration_imp::udf_register_inner(udf_func *ufunc) {

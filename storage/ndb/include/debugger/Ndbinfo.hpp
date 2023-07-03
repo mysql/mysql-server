@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD:storage/ndb/include/debugger/Ndbinfo.hpp
    Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231:storage/ndb/src/kernel/vm/Ndbinfo.hpp
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,12 +128,41 @@ public:
     } instances;
   };
 
+  enum BufferId {
+    REDO = 0,
+    DD_UNDO = 1,
+    BACKUP_DATA_BUFFER = 2,
+    BACKUP_LOG_BUFFER = 3
+  };
+
+  struct Counts {
+    int data_nodes;
+    int all_nodes;
+    int log_parts;
+    int est_tables;
+    int cpus;
+    struct {
+       int db;    // all threads, from getThreadCount()
+       int send;  // send threads, from GlobalData.ndbMtSendThreads
+       int ldm;   // LDM threads, from getThreadCount(THRConfig::T_LDM)
+    } threads;
+    struct {
+      int tc;    // ndbMtTcWorkers
+      int lqh;   // ndbMtLqhWorkers
+      int pgman; // ndbMtLqhWorkers + 1
+    } instances;
+  };
+
   struct Table {
     struct Members {
       const char* name;
       int ncols;
       int flags;
+<<<<<<< HEAD:storage/ndb/include/debugger/Ndbinfo.hpp
       std::function<Uint32(const struct Counts &)> estimate_rows;
+=======
+      Uint32 (*estimate_rows)(const struct Counts &);
+>>>>>>> pr/231:storage/ndb/src/kernel/vm/Ndbinfo.hpp
       const char* comment;
     } m;
     Column col[1];

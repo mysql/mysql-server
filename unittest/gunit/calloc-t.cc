@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,12 +35,43 @@
 
 namespace calloc_unittest {
 
+<<<<<<< HEAD
 static void malloc_test(size_t num_iterations) {
   for (size_t i = 0; i < num_iterations; ++i) {
     void *rawmem1 = malloc(malloc_chunk_size);
     memset(rawmem1, 0, malloc_chunk_size);
     void *rawmem2 = malloc(malloc_chunk_size);
     memset(rawmem2, 0, malloc_chunk_size);
+=======
+/*
+  Set num_iterations to a reasonable value (e.g. 200000), build release
+  and run with 'calloc-t --disable-tap-output' to see the time taken.
+*/
+#if !defined(NDEBUG)
+// There is no point in benchmarking anything in debug mode.
+static int num_iterations = 2;
+#else
+// Set this so that each test case takes a few seconds.
+// And set it back to a small value before pushing!!
+static int num_iterations = 2000;
+#endif
+
+class CallocTest : public ::testing::Test {
+ protected:
+  CallocTest(){};
+
+  void malloc_test(int count);
+  void calloc_test(int count);
+};
+
+void CallocTest::malloc_test(int count) {
+  for (int i = 1; i <= count; i++) {
+    size_t size = i * 10;
+    void *rawmem1 = malloc(size);
+    memset(rawmem1, 0, size);
+    void *rawmem2 = malloc(size);
+    memset(rawmem2, 0, size);
+>>>>>>> pr/231
     // We need to prevent the optimizer from removing the whole loop.
     EXPECT_FALSE(compare_malloc_chunks(rawmem1, rawmem2, malloc_chunk_size));
     free(rawmem1);

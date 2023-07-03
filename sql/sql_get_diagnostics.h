@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +112,18 @@ class Diagnostics_information {
     Diagnostics_information objects are allocated in thd->mem_root.
     Do not rely on the destructor for any cleanup.
   */
+<<<<<<< HEAD
   virtual ~Diagnostics_information() { assert(false); }
+=======
+<<<<<<< HEAD
+  virtual ~Diagnostics_information() { DBUG_ASSERT(false); }
+=======
+  virtual ~Diagnostics_information()
+  {
+    assert(false);
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /**
     Evaluate a diagnostics information item in a specific context.
@@ -161,7 +180,18 @@ class Diagnostics_information_item {
     Diagnostics_information_item objects are allocated in thd->mem_root.
     Do not rely on the destructor for any cleanup.
   */
+<<<<<<< HEAD
   virtual ~Diagnostics_information_item() { assert(false); }
+=======
+<<<<<<< HEAD
+  virtual ~Diagnostics_information_item() { DBUG_ASSERT(false); }
+=======
+  virtual ~Diagnostics_information_item()
+  {
+    assert(false);
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
  private:
   /** The target variable that will receive the value of this item. */

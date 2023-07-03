@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -121,11 +145,19 @@ static inline void buf_buddy_stamp_free(
     buf_buddy_free_t *buf, /*!< in/out: block to stamp */
     ulint i)               /*!< in: block size */
 {
+<<<<<<< HEAD
   ut_d(memset(&buf->stamp, static_cast<int>(i), BUF_BUDDY_LOW << i));
   buf_buddy_mem_invalid(buf, i);
   mach_write_to_4(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET,
                   BUF_BUDDY_STAMP_FREE);
   buf->stamp.size = i;
+=======
+	ut_d(memset(&buf->stamp, static_cast<int>(i), BUF_BUDDY_LOW << i));
+	buf_buddy_mem_invalid(buf, i);
+	mach_write_to_4(buf->stamp.bytes + BUF_BUDDY_STAMP_OFFSET,
+			BUF_BUDDY_STAMP_FREE);
+	buf->stamp.size = i;
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Stamps a buddy nonfree.
@@ -560,9 +592,15 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
     return (false);
   }
 
+<<<<<<< HEAD
   /* The block must have been allocated, but it may
   contain uninitialized data. */
   UNIV_MEM_ASSERT_W(src, size);
+=======
+	if (buf_page_can_relocate(bpage)) {
+		/* Relocate the compressed page. */
+		ib_time_monotonic_us_t usec = ut_time_monotonic_us();
+>>>>>>> upstream/cluster-7.6
 
   BPageMutex *block_mutex = buf_page_get_mutex(bpage);
 
@@ -576,8 +614,16 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
 
     ut_a(bpage->zip.data == src);
 
+<<<<<<< HEAD
     memcpy(dst, src, size);
     bpage->zip.data = reinterpret_cast<page_zip_t *>(dst);
+=======
+		buf_buddy_stat_t*	buddy_stat = &buf_pool->buddy_stat[i];
+		buddy_stat->relocated++;
+		buddy_stat->relocated_usec += ut_time_monotonic_us() - usec;
+		return(true);
+	}
+>>>>>>> upstream/cluster-7.6
 
     rw_lock_x_unlock(hash_lock);
 

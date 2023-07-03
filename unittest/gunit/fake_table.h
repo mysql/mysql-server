@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,7 +138,11 @@ class Fake_TABLE : public TABLE {
   // Counter for creating unique table id's. See initialize().
   static int highest_table_id;
 
+<<<<<<< HEAD
  private:
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   void initialize() {
     TABLE *as_table = static_cast<TABLE *>(this);
     new (as_table) TABLE();
@@ -139,6 +151,7 @@ class Fake_TABLE : public TABLE {
     null_row = false;
     read_set = &read_set_struct;
     write_set = &write_set_struct;
+<<<<<<< HEAD
     next_number_field = nullptr;  // No autoinc column
     pos_in_table_list = new (*THR_MALLOC) Fake_Table_ref();
     pos_in_table_list->table = this;
@@ -147,6 +160,25 @@ class Fake_TABLE : public TABLE {
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields));
     EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields));
     EXPECT_EQ(0, bitmap_init(&tmp_set, &tmp_set_buf, s->fields));
+=======
+    next_number_field = NULL;  // No autoinc column
+    pos_in_table_list = &table_list;
+    table_list.table = this;
+=======
+  void initialize()
+  {
+    s= &table_share;
+    in_use= current_thd;
+    null_row= '\0';
+    read_set= &read_set_struct;
+    write_set= &write_set_struct;
+    next_number_field= NULL; // No autoinc column
+    pos_in_table_list= &table_list;
+    table_list.table= this;
+>>>>>>> upstream/cluster-7.6
+    EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields, false));
+    EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields, false));
+>>>>>>> pr/231
 
     const_table = false;
     pos_in_table_list->set_tableno(highest_table_id);
@@ -207,10 +239,22 @@ class Fake_TABLE : public TABLE {
     @param  column_count     The number of columns in the table
     @param  cols_nullable    Whether or not columns are allowed to be NULL
   */
+<<<<<<< HEAD
   Fake_TABLE(int column_count, bool cols_nullable)
       : table_share(column_count),
         mock_handler(&fake_handlerton, &table_share) {
+<<<<<<< HEAD
     assert(static_cast<size_t>(column_count) <= sizeof(int) * 8);
+=======
+    DBUG_ASSERT(static_cast<size_t>(column_count) <= sizeof(int) * 8);
+=======
+  Fake_TABLE(int column_count, bool cols_nullable) :
+    table_share(column_count),
+    mock_handler(&fake_handlerton, &table_share)
+  {
+    assert(static_cast<size_t>(column_count) <= sizeof(int) * 8);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     initialize();
     for (int i = 0; i < column_count; ++i) {
       std::stringstream str;

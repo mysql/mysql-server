@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -348,9 +356,18 @@ Trigger::Trigger(
       m_trigger_name(trigger_name),
       m_sp(nullptr),
       m_has_parse_error(false) {
+<<<<<<< HEAD
+=======
+  m_created_timestamp = created_timestamp;
+
+<<<<<<< HEAD
+>>>>>>> pr/231
   m_parse_error_message[0] = 0;
 
   construct_definer_value(mem_root, &m_definer, definer_user, definer_host);
+=======
+  m_parse_error_message[0]= 0;
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -513,7 +530,11 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
 
   // Ensure that lex.sp_head is NULL in case of parse errors.
 
+<<<<<<< HEAD
   assert(!parse_error || (parse_error && lex.sphead == nullptr));
+=======
+  assert(!parse_error || (parse_error && lex.sphead == NULL));
+>>>>>>> pr/231
 
   // That's it in case of parse error.
 
@@ -564,8 +585,37 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
     m_action_time = lex.sphead->m_trg_chistics.action_time;
   }
 
+<<<<<<< HEAD
   assert(m_event == lex.sphead->m_trg_chistics.event);
   assert(m_action_time == lex.sphead->m_trg_chistics.action_time);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(m_event == lex.sphead->m_trg_chistics.event);
+  DBUG_ASSERT(m_action_time == lex.sphead->m_trg_chistics.action_time);
+=======
+  // That's it in case of parse error.
+
+  if (parse_error)
+    goto cleanup;
+
+  // Set correct m_event and m_action_time.
+
+  assert(m_event == TRG_EVENT_MAX);
+  assert(m_action_time == TRG_ACTION_MAX);
+
+  m_event= lex.sphead->m_trg_chistics.event;
+  m_action_time= lex.sphead->m_trg_chistics.action_time;
+
+  /*
+    Remember a pointer to the "ON <table name>" part of the trigger definition.
+    Note, that it is a pointer inside m_definition.str.
+  */
+
+  m_on_table_name.str= (char*) lex.raw_trg_on_table_name_begin;
+  m_on_table_name.length= lex.raw_trg_on_table_name_end -
+                          lex.raw_trg_on_table_name_begin;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   // Take ownership of SP object.
 
@@ -594,12 +644,72 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
   assert(m_definer.length);
 
   // Set the definer attribute in SP.
+<<<<<<< HEAD
   m_sp->set_definer(m_definer.str, m_definer.length);
 
 #ifdef HAVE_PSI_SP_INTERFACE
   m_sp->m_sp_share = MYSQL_GET_SP_SHARE(to_uint(enum_sp_type::TRIGGER),
                                         m_sp->m_db.str, m_sp->m_db.length,
                                         m_sp->m_name.str, m_sp->m_name.length);
+=======
+
+  if (!m_definer.length)
+  {
+    assert(m_definer.str); // m_definer must be EMPTY_STR here.
+
+    /*
+      This trigger was created/imported in MySQL version, which does not support
+      triggers definers. We should emit warning here.
+    */
+
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
+                        m_db_name.str,
+                        m_trigger_name.str);
+
+    /*
+      Triggers without definer information are executed under the
+      authorization of the invoker.
+    */
+
+    m_sp->m_chistics->suid= SP_IS_NOT_SUID;
+  }
+
+  m_sp->set_definer(m_definer.str, m_definer.length);
+
+#ifdef HAVE_PSI_SP_INTERFACE
+  m_sp->m_sp_share= MYSQL_GET_SP_SHARE(SP_TYPE_TRIGGER,
+                                       m_sp->m_db.str, m_sp->m_db.length,
+                                       m_sp->m_name.str, m_sp->m_name.length);
+#endif
+
+#ifndef NDEBUG
+  /*
+    Check that we correctly update trigger definitions when we rename tables
+    with triggers.
+
+    In special cases like "RENAME TABLE `#mysql50#somename` TO `somename`"
+    or "ALTER DATABASE `#mysql50#somename` UPGRADE DATA DIRECTORY NAME"
+    we might be given table or database name with "#mysql50#" prefix (and
+    trigger's definiton contains un-prefixed version of the same name).
+    To remove this prefix we use check_n_cut_mysql50_prefix().
+  */
+
+  char fname[NAME_LEN + 1];
+  assert((!my_strcasecmp(table_alias_charset,
+                         lex.query_tables->db, m_db_name.str) ||
+          (check_n_cut_mysql50_prefix(m_db_name.str,
+                                      fname, sizeof(fname)) &&
+           !my_strcasecmp(table_alias_charset,
+                          lex.query_tables->db, fname))));
+  assert((!my_strcasecmp(table_alias_charset,
+                         lex.query_tables->table_name,
+                         m_subject_table_name.str) ||
+          (check_n_cut_mysql50_prefix(m_subject_table_name.str,
+                                      fname, sizeof(fname)) &&
+           !my_strcasecmp(table_alias_charset,
+                          lex.query_tables->table_name, fname))));
+>>>>>>> upstream/cluster-7.6
 #endif
 
 cleanup:
@@ -662,6 +772,7 @@ void Trigger::add_tables_and_routines(THD *thd,
   @param [in]  thd        Thread handle.
 */
 
+<<<<<<< HEAD
 void Trigger::print_upgrade_warning(THD *thd) {
   if (!is_created_timestamp_null()) return;
 
@@ -669,4 +780,76 @@ void Trigger::print_upgrade_warning(THD *thd) {
       thd, Sql_condition::SL_WARNING, ER_WARN_TRIGGER_DOESNT_HAVE_CREATED,
       ER_THD(thd, ER_WARN_TRIGGER_DOESNT_HAVE_CREATED), get_db_name().str,
       get_subject_table_name().str, get_trigger_name().str);
+=======
+  push_warning_printf(thd,
+    Sql_condition::SL_WARNING,
+    ER_WARN_TRIGGER_DOESNT_HAVE_CREATED,
+    ER(ER_WARN_TRIGGER_DOESNT_HAVE_CREATED),
+    get_db_name().str,
+    get_subject_table_name().str,
+    get_trigger_name().str);
+}
+
+
+/**
+  Handles renaming of the subject table.
+
+  The main duty of this method is to properly update m_definition and
+  m_on_table_name attributes.
+
+  @param thd              Thread context, used for passing into
+                          append_identifier() function, which uses it to know
+                          the way to properly escape identifiers
+  @param new_table_name   New subject table name
+*/
+void Trigger::rename_subject_table(THD *thd, const LEX_STRING &new_table_name)
+{
+  /*
+    sql_mode has to be set to the trigger's sql_mode because we're going to
+    build a new CREATE TRIGGER statement and sql_mode affects the way we append
+    identifiers.
+  */
+
+  sql_mode_t sql_mode_saved= thd->variables.sql_mode;
+  thd->variables.sql_mode= get_sql_mode();
+
+  // Construct a new CREATE TRIGGER statement with the new table name.
+
+  String new_create_stmt;
+  new_create_stmt.length(0);
+
+  // NOTE: 'on_table_name' is supposed to point inside m_definition.
+
+  assert(m_on_table_name.str);
+  assert(m_on_table_name.str > m_definition.str);
+  assert(m_on_table_name.str < (m_definition.str + m_definition.length));
+
+  size_t before_on_len= m_on_table_name.str - m_definition.str;
+
+  new_create_stmt.append(m_definition.str, before_on_len);
+  new_create_stmt.append(STRING_WITH_LEN("ON "));
+
+  append_identifier(thd, &new_create_stmt,
+                    new_table_name.str, new_table_name.length);
+
+  new_create_stmt.append(STRING_WITH_LEN(" "));
+
+  size_t on_q_table_name_len= new_create_stmt.length() - before_on_len;
+
+  new_create_stmt.append(
+    m_on_table_name.str + m_on_table_name.length,
+    m_definition.length - (before_on_len + m_on_table_name.length));
+
+  lex_string_copy(m_mem_root,
+                  &m_definition,
+                  new_create_stmt.ptr(),
+                  new_create_stmt.length());
+
+  lex_string_copy(m_mem_root,
+                  &m_on_table_name,
+                  m_definition.str + before_on_len,
+                  on_q_table_name_len);
+
+  thd->variables.sql_mode= sql_mode_saved;
+>>>>>>> upstream/cluster-7.6
 }

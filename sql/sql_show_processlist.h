@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +27,11 @@
 #ifndef SQL_SHOW_PROCESSLIST_H
 #define SQL_SHOW_PROCESSLIST_H
 
+<<<<<<< HEAD
 #include "sql/parse_location.h"  // POS
+=======
+#include "parse_tree_node_base.h"  // POS
+>>>>>>> pr/231
 
 class THD;
 

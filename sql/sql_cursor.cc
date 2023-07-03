@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -298,7 +306,24 @@ void Materialized_cursor::set_table(TABLE *table_arg) { m_table = table_arg; }
 */
 
 int Materialized_cursor::send_result_set_metadata(
+<<<<<<< HEAD
     THD *thd, const mem_root_deque<Item *> &send_result_set_metadata) {
+=======
+    THD *thd, List<Item> &send_result_set_metadata) {
+  Query_arena backup_arena;
+  int rc;
+  List_iterator_fast<Item> it_org(send_result_set_metadata);
+  List_iterator_fast<Item> it_dst(item_list);
+  Item *item_org;
+  Item *item_dst;
+
+  thd->set_n_backup_active_arena(this, &backup_arena);
+
+  if ((rc = table->fill_item_list(&item_list))) goto end;
+
+  assert(send_result_set_metadata.elements == item_list.elements);
+
+>>>>>>> pr/231
   /*
     Create objects in the mem_root of the cursor. The item list will be
     referenced after the execution of the current statement, so it cannot
@@ -449,10 +474,34 @@ Materialized_cursor::~Materialized_cursor() {
  Query_result_materialize
 ****************************************************************************/
 
+<<<<<<< HEAD
 bool Query_result_materialize::prepare(THD *thd,
                                        const mem_root_deque<Item *> &fields,
                                        Query_expression *u) {
   unit = u;
+=======
+bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
+<<<<<<< HEAD
+                                                        uint) {
+  DBUG_ASSERT(table == 0);
+  if (create_result_table(unit->thd, unit->get_field_list(), false,
+=======
+                                                        uint flags)
+{
+  assert(table == 0);
+  /*
+    PROCEDURE ANALYSE installs a result filter that has a different set
+    of input and output column Items:
+  */
+  List<Item> *column_types= (unit->first_select()->parent_lex->proc_analyse ?
+                             &list : unit->get_field_list());
+  if (create_result_table(unit->thd, column_types,
+                          FALSE,
+>>>>>>> upstream/cluster-7.6
+                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
+                          "", false, true))
+    return true;
+>>>>>>> pr/231
 
   if (m_result->prepare(thd, fields, u)) return true;
 

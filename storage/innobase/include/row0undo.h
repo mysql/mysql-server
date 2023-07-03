@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1997, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1997, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -43,12 +67,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0types.h"
 #include "univ.i"
 
+<<<<<<< HEAD
 /** Converts an implicit lock on the record to explicit in case of partial
  rollback.
 @param[in]      cursor          cursor to record
 @param[in]      node            undo node */
 void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node);
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 /** Creates a row undo node to a query graph.
 @param[in]      trx              transaction
 @param[in]      parent           parent node, i.e., a thr node
@@ -70,6 +98,48 @@ undo_node_t *row_undo_node_create(trx_t *trx, que_thr_t *parent,
  in SQL execution graphs.
  @return query thread to run next or NULL */
 que_thr_t *row_undo_step(que_thr_t *thr); /*!< in: query thread */
+=======
+
+/***************************************************************//**
+Converts an implict lock on the record to explict in case of partial
+rollback.*/
+void
+row_convert_impl_to_expl_if_needed(
+/*===============================*/
+	btr_cur_t* cursor,	/*!< in: cursor to record */
+	undo_node_t* node);	/*!< in: undo node */
+
+/********************************************************************//**
+Creates a row undo node to a query graph.
+@return own: undo node */
+undo_node_t*
+row_undo_node_create(
+/*=================*/
+	trx_t*		trx,	/*!< in: transaction */
+	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
+	mem_heap_t*	heap,	/*!< in: memory heap where created */
+	bool		partial_rollback); /*!< in: true if partial rollback */
+/***********************************************************//**
+Looks for the clustered index record when node has the row reference.
+The pcur in node is used in the search. If found, stores the row to node,
+and stores the position of pcur, and detaches it. The pcur must be closed
+by the caller in any case.
+@return true if found; NOTE the node->pcur must be closed by the
+caller, regardless of the return value */
+bool
+row_undo_search_clust_to_pcur(
+/*==========================*/
+	undo_node_t*	node)	/*!< in/out: row undo node */
+	MY_ATTRIBUTE((warn_unused_result));
+/***********************************************************//**
+Undoes a row operation in a table. This is a high-level function used
+in SQL execution graphs.
+@return query thread to run next or NULL */
+que_thr_t*
+row_undo_step(
+/*==========*/
+	que_thr_t*	thr);	/*!< in: query thread */
+>>>>>>> upstream/cluster-7.6
 
 /* A single query thread will try to perform the undo for all successive
 versions of a clustered index record, if the transaction has modified it
@@ -98,6 +168,7 @@ enum undo_exec {
 };
 
 /** Undo node structure */
+<<<<<<< HEAD
 struct undo_node_t {
   que_common_t common;      /*!< node type: QUE_NODE_UNDO */
   enum undo_exec state;     /*!< node execution state */
@@ -128,7 +199,43 @@ struct undo_node_t {
   mem_heap_t *heap;         /*!< memory heap used as auxiliary storage for
                             row; this must be emptied after undo is tried
                             on a row */
+<<<<<<< HEAD
   bool partial;             /*!< true if partial rollback */
+=======
+=======
+struct undo_node_t{
+	que_common_t	common;	/*!< node type: QUE_NODE_UNDO */
+	enum undo_exec	state;	/*!< node execution state */
+	trx_t*		trx;	/*!< trx for which undo is done */
+	roll_ptr_t	roll_ptr;/*!< roll pointer to undo log record */
+	trx_undo_rec_t*	undo_rec;/*!< undo log record */
+	undo_no_t	undo_no;/*!< undo number of the record */
+	ulint		rec_type;/*!< undo log record type: TRX_UNDO_INSERT_REC,
+				... */
+	trx_id_t	new_trx_id; /*!< trx id to restore to clustered index
+				record */
+	btr_pcur_t	pcur;	/*!< persistent cursor used in searching the
+				clustered index record */
+	dict_table_t*	table;	/*!< table where undo is done */
+	ulint		cmpl_info;/*!< compiler analysis of an update */
+	upd_t*		update;	/*!< update vector for a clustered index
+				record */
+	dtuple_t*	ref;	/*!< row reference to the next row to handle */
+	dtuple_t*	row;	/*!< a copy (also fields copied to heap) of the
+				row to handle */
+	row_ext_t*	ext;	/*!< NULL, or prefixes of the externally
+				stored columns of the row */
+	dtuple_t*	undo_row;/*!< NULL, or the row after undo */
+	row_ext_t*	undo_ext;/*!< NULL, or prefixes of the externally
+				stored columns of undo_row */
+	dict_index_t*	index;	/*!< the next index whose record should be
+				handled */
+	mem_heap_t*	heap;	/*!< memory heap used as auxiliary storage for
+				row; this must be emptied after undo is tried
+				on a row */
+	bool		partial;/*!< true if partial rollback */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 #endif

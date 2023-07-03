@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,6 +66,7 @@ int my_decimal::check_result(uint mask, int result) const {
     char strbuff[DECIMAL_MAX_STR_LENGTH + 2];
 
     switch (result) {
+<<<<<<< HEAD
       case E_DEC_TRUNCATED:
         // "Data truncated for column \'%s\' at row %ld"
         push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -91,7 +100,45 @@ int my_decimal::check_result(uint mask, int result) const {
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
         break;
       default:
+<<<<<<< HEAD
         assert(0);
+=======
+        DBUG_ASSERT(0);
+=======
+    case E_DEC_TRUNCATED:
+      // "Data truncated for column \'%s\' at row %ld"
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
+                          "", -1L);
+      break;
+    case E_DEC_OVERFLOW:
+      // "Truncated incorrect %-.32s value: \'%-.128s\'"
+      decimal2string(this, strbuff, &length, 0, 0, 0);
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_TRUNCATED_WRONG_VALUE,
+                          ER(ER_TRUNCATED_WRONG_VALUE),
+                          "DECIMAL", strbuff);
+      break;
+    case E_DEC_DIV_ZERO:
+      // "Division by 0"
+      push_warning(current_thd, Sql_condition::SL_WARNING,
+                   ER_DIVISION_BY_ZERO, ER(ER_DIVISION_BY_ZERO));
+      break;
+    case E_DEC_BAD_NUM:
+      // "Incorrect %-.32s value: \'%-.128s\' for column \'%.192s\' at row %ld"
+      decimal2string(this, strbuff, &length, 0, 0, 0);
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+                          ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                          "DECIMAL", strbuff, "", -1L);
+      break;
+    case E_DEC_OOM:
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      break;
+    default:
+      assert(0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
   }
   return result;
@@ -339,8 +386,19 @@ void my_decimal_trim(ulong *precision, uint *scale) {
   }
 }
 
+<<<<<<< HEAD
 #ifndef NDEBUG
 /* routines for debugging print */
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+  /* routines for debugging print */
+=======
+
+#ifndef NDEBUG
+/* routines for debugging print */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #define DIG_PER_DEC1 9
 #define ROUND_UP(X) (((X) + DIG_PER_DEC1 - 1) / DIG_PER_DEC1)
@@ -375,4 +433,15 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val) {
   return buff;
 }
 
+<<<<<<< HEAD
 #endif /*NDEBUG*/
+=======
+<<<<<<< HEAD
+#endif /*DBUG_OFF*/
+=======
+#endif /*NDEBUG*/
+
+
+#endif /*MYSQL_CLIENT*/
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231

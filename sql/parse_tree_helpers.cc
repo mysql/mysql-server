@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,13 +121,147 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
   Item_splocal *item = new (thd->mem_root) Item_splocal(
       name, spv->offset, spv->type, spv_pos_in_query, spv_len_in_query);
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   if (item) item->m_sp = lex->sphead;
+=======
+#ifndef NDEBUG
+  if (item)
+    item->m_sp= lex->sphead;
+>>>>>>> upstream/cluster-7.6
 #endif
 
   return item;
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp) {
+  tmp->var = find_sys_var(thd, tmp->base_name.str, tmp->base_name.length);
+=======
+
+/**
+   Report syntax error if the sel query block can't be parenthesized
+
+   @return false if successful, true if an error was reported. In the latter
+   case parsing should stop.
+ */
+bool setup_select_in_parentheses(SELECT_LEX *sel)
+{
+  assert(sel->braces);
+  if (sel->linkage == UNION_TYPE &&
+      !sel->master_unit()->first_select()->braces &&
+      sel->master_unit()->first_select()->linkage ==
+      UNION_TYPE)
+  {
+    my_syntax_error(ER(ER_SYNTAX_ERROR));
+    return true;
+  }
+  if (sel->linkage == UNION_TYPE &&
+      sel->olap != UNSPECIFIED_OLAP_TYPE &&
+      sel->master_unit()->fake_select_lex)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "CUBE/ROLLUP", "ORDER BY");
+    return true;
+  }
+  return false;
+}
+
+
+/**
+  @brief Push an error message into MySQL diagnostic area with line
+  and position information.
+
+  This function provides semantic action implementers with a way
+  to push the famous "You have a syntax error near..." error
+  message into the diagnostic area, which is normally produced only if
+  a parse error is discovered internally by the Bison generated
+  parser.
+*/
+
+void my_syntax_error(const char *s)
+{
+  THD *thd= current_thd;
+  Lex_input_stream *lip= & thd->m_parser_state->m_lip;
+
+  const char *yytext= lip->get_tok_start();
+  if (!yytext)
+    yytext= "";
+
+  /* Push an error into the diagnostic area */
+  ErrConvString err(yytext, thd->variables.character_set_client);
+  my_printf_error(ER_PARSE_ERROR,  ER(ER_PARSE_ERROR), MYF(0), s,
+                  err.ptr(), lip->yylineno);
+}
+
+
+bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp)
+{
+  tmp->var= find_sys_var(thd, tmp->base_name.str, tmp->base_name.length);
+>>>>>>> upstream/cluster-7.6
+
+  if (tmp->var == NULL)
+    my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), tmp->base_name.str);
+  else
+    tmp->base_name = null_lex_str;
+
+  return thd->is_error();
+}
+
+/**
+  Helper action for a SET statement.
+  Used to push a system variable into the assignment list.
+
+  @param thd      the current thread
+  @param var_with_base  the system variable with base name
+  @param var_type the scope of the variable
+  @param val      the value being assigned to the variable
+
+  @return true if error, false otherwise.
+*/
+
+bool set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
+                         enum enum_var_type var_type, Item *val) {
+  set_var *var;
+  LEX *lex = thd->lex;
+  sp_head *sp = lex->sphead;
+  sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
+
+  /* No AUTOCOMMIT from a stored function or trigger. */
+  if (pctx && var_with_base->var == Sys_autocommit_ptr)
+    sp->m_flags |= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+
+  if (lex->uses_stored_routines() &&
+      ((var_with_base->var == Sys_gtid_next_ptr
+#ifdef HAVE_GTID_NEXT_LIST
+        || var_with_base->var == Sys_gtid_next_list_ptr
+#endif
+        ) ||
+       Sys_gtid_purged_ptr == var_with_base->var)) {
+    my_error(ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION, MYF(0),
+             var_with_base->var->name.str);
+    return true;
+  }
+
+  if (val && val->type() == Item::FIELD_ITEM &&
+      ((Item_field *)val)->table_name) {
+    my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var_with_base->var->name.str);
+    return true;
+  }
+
+  if (!(var = new (*THR_MALLOC) set_var(var_type, var_with_base->var,
+                                        &var_with_base->base_name, val)))
+    return true;
+
+  return lex->var_list.push_back(var);
+}
+
+>>>>>>> pr/231
 /**
   Make a new string allocated on THD's mem-root.
 
@@ -131,9 +273,72 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
   constructed/allocated string, and its length. The pointer is NULL
   in case of out-of-memory error.
 */
+<<<<<<< HEAD
 LEX_CSTRING make_string(THD *thd, const char *start_ptr, const char *end_ptr) {
   size_t length = end_ptr - start_ptr;
   return {strmake_root(thd->mem_root, start_ptr, length), length};
+=======
+LEX_STRING make_string(THD *thd, const char *start_ptr, const char *end_ptr) {
+  LEX_STRING s;
+
+  s.length = end_ptr - start_ptr;
+  s.str = (char *)thd->alloc(s.length + 1);
+
+  if (s.str) strmake(s.str, start_ptr, s.length);
+
+  return s;
+}
+
+/**
+  Helper action for a SET statement.
+  Used to SET a field of NEW row.
+
+  @param pc                 the parse context
+  @param trigger_field_name the NEW-row field name
+  @param expr_item          the value expression being assigned
+  @param expr_query         the value expression query
+
+  @return error status (true if error, false otherwise).
+*/
+
+bool set_trigger_new_row(Parse_context *pc, LEX_STRING trigger_field_name,
+                         Item *expr_item, LEX_STRING expr_query) {
+  THD *thd = pc->thd;
+  LEX *lex = thd->lex;
+  sp_head *sp = lex->sphead;
+
+  assert(expr_item);
+  assert(sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE &&
+         (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
+          sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+
+  Item_trigger_field *trg_fld = new (pc->mem_root) Item_trigger_field(
+      POS(), TRG_NEW_ROW, trigger_field_name.str, UPDATE_ACL, false);
+
+<<<<<<< HEAD
+  if (trg_fld == NULL || trg_fld->itemize(pc, (Item **)&trg_fld)) return true;
+  DBUG_ASSERT(trg_fld->type() == Item::TRIGGER_FIELD_ITEM);
+=======
+  if (trg_fld == NULL || trg_fld->itemize(pc, (Item **) &trg_fld))
+    return true;
+  assert(trg_fld->type() == Item::TRIGGER_FIELD_ITEM);
+>>>>>>> upstream/cluster-7.6
+
+  sp_instr_set_trigger_field *i = new (pc->mem_root)
+      sp_instr_set_trigger_field(sp->instructions(), lex, trigger_field_name,
+                                 trg_fld, expr_item, expr_query);
+
+  if (!i) return true;
+
+  /*
+    Let us add this item to list of all Item_trigger_field
+    objects in trigger.
+  */
+  sp->m_cur_instr_trig_field_items.link_in_list(trg_fld,
+                                                &trg_fld->next_trg_field);
+
+  return sp->add_instr(thd, i);
+>>>>>>> pr/231
 }
 
 void sp_create_assignment_lex(THD *thd, const char *option_ptr) {

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +76,7 @@ static const uchar *program_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_program *const *typed_entry;
   const PFS_program *program;
   const void *result;
+<<<<<<< HEAD
   typed_entry = reinterpret_cast<const PFS_program *const *>(entry);
   assert(typed_entry != nullptr);
   program = *typed_entry;
@@ -75,6 +84,15 @@ static const uchar *program_hash_get_key(const uchar *entry, size_t *length) {
   *length = sizeof(program->m_key);
   result = &program->m_key;
   return reinterpret_cast<const uchar *>(result);
+=======
+  typed_entry= reinterpret_cast<const PFS_program* const *> (entry);
+  assert(typed_entry != NULL);
+  program= *typed_entry;
+  assert(program != NULL);
+  *length= program->m_key.m_key_length;
+  result= program->m_key.m_hash_key;
+  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+>>>>>>> upstream/cluster-7.6
 }
 
 static uint program_hash_func(const LF_HASH *, const uchar *key,
@@ -153,10 +171,24 @@ void cleanup_program_hash(void) {
 }
 
 static void set_program_key(PFS_program_key *key, enum_object_type object_type,
+<<<<<<< HEAD
                             const char *schema_name, uint schema_name_length,
                             const char *object_name, uint object_name_length) {
   assert(schema_name_length <= NAME_LEN);
   assert(object_name_length <= NAME_LEN);
+=======
+                            const char *object_name, uint object_name_length,
+<<<<<<< HEAD
+                            const char *schema_name, uint schema_name_length) {
+  DBUG_ASSERT(object_name_length <= COL_OBJECT_NAME_SIZE);
+  DBUG_ASSERT(schema_name_length <= COL_OBJECT_SCHEMA_SIZE);
+=======
+                            const char *schema_name, uint schema_name_length)
+{
+  assert(object_name_length <= COL_OBJECT_NAME_SIZE);
+  assert(schema_name_length <= COL_OBJECT_SCHEMA_SIZE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   key->m_type = object_type;
 

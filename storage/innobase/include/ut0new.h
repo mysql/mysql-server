@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -2269,11 +2293,427 @@ class allocator : public Allocator_base {
 
   /** Releases the memory allocated through ut::allocator<T>::allocate().
 
+<<<<<<< HEAD
       @param[in,out]  ptr         pointer to memory to free
       @param[in]      n_elements  number of elements allocated (unused)
    */
   void deallocate(pointer ptr, size_type n_elements [[maybe_unused]] = 0) {
     ut::free(ptr);
+=======
+    T *p = allocate(n_elements, NULL, key, false, false);
+
+    if (p == NULL) {
+      return (NULL);
+    }
+
+    T *first = p;
+    size_type i;
+
+    try {
+      for (i = 0; i < n_elements; i++) {
+        new (p) T;
+        ++p;
+      }
+    } catch (...) {
+      for (size_type j = 0; j < i; j++) {
+        --p;
+        p->~T();
+      }
+
+      deallocate(first);
+
+      throw;
+    }
+
+    return (first);
+  }
+
+  /** Destroy, deallocate and trace the deallocation of an array created
+  by new_array().
+  @param[in,out]	ptr	pointer to the first object in the array */
+  void delete_array(T *ptr) {
+    if (ptr == NULL) {
+      return;
+    }
+
+    const size_type n_elements = n_elements_allocated(ptr);
+
+    T *p = ptr + n_elements - 1;
+
+    for (size_type i = 0; i < n_elements; i++) {
+      p->~T();
+      --p;
+    }
+
+    deallocate(ptr);
+  }
+
+#endif /* UNIV_PFS_MEMORY */
+
+  /** Allocate a large chunk of memory that can hold 'n_elements'
+  objects of type 'T' and trace the allocation.
+  @param[in]	n_elements	number of elements
+  @param[out]	pfx		storage for the description of the
+  allocated memory. The caller must provide space for this one and keep
+  it until the memory is no longer needed and then pass it to
+  deallocate_large().
+  @return pointer to the allocated memory or NULL */
+  pointer allocate_large(size_type n_elements, ut_new_pfx_t *pfx) {
+    if (n_elements == 0 || n_elements > max_size()) {
+      return (NULL);
+    }
+
+    ulint n_bytes = n_elements * sizeof(T);
+
+    pointer ptr = reinterpret_cast<pointer>(os_mem_alloc_large(&n_bytes));
+
+#ifdef UNIV_PFS_MEMORY
+    if (ptr != NULL) {
+      allocate_trace(n_bytes, PSI_NOT_INSTRUMENTED, pfx);
+    }
+#else
+    pfx->m_size = n_bytes;
+#endif /* UNIV_PFS_MEMORY */
+
+    return (ptr);
+  }
+
+  /** Free a memory allocated by allocate_large() and trace the
+  deallocation.
+  @param[in,out]	ptr	pointer to memory to free
+  @param[in]	pfx	descriptor of the memory, as returned by
+  allocate_large(). */
+  void deallocate_large(pointer ptr, const ut_new_pfx_t *pfx) {
+#ifdef UNIV_PFS_MEMORY
+    deallocate_trace(pfx);
+#endif /* UNIV_PFS_MEMORY */
+
+    os_mem_free_large(ptr, pfx->m_size);
+  }
+
+#ifdef UNIV_PFS_MEMORY
+
+  /** Get the performance schema key to use for tracing allocations.
+  @return performance schema key */
+  PSI_memory_key get_mem_key() const { return (m_key); }
+
+ private:
+  /** Retrieve the size of a memory block allocated by new_array().
+  @param[in]	ptr	pointer returned by new_array().
+  @return size of memory block */
+  size_type n_elements_allocated(const_pointer ptr) {
+    const ut_new_pfx_t *pfx = reinterpret_cast<const ut_new_pfx_t *>(ptr) - 1;
+
+<<<<<<< HEAD
+    const size_type user_bytes = pfx->m_size - sizeof(ut_new_pfx_t);
+=======
+		/* e.g. "btr0cur", derived from "/path/to/btr0cur.cc" */
+		char		keyname[FILENAME_MAX];
+		const size_t	len MY_ATTRIBUTE((unused)) =
+			ut_basename_noext(file, keyname, sizeof(keyname));
+		/* If sizeof(keyname) was not enough then the output would
+		be truncated, assert that this did not happen. */
+		ut_a(len < sizeof(keyname));
+>>>>>>> upstream/cluster-7.6
+
+    ut_ad(user_bytes % sizeof(T) == 0);
+
+    return (user_bytes / sizeof(T));
+  }
+
+  /** Trace a memory allocation.
+  @param[in]	size	number of bytes that were allocated
+  @param[in]	key	Performance Schema key
+  @param[out]	pfx	placeholder to store the info which will be
+                          needed when freeing the memory */
+  void allocate_trace(size_t size, PSI_memory_key key, ut_new_pfx_t *pfx) {
+    pfx->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size, &pfx->m_owner);
+
+    pfx->m_size = size;
+  }
+
+  /** Trace a memory deallocation.
+  @param[in]	pfx	info for the deallocation */
+  void deallocate_trace(const ut_new_pfx_t *pfx) {
+    PSI_MEMORY_CALL(memory_free)(pfx->m_key, pfx->m_size, pfx->m_owner);
+  }
+
+  /** Performance schema key. */
+  PSI_memory_key m_key;
+
+#endif /* UNIV_PFS_MEMORY */
+
+ private:
+  /** Assignment operator, not used, thus disabled (private). */
+  template <class U>
+  void operator=(const ut_allocator<U> &);
+
+  /** A flag to indicate whether out of memory (OOM) error is considered
+  fatal.  If true, it is fatal. */
+  bool m_oom_fatal;
+};
+
+/** Compare two allocators of the same type.
+As long as the type of A1 and A2 is the same, a memory allocated by A1
+could be freed by A2 even if the pfs mem key is different. */
+template <typename T>
+inline bool operator==(const ut_allocator<T> &lhs, const ut_allocator<T> &rhs) {
+  return (true);
+}
+
+/** Compare two allocators of the same type. */
+template <typename T>
+inline bool operator!=(const ut_allocator<T> &lhs, const ut_allocator<T> &rhs) {
+  return (!(lhs == rhs));
+}
+
+#ifdef UNIV_PFS_MEMORY
+
+/** Allocate, trace the allocation and construct an object.
+Use this macro instead of 'new' within InnoDB.
+For example: instead of
+        Foo*	f = new Foo(args);
+use:
+        Foo*	f = UT_NEW(Foo(args), mem_key_some);
+Upon failure to allocate the memory, this macro may return NULL. It
+will not throw exceptions. After successful allocation the returned
+pointer must be passed to UT_DELETE() when no longer needed.
+@param[in]	expr	any expression that could follow "new"
+@param[in]	key	performance schema memory tracing key
+@return pointer to the created object or NULL */
+#define UT_NEW(expr, key)                                                \
+  /* Placement new will return NULL and not attempt to construct an      \
+  object if the passed in pointer is NULL, e.g. if allocate() has        \
+  failed to allocate memory and has returned NULL. */                    \
+  ::new (ut_allocator<byte>(key).allocate(sizeof expr, NULL, key, false, \
+                                          false)) expr
+
+/** Allocate, trace the allocation and construct an object.
+Use this macro instead of 'new' within InnoDB and instead of UT_NEW()
+when creating a dedicated memory key is not feasible.
+For example: instead of
+        Foo*	f = new Foo(args);
+use:
+        Foo*	f = UT_NEW_NOKEY(Foo(args));
+Upon failure to allocate the memory, this macro may return NULL. It
+will not throw exceptions. After successful allocation the returned
+pointer must be passed to UT_DELETE() when no longer needed.
+@param[in]	expr	any expression that could follow "new"
+@return pointer to the created object or NULL */
+#define UT_NEW_NOKEY(expr) UT_NEW(expr, PSI_NOT_INSTRUMENTED)
+
+/** Destroy, deallocate and trace the deallocation of an object created by
+UT_NEW() or UT_NEW_NOKEY().
+We can't instantiate ut_allocator without having the type of the object, thus
+we redirect this to a template function. */
+#define UT_DELETE(ptr) ut_delete(ptr)
+
+/** Destroy and account object created by UT_NEW() or UT_NEW_NOKEY().
+@param[in,out]	ptr	pointer to the object */
+template <typename T>
+inline void ut_delete(T *ptr) {
+  if (ptr == NULL) {
+    return;
+  }
+
+  ut_allocator<T> allocator;
+
+  allocator.destroy(ptr);
+  allocator.deallocate(ptr);
+}
+
+/** Allocate and account 'n_elements' objects of type 'type'.
+Use this macro to allocate memory within InnoDB instead of 'new[]'.
+The returned pointer must be passed to UT_DELETE_ARRAY().
+@param[in]	type		type of objects being created
+@param[in]	n_elements	number of objects to create
+@param[in]	key		performance schema memory tracing key
+@return pointer to the first allocated object or NULL */
+#define UT_NEW_ARRAY(type, n_elements, key) \
+  ut_allocator<type>(key).new_array(n_elements, UT_NEW_THIS_FILE_PSI_KEY)
+
+/** Allocate and account 'n_elements' objects of type 'type'.
+Use this macro to allocate memory within InnoDB instead of 'new[]' and
+instead of UT_NEW_ARRAY() when it is not feasible to create a dedicated key.
+@param[in]	type		type of objects being created
+@param[in]	n_elements	number of objects to create
+@return pointer to the first allocated object or NULL */
+#define UT_NEW_ARRAY_NOKEY(type, n_elements) \
+  UT_NEW_ARRAY(type, n_elements, PSI_NOT_INSTRUMENTED)
+
+/** Destroy, deallocate and trace the deallocation of an array created by
+UT_NEW_ARRAY() or UT_NEW_ARRAY_NOKEY().
+We can't instantiate ut_allocator without having the type of the object, thus
+we redirect this to a template function. */
+#define UT_DELETE_ARRAY(ptr) ut_delete_array(ptr)
+
+/** Destroy and account objects created by UT_NEW_ARRAY() or
+UT_NEW_ARRAY_NOKEY().
+@param[in,out]	ptr	pointer to the first object in the array */
+template <typename T>
+inline void ut_delete_array(T *ptr) {
+  ut_allocator<T>().delete_array(ptr);
+}
+
+#define ut_malloc(n_bytes, key)                         \
+  static_cast<void *>(ut_allocator<byte>(key).allocate( \
+      n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, false, false))
+
+#define ut_zalloc(n_bytes, key)                         \
+  static_cast<void *>(ut_allocator<byte>(key).allocate( \
+      n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true, false))
+
+#define ut_malloc_nokey(n_bytes)               \
+  static_cast<void *>(                         \
+      ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
+          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, false, false))
+
+#define ut_zalloc_nokey(n_bytes)               \
+  static_cast<void *>(                         \
+      ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
+          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true, false))
+
+#define ut_zalloc_nokey_nofatal(n_bytes)       \
+  static_cast<void *>(                         \
+      ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
+          .set_oom_not_fatal()                 \
+          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true, false))
+
+#define ut_realloc(ptr, n_bytes)                               \
+  static_cast<void *>(ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
+                          .reallocate(ptr, n_bytes, UT_NEW_THIS_FILE_PSI_KEY))
+
+#define ut_free(ptr)                       \
+  ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
+      .deallocate(reinterpret_cast<byte *>(ptr))
+
+#else /* UNIV_PFS_MEMORY */
+
+  /* Fallbacks when memory tracing is disabled at compile time. */
+
+#define UT_NEW(expr, key) ::new (std::nothrow) expr
+#define UT_NEW_NOKEY(expr) ::new (std::nothrow) expr
+#define UT_DELETE(ptr) ::delete ptr
+
+#define UT_NEW_ARRAY(type, n_elements, key) \
+  ::new (std::nothrow) type[n_elements]
+
+#define UT_NEW_ARRAY_NOKEY(type, n_elements) \
+  ::new (std::nothrow) type[n_elements]
+
+#define UT_DELETE_ARRAY(ptr) ::delete[] ptr
+
+#define ut_malloc(n_bytes, key) ::malloc(n_bytes)
+
+#define ut_zalloc(n_bytes, key) ::calloc(1, n_bytes)
+
+#define ut_malloc_nokey(n_bytes) ::malloc(n_bytes)
+
+#define ut_zalloc_nokey(n_bytes) ::calloc(1, n_bytes)
+
+#define ut_zalloc_nokey_nofatal(n_bytes) ::calloc(1, n_bytes)
+
+#define ut_realloc(ptr, n_bytes) ::realloc(ptr, n_bytes)
+
+#define ut_free(ptr) ::free(ptr)
+
+#endif /* UNIV_PFS_MEMORY */
+
+/** This is a forward declaration, which is because of the circular dependency
+between ut0new.h and ut0byte.h (going through univ.i and sync0types.h).
+I've managed to observe problem when building MEB and this helps then. */
+UNIV_INLINE
+void *ut_align(const void *ptr, ulint align_no);
+
+/** Abstract class to manage an object that is aligned to specified number of
+bytes.
+@tparam	T_Type		type of the object that is going to be managed
+@tparam T_Align_to	number of bytes to align to */
+template <typename T_Type, size_t T_Align_to>
+class aligned_memory {
+ public:
+  virtual ~aligned_memory() {
+    if (!this->is_object_empty()) {
+      this->free_memory();
+    }
+  }
+
+  virtual void destroy() = 0;
+
+  /** Allows casting to managed objects type to use it directly */
+  operator T_Type *() const {
+    ut_a(m_object != nullptr);
+    return m_object;
+  }
+
+  /** Allows referencing the managed object as this was a normal
+  pointer. */
+  T_Type *operator->() const {
+    ut_a(m_object != nullptr);
+    return m_object;
+  }
+
+ protected:
+  /** Checks if no object is currently being managed. */
+  bool is_object_empty() const { return m_object == nullptr; }
+
+  /** Allocates memory for a new object and prepares aligned address for
+  the object.
+  @param[in]	size	Number of bytes to be delivered for the aligned
+  object. Number of bytes actually allocated will be higher. */
+  T_Type *allocate(size_t size) {
+    static_assert(T_Align_to > 0, "Incorrect alignment parameter");
+    ut_a(m_memory == nullptr);
+    ut_a(m_object == nullptr);
+
+    m_memory = ut_zalloc_nokey(size + T_Align_to - 1);
+    m_object = static_cast<T_Type *>(::ut_align(m_memory, T_Align_to));
+    return m_object;
+  }
+
+  /** Releases memory used to store the object. */
+  void free_memory() {
+    ut_a(m_memory != nullptr);
+    ut_a(m_object != nullptr);
+
+    ut_free(m_memory);
+
+    m_memory = nullptr;
+    m_object = nullptr;
+  }
+
+ private:
+  /** Stores pointer to aligned object memory. */
+  T_Type *m_object = nullptr;
+
+  /** Stores pointer to memory used to allocate the object. */
+  void *m_memory = nullptr;
+};
+
+/** Manages an object that is aligned to specified number of bytes.
+@tparam	T_Type		type of the object that is going to be managed
+@tparam T_Align_to	number of bytes to align to */
+template <typename T_Type, size_t T_Align_to = INNOBASE_CACHE_LINE_SIZE>
+class aligned_pointer : public aligned_memory<T_Type, T_Align_to> {
+ public:
+  ~aligned_pointer() {
+    if (!this->is_object_empty()) {
+      this->destroy();
+    }
+  }
+
+  /** Allocates aligned memory for new object and constructs it there.
+  @param[in]	args	arguments to be passed to object constructor */
+  template <typename... T_Args>
+  void create(T_Args... args) {
+    new (this->allocate(sizeof(T_Type))) T_Type(std::forward(args)...);
+  }
+
+  /** Destroys the managed object and releases its memory. */
+  void destroy() {
+    (*this)->~T_Type();
+    this->free_memory();
+>>>>>>> pr/231
   }
 };
 

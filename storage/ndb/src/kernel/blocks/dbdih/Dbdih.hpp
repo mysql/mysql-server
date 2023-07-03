@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1023,6 +1027,12 @@ private:
   void execSTART_COPYREF(Signal *);
   void execUPDATE_FRAG_STATEREQ(Signal *);
   void execUPDATE_FRAG_STATECONF(Signal *);
+<<<<<<< HEAD
+=======
+public:
+  void execDIVERIFYREQ(Signal *);
+private:
+>>>>>>> pr/231
   void execGCP_SAVEREQ(Signal *);
   void execGCP_SAVECONF(Signal *);
   void execGCP_PREPARECONF(Signal *);
@@ -2802,6 +2812,7 @@ private:
   RedoStateRep::RedoAlertState get_global_redo_alert_state();
   void sendREDO_STATE_REP_to_all(Signal*, Uint32 block, bool send_to_all);
   bool m_master_lcp_req_lcp_already_completed;
+<<<<<<< HEAD
 
   void complete_restart_nr(Signal*);
 
@@ -2832,6 +2843,10 @@ public:
   
   NdbNodeBitmask c_shutdownReqNodes;
   void print_lcp_state();
+=======
+  
+  NdbNodeBitmask c_shutdownReqNodes;
+>>>>>>> pr/231
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32_v2)

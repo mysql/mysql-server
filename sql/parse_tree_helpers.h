@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,9 +78,16 @@ class Parse_tree_item : public Item {
  public:
   explicit Parse_tree_item(const POS &pos) : Item(pos) {}
 
+<<<<<<< HEAD
   enum Type type() const override { return INVALID_ITEM; }
   double val_real() override {
     assert(0);
+=======
+  virtual enum Type type() const { return INVALID_ITEM; }
+<<<<<<< HEAD
+  virtual double val_real() {
+    DBUG_ASSERT(0);
+>>>>>>> pr/231
     return 0;
   }
   longlong val_int() override {
@@ -95,6 +110,14 @@ class Parse_tree_item : public Item {
     assert(0);
     return false;
   }
+=======
+  virtual double val_real() { assert(0); return 0; }
+  virtual longlong val_int() { assert(0); return 0; }
+  virtual String *val_str(String *) { assert(0); return NULL; }
+  virtual my_decimal *val_decimal(my_decimal *) { assert(0); return NULL; }
+  virtual bool get_date(MYSQL_TIME *, uint) { assert(0); return false; }
+  virtual bool get_time(MYSQL_TIME *) { assert(0); return false; }
+>>>>>>> upstream/cluster-7.6
 };
 
 /**
@@ -140,11 +163,22 @@ class PT_item_list : public Parse_tree_node {
     return false;
   }
 
+<<<<<<< HEAD
   Item *pop_front() {
+<<<<<<< HEAD
     assert(!is_empty());
     Item *ret = value.front();
     value.pop_front();
     return ret;
+=======
+    DBUG_ASSERT(!is_empty());
+=======
+  Item *pop_front()
+  {
+    assert(!is_empty());
+>>>>>>> upstream/cluster-7.6
+    return value.pop();
+>>>>>>> pr/231
   }
 
   Item *operator[](uint index) const { return value[index]; }

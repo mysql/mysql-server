@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2001, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2001, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -258,7 +266,15 @@ static bool mysql_ha_open_table(THD *thd, Table_ref *hash_tables) {
     'hash_tables->table' must be NULL, unless there is pre-opened
     temporary table. open_tables() will set it if successful.
   */
+<<<<<<< HEAD
   assert(!hash_tables->table || is_temporary_table(hash_tables));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!hash_tables->table || is_temporary_table(hash_tables));
+=======
+  assert(! hash_tables->table || is_temporary_table(hash_tables));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   error = open_tables(thd, &hash_tables, &counter, 0);
 
@@ -303,7 +319,11 @@ static bool mysql_ha_open_table(THD *thd, Table_ref *hash_tables) {
     was opened for HANDLER as it is used to link them together
     (see thd->temporary_tables).
   */
+<<<<<<< HEAD
   assert(hash_tables->table->next == nullptr ||
+=======
+  assert(hash_tables->table->next == NULL ||
+>>>>>>> pr/231
          hash_tables->table->s->tmp_table);
   /*
     If it's a temp table, don't reset table->query_id as the table is
@@ -321,8 +341,26 @@ static bool mysql_ha_open_table(THD *thd, Table_ref *hash_tables) {
   */
   hash_tables->table->cleanup_value_generator_items();
 
+<<<<<<< HEAD
   DBUG_PRINT("exit", ("OK"));
+<<<<<<< HEAD
   return false;
+=======
+  DBUG_RETURN(false);
+=======
+  /*
+    Generated column expressions have been resolved using the MEM_ROOT of the
+    current HANDLER statement, which is cleared when the statement has finished.
+    Clean up the expressions so that subsequent HANDLER ... READ calls don't
+    access data allocated on a cleared MEM_ROOT. The generated column
+    expressions have to be re-resolved on each HANDLER ... READ call.
+  */
+  hash_tables->table->cleanup_gc_items();
+
+  DBUG_PRINT("exit",("OK"));
+  DBUG_RETURN(FALSE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /**
@@ -427,9 +465,21 @@ bool Sql_cmd_handler_read::execute(THD *thd) {
   select_limit_cnt = unit->select_limit_cnt;
   offset_limit_cnt = unit->offset_limit_cnt;
 
+<<<<<<< HEAD
   query_block->context.resolve_in_table_list_only(tables);
   mem_root_deque<Item *> list(thd->mem_root);
   list.push_back(new Item_field(&query_block->context, nullptr, nullptr, "*"));
+=======
+  select_lex->context.resolve_in_table_list_only(tables);
+<<<<<<< HEAD
+  list.push_front(new Item_field(&select_lex->context, NULL, NULL, "*"));
+=======
+  list.push_front(new Item_asterisk(&select_lex->context,
+                                    NULL, NULL));
+>>>>>>> upstream/cluster-7.6
+  List_iterator<Item> it(list);
+  it++;
+>>>>>>> pr/231
 
 retry:
   const auto hash_it = thd->handler_tables_hash.find(tables->alias);
@@ -508,7 +558,11 @@ retry:
   /* save open_tables state */
   backup_open_tables = thd->open_tables;
   /* Always a one-element list, see mysql_ha_open(). */
+<<<<<<< HEAD
   assert(hash_tables->table->next == nullptr ||
+=======
+  assert(hash_tables->table->next == NULL ||
+>>>>>>> pr/231
          hash_tables->table->s->tmp_table);
   /*
     mysql_lock_tables() needs thd->open_tables to be set correctly to
@@ -532,15 +586,33 @@ retry:
   /* Restore previous context. */
   thd->set_open_tables(backup_open_tables);
 
+<<<<<<< HEAD
   if (sql_handler_lock_error.need_reopen()) {
+<<<<<<< HEAD
     assert(!lock && !thd->is_error());
+=======
+    DBUG_ASSERT(!lock && !thd->is_error());
+=======
+  if (sql_handler_lock_error.need_reopen())
+  {
+    assert(!lock && !thd->is_error());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     /*
       Always close statement transaction explicitly,
       so that the engine doesn't have to count locks.
       There should be no need to perform transaction
       rollback due to deadlock.
     */
+<<<<<<< HEAD
     assert(!thd->transaction_rollback_request);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(!thd->transaction_rollback_request);
+=======
+    assert(! thd->transaction_rollback_request);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     trans_rollback_stmt(thd);
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
     mysql_ha_close_table(thd, hash_tables);
@@ -608,6 +680,7 @@ retry:
 
   table->file->init_table_handle_for_HANDLER();
 
+<<<<<<< HEAD
   /*
     Rebind the generated column expressions to current fields. They have to be
     cleaned up before returning, since the resolved expressions may point to
@@ -616,6 +689,9 @@ retry:
   */
   table->bind_value_generators_to_fields();
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   for (num_rows = 0; num_rows < select_limit_cnt;) {
     switch (mode) {
       case enum_ha_read_modes::RNEXT:
@@ -630,6 +706,111 @@ retry:
           error = table->file->ha_rnd_next(table->record[0]);
           break;
         }
+=======
+  /*
+    Resolve the generated column expressions. They have to be cleaned up before
+    returning, since the resolved expressions may point to memory allocated on
+    the MEM_ROOT of the current HANDLER ... READ statement, which will be
+    cleared when the statement has completed.
+  */
+  if (table->refix_gc_items(thd)) goto err;
+
+  for (num_rows=0; num_rows < select_limit_cnt; )
+  {
+    switch (mode) {
+    case RNEXT:
+      if (m_key_name)
+      {
+        if (table->file->inited == handler::INDEX)
+        {
+          /* Check if we read from the same index. */
+          assert((uint) keyno == table->file->get_index());
+          error= table->file->ha_index_next(table->record[0]);
+          break;
+        }
+      }
+      else if (table->file->inited == handler::RND)
+      {
+        error= table->file->ha_rnd_next(table->record[0]);
+        break;
+      }
+      /*
+        Fall through to HANDLER ... READ ... FIRST case if we are trying
+        to read next row in index order after starting reading rows in
+        natural order, or, vice versa, trying to read next row in natural
+        order after reading previous rows in index order.
+      */
+    case RFIRST:
+      if (m_key_name)
+      {
+        if (!(error= table->file->ha_index_or_rnd_end()) &&
+            !(error= table->file->ha_index_init(keyno, 1)))
+          error= table->file->ha_index_first(table->record[0]);
+      }
+      else
+      {
+        if (!(error= table->file->ha_index_or_rnd_end()) &&
+            !(error= table->file->ha_rnd_init(1)))
+          error= table->file->ha_rnd_next(table->record[0]);
+      }
+      mode=RNEXT;
+      break;
+    case RPREV:
+      assert(m_key_name != 0);
+      /* Check if we read from the same index. */
+      assert((uint) keyno == table->file->get_index());
+      if (table->file->inited == handler::INDEX)
+      {
+        error= table->file->ha_index_prev(table->record[0]);
+        break;
+      }
+      /* else fall through, for more info, see comment before 'case RFIRST'. */
+    case RLAST:
+      assert(m_key_name != 0);
+      if (!(error= table->file->ha_index_or_rnd_end()) &&
+          !(error= table->file->ha_index_init(keyno, 1)))
+        error= table->file->ha_index_last(table->record[0]);
+      mode=RPREV;
+      break;
+    case RNEXT_SAME:
+      /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
+      assert(table->file->inited == handler::INDEX);
+      error= table->file->ha_index_next_same(table->record[0], key, key_len);
+      break;
+    case RKEY:
+    {
+      assert(m_key_name != 0);
+      KEY *keyinfo=table->key_info+keyno;
+      KEY_PART_INFO *key_part=keyinfo->key_part;
+      if (m_key_expr->elements > keyinfo->user_defined_key_parts)
+      {
+	my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), keyinfo->user_defined_key_parts);
+	goto err;
+      }
+
+      Column_privilege_tracker column_privilege(thd, SELECT_ACL);
+
+      List_iterator<Item> it_ke(*m_key_expr);
+      Item *item;
+      key_part_map keypart_map;
+      for (keypart_map= key_len=0 ; (item=it_ke++) ; key_part++)
+      {
+        my_bitmap_map *old_map;
+	// 'item' can be changed by fix_fields() call
+        if ((!item->fixed &&
+             item->fix_fields(thd, it_ke.ref())) ||
+	    (item= *it_ke.ref())->check_cols(1))
+	  goto err;
+	if (item->used_tables() & ~RAND_TABLE_BIT)
+        {
+          my_error(ER_WRONG_ARGUMENTS,MYF(0),"HANDLER ... READ");
+	  goto err;
+        }
+        old_map= dbug_tmp_use_all_columns(table, table->write_set);
+        type_conversion_status conv_status=
+          item->save_in_field(key_part->field, true);
+        dbug_tmp_restore_column_map(table->write_set, old_map);
+>>>>>>> upstream/cluster-7.6
         /*
           Fall through to HANDLER ... READ ... FIRST case if we are trying
           to read next row in index order after starting reading rows in
@@ -770,15 +951,27 @@ ok:
   hash_tables->table->pos_in_table_list = hash_tables;
   mysql_unlock_tables(thd, lock);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+<<<<<<< HEAD
   table->cleanup_value_generator_items();
+=======
+  table->cleanup_gc_items();
+>>>>>>> pr/231
   my_eof(thd);
   DBUG_PRINT("exit", ("OK"));
   return false;
 
 err:
   trans_rollback_stmt(thd);
+<<<<<<< HEAD
   mysql_unlock_tables(thd, lock);
+<<<<<<< HEAD
   table->cleanup_value_generator_items();
+=======
+=======
+  mysql_unlock_tables(thd,lock);
+  table->cleanup_gc_items();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 err1:
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 err0:

@@ -1,5 +1,10 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -11,6 +16,25 @@
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
   separately licensed software that they have included with MySQL.
+=======
+      Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+
+      This program is free software; you can redistribute it and/or modify
+      it under the terms of the GNU General Public License, version 2.0,
+      as published by the Free Software Foundation.
+
+      This program is also distributed with certain software (including
+      but not limited to OpenSSL) that is licensed under separate terms,
+      as designated in a particular file or component or in included license
+      documentation.  The authors of MySQL hereby grant you an additional
+      permission to link the program and your derivative works with the
+      separately licensed software that they have included with MySQL.
+
+      This program is distributed in the hope that it will be useful,
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
+      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+      GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -152,11 +176,35 @@ bool PFS_index_rpl_connection_status_by_channel::match(Master_info *mi) {
   return true;
 }
 
+<<<<<<< HEAD
 bool PFS_index_rpl_connection_status_by_thread::match(Master_info *mi) {
   if (m_fields >= 1) {
     st_row_connect_status row;
     /* NULL THREAD_ID is represented by 0 */
     row.thread_id = 0;
+=======
+PFS_engine_table_share_state
+table_replication_connection_status::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_replication_connection_status::m_share=
+{
+  { C_STRING_WITH_LEN("replication_connection_status") },
+  &pfs_readonly_acl,
+  table_replication_connection_status::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_replication_connection_status::get_row_count, /* records */
+  sizeof(pos_t), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+>>>>>>> upstream/cluster-7.6
 
     if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
       PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->info_thd);
@@ -196,6 +244,7 @@ ha_rows table_replication_connection_status::get_row_count() {
   return channel_map.get_max_channels();
 }
 
+<<<<<<< HEAD
 int table_replication_connection_status::rnd_next(void) {
   Master_info *mi = nullptr;
   channel_map.rdlock();
@@ -204,14 +253,49 @@ int table_replication_connection_status::rnd_next(void) {
        m_pos.m_index < channel_map.get_max_channels(); m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
     if (mi && mi->host[0]) {
+<<<<<<< HEAD
+=======
+      if (!make_row(mi)) {
+        m_next_pos.set_after(&m_pos);
+        channel_map.unlock();
+        return 0;
+      }
+=======
+
+
+int table_replication_connection_status::rnd_next(void)
+{
+  Master_info *mi= NULL;
+  channel_map.rdlock();
+
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index < channel_map.get_max_channels();
+       m_pos.next())
+  {
+    mi= channel_map.get_mi_at_pos(m_pos.m_index);
+
+    if (mi && mi->host[0])
+    {
+>>>>>>> pr/231
       make_row(mi);
       m_next_pos.set_after(&m_pos);
       channel_map.unlock();
       return 0;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
   }
 
   channel_map.unlock();
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return HA_ERR_END_OF_FILE;
 }
 
@@ -289,8 +373,13 @@ int table_replication_connection_status::make_row(Master_info *mi) {
   m_row.thread_id_is_null = true;
   m_row.service_state = PS_RPL_CONNECT_SERVICE_STATE_NO;
 
+<<<<<<< HEAD
   assert(mi != nullptr);
   assert(mi->rli != nullptr);
+=======
+  assert(mi != NULL);
+  assert(mi->rli != NULL);
+>>>>>>> pr/231
 
   mysql_mutex_lock(&mi->data_lock);
 
@@ -412,7 +501,12 @@ int table_replication_connection_status::read_row_values(TABLE *table,
                                                          bool read_all) {
   Field *f;
 
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -498,7 +592,71 @@ int table_replication_connection_status::read_row_values(TABLE *table,
           set_field_timestamp(f, m_row.queueing_trx_start_queue_timestamp);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  if (unlikely(! m_row_exists))
+    return HA_ERR_RECORD_DELETED;
+
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /** channel_name*/
+        set_field_char_utf8(f, m_row.channel_name,m_row.channel_name_length);
+        break;
+      case 1: /** group_name */
+        if (m_row.group_name_is_null)
+          f->set_null();
+        else
+          set_field_char_utf8(f, m_row.group_name, UUID_LENGTH);
+        break;
+      case 2: /** source_uuid */
+        if (m_row.source_uuid_is_null)
+          f->set_null();
+        else
+          set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
+        break;
+      case 3: /** thread_id */
+        if(m_row.thread_id_is_null)
+          f->set_null();
+        else
+          set_field_ulonglong(f, m_row.thread_id);
+        break;
+      case 4: /** service_state */
+        set_field_enum(f, m_row.service_state);
+        break;
+      case 5: /** number of heartbeat events received **/
+        set_field_ulonglong(f, m_row.count_received_heartbeats);
+        break;
+      case 6: /** time of receipt of last heartbeat event **/
+        set_field_timestamp(f, m_row.last_heartbeat_timestamp);
+        break;
+      case 7: /** received_transaction_set */
+        set_field_longtext_utf8(f, m_row.received_transaction_set,
+                                m_row.received_transaction_set_length);
+        break;
+      case 8: /*last_error_number*/
+        set_field_ulong(f, m_row.last_error_number);
+        break;
+      case 9: /*last_error_message*/
+        set_field_varchar_utf8(f, m_row.last_error_message,
+                               m_row.last_error_message_length);
+        break;
+      case 10: /*last_error_timestamp*/
+        set_field_timestamp(f, m_row.last_error_timestamp);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

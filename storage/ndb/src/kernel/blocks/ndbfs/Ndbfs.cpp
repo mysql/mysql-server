@@ -59,6 +59,7 @@
 
 #define JAM_FILE_ID 393
 
+<<<<<<< HEAD
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
 /*
  * To be able to test different combinations of compression, encryption, and,
@@ -98,6 +99,36 @@
  * with a particular file and process one request at a time to
  * completion.  They always dequeue work from the non-bound shared queue.
 
+=======
+extern EventLogger * g_eventLogger;
+/**
+ * NDBFS has two types of async IO file threads : Bound and non-bound.
+ * These threads are kept in two distinct idle pools.
+ * Requests to be executed by any thread in an idle pool are queued onto
+ * a shared queue, which all of the idle threads in the pool attempt to
+ * dequeue work from.  Work items are processed, which may take some
+ * time, and then once the outcome is known, a response is queued on a
+ * reply queue, which the NDBFS signal execution thread polls
+ * periodically.
+ *
+ * Bound IO threads have the ability to remove themselves from the idle
+ * pool.  This happens as part of processing an OPEN request, where the
+ * thread is 'attached' to a particular file.
+ * As part of being 'attached' to a file, the thread no longer attempts
+ * to dequeue work from the shared queue, but rather starts dequeuing
+ * work just from a private queue associated with the file.
+ *
+ * This removes the thread from general use and dedicates it to servicing
+ * requests on the attached file until a CLOSE request arrives, which
+ * will cause the thread to be detached from the file and return to the
+ * idle Bound threads pool, where it will attempt to dequeue work from
+ * the Shared queue again.
+ *
+ * Non-bound IO threads are created at startup, they are not associated
+ * with a particular file and process one request at a time to
+ * completion.  They always dequeue work from the non-bound shared queue.
+
+>>>>>>> pr/231
  * Some request types use Bound IO threads in a non-bound way, where a
  * single request is processed to completion by a single thread, which
  * then continues to dequeue work from the shared bound
@@ -288,6 +319,7 @@ Ndbfs::get_base_path(Uint32 no) const
 void 
 Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   const ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtr();
 
   Uint32 ref = req->senderRef;
@@ -492,6 +524,7 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
 void
 Ndbfs::execSTTOR(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   
   if(signal->theData[1] == 0){ // StartPhase 0
@@ -574,6 +607,7 @@ Ndbfs::forward( AsyncFile * file, Request* request)
 void 
 Ndbfs::execFSOPENREQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   require(signal->getLength() >= FsOpenReq::SignalLength);
 #if defined(NAME_BASED_DISABLING_COMPRESS_ENCRYPT_ODIRECT)
@@ -714,6 +748,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
 void 
 Ndbfs::execFSREMOVEREQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   const FsRemoveReq * const req = (FsRemoveReq *)signal->getDataPtr();
   const BlockReference userRef = req->userReference;
@@ -768,6 +803,7 @@ ignore:
 void 
 Ndbfs::execFSCLOSEREQ(Signal * signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   const FsCloseReq * const fsCloseReq = (FsCloseReq *)&signal->theData[0];
   const BlockReference userRef = fsCloseReq->userReference;
@@ -817,7 +853,11 @@ Ndbfs::execFSCLOSEREQ(Signal * signal)
 void 
 Ndbfs::readWriteRequest(int action, Signal * signal)
 {
+<<<<<<< HEAD
   Uint32 theData[25 + 1 + NDB_FS_RW_PAGES];
+=======
+  Uint32 theData[25 + 2 * NDB_FS_RW_PAGES];
+>>>>>>> pr/231
   ndbrequire(signal->getLength() <= NDB_ARRAY_SIZE(theData));
   memcpy(theData, signal->theData, 4 * signal->getLength());
   SectionHandle handle(this, signal);
@@ -1035,6 +1075,7 @@ error:
 void 
 Ndbfs::execFSWRITEREQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   const FsReadWriteReq * const fsWriteReq = (FsReadWriteReq *)&signal->theData[0];
   
@@ -1059,6 +1100,7 @@ Ndbfs::execFSWRITEREQ(Signal* signal)
 void 
 Ndbfs::execFSREADREQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   FsReadWriteReq * req = (FsReadWriteReq *)signal->getDataPtr();
   if (FsReadWriteReq::getPartialReadFlag(req->operationFlag))
@@ -1079,6 +1121,7 @@ Ndbfs::execFSREADREQ(Signal* signal)
 void
 Ndbfs::execFSSYNCREQ(Signal * signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   Uint16 filePointer =  (Uint16)signal->theData[0];
   BlockReference userRef = signal->theData[1];
@@ -1114,6 +1157,7 @@ Ndbfs::execFSSYNCREQ(Signal * signal)
 void
 Ndbfs::execFSSUSPENDORD(Signal * signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   Uint16 filePointer =  (Uint16)signal->theData[0];
   Uint32 millis = signal->theData[1];
@@ -1140,6 +1184,10 @@ Ndbfs::execFSSUSPENDORD(Signal * signal)
 void 
 Ndbfs::execFSAPPENDREQ(Signal * signal)
 {
+<<<<<<< HEAD
+=======
+  LOCAL_SIGNAL(signal);
+>>>>>>> pr/231
   jamEntry();
   const FsAppendReq * const fsReq = (FsAppendReq *)&signal->theData[0];
   const Uint16 filePointer =  (Uint16)fsReq->filePointer;
@@ -1152,7 +1200,10 @@ Ndbfs::execFSAPPENDREQ(Signal * signal)
   FsRef::NdbfsErrorCodeType errorCode;
 
   Request *request = theRequestPool->get();
+<<<<<<< HEAD
   AsyncFile* openFile = theOpenFiles.find(filePointer);
+=======
+>>>>>>> pr/231
   const NewVARIABLE *myBaseAddrRef =
     getBatVar(blockNumber, instanceNumber, fsReq->varIndex);
 
@@ -1163,6 +1214,18 @@ Ndbfs::execFSAPPENDREQ(Signal * signal)
     goto error;
   }
   {
+<<<<<<< HEAD
+=======
+    AsyncFile* openFile = theOpenFiles.find(filePointer);
+#ifdef ERROR_INSERT
+    if (ERROR_INSERTED(2002) && (c_error_insert_extra == fsReq->filePointer))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+      openFile->error_insert(FsRef::fsErrNoSpaceLeftOnDevice);
+    }
+#endif
+    
+>>>>>>> pr/231
     const Uint32* tWA   = (const Uint32*)myBaseAddrRef->WA;
     const Uint32  tSz   = myBaseAddrRef->nrr;
     const Uint32 offset = fsReq->offset;
@@ -1181,7 +1244,11 @@ Ndbfs::execFSAPPENDREQ(Signal * signal)
       goto error;
     }
 
+<<<<<<< HEAD
     NDBFS_SET_REQUEST_ERROR(request, 0);
+=======
+    request->error = 0;
+>>>>>>> pr/231
     request->set(userRef, userPointer, filePointer);
     request->file = openFile;
     request->theTrace = signal->getTrace();
@@ -1215,6 +1282,7 @@ error:
 void
 Ndbfs::execALLOC_MEM_REQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   AllocMemReq* req = (AllocMemReq*)signal->getDataPtr();
 
@@ -1241,6 +1309,7 @@ Ndbfs::execALLOC_MEM_REQ(Signal* signal)
 void
 Ndbfs::execBUILD_INDX_IMPL_REQ(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   mt_BuildIndxReq * req = (mt_BuildIndxReq*)signal->getDataPtr();
 
@@ -1315,8 +1384,13 @@ Ndbfs::createAsyncFile()
                file,
                file->isOpen() ?"OPEN" : "CLOSED");
     }
+<<<<<<< HEAD
     g_eventLogger->info("m_maxFiles: %u, theFiles.size() = %u", m_maxFiles,
                         theFiles.size());
+=======
+    ndbout_c("m_maxFiles: %u, theFiles.size() = %u",
+              m_maxFiles, theFiles.size());
+>>>>>>> pr/231
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile: creating more than MaxNoOfOpenFiles");
   }
 
@@ -1801,6 +1875,7 @@ Uint32 Ndbfs::translateErrno(int aErrno)
 void 
 Ndbfs::execCONTINUEB(Signal* signal)
 {
+  LOCAL_SIGNAL(signal);
   jamEntry();
   if (signal->theData[0] == NdbfsContinueB::ZSCAN_MEMORYCHANNEL_10MS_DELAY) {
     jam();
@@ -1862,7 +1937,11 @@ Ndbfs::execSEND_PACKED(Signal* signal)
 void
 Ndbfs::execDUMP_STATE_ORD(Signal* signal)
 {
+<<<<<<< HEAD
   LOCAL_SIGNAL(signal); // Not local for all blocks!
+=======
+  LOCAL_SIGNAL(signal);
+>>>>>>> pr/231
   jamEntry();
   if(signal->theData[0] == 19){
     return;
@@ -1929,12 +2008,20 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
       if (NdbTick_IsValid(req->m_startTime))
       {
         duration = NdbTick_Elapsed(req->m_startTime,
+<<<<<<< HEAD
                                    getHighResTimer()).microSec();
+=======
+                                   getHighResTimer()).milliSec();
+>>>>>>> pr/231
       }
 
       g_eventLogger->info("Request %u action %u %s userRef 0x%x "
                           "userPtr %u filePtr %u bind %u "
+<<<<<<< HEAD
                           "duration(us) %llu filename %s",
+=======
+                          "duration(ms) %llu filename %s",
+>>>>>>> pr/231
                           ridx,
                           req->action,
                           Request::actionName(req->action),
@@ -1976,7 +2063,14 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     }
 #endif
   }
-
+#ifdef ERROR_INSERT
+  if (signal->theData[0] == DumpStateOrd::NdbfsErrorInsert)
+  {
+    UintR error_insert = signal->theData[1];
+    UintR file_ptr = signal->theData[2];
+    SET_ERROR_INSERT_VALUE2(error_insert, file_ptr);
+  }
+#endif
   if(signal->theData[0] == 405)
   {
     for (unsigned i = 0; i < theFiles.size(); i++)

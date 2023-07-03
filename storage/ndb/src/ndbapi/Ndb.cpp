@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +67,9 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode, Uint32 instance)
       DBUG_RETURN(NULL);
     } else if (TretCode != 0) {
       tAnyAlive = 1;
+#ifdef ERROR_INSERT
+      fprintf(stderr, "Tracing ndb_read_local test failure: requested TC node %u could not be connected\n", tConNode);
+#endif
     }//if
   }//if
 //****************************************************************************
@@ -490,8 +497,9 @@ Ndb::computeHash(Uint32 *retval,
     sumlen += len;
   }
 
-  if (!buf)
+  while (true)
   {
+<<<<<<< HEAD
     bufLen = sumlen;
     bufLen += sizeof(Uint64); /* add space for potential alignment */
     buf = malloc(bufLen);
@@ -500,8 +508,19 @@ Ndb::computeHash(Uint32 *retval,
     malloced_buf = buf; /* Remember to free */
     assert(bufLen > sumlen);
   }
+=======
+    if (buf == NULL)
+    {
+      bufLen = sumlen;
+      bufLen += sizeof(Uint64); /* add space for potential alignment */
+      buf = malloc(bufLen);
+      if (unlikely(buf == NULL))
+        return 4000;
+      malloced_buf = buf; /* Remember to free */
+      assert(bufLen > sumlen);
+    }
+>>>>>>> pr/231
 
-  {
     /* Get 64-bit aligned ptr required for hashing */
     assert(bufLen != 0);
     UintPtr org = UintPtr(buf);
@@ -510,8 +529,10 @@ Ndb::computeHash(Uint32 *retval,
     buf = (void*)use;
     bufLen -= Uint32(use - org);
 
-    if (unlikely(sumlen > bufLen))
-      goto ebuftosmall;
+    if (likely(sumlen <= bufLen))
+      break;
+    require(malloced_buf == NULL);
+    buf = NULL;
   }
 
   pos= (unsigned char*) buf;
@@ -581,9 +602,6 @@ emissingnullptr:
 
 elentosmall:
   return 4277;
-
-ebuftosmall:
-  return 4278;
 
 emalformedstring:
   if (malloced_buf)

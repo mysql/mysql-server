@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +117,11 @@ void print_where(const THD *thd, const Item *cond, const char *info,
 
 void TEST_join(JOIN *join) {
   uint i, ref;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("TEST_join");
+>>>>>>> pr/231
   assert(!join->join_tab);
   /*
     Assemble results of all the calls to full_name() first,
@@ -158,9 +170,21 @@ void TEST_join(JOIN *join) {
 
 #endif /* !NDEBUG */
 
+<<<<<<< HEAD
 void print_keyuse_array(THD *thd, Opt_trace_context *trace,
+=======
+void print_keyuse_array(Opt_trace_context *trace,
+<<<<<<< HEAD
+>>>>>>> pr/231
                         const Key_use_array *keyuse_array) {
   if (unlikely(!trace->is_started())) return;
+=======
+                        const Key_use_array *keyuse_array)
+{
+#if !defined(NDEBUG) || defined(OPTIMIZER_TRACE)
+  if (unlikely(!trace->is_started()))
+    return;
+>>>>>>> upstream/cluster-7.6
   Opt_trace_object wrapper(trace);
   Opt_trace_array trace_key_uses(trace, "ref_optimizer_key_uses");
   DBUG_PRINT("opt", ("Key_use array (%zu elements)", keyuse_array->size()));
@@ -184,6 +208,10 @@ void print_keyuse_array(THD *thd, Opt_trace_context *trace,
         .add("equals", keyuse.val)
         .add("null_rejecting", keyuse.null_rejecting);
   }
+<<<<<<< HEAD
+=======
+#endif /* !NDEBUG || OPTIMIZER_TRACE */
+>>>>>>> upstream/cluster-7.6
 }
 
 #ifndef NDEBUG
@@ -273,7 +301,17 @@ void print_plan(JOIN *join, uint idx, double record_count, double read_time,
   DBUG_UNLOCK_FILE;
 }
 
+<<<<<<< HEAD
 #endif /* !NDEBUG */
+=======
+<<<<<<< HEAD
+#endif /* !DBUG_OFF */
+=======
+#endif  /* !NDEBUG */
+>>>>>>> upstream/cluster-7.6
+
+static int print_key_cache_status(const char *name, KEY_CACHE *key_cache);
+>>>>>>> pr/231
 
 struct TABLE_LOCK_INFO {
   my_thread_id thread_id;
@@ -301,7 +339,185 @@ class DL_commpare {
   }
 };
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+static void push_locks_into_array(Saved_locks_array *ar, THR_LOCK_DATA *data,
+                                  bool wait, const char *text) {
+  if (data) {
+    TABLE *table = (TABLE *)data->debug_print_param;
+    if (table && table->s->tmp_table == NO_TMP_TABLE) {
+      TABLE_LOCK_INFO table_lock_info;
+      table_lock_info.thread_id = table->in_use->thread_id();
+      memcpy(table_lock_info.table_name, table->s->table_cache_key.str,
+             table->s->table_cache_key.length);
+      table_lock_info.table_name[strlen(table_lock_info.table_name)] = '.';
+      table_lock_info.waiting = wait;
+      table_lock_info.lock_text = text;
+      // lock_type is also obtainable from THR_LOCK_DATA
+      table_lock_info.type = table->reginfo.lock_type;
+      ar->push_back(table_lock_info);
+    }
+  }
+}
+
+/*
+  Regarding MERGE tables:
+
+  For now, the best option is to use the common TABLE *pointer for all
+  cases;  The drawback is that for MERGE tables we will see many locks
+  for the merge tables even if some of them are for individual tables.
+
+  The way to solve this is to add to 'THR_LOCK' structure a pointer to
+  the filename and use this when printing the data.
+  (We can for now ignore this and just print the same name for all merge
+  table parts;  Please add the above as a comment to the display_lock
+  function so that we can easily add this if we ever need this.
+*/
+
+static void display_table_locks(void) {
+  LIST *list;
+  Saved_locks_array saved_table_locks(key_memory_locked_thread_list);
+  saved_table_locks.reserve(table_cache_manager.cached_tables() + 20);
+
+  mysql_mutex_lock(&THR_LOCK_lock);
+  for (list = thr_lock_thread_list; list; list = list_rest(list)) {
+    THR_LOCK *lock = (THR_LOCK *)list->data;
+
+    mysql_mutex_lock(&lock->mutex);
+    push_locks_into_array(&saved_table_locks, lock->write.data, false,
+                          "Locked - write");
+    push_locks_into_array(&saved_table_locks, lock->write_wait.data, true,
+                          "Waiting - write");
+    push_locks_into_array(&saved_table_locks, lock->read.data, false,
+                          "Locked - read");
+    push_locks_into_array(&saved_table_locks, lock->read_wait.data, true,
+                          "Waiting - read");
+    mysql_mutex_unlock(&lock->mutex);
+  }
+  mysql_mutex_unlock(&THR_LOCK_lock);
+
+  if (saved_table_locks.empty()) return;
+
+  saved_table_locks.shrink_to_fit();
+
+  std::sort(saved_table_locks.begin(), saved_table_locks.end(), DL_commpare());
+
+  puts(
+      "\nThread database.table_name          Locked/Waiting        "
+      "Lock_type\n");
+
+  Saved_locks_array::iterator it;
+  for (it = saved_table_locks.begin(); it != saved_table_locks.end(); ++it) {
+    printf("%-8u%-28.28s%-22s%s\n", it->thread_id, it->table_name,
+           it->lock_text, lock_descriptions[(int)it->type]);
+  }
+  puts("\n\n");
+}
+
+static int print_key_cache_status(const char *name, KEY_CACHE *key_cache) {
+  char llbuff1[22];
+  char llbuff2[22];
+  char llbuff3[22];
+  char llbuff4[22];
+
+  if (!key_cache->key_cache_inited) {
+    printf("%s: Not in use\n", name);
+  } else {
+    printf(
+        "%s\n\
+Buffer_size:    %10lu\n\
+Block_size:     %10lu\n\
+Division_limit: %10lu\n\
+Age_limit:      %10lu\n\
+blocks used:    %10lu\n\
+not flushed:    %10lu\n\
+w_requests:     %10s\n\
+writes:         %10s\n\
+r_requests:     %10s\n\
+reads:          %10s\n\n",
+        name, (ulong)key_cache->param_buff_size,
+        (ulong)key_cache->param_block_size,
+        (ulong)key_cache->param_division_limit,
+        (ulong)key_cache->param_age_threshold, key_cache->blocks_used,
+        key_cache->global_blocks_changed,
+        llstr(key_cache->global_cache_w_requests, llbuff1),
+        llstr(key_cache->global_cache_write, llbuff2),
+        llstr(key_cache->global_cache_r_requests, llbuff3),
+        llstr(key_cache->global_cache_read, llbuff4));
+  }
+  return 0;
+}
+
+void mysql_print_status() {
+  char current_dir[FN_REFLEN];
+  System_status_var current_global_status_var;
+
+  printf("\nStatus information:\n\n");
+  (void)my_getwd(current_dir, sizeof(current_dir), MYF(0));
+  printf("Current dir: %s\n", current_dir);
+  printf("Running threads: %u  Stack size: %ld\n",
+         Global_THD_manager::get_instance()->get_thd_count(),
+<<<<<<< HEAD
+         (long)my_thread_stack_size);
+  thr_print_locks();  // Write some debug info
+#ifndef DBUG_OFF
+=======
+	 (long) my_thread_stack_size);
+  thr_print_locks();				// Write some debug info
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+  print_cached_tables();
+#endif
+  /* Print key cache status */
+  puts("\nKey caches:");
+  process_key_caches(print_key_cache_status);
+  mysql_mutex_lock(&LOCK_status);
+  calc_sum_of_all_status(&current_global_status_var);
+  printf(
+      "\nhandler status:\n\
+read_key:   %10llu\n\
+read_next:  %10llu\n\
+read_rnd    %10llu\n\
+read_first: %10llu\n\
+write:      %10llu\n\
+delete      %10llu\n\
+update:     %10llu\n",
+      current_global_status_var.ha_read_key_count,
+      current_global_status_var.ha_read_next_count,
+      current_global_status_var.ha_read_rnd_count,
+      current_global_status_var.ha_read_first_count,
+      current_global_status_var.ha_write_count,
+      current_global_status_var.ha_delete_count,
+      current_global_status_var.ha_update_count);
+  mysql_mutex_unlock(&LOCK_status);
+  printf(
+      "\nTable status:\n\
+Opened tables: %10lu\n\
+Open tables:   %10lu\n\
+Open files:    %10lu\n\
+Open streams:  %10lu\n",
+      (ulong)current_global_status_var.opened_tables,
+      (ulong)table_cache_manager.cached_tables(), my_file_opened,
+      my_stream_opened);
+  display_table_locks();
+#ifdef HAVE_MALLOC_INFO
+  printf("\nMemory status:\n");
+  malloc_info(0, stdout);
+#endif
+
+  Events::dump_internal_status();
+  puts("");
+  fflush(stdout);
+}
+
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+=======
+
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #ifdef EXTRA_DEBUG_DUMP_TABLE_LISTS
 
 /*

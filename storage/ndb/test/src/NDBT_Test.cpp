@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1647,7 +1655,25 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   Ndb_opts opts(argc, _argv, my_long_options, load_default_groups);
   opts.set_usage_funcs(short_usage_sub);
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+=======
+  if (!my_progname)
+    my_progname= _argv[0];
+
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
+
+  ndb_load_defaults(NULL, load_default_groups,&argc,&_argv);
+  // Save pointer to memory allocated by 'ndb_load_defaults'
+  char** defaults_argv= _argv;
+
+  int ho_error;
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   opt_debug= "d:t:i:F:L";
 #endif
   if (opts.handle_options())

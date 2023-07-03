@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,10 +165,17 @@ Suma::Suma(Block_context& ctx) :
   m_snd_gcp_rep_counter_index = 0;
   m_min_gcp_rep_counter_index = 0;
   m_max_gcp_rep_counter_index = 0;
+<<<<<<< HEAD
   std::memset(m_gcp_rep_counter, 0, sizeof(m_gcp_rep_counter));
   m_oldest_gcp_inflight_index = 0;
   m_newest_gcp_inflight_index = 0;
   std::memset(m_gcp_inflight, 0, sizeof(m_gcp_inflight));
+=======
+  bzero(m_gcp_rep_counter, sizeof(m_gcp_rep_counter));
+  m_oldest_gcp_inflight_index = 0;
+  m_newest_gcp_inflight_index = 0;
+  bzero(m_gcp_inflight, sizeof(m_gcp_inflight));
+>>>>>>> pr/231
 }
 
 Suma::~Suma()

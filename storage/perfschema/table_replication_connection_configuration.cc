@@ -1,5 +1,10 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -11,6 +16,25 @@
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
   separately licensed software that they have included with MySQL.
+=======
+      Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+
+      This program is free software; you can redistribute it and/or modify
+      it under the terms of the GNU General Public License, version 2.0,
+      as published by the Free Software Foundation.
+
+      This program is also distributed with certain software (including
+      but not limited to OpenSSL) that is licensed under separate terms,
+      as designated in a particular file or component or in included license
+      documentation.  The authors of MySQL hereby grant you an additional
+      permission to link the program and your derivative works with the
+      separately licensed software that they have included with MySQL.
+
+      This program is distributed in the hope that it will be useful,
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
+      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+      GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -123,8 +147,36 @@ bool PFS_index_rpl_connection_config::match(Master_info *mi) {
   return true;
 }
 
+<<<<<<< HEAD
 PFS_engine_table *table_replication_connection_configuration::create(
     PFS_engine_table_share *) {
+=======
+PFS_engine_table_share_state
+table_replication_connection_configuration::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_replication_connection_configuration::m_share=
+{
+  { C_STRING_WITH_LEN("replication_connection_configuration") },
+  &pfs_readonly_acl,
+  table_replication_connection_configuration::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_replication_connection_configuration::get_row_count, /* records */
+  sizeof(pos_t), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+
+PFS_engine_table* table_replication_connection_configuration::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_replication_connection_configuration();
 }
 
@@ -150,21 +202,56 @@ ha_rows table_replication_connection_configuration::get_row_count() {
 
 int table_replication_connection_configuration::rnd_next(void) {
   Master_info *mi;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+
+>>>>>>> pr/231
   channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels(); m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
+<<<<<<< HEAD
+=======
+=======
+  channel_map.rdlock();
+
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index < channel_map.get_max_channels();
+       m_pos.next())
+  {
+    mi= channel_map.get_mi_at_pos(m_pos.m_index);
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
     if (mi && mi->host[0]) {
       make_row(mi);
       m_next_pos.set_after(&m_pos);
+<<<<<<< HEAD
       channel_map.unlock();
       return 0;
+=======
+<<<<<<< HEAD
+=======
+      channel_map.unlock();
+      return 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
   }
 
   channel_map.unlock();
+<<<<<<< HEAD
   return HA_ERR_END_OF_FILE;
+=======
+<<<<<<< HEAD
+
+  return res;
+=======
+  return HA_ERR_END_OF_FILE;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 int table_replication_connection_configuration::rnd_pos(const void *pos) {
@@ -224,7 +311,11 @@ int table_replication_connection_configuration::index_next(void) {
 int table_replication_connection_configuration::make_row(Master_info *mi) {
   const char *temp_store;
 
+<<<<<<< HEAD
   assert(mi != nullptr);
+=======
+  assert(mi != NULL);
+>>>>>>> pr/231
 
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
@@ -339,9 +430,18 @@ int table_replication_connection_configuration::read_row_values(
   assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
+<<<<<<< HEAD
   for (Field *f = nullptr; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 0);
+
+  for (; (f = *fields); fields++) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
+      switch (f->field_index) {
+>>>>>>> pr/231
         case 0: /** channel_name */
           set_field_char_utf8mb4(f, m_row.channel_name,
                                  m_row.channel_name_length);
@@ -441,7 +541,90 @@ int table_replication_connection_configuration::read_row_values(
           set_field_enum(f, m_row.gtid_only);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  if (unlikely(! m_row_exists))
+    return HA_ERR_RECORD_DELETED;
+
+  assert(table->s->null_bytes == 0);
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /** channel_name */
+        set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+        break;
+      case 1: /** host */
+        set_field_char_utf8(f, m_row.host, m_row.host_length);
+        break;
+      case 2: /** port */
+        set_field_ulong(f, m_row.port);
+        break;
+      case 3: /** user */
+        set_field_char_utf8(f, m_row.user, m_row.user_length);
+        break;
+      case 4: /** network_interface */
+        set_field_char_utf8(f, m_row.network_interface,
+                               m_row.network_interface_length);
+        break;
+      case 5: /** auto_position */
+        set_field_enum(f, m_row.auto_position);
+        break;
+      case 6: /** ssl_allowed */
+        set_field_enum(f, m_row. ssl_allowed);
+        break;
+      case 7: /**ssl_ca_file */
+        set_field_varchar_utf8(f, m_row.ssl_ca_file,
+                               m_row.ssl_ca_file_length);
+        break;
+      case 8: /** ssl_ca_path */
+        set_field_varchar_utf8(f, m_row.ssl_ca_path,
+                               m_row.ssl_ca_path_length);
+        break;
+      case 9: /** ssl_certificate */
+        set_field_varchar_utf8(f, m_row.ssl_certificate,
+                               m_row.ssl_certificate_length);
+        break;
+      case 10: /** ssl_cipher */
+        set_field_varchar_utf8(f, m_row.ssl_cipher, m_row.ssl_cipher_length);
+        break;
+      case 11: /** ssl_key */
+        set_field_varchar_utf8(f, m_row.ssl_key, m_row.ssl_key_length);
+        break;
+      case 12: /** ssl_verify_server_certificate */
+        set_field_enum(f, m_row.ssl_verify_server_certificate);
+        break;
+      case 13: /** ssl_crl_file */
+        set_field_varchar_utf8(f, m_row.ssl_crl_file,
+                               m_row.ssl_crl_file_length);
+        break;
+      case 14: /** ssl_crl_path */
+        set_field_varchar_utf8(f, m_row.ssl_crl_path,
+                               m_row.ssl_crl_path_length);
+        break;
+      case 15: /** connection_retry_interval */
+        set_field_ulong(f, m_row.connection_retry_interval);
+        break;
+      case 16: /** connect_retry_count */
+        set_field_ulonglong(f, m_row.connection_retry_count);
+        break;
+      case 17:/** number of seconds after which heartbeat will be sent */
+        set_field_double(f, m_row.heartbeat_interval);
+        break;
+      case 18: /** tls_version */
+        set_field_varchar_utf8(f, m_row.tls_version,
+                               m_row.tls_version_length);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

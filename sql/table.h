@@ -1,7 +1,15 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -330,7 +338,19 @@ struct ORDER {
   during the ACL check process.
   @sa GRANT_INFO
 */
+<<<<<<< HEAD
 struct GRANT_INTERNAL_INFO {
+=======
+struct st_grant_internal_info
+{
+  st_grant_internal_info()
+    : m_schema_lookup_done(false),
+      m_schema_access(NULL),
+      m_table_lookup_done(false),
+      m_table_access(NULL)
+  {}
+
+>>>>>>> upstream/cluster-7.6
   /** True if the internal lookup by schema name was done. */
   bool m_schema_lookup_done{false};
   /** Cached internal schema access. */
@@ -389,7 +409,20 @@ struct GRANT_INFO {
 
      The set is implemented as a bitmap, with the bits defined in sql_acl.h.
    */
+<<<<<<< HEAD
   ulong privilege{0};
+=======
+  ulong privilege;
+#ifndef NDEBUG
+  /**
+     @brief the set of privileges that the current user needs to fulfil in
+     order to carry out the requested operation. Used in debug build to
+     ensure individual column privileges are assigned consistently.
+     @todo remove this member in 5.8.
+   */
+  ulong want_privilege;
+#endif
+>>>>>>> upstream/cluster-7.6
   /** The grant state for internal tables. */
   GRANT_INTERNAL_INFO m_internal;
 };
@@ -685,6 +718,7 @@ struct Key_name {
   instance of table share per one table in the database.
 */
 
+<<<<<<< HEAD
 struct TABLE_SHARE {
   TABLE_SHARE() = default;
 
@@ -712,7 +746,16 @@ struct TABLE_SHARE {
     @retval nullptr if no histogram is found
     @retval a pointer to a histogram if one is found
   */
+<<<<<<< HEAD
   const histograms::Histogram *find_histogram(uint field_index) const;
+=======
+  const histograms::Histogram *find_histogram(uint field_index);
+=======
+struct TABLE_SHARE
+{
+  TABLE_SHARE() { memset(this, 0, sizeof(*this)); }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /** Category of this table. */
   TABLE_CATEGORY table_category{TABLE_UNKNOWN_CATEGORY};
@@ -794,11 +837,19 @@ struct TABLE_SHARE {
                                     (no generated-only generated fields) */
   ulonglong autoextend_size{0};
 
+<<<<<<< HEAD
   plugin_ref db_plugin{nullptr};     /* storage engine plugin */
   inline handlerton *db_type() const /* table_type for handler */
   {
     // assert(db_plugin);
     return db_plugin ? plugin_data<handlerton *>(db_plugin) : NULL;
+=======
+  plugin_ref db_plugin;			/* storage engine plugin */
+  inline handlerton *db_type() const	/* table_type for handler */
+  { 
+    // assert(db_plugin);
+    return db_plugin ? plugin_data<handlerton*>(db_plugin) : NULL;
+>>>>>>> upstream/cluster-7.6
   }
   /**
     Value of ROW_FORMAT option for the table as provided by user.
@@ -1388,6 +1439,7 @@ enum index_hint_type { INDEX_HINT_IGNORE, INDEX_HINT_USE, INDEX_HINT_FORCE };
 /* Bitmap of table's fields */
 typedef Bitmap<MAX_FIELDS> Field_map;
 
+<<<<<<< HEAD
 /*
   NOTE: Despite being a struct (for historical reasons), TABLE has
   a nontrivial destructor.
@@ -1396,6 +1448,16 @@ struct TABLE {
   TABLE_SHARE *s{nullptr};
   handler *file{nullptr};
   TABLE *next{nullptr}, *prev{nullptr};
+=======
+struct TABLE
+{
+  TABLE() { memset(this, 0, sizeof(*this)); }
+  /*
+    Since TABLE instances are often cleared using memset(), do not
+    add virtual members and do not inherit from TABLE.
+    Otherwise memset() will start overwriting the vtable pointer.
+  */
+>>>>>>> upstream/cluster-7.6
 
  private:
   /**
@@ -1917,7 +1979,26 @@ struct TABLE {
   void move_tmp_key(int old_idx, bool modify_share);
   void drop_unused_tmp_keys(bool modify_share);
 
+<<<<<<< HEAD
   void set_keyread(bool flag);
+=======
+  void set_keyread(bool flag)
+  {
+    assert(file);
+    if (flag && !key_read)
+    {
+      key_read= 1;
+      if (is_created())
+        file->extra(HA_EXTRA_KEYREAD);
+    }
+    else if (!flag && key_read)
+    {
+      key_read= 0;
+      if (is_created())
+        file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+  }
+>>>>>>> upstream/cluster-7.6
 
   /**
     Check whether the given index has a virtual generated columns.
@@ -1927,8 +2008,19 @@ struct TABLE {
     @returns true if if index is defined over at least one virtual generated
     column
   */
+<<<<<<< HEAD
   inline bool index_contains_some_virtual_gcol(uint index_no) const {
     assert(index_no < s->keys);
+=======
+<<<<<<< HEAD
+  inline bool index_contains_some_virtual_gcol(uint index_no) {
+    DBUG_ASSERT(index_no < s->keys);
+=======
+  inline bool index_contains_some_virtual_gcol(uint index_no)
+  {
+    assert(index_no < s->keys);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return key_info[index_no].flags & HA_VIRTUAL_GEN_KEY;
   }
   void update_const_key_parts(Item *conds);
@@ -2133,6 +2225,7 @@ struct TABLE {
     longer than the index prefix,
     the prefix index cannot be used as a covering index.
 
+<<<<<<< HEAD
     @param[in]   field                Pointer to field object
     @param[in]   key_read_length      Max read key length
     @param[in]   covering_prefix_keys Covering prefix keys
@@ -2356,7 +2449,20 @@ struct TABLE {
     @return whether the column can be updated with JSON diffs
   */
   bool is_logical_diff_enabled(const Field *field) const;
+=======
+   @returns  false for success, true for error
+ */
+ bool contains_records(THD *thd, bool *retval);
+private:
+>>>>>>> upstream/cluster-7.6
 
+  /**
+    This flag decides whether or not we should log the drop temporary table
+    command.
+  */
+  bool should_binlog_drop_if_temp_flag;
+
+public:
   /**
     Virtual fields of type BLOB have a flag m_keep_old_value. This flag is set
     to false for all such fields in this table.
@@ -2588,12 +2694,17 @@ struct LEX_ALTER {
   uint32 password_reuse_interval;
   bool use_default_password_reuse_interval;
   bool update_password_reuse_interval;
+<<<<<<< HEAD
   uint failed_login_attempts;
   bool update_failed_login_attempts;
   int password_lock_time;
   bool update_password_lock_time;
   /* Holds the specification of 'PASSWORD REQUIRE CURRENT' clause. */
   Lex_acl_attrib_udyn update_password_require_current;
+=======
+
+<<<<<<< HEAD
+>>>>>>> pr/231
   void cleanup() {
     update_password_expired_fields = false;
     update_password_expired_column = false;
@@ -2620,12 +2731,37 @@ struct LEX_ALTER {
   mysql user and the associated auth details.
 */
 struct LEX_USER {
+=======
+/*
+  This structure holds the specifications related to
+  mysql user and the associated auth details.
+*/
+typedef struct	st_lex_user {
+>>>>>>> upstream/cluster-7.6
   LEX_CSTRING user;
   LEX_CSTRING host;
+<<<<<<< HEAD
   LEX_CSTRING current_auth;
   bool uses_replace_clause;
   bool retain_current_password;
   bool discard_old_password;
+=======
+  LEX_CSTRING plugin;
+  LEX_CSTRING auth;
+<<<<<<< HEAD
+  /* Below attributes defines the context in which this token parsed */
+=======
+/*
+  The following flags are indicators for the SQL syntax used while
+  parsing CREATE/ALTER user. While other members are self-explanatory,
+  'uses_authentication_string_clause' signifies if the password is in
+  hash form (if the var was set to true) or not.
+*/
+>>>>>>> upstream/cluster-7.6
+  bool uses_identified_by_clause;
+  bool uses_identified_with_clause;
+  bool uses_authentication_string_clause;
+>>>>>>> pr/231
   LEX_ALTER alter_status;
   /* restrict MFA methods to atmost 3 authentication plugins */
   LEX_MFA first_factor_auth_info;
@@ -2752,9 +2888,15 @@ class Table_function;
        ;
 */
 
+<<<<<<< HEAD
 class Table_ref {
  public:
   Table_ref() = default;
+=======
+<<<<<<< HEAD
+struct TABLE_LIST {
+  TABLE_LIST() = default;
+>>>>>>> pr/231
 
   /**
     Only to be used by legacy code that temporarily needs a Table_ref,
@@ -2786,6 +2928,11 @@ class Table_ref {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
                      mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
   }
+=======
+struct TABLE_LIST
+{
+  TABLE_LIST() { memset(this, 0, sizeof(*this)); }
+>>>>>>> upstream/cluster-7.6
 
   /// Constructor that can be used when the strings are null terminated.
   Table_ref(const char *db_name, const char *table_name, const char *alias,
@@ -2919,17 +3066,87 @@ class Table_ref {
                      mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
   }
 
+<<<<<<< HEAD
   /// Create a Table_ref object representing a nested join
   static Table_ref *new_nested_join(MEM_ROOT *allocator, const char *alias,
                                     Table_ref *embedding,
                                     mem_root_deque<Table_ref *> *belongs_to,
                                     Query_block *select);
+=======
+  /**
+    Do not use this function in new code. It exists only for legacy code.
+    Auxiliary method which prepares TABLE_LIST consisting of one table instance
+    to be used in simple open_and_lock_tables and takes type of MDL lock on the
+    table as explicit parameter.
+  */
+
+  inline void init_one_table(const char *db_name_arg, size_t db_length_arg,
+                             const char *table_name_arg,
+                             size_t table_name_length_arg,
+                             const char *alias_arg,
+                             enum thr_lock_type lock_type_arg,
+<<<<<<< HEAD
+                             enum enum_mdl_type mdl_request_type) {
+    init_one_table(db_name_arg, db_length_arg, table_name_arg,
+                   table_name_length_arg, alias_arg, lock_type_arg);
+    mdl_request.set_type(mdl_request_type);
+=======
+                             enum enum_mdl_type mdl_type_arg)
+  {
+    new (this) TABLE_LIST;
+    m_map= 1;
+    db= (char*) db_name_arg;
+    db_length= db_length_arg;
+    table_name= (char*) table_name_arg;
+    table_name_length= table_name_length_arg;
+    alias= (char*) alias_arg;
+    lock_type= lock_type_arg;
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::TABLE, db, table_name,
+                     mdl_type_arg,
+                     MDL_TRANSACTION);
+    callback_func= 0;
+    opt_hints_table= NULL;
+    opt_hints_qb= NULL;
+  }
+
+  inline void init_one_table(const char *db_name_arg,
+                             size_t db_length_arg,
+                             const char *table_name_arg,
+                             size_t table_name_length_arg,
+                             const char *alias_arg,
+                             enum thr_lock_type lock_type_arg)
+  {
+    init_one_table(db_name_arg, db_length_arg,
+                   table_name_arg, table_name_length_arg,
+                   alias_arg, lock_type_arg,
+                   mdl_type_for_dml(lock_type_arg));
+>>>>>>> upstream/cluster-7.6
+  }
+
+  /// Create a TABLE_LIST object representing a nested join
+  static TABLE_LIST *new_nested_join(MEM_ROOT *allocator, const char *alias,
+                                     TABLE_LIST *embedding,
+                                     List<TABLE_LIST> *belongs_to,
+                                     SELECT_LEX *select);
+
+>>>>>>> pr/231
   Item **join_cond_ref() { return &m_join_cond; }
   Item *join_cond() const { return m_join_cond; }
   void set_join_cond(Item *val) {
     // If optimization has started, it's too late to change m_join_cond.
+<<<<<<< HEAD
     assert(m_join_cond_optim == nullptr || m_join_cond_optim == (Item *)1);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(m_join_cond_optim == NULL || m_join_cond_optim == (Item *)1);
+>>>>>>> pr/231
     m_join_cond = val;
+=======
+    assert(m_join_cond_optim == NULL ||
+           m_join_cond_optim == (Item*)1);
+    m_join_cond= val;
+>>>>>>> upstream/cluster-7.6
   }
   Item *join_cond_optim() const { return m_join_cond_optim; }
   void set_join_cond_optim(Item *cond) {
@@ -2937,11 +3154,22 @@ class Table_ref {
       Either we are setting to "empty", or there must pre-exist a
       permanent condition.
     */
+<<<<<<< HEAD
     assert(cond == nullptr || cond == (Item *)1 || m_join_cond != nullptr);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(cond == NULL || cond == (Item *)1 || m_join_cond != NULL);
+>>>>>>> pr/231
     m_join_cond_optim = cond;
+=======
+    assert(cond == NULL || cond == (Item*)1 ||
+           m_join_cond != NULL);
+    m_join_cond_optim= cond;
+>>>>>>> upstream/cluster-7.6
   }
   Item **join_cond_optim_ref() { return &m_join_cond_optim; }
 
+<<<<<<< HEAD
   /// @returns true if semi-join nest
   bool is_sj_nest() const { return m_is_sj_or_aj_nest && !m_join_cond; }
   /// @returns true if anti-join nest
@@ -2952,6 +3180,22 @@ class Table_ref {
   void set_sj_or_aj_nest() {
     assert(!m_is_sj_or_aj_nest);
     m_is_sj_or_aj_nest = true;
+=======
+  /// Get the semi-join condition for a semi-join nest, NULL otherwise
+  Item *sj_cond() const { return m_sj_cond; }
+
+  /// Set the semi-join condition for a semi-join nest
+<<<<<<< HEAD
+  void set_sj_cond(Item *cond) {
+    DBUG_ASSERT(m_sj_cond == NULL);
+    m_sj_cond = cond;
+=======
+  void set_sj_cond(Item *cond)
+  {
+    assert(m_sj_cond == NULL);
+    m_sj_cond= cond;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   /// Merge tables from a query block into a nested join structure
@@ -3090,9 +3334,16 @@ class Table_ref {
   bool is_merged() const { return effective_algorithm == VIEW_ALGORITHM_MERGE; }
 
   /// Set table to be merged
+<<<<<<< HEAD
   void set_merged() {
     assert(effective_algorithm == VIEW_ALGORITHM_UNDEFINED);
     effective_algorithm = VIEW_ALGORITHM_MERGE;
+=======
+  void set_merged()
+  {
+    assert(effective_algorithm == VIEW_ALGORITHM_UNDEFINED);
+    effective_algorithm= VIEW_ALGORITHM_MERGE;
+>>>>>>> upstream/cluster-7.6
   }
 
   /// Return true if this is a materializable derived table/view
@@ -3103,9 +3354,20 @@ class Table_ref {
   /// Set table to be materialized
   void set_uses_materialization() {
     // @todo We should do this only once, but currently we cannot:
+<<<<<<< HEAD
     // assert(effective_algorithm == VIEW_ALGORITHM_UNDEFINED);
     assert(effective_algorithm != VIEW_ALGORITHM_MERGE);
+=======
+<<<<<<< HEAD
+    // DBUG_ASSERT(effective_algorithm == VIEW_ALGORITHM_UNDEFINED);
+    DBUG_ASSERT(effective_algorithm != VIEW_ALGORITHM_MERGE);
+>>>>>>> pr/231
     effective_algorithm = VIEW_ALGORITHM_TEMPTABLE;
+=======
+    //assert(effective_algorithm == VIEW_ALGORITHM_UNDEFINED);
+    assert(effective_algorithm != VIEW_ALGORITHM_MERGE);
+    effective_algorithm= VIEW_ALGORITHM_TEMPTABLE;
+>>>>>>> upstream/cluster-7.6
   }
 
   /// Return true if table is updatable
@@ -3166,12 +3428,29 @@ class Table_ref {
     Return true if this is a view or derived table that is defined over
     more than one base table, and false otherwise.
   */
+<<<<<<< HEAD
   bool is_multiple_tables() const {
     if (is_view_or_derived()) {
       assert(is_merged());  // Cannot be a materialized view
       return leaf_tables_count() > 1;
     } else {
+<<<<<<< HEAD
       assert(nested_join == nullptr);  // Must be a base table
+=======
+      DBUG_ASSERT(nested_join == NULL);  // Must be a base table
+=======
+  bool is_multiple_tables() const
+  {
+    if (is_view_or_derived())
+    {
+      assert(is_merged());         // Cannot be a materialized view
+      return leaf_tables_count() > 1;
+    }
+    else
+    {
+      assert(nested_join == NULL); // Must be a base table
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       return false;
     }
   }
@@ -3212,8 +3491,18 @@ class Table_ref {
   void set_view_query(LEX *lex) { view = lex; }
 
   /// Return the valid LEX object for a view.
+<<<<<<< HEAD
   LEX *view_query() const {
+<<<<<<< HEAD
     assert(view != nullptr && view != (LEX *)1);
+=======
+    DBUG_ASSERT(view != NULL && view != (LEX *)1);
+=======
+  LEX *view_query() const
+  {
+    assert(view != NULL && view != (LEX *)1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return view;
   }
 
@@ -3226,11 +3515,80 @@ class Table_ref {
   }
 
   /// Return the query expression of a derived table or view.
+<<<<<<< HEAD
   Query_expression *derived_query_expression() const {
     assert(derived);
     return derived;
   }
 
+=======
+<<<<<<< HEAD
+  SELECT_LEX_UNIT *derived_unit() const {
+    DBUG_ASSERT(derived);
+=======
+  st_select_lex_unit *derived_unit() const
+  {
+    assert(derived);
+>>>>>>> upstream/cluster-7.6
+    return derived;
+  }
+
+  /// Save names of materialized table @see reset_name_temporary
+  void save_name_temporary() {
+    view_db.str = db;
+    view_db.length = db_length;
+    view_name.str = table_name;
+    view_name.length = table_name_length;
+  }
+
+  /// Set temporary name from underlying temporary table:
+<<<<<<< HEAD
+  void set_name_temporary() {
+    DBUG_ASSERT((is_view_or_derived()) && uses_materialization());
+    table_name = table->s->table_name.str;
+    table_name_length = table->s->table_name.length;
+    db = (char *)"";
+    db_length = 0;
+  }
+
+  /// Reset original name for temporary table.
+  void reset_name_temporary() {
+    DBUG_ASSERT((is_table_function() || is_view_or_derived()) &&
+                uses_materialization());
+    /*
+      When printing a query using a view or CTE, we need the table's name and
+      the alias; the name has been destroyed if the table was materialized,
+      so we restore it:
+    */
+    DBUG_ASSERT(table_name != view_name.str);
+    table_name = view_name.str;
+    table_name_length = view_name.length;
+    if (is_view())  // restore database's name too
+=======
+  void set_name_temporary()
+  {
+    assert(is_view_or_derived() && uses_materialization());
+    table_name= table->s->table_name.str;
+    table_name_length= table->s->table_name.length;
+    db= (char *)"";
+    db_length= 0;
+  }
+
+  /// Reset original name for temporary table.
+  void reset_name_temporary()
+  {
+    assert(is_view_or_derived() && uses_materialization());
+    assert(db != view_db.str && table_name != view_name.str);
+    if (is_view())
+>>>>>>> upstream/cluster-7.6
+    {
+      DBUG_ASSERT(db != view_db.str);
+      db = view_db.str;
+      db_length = view_db.length;
+    }
+  }
+
+>>>>>>> pr/231
   /// Resolve a derived table or view reference
   bool resolve_derived(THD *thd, bool apply_semijoin);
 
@@ -3377,12 +3735,32 @@ class Table_ref {
     In DELETE and UPDATE, a view used as a target table must be mergeable,
     updatable and defined over a single table.
   */
+<<<<<<< HEAD
   const Table_ref *updatable_base_table() const {
     const Table_ref *tbl = this;
     assert(tbl->is_updatable() && !tbl->is_multiple_tables());
     while (tbl->is_view_or_derived()) {
       tbl = tbl->merge_underlying_list;
       assert(tbl->is_updatable() && !tbl->is_multiple_tables());
+=======
+<<<<<<< HEAD
+  TABLE_LIST *updatable_base_table() {
+    TABLE_LIST *tbl = this;
+    DBUG_ASSERT(tbl->is_updatable() && !tbl->is_multiple_tables());
+    while (tbl->is_view_or_derived()) {
+      tbl = tbl->merge_underlying_list;
+      DBUG_ASSERT(tbl->is_updatable() && !tbl->is_multiple_tables());
+=======
+  TABLE_LIST *updatable_base_table()
+  {
+    TABLE_LIST *tbl= this;
+    assert(tbl->is_updatable() && !tbl->is_multiple_tables());
+    while (tbl->is_view_or_derived())
+    {
+      tbl= tbl->merge_underlying_list;
+      assert(tbl->is_updatable() && !tbl->is_multiple_tables());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
     return tbl;
   }
@@ -3832,17 +4210,35 @@ class Table_ref {
   List<String> *partition_names{nullptr};
 
   /// Set table number
+<<<<<<< HEAD
   void set_tableno(uint tableno) {
     assert(tableno < MAX_TABLES);
     m_tableno = tableno;
     m_map = (table_map)1 << tableno;
+=======
+  void set_tableno(uint tableno)
+  {
+    assert(tableno < MAX_TABLES);
+    m_tableno= tableno;
+    m_map= (table_map)1 << tableno;
+>>>>>>> upstream/cluster-7.6
   }
   /// Return table number
   uint tableno() const { return m_tableno; }
 
   /// Return table map derived from table number
+<<<<<<< HEAD
   table_map map() const {
+<<<<<<< HEAD
     assert(((table_map)1 << m_tableno) == m_map);
+=======
+    DBUG_ASSERT(((table_map)1 << m_tableno) == m_map);
+=======
+  table_map map() const
+  {
+    assert(((table_map)1 << m_tableno) == m_map);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_map;
   }
 
@@ -4029,6 +4425,84 @@ class Field_iterator_table_ref : public Field_iterator {
   Natural_join_column *get_natural_column_ref();
 };
 
+<<<<<<< HEAD
+=======
+/**
+  An iterator over an intrusive list in TABLE_LIST objects. Can be used for
+  iterating an intrusive list in e.g. range-based for loops.
+
+  @tparam Next_pointer The intrusive list's "next" member.
+*/
+template <TABLE_LIST *TABLE_LIST::*Next_pointer>
+class Table_list_iterator {
+ public:
+  /**
+    Constructs an iterator.
+
+    @param start The TABLE_LIST where that the iterator will start iterating
+    from.
+  */
+  Table_list_iterator(TABLE_LIST *start) : m_current(start) {}
+
+  TABLE_LIST *operator++() { return m_current = m_current->*Next_pointer; }
+
+  TABLE_LIST *operator*() { return m_current; }
+
+  bool operator!=(const Table_list_iterator &other) const {
+    return m_current != other.m_current;
+  }
+
+ private:
+  TABLE_LIST *m_current;
+};
+
+typedef Table_list_iterator<&TABLE_LIST::next_local> Local_tables_iterator;
+typedef Table_list_iterator<&TABLE_LIST::next_global> Global_tables_iterator;
+
+/**
+  Provides a list interface on TABLE_LIST objects. The interface is similar to
+  std::vector, but has only the bare minimum to allow for iteration.
+
+  @tparam Iterator_type Must have an implicit constructor from a TABLE_LIST
+  pointer, and support pre-increment, non-equality and dereference operators.
+*/
+<<<<<<< HEAD
+template <typename Iterator_type>
+class Table_list_adapter {
+ public:
+=======
+typedef struct st_nested_join
+{
+  st_nested_join() { memset(this, 0, sizeof(*this)); }
+
+  List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
+  table_map         used_tables;     /* bitmap of tables in the nested join */
+  table_map         not_null_tables; /* tables that rejects nulls           */
+>>>>>>> upstream/cluster-7.6
+  /**
+    Constructs the list adapter.
+
+    @param first The TABLE_LIST that is considered first in the list.
+  */
+  Table_list_adapter(TABLE_LIST *first) : m_first(first) {}
+
+  /// An iterator pointing to the first TABLE_LIST.
+  Iterator_type begin() { return m_first; }
+
+  /// A past-the-end iterator.
+  Iterator_type end() { return nullptr; }
+
+ private:
+  TABLE_LIST *m_first;
+};
+
+/// A list interface over the TABLE_LIST::next_local pointer.
+typedef Table_list_adapter<Local_tables_iterator> Local_tables_list;
+
+/// A list interface over the TABLE_LIST::next_global pointer.
+typedef Table_list_adapter<Global_tables_iterator> Global_tables_list;
+
+>>>>>>> pr/231
 struct OPEN_TABLE_LIST {
   OPEN_TABLE_LIST *next;
   char *db, *table;
@@ -4049,22 +4523,50 @@ static inline void tmp_restore_column_map(MY_BITMAP *bitmap,
 
 /* The following is only needed for debugging */
 
+<<<<<<< HEAD
 static inline my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table
                                                       [[maybe_unused]],
                                                       MY_BITMAP *bitmap
                                                       [[maybe_unused]]) {
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+static inline my_bitmap_map *dbug_tmp_use_all_columns(
+    TABLE *table MY_ATTRIBUTE((unused)),
+    MY_BITMAP *bitmap MY_ATTRIBUTE((unused))) {
+#ifndef DBUG_OFF
+=======
+static inline my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table,
+                                                      MY_BITMAP *bitmap)
+{
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return tmp_use_all_columns(table, bitmap);
 #else
   return nullptr;
 #endif
 }
 
+<<<<<<< HEAD
 static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap
                                                [[maybe_unused]],
                                                my_bitmap_map *old
                                                [[maybe_unused]]) {
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+static inline void dbug_tmp_restore_column_map(
+    MY_BITMAP *bitmap MY_ATTRIBUTE((unused)),
+    my_bitmap_map *old MY_ATTRIBUTE((unused))) {
+#ifndef DBUG_OFF
+=======
+static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap,
+                                               my_bitmap_map *old)
+{
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   tmp_restore_column_map(bitmap, old);
 #endif
 }
@@ -4073,6 +4575,7 @@ static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap
   Variant of the above : handle both read and write sets.
   Provide for the possibility of the read set being the same as the write set
 */
+<<<<<<< HEAD
 static inline void dbug_tmp_use_all_columns(
     TABLE *table [[maybe_unused]], my_bitmap_map **save [[maybe_unused]],
     MY_BITMAP *read_set [[maybe_unused]],
@@ -4086,9 +4589,37 @@ static inline void dbug_tmp_use_all_columns(
 }
 
 static inline void dbug_tmp_restore_column_maps(
+<<<<<<< HEAD
     MY_BITMAP *read_set [[maybe_unused]], MY_BITMAP *write_set [[maybe_unused]],
     my_bitmap_map **old [[maybe_unused]]) {
 #ifndef NDEBUG
+=======
+    MY_BITMAP *read_set MY_ATTRIBUTE((unused)),
+    MY_BITMAP *write_set MY_ATTRIBUTE((unused)),
+    my_bitmap_map **old MY_ATTRIBUTE((unused))) {
+#ifndef DBUG_OFF
+=======
+static inline void dbug_tmp_use_all_columns(TABLE *table,
+                                            my_bitmap_map **save,
+                                            MY_BITMAP *read_set,
+                                            MY_BITMAP *write_set)
+{
+#ifndef NDEBUG
+  save[0]= read_set->bitmap;
+  save[1]= write_set->bitmap;
+  (void) tmp_use_all_columns(table, read_set);
+  (void) tmp_use_all_columns(table, write_set);
+#endif
+}
+
+
+static inline void dbug_tmp_restore_column_maps(MY_BITMAP *read_set,
+                                                MY_BITMAP *write_set,
+                                                my_bitmap_map **old)
+{
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   tmp_restore_column_map(read_set, old[0]);
   tmp_restore_column_map(write_set, old[1]);
 #endif
@@ -4223,6 +4754,25 @@ inline bool is_perfschema_db(const char *name) {
                         name);
 }
 
+<<<<<<< HEAD
+=======
+/**
+  Check if the table belongs to the P_S, excluding setup and threads tables.
+
+  @note Performance Schema tables must be accessible independently of the
+        LOCK TABLE mode. This function is needed to handle the special case
+        of P_S tables being used under LOCK TABLE mode.
+*/
+inline bool belongs_to_p_s(TABLE_LIST *tl)
+{
+  return (!strcmp("performance_schema", tl->db) &&
+          strcmp(tl->table_name, "threads") &&
+          strstr(tl->table_name, "setup_") == NULL);
+}
+
+TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings);
+
+>>>>>>> upstream/cluster-7.6
 /**
   Check if the table belongs to the P_S, excluding setup and threads tables.
 

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +32,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger)
 
+<<<<<<< HEAD
 ADD_LIBRARY(ndbNDBT STATIC
   AtrtClient.cpp
   CpcClient.cpp
@@ -58,5 +63,37 @@ ADD_LIBRARY(ndbNDBT STATIC
   SocketInputStream2.cpp
   UtilTransactions.cpp
   getarg.cpp
+=======
+ADD_CONVENIENCE_LIBRARY(ndbNDBT
+        NDBT_ReturnCodes.cpp
+        NDBT_Error.cpp
+        NDBT_Tables.cpp
+        NDBT_ResultRow.cpp
+        NDBT_Test.cpp
+        NDBT_Thread.cpp
+        NDBT_Find.cpp
+        NdbMixRestarter.cpp
+        HugoCalculator.cpp
+        HugoOperations.cpp
+        HugoTransactions.cpp
+        HugoAsynchTransactions.cpp
+        UtilTransactions.cpp
+        NdbRestarter.cpp
+        NdbRestarts.cpp
+        NDBT_Output.cpp
+        NdbBackup.cpp
+        NdbConfig.cpp
+        NDBT_Table.cpp
+        NdbSchemaCon.cpp
+        NdbSchemaOp.cpp
+        getarg.cpp
+        CpcClient.cpp
+	SocketInputStream2.cpp
+        AtrtClient.cpp
+        DbUtil.cpp
+	HugoQueryBuilder.cpp
+        HugoQueries.cpp
+        NdbHistory.cpp
+>>>>>>> pr/231
 )
 TARGET_LINK_LIBRARIES(ndbNDBT ${LIBM})

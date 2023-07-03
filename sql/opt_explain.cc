@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -358,6 +366,7 @@ class Explain_no_table : public Explain {
 
 class Explain_setop_result : public Explain {
  public:
+<<<<<<< HEAD
   Explain_setop_result(THD *explain_thd_arg, const THD *query_thd_arg,
                        Query_block *query_block_arg, Query_term *qt,
                        enum_parsing_context ctx)
@@ -368,6 +377,17 @@ class Explain_setop_result : public Explain {
     order_list = !query_block_arg->join->order.empty();
     // A plan exists so the reads above are safe:
     assert(query_block_arg->join->get_plan_state() != JOIN::NO_PLAN);
+=======
+  Explain_union_result(THD *thd_arg, SELECT_LEX *select_lex_arg)
+      : Explain(CTX_UNION_RESULT, thd_arg, select_lex_arg) {
+    /* it's a UNION: */
+    assert(select_lex_arg ==
+           select_lex_arg->master_unit()->fake_select_lex);
+    // Use optimized values from fake_select_lex's join
+    order_list = (select_lex_arg->join->order != nullptr);
+    // A plan exists so the reads above are safe:
+    assert(select_lex_arg->join->get_plan_state() != JOIN::NO_PLAN);
+>>>>>>> pr/231
   }
 
  protected:
@@ -376,9 +396,22 @@ class Explain_setop_result : public Explain {
   bool explain_join_type() override;
   bool explain_extra() override;
   /* purecov: begin deadcode */
+<<<<<<< HEAD
   bool can_walk_clauses() override {
     assert(0);    // UNION result can't have conditions
     return true;  // Because we know that we have a plan
+=======
+<<<<<<< HEAD
+  virtual bool can_walk_clauses() {
+    DBUG_ASSERT(0);  // UNION result can't have conditions
+    return true;     // Because we know that we have a plan
+=======
+  virtual bool can_walk_clauses()
+  {
+    assert(0);   // UNION result can't have conditions
+    return true;                        // Because we know that we have a plan
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   /* purecov: end */
   Query_term_set_op *m_query_term;
@@ -444,6 +477,7 @@ class Explain_join : public Explain_table_base {
   int range_scan_type;  ///< current range scan type, really an AccessPath::Type
 
  public:
+<<<<<<< HEAD
   Explain_join(THD *explain_thd_arg, const THD *query_thd_arg,
                Query_block *query_block_arg, bool need_tmp_table_arg,
                bool need_order_arg, bool distinct_arg)
@@ -455,6 +489,36 @@ class Explain_join : public Explain_table_base {
         join(query_block_arg->join) {
     assert(join->get_plan_state() == JOIN::PLAN_READY);
     order_list = !join->order.empty();
+=======
+  Explain_join(THD *thd_arg, SELECT_LEX *select_lex_arg,
+<<<<<<< HEAD
+               bool need_tmp_table_arg, bool need_order_arg, bool distinct_arg)
+      : Explain_table_base(CTX_JOIN, thd_arg, select_lex_arg),
+        need_tmp_table(need_tmp_table_arg),
+        need_order(need_order_arg),
+        distinct(distinct_arg),
+        join(select_lex_arg->join),
+        used_tables(0) {
+    DBUG_ASSERT(select_lex->join->thd == select_lex->master_unit()->thd);
+    DBUG_ASSERT(join->get_plan_state() == JOIN::PLAN_READY);
+    /* it is not UNION: */
+    DBUG_ASSERT(join->select_lex != join->unit->fake_select_lex);
+    order_list = (join->order != nullptr);
+=======
+               bool need_tmp_table_arg, bool need_order_arg,
+               bool distinct_arg)
+  : Explain_table_base(CTX_JOIN, thd_arg, select_lex_arg),
+    need_tmp_table(need_tmp_table_arg),
+    need_order(need_order_arg), distinct(distinct_arg),
+    join(select_lex_arg->join), used_tables(0)
+  {
+    assert(select_lex->join->thd == select_lex->master_unit()->thd);
+    assert(join->get_plan_state() == JOIN::PLAN_READY);
+    /* it is not UNION: */
+    assert(join->select_lex != join->unit->fake_select_lex);
+    order_list= MY_TEST(join->order);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
  private:
@@ -653,6 +717,7 @@ enum_parsing_context Explain_no_table::get_subquery_context(
   @retval       false   Ok
   @retval       true    Error (OOM)
 */
+<<<<<<< HEAD
 bool Explain::explain_subqueries() {
   if (skip_subqueries()) return false;
 
@@ -660,7 +725,24 @@ bool Explain::explain_subqueries() {
     Subqueries in empty queries are neither optimized nor executed. They are
     therefore not to be included in the explain output.
   */
+<<<<<<< HEAD
   if (query_block->is_empty_query()) return false;
+=======
+  if (select_lex->is_empty_query()) return false;
+=======
+bool Explain::explain_subqueries()
+{
+  for (SELECT_LEX_UNIT *unit= select_lex->first_inner_unit();
+       unit;
+       unit= unit->next_unit())
+  {
+    assert(explain_other || unit->is_optimized());
+    SELECT_LEX *sl= unit->first_select();
+    enum_parsing_context context= get_subquery_context(unit);
+    if (context == CTX_NONE)
+      context= CTX_OPTIMIZED_AWAY_SUBQUERY;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   for (Query_expression *unit = query_block->first_inner_query_expression();
        unit; unit = unit->next_query_expression()) {
@@ -969,15 +1051,36 @@ bool Explain_table_base::explain_key_and_len_quick(AccessPath *path) {
           fmt->entry()->col_key_len.set(str_key_len));
 }
 
+<<<<<<< HEAD
 bool Explain_table_base::explain_key_and_len_index(int key) {
+<<<<<<< HEAD
   assert(key != MAX_KEY);
+=======
+  DBUG_ASSERT(key != MAX_KEY);
+=======
+
+bool Explain_table_base::explain_key_and_len_index(int key)
+{
+  assert(key != MAX_KEY);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return explain_key_and_len_index(key, table->key_info[key].key_length,
                                    table->key_info[key].user_defined_key_parts);
 }
 
 bool Explain_table_base::explain_key_and_len_index(int key, uint key_length,
+<<<<<<< HEAD
                                                    uint key_parts) {
+<<<<<<< HEAD
   assert(key != MAX_KEY);
+=======
+  DBUG_ASSERT(key != MAX_KEY);
+=======
+                                                   uint key_parts)
+{
+  assert(key != MAX_KEY);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   char buff_key_len[24];
   const KEY *key_info = table->key_info + key;
@@ -1041,8 +1144,17 @@ bool Explain_table_base::explain_extra_common(int range_scan_type, uint keyno) {
           We are replacing existing col_key value with a quickselect info,
           but not the reverse:
         */
+<<<<<<< HEAD
         assert(fmt->entry()->col_key.length);
+=======
+<<<<<<< HEAD
+        DBUG_ASSERT(fmt->entry()->col_key.length);
+>>>>>>> pr/231
         if (fmt->entry()->col_key.set(buff))  // keep col_key_len intact
+=======
+        assert(fmt->entry()->col_key.length);
+        if (fmt->entry()->col_key.set(buff)) // keep col_key_len intact
+>>>>>>> upstream/cluster-7.6
           return true;
       } else {
         if (push_extra(ET_USING, buff)) return true;
@@ -1316,6 +1428,7 @@ bool Explain_join::shallow_explain() {
       DISTINCT.  With windowing, both GROUP BY and ORDER BY/DISTINCT may carry
       sorting costs.
     */
+<<<<<<< HEAD
     if (join->m_windowing_steps) {
       int atrs = 0;  // attribute sorting costs to pre-window and/or post-window
       if (order_by_distinct_or_grouping != windowing &&
@@ -1348,6 +1461,10 @@ bool Explain_join::shallow_explain() {
              !fmt->is_hierarchical());
       order_by_distinct_or_grouping->col_read_cost.set(join->sort_cost);
     }
+=======
+    assert(fmt->entry() != join_entry || !fmt->is_hierarchical());
+    fmt->entry()->col_read_cost.set(join->sort_cost);
+>>>>>>> upstream/cluster-7.6
   }
 
   if (begin_sort_context(ESC_BUFFER_RESULT, CTX_BUFFER_RESULT))
@@ -1386,9 +1503,30 @@ bool Explain_join::explain_qep_tab(size_t tabnum) {
   usable_keys.merge(table->possible_quick_keys);
   range_scan_type = -1;
 
+<<<<<<< HEAD
   if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE) {
+<<<<<<< HEAD
     assert(range_scan_path);
     range_scan_type = range_scan_path->type;
+=======
+    DBUG_ASSERT(tab->quick_optim());
+    quick_type = tab->quick_optim()->get_type();
+=======
+bool Explain_join::explain_qep_tab(size_t tabnum)
+{
+  tab= join->qep_tab + tabnum;
+  if (!tab->position())
+    return false;
+  table= tab->table();
+  usable_keys= tab->keys();
+  quick_type= -1;
+
+  if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE)
+  {
+    assert(tab->quick_optim());
+    quick_type= tab->quick_optim()->get_type();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   if (tab->starts_weedout()) fmt->begin_context(CTX_DUPLICATES_WEEDOUT);
@@ -1669,8 +1807,18 @@ bool Explain_join::explain_extra() {
       } else if (tab->op_type == QEP_TAB::OT_BKA)
         buff.append("Batched Key Access");
       else
+<<<<<<< HEAD
         assert(0); /* purecov: inspected */
+=======
+<<<<<<< HEAD
+        DBUG_ASSERT(0); /* purecov: inspected */
+>>>>>>> pr/231
       if (push_extra(ET_USING_JOIN_BUFFER, buff)) return true;
+=======
+        assert(0); /* purecov: inspected */
+      if (push_extra(ET_USING_JOIN_BUFFER, buff))
+        return true;
+>>>>>>> upstream/cluster-7.6
     }
   }
   if (fmt->is_hierarchical() && (!bitmap_is_clear_all(table->read_set) ||
@@ -1713,8 +1861,18 @@ bool Explain_table::explain_tmptable_and_filesort(bool need_tmp_table_arg,
       in this case we output "using_temporary_table: for update"
       at the "table" node)
     */
+<<<<<<< HEAD
     if (need_tmp_table_arg) {
+<<<<<<< HEAD
       assert(used_key_is_modified || order_list);
+=======
+      DBUG_ASSERT(used_key_is_modified || order_list);
+=======
+    if (need_tmp_table_arg)
+    {
+      assert(used_key_is_modified || order_list);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       if (used_key_is_modified && push_extra(ET_USING_TEMPORARY, "for update"))
         return true;
     }
@@ -2078,11 +2236,27 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
       break;
     }
     default:
+<<<<<<< HEAD
       assert(0); /* purecov: inspected */
       ret = true;
   }
   assert(ret || !explain_thd->is_error());
   ret |= explain_thd->is_error();
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(0); /* purecov: inspected */
+      ret = true;
+  }
+  DBUG_ASSERT(ret || !ethd->is_error());
+  ret |= ethd->is_error();
+=======
+      assert(0); /* purecov: inspected */
+      ret= true;
+  }
+  assert(ret || !ethd->is_error());
+  ret|= ethd->is_error();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return ret;
 }
 
@@ -2288,6 +2462,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
   Query_result_explain explain_wrapper(unit, explain_result);
 
   if (other) {
+<<<<<<< HEAD
     if (!((explain_result = new (explain_thd->mem_root) Query_result_send())))
       return true; /* purecov: inspected */
     mem_root_deque<Item *> dummy(explain_thd->mem_root);
@@ -2295,6 +2470,22 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
       return true; /* purecov: inspected */
   } else {
     assert(unit->is_optimized());
+=======
+    if (!((explain_result = new (*THR_MALLOC) Query_result_send(ethd))))
+      DBUG_RETURN(true); /* purecov: inspected */
+    List<Item> dummy;
+    if (explain_result->prepare(dummy, ethd->lex->unit))
+      DBUG_RETURN(true); /* purecov: inspected */
+<<<<<<< HEAD
+  } else {
+    DBUG_ASSERT(unit->is_optimized());
+=======
+  }
+  else
+  {
+    assert(unit->is_optimized());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     if (explain_result->need_explain_interceptor())
       explain_result = &explain_wrapper;
   }
@@ -2351,10 +2542,23 @@ bool mysql_explain_query_expression(THD *explain_thd, const THD *query_thd,
     res = explain_query_specification(explain_thd, query_thd,
                                       unit->query_term(), CTX_JOIN);
   else
+<<<<<<< HEAD
     res = unit->explain(explain_thd, query_thd);
   assert(res || !explain_thd->is_error());
   res |= explain_thd->is_error();
   return res;
+=======
+<<<<<<< HEAD
+    res = explain_query_specification(ethd, unit->first_select(), CTX_JOIN);
+  DBUG_ASSERT(res || !ethd->is_error());
+  res |= ethd->is_error();
+=======
+    res= explain_query_specification(ethd, unit->first_select(), CTX_JOIN);
+  assert(res || !ethd->is_error());
+  res|= ethd->is_error();
+>>>>>>> upstream/cluster-7.6
+  DBUG_RETURN(res);
+>>>>>>> pr/231
 }
 
 /**
@@ -2461,9 +2665,21 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
         (!qp->get_lex()->m_sql_cmd ||
          qp->get_lex()->m_sql_cmd->is_prepared()))  // (4)
     {
+<<<<<<< HEAD
       Security_context *tmp_sctx = query_thd_ptr->security_context();
       assert(tmp_sctx->user().str);
+=======
+<<<<<<< HEAD
+      Security_context *tmp_sctx = query_thd->security_context();
+      DBUG_ASSERT(tmp_sctx->user().str);
+>>>>>>> pr/231
       if (user && strcmp(tmp_sctx->user().str, user)) {
+=======
+      Security_context *tmp_sctx= query_thd->security_context();
+      assert(tmp_sctx->user().str);
+      if (user && strcmp(tmp_sctx->user().str, user))
+      {
+>>>>>>> upstream/cluster-7.6
         my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
                  thd->security_context()->priv_user().str,
                  thd->security_context()->priv_host().str,
@@ -2484,13 +2700,42 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
     goto err;
   }
   DEBUG_SYNC(thd, "explain_other_got_thd");
+<<<<<<< HEAD
 
   if (qp->is_single_table_plan())
     res = explain_single_table_modification(
         thd, query_thd_ptr.get(), qp->get_modification_plan(),
         qp->get_lex()->unit->first_query_block());
   else
+<<<<<<< HEAD
     res = explain_query(thd, query_thd_ptr.get(), qp->get_lex()->unit);
+=======
+    res = explain_query(thd, qp->get_lex()->unit);
+=======
+  // Get topmost query
+  switch(qp->get_command())
+  {
+    case SQLCOM_UPDATE_MULTI:
+    case SQLCOM_DELETE_MULTI:
+    case SQLCOM_REPLACE_SELECT:
+    case SQLCOM_INSERT_SELECT:
+    case SQLCOM_SELECT:
+      res= explain_query(thd, qp->get_lex()->unit);
+      break;
+    case SQLCOM_UPDATE:
+    case SQLCOM_DELETE:
+    case SQLCOM_INSERT:
+    case SQLCOM_REPLACE:
+      res= explain_single_table_modification(thd, qp->get_modification_plan(),
+                                             qp->get_lex()->unit->first_select());
+      break;
+    default:
+      assert(0); /* purecov: inspected */
+      send_ok= true; /* purecov: inspected */
+      break;
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 err:
   DEBUG_SYNC(thd, "after_explain_other");
@@ -2501,7 +2746,11 @@ err:
 
 void Modification_plan::register_in_thd() {
   thd->lock_query_plan();
+<<<<<<< HEAD
   assert(thd->query_plan.get_modification_plan() == nullptr);
+=======
+  assert(thd->query_plan.get_modification_plan() == NULL);
+>>>>>>> pr/231
   thd->query_plan.set_modification_plan(this);
   thd->unlock_query_plan();
 }
@@ -2533,11 +2782,21 @@ void Modification_plan::register_in_thd() {
   @param rows           How many rows we plan to modify in the table.
 */
 
+<<<<<<< HEAD
 Modification_plan::Modification_plan(
     THD *thd_arg, enum_mod_type mt, TABLE *table_arg, enum join_type type_arg,
     AccessPath *range_scan_arg, Item *condition_arg, uint key_arg,
     ha_rows limit_arg, bool need_tmp_table_arg, bool need_sort_arg,
     bool used_key_is_modified_arg, ha_rows rows)
+=======
+Modification_plan::Modification_plan(THD *thd_arg, enum_mod_type mt,
+                                     QEP_TAB *tab_arg, uint key_arg,
+                                     ha_rows limit_arg, bool need_tmp_table_arg,
+                                     bool need_sort_arg,
+                                     bool used_key_is_modified_arg,
+<<<<<<< HEAD
+                                     ha_rows rows)
+>>>>>>> pr/231
     : thd(thd_arg),
       mod_type(mt),
       table(table_arg),
@@ -2554,6 +2813,18 @@ Modification_plan::Modification_plan(
       examined_rows(rows) {
   assert(current_thd == thd);
   if (!thd->in_sub_stmt) register_in_thd();
+=======
+                                     ha_rows rows) :
+  thd(thd_arg), mod_type(mt), table(tab_arg->table()), tab(tab_arg),
+  key(key_arg), limit(limit_arg),
+  need_tmp_table(need_tmp_table_arg), need_sort(need_sort_arg),
+  used_key_is_modified(used_key_is_modified_arg), message(NULL),
+  zero_result(false), examined_rows(rows)
+{
+  assert(current_thd == thd);
+  if (!thd->in_sub_stmt)
+    register_in_thd();
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -2574,6 +2845,7 @@ Modification_plan::Modification_plan(
   @param rows       How many rows we plan to modify in the table.
 */
 
+<<<<<<< HEAD
 Modification_plan::Modification_plan(THD *thd_arg, enum_mod_type mt,
                                      TABLE *table_arg, const char *message_arg,
                                      bool zero_result_arg, ha_rows rows)
@@ -2591,13 +2863,33 @@ Modification_plan::Modification_plan(THD *thd_arg, enum_mod_type mt,
   assert(current_thd == thd);
   if (!thd->in_sub_stmt) register_in_thd();
 }
+=======
+Modification_plan::Modification_plan(THD *thd_arg,
+                                     enum_mod_type mt, TABLE *table_arg,
+                                     const char *message_arg,
+                                     bool zero_result_arg,
+                                     ha_rows rows) :
+  thd(thd_arg), mod_type(mt), table(table_arg),
+  tab(NULL), key(MAX_KEY), limit(HA_POS_ERROR), need_tmp_table(false),
+  need_sort(false), used_key_is_modified(false), message(message_arg),
+  zero_result(zero_result_arg), examined_rows(rows)
+{
+  assert(current_thd == thd);
+  if (!thd->in_sub_stmt)
+    register_in_thd();
+};
+>>>>>>> upstream/cluster-7.6
 
 Modification_plan::~Modification_plan() {
   if (!thd->in_sub_stmt) {
     thd->lock_query_plan();
     assert(current_thd == thd &&
            thd->query_plan.get_modification_plan() == this);
+<<<<<<< HEAD
     thd->query_plan.set_modification_plan(nullptr);
+=======
+    thd->query_plan.set_modification_plan(NULL);
+>>>>>>> pr/231
     thd->unlock_query_plan();
   }
 }

@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,6 +111,7 @@ class ha_myisam : public handler {
 
     return flags;
   }
+<<<<<<< HEAD
   uint max_supported_keys() const override { return MI_MAX_KEY; }
   uint max_supported_key_length() const override { return MI_MAX_KEY_LENGTH; }
   uint max_supported_key_part_length(HA_CREATE_INFO *create_info
@@ -110,6 +119,20 @@ class ha_myisam : public handler {
     return MI_MAX_KEY_LENGTH;
   }
   uint checksum() const override;
+=======
+<<<<<<< HEAD
+  uint max_supported_keys() const { return MI_MAX_KEY; }
+  uint max_supported_key_length() const { return MI_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
+=======
+  uint max_supported_keys()          const { return MI_MAX_KEY; }
+  uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length(HA_CREATE_INFO
+                    *create_info MY_ATTRIBUTE((unused))) const
+  { return MI_MAX_KEY_LENGTH; }
+>>>>>>> upstream/cluster-7.6
+  uint checksum() const;
+>>>>>>> pr/231
 
   int open(const char *name, int mode, uint test_if_locked,
            const dd::Table *table_def) override;

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -538,6 +546,7 @@ static unique_ptr_destroy_only<RowIterator> prepare_simple_query_block(
     THD *thd, Item *cond, TABLE *table) {
   if (!cond->fixed) cond->fix_fields(thd, &cond);  // can never fail
 
+<<<<<<< HEAD
   unique_ptr_destroy_only<RowIterator> table_scan_iterator =
       NewIterator<TableScanIterator>(thd, thd->mem_root, table,
                                      /*expected_rows=*/100.0,
@@ -552,6 +561,34 @@ static unique_ptr_destroy_only<RowIterator> prepare_simple_query_block(
     return nullptr;
   }
   return filter_iterator;
+=======
+  // Initialize the cost model that will be used for this table
+  table->init_cost_model(thd->cost_model());
+
+  /* Assume that no indexes cover all required fields */
+  table->covering_keys.clear_all();
+
+  tab->set_table(table);
+  tab->set_condition(cond);
+
+  // Wrapper for correct JSON in optimizer trace
+  Opt_trace_object wrapper(&thd->opt_trace);
+  Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
+  QUICK_SELECT_I *qck;
+<<<<<<< HEAD
+  const bool impossible = test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR,
+                                            false, ORDER_NOT_RELEVANT, tab,
+                                            cond, &needed_reg_dummy, &qck) < 0;
+=======
+  const bool impossible=
+    test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR, false,
+                      ORDER::ORDER_NOT_RELEVANT, tab, cond,
+                      &needed_reg_dummy, &qck, tab->table()->force_index) < 0;
+>>>>>>> upstream/cluster-7.6
+  tab->set_quick(qck);
+
+  return impossible || (tab->quick() && tab->quick()->reset());
+>>>>>>> pr/231
 }
 
 /**

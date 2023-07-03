@@ -1,6 +1,10 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -9,6 +13,7 @@ briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -24,6 +29,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -108,6 +130,7 @@ struct set_numa_interleave_t {
     }
   }
 
+<<<<<<< HEAD
   ~set_numa_interleave_t() {
     if (srv_numa_interleave) {
       ib::info(ER_IB_MSG_49) << "Setting NUMA memory policy to"
@@ -119,6 +142,36 @@ struct set_numa_interleave_t {
       }
     }
   }
+=======
+			ib::info() << "Setting NUMA memory policy to"
+				" MPOL_INTERLEAVE";
+			struct bitmask* numa_nodes = numa_get_mems_allowed();
+			if (set_mempolicy(MPOL_INTERLEAVE,
+					  numa_nodes->maskp,
+					  numa_nodes->size) != 0) {
+
+				ib::warn() << "Failed to set NUMA memory"
+					" policy to MPOL_INTERLEAVE: "
+					<< strerror(errno);
+			}
+			numa_bitmask_free(numa_nodes);
+		}
+	}
+
+	~set_numa_interleave_t()
+	{
+		if (srv_numa_interleave) {
+
+			ib::info() << "Setting NUMA memory policy to"
+				" MPOL_DEFAULT";
+			if (set_mempolicy(MPOL_DEFAULT, NULL, 0) != 0) {
+				ib::warn() << "Failed to set NUMA memory"
+					" policy to MPOL_DEFAULT: "
+					<< strerror(errno);
+			}
+		}
+	}
+>>>>>>> upstream/cluster-7.6
 };
 
 #define NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE set_numa_interleave_t scoped_numa
@@ -304,10 +357,23 @@ buf_pool_t *buf_pool_ptr;
 /** true when resizing buffer pool is in the critical path. */
 volatile bool buf_pool_resizing;
 
+<<<<<<< HEAD
 /** Atomic variables to track resize status code and progress */
 std::atomic_uint32_t buf_pool_resize_status_code = {0};
 std::atomic_uint32_t buf_pool_resize_status_progress = {0};
+=======
+<<<<<<< HEAD
+/** true when withdrawing buffer pool pages might cause page relocation */
+volatile bool buf_pool_withdrawing;
 
+/** the clock is incremented every time a pointer to a page may become obsolete;
+if the withdrwa clock has not changed, the pointer is still valid in buffer
+pool. if changed, the pointer might not be in buffer pool any more. */
+volatile ulint buf_withdraw_clock;
+>>>>>>> pr/231
+
+=======
+>>>>>>> upstream/cluster-7.6
 /** Map of buffer pool chunks by its first frame address
 This is newly made by initialization of buffer pool and buf_resize_thread.
 Note: mutex protection is required when creating multiple buffer pools
@@ -381,6 +447,7 @@ lsn_t buf_pool_get_oldest_modification_approx(void) {
 
     buf_page_t *bpage;
 
+<<<<<<< HEAD
     /* We don't let log-checkpoint halt because pages from system
     temporary are not yet flushed to the disk. Anyway, object
     residing in system temporary doesn't generate REDO logging. */
@@ -404,6 +471,34 @@ lsn_t buf_pool_get_oldest_modification_approx(void) {
       /* The last scanned page as entry point, or nullptr. */
       buf_pool->oldest_hp.set(UT_LIST_GET_FIRST(buf_pool->flush_list));
     }
+=======
+		/* We don't let log-checkpoint halt because pages from system
+		temporary are not yet flushed to the disk. Anyway, object
+		residing in system temporary doesn't generate REDO logging. */
+		bpage = buf_pool->oldest_hp.get();
+		if (bpage != NULL) {
+			ut_ad(bpage->in_flush_list);
+		} else {
+			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+		}
+
+		for (; bpage != NULL
+			&& fsp_is_system_temporary(bpage->id.space());
+		     bpage = UT_LIST_GET_PREV(list, bpage)) {
+			/* Do nothing. */
+		}
+
+		if (bpage != NULL) {
+			ut_ad(bpage->in_flush_list);
+			lsn = bpage->oldest_modification;
+			buf_pool->oldest_hp.set(bpage);
+		} else {
+			/* The last scanned page as entry point,
+			or nullptr. */
+			buf_pool->oldest_hp.set(
+				UT_LIST_GET_FIRST(buf_pool->flush_list));
+		}
+>>>>>>> upstream/cluster-7.6
 
     buf_flush_list_mutex_exit(buf_pool);
 
@@ -1015,6 +1110,40 @@ static buf_chunk_t *buf_chunk_init(
     return (nullptr);
   }
 
+<<<<<<< HEAD
+=======
+#ifdef HAVE_LIBNUMA
+<<<<<<< HEAD
+  if (srv_numa_interleave) {
+    int st = mbind(chunk->mem, chunk->mem_size(), MPOL_INTERLEAVE,
+                   numa_all_nodes_ptr->maskp, numa_all_nodes_ptr->size,
+                   MPOL_MF_MOVE);
+    if (st != 0) {
+      ib::warn(ER_IB_MSG_54) << "Failed to set NUMA memory policy of"
+                                " buffer pool page frames to MPOL_INTERLEAVE"
+                                " (error: "
+                             << strerror(errno) << ").";
+    }
+  }
+=======
+	if (srv_numa_interleave) {
+		struct 	bitmask* numa_nodes = numa_get_mems_allowed();
+		int	st = mbind(chunk->mem, chunk->mem_size(),
+				   MPOL_INTERLEAVE,
+				   numa_nodes->maskp,
+				   numa_nodes->size,
+				   MPOL_MF_MOVE);
+		if (st != 0) {
+			ib::warn() << "Failed to set NUMA memory policy of"
+				" buffer pool page frames to MPOL_INTERLEAVE"
+				" (error: " << strerror(errno) << ").";
+		}
+		numa_bitmask_free(numa_nodes);
+	}
+>>>>>>> upstream/cluster-7.6
+#endif /* HAVE_LIBNUMA */
+
+>>>>>>> pr/231
   /* Allocate the block descriptors from
   the start of the memory block. */
   chunk->blocks = (buf_block_t *)chunk->mem;
@@ -1306,12 +1435,25 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
         ib_create(2 * buf_pool->curr_size, LATCH_ID_HASH_TABLE_RW_LOCK,
                   srv_n_page_hash_locks, MEM_HEAP_FOR_PAGE_HASH);
 
+<<<<<<< HEAD
     buf_pool->zip_hash = ut::new_<hash_table_t>(2 * buf_pool->curr_size);
+=======
+<<<<<<< HEAD
+    buf_pool->page_hash_old = NULL;
+>>>>>>> pr/231
 
     buf_pool->last_printout_time = std::chrono::steady_clock::now();
   }
   /* 2. Initialize flushing fields
   -------------------------------- */
+=======
+		buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
+
+		buf_pool->last_printout_time = ut_time_monotonic();
+	}
+	/* 2. Initialize flushing fields
+	-------------------------------- */
+>>>>>>> upstream/cluster-7.6
 
   mutex_create(LATCH_ID_FLUSH_LIST, &buf_pool->flush_list_mutex);
 
@@ -1333,7 +1475,16 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
   /* Dirty Page Tracking is disabled by default. */
   buf_pool->track_page_lsn = LSN_MAX;
 
+<<<<<<< HEAD
   buf_pool->max_lsn_io = 0;
+=======
+	/* Initialize the hazard pointer for the oldest page scan */
+	new (&buf_pool->oldest_hp)
+		FlushHp(buf_pool, &buf_pool->flush_list_mutex);
+
+	/* Initialize the hazard pointer for LRU batches */
+	new(&buf_pool->lru_hp) LRUHp(buf_pool, &buf_pool->mutex);
+>>>>>>> upstream/cluster-7.6
 
   /* Initialize the hazard pointer for flush_list batches */
   new (&buf_pool->flush_hp) FlushHp(buf_pool, &buf_pool->flush_list_mutex);
@@ -1447,6 +1598,7 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
 
   NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE;
 
+<<<<<<< HEAD
   /* Usually buf_pool_should_madvise is protected by buf_pool_t::chunk_mutex-es,
   but at this point in time there is no buf_pool_t instances yet, and no risk of
   race condition with sys_var modifications or buffer pool resizing because we
@@ -1454,6 +1606,15 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
   buf_pool_should_madvise = innobase_should_madvise_buf_pool();
 
   buf_pool_resizing = false;
+=======
+<<<<<<< HEAD
+  buf_pool_resizing = false;
+  buf_pool_withdrawing = false;
+  buf_withdraw_clock = 0;
+=======
+	buf_pool_resizing = false;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   buf_pool_ptr = (buf_pool_t *)ut::zalloc_withkey(
       UT_NEW_THIS_FILE_PSI_KEY, n_instances * sizeof *buf_pool_ptr);
@@ -1541,7 +1702,16 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
 static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
   buf_block_t *new_block;
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  ut_ad(buf_pool_withdrawing);
+>>>>>>> pr/231
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+=======
+	ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+>>>>>>> upstream/cluster-7.6
 
   /* Try allocating from the buf_pool->free list if it is not empty. This
   method is executed during withdrawing phase of BufferPool resize only. It is
@@ -1566,8 +1736,13 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
   if (buf_page_can_relocate(&block->page)) {
     mutex_enter(&new_block->mutex);
 
+<<<<<<< HEAD
     memcpy(new_block->frame, block->frame, UNIV_PAGE_SIZE);
     new (&new_block->page) buf_page_t(block->page);
+=======
+		memcpy(new_block->frame, block->frame, UNIV_PAGE_SIZE);
+		new (&new_block->page) buf_page_t(block->page);
+>>>>>>> upstream/cluster-7.6
 
     /* relocate LRU list */
     ut_ad(block->page.in_LRU_list);
@@ -1987,7 +2162,14 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
   /* retry is not needed */
   os_wmb;
 
+<<<<<<< HEAD
   return (false);
+=======
+	/* retry is not needed */
+	os_wmb;
+
+	return(false);
+>>>>>>> upstream/cluster-7.6
 }
 
 /** resize page_hash and zip_hash for a buffer pool instance.
@@ -1995,7 +2177,20 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
 static void buf_pool_resize_hash(buf_pool_t *buf_pool) {
   hash_table_t *new_hash_table;
 
+<<<<<<< HEAD
   ut_ad(mutex_own(&buf_pool->zip_hash_mutex));
+<<<<<<< HEAD
+=======
+  ut_ad(buf_pool->page_hash_old == NULL);
+
+  /* recreate page_hash */
+  new_hash_table = ib_recreate(buf_pool->page_hash, 2 * buf_pool->curr_size);
+=======
+	/* recreate page_hash */
+	new_hash_table = ib_recreate(
+		buf_pool->page_hash, 2 * buf_pool->curr_size);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* create a temporary hash_table with twice larger cells[]  */
   new_hash_table = ut::new_<hash_table_t>(2 * buf_pool->curr_size);
@@ -2020,6 +2215,7 @@ static void buf_pool_resize_hash(buf_pool_t *buf_pool) {
       HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, hash_value,
                   prev_bpage);
 
+<<<<<<< HEAD
       HASH_INSERT(buf_page_t, hash, new_hash_table, hash_value, prev_bpage);
     }
   }
@@ -2041,6 +2237,28 @@ static void buf_pool_resize_hash(buf_pool_t *buf_pool) {
     buf_pool->page_hash->set_n_cells(new_n_cells);
   }
   ut::delete_(new_hash_table);
+=======
+<<<<<<< HEAD
+      HASH_INSERT(buf_page_t, hash, new_hash_table, fold, prev_bpage);
+    }
+  }
+
+  buf_pool->page_hash_old = buf_pool->page_hash;
+  buf_pool->page_hash = new_hash_table;
+=======
+			HASH_INSERT(buf_page_t, hash,
+				new_hash_table, fold,
+				prev_bpage);
+		}
+	}
+        /* Concurrent threads may be accessing buf_pool->page_hash->n_cells,
+        n_sync_obj and try to latch sync_obj[i] while we are resizing. Therefore we
+        never deallocate page_hash, instead we overwrite n_cells (and other fields)
+        with the new values. The n_sync_obj and sync_obj are actually same in both. */
+        std::swap(*buf_pool->page_hash, *new_hash_table);
+        hash_table_free(new_hash_table);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* recreate zip_hash */
   new_hash_table = ut::new_<hash_table_t>(2 * buf_pool->curr_size);
@@ -2068,7 +2286,11 @@ static void buf_pool_resize_hash(buf_pool_t *buf_pool) {
   buf_pool->zip_hash = new_hash_table;
 }
 
+<<<<<<< HEAD
 #ifdef UNIV_DEBUG
+=======
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
 /** This is a debug routine to inject an memory allocation failure error. */
 static void buf_pool_resize_chunk_make_null(buf_chunk_t **new_chunks) {
   static int count = 0;
@@ -2080,7 +2302,11 @@ static void buf_pool_resize_chunk_make_null(buf_chunk_t **new_chunks) {
 
   count++;
 }
+<<<<<<< HEAD
 #endif /* UNIV_DEBUG */
+=======
+#endif // NDEBUG
+>>>>>>> upstream/cluster-7.6
 
 ulonglong buf_pool_adjust_chunk_unit(ulonglong size) {
   /* Size unit of buffer pool is larger than srv_buf_pool_size.
@@ -2128,8 +2354,13 @@ static void buf_pool_resize() {
 
   NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE;
 
+<<<<<<< HEAD
   ut_ad(!buf_pool_resizing);
   ut_ad(srv_buf_pool_chunk_unit > 0);
+=======
+	ut_ad(!buf_pool_resizing);
+	ut_ad(srv_buf_pool_chunk_unit > 0);
+>>>>>>> upstream/cluster-7.6
 
   /* Assumes that buf_resize_thread has already issued the necessary
   memory barrier to read srv_buf_pool_size and srv_buf_pool_old_size */
@@ -2186,10 +2417,17 @@ static void buf_pool_resize() {
       const buf_chunk_t *chunk = buf_pool->chunks + buf_pool->n_chunks_new;
       const buf_chunk_t *echunk = buf_pool->chunks + buf_pool->n_chunks;
 
+<<<<<<< HEAD
       while (chunk < echunk) {
         withdraw_target += chunk->size;
         ++chunk;
       }
+=======
+			ut_ad(buf_pool->withdraw_target == 0);
+			buf_pool->withdraw_target = withdraw_target;
+		}
+	}
+>>>>>>> upstream/cluster-7.6
 
       ut_ad(buf_pool->withdraw_target == 0);
       buf_pool->withdraw_target = withdraw_target;
@@ -2206,6 +2444,7 @@ static void buf_pool_resize() {
   ulint retry_interval = 1;
 
 withdraw_retry:
+<<<<<<< HEAD
   bool should_retry_withdraw = false;
 
   /* wait for the number of blocks fit to the new size (if needed)*/
@@ -2376,6 +2615,150 @@ withdraw_retry:
       /* delete chunks */
       chunk = buf_pool->chunks + buf_pool->n_chunks_new;
       echunk = buf_pool->chunks + buf_pool->n_chunks;
+=======
+	bool	should_retry_withdraw = false;
+
+	/* wait for the number of blocks fit to the new size (if needed)*/
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+		buf_pool = buf_pool_from_array(i);
+		if (buf_pool->curr_size < buf_pool->old_size) {
+
+			should_retry_withdraw |=
+				buf_pool_withdraw_blocks(buf_pool);
+		}
+	}
+
+	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		/* abort to resize for shutdown. */
+		return;
+	}
+
+	/* abort buffer pool load */
+	buf_load_abort();
+
+	if (should_retry_withdraw
+	    && ut_difftime(ut_time(), withdraw_started) >= message_interval) {
+
+		if (message_interval > 900) {
+			message_interval = 1800;
+		} else {
+			message_interval *= 2;
+		}
+
+		lock_mutex_enter();
+		trx_sys_mutex_enter();
+		bool	found = false;
+		for (trx_t* trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+		     trx != NULL;
+		     trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
+			if (trx->state != TRX_STATE_NOT_STARTED
+			    && trx->mysql_thd != NULL
+			    && ut_difftime(withdraw_started,
+					   trx->start_time) > 0) {
+				if (!found) {
+					ib::warn() <<
+						"The following trx might hold"
+						" the blocks in buffer pool to"
+					        " be withdrawn. Buffer pool"
+						" resizing can complete only"
+						" after all the transactions"
+						" below release the blocks.";
+					found = true;
+				}
+
+				lock_trx_print_wait_and_mvcc_state(
+					stderr, trx);
+			}
+		}
+		trx_sys_mutex_exit();
+		lock_mutex_exit();
+
+		withdraw_started = ut_time();
+	}
+
+	if (should_retry_withdraw) {
+		ib::info() << "Will retry to withdraw " << retry_interval
+			<< " seconds later.";
+		os_thread_sleep(retry_interval * 1000000);
+
+		if (retry_interval > 5) {
+			retry_interval = 10;
+		} else {
+			retry_interval *= 2;
+		}
+
+		goto withdraw_retry;
+	}
+
+	buf_resize_status("Latching whole of buffer pool.");
+
+#ifndef NDEBUG
+	{
+		bool	should_wait = true;
+
+		while (should_wait) {
+			should_wait = false;
+			DBUG_EXECUTE_IF(
+				"ib_buf_pool_resize_wait_before_resize",
+				should_wait = true; os_thread_sleep(10000););
+		}
+	}
+#endif /* !NDEBUG */
+
+	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		return;
+	}
+
+	/* Indicate critical path */
+	buf_pool_resizing = true;
+
+	/* Acquire all buf_pool_mutex/hash_lock */
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+		buf_pool_t*	buf_pool = buf_pool_from_array(i);
+
+		buf_pool_mutex_enter(buf_pool);
+	}
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+		buf_pool_t*	buf_pool = buf_pool_from_array(i);
+
+		hash_lock_x_all(buf_pool->page_hash);
+	}
+
+	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
+
+	/* add/delete chunks */
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+		buf_pool_t*	buf_pool = buf_pool_from_array(i);
+		buf_chunk_t*	chunk;
+		buf_chunk_t*	echunk;
+
+		buf_resize_status("buffer pool %lu :"
+			" resizing with chunks %lu to %lu.",
+			i, buf_pool->n_chunks, buf_pool->n_chunks_new);
+
+		if (buf_pool->n_chunks_new < buf_pool->n_chunks) {
+			/* delete chunks */
+			chunk = buf_pool->chunks
+				+ buf_pool->n_chunks_new;
+			echunk = buf_pool->chunks + buf_pool->n_chunks;
+
+			ulint	sum_freed = 0;
+
+			while (chunk < echunk) {
+				buf_block_t*	block = chunk->blocks;
+
+				for (ulint j = chunk->size;
+				     j--; block++) {
+					mutex_free(&block->mutex);
+					rw_lock_free(&block->lock);
+
+					ut_d(rw_lock_free(
+						&block->debug_latch));
+				}
+
+				buf_pool->allocator.deallocate_large(
+					chunk->mem, &chunk->mem_pfx);
+>>>>>>> upstream/cluster-7.6
 
       ulint sum_freed = 0;
 
@@ -2533,6 +2916,7 @@ withdraw_retry:
     for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
       buf_pool_t *buf_pool = buf_pool_from_array(i);
 
+<<<<<<< HEAD
       buf_pool_resize_hash(buf_pool);
 
       ib::info(ER_IB_MSG_67)
@@ -2608,6 +2992,110 @@ withdraw_retry:
                       now);
     buf_resize_status_progress_update(1, 1);
   }
+=======
+	/* set instance sizes */
+	{
+		ulint	curr_size = 0;
+
+		for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+			buf_pool = buf_pool_from_array(i);
+
+			ut_ad(UT_LIST_GET_LEN(buf_pool->withdraw) == 0);
+
+			buf_pool->read_ahead_area =
+				ut_min(BUF_READ_AHEAD_PAGES,
+				       ut_2_power_up(buf_pool->curr_size /
+						      BUF_READ_AHEAD_PORTION));
+			buf_pool->curr_pool_size
+				= buf_pool->curr_size * UNIV_PAGE_SIZE;
+			curr_size += buf_pool->curr_pool_size;
+			buf_pool->old_size = buf_pool->curr_size;
+		}
+		srv_buf_pool_curr_size = curr_size;
+		innodb_set_buf_pool_size(buf_pool_size_align(curr_size));
+	}
+
+	const bool	new_size_too_diff
+		= srv_buf_pool_base_size > srv_buf_pool_size * 2
+			|| srv_buf_pool_base_size * 2 < srv_buf_pool_size;
+
+	/* Normalize page_hash and zip_hash,
+	if the new size is too different */
+	if (!warning && new_size_too_diff) {
+
+		buf_resize_status("Resizing hash tables.");
+
+		for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+			buf_pool_t*	buf_pool = buf_pool_from_array(i);
+
+			buf_pool_resize_hash(buf_pool);
+
+			ib::info() << "buffer pool " << i
+				<< " : hash tables were resized.";
+		}
+	}
+
+	/* Release all buf_pool_mutex/page_hash */
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+		buf_pool_t*	buf_pool = buf_pool_from_array(i);
+
+		hash_unlock_x_all(buf_pool->page_hash);
+		buf_pool_mutex_exit(buf_pool);
+	}
+
+	UT_DELETE(chunk_map_old);
+
+	buf_pool_resizing = false;
+
+	/* Normalize other components, if the new size is too different */
+	if (!warning && new_size_too_diff) {
+		srv_buf_pool_base_size = srv_buf_pool_size;
+
+		buf_resize_status("Resizing also other hash tables.");
+
+		/* normalize lock_sys */
+		srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
+		lock_sys_resize(srv_lock_table_size);
+
+		/* normalize btr_search_sys */
+		btr_search_sys_resize(
+			buf_pool_get_curr_size() / sizeof(void*) / 64);
+
+		/* normalize dict_sys */
+		dict_resize();
+
+		ib::info() << "Resized hash tables at lock_sys,"
+			" adaptive hash index, dictionary.";
+	}
+
+	/* normalize ibuf->max_size */
+	ibuf_max_size_update(srv_change_buffer_max_size);
+
+	if (srv_buf_pool_old_size != srv_buf_pool_size) {
+
+		ib::info() << "Completed to resize buffer pool from "
+			<< srv_buf_pool_old_size
+			<< " to " << srv_buf_pool_size << ".";
+		srv_buf_pool_old_size = srv_buf_pool_size;
+	}
+
+	/* enable AHI if needed */
+	if (btr_search_disabled) {
+		btr_search_enable();
+		ib::info() << "Re-enabled adaptive hash index.";
+	}
+
+	char	now[32];
+
+	ut_sprintf_timestamp(now);
+	if (!warning) {
+		buf_resize_status("Completed resizing buffer pool at %s.",
+			now);
+	} else {
+		buf_resize_status("Resizing buffer pool failed,"
+			" finished resizing at %s.", now);
+	}
+>>>>>>> upstream/cluster-7.6
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
   ut_a(buf_validate());
@@ -2755,7 +3243,11 @@ static void buf_relocate(buf_page_t *bpage, buf_page_t *dpage) {
   }
 #endif /* UNIV_DEBUG */
 
+<<<<<<< HEAD
   new (dpage) buf_page_t(*bpage);
+=======
+	new (dpage) buf_page_t(*bpage);
+>>>>>>> upstream/cluster-7.6
 
   /* Important that we adjust the hazard pointer before
   removing bpage from LRU list. */
@@ -2827,6 +3319,7 @@ bool HazardPointer::is_hp(const buf_page_t *bpage) {
 
 /** Adjust the value of hp for moving. This happens when some other thread
 working on the same list attempts to relocate the hp of the page.
+<<<<<<< HEAD
 @param bpage    buffer block to be compared
 @param dpage    buffer block to be moved to */
 void HazardPointer::move(const buf_page_t *bpage, buf_page_t *dpage) {
@@ -2836,6 +3329,19 @@ void HazardPointer::move(const buf_page_t *bpage, buf_page_t *dpage) {
   if (is_hp(bpage)) {
     m_hp = dpage;
   }
+=======
+@param bpage	buffer block to be compared
+@param dpage	buffer block to be moved to */
+void
+HazardPointer::move(const buf_page_t *bpage, buf_page_t *dpage)
+{
+	ut_ad(bpage != NULL);
+	ut_ad(dpage != NULL);
+
+	if (is_hp(bpage)) {
+		m_hp = dpage;
+	}
+>>>>>>> pr/231
 }
 
 /** Adjust the value of hp. This happens when some other thread working
@@ -3467,18 +3973,66 @@ buf_block_t *buf_block_from_ahi(const byte *ptr) {
   return (block);
 }
 
+<<<<<<< HEAD
 bool buf_is_block_in_instance(const buf_pool_t *buf_pool,
                               const buf_block_t *ptr) {
   const size_t n_chunks = std::min(buf_pool->n_chunks, buf_pool->n_chunks_new);
   for (size_t i = 0; i < n_chunks; ++i) {
     if (buf_pool->chunks[i].contains(ptr)) {
       return true;
+=======
+<<<<<<< HEAD
+/** Find out if a pointer belongs to a buf_block_t. It can be a pointer to
+ the buf_block_t itself or a member of it. This functions checks one of
+ the buffer pool instances.
+ @return true if ptr belongs to a buf_block_t struct */
+static ibool buf_pointer_is_block_field_instance(
+    buf_pool_t *buf_pool, /*!< in: buffer pool instance */
+    const void *ptr)      /*!< in: pointer not dereferenced */
+=======
+ibool buf_pointer_is_block_field_instance(
+	const buf_pool_t* buf_pool, const void* ptr)
+>>>>>>> upstream/cluster-7.6
+{
+  const buf_chunk_t *chunk = buf_pool->chunks;
+  const buf_chunk_t *const echunk =
+      chunk + ut_min(buf_pool->n_chunks, buf_pool->n_chunks_new);
+
+  /* TODO: protect buf_pool->chunks with a mutex (the older pointer will
+  currently remain while during buf_pool_resize()) */
+  while (chunk < echunk) {
+    if (ptr >= (void *)chunk->blocks &&
+        ptr < (void *)(chunk->blocks + chunk->size)) {
+      return (TRUE);
+>>>>>>> pr/231
     }
   }
 
+<<<<<<< HEAD
   return false;
+=======
+  return (FALSE);
 }
 
+<<<<<<< HEAD
+/** Find out if a buffer block was created by buf_chunk_init().
+ @return true if "block" has been added to buf_pool->free by buf_chunk_init() */
+static ibool buf_block_is_uncompressed(
+    buf_pool_t *buf_pool,     /*!< in: buffer pool instance */
+    const buf_block_t *block) /*!< in: pointer to block,
+                              not dereferenced */
+{
+  if ((((ulint)block) % sizeof *block) != 0) {
+    /* The pointer should be aligned. */
+    return (FALSE);
+  }
+
+  return (buf_pointer_is_block_field_instance(buf_pool, (void *)block));
+>>>>>>> pr/231
+}
+
+=======
+>>>>>>> upstream/cluster-7.6
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 /** Return true if probe is enabled.
  @return true if probe enabled. */
@@ -3744,8 +4298,14 @@ buf_block_t *Buf_fetch<T>::lookup() {
     so we need to check the `block` pointer is still within one of the chunks
     before dereferencing it to verify it still contains the same m_page_id */
 
+<<<<<<< HEAD
     if (!buf_is_block_in_instance(m_buf_pool, block) ||
         m_page_id != block->page.id ||
+=======
+<<<<<<< HEAD
+    if (!buf_block_is_uncompressed(buf_pool, block) ||
+        !page_id.equals_to(block->page.id) ||
+>>>>>>> pr/231
         buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
       /* Our m_guess was bogus or things have changed since. */
       block = m_guess = nullptr;
@@ -3759,6 +4319,20 @@ buf_block_t *Buf_fetch<T>::lookup() {
     block = reinterpret_cast<buf_block_t *>(
         buf_page_hash_get_low(m_buf_pool, m_page_id));
   }
+=======
+		/* If the guess is a compressed page descriptor that
+		has been allocated by buf_page_alloc_descriptor(),
+		it may have been freed by buf_relocate().
+		Also, the buffer pool could get resized and m_guess's chunk could
+		get freed, so we need to check the `block` pointer is still within one
+		of the chunks before dereferencing it to verify it still contains the
+		same m_page_id */
+
+
+		if (!buf_pointer_is_block_field_instance(buf_pool, block)
+		    || !page_id.equals_to(block->page.id)
+		    || buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
+>>>>>>> upstream/cluster-7.6
 
   if (block == nullptr) {
     rw_lock_s_unlock(m_hash_lock);
@@ -6173,6 +6747,18 @@ static void buf_pool_validate_instance(buf_pool_t *buf_pool) {
 
   buf_LRU_validate_instance(buf_pool);
   ut_a(buf_flush_validate(buf_pool));
+<<<<<<< HEAD
+=======
+
+<<<<<<< HEAD
+  return (TRUE);
+=======
+	buf_LRU_validate_instance(buf_pool);
+	ut_a(buf_flush_validate(buf_pool));
+
+	return(TRUE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /** Validates the buffer buf_pool data structure.
@@ -6734,6 +7320,7 @@ void buf_print_io(FILE *file) /*!< in/out: buffer where to print */
   ut::free(pool_info);
 }
 
+<<<<<<< HEAD
 /** Refreshes the statistics used to print per-second averages. */
 void buf_refresh_io_stats_all(void) {
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
@@ -6743,6 +7330,17 @@ void buf_refresh_io_stats_all(void) {
 
     buf_refresh_io_stats(buf_pool);
   }
+=======
+/**********************************************************************//**
+Refreshes the statistics used to print per-second averages. */
+void
+buf_refresh_io_stats(
+/*=================*/
+	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
+{
+	buf_pool->last_printout_time = ut_time_monotonic();
+	buf_pool->old_stat = buf_pool->stat;
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Aborts the current process if there is any page in other state. */

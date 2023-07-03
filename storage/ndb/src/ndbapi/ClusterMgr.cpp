@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +56,12 @@
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
 #include <EventLogger.hpp>
+
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -1240,7 +1250,10 @@ ClusterMgr::reportConnected(NodeId nodeId)
   theNode.m_node_fail_rep = false;
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
   theNode.minDbVersion = 0;
+<<<<<<< HEAD
   theNode.minApiVersion = 0;
+=======
+>>>>>>> pr/231
 
   /**
    * End of protected ClusterMgr updates of shared global data.
@@ -1259,7 +1272,11 @@ ClusterMgr::reportConnected(NodeId nodeId)
   signal.theTrace  = 0;
   signal.theLength = 1;
   signal.getDataPtrSend()[0] = nodeId;
+<<<<<<< HEAD
   theFacade.for_each(this, &signal, nullptr);
+=======
+  theFacade.for_each(this, &signal, NULL);
+>>>>>>> pr/231
   DBUG_VOID_RETURN;
 }
 
@@ -1288,6 +1305,10 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
    */
   if (unlikely(!node_connected))
   {
+<<<<<<< HEAD
+=======
+    assert(node_connected);
+>>>>>>> pr/231
     if (theFacade.m_poll_owner != this)
       unlock();
     return;

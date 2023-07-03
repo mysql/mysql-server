@@ -1,5 +1,14 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:storage/ndb/src/common/util/testSimpleProperties/sp_test.cpp
+   Copyright (C) 2003-2006 MySQL AB
+    Use is subject to license terms.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> upstream/cluster-7.6:storage/ndb/src/common/util/testSimpleProperties.cpp
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +31,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+<<<<<<< HEAD
 #include "util/require.h"
+=======
+>>>>>>> pr/231
 #include <ndb_global.h>
 
 #include "SimpleProperties.hpp"
@@ -33,22 +45,34 @@ Uint32 page[8192];
 int writer();
 int reader(Uint32 *, Uint32 len);
 int unpack(Uint32 *, Uint32 len);
+<<<<<<< HEAD
 void pack();
 void testBuffered();
+=======
+>>>>>>> pr/231
 
 int main(){ 
   ndb_init();
   int len = writer();
   reader(page, len);
   unpack(page, len);
+<<<<<<< HEAD
   pack();
   testBuffered();
   return 0;
+=======
+  
+  return 0; 
+>>>>>>> pr/231
 }
 
 int
 writer(){
   LinearWriter w(&page[0], 8192);
+<<<<<<< HEAD
+=======
+  
+>>>>>>> pr/231
   w.first();
   w.add(1, 2);
   w.add(7, 3);
@@ -57,7 +81,10 @@ writer(){
   w.add(7, 4);
   w.add(3, "e cool");
   w.add(5, "9876543210");
+<<<<<<< HEAD
   w.add(9, "elephantastic allostatic acrobat (external)");
+=======
+>>>>>>> pr/231
   
   ndbout_c("WordsUsed = %d", w.getWordsUsed());
   
@@ -81,17 +108,25 @@ struct Test {
 static const
 SimpleProperties::SP2StructMapping
 test_map [] = {
+<<<<<<< HEAD
   { 1, offsetof(Test, val1), SimpleProperties::Uint32Value,  0, 0 },
   { 7, offsetof(Test, val7), SimpleProperties::Uint32Value,  0, 0 },
   { 3, offsetof(Test, val3), SimpleProperties::StringValue,  0, 0 },
   { 5,                    0, SimpleProperties::InvalidValue, 0, 0 },
   { 9,                    0, SimpleProperties::StringValue,  0,
                              SimpleProperties::SP2StructMapping::ExternalData }
+=======
+  { 1, offsetof(Test, val1), SimpleProperties::Uint32Value, 0, (Uint32)~0, 0 },
+  { 7, offsetof(Test, val7), SimpleProperties::Uint32Value, 0, (Uint32)~0, 0 },
+  { 3, offsetof(Test, val3), SimpleProperties::StringValue, 0, 100, 0 },
+  { 5,                    0, SimpleProperties::InvalidValue, 0, 0, 0 }
+>>>>>>> pr/231
 };
 
 static unsigned
 test_map_sz = sizeof(test_map)/sizeof(test_map[0]);
 
+<<<<<<< HEAD
 void indirectReader(SimpleProperties::Reader & it, void * ) {
   char buf[80];
   it.getString(buf);
@@ -99,6 +134,8 @@ void indirectReader(SimpleProperties::Reader & it, void * ) {
     it.getValueLen() << endl;
 }
 
+=======
+>>>>>>> pr/231
 int 
 unpack(Uint32 * pages, Uint32 len){
   Test test;
@@ -108,14 +145,20 @@ unpack(Uint32 * pages, Uint32 len){
 
   SimplePropertiesLinearReader it(pages, len);
   SimpleProperties::UnpackStatus status;
+<<<<<<< HEAD
   while((status = SimpleProperties::unpack(it, &test, test_map,
                                            test_map_sz, indirectReader))
           == SimpleProperties::Break){
+=======
+  while((status = SimpleProperties::unpack(it, &test, test_map, test_map_sz, 
+					   true, false)) == SimpleProperties::Break){
+>>>>>>> pr/231
     ndbout << "test.val1 = " << test.val1 << endl;
     ndbout << "test.val7 = " << test.val7 << endl;
     ndbout << "test.val3 = " << test.val3 << endl;
     it.next();
   }
+<<<<<<< HEAD
   require(status == SimpleProperties::Eof);
   return 0;
 }
@@ -204,3 +247,8 @@ void testBuffered() {
   }
   printf("Total buffered read calls: %d \n", nreadcalls);
 }
+=======
+  assert(status == SimpleProperties::Eof);
+  return 0;
+}
+>>>>>>> pr/231

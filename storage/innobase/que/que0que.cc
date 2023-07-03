@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -608,6 +632,7 @@ bool que_thr_stop(que_thr_t *thr) {
     /* Error handling built for the MySQL interface */
     thr->state = QUE_THR_COMPLETED;
 
+<<<<<<< HEAD
   } else if (graph->fork_type == QUE_FORK_ROLLBACK) {
     thr->state = QUE_THR_SUSPENDED;
   } else {
@@ -616,7 +641,29 @@ bool que_thr_stop(que_thr_t *thr) {
     return false;
   }
 
+<<<<<<< HEAD
   return true;
+=======
+  return (TRUE);
+=======
+	} else if (trx->error_state != DB_SUCCESS
+		   && trx->error_state != DB_LOCK_WAIT) {
+
+		/* Error handling built for the MySQL interface */
+		thr->state = QUE_THR_COMPLETED;
+
+	} else if (graph->fork_type == QUE_FORK_ROLLBACK) {
+
+		thr->state = QUE_THR_SUSPENDED;
+	} else {
+		ut_ad(graph->state == QUE_FORK_ACTIVE);
+
+		return(FALSE);
+	}
+
+	return(TRUE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /** Decrements the query thread reference counts in the query graph and the
@@ -783,7 +830,11 @@ que_node_t *que_node_get_containing_loop_node(que_node_t *node) /*!< in: node */
   return (node);
 }
 
+<<<<<<< HEAD
 #ifdef UNIV_DEBUG
+=======
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
 /** Gets information of an SQL query graph node.
 @return type description */
 [[nodiscard]] static const char *que_node_type_string(
@@ -833,7 +884,11 @@ que_node_t *que_node_get_containing_loop_node(que_node_t *node) /*!< in: node */
       ut_o(return ("UNKNOWN NODE TYPE"));
   }
 }
+<<<<<<< HEAD
 #endif /* UNIV_DEBUG */
+=======
+#endif /* !NDEBUG */
+>>>>>>> upstream/cluster-7.6
 
 /** Performs an execution step on a query thread.
  @return query thread to run next: it may differ from the input

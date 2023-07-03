@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1124,8 +1148,151 @@ space_id_t fsp_header_get_space_id(
 /** Reads the page size from the first page of a tablespace.
 @param[in]      page    first page of a tablespace
 @return page size */
+<<<<<<< HEAD
 page_size_t fsp_header_get_page_size(const page_t *page) {
   return (page_size_t(fsp_header_get_flags(page)));
+=======
+page_size_t
+fsp_header_get_page_size(
+	const page_t*	page)
+{
+	return(page_size_t(fsp_header_get_flags(page)));
+}
+
+/** Decoding the encryption info
+from the first page of a tablespace.
+@param[in/out]	key		key
+@param[in/out]	iv		iv
+@param[in]	encryption_info	encrytion info.
+@return true if success */
+bool
+fsp_header_decode_encryption_info(
+	byte*		key,
+	byte*		iv,
+	byte*		encryption_info)
+{
+	byte*			ptr;
+	ulint			master_key_id;
+	byte*			master_key = NULL;
+	lint			elen;
+	byte			key_info[ENCRYPTION_KEY_LEN * 2];
+	ulint			crc1;
+	ulint			crc2;
+	char			srv_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
+	Encryption::Version	version;
+#ifdef	UNIV_ENCRYPT_DEBUG
+	const byte*		data;
+	ulint			i;
+#endif
+
+	ptr = encryption_info;
+
+	/* For compatibility with 5.7.11, we need to handle the
+	encryption information which created in this old version. */
+	if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V1,
+		     ENCRYPTION_MAGIC_SIZE) == 0) {
+		version = Encryption::ENCRYPTION_VERSION_1;
+	} else {
+		version = Encryption::ENCRYPTION_VERSION_2;
+	}
+
+	/* Check magic. */
+	if (version == Encryption::ENCRYPTION_VERSION_2
+	    && memcmp(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) != 0) {
+		/* We ignore report error for recovery,
+		since the encryption info maybe hasn't writen
+		into datafile when the table is newly created. */
+		if (!recv_recovery_is_on()) {
+			return(false);
+		} else {
+			return(true);
+		}
+	}
+	ptr += ENCRYPTION_MAGIC_SIZE;
+
+	/* Get master key id. */
+	master_key_id = mach_read_from_4(ptr);
+	ptr += sizeof(ulint);
+
+	/* Get server uuid. */
+	if (version == Encryption::ENCRYPTION_VERSION_2) {
+		memset(srv_uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
+		memcpy(srv_uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
+		ptr += ENCRYPTION_SERVER_UUID_LEN;
+	}
+
+	/* Get master key by key id. */
+	memset(key_info, 0, ENCRYPTION_KEY_LEN * 2);
+	if (version == Encryption::ENCRYPTION_VERSION_1) {
+		Encryption::get_master_key(master_key_id, NULL, &master_key);
+	} else {
+		Encryption::get_master_key(master_key_id, srv_uuid, &master_key);
+	}
+        if (master_key == NULL) {
+                return(false);
+        }
+
+#ifdef	UNIV_ENCRYPT_DEBUG
+	fprintf(stderr, "%lu ", master_key_id);
+	for (data = (const byte*) master_key, i = 0;
+	     i < ENCRYPTION_KEY_LEN; i++)
+		fprintf(stderr, "%02lx", (ulong)*data++);
+#endif
+
+	/* Decrypt tablespace key and iv. */
+	elen = my_aes_decrypt(
+		ptr,
+		ENCRYPTION_KEY_LEN * 2,
+		key_info,
+		master_key,
+		ENCRYPTION_KEY_LEN,
+		my_aes_256_ecb, NULL, false);
+
+	if (elen == MY_AES_BAD_DATA) {
+		my_free(master_key);
+		return(NULL);
+	}
+
+	/* Check checksum bytes. */
+	ptr += ENCRYPTION_KEY_LEN * 2;
+
+	crc1 = mach_read_from_4(ptr);
+	crc2 = ut_crc32(key_info, ENCRYPTION_KEY_LEN * 2);
+	if (crc1 != crc2) {
+		ib::error() << "Failed to decrypt encryption information,"
+			<< " please confirm the master key was not changed.";
+		my_free(master_key);
+		return(false);
+	}
+
+	/* Get tablespace key */
+	memcpy(key, key_info, ENCRYPTION_KEY_LEN);
+
+	/* Get tablespace iv */
+	memcpy(iv, key_info + ENCRYPTION_KEY_LEN,
+	       ENCRYPTION_KEY_LEN);
+
+#ifdef	UNIV_ENCRYPT_DEBUG
+	fprintf(stderr, " ");
+	for (data = (const byte*) key,
+	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
+		fprintf(stderr, "%02lx", (ulong)*data++);
+	fprintf(stderr, " ");
+	for (data = (const byte*) iv,
+	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
+		fprintf(stderr, "%02lx", (ulong)*data++);
+	fprintf(stderr, "\n");
+#endif
+
+	my_free(master_key);
+
+	if (Encryption::master_key_id < master_key_id) {
+		Encryption::master_key_id = master_key_id;
+		memcpy(Encryption::uuid, srv_uuid, ENCRYPTION_SERVER_UUID_LEN);
+	}
+
+	return(true);
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Reads the encryption key from the first page of a tablespace.

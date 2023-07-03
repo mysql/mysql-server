@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -157,6 +165,7 @@ static const uchar *digest_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_statements_digest_stat *const *typed_entry;
   const PFS_statements_digest_stat *digest;
   const void *result;
+<<<<<<< HEAD
   typed_entry =
       reinterpret_cast<const PFS_statements_digest_stat *const *>(entry);
   assert(typed_entry != nullptr);
@@ -165,6 +174,15 @@ static const uchar *digest_hash_get_key(const uchar *entry, size_t *length) {
   *length = sizeof(PFS_digest_key);
   result = &digest->m_digest_key;
   return reinterpret_cast<const uchar *>(result);
+=======
+  typed_entry= reinterpret_cast<const PFS_statements_digest_stat*const*>(entry);
+  assert(typed_entry != NULL);
+  digest= *typed_entry;
+  assert(digest != NULL);
+  *length= sizeof (PFS_digest_key);
+  result= & digest->m_digest_key;
+  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+>>>>>>> upstream/cluster-7.6
 }
 
 static uint digest_hash_func(const LF_HASH *, const uchar *key,
@@ -241,10 +259,24 @@ static LF_PINS *get_digest_hash_pins(PFS_thread *thread) {
   return thread->m_digest_hash_pins;
 }
 
+<<<<<<< HEAD
 PFS_statements_digest_stat *find_or_create_digest(
     PFS_thread *thread, const sql_digest_storage *digest_storage,
     const char *schema_name, uint schema_name_length) {
+<<<<<<< HEAD
   assert(digest_storage != nullptr);
+=======
+  DBUG_ASSERT(digest_storage != NULL);
+=======
+PFS_statement_stat*
+find_or_create_digest(PFS_thread *thread,
+                      const sql_digest_storage *digest_storage,
+                      const char *schema_name,
+                      uint schema_name_length)
+{
+  assert(digest_storage != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (statements_digest_stat_array == nullptr) {
     return nullptr;
@@ -312,8 +344,17 @@ search:
     }
 
     /* Add a new record in digest stat array. */
+<<<<<<< HEAD
     assert(safe_index < digest_max);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(safe_index < digest_max);
+>>>>>>> pr/231
     pfs = &statements_digest_stat_array[safe_index];
+=======
+    assert(safe_index < digest_max);
+    pfs= &statements_digest_stat_array[safe_index];
+>>>>>>> upstream/cluster-7.6
 
     if (pfs->m_lock.is_free()) {
       if (pfs->m_lock.free_to_dirty(&dirty_state)) {

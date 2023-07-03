@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -248,7 +256,17 @@ class ha_perfschema : public handler {
      For ROW format, @see Rows_log_event::do_apply_event()
 
   */
+<<<<<<< HEAD
   bool is_executed_by_slave() const;
+=======
+  bool is_executed_by_slave() const
+  {
+    assert(table != NULL);
+    assert(table->in_use != NULL);
+    return table->in_use->slave_thread;
+
+  }
+>>>>>>> upstream/cluster-7.6
 
   /** MySQL lock */
   THR_LOCK_DATA m_thr_lock;

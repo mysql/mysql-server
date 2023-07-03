@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,15 +29,25 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
+<<<<<<< HEAD
 
 #include "test_utils.h"
+=======
+<<<<<<< HEAD
+#include "my_config.h"
+=======
+#include "test_utils.h"
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #include "my_io.h"
 #include "my_thread.h"
+<<<<<<< HEAD
 #include "sql/log.h"
 #include "sql/named_pipe.h"
 #include "sql/sql_class.h"
 
+<<<<<<< HEAD
 #include <sddl.h>
 
 namespace win_unittest {
@@ -97,16 +115,39 @@ extern "C" void mock_error_handler_hook(uint err, const char *, myf) {
   if (Mock_global_error_handler::current)
     Mock_global_error_handler::current->error_handler(err);
 }
+=======
+// Mock logger function to avoid breaking the link
+int log_message(int log_type, ...) { return -1; }
+=======
+#include <sddl.h>
+>>>>>>> upstream/cluster-7.6
 
+namespace win_unittest {
+using my_testing::Server_initializer;
+using my_testing::Mock_error_handler;
+>>>>>>> pr/231
+
+<<<<<<< HEAD
 class NamedPipeTest : public ::testing::Test {
  protected:
+<<<<<<< HEAD
   static void SetUpTestCase() {
+=======
+  virtual void SetUp() {
+=======
+class NamedPipeTest : public ::testing::Test
+{
+protected:
+  static void SetUpTestCase()
+  {
+>>>>>>> pr/231
     m_old_error_handler_hook = error_handler_hook;
     // Make sure my_error() ends up calling my_message_sql so that
     // Mock_error_handler is actually triggered.
     error_handler_hook = my_message_sql;
   }
 
+<<<<<<< HEAD
   static void TearDownTestCase() {
     error_handler_hook = m_old_error_handler_hook;
   }
@@ -114,6 +155,18 @@ class NamedPipeTest : public ::testing::Test {
   void SetUp() override {
     m_initializer.SetUp();
 
+=======
+  static void TearDownTestCase()
+  {
+    error_handler_hook = m_old_error_handler_hook;
+  }
+
+  virtual void SetUp()
+  {
+    m_initializer.SetUp();
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     char pipe_rand_name[256];
 
     m_pipe_handle = INVALID_HANDLE_VALUE;
@@ -139,6 +192,7 @@ class NamedPipeTest : public ::testing::Test {
     m_initializer.TearDown();
   }
 
+<<<<<<< HEAD
   SECURITY_ATTRIBUTES *mp_sec_attr;
   char m_pipe_name[256];
   HANDLE m_pipe_handle;
@@ -148,13 +202,46 @@ class NamedPipeTest : public ::testing::Test {
   static ErrorHandlerFunctionPointer m_old_error_handler_hook;
 };
 ErrorHandlerFunctionPointer NamedPipeTest::m_old_error_handler_hook;
+=======
+<<<<<<< HEAD
+  SECURITY_ATTRIBUTES m_sec_attr;
+  SECURITY_DESCRIPTOR m_sec_descr;
+  char m_pipe_name[256];
+  HANDLE m_pipe_handle;
+  std::string m_name;
+=======
+  SECURITY_ATTRIBUTES *mp_sec_attr;
+  char                m_pipe_name[256];
+  HANDLE              m_pipe_handle;
+  std::string         m_name;
+  Server_initializer  m_initializer;
+
+  static void(*m_old_error_handler_hook)(uint, const char *, myf);
+>>>>>>> upstream/cluster-7.6
+};
+void(*NamedPipeTest::m_old_error_handler_hook)(uint, const char *, myf);
+>>>>>>> pr/231
 
 // Basic test: create a named pipe.
 TEST_F(NamedPipeTest, CreatePipe) {
   char exp_pipe_name[256];
 
+<<<<<<< HEAD
   m_pipe_handle = create_server_named_pipe(&mp_sec_attr, 1024, m_name.c_str(),
                                            m_pipe_name, sizeof(m_pipe_name));
+=======
+<<<<<<< HEAD
+  m_pipe_handle =
+      create_server_named_pipe(&m_sec_attr, &m_sec_descr, 1024, m_name.c_str(),
+                               m_pipe_name, sizeof(m_pipe_name));
+=======
+  m_pipe_handle= create_server_named_pipe(&mp_sec_attr,
+                                          1024,
+                                          m_name.c_str(),
+                                          m_pipe_name,
+                                          sizeof(m_pipe_name));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   strxnmov(exp_pipe_name, sizeof(exp_pipe_name) - 1, "\\\\.\\pipe\\",
            m_name.c_str(), NullS);
@@ -164,6 +251,7 @@ TEST_F(NamedPipeTest, CreatePipe) {
 }
 
 // Verify that we fail if we try to create the same named pipe twice.
+<<<<<<< HEAD
 TEST_F(NamedPipeTest, CreatePipeTwice) {
   m_pipe_handle = create_server_named_pipe(&mp_sec_attr, 1024, m_name.c_str(),
                                            m_pipe_name, sizeof(m_pipe_name));
@@ -218,3 +306,72 @@ TEST_F(NamedPipeTest, CreatePipeForEveryoneSid) {
 }
 
 }  // namespace win_unittest
+=======
+TEST_F(NamedPipeTest, CreatePipeTwice)
+{
+  m_pipe_handle= create_server_named_pipe(&mp_sec_attr,
+                                          1024,
+                                          m_name.c_str(),
+                                          m_pipe_name,
+                                          sizeof(m_pipe_name));
+  EXPECT_NE(INVALID_HANDLE_VALUE, m_pipe_handle);
+
+  Mock_error_handler error_handler(m_initializer.thd(),
+                                   ER_CANT_START_SERVER_NAMED_PIPE);
+  HANDLE handle= create_server_named_pipe(&mp_sec_attr,
+                                          1024,
+                                          m_name.c_str(),
+                                          m_pipe_name,
+                                          sizeof(m_pipe_name));
+  EXPECT_EQ(INVALID_HANDLE_VALUE, handle);
+}
+
+// Verify that a warning is written to the error log when using
+// "*everyone* as the full access group name.
+TEST_F(NamedPipeTest, CreatePipeForEveryone)
+{
+  Mock_error_handler error_handler(m_initializer.thd(),
+                                   WARN_NAMED_PIPE_ACCESS_EVERYONE);
+  m_pipe_handle = create_server_named_pipe(&mp_sec_attr,
+                                           1024,
+                                           m_name.c_str(),
+                                           m_pipe_name,
+                                           sizeof(m_pipe_name),
+                                           "*everyone*");
+  EXPECT_NE(INVALID_HANDLE_VALUE, m_pipe_handle);
+}
+
+// Verify that a warning is written to the error log when using
+// the group name corresponding to the built in Windows group
+// with SID S-1-1-0  (i.e. "everyone" on English systems)
+TEST_F(NamedPipeTest, CreatePipeForEveryoneSid)
+{
+  PSID everyone_SID;
+  EXPECT_TRUE(ConvertStringSidToSid("S-1-1-0", &everyone_SID));
+  const DWORD max_name_len = 256;
+  char everyone_name[max_name_len];
+  DWORD everyone_name_size = max_name_len;
+  char domain_name[max_name_len];
+  DWORD domain_name_size = max_name_len;
+  SID_NAME_USE name_use;
+
+  EXPECT_TRUE(LookupAccountSid(NULL, everyone_SID, everyone_name, &everyone_name_size,
+                               domain_name, &domain_name_size, &name_use));
+  // The "S-1-1-0" SID is well known, so we expect the domain_name to empty and
+  // the name_use to be SidTypeWellKnownGroup
+  EXPECT_EQ(domain_name_size, 0);
+  EXPECT_EQ(name_use, SidTypeWellKnownGroup);
+
+  Mock_error_handler error_handler(m_initializer.thd(),
+                                   WARN_NAMED_PIPE_ACCESS_EVERYONE);
+  m_pipe_handle = create_server_named_pipe(&mp_sec_attr,
+                                           1024,
+                                           m_name.c_str(),
+                                           m_pipe_name,
+                                           sizeof(m_pipe_name),
+                                           everyone_name);
+  EXPECT_NE(INVALID_HANDLE_VALUE, m_pipe_handle);
+}
+
+}
+>>>>>>> upstream/cluster-7.6

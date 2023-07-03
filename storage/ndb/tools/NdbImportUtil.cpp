@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +56,10 @@ NdbImportUtil::~NdbImportUtil()
   log_debug(1, "dtor");
   delete c_blobs_free;
   delete c_rows_free;
+<<<<<<< HEAD
   require(c_tables.m_tables.empty());
+=======
+>>>>>>> pr/231
 }
 
 NdbOut&
@@ -2461,7 +2468,11 @@ NdbImportUtil::set_stats_row(Row* row,
     double mean = 0.0;
     if (stat.m_obs != 0)
       mean = sum1 / obsf;
+<<<<<<< HEAD
     if (!std::isfinite(mean))
+=======
+    if (!my_isfinite(mean))
+>>>>>>> pr/231
       mean = 0.0;
     attr.set_value(row, &mean, sizeof(mean));
     id++;
@@ -2484,7 +2495,11 @@ NdbImportUtil::set_stats_row(Row* row,
     double stddev = 0.0;
     if (stat.m_obs != 0)
       stddev = ::sqrt((obsf * sum2 - (sum1 * sum1)) / (obsf * obsf));
+<<<<<<< HEAD
     if (!std::isfinite(stddev))
+=======
+    if (!my_isfinite(stddev))
+>>>>>>> pr/231
       stddev = 0.0;
     attr.set_value(row, &stddev, sizeof(stddev));
     id++;

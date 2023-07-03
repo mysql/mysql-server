@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,8 +55,33 @@ static inline void benchmark_func(size_t iters,
   str.append(length, ' ');
   StartBenchmarkTiming();
 
+<<<<<<< HEAD
   for (size_t i = 0; i < iters; ++i) {
     func(pointer_cast<const uchar *>(str.data()), length);
+=======
+#if !defined(NDEBUG)
+// There is no point in benchmarking anything in debug mode.
+const size_t num_iterations= 1ULL;
+#else
+// Set this so that each test case takes a few seconds.
+// And set it back to a small value before pushing!!
+// const size_t num_iterations= 200000000ULL;
+const size_t num_iterations= 2ULL;
+#endif
+
+class SkipTrailingSpaceTest : public ::testing::TestWithParam<int>
+{
+protected:
+  virtual void SetUp()
+  {
+    int num_spaces= GetParam();
+    // Insert something else (or nothing) here,
+    //   to see effects of alignment of data:
+    m_string.append("1");
+    for (int ix= 0 ; ix < num_spaces; ++ix)
+      m_string.append(" ");
+    m_length= m_string.length();
+>>>>>>> upstream/cluster-7.6
   }
 }
 

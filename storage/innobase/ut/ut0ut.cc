@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -60,8 +84,272 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/components/services/log_builtins.h"
 #include "sql/derror.h"
 
+<<<<<<< HEAD
 namespace ut {
 ulong spin_wait_pause_multiplier = 50;
+=======
+#ifndef UNIV_NO_ERR_MSGS
+#if defined(__SUNPRO_CC)
+const char *ib::logger::PREFIX = "InnoDB: ";
+#endif /*  __SUNPRO_CC */
+#endif /* !UNIV_NO_ERR_MSGS */
+
+#ifdef _WIN32
+using time_fn = VOID(WINAPI *)(_Out_ LPFILETIME);
+static time_fn ut_get_system_time_as_file_time = GetSystemTimeAsFileTime;
+
+/** NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
+ epoch starts from 1970/1/1. For selection of constant see:
+ http://support.microsoft.com/kb/167296/ */
+#define WIN_TO_UNIX_DELTA_USEC 11644473600000000LL
+
+/**
+Initialise highest available time resolution API on Windows
+@return false if all OK else true */
+bool ut_win_init_time() {
+  HMODULE h = LoadLibrary("kernel32.dll");
+  if (h != nullptr) {
+    auto pfn = reinterpret_cast<time_fn>(
+        GetProcAddress(h, "GetSystemTimePreciseAsFileTime"));
+    if (pfn != nullptr) {
+      ut_get_system_time_as_file_time = pfn;
+    }
+    return false;
+  }
+  DWORD error = GetLastError();
+#ifndef UNIV_HOTBACKUP
+#ifndef UNIV_NO_ERR_MSGS
+  log_errlog(ERROR_LEVEL, ER_WIN_LOAD_LIBRARY_FAILED, "kernel32.dll", error);
+#else
+  ib::error() << "LoadLibrary(\"kernel32.dll\") failed:"
+              << " GetLastError returns " << error;
+#endif /* UNIV_NO_ERR_MSGS */
+#else  /* !UNIV_HOTBACKUP */
+  fprintf(stderr,
+          "LoadLibrary(\"kernel32.dll\") failed:"
+          " GetLastError returns %lu",
+          error);
+#endif /* !UNIV_HOTBACKUP */
+  return (true);
+}
+
+/** This is the Windows version of gettimeofday(2).
+ @return 0 if all OK else -1 */
+static int ut_gettimeofday(
+    struct timeval *tv, /*!< out: Values are relative to Unix epoch */
+    void *tz)           /*!< in: not used */
+{
+  FILETIME ft;
+  int64_t tm;
+
+  if (!tv) {
+    errno = EINVAL;
+    return (-1);
+  }
+
+  ut_get_system_time_as_file_time(&ft);
+
+  tm = (int64_t)ft.dwHighDateTime << 32;
+  tm |= ft.dwLowDateTime;
+
+  ut_a(tm >= 0); /* If tm wraps over to negative, the quotient / 10
+                 does not work */
+
+  tm /= 10; /* Convert from 100 nsec periods to usec */
+
+  /* If we don't convert to the Unix epoch the value for
+  struct timeval::tv_sec will overflow.*/
+  tm -= WIN_TO_UNIX_DELTA_USEC;
+
+  tv->tv_sec = (long)(tm / 1000000L);
+  tv->tv_usec = (long)(tm % 1000000L);
+
+  return (0);
+}
+#else
+/** An alias for gettimeofday(2).  On Microsoft Windows, we have to
+reimplement this function. */
+#define ut_gettimeofday gettimeofday
+#endif
+
+/** Returns system time. We do not specify the format of the time returned:
+ the only way to manipulate it is to use the function ut_difftime.
+ @return system time */
+ib_time_t ut_time(void) { return (time(NULL)); }
+
+/** Returns system time.
+ Upon successful completion, the value 0 is returned; otherwise the
+ value -1 is returned and the global variable errno is set to indicate the
+ error.
+ @return 0 on success, -1 otherwise */
+int ut_usectime(ulint *sec, /*!< out: seconds since the Epoch */
+                ulint *ms)  /*!< out: microseconds since the Epoch+*sec */
+{
+  struct timeval tv;
+  int ret = 0;
+  int errno_gettimeofday;
+  int i;
+
+<<<<<<< HEAD
+  for (i = 0; i < 10; i++) {
+    ret = ut_gettimeofday(&tv, NULL);
+
+    if (ret == -1) {
+      errno_gettimeofday = errno;
+
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+=======
+#ifndef UNIV_HOTBACKUP
+
+/** Returns the number of microseconds since epoch. Uses the monotonic clock.
+ For windows it return normal time.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_us_t ut_time_monotonic_us(void) {
+	uintmax_t	us;
+#ifdef HAVE_CLOCK_GETTIME
+	struct timespec tp;
+	clock_gettime(CLOCK_MONOTONIC,&tp);
+	us = static_cast<uintmax_t>(tp.tv_sec) *1000000 + tp.tv_nsec / 1000;
+#else
+	struct timeval	tv;
+	ut_gettimeofday(&tv, NULL);
+	us = static_cast<uintmax_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
+#endif /* HAVE_CLOCK_GETTIME */
+	return(us);
+}
+
+/** Returns the number of milliseconds since epoch. Uses the monotonic clock.
+ For windows,MacOS it return normal time.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_ms_t ut_time_monotonic_ms(void) {
+#ifdef HAVE_CLOCK_GETTIME
+	struct timespec tp;
+	clock_gettime(CLOCK_MONOTONIC,&tp);
+	return ((ulint) tp.tv_sec * 1000 + tp.tv_nsec / 1000 / 1000);
+#else
+	struct timeval	tv;
+	ut_gettimeofday(&tv, NULL);
+	return((ulint) tv.tv_sec * 1000 + tv.tv_usec / 1000);
+#endif /* HAVE_CLOCK_GETTIME */
+}
+
+/** Returns the number of seconds since epoch. Uses the monotonic clock.
+ For windows it return normal time.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_us_t ut_time_monotonic(void) {
+#ifdef HAVE_CLOCK_GETTIME
+	struct timespec tp;
+	clock_gettime(CLOCK_MONOTONIC,&tp);
+	return tp.tv_sec;
+#else
+	return(time(NULL));
+#endif /* HAVE_CLOCK_GETTIME */
+
+}
+
+#endif /* !UNIV_HOTBACKUP */
+
+/**********************************************************//**
+Returns the difference of two times in seconds.
+@return time2 - time1 expressed in seconds */
+double
+ut_difftime(
+/*========*/
+	ib_time_t	time2,	/*!< in: time */
+	ib_time_t	time1)	/*!< in: time */
+{
+	return(difftime(time2, time1));
+}
+
+#endif /* !UNIV_INNOCHECKSUM */
+
+/**********************************************************//**
+Prints a timestamp to a file. */
+void
+ut_print_timestamp(
+/*===============*/
+	FILE*  file) /*!< in: file where to print */
+{
+	ulint thread_id = 0;
+
+#ifndef UNIV_INNOCHECKSUM
+	thread_id = os_thread_pf(os_thread_get_curr_id());
+#endif /* !UNIV_INNOCHECKSUM */
+
+#ifdef _WIN32
+	SYSTEMTIME cal_tm;
+
+	GetLocalTime(&cal_tm);
+
+	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %#llx",
+		(int) cal_tm.wYear,
+		(int) cal_tm.wMonth,
+		(int) cal_tm.wDay,
+		(int) cal_tm.wHour,
+		(int) cal_tm.wMinute,
+		(int) cal_tm.wSecond,
+		static_cast<ulonglong>(thread_id));
+>>>>>>> upstream/cluster-7.6
+#else
+      ib::error(ER_IB_MSG_1213)
+#endif /* UNIV_NO_ERR_MSGS */
+          << "gettimeofday(): " << strerror(errno_gettimeofday);
+
+      os_thread_sleep(100000); /* 0.1 sec */
+      errno = errno_gettimeofday;
+    } else {
+      break;
+    }
+  }
+
+  if (ret != -1) {
+    *sec = (ulint)tv.tv_sec;
+    *ms = (ulint)tv.tv_usec;
+  }
+
+  return (ret);
+}
+
+/** Returns the number of microseconds since epoch. Similar to
+ time(3), the return value is also stored in *tloc, provided
+ that tloc is non-NULL.
+ @return us since epoch */
+uintmax_t ut_time_us(uintmax_t *tloc) /*!< out: us since epoch, if non-NULL */
+{
+  struct timeval tv;
+  uintmax_t us;
+
+  ut_gettimeofday(&tv, NULL);
+
+  us = static_cast<uintmax_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
+
+  if (tloc != NULL) {
+    *tloc = us;
+  }
+
+  return (us);
+}
+
+/** Returns the number of milliseconds since some epoch.  The
+ value may wrap around.  It should only be used for heuristic
+ purposes.
+ @return ms since epoch */
+ulint ut_time_ms(void) {
+  struct timeval tv;
+
+  ut_gettimeofday(&tv, NULL);
+
+  return ((ulint)tv.tv_sec * 1000 + tv.tv_usec / 1000);
+}
+
+/** Returns the difference of two times in seconds.
+ @return time2 - time1 expressed in seconds */
+double ut_difftime(ib_time_t time2, /*!< in: time */
+                   ib_time_t time1) /*!< in: time */
+{
+  return (difftime(time2, time1));
+>>>>>>> pr/231
 }
 
 #ifdef UNIV_HOTBACKUP
@@ -441,6 +729,7 @@ const char *ut_strerr(dberr_t num) {
           "of stored column");
     case DB_COMPUTE_VALUE_FAILED:
       return ("Compute generated column failed");
+<<<<<<< HEAD
     case DB_V1_DBLWR_INIT_FAILED:
       return (
           "Failed to initialize the doublewrite extents "
@@ -459,6 +748,21 @@ const char *ut_strerr(dberr_t num) {
       return ("Invalid encryption meta-data information");
     case DB_ABORT_INCOMPLETE_CLONE:
       return ("Incomplete cloned data directory");
+=======
+
+<<<<<<< HEAD
+    case DB_INVALID_ENCRYPTION_META:
+      return ("Invalid encryption meta-data information");
+=======
+	case DB_FTS_TOO_MANY_NESTED_EXP:
+		return("Too many nested sub-expressions in a full-text search");
+
+	/* do not add default: in order to produce a warning if new code
+	is added to the enum but not added here */
+	}
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
     case DB_SERVER_VERSION_LOW:
       return (
           "Cannot boot server with lower version than that built the "

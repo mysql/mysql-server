@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +44,11 @@
   Thread class responsible for the collection of write sets associated
   to a transaction.
 
+<<<<<<< HEAD
   It also includes support for save points where information will be discarded
+=======
+  It also includes suport for save points where information will be discarded
+>>>>>>> pr/231
   on rollbacks to a savepoint.
 
   Write set and flags are reset on
@@ -198,6 +210,7 @@ class Rpl_transaction_write_set_ctx {
   */
   void restore_savepoint_list();
 
+<<<<<<< HEAD
   /**
     Adds a memory limit for write sets.
 
@@ -240,6 +253,53 @@ class Rpl_transaction_write_set_ctx {
   void set_local_allow_drop_write_set(bool allow_drop_write_set);
 
  private:
+=======
+<<<<<<< HEAD
+ private:
+=======
+  /**
+    Adds a memory limit for write sets.
+
+    @note currently only one component can set this limit a time.
+
+    @param limit the limit to be added
+  */
+  static void set_global_write_set_memory_size_limit(int64 limit);
+
+  /**
+    Updates the memory limit for write sets.
+
+    @note Using the value 0 disables the limit
+
+    @param limit the limit to be added
+  */
+  static void update_global_write_set_memory_size_limit(int64 limit);
+
+  /**
+    Prevent or allow this class to discard writesets exceeding a size limit
+    If true, a transaction will never discard its write sets
+
+    @param requires_ws if who invoked the method needs or not write sets
+  */
+  static void set_global_require_full_write_set(bool requires_ws);
+
+  /**
+    Set if the thread shall ignore any configured memory limit
+    for write set collection
+
+    @param ignore_limit if the limit should be ignored
+  */
+  void set_local_ignore_write_set_memory_limit(bool ignore_limit);
+
+  /**
+    Set if the thread shall if needed discard write sets
+
+    @param allow_drop_write_set if full write sets are not critical
+  */
+  void set_local_allow_drop_write_set(bool allow_drop_write_set);
+
+private:
+>>>>>>> pr/231
   /*
     Clear the vector that stores the PKEs, and clear the savepoints, but do not
     restore all the flags. Outside transaction cleanup, this is used when
@@ -247,6 +307,10 @@ class Rpl_transaction_write_set_ctx {
   */
   void clear_write_set();
 
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   std::vector<uint64> write_set;
   bool m_has_missing_keys;
   bool m_has_related_foreign_keys;
@@ -262,14 +326,26 @@ class Rpl_transaction_write_set_ctx {
     Create a savepoint context hierarchy to support encapsulation of
     identifier name when function or trigger are executed.
   */
+<<<<<<< HEAD
   std::list<std::map<std::string, size_t>> savepoint_list;
+<<<<<<< HEAD
+=======
+=======
+  std::list<std::map<std::string, size_t> > savepoint_list;
+>>>>>>> pr/231
 
   // Write set restriction variables
 
   /** There is a component requiring write sets on transactions */
+<<<<<<< HEAD
   static std::atomic<bool> m_global_component_requires_write_sets;
   /** Memory size limit enforced for write set collection */
   static std::atomic<uint64> m_global_write_set_memory_size_limit;
+=======
+  static int32 m_global_component_requires_write_sets;
+  /** Memory size limit enforced for write set collection */
+  static int64 m_global_write_set_memory_size_limit;
+>>>>>>> pr/231
 
   /**
     If the thread should or not ignore the set limit for
@@ -285,6 +361,10 @@ class Rpl_transaction_write_set_ctx {
 
   /** True if the write set size is over the configure limit */
   bool m_local_has_reached_write_set_limit;
+<<<<<<< HEAD
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 #endif /* RPL_TRANSACTION_WRITE_SET_CTX_H */

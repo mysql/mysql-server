@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1065,6 +1069,7 @@ class Query_expression {
   mem_root_deque<Item *> *get_field_list();
   size_t num_visible_fields() const;
 
+<<<<<<< HEAD
   // If we are doing a query with global LIMIT, we need somewhere to store the
   // record count for FOUND_ROWS().  It can't be in any of the JOINs, since
   // they may have their own LimitOffsetIterators, which will write to
@@ -1076,6 +1081,8 @@ class Query_expression {
   void set_explain_marker(THD *thd, enum_parsing_context m);
   void set_explain_marker_from(THD *thd, const Query_expression *u);
 
+=======
+>>>>>>> pr/231
 #ifndef NDEBUG
   /**
      Asserts that none of {this unit and its children units} is fully cleaned
@@ -1150,7 +1157,12 @@ enum class enum_explain_type {
   a query consisting of a SELECT keyword, followed by a table list,
   optionally followed by a WHERE clause, a GROUP BY, etc.
 */
+<<<<<<< HEAD
 class Query_block : public Query_term {
+=======
+<<<<<<< HEAD
+class SELECT_LEX {
+>>>>>>> pr/231
  public:
   /**
     @note the group_by and order_by lists below will probably be added to the
@@ -1182,6 +1194,27 @@ class Query_block : public Query_term {
   Item **having_cond_ref() { return &m_having_cond; }
   void set_having_cond(Item *cond) { m_having_cond = cond; }
   void set_query_result(Query_result *result) { m_query_result = result; }
+=======
+class st_select_lex: public Sql_alloc
+{
+public:
+  /// @returns a slice of ref_pointer_array
+  Ref_ptr_array ref_ptr_array_slice(size_t slice_num)
+  {
+    size_t slice_sz= ref_pointer_array.size() / 5U;
+    assert(ref_pointer_array.size() % 5 == 0);
+    assert(slice_num < 5U);
+    return Ref_ptr_array(&ref_pointer_array[slice_num * slice_sz], slice_sz);
+  }
+
+  Item  *where_cond() const { return m_where_cond; }
+  void   set_where_cond(Item *cond) { m_where_cond= cond; }
+  Item **where_cond_ref() { return &m_where_cond; }
+  Item  *having_cond() const { return m_having_cond; }
+  void   set_having_cond(Item *cond) { m_having_cond= cond; }
+
+  void set_query_result(Query_result *result) { m_query_result= result; }
+>>>>>>> upstream/cluster-7.6
   Query_result *query_result() const { return m_query_result; }
   bool change_query_result(THD *thd, Query_result_interceptor *new_result,
                            Query_result_interceptor *old_result);
@@ -1191,7 +1224,12 @@ class Query_block : public Query_term {
     DBUG_EXECUTE_IF("no_const_tables", options_arg |= OPTION_NO_CONST_TABLES;);
 
     // Make sure we do not overwrite options by accident
+<<<<<<< HEAD
     assert(m_base_options == 0 && m_active_options == 0);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(m_base_options == 0 && m_active_options == 0);
+>>>>>>> pr/231
     m_base_options = options_arg;
     m_active_options = options_arg;
   }
@@ -1201,6 +1239,19 @@ class Query_block : public Query_term {
     assert(first_execution);
     m_base_options |= options;
     m_active_options |= options;
+=======
+    assert(m_base_options == 0 && m_active_options == 0);
+    m_base_options= options_arg;
+    m_active_options= options_arg;
+  }
+
+  /// Add base options to a query block, also update active options
+  void add_base_options(ulonglong options)
+  {
+    assert(first_execution);
+    m_base_options|= options;
+    m_active_options|= options;
+>>>>>>> upstream/cluster-7.6
   }
 
   /**
@@ -1208,10 +1259,18 @@ class Query_block : public Query_term {
     Active options are also updated, and we assume here that "extra" options
     cannot override removed base options.
   */
+<<<<<<< HEAD
   void remove_base_options(ulonglong options) {
     assert(first_execution);
     m_base_options &= ~options;
     m_active_options &= ~options;
+=======
+  void remove_base_options(ulonglong options)
+  {
+    assert(first_execution);
+    m_base_options&= ~options;
+    m_active_options&= ~options;
+>>>>>>> upstream/cluster-7.6
   }
 
   /// Make active options from base options, supplied options and environment:
@@ -1387,6 +1446,242 @@ class Query_block : public Query_term {
   /// Propagate exclusion from table uniqueness test into subqueries
   void propagate_unique_test_exclusion();
 
+<<<<<<< HEAD
+=======
+  // Add full-text function elements from a list into this query block
+  bool add_ftfunc_list(List<Item_func_match> *ftfuncs);
+
+  void set_lock_for_table(const Lock_descriptor &descriptor, TABLE_LIST *table);
+
+  void set_lock_for_tables(thr_lock_type lock_type);
+<<<<<<< HEAD
+
+  inline void init_order() {
+    DBUG_ASSERT(order_list.elements == 0);
+    order_list.elements = 0;
+    order_list.first = 0;
+    order_list.next = &order_list.first;
+=======
+  inline void init_order()
+  {
+    assert(order_list.elements == 0);
+    order_list.elements= 0;
+    order_list.first= 0;
+    order_list.next= &order_list.first;
+>>>>>>> upstream/cluster-7.6
+  }
+  /*
+    This method created for reiniting LEX in mysql_admin_table() and can be
+    used only if you are going remove all SELECT_LEX & units except belonger
+    to LEX (LEX::unit & LEX::select, for other purposes use
+    SELECT_LEX_UNIT::exclude_level()
+  */
+  void cut_subtree() { slave = 0; }
+  bool test_limit();
+  /**
+    Get offset for LIMIT.
+
+    Evaluate offset item if necessary.
+
+    @return Number of rows to skip.
+
+    @todo Integrate better with SELECT_LEX_UNIT::set_limit()
+  */
+  ha_rows get_offset();
+  /**
+   Get limit.
+
+   Evaluate limit item if necessary.
+
+   @return Limit of rows in result.
+
+   @todo Integrate better with SELECT_LEX_UNIT::set_limit()
+  */
+  ha_rows get_limit();
+
+  /// Assign a default name resolution object for this query block.
+  bool set_context(Name_resolution_context *outer_context);
+
+  /// Setup the array containing references to base items
+  bool setup_base_ref_items(THD *thd);
+  void print(THD *thd, String *str, enum_query_type query_type);
+  static void print_order(String *str, ORDER *order,
+                          enum_query_type query_type);
+  void print_limit(String *str, enum_query_type query_type);
+  void fix_prepare_information(THD *thd);
+
+  bool accept(Select_lex_visitor *visitor);
+
+  /**
+    Cleanup this subtree (this SELECT_LEX and all nested SELECT_LEXes and
+    SELECT_LEX_UNITs).
+    @param full  if false only partial cleanup is done, JOINs and JOIN_TABs are
+    kept to provide info for EXPLAIN CONNECTION; if true, complete cleanup is
+    done, all JOINs are freed.
+  */
+  bool cleanup(bool full);
+  /*
+    Recursively cleanup the join of this select lex and of all nested
+    select lexes. This is not a full cleanup.
+  */
+  void cleanup_all_joins();
+
+  /// Return true if this query block is part of a UNION
+  bool is_part_of_union() const { return master_unit()->is_union(); }
+
+  /**
+    @return true if query block is found during preparation to produce no data.
+    Notice that if query is implicitly grouped, an aggregation row will
+    still be returned.
+  */
+  bool is_empty_query() const { return m_empty_query; }
+
+  /// Set query block as returning no data
+  /// @todo This may also be set when we have an always false WHERE clause
+  void set_empty_query() {
+    DBUG_ASSERT(join == NULL);
+    m_empty_query = true;
+  }
+  /*
+    For MODE_ONLY_FULL_GROUP_BY we need to know if
+    this query block is the aggregation query of at least one aggregate
+    function.
+  */
+  bool agg_func_used() const { return m_agg_func_used; }
+  bool json_agg_func_used() const { return m_json_agg_func_used; }
+
+  void set_agg_func_used(bool val) { m_agg_func_used = val; }
+
+  void set_json_agg_func_used(bool val) { m_json_agg_func_used = val; }
+
+  /// Lookup for SELECT_LEX type
+  enum_explain_type type();
+
+  /// Lookup for a type string
+  const char *get_type_str() { return type_str[static_cast<int>(type())]; }
+  static const char *get_type_str(enum_explain_type type) {
+    return type_str[static_cast<int>(type)];
+  }
+
+  bool is_dependent() const { return uncacheable & UNCACHEABLE_DEPENDENT; }
+  bool is_cacheable() const { return !uncacheable; }
+
+  /// Include query block inside a query expression.
+  void include_down(LEX *lex, SELECT_LEX_UNIT *outer);
+
+  /// Include a query block next to another query block.
+  void include_neighbour(LEX *lex, SELECT_LEX *before);
+
+  /// Include query block inside a query expression, but do not link.
+  void include_standalone(SELECT_LEX_UNIT *sel, SELECT_LEX **ref);
+
+  /// Include query block into global list.
+  void include_in_global(SELECT_LEX **plink);
+
+  /// Include chain of query blocks into global list.
+  void include_chain_in_global(SELECT_LEX **start);
+
+  /// Renumber query blocks of contained query expressions
+  void renumber(LEX *lex);
+
+  /**
+     Set pointer to corresponding JOIN object.
+     The function sets the pointer only after acquiring THD::LOCK_query_plan
+     mutex. This is needed to avoid races when EXPLAIN FOR CONNECTION is used.
+  */
+  void set_join(JOIN *join_arg);
+  /**
+    Does permanent transformations which are local to a query block (which do
+    not merge it to another block).
+  */
+  bool apply_local_transforms(THD *thd, bool prune);
+
+  bool get_optimizable_conditions(THD *thd, Item **new_where,
+                                  Item **new_having);
+
+  bool validate_outermost_option(LEX *lex, const char *wrong_option) const;
+  bool validate_base_options(LEX *lex, ulonglong options) const;
+
+ private:
+  // Delete unused columns from merged derived tables
+  void delete_unused_merged_columns(List<TABLE_LIST> *tables);
+
+  bool m_agg_func_used;
+  bool m_json_agg_func_used;
+
+  /**
+    True if query block does not generate any rows before aggregation,
+    determined during preparation (not optimization).
+  */
+  bool m_empty_query;
+
+  /// Helper for fix_prepare_information()
+  void fix_prepare_information_for_order(THD *thd, SQL_I_List<ORDER> *list,
+                                         Group_list_ptrs **list_ptrs);
+  static const char
+      *type_str[static_cast<int>(enum_explain_type::EXPLAIN_total)];
+
+  friend class SELECT_LEX_UNIT;
+  bool record_join_nest_info(List<TABLE_LIST> *tables);
+  bool simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
+                      bool in_sj, Item **new_conds, uint *changelog = NULL);
+  /// Merge derived table into query block
+ public:
+  bool merge_derived(THD *thd, TABLE_LIST *derived_table);
+<<<<<<< HEAD
+
+ private:
+=======
+  bool is_in_select_list(Item *cand);
+private:
+>>>>>>> upstream/cluster-7.6
+  bool convert_subquery_to_semijoin(Item_exists_subselect *subq_pred);
+  void remap_tables(THD *thd);
+  bool resolve_subquery(THD *thd);
+  bool resolve_rollup(THD *thd);
+  bool change_func_or_wf_group_ref(THD *thd, Item *func, bool *changed);
+
+ public:
+  bool flatten_subqueries();
+  void set_sj_candidates(Mem_root_array<Item_exists_subselect *> *sj_cand) {
+    sj_candidates = sj_cand;
+  }
+
+  bool has_sj_candidates() const {
+    return sj_candidates != NULL && !sj_candidates->empty();
+  }
+
+ private:
+  bool setup_wild(THD *thd);
+  bool setup_order_final(THD *thd);
+  bool setup_group(THD *thd);
+  void remove_redundant_subquery_clauses(THD *thd,
+                                         int hidden_group_field_count);
+  void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list);
+  void empty_order_list(SELECT_LEX *sl);
+  bool setup_join_cond(THD *thd, List<TABLE_LIST> *tables, bool in_update);
+  bool find_common_table_expr(THD *thd, Table_ident *table_id, TABLE_LIST *tl,
+                              Parse_context *pc, bool *found);
+
+  /**
+    Pointer to collection of subqueries candidate for semijoin
+    conversion.
+    Template parameter is "true": no need to run DTORs on pointers.
+  */
+  Mem_root_array<Item_exists_subselect *> *sj_candidates;
+
+ public:
+  /// How many expressions are part of the order by but not select list.
+  int hidden_order_field_count;
+
+  bool fix_inner_refs(THD *thd);
+  bool setup_conds(THD *thd);
+  bool prepare(THD *thd);
+  bool optimize(THD *thd);
+  void reset_nj_counters(List<TABLE_LIST> *join_list = NULL);
+  bool check_only_full_group_by(THD *thd);
+
+>>>>>>> pr/231
   /// Merge name resolution context objects of a subquery into its parent
   void merge_contexts(Query_block *inner);
 
@@ -2806,10 +3101,22 @@ class Query_tables_list {
     BINLOG_STMT_FLAG_UNSAFE_* flags in @c enum_binlog_stmt_flag.
   */
   inline void set_stmt_unsafe(enum_binlog_stmt_unsafe unsafe_type) {
+<<<<<<< HEAD
     DBUG_TRACE;
     assert(unsafe_type >= 0 && unsafe_type < BINLOG_STMT_UNSAFE_COUNT);
     binlog_stmt_flags |= (1U << unsafe_type);
     return;
+=======
+    DBUG_ENTER("set_stmt_unsafe");
+<<<<<<< HEAD
+    DBUG_ASSERT(unsafe_type >= 0 && unsafe_type < BINLOG_STMT_UNSAFE_COUNT);
+    binlog_stmt_flags |= (1U << unsafe_type);
+=======
+    assert(unsafe_type >= 0 && unsafe_type < BINLOG_STMT_UNSAFE_COUNT);
+    binlog_stmt_flags|= (1U << unsafe_type);
+>>>>>>> upstream/cluster-7.6
+    DBUG_VOID_RETURN;
+>>>>>>> pr/231
   }
 
   /**
@@ -2821,10 +3128,22 @@ class Query_tables_list {
     where flag is a member of enum_binlog_stmt_unsafe.
   */
   inline void set_stmt_unsafe_flags(uint32 flags) {
+<<<<<<< HEAD
     DBUG_TRACE;
     assert((flags & ~BINLOG_STMT_UNSAFE_ALL_FLAGS) == 0);
     binlog_stmt_flags |= flags;
     return;
+=======
+    DBUG_ENTER("set_stmt_unsafe_flags");
+<<<<<<< HEAD
+    DBUG_ASSERT((flags & ~BINLOG_STMT_UNSAFE_ALL_FLAGS) == 0);
+    binlog_stmt_flags |= flags;
+=======
+    assert((flags & ~BINLOG_STMT_UNSAFE_ALL_FLAGS) == 0);
+    binlog_stmt_flags|= flags;
+>>>>>>> upstream/cluster-7.6
+    DBUG_VOID_RETURN;
+>>>>>>> pr/231
   }
 
   /**
@@ -2905,10 +3224,22 @@ class Query_tables_list {
     STMT_ACCESS_TABLE_COUNT
   };
 
+<<<<<<< HEAD
 #ifndef NDEBUG
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+>>>>>>> pr/231
   static inline const char *stmt_accessed_table_string(
       enum_stmt_accessed_table accessed_table) {
     switch (accessed_table) {
+=======
+#ifndef NDEBUG
+  static inline const char *stmt_accessed_table_string(enum_stmt_accessed_table accessed_table)
+  {
+    switch (accessed_table)
+    {
+>>>>>>> upstream/cluster-7.6
       case STMT_READS_TRANS_TABLE:
         return "STMT_READS_TRANS_TABLE";
         break;
@@ -2935,8 +3266,17 @@ class Query_tables_list {
         break;
       case STMT_ACCESS_TABLE_COUNT:
       default:
+<<<<<<< HEAD
         assert(0);
+=======
+<<<<<<< HEAD
+        DBUG_ASSERT(0);
+>>>>>>> pr/231
         break;
+=======
+        assert(0);
+      break;
+>>>>>>> upstream/cluster-7.6
     }
     MY_ASSERT_UNREACHABLE();
     return "";
@@ -2971,7 +3311,16 @@ class Query_tables_list {
   inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table) {
     DBUG_TRACE;
 
+<<<<<<< HEAD
     assert(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(accessed_table >= 0 &&
+                accessed_table < STMT_ACCESS_TABLE_COUNT);
+=======
+    assert(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     stmt_accessed_table_flag |= (1U << accessed_table);
 
     return;
@@ -2990,7 +3339,16 @@ class Query_tables_list {
   inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table) {
     DBUG_TRACE;
 
+<<<<<<< HEAD
     assert(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(accessed_table >= 0 &&
+                accessed_table < STMT_ACCESS_TABLE_COUNT);
+=======
+    assert(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return (stmt_accessed_table_flag & (1U << accessed_table)) != 0;
   }
@@ -3025,7 +3383,12 @@ class Query_tables_list {
 
       unsafe = (binlog_unsafe_map[stmt_accessed_table_flag] & condition);
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
       DBUG_PRINT("LEX::is_mixed_stmt_unsafe",
                  ("RESULT %02X %02X %02X\n", condition,
                   binlog_unsafe_map[stmt_accessed_table_flag],
@@ -3037,6 +3400,19 @@ class Query_tables_list {
           DBUG_PRINT("LEX::is_mixed_stmt_unsafe",
                      ("ACCESSED %s ", stmt_accessed_table_string(
                                           (enum_stmt_accessed_table)type_in)));
+=======
+#if !defined(NDEBUG)
+      DBUG_PRINT("LEX::is_mixed_stmt_unsafe", ("RESULT %02X %02X %02X\n", condition,
+              binlog_unsafe_map[stmt_accessed_table_flag],
+              (binlog_unsafe_map[stmt_accessed_table_flag] & condition)));
+ 
+      int type_in= 0;
+      for (; type_in < STMT_ACCESS_TABLE_COUNT; type_in++)
+      {
+        if (stmt_accessed_table((enum_stmt_accessed_table) type_in))
+          DBUG_PRINT("LEX::is_mixed_stmt_unsafe", ("ACCESSED %s ",
+                  stmt_accessed_table_string((enum_stmt_accessed_table) type_in)));
+>>>>>>> upstream/cluster-7.6
       }
 #endif
     }
@@ -3219,9 +3595,17 @@ class Lex_input_stream {
     Skip binary from the input stream.
     @param n number of bytes to accept.
   */
+<<<<<<< HEAD
   void skip_binary(int n) {
     assert(m_ptr + n <= m_end_of_query);
     if (m_echo) {
+=======
+  void skip_binary(int n)
+  {
+    assert(m_ptr + n <= m_end_of_query);
+    if (m_echo)
+    {
+>>>>>>> upstream/cluster-7.6
       memcpy(m_cpp_ptr, m_ptr, n);
       m_cpp_ptr += n;
     }
@@ -3232,10 +3616,19 @@ class Lex_input_stream {
     Get a character, and advance in the stream.
     @return the next character to parse.
   */
+<<<<<<< HEAD
   unsigned char yyGet() {
     assert(m_ptr <= m_end_of_query);
     char c = *m_ptr++;
     if (m_echo) *m_cpp_ptr++ = c;
+=======
+  unsigned char yyGet()
+  {
+    assert(m_ptr <= m_end_of_query);
+    char c= *m_ptr++;
+    if (m_echo)
+      *m_cpp_ptr++ = c;
+>>>>>>> upstream/cluster-7.6
     return c;
   }
 
@@ -3248,8 +3641,18 @@ class Lex_input_stream {
   /**
     Look at the next character to parse, but do not accept it.
   */
+<<<<<<< HEAD
   unsigned char yyPeek() const {
+<<<<<<< HEAD
     assert(m_ptr <= m_end_of_query);
+=======
+    DBUG_ASSERT(m_ptr <= m_end_of_query);
+=======
+  unsigned char yyPeek()
+  {
+    assert(m_ptr <= m_end_of_query);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_ptr[0];
   }
 
@@ -3257,8 +3660,18 @@ class Lex_input_stream {
     Look ahead at some character to parse.
     @param n offset of the character to look up
   */
+<<<<<<< HEAD
   unsigned char yyPeekn(int n) const {
+<<<<<<< HEAD
     assert(m_ptr + n <= m_end_of_query);
+=======
+    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
+=======
+  unsigned char yyPeekn(int n)
+  {
+    assert(m_ptr + n <= m_end_of_query);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_ptr[n];
   }
 
@@ -3275,8 +3688,18 @@ class Lex_input_stream {
   /**
     Accept a character, by advancing the input stream.
   */
+<<<<<<< HEAD
   void yySkip() {
+<<<<<<< HEAD
     assert(m_ptr <= m_end_of_query);
+=======
+    DBUG_ASSERT(m_ptr <= m_end_of_query);
+=======
+  void yySkip()
+  {
+    assert(m_ptr <= m_end_of_query);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     if (m_echo)
       *m_cpp_ptr++ = *m_ptr++;
     else
@@ -3287,9 +3710,17 @@ class Lex_input_stream {
     Accept multiple characters at once.
     @param n the number of characters to accept.
   */
+<<<<<<< HEAD
   void yySkipn(int n) {
     assert(m_ptr + n <= m_end_of_query);
     if (m_echo) {
+=======
+  void yySkipn(int n)
+  {
+    assert(m_ptr + n <= m_end_of_query);
+    if (m_echo)
+    {
+>>>>>>> upstream/cluster-7.6
       memcpy(m_cpp_ptr, m_ptr, n);
       m_cpp_ptr += n;
     }
@@ -3384,8 +3815,23 @@ class Lex_input_stream {
       The assumption is that the lexical analyser is always 1 character ahead,
       which the -1 account for.
     */
+<<<<<<< HEAD
     assert(m_ptr > m_tok_start);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(m_ptr > m_tok_start);
+>>>>>>> pr/231
     return (uint)((m_ptr - m_tok_start) - 1);
+=======
+    assert(m_ptr > m_tok_start);
+    return (uint) ((m_ptr - m_tok_start) - 1);
+  }
+   
+  /** Get the utf8-body string. */
+  const char *get_body_utf8_str()
+  {
+    return m_body_utf8;
+>>>>>>> upstream/cluster-7.6
   }
 
   /** Get the utf8-body string. */
@@ -3705,6 +4151,7 @@ struct LEX : public Query_tables_list {
   /* current Query_block in parsing */
   Query_block *m_current_query_block;
 
+<<<<<<< HEAD
  public:
   inline Query_block *current_query_block() const {
     return m_current_query_block;
@@ -3719,7 +4166,22 @@ struct LEX : public Query_tables_list {
 #ifndef NDEBUG
     assert_ok_set_current_query_block();
 #endif
+<<<<<<< HEAD
     m_current_query_block = select;
+=======
+    m_current_select = select;
+=======
+public:
+  inline SELECT_LEX *current_select() { return m_current_select; }
+  inline void set_current_select(SELECT_LEX *select)
+  {
+    // (2) Only owning thread could change m_current_select
+    // (1) bypass for bootstrap and "new THD"
+    assert(!current_thd || !thd || //(1)
+           thd == current_thd);    //(2)
+    m_current_select= select;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   /// @return true if this is an EXPLAIN statement
   bool is_explain() const { return explain_format != nullptr; }
@@ -4321,17 +4783,29 @@ struct LEX : public Query_tables_list {
       This check exploits the fact that the last added to all_select_list is
       on its top. So query_block (as the first added) will be at the tail
       of the list.
+<<<<<<< HEAD
     */
     if (query_block == all_query_blocks_list &&
         (sroutines == nullptr || sroutines->empty())) {
       assert(!all_query_blocks_list->next_select_in_list());
       return true;
+=======
+    */ 
+    if (select_lex == all_selects_list && !sroutines.records)
+    {
+      assert(!all_selects_list->next_select_in_list());
+      return TRUE;
+>>>>>>> upstream/cluster-7.6
     }
     return false;
   }
 
+<<<<<<< HEAD
   void release_plugins();
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   /**
     IS schema queries read some dynamic table statistics from SE.
     These statistics are cached, to avoid opening of table more
@@ -4339,6 +4813,9 @@ struct LEX : public Query_tables_list {
   */
   dd::info_schema::Table_statistics m_IS_table_stats;
   dd::info_schema::Tablespace_statistics m_IS_tablespace_stats;
+=======
+  void release_plugins();
+>>>>>>> upstream/cluster-7.6
 
   bool accept(Select_lex_visitor *visitor);
 
@@ -4429,6 +4906,7 @@ class Prepare_error_tracker {
   This object is only available during parsing,
   and is private to the syntax parser implementation (sql_yacc.yy).
 */
+<<<<<<< HEAD
 class Yacc_state {
  public:
   Yacc_state() : yacc_yyss(nullptr), yacc_yyvs(nullptr), yacc_yyls(nullptr) {
@@ -4450,6 +4928,30 @@ class Yacc_state {
     }
     m_lock_type = TL_READ_DEFAULT;
     m_mdl_type = MDL_SHARED_READ;
+=======
+class Yacc_state
+{
+public:
+  Yacc_state() : yacc_yyss(NULL), yacc_yyvs(NULL), yacc_yyls(NULL) { reset(); }
+
+  void reset()
+  {
+    if (yacc_yyss != NULL) {
+      my_free(yacc_yyss);
+      yacc_yyss = NULL;
+    }
+    if (yacc_yyvs != NULL) {
+      my_free(yacc_yyvs);
+      yacc_yyvs = NULL;
+    }
+    if (yacc_yyls != NULL) {
+      my_free(yacc_yyls);
+      yacc_yyls = NULL;
+    }
+    m_lock_type= TL_READ_DEFAULT;
+    m_mdl_type= MDL_SHARED_READ;
+    m_ha_rkey_mode= HA_READ_KEY_EXACT;
+>>>>>>> upstream/cluster-7.6
   }
 
   ~Yacc_state();
@@ -4514,6 +5016,7 @@ class Yacc_state {
 /**
   Input parameters to the parser.
 */
+<<<<<<< HEAD
 struct Parser_input {
   /**
     True if the text parsed corresponds to an actual query,
@@ -4532,7 +5035,35 @@ struct Parser_input {
   */
   bool m_compute_digest;
 
+<<<<<<< HEAD
   Parser_input() : m_has_digest(false), m_compute_digest(false) {}
+=======
+  Parser_input() : m_compute_digest(false) {}
+=======
+struct Parser_input
+{
+  /**
+    True if the text parsed corresponds to an actual query,
+    and not another text artifact.
+    This flag is used to disable digest parsing of nested:
+    - view definitions
+    - table trigger definitions
+    - table partition definitions
+    - event scheduler event definitions
+  */
+  bool m_has_digest;
+  /**
+    True if the caller needs to compute a digest.
+    This flag is used to request explicitly a digest computation,
+    independently of the performance schema configuration.
+  */
+  bool m_compute_digest;
+
+  Parser_input()
+    : m_has_digest(false), m_compute_digest(false)
+  {}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /**

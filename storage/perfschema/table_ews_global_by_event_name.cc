@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -93,8 +101,36 @@ bool PFS_index_ews_global_by_event_name::match(PFS_instr_class *instr_class) {
   return true;
 }
 
+<<<<<<< HEAD
 PFS_engine_table *table_ews_global_by_event_name::create(
     PFS_engine_table_share *) {
+=======
+PFS_engine_table_share_state
+table_ews_global_by_event_name::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_ews_global_by_event_name::m_share=
+{
+  { C_STRING_WITH_LEN("events_waits_summary_global_by_event_name") },
+  &pfs_truncatable_acl,
+  table_ews_global_by_event_name::create,
+  NULL, /* write_row */
+  table_ews_global_by_event_name::delete_all_rows,
+  table_ews_global_by_event_name::get_row_count,
+  sizeof(pos_ews_global_by_event_name),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table*
+table_ews_global_by_event_name::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_ews_global_by_event_name();
 }
 
@@ -208,6 +244,7 @@ int table_ews_global_by_event_name::rnd_pos(const void *pos) {
 
   set_position(pos);
 
+<<<<<<< HEAD
   switch (m_pos.m_index_1) {
     case pos_ews_global_by_event_name::VIEW_MUTEX:
       mutex_class = find_mutex_class(m_pos.m_index_2);
@@ -263,6 +300,77 @@ int table_ews_global_by_event_name::rnd_pos(const void *pos) {
     default:
       assert(false);
       break;
+=======
+  switch (m_pos.m_index_1)
+  {
+  case pos_ews_global_by_event_name::VIEW_MUTEX:
+    mutex_class= find_mutex_class(m_pos.m_index_2);
+    if (mutex_class)
+    {
+      make_mutex_row(mutex_class);
+      return 0;
+    }
+    break;
+  case pos_ews_global_by_event_name::VIEW_RWLOCK:
+    rwlock_class= find_rwlock_class(m_pos.m_index_2);
+    if (rwlock_class)
+    {
+      make_rwlock_row(rwlock_class);
+      return 0;
+    }
+    break;
+  case pos_ews_global_by_event_name::VIEW_COND:
+    cond_class= find_cond_class(m_pos.m_index_2);
+    if (cond_class)
+    {
+      make_cond_row(cond_class);
+      return 0;
+    }
+    break;
+  case pos_ews_global_by_event_name::VIEW_FILE:
+    file_class= find_file_class(m_pos.m_index_2);
+    if (file_class)
+    {
+      make_file_row(file_class);
+      return 0;
+    }
+    break;
+  case pos_ews_global_by_event_name::VIEW_TABLE:
+    assert(m_pos.m_index_2 >= 1);
+    assert(m_pos.m_index_2 <= 2);
+    if (m_pos.m_index_2 == 1)
+      make_table_io_row(&global_table_io_class);
+    else
+      make_table_lock_row(&global_table_lock_class);
+    break;
+  case pos_ews_global_by_event_name::VIEW_SOCKET:
+    socket_class= find_socket_class(m_pos.m_index_2);
+    if (socket_class)
+    {
+      make_socket_row(socket_class);
+      return 0;
+    }
+    break;
+  case pos_ews_global_by_event_name::VIEW_IDLE:
+    instr_class= find_idle_class(m_pos.m_index_2);
+    if (instr_class)
+    {
+      make_idle_row(instr_class);
+      return 0;
+    }
+    break;
+  case pos_ews_global_by_event_name::VIEW_METADATA:
+    instr_class= find_metadata_class(m_pos.m_index_2);
+    if (instr_class)
+    {
+      make_metadata_row(instr_class);
+      return 0;
+    }
+    break;
+  default:
+    assert(false);
+    break;
+>>>>>>> upstream/cluster-7.6
   }
 
   return HA_ERR_RECORD_DELETED;

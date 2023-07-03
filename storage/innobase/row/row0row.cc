@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -248,6 +272,7 @@ dtuple_t *row_build_index_entry_low(const dtuple_t *row, const row_ext_t *ext,
       continue;
     }
 
+<<<<<<< HEAD
     if ((!ind_field || ind_field->prefix_len == 0) &&
         (!dfield_is_ext(dfield) || index->is_clustered())) {
       /* The dfield_copy() above suffices for
@@ -257,6 +282,19 @@ dtuple_t *row_build_index_entry_low(const dtuple_t *row, const row_ext_t *ext,
       or for virtual columns in cluster index record. */
       continue;
     }
+=======
+
+		if ((!ind_field || ind_field->prefix_len == 0)
+		    && (!dfield_is_ext(dfield)
+			|| dict_index_is_clust(index))) {
+			/* The dfield_copy() above suffices for
+			columns that are stored in-page, or for
+			clustered index record columns that are not
+			part of a column prefix in the PRIMARY KEY,
+			or for virtaul columns in cluster index record. */
+			continue;
+		}
+>>>>>>> upstream/cluster-7.6
 
     /* If the column is stored externally (off-page) in
     the clustered index, it must be an ordering field in
@@ -267,7 +305,12 @@ dtuple_t *row_build_index_entry_low(const dtuple_t *row, const row_ext_t *ext,
     indexed long columns may be stored off-page. */
     ut_ad(col->ord_part);
 
+<<<<<<< HEAD
     if (ext && !col->is_virtual()) {
+=======
+<<<<<<< HEAD
+    if (ext) {
+>>>>>>> pr/231
       /* See if the column is stored externally. */
       const byte *buf = row_ext_lookup(ext, col_no, &len);
       if (UNIV_LIKELY_NULL(buf)) {
@@ -276,6 +319,19 @@ dtuple_t *row_build_index_entry_low(const dtuple_t *row, const row_ext_t *ext,
         }
         dfield_set_data(dfield, buf, len);
       }
+=======
+		if (ext && !dict_col_is_virtual(col)) {
+
+			/* See if the column is stored externally. */
+			const byte*	buf = row_ext_lookup(ext, col_no,
+							     &len);
+			if (UNIV_LIKELY_NULL(buf)) {
+				if (UNIV_UNLIKELY(buf == field_ref_zero)) {
+					return(NULL);
+				}
+				dfield_set_data(dfield, buf, len);
+			}
+>>>>>>> upstream/cluster-7.6
 
       if (ind_field->prefix_len == 0) {
         /* If ROW_FORMAT=DYNAMIC or

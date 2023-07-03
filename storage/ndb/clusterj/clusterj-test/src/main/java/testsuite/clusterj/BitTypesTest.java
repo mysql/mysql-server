@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +33,7 @@ import com.mysql.clusterj.query.QueryBuilder;
 import com.mysql.clusterj.query.QueryDomainType;
 import com.mysql.clusterj.query.Predicate;
 
+import java.math.BigInteger;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -430,7 +435,17 @@ public class BitTypesTest extends AbstractClusterJModelTest {
             preparedStatement.setInt(j, (Integer)value);
         }
         public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
+<<<<<<< HEAD
             return rs.getInt(j);
+=======
+            String value = rs.getString(j);
+            if (value.length() == 0) {
+                value = "0";
+            }
+            /* parsing 32 bit array into int will throw exception in Java 8.
+               so load it into long and then convert it to int. */
+            return (int)Long.parseLong(value);
+>>>>>>> pr/231
         }
     });
 
@@ -447,7 +462,17 @@ public class BitTypesTest extends AbstractClusterJModelTest {
             preparedStatement.setLong(j, (Long)value);
         }
         public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
+<<<<<<< HEAD
             return rs.getLong(j);
+=======
+            String value = rs.getString(j);
+            if (value.length() == 0) {
+                value = "0";
+            }
+            /* parsing 64 bit array into long will throw exception in Java 8.
+               So load it into BigInt and then convert it to long. */
+            return new BigInteger(value).longValue();
+>>>>>>> pr/231
         }
     });
 

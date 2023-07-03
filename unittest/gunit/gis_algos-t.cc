@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +82,7 @@ void SetRingOrderTest::set_order_and_compare(const std::string &s1,
   wkt.set(s1.c_str(), s1.length(), latincc);
   wkt2.set(s2.c_str(), s2.length(), latincc);
 
+<<<<<<< HEAD
   Gis_line_string *ringp =
       static_cast<Gis_line_string *>(geometry_from_text(wkt, &str, &buffer));
   assert(ringp->get_geotype() == Geometry::wkb_linestring);
@@ -84,6 +93,21 @@ void SetRingOrderTest::set_order_and_compare(const std::string &s1,
       static_cast<Gis_line_string *>(geometry_from_text(wkt2, &str2, &buffer2));
   assert(ringp->get_geotype() == Geometry::wkb_linestring);
   Gis_polygon_ring ring2(ringp->get_ptr(), ringp->get_nbytes(), my_flags, 0U);
+=======
+  Gis_polygon_ring *ringp= static_cast<Gis_polygon_ring *>
+    (geometry_from_text(wkt, &str, &buffer));
+  assert(ringp->get_geotype() == Geometry::wkb_linestring);
+  Gis_polygon_ring ring(ringp->get_ptr(),
+                        ringp->get_nbytes(), my_flags, 0U);
+  EXPECT_EQ(ring.set_ring_order(want_ccw), false);
+
+
+  ringp= static_cast<Gis_polygon_ring *>(geometry_from_text(wkt2, &str2,
+                                                            &buffer2));
+  assert(ringp->get_geotype() == Geometry::wkb_linestring);
+  Gis_polygon_ring ring2(ringp->get_ptr(),
+                         ringp->get_nbytes(), my_flags, 0U);
+>>>>>>> upstream/cluster-7.6
   EXPECT_EQ(ring2.set_ring_order(want_ccw), false);
 
   EXPECT_EQ(str.length(), str2.length());
@@ -151,11 +175,20 @@ TEST_F(SetRingOrderTest, RingDegradedToPointTest) {
   std::string s1("linestring(0 0, 0 0, 0 0, 0 0, 0 0)");
   wkt.set(s1.c_str(), s1.length(), latincc);
 
+<<<<<<< HEAD
   Gis_line_string *ringp =
       static_cast<Gis_line_string *>(geometry_from_text(wkt, &str, &buffer));
   assert(ringp->get_geotype() == Geometry::wkb_linestring);
   Gis_polygon_ring ring(ringp->get_ptr(), ringp->get_nbytes(), my_flags, 0U);
   EXPECT_EQ(ring.set_ring_order(true /*CCW*/), true);
+=======
+  Gis_polygon_ring *ringp= static_cast<Gis_polygon_ring *>
+    (geometry_from_text(wkt, &str, &buffer));
+  assert(ringp->get_geotype() == Geometry::wkb_linestring);
+  Gis_polygon_ring ring(ringp->get_ptr(),
+                        ringp->get_nbytes(), my_flags, 0U);
+  EXPECT_EQ(ring.set_ring_order(true/*CCW*/), true);
+>>>>>>> upstream/cluster-7.6
 }
 
 /*
@@ -247,6 +280,16 @@ TEST_F(GeometryManipulationTest, PolygonManipulationTest) {
                      ls0->get_flags(), ls0->get_srid());
   Gis_line_string ls00(*ls0);
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  ls = ls;
+  ls00 = ls00;
+  plgn = plgn;
+
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   Geometry_buffer buffer3;
   String wkt3, str3;
 

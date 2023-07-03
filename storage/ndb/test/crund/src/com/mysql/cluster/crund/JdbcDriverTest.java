@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+  Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
    Use is subject to license terms
 
   This program is free software; you can redistribute it and/or modify

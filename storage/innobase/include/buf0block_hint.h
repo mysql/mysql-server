@@ -1,6 +1,10 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2020, 2022, Oracle and/or its affiliates.
+=======
+Copyright (c) 2020, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -25,11 +29,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 #ifndef buf0block_hint_h
 #define buf0block_hint_h
+<<<<<<< HEAD
 #include "buf0types.h"
+=======
+#include "buf0buf.h"
+>>>>>>> pr/231
 
 namespace buf {
 class Block_hint {
  public:
+<<<<<<< HEAD
+=======
+  Block_hint():m_block(NULL),m_page_id(0,0){}
+>>>>>>> pr/231
   /** Stores the pointer to the block, which is currently buffer-fixed.
   @param[in]  block   a pointer to a buffer-fixed block to be stored */
   void store(buf_block_t *block);
@@ -45,21 +57,43 @@ class Block_hint {
   @return the return value of f
   */
   template <typename F>
+<<<<<<< HEAD
   auto run_with_hint(F &&f) {
+=======
+  bool run_with_hint(const F &f) {
+>>>>>>> pr/231
     buffer_fix_block_if_still_valid();
     /* m_block could be changed during f() call, so we use local variable to
     remember which block we need to unfix */
     buf_block_t *buffer_fixed_block = m_block;
+<<<<<<< HEAD
     auto res = f(buffer_fixed_block);
+=======
+    bool res = f(buffer_fixed_block);
+>>>>>>> pr/231
     buffer_unfix_block_if_needed(buffer_fixed_block);
     return res;
   }
 
+<<<<<<< HEAD
  private:
   /** The block pointer stored by store(). */
   buf_block_t *m_block{nullptr};
   /** If m_block is non-null, the m_block->page.id at time it was stored. */
   page_id_t m_page_id{0, 0};
+=======
+  Block_hint &operator=(const Block_hint&other){
+    m_block=other.m_block;
+    m_page_id.copy_from(other.m_page_id);
+    return *this;
+  }
+
+ private:
+  /** The block pointer stored by store(). */
+  buf_block_t *m_block;
+  /** If m_block is non-null, the m_block->page.id at time it was stored. */
+  page_id_t m_page_id;
+>>>>>>> pr/231
 
   /** A helper function which checks if m_block is not a dangling pointer and
   still points to block with page with m_page_id and if so, buffer-fixes it,

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +30,13 @@
 #include <sys/types.h>
 #include <atomic>
 
+<<<<<<< HEAD
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/group_replication_status_service.h>
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -102,10 +110,21 @@ namespace {
 LEX_CSTRING group_replication_plugin_name_str = {
     STRING_WITH_LEN("group_replication")};
 }  // namespace
+=======
+
+/**
+  Static name of Group Replication plugin.
+*/
+LEX_CSTRING group_replication_plugin_name_str= {
+  C_STRING_WITH_LEN("group_replication")
+};
+
+>>>>>>> upstream/cluster-7.6
 
 /*
   Group Replication plugin handler function accessors.
 */
+<<<<<<< HEAD
 int group_replication_init() { return initialize_channel_service_interface(); }
 
 bool is_group_replication_plugin_loaded() {
@@ -127,6 +146,7 @@ int group_replication_start(char **error_message, THD *thd) {
   int result = 1;
   plugin_ref plugin = nullptr;
 
+<<<<<<< HEAD
   if (start_stop_executing.test_and_set()) {
     std::string msg;
     msg.assign(
@@ -141,6 +161,46 @@ int group_replication_start(char **error_message, THD *thd) {
   plugin = my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
                                   MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
+=======
+  plugin_ref plugin = my_plugin_lock_by_name(0, group_replication_plugin_name,
+                                             MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != NULL) {
+=======
+#ifdef HAVE_REPLICATION
+int group_replication_init()
+{
+  return initialize_channel_service_interface();
+}
+#endif
+
+
+bool is_group_replication_plugin_loaded()
+{
+  bool result= false;
+
+  plugin_ref plugin= my_plugin_lock_by_name(0,
+                                            group_replication_plugin_name_str,
+                                            MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != NULL)
+  {
+    plugin_unlock(0, plugin);
+    result= true;
+  }
+
+  return result;
+}
+
+int group_replication_start()
+{
+  int result= 1;
+
+  plugin_ref plugin= my_plugin_lock_by_name(0,
+                                            group_replication_plugin_name_str,
+                                            MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != NULL)
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     /*
       We need to take Gtid_mode::lock because
       group_replication_handler->start function will (among other
@@ -161,7 +221,12 @@ int group_replication_start(char **error_message, THD *thd) {
       GTID_MODE=ON_PERMISSIVE between 1 and 2, we must hold
       Gtid_mode::lock.
     */
+<<<<<<< HEAD
     Checkable_rwlock::Guard g(Gtid_mode::lock, Checkable_rwlock::READ_LOCK);
+=======
+    gtid_mode_lock->rdlock();
+<<<<<<< HEAD
+>>>>>>> pr/231
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     /*
@@ -203,12 +268,30 @@ int group_replication_start(char **error_message, THD *thd) {
   } else {
     LogErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED);
   }
+<<<<<<< HEAD
 err:
   if (plugin != nullptr) plugin_unlock(nullptr, plugin);
   start_stop_executing.clear();
+=======
+=======
+    st_mysql_group_replication *plugin_handle=
+        (st_mysql_group_replication*) plugin_decl(plugin)->info;
+    result= plugin_handle->start();
+    gtid_mode_lock->unlock();
+
+    plugin_unlock(0, plugin);
+  }
+  else
+  {
+    sql_print_error("Group Replication plugin is not installed.");
+  }
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
   return result;
 }
 
+<<<<<<< HEAD
 int group_replication_stop(char **error_message) {
   int result = 1;
   plugin_ref plugin = nullptr;
@@ -233,11 +316,32 @@ int group_replication_stop(char **error_message) {
     plugin_unlock(nullptr, plugin);
   } else {
     LogErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED);
+=======
+int group_replication_stop()
+{
+  int result= 1;
+
+  plugin_ref plugin= my_plugin_lock_by_name(0,
+                                            group_replication_plugin_name_str,
+                                            MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != NULL)
+  {
+    st_mysql_group_replication *plugin_handle=
+        (st_mysql_group_replication*) plugin_decl(plugin)->info;
+    result= plugin_handle->stop();
+
+    plugin_unlock(0, plugin);
+  }
+  else
+  {
+    sql_print_error("Group Replication plugin is not installed.");
+>>>>>>> upstream/cluster-7.6
   }
   start_stop_executing.clear();
   return result;
 }
 
+<<<<<<< HEAD
 bool is_group_replication_running() {
   bool result = false;
 
@@ -248,8 +352,25 @@ bool is_group_replication_running() {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->is_running();
+<<<<<<< HEAD
     plugin_unlock(nullptr, plugin);
   }
+=======
+=======
+bool is_group_replication_running()
+{
+  bool result= false;
+
+  plugin_ref plugin= my_plugin_lock_by_name(0,
+                                            group_replication_plugin_name_str,
+                                            MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != NULL)
+  {
+    st_mysql_group_replication *plugin_handle=
+        (st_mysql_group_replication*) plugin_decl(plugin)->info;
+    result= plugin_handle->is_running();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return result;
 }
@@ -270,6 +391,7 @@ bool is_group_replication_cloning() {
   return result;
 }
 
+<<<<<<< HEAD
 int set_group_replication_retrieved_certification_info(
     View_change_log_event *view_change_event) {
   int result = 1;
@@ -281,13 +403,33 @@ int set_group_replication_retrieved_certification_info(
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->set_retrieved_certification_info(view_change_event);
+<<<<<<< HEAD
     plugin_unlock(nullptr, plugin);
+=======
+=======
+int set_group_replication_retrieved_certification_info(View_change_log_event *view_change_event)
+{
+  int result= 1;
+
+  plugin_ref plugin= my_plugin_lock_by_name(0,
+                                            group_replication_plugin_name_str,
+                                            MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != NULL)
+  {
+    st_mysql_group_replication *plugin_handle=
+        (st_mysql_group_replication*) plugin_decl(plugin)->info;
+    result= plugin_handle->set_retrieved_certification_info(view_change_event);
+>>>>>>> upstream/cluster-7.6
+
+    plugin_unlock(0, plugin);
+>>>>>>> pr/231
   }
 
   return result;
 }
 
 bool get_group_replication_connection_status_info(
+<<<<<<< HEAD
     const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS &callbacks) {
   bool result = true;
 
@@ -298,7 +440,26 @@ bool get_group_replication_connection_status_info(
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->get_connection_status_info(callbacks);
+<<<<<<< HEAD
     plugin_unlock(nullptr, plugin);
+=======
+=======
+    const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks)
+{
+  bool result= true;
+
+  plugin_ref plugin= my_plugin_lock_by_name(0,
+                                            group_replication_plugin_name_str,
+                                            MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != NULL)
+  {
+    st_mysql_group_replication *plugin_handle=
+        (st_mysql_group_replication*) plugin_decl(plugin)->info;
+    result= plugin_handle->get_connection_status_info(callbacks);
+>>>>>>> upstream/cluster-7.6
+
+    plugin_unlock(0, plugin);
+>>>>>>> pr/231
   }
 
   return result;
@@ -306,6 +467,7 @@ bool get_group_replication_connection_status_info(
 
 bool get_group_replication_group_members_info(
     unsigned int index,
+<<<<<<< HEAD
     const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS &callbacks) {
   bool result = true;
 
@@ -316,13 +478,33 @@ bool get_group_replication_group_members_info(
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->get_group_members_info(index, callbacks);
+<<<<<<< HEAD
     plugin_unlock(nullptr, plugin);
+=======
+=======
+    const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks)
+{
+  bool result= true;
+
+  plugin_ref plugin= my_plugin_lock_by_name(0,
+                                            group_replication_plugin_name_str,
+                                            MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != NULL)
+  {
+    st_mysql_group_replication *plugin_handle=
+        (st_mysql_group_replication*) plugin_decl(plugin)->info;
+    result= plugin_handle->get_group_members_info(index, callbacks);
+>>>>>>> upstream/cluster-7.6
+
+    plugin_unlock(0, plugin);
+>>>>>>> pr/231
   }
 
   return result;
 }
 
 bool get_group_replication_group_member_stats_info(
+<<<<<<< HEAD
     unsigned int index,
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks) {
   bool result = true;
@@ -334,12 +516,32 @@ bool get_group_replication_group_member_stats_info(
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->get_group_member_stats_info(index, callbacks);
+<<<<<<< HEAD
     plugin_unlock(nullptr, plugin);
+=======
+=======
+    const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks)
+{
+  bool result= true;
+
+  plugin_ref plugin= my_plugin_lock_by_name(0,
+                                            group_replication_plugin_name_str,
+                                            MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != NULL)
+  {
+    st_mysql_group_replication *plugin_handle=
+        (st_mysql_group_replication*) plugin_decl(plugin)->info;
+    result= plugin_handle->get_group_member_stats_info(callbacks);
+>>>>>>> upstream/cluster-7.6
+
+    plugin_unlock(0, plugin);
+>>>>>>> pr/231
   }
 
   return result;
 }
 
+<<<<<<< HEAD
 unsigned int get_group_replication_members_number_info() {
   unsigned int result = 0;
 
@@ -353,6 +555,24 @@ unsigned int get_group_replication_members_number_info() {
     plugin_unlock(nullptr, plugin);
   }
 
+=======
+unsigned int get_group_replication_members_number_info()
+{
+  unsigned int result= 0;
+
+  plugin_ref plugin= my_plugin_lock_by_name(0,
+                                            group_replication_plugin_name_str,
+                                            MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != NULL)
+  {
+    st_mysql_group_replication *plugin_handle=
+        (st_mysql_group_replication*) plugin_decl(plugin)->info;
+    result= plugin_handle->get_members_number_info();
+
+    plugin_unlock(0, plugin);
+  }
+
+>>>>>>> upstream/cluster-7.6
   return result;
 }
 
@@ -506,7 +726,11 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       size_t *length) {
   Checkable_rwlock::Guard g(*global_sid_lock, Checkable_rwlock::WRITE_LOCK);
 
+<<<<<<< HEAD
   assert(global_gtid_mode.get() != Gtid_mode::OFF);
+=======
+  assert(get_gtid_mode(GTID_MODE_LOCK_SID) > 0);
+>>>>>>> pr/231
 
   const Gtid_set *executed_gtids = gtid_state->get_executed_gtids();
   *length = executed_gtids->get_encoded_length();
@@ -518,8 +742,19 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
   return false;
 }
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
 char *encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length) {
+=======
+#if !defined(NDEBUG)
+char* encoded_gtid_set_to_string(uchar *encoded_gtid_set,
+                                 size_t length)
+{
+>>>>>>> upstream/cluster-7.6
   /* No sid_lock because this is a completely local object. */
   Sid_map sid_map(nullptr);
   Gtid_set set(&sid_map);
@@ -541,6 +776,7 @@ void global_thd_manager_remove_thd(THD *thd) {
   Global_THD_manager::get_instance()->remove_thd(thd);
 }
 
+<<<<<<< HEAD
 bool is_gtid_committed(const Gtid &gtid) {
   Checkable_rwlock::Guard g(*global_sid_lock, Checkable_rwlock::READ_LOCK);
 
@@ -694,4 +930,8 @@ bool is_group_replication_member_secondary() {
 
   srv_registry->release(gr_status_service_handler);
   return is_a_secondary;
+=======
+unsigned long get_slave_max_allowed_packet() {
+  return slave_max_allowed_packet;
+>>>>>>> pr/231
 }

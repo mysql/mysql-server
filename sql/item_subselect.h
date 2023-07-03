@@ -1,7 +1,15 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -225,10 +233,14 @@ class Item_subselect : public Item_result_field {
   bool inform_item_in_cond_of_tab(uchar *arg) override;
   bool clean_up_after_removal(uchar *arg) override;
 
+<<<<<<< HEAD
   const char *func_name() const override {
     assert(0);
     return "subselect";
   }
+=======
+  const char *func_name() const { assert(0); return "subselect"; }
+>>>>>>> upstream/cluster-7.6
 
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
@@ -776,8 +788,87 @@ class SubqueryWithResult {
 
   Query_expression *unit; /* corresponding unit structure */
 
+<<<<<<< HEAD
   void set_row(const mem_root_deque<Item *> &item_list, Item_cache **row,
                bool never_empty);
+=======
+  subselect_engine(Item_subselect *si, Query_result_interceptor *res)
+      : result(res),
+        item(si),
+        res_type(STRING_RESULT),
+        res_field_type(MYSQL_TYPE_VAR_STRING),
+        maybe_null(false) {}
+  virtual ~subselect_engine(){};  // to satisfy compiler
+  /**
+    Cleanup engine after complete query execution, free all resources.
+  */
+  virtual void cleanup() = 0;
+
+  /// Sets "thd" for 'result'. Should be called before prepare()
+  void set_thd_for_result();
+  virtual bool prepare() = 0;
+  virtual void fix_length_and_dec(Item_cache **row) = 0;
+  /*
+    Execute the engine
+
+    SYNOPSIS
+      exec()
+
+    DESCRIPTION
+      Execute the engine. The result of execution is subquery value that is
+      either captured by previously set up Query_result-based 'sink' or
+      stored somewhere by the exec() method itself.
+
+    RETURN
+      0 - OK
+      1 - Either an execution error, or the engine was "changed", and the
+          caller should call exec() again for the new engine.
+  */
+  virtual bool exec() = 0;
+  virtual uint cols() const = 0; /* return number of columns in select */
+  virtual uint8 uncacheable() const = 0; /* query is uncacheable */
+  virtual enum Item_result type() const { return res_type; }
+  virtual enum_field_types field_type() const { return res_field_type; }
+  virtual void exclude() = 0;
+  bool may_be_null() const { return maybe_null; }
+  virtual table_map upper_select_const_tables() const = 0;
+  static table_map calc_const_tables(TABLE_LIST *);
+  virtual void print(String *str, enum_query_type query_type) = 0;
+  virtual bool change_query_result(Item_subselect *si,
+                                   Query_result_subquery *result) = 0;
+  virtual enum_engine_type engine_type() const { return ABSTRACT_ENGINE; }
+#ifndef NDEBUG
+  /**
+     @returns the internal Item. Defined only in debug builds, because should
+     be used only for debug asserts.
+  */
+  const Item_subselect *get_item() const { return item; }
+#endif
+
+ protected:
+  void set_row(List<Item> &item_list, Item_cache **row, bool never_empty);
+};
+
+class subselect_single_select_engine final : public subselect_engine {
+ private:
+  SELECT_LEX *select_lex; /* corresponding select_lex */
+ public:
+  subselect_single_select_engine(SELECT_LEX *select,
+                                 Query_result_interceptor *result,
+                                 Item_subselect *item);
+  void cleanup() override;
+  bool prepare() override;
+  void fix_length_and_dec(Item_cache **row) override;
+  bool exec() override;
+  uint cols() const override;
+  uint8 uncacheable() const override;
+  void exclude() override;
+  table_map upper_select_const_tables() const override;
+  void print(String *str, enum_query_type query_type) override;
+  bool change_query_result(Item_subselect *si,
+                           Query_result_subquery *result) override;
+  enum_engine_type engine_type() const override { return SINGLE_SELECT_ENGINE; }
+>>>>>>> pr/231
 
   friend class subselect_hash_sj_engine;
 };

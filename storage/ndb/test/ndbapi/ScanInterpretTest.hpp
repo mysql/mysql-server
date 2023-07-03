@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (C) 2003-2006, 2008 MySQL AB, 2008 Sun Microsystems, Inc.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify

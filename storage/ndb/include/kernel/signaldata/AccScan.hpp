@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -261,10 +265,16 @@ class AccScanRef {
   enum ErrorCode {
     TuxNoFreeScanOp = 909,
     TuxIndexNotOnline = 910,
+<<<<<<< HEAD
     TuxInvalidLockMode = 912,
     TuxNoFreeStatOp = 915,
     TupNoFreeScanOp = 925,
     AccNoFreeScanOp = 926,
+=======
+    TuxInvalidKeySize = 911,
+    TuxInvalidLockMode = 912,
+    TuxNoFreeStatOp = 915,
+>>>>>>> pr/231
   };
 
 public:
@@ -302,20 +312,33 @@ class CheckLcpStop
 
   enum ScanState
   {
+<<<<<<< HEAD
     ZSCAN_RUNNABLE = 0,               // Scan runnable immediately
     ZSCAN_RESOURCE_WAIT = 1,          // Scan waiting for something
     ZSCAN_RUNNABLE_YIELD = 2,         // Scan runnable, yielding cpu
     ZSCAN_RESOURCE_WAIT_STOPPABLE = 3 // Scan waiting for something
+=======
+    ZSCAN_RUNNABLE = 0,        // Scan runnable immediately
+    ZSCAN_RESOURCE_WAIT = 1,   // Scan waiting for something
+    ZSCAN_RUNNABLE_YIELD = 2   // Scan runnable, yielding cpu
+>>>>>>> pr/231
   };
 
   enum Reply
   {
+<<<<<<< HEAD
     // In signal[0] after EXECUTE_DIRECT
     ZTAKE_A_BREAK = RNIL,
     ZABORT_SCAN = 0
   };
 public:
   static constexpr Uint32 SignalLength = 2;
+=======
+    ZTAKE_A_BREAK = RNIL       // In signal[0] after EXECUTE_DIRECT
+  };
+public:
+  STATIC_CONST( SignalLength = 2);
+>>>>>>> pr/231
 private:
   Uint32 scanPtrI;            // scanptr.i from ACC/TUX/TUP
   Uint32 scanState;

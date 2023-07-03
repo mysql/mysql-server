@@ -464,7 +464,11 @@ Dbtup::get_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
  *void
  *Dbtup::reset_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
  *{
+<<<<<<< HEAD
  *  DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
+=======
+ *  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+>>>>>>> pr/231
  *  Uint32 *ptr = map.set(2 * logicalPageId);
  *  ndbassert(ptr != 0);
  *  ndbassert((*ptr) != RNIL);
@@ -1029,6 +1033,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
                        Uint32 logicalPageId,
                        PagePtr pagePtr)
 {
+<<<<<<< HEAD
   /**
    * This call is done under exclusive fragment access
    * This means no TUP fragment mutexes are acquired since no
@@ -1036,6 +1041,9 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
    * we are in exclusive mode.
    */
   DynArr256 map(c_page_map_pool_ptr, fragPtrP->m_page_map);
+=======
+  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+>>>>>>> pr/231
   DEB_LCP_REL(("(%u)releaseFragPage: tab(%u,%u) page(%u)",
                instance(),
                fragPtrP->fragTableId,

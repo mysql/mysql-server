@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -18,6 +23,26 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+Copyright (c) 2012, Facebook Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -2021,7 +2046,12 @@ void srv_mon_process_existing_counter(
         /* If MONITOR_DISPLAY_CURRENT bit is on, we
         only record the current value, rather than
         incremental value over a period. Most of
+<<<<<<< HEAD
 `                       this type of counters are resource related
+=======
+`			this type of counters are resource related
+<<<<<<< HEAD
+>>>>>>> pr/231
         counters such as number of buffer pages etc. */
         if (monitor_info->monitor_type & MONITOR_DISPLAY_CURRENT) {
           MONITOR_SET(monitor_id, value);
@@ -2031,6 +2061,18 @@ void srv_mon_process_existing_counter(
           minimum values. Only do so
           if "update_min" set to true */
           MONITOR_SET_DIFF(monitor_id, value);
+=======
+			counters such as number of buffer pages etc. */
+			if (monitor_info->monitor_type
+			    & MONITOR_DISPLAY_CURRENT) {
+				MONITOR_SET(monitor_id, value);
+			} else {
+				/* Most status counters are monotonically
+				increasing, no need to update their
+				minimum values. Only do so
+				if "update_min" set to TRUE */
+				MONITOR_SET_DIFF(monitor_id, value);
+>>>>>>> upstream/cluster-7.6
 
           if (update_min &&
               (MONITOR_VALUE(monitor_id) < MONITOR_MIN_VALUE(monitor_id))) {

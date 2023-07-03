@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,8 +151,18 @@ TEST_F(StringsUTF8Test, MyWellFormedLenUtf8) {
   ASSERT_EQ(1, error);
 }
 
+<<<<<<< HEAD
 TEST_F(StringsUTF8Test, MyIsmbcharUtf8) {
+<<<<<<< HEAD
   char utf8_src[8] = {0};
+=======
+  char utf8_src[8];
+=======
+TEST_F(StringsUTF8Test, MyIsmbcharUtf8)
+{
+  char utf8_src[8] = { 0 };
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* valid utf8 charaters, testing for boundry values */
   utf8_src[0] = '\x00';
@@ -517,8 +535,18 @@ TEST_F(StringsUTF8mb4Test, MyWellFormedLenUtf8mb4) {
   ASSERT_EQ(1, error);
 }
 
+<<<<<<< HEAD
 TEST_F(StringsUTF8mb4Test, MyIsmbcharUtf8mb4) {
+<<<<<<< HEAD
   char utf8_src[8] = {0};
+=======
+  char utf8_src[8];
+=======
+TEST_F(StringsUTF8mb4Test, MyIsmbcharUtf8mb4)
+{
+  char utf8_src[8] = { 0 };
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* valid utf8mb4 charaters, testing for boundry values */
   utf8_src[0] = '\x00';

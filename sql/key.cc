@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -495,10 +503,25 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length) {
   key1_length, key2_length are non zero value.
   @see key_cmp()
 */
+<<<<<<< HEAD
 int key_cmp2(KEY_PART_INFO *key_part, const uchar *key1, uint key1_length,
+<<<<<<< HEAD
              const uchar *key2, uint key2_length [[maybe_unused]]) {
   assert(key_part && key1 && key2);
   assert((key1_length == key2_length) && key1_length != 0);
+=======
+             const uchar *key2, uint key2_length MY_ATTRIBUTE((unused))) {
+  DBUG_ASSERT(key_part && key1 && key2);
+  DBUG_ASSERT((key1_length == key2_length) && key1_length != 0);
+=======
+int key_cmp2(KEY_PART_INFO *key_part,
+                 const uchar *key1, uint key1_length,
+                 const uchar *key2, uint key2_length)
+{
+  assert(key_part && key1 && key2);
+  assert((key1_length == key2_length) && key1_length != 0 );
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   uint store_length;
 
   /* Compare all the subkeys (if it is a composite key) */
@@ -591,7 +614,11 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
 
   /* Assert that at least the first key part is read. */
   assert(bitmap_is_set(key_info->table->read_set,
+<<<<<<< HEAD
                        key_info->key_part->field->field_index()));
+=======
+                       key_info->key_part->field->field_index));
+>>>>>>> pr/231
   /* loop over all given keys */
   do {
     key_parts = key_info->user_defined_key_parts;

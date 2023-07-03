@@ -1,7 +1,12 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -17,6 +22,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -69,13 +91,21 @@ static bool fts_opt_start_shutdown = false;
 static const ulint FTS_WORD_NODES_INIT_SIZE = 64;
 
 /** Last time we did check whether system need a sync */
+<<<<<<< HEAD
 static std::chrono::steady_clock::time_point last_check_sync_time;
+=======
+<<<<<<< HEAD
+static ib_time_t last_check_sync_time;
+>>>>>>> pr/231
 
 #if 0
 /** Check each table in round robin to see whether they'd
 need to be "optimized" */
 static  ulint   fts_optimize_sync_iterator = 0;
 #endif
+=======
+static ib_time_monotonic_t	last_check_sync_time;
+>>>>>>> upstream/cluster-7.6
 
 /** State of a table within the optimization sub system. */
 enum fts_state_t {
@@ -88,20 +118,30 @@ enum fts_state_t {
 
 /** FTS optimize thread message types. */
 enum fts_msg_type_t {
+<<<<<<< HEAD
   FTS_MSG_START, /*!< Start optimizing thread */
 
   FTS_MSG_PAUSE, /*!< Pause optimizing thread */
 
   FTS_MSG_STOP, /*!< Stop optimizing and exit thread */
+=======
+	FTS_MSG_STOP,			/*!< Stop optimizing and exit thread */
+>>>>>>> upstream/cluster-7.6
 
   FTS_MSG_ADD_TABLE, /*!< Add table to the optimize thread's
                      work queue */
 
+<<<<<<< HEAD
   FTS_MSG_OPTIMIZE_TABLE, /*!< Optimize a table */
 
   FTS_MSG_DEL_TABLE, /*!< Remove a table from the optimize
                      threads work queue */
   FTS_MSG_SYNC_TABLE /*!< Sync fts cache of a table */
+=======
+	FTS_MSG_DEL_TABLE,		/*!< Remove a table from the optimize
+					threads work queue */
+	FTS_MSG_SYNC_TABLE		/*!< Sync fts cache of a table */
+>>>>>>> upstream/cluster-7.6
 };
 
 /** Compressed list of words that have been read from FTS INDEX
@@ -213,11 +253,27 @@ struct fts_slot_t {
   std::chrono::steady_clock::time_point
       last_run{}; /*!< Time last run completed */
 
+<<<<<<< HEAD
   std::chrono::steady_clock::time_point
       completed{}; /*!< Optimize finish time */
 
   std::chrono::seconds interval_time{0}; /*!< Minimum time to wait before
                          optimizing the table again. */
+=======
+<<<<<<< HEAD
+  ib_time_t completed; /*!< Optimize finish time */
+
+  ib_time_t interval_time; /*!< Minimum time to wait before
+                           optimizing the table again. */
+=======
+	ib_time_monotonic_t	last_run;  /*!< Time last run completed */
+
+	ib_time_monotonic_t	completed; /*!< Optimize finish time */
+
+	ib_time_t	interval_time;	   /*!< Minimum time to wait before
+					   optimizing the table again. */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /** A table remove message for the FTS optimize thread. */
@@ -239,8 +295,13 @@ struct fts_msg_t {
 /** The number of words to read and optimize in a single pass. */
 ulong fts_num_word_optimize;
 
+<<<<<<< HEAD
 // FIXME
 bool fts_enable_diag_print;
+=======
+/** Whether to enable additional FTS diagnostic printout. */
+char	fts_enable_diag_print;
+>>>>>>> upstream/cluster-7.6
 
 /** ZLib compressed block size.*/
 static ulint FTS_ZIP_BLOCK_SIZE = 1024;
@@ -637,12 +698,21 @@ static bool fts_fetch_index_words(
     void *row,      /*!< in: sel_node_t* */
     void *user_arg) /*!< in: pointer to ib_vector_t */
 {
+<<<<<<< HEAD
   sel_node_t *sel_node = static_cast<sel_node_t *>(row);
   fts_zip_t *zip = static_cast<fts_zip_t *>(user_arg);
   que_node_t *exp = sel_node->select_list;
   dfield_t *dfield = que_node_get_val(exp);
   ushort len = static_cast<ushort>(dfield_get_len(dfield));
   void *data = dfield_get_data(dfield);
+=======
+	sel_node_t*	sel_node = static_cast<sel_node_t*>(row);
+	fts_zip_t*	zip = static_cast<fts_zip_t*>(user_arg);
+	que_node_t*	exp = sel_node->select_list;
+	dfield_t*	dfield = que_node_get_val(exp);
+	ushort		len =  static_cast<ushort>(dfield_get_len(dfield));
+	void*		data = dfield_get_data(dfield);
+>>>>>>> upstream/cluster-7.6
 
   /* Skip the duplicate words. */
   if (zip->word.f_len == static_cast<ulint>(len) &&
@@ -1416,13 +1486,31 @@ void fts_word_free(fts_word_t *word) /*!< in: instance to free.*/
   mem_heap_free(heap);
 }
 
+<<<<<<< HEAD
 /** Optimize the word ilist and rewrite data to the FTS index.
  @return status one of RESTART, EXIT, ERROR */
 [[nodiscard]] static dberr_t fts_optimize_compact(
     fts_optimize_t *optim, /*!< in: optimize state data */
     dict_index_t *index,   /*!< in: current FTS being optimized */
+<<<<<<< HEAD
     std::chrono::steady_clock::time_point
         start_time) /*!< in: optimize start time */
+=======
+    ib_time_t start_time)  /*!< in: optimize start time */
+=======
+/**********************************************************************//**
+Optimize the word ilist and rewrite data to the FTS index.
+@return status one of RESTART, EXIT, ERROR */
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
+dberr_t
+fts_optimize_compact(
+/*=================*/
+	fts_optimize_t*	optim,		     /*!< in: optimize state data */
+	dict_index_t*	index,		     /*!< in: current FTS being
+					      optimized */
+	ib_time_monotonic_t	start_time)  /*!< in: optimize start time */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 {
   ulint i;
   dberr_t error = DB_SUCCESS;
@@ -1454,12 +1542,24 @@ void fts_word_free(fts_word_t *word) /*!< in: instance to free.*/
     /* Free the word that was optimized. */
     fts_word_free(word);
 
+<<<<<<< HEAD
     if (fts_optimize_time_limit > std::chrono::seconds::zero() &&
         std::chrono::steady_clock::now() - start_time >
             fts_optimize_time_limit) {
       optim->done = true;
+=======
+<<<<<<< HEAD
+    if (fts_optimize_time_limit > 0 &&
+        (ut_time() - start_time) > fts_optimize_time_limit) {
+      optim->done = TRUE;
+>>>>>>> pr/231
     }
   }
+=======
+		if (fts_optimize_time_limit > 0
+		    && (ut_time_monotonic() - start_time) >
+		        fts_optimize_time_limit) {
+>>>>>>> upstream/cluster-7.6
 
   return (error);
 }
@@ -1610,9 +1710,16 @@ static void fts_optimize_words(
     dict_index_t *index,   /*!< in: current FTS being optimized */
     fts_string_t *word)    /*!< in: the starting word to optimize */
 {
+<<<<<<< HEAD
   fts_fetch_t fetch;
   que_t *graph = nullptr;
   CHARSET_INFO *charset = optim->fts_index_table.charset;
+=======
+	fts_fetch_t	fetch;
+	ib_time_monotonic_t	start_time;
+	que_t*		graph = NULL;
+	CHARSET_INFO*	charset = optim->fts_index_table.charset;
+>>>>>>> upstream/cluster-7.6
 
   ut_a(!optim->done);
 
@@ -1620,7 +1727,15 @@ static void fts_optimize_words(
   fts_optimize_time_limit =
       fts_optimize_get_time_limit(optim->trx, &optim->fts_common_table);
 
+<<<<<<< HEAD
   const auto start_time = std::chrono::steady_clock::now();
+=======
+<<<<<<< HEAD
+  start_time = ut_time();
+=======
+	start_time = ut_time_monotonic();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Setup the callback to use for fetching the word ilist etc. */
   fetch.read_arg = optim->words;
@@ -2277,10 +2392,16 @@ static dberr_t fts_optimize_table_bk(
 {
   dberr_t error = DB_SUCCESS;
 
+<<<<<<< HEAD
   /* Avoid optimizing tables that were optimized recently. */
   if (slot->last_run != std::chrono::steady_clock::time_point{} &&
       std::chrono::steady_clock::now() - slot->last_run < slot->interval_time) {
     return (DB_SUCCESS);
+=======
+	/* Avoid optimizing tables that were optimized recently. */
+	if (slot->last_run > 0
+	    && (ut_time_monotonic() - slot->last_run) < slot->interval_time) {
+>>>>>>> upstream/cluster-7.6
 
   } else {
     dict_table_t *table = nullptr;
@@ -2292,6 +2413,7 @@ static dberr_t fts_optimize_table_bk(
     if (table != nullptr) {
       fts_t *fts = table->fts;
 
+<<<<<<< HEAD
       if (fts != nullptr && fts->cache != nullptr &&
           fts->cache->deleted >= FTS_OPTIMIZE_THRESHOLD) {
         error = fts_optimize_table(table);
@@ -2302,6 +2424,19 @@ static dberr_t fts_optimize_table_bk(
           slot->completed = std::chrono::steady_clock::now();
         }
       }
+=======
+		if (error == DB_SUCCESS) {
+			slot->state = FTS_STATE_DONE;
+			slot->last_run = 0;
+			slot->completed = ut_time_monotonic();
+		}
+	} else {
+		error = DB_SUCCESS;
+	}
+
+	/* Note time this run completed. */
+	slot->last_run = ut_time_monotonic();
+>>>>>>> upstream/cluster-7.6
 
       dd_table_close(table, thd, &mdl, false);
     }
@@ -2418,15 +2553,29 @@ static fts_msg_t *fts_optimize_create_msg(
   return (msg);
 }
 
+<<<<<<< HEAD
 /** Add the table to add to the OPTIMIZER's list. */
 void fts_optimize_add_table(dict_table_t *table) /*!< in: table to add */
+=======
+/** Add the table to add to the OPTIMIZER's list.
+@param[in]	table	table to add */
+void
+fts_optimize_add_table(
+	dict_table_t*	table)
+>>>>>>> upstream/cluster-7.6
 {
   fts_msg_t *msg;
   fts_msg_id_t *add;
 
+<<<<<<< HEAD
   if (!fts_optimize_wq) {
     return;
   }
+=======
+	if (!fts_optimize_is_init()) {
+		return;
+	}
+>>>>>>> upstream/cluster-7.6
 
   /* Make sure table with FTS index cannot be evicted */
   dict_table_prevent_eviction(table);
@@ -2443,6 +2592,7 @@ void fts_optimize_add_table(dict_table_t *table) /*!< in: table to add */
 
 #if 0
 /**********************************************************************//**
+<<<<<<< HEAD
 Optimize a table. */
 static
 void
@@ -2465,14 +2615,29 @@ fts_optimize_do_table(
 /** Remove the table from the OPTIMIZER's list. We do wait for
  acknowledgement from the consumer of the message. */
 void fts_optimize_remove_table(dict_table_t *table) /*!< in: table to remove */
+=======
+Remove the table from the OPTIMIZER's list. We do wait for
+acknowledgement from the consumer of the message. */
+void
+fts_optimize_remove_table(
+/*======================*/
+	dict_table_t*	table)			/*!< in: table to remove */
+>>>>>>> upstream/cluster-7.6
 {
   fts_msg_t *msg;
   fts_msg_id_t *remove;
 
+<<<<<<< HEAD
   /* if the optimize system not yet initialized, return */
   if (!fts_optimize_wq) {
     return;
   }
+=======
+	/* if the optimize system not yet initialized, return */
+	if (!fts_optimize_is_init()) {
+		return;
+	}
+>>>>>>> upstream/cluster-7.6
 
   /* FTS optimizer thread is already exited */
   if (fts_opt_start_shutdown) {
@@ -2498,10 +2663,17 @@ void fts_optimize_request_sync_table(dict_table_t *table) {
   fts_msg_t *msg;
   table_id_t *table_id;
 
+<<<<<<< HEAD
   /* if the optimize system not yet initialized, return */
   if (!fts_optimize_wq) {
     return;
   }
+=======
+	/* if the optimize system not yet initialized, return */
+	if (!fts_optimize_is_init()) {
+		return;
+	}
+>>>>>>> upstream/cluster-7.6
 
   /* FTS optimizer thread is already exited */
   if (fts_opt_start_shutdown) {
@@ -2517,6 +2689,7 @@ void fts_optimize_request_sync_table(dict_table_t *table) {
   *table_id = table->id;
   msg->ptr = table_id;
 
+<<<<<<< HEAD
   ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
   DBUG_EXECUTE_IF(
       "fts_optimize_wq_count_check",
@@ -2561,6 +2734,12 @@ static void fts_optimize_start_table(
     slot->last_run = {};
     slot->completed = {};
   }
+=======
+	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
+	DBUG_EXECUTE_IF("fts_optimize_wq_count_check",
+	    if (ib_wqueue_get_count(fts_optimize_wq) > 1000) {
+	    DBUG_SUICIDE(); });
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Add the table to the vector if it doesn't already exist. */
@@ -2640,10 +2819,23 @@ static ulint fts_optimize_how_many(
     const ib_vector_t *tables) /*!< in: registered tables
                                vector*/
 {
+<<<<<<< HEAD
   ulint i;
   ulint n_tables = 0;
 
+<<<<<<< HEAD
   const auto current_time = std::chrono::steady_clock::now();
+=======
+  current_time = ut_time();
+=======
+	ulint		i;
+	ib_time_monotonic_t	delta;
+	ulint		n_tables = 0;
+	ib_time_monotonic_t	current_time;
+
+	current_time = ut_time_monotonic();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   for (i = 0; i < ib_vector_size(tables); ++i) {
     const fts_slot_t *slot;
@@ -2685,15 +2877,32 @@ static ulint fts_optimize_how_many(
 static bool fts_is_sync_needed(const ib_vector_t *tables) /*!< in: registered
                                                           tables vector*/
 {
+<<<<<<< HEAD
   ulint total_memory = 0;
+<<<<<<< HEAD
   const auto time_diff =
       std::chrono::steady_clock::now() - last_check_sync_time;
+=======
+  double time_diff = difftime(ut_time(), last_check_sync_time);
+=======
+	ulint	total_memory = 0;
+	uint64_t time_diff = ut_time_monotonic() - last_check_sync_time;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (fts_need_sync || time_diff < std::chrono::seconds{5}) {
     return (false);
   }
 
+<<<<<<< HEAD
   last_check_sync_time = std::chrono::steady_clock::now();
+=======
+<<<<<<< HEAD
+  last_check_sync_time = ut_time();
+=======
+	last_check_sync_time = ut_time_monotonic();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   dict_sys_mutex_enter();
 
@@ -2726,6 +2935,7 @@ static bool fts_is_sync_needed(const ib_vector_t *tables) /*!< in: registered
   return (false);
 }
 
+<<<<<<< HEAD
 #if 0
 /*********************************************************************//**
 Check whether a table needs to be optimized. */
@@ -2776,6 +2986,8 @@ fts_optimize_need_sync(
 }
 #endif
 
+=======
+>>>>>>> upstream/cluster-7.6
 /** Sync fts cache of a table
 @param[in]      table_id        table id */
 void fts_optimize_sync_table(table_id_t table_id) {
@@ -2785,10 +2997,17 @@ void fts_optimize_sync_table(table_id_t table_id) {
 
   table = dd_table_open_on_id(table_id, thd, &mdl, false, true);
 
+<<<<<<< HEAD
   if (table) {
     if (dict_table_has_fts_index(table) && table->fts->cache) {
       fts_sync_table(table, true, false, true);
     }
+=======
+	if (table) {
+		if (dict_table_has_fts_index(table) && table->fts->cache) {
+			fts_sync_table(table, true, false, false);
+		}
+>>>>>>> upstream/cluster-7.6
 
     dd_table_close(table, thd, &mdl, false);
   }
@@ -2851,8 +3070,13 @@ static void fts_optimize_thread(ib_wqueue_t *wq) {
           fts_need_sync = true;
         }
 
+<<<<<<< HEAD
         continue;
       }
+=======
+			msg = static_cast<fts_msg_t*>(
+				ib_wqueue_timedwait(wq, FTS_QUEUE_WAIT_IN_USECS));
+>>>>>>> upstream/cluster-7.6
 
       switch (msg->type) {
         case FTS_MSG_START:
@@ -2861,6 +3085,7 @@ static void fts_optimize_thread(ib_wqueue_t *wq) {
         case FTS_MSG_PAUSE:
           break;
 
+<<<<<<< HEAD
         case FTS_MSG_STOP:
           done = true;
           break;
@@ -2897,6 +3122,41 @@ static void fts_optimize_thread(ib_wqueue_t *wq) {
       }
 
       mem_heap_free(msg->heap);
+=======
+			switch (msg->type) {
+			case FTS_MSG_STOP:
+				done = TRUE;
+				break;
+
+			case FTS_MSG_ADD_TABLE:
+				ut_a(!done);
+				if (fts_optimize_new_table(
+					fts_slots,
+					static_cast<dict_table_t*>(msg->ptr))) {
+					++n_tables;
+				}
+				break;
+
+			case FTS_MSG_DEL_TABLE:
+				if (fts_optimize_del_table(
+					fts_slots, static_cast<fts_msg_del_t*>(msg->ptr))) {
+					--n_tables;
+				}
+
+				/* Signal the producer that we have
+				removed the table. */
+				os_event_set(((fts_msg_del_t*) msg->ptr)->event);
+				break;
+
+			case FTS_MSG_SYNC_TABLE:
+				DBUG_EXECUTE_IF("fts_instrument_msg_sync_sleep",
+					os_thread_sleep(300000);
+				);
+
+				fts_optimize_sync_table(
+					*static_cast<table_id_t*>(msg->ptr));
+				break;
+>>>>>>> upstream/cluster-7.6
 
       if (!done) {
         n_optimize = fts_optimize_how_many(tables);
@@ -2936,14 +3196,75 @@ void fts_optimize_init(void) {
   /* For now we only support one optimize thread. */
   ut_a(fts_optimize_wq == nullptr);
 
+<<<<<<< HEAD
   fts_optimize_wq = ib_wqueue_create();
   ut_a(fts_optimize_wq != nullptr);
   last_check_sync_time = std::chrono::steady_clock::now();
 
+<<<<<<< HEAD
   srv_threads.m_fts_optimize = os_thread_create(
       fts_optimize_thread_key, 0, fts_optimize_thread, fts_optimize_wq);
 
   srv_threads.m_fts_optimize.start();
+=======
+  os_thread_create(fts_optimize_thread_key, fts_optimize_thread,
+                   fts_optimize_wq);
+=======
+	/* For now we only support one optimize thread. */
+	ut_a(!fts_optimize_is_init());
+
+	/* Create FTS optimize work queue */
+	fts_optimize_wq = ib_wqueue_create();
+	ut_a(fts_optimize_wq != NULL);
+
+	/* Create FTS vector to store fts_slot_t */
+	heap = mem_heap_create(sizeof(dict_table_t*) * 64);
+	heap_alloc = ib_heap_allocator_create(heap);
+	fts_slots = ib_vector_create(heap_alloc, sizeof(fts_slot_t), 4);
+
+	/* Add fts tables to the fts_slots vector which were skipped during restart */
+	std::vector<dict_table_t*> table_vector;
+	std::vector<dict_table_t*>::iterator it;
+
+	mutex_enter(&dict_sys->mutex);
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+             table != NULL;
+             table = UT_LIST_GET_NEXT(table_LRU, table)) {
+                if (table->fts &&
+                    dict_table_has_fts_index(table)) {
+			if (fts_optimize_new_table(fts_slots,
+						   table)){
+				table_vector.push_back(table);
+			}
+		}
+	}
+
+	/* It is better to call dict_table_prevent_eviction()
+	outside the above loop because it operates on
+	dict_sys->table_LRU list.*/
+	for (it=table_vector.begin();it!=table_vector.end();++it) {
+		dict_table_prevent_eviction(*it);
+	}
+
+	mutex_exit(&dict_sys->mutex);
+	table_vector.clear();
+
+	fts_opt_shutdown_event = os_event_create(0);
+	last_check_sync_time = ut_time_monotonic();
+
+	os_thread_create(fts_optimize_thread, fts_optimize_wq, NULL);
+}
+
+/**********************************************************************//**
+Check whether the work queue is initialized.
+@return TRUE if optimize queue is initialized. */
+ibool
+fts_optimize_is_init(void)
+/*======================*/
+{
+	return(fts_optimize_wq != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /** Shutdown fts optimize thread. */

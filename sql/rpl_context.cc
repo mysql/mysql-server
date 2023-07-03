@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,9 +75,19 @@ inline bool Session_consistency_gtids_ctx::shall_collect(const THD *thd) {
 
 bool Session_consistency_gtids_ctx::notify_after_transaction_commit(
     const THD *thd) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(thd);
+=======
+  DBUG_ENTER("Rpl_consistency_ctx::notify_after_transaction_commit");
+<<<<<<< HEAD
+  DBUG_ASSERT(thd);
+>>>>>>> pr/231
   bool res = false;
+=======
+  assert(thd);
+  bool res= false;
+>>>>>>> upstream/cluster-7.6
 
   if (!shall_collect(thd)) return res;
 
@@ -93,22 +111,56 @@ bool Session_consistency_gtids_ctx::notify_after_transaction_commit(
 
 bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
     const THD *thd) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(thd);
+=======
+  DBUG_ENTER("Rpl_consistency_ctx::notify_after_gtid_executed_update");
+<<<<<<< HEAD
+  DBUG_ASSERT(thd);
+>>>>>>> pr/231
   bool res = false;
+=======
+  assert(thd);
+  bool res= false;
+>>>>>>> upstream/cluster-7.6
 
   if (!shall_collect(thd)) return res;
 
+<<<<<<< HEAD
   if (m_curr_session_track_gtids == SESSION_TRACK_GTIDS_OWN_GTID) {
     assert(global_gtid_mode.get() != Gtid_mode::OFF);
     assert(thd->owned_gtid.sidno > 0);
+=======
+<<<<<<< HEAD
+  if (m_curr_session_track_gtids == OWN_GTID) {
+    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_OFF);
+    DBUG_ASSERT(thd->owned_gtid.sidno > 0);
+>>>>>>> pr/231
     const Gtid &gtid = thd->owned_gtid;
     if (gtid.sidno == -1)  // we need to add thd->owned_gtid_set
+=======
+  if (m_curr_session_track_gtids == OWN_GTID)
+  {
+    assert(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_OFF);
+    assert(thd->owned_gtid.sidno > 0);
+    const Gtid& gtid= thd->owned_gtid;
+    if (gtid.sidno == -1) // we need to add thd->owned_gtid_set
+>>>>>>> upstream/cluster-7.6
     {
       /* Caller must only call this function if the set was not empty. */
 #ifdef HAVE_GTID_NEXT_LIST
+<<<<<<< HEAD
       assert(!thd->owned_gtid_set.is_empty());
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(!thd->owned_gtid_set.is_empty());
+>>>>>>> pr/231
       res = m_gtid_set->add_gtid_set(&thd->owned_gtid_set) != RETURN_STATUS_OK;
+=======
+      assert(!thd->owned_gtid_set.is_empty());
+      res= m_gtid_set->add_gtid_set(&thd->owned_gtid_set) != RETURN_STATUS_OK;
+>>>>>>> upstream/cluster-7.6
 #else
       assert(0);
 #endif
@@ -124,9 +176,20 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
       */
       rpl_sidno local_set_sidno = m_sid_map->add_sid(thd->owned_sid);
 
+<<<<<<< HEAD
       assert(!m_gtid_set->contains_gtid(local_set_sidno, gtid.gno));
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(!m_gtid_set->contains_gtid(local_set_sidno, gtid.gno));
+>>>>>>> pr/231
       res = m_gtid_set->ensure_sidno(local_set_sidno) != RETURN_STATUS_OK;
       if (!res) m_gtid_set->_add_gtid(local_set_sidno, gtid.gno);
+=======
+      assert(!m_gtid_set->contains_gtid(local_set_sidno, gtid.gno));
+      res= m_gtid_set->ensure_sidno(local_set_sidno) != RETURN_STATUS_OK;
+      if (!res)
+        m_gtid_set->_add_gtid(local_set_sidno, gtid.gno);
+>>>>>>> upstream/cluster-7.6
     }
 
     if (!res) notify_ctx_change_listener();
@@ -139,10 +202,26 @@ void Session_consistency_gtids_ctx::
   m_curr_session_track_gtids = thd->variables.session_track_gtids;
 }
 
+<<<<<<< HEAD
 bool Session_consistency_gtids_ctx::notify_after_response_packet(
     const THD *thd) {
   int res = false;
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+=======
+void Session_consistency_gtids_ctx::
+    update_tracking_activeness_from_session_variable(const THD* thd)
+{
+  m_curr_session_track_gtids= thd->variables.session_track_gtids;
+}
+
+bool Session_consistency_gtids_ctx::notify_after_response_packet(const THD *thd)
+{
+  int res= false;
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Rpl_consistency_ctx::notify_after_response_packet");
+>>>>>>> pr/231
 
   if (m_gtid_set && !m_gtid_set->is_empty()) m_gtid_set->clear();
 
@@ -151,8 +230,14 @@ bool Session_consistency_gtids_ctx::notify_after_response_packet(
    this value. It may have changed (the previous command may have been
    a SET SESSION session_track_gtids=...;).
    */
+<<<<<<< HEAD
   update_tracking_activeness_from_session_variable(thd);
   return res;
+=======
+<<<<<<< HEAD
+  m_curr_session_track_gtids = thd->variables.session_track_gtids;
+  DBUG_RETURN(res);
+>>>>>>> pr/231
 }
 
 void Session_consistency_gtids_ctx::register_ctx_change_listener(
@@ -163,20 +248,57 @@ void Session_consistency_gtids_ctx::register_ctx_change_listener(
     m_listener = listener;
     m_sid_map = new Sid_map(nullptr);
     m_gtid_set = new Gtid_set(m_sid_map);
+=======
+  update_tracking_activeness_from_session_variable(thd);
+  DBUG_RETURN(res);
+}
+
+void
+Session_consistency_gtids_ctx::register_ctx_change_listener(
+              Session_consistency_gtids_ctx::Ctx_change_listener* listener,
+              THD* thd)
+{
+  assert(m_listener == NULL || m_listener == listener);
+  if (m_listener == NULL)
+  {
+    assert(m_sid_map == NULL && m_gtid_set == NULL);
+    m_listener= listener;
+    m_sid_map= new Sid_map(NULL);
+    m_gtid_set= new Gtid_set(m_sid_map);
+>>>>>>> upstream/cluster-7.6
 
     /*
      Caches the value at startup if needed. This is called during THD::init,
      if the session_track_gtids value is set at startup time to anything
      different than OFF.
      */
+<<<<<<< HEAD
     update_tracking_activeness_from_session_variable(thd);
+=======
+<<<<<<< HEAD
+    m_curr_session_track_gtids = thd->variables.session_track_gtids;
+=======
+    update_tracking_activeness_from_session_variable(thd);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 }
 
 void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
+<<<<<<< HEAD
     Session_consistency_gtids_ctx::Ctx_change_listener *listener
+<<<<<<< HEAD
     [[maybe_unused]]) {
   assert(m_listener == listener || m_listener == nullptr);
+=======
+        MY_ATTRIBUTE((unused))) {
+  DBUG_ASSERT(m_listener == listener || m_listener == NULL);
+=======
+             Session_consistency_gtids_ctx::Ctx_change_listener* listener)
+{
+  assert(m_listener == listener || m_listener == NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (m_gtid_set) delete m_gtid_set;
 

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2022, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +17,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+<<<<<<< HEAD
+=======
+// First include (the generated) my_config.h, to get correct platform defines,
+// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+
+>>>>>>> pr/231
 #ifdef _WIN32_WINNT
 #if (_WIN32_WINNT < 0x0602)
 #undef _WIN32_WINNT
 // We need at least _WIN32_WINNT_WIN8 i.e. 0x0602 for
 // EnumDynamicTimeZoneInformation
 #define _WIN32_WINNT 0x0602
+<<<<<<< HEAD
 #endif  // (_WIN32_WINNT < 0x0602)
 #endif  // _WIN32_WINNT
 
@@ -28,6 +39,16 @@
 #include "test_utils.h"
 
 #include <mysql/components/services/log_shared.h>
+=======
+#endif // (_WIN32_WINNT < 0x0602)
+#endif // _WIN32_WINNT
+
+#include "my_config.h"
+#include "test_utils.h"
+#include <gtest/gtest.h>
+#include <stdlib.h>
+
+>>>>>>> pr/231
 #include "../sql/log.h"
 
 // CET: 32 bytes
@@ -41,6 +62,7 @@
 // we use micro-seconds since the epoch
 #define MICRO_FAC ((ulonglong)1000000L)
 
+<<<<<<< HEAD
 namespace log_timestamp_unittest {
 
 using my_testing::Server_initializer;
@@ -49,6 +71,18 @@ class LogTimestampTest : public ::testing::Test {
  protected:
   void SetUp() override { initializer.SetUp(); }
   void TearDown() override { initializer.TearDown(); }
+=======
+namespace log_timestamp_unittest
+{
+
+using my_testing::Server_initializer;
+
+class LogTimestampTest : public ::testing::Test
+{
+protected:
+  virtual void SetUp() { initializer.SetUp(); }
+  virtual void TearDown() { initializer.TearDown(); }
+>>>>>>> pr/231
 
   THD *thd() { return initializer.thd(); }
 
@@ -59,14 +93,24 @@ class LogTimestampTest : public ::testing::Test {
   Test basic functionality - throttling, eligibility, printing of summary of
                              Slow_log_throttle.
 */
+<<<<<<< HEAD
 TEST_F(LogTimestampTest, iso8601) {
+=======
+TEST_F(LogTimestampTest, iso8601)
+{
+>>>>>>> pr/231
   char time_buff[iso8601_size];
 #ifdef WIN32
   DYNAMIC_TIME_ZONE_INFORMATION original_dti = {};
   DWORD original_dti_result = GetDynamicTimeZoneInformation(&original_dti);
   EXPECT_NE(original_dti_result, TIME_ZONE_ID_INVALID);
 
+<<<<<<< HEAD
   if (original_dti.DaylightDate.wMonth == 0) {
+=======
+  if (original_dti.DaylightDate.wMonth == 0)
+  {
+>>>>>>> pr/231
     /*
       Current system time zone does not support Daylight savings. If the Windows
       system time zone has no daylight saving, then attempting to set TZ to a
@@ -74,11 +118,15 @@ TEST_F(LogTimestampTest, iso8601) {
       producing inaccurate results. Skipping the test.
       Bug#34380460 will be tracking this issue.
     */
+<<<<<<< HEAD
     GTEST_SKIP()
         << "Current system time zone does not support Daylight savings. If the "
            "Windows system time zone has no daylight saving, then attempting "
            "to set TZ to a timezone that does have daylight saving will result "
            "in localtime_r producing inaccurate results. Skipping the test. ";
+=======
+    return;
+>>>>>>> pr/231
   }
   char tz[] = "TZ=CET-1CES";
 #else
@@ -87,7 +135,11 @@ TEST_F(LogTimestampTest, iso8601) {
   int time_buff_len;
 
   EXPECT_EQ(((iso8601_size)-1), LEN_MS_CET);
+<<<<<<< HEAD
   EXPECT_EQ(((LEN_MS_CET)-5), LEN_MS_UTC);  // timezone "Z" instead of "+12:34"
+=======
+  EXPECT_EQ(((LEN_MS_CET)-5), LEN_MS_UTC);
+>>>>>>> pr/231
 
   // set up timezone (central european time)
   putenv(tz);
@@ -97,34 +149,60 @@ TEST_F(LogTimestampTest, iso8601) {
   /// 1970/01/01 .000001  (1)
 
   // UTC (winter)
+<<<<<<< HEAD
   time_buff_len = make_iso8601_timestamp(time_buff, 1, iso8601_utc);
+=======
+  opt_log_timestamps = 0; // UTC Timestamp
+  time_buff_len = make_iso8601_timestamp(time_buff, 1);
+>>>>>>> pr/231
   EXPECT_EQ(LEN_MS_UTC, time_buff_len);
   EXPECT_STREQ("1970-01-01T00:00:00.000001Z", time_buff);
 
   // CET (winter) +1h
+<<<<<<< HEAD
   time_buff_len = make_iso8601_timestamp(time_buff, 1, iso8601_system_time);
+=======
+  opt_log_timestamps = 1; // System Timestamp
+  time_buff_len = make_iso8601_timestamp(time_buff, 1);
+>>>>>>> pr/231
   EXPECT_EQ(LEN_MS_CET, time_buff_len);
   EXPECT_STREQ("1970-01-01T01:00:00.000001+01:00", time_buff);
 
   /// 2011-07-07  (1309996800)
 
   // UTC (summer)
+<<<<<<< HEAD
   time_buff_len =
       make_iso8601_timestamp(time_buff, MICRO_FAC * 1309996800, iso8601_utc);
+=======
+  opt_log_timestamps = 0;
+  time_buff_len = make_iso8601_timestamp(time_buff, MICRO_FAC * 1309996800);
+>>>>>>> pr/231
   EXPECT_EQ(LEN_MS_UTC, time_buff_len);
   EXPECT_STREQ("2011-07-07T00:00:00.000000Z", time_buff);
 
   // CET (summer) +2h
+<<<<<<< HEAD
   time_buff_len = make_iso8601_timestamp(time_buff, MICRO_FAC * 1309996800,
                                          iso8601_system_time);
+=======
+  opt_log_timestamps = 1;
+  time_buff_len = make_iso8601_timestamp(time_buff, MICRO_FAC * 1309996800);
+>>>>>>> pr/231
   EXPECT_EQ(LEN_MS_CET, time_buff_len);
   EXPECT_STREQ("2011-07-07T02:00:00.000000+02:00", time_buff);
 
   /// 1987-06-05 04:03:02.123456
 
   // UTC
+<<<<<<< HEAD
   time_buff_len = make_iso8601_timestamp(
       time_buff, (MICRO_FAC * 549864182) + 123456, iso8601_utc);
+=======
+  opt_log_timestamps = 0;
+  time_buff_len = make_iso8601_timestamp(
+      time_buff, (MICRO_FAC * 549864182) + 123456);
+>>>>>>> pr/231
   EXPECT_EQ(LEN_MS_UTC, time_buff_len);
   EXPECT_STREQ("1987-06-05T04:03:02.123456Z", time_buff);
 }

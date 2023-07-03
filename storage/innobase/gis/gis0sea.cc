@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -346,11 +370,21 @@ static bool rtr_pcur_getnext_from_path(
                                         btr_cur->rtr_info);
     }
 
+<<<<<<< HEAD
     /* Attach predicate lock if needed, no matter whether
     there are matched records */
     if (mode != PAGE_CUR_RTREE_INSERT && mode != PAGE_CUR_RTREE_LOCATE &&
         mode >= PAGE_CUR_CONTAIN && btr_cur->rtr_info->need_prdt_lock) {
       lock_prdt_t prdt;
+=======
+		/* Attach predicate lock if needed, no matter whether
+		there are matched records */
+		if (mode != PAGE_CUR_RTREE_INSERT
+		    && mode != PAGE_CUR_RTREE_LOCATE
+		    && mode >= PAGE_CUR_CONTAIN
+		    && btr_cur->rtr_info->need_prdt_lock) {
+			lock_prdt_t	prdt;
+>>>>>>> upstream/cluster-7.6
 
       trx_t *trx = thr_get_trx(btr_cur->rtr_info->thr);
       trx_mutex_enter(trx);
@@ -1123,6 +1157,7 @@ void rtr_check_discard_page(dict_index_t *index, btr_cur_t *cursor,
   lock_prdt_page_free_from_discard(block, lock_sys->prdt_hash);
   lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
 }
+<<<<<<< HEAD
 
 /** Restore the stored position of a persistent cursor bufferfixing the page */
 static bool rtr_cur_restore_position(
@@ -1130,6 +1165,36 @@ static bool rtr_cur_restore_position(
     btr_cur_t *btr_cur, /*!< in: detached persistent cursor */
     ulint level,        /*!< in: index level */
     mtr_t *mtr)         /*!< in: mtr */
+=======
+/** This is a backported version of a lambda expression:
+  [&](buf_block_t *hint) {
+     return hint != nullptr && buf_page_optimistic_get(...hint...);
+  }
+for compilers which do not support lambda expressions, nor passing local types
+as template arguments. */
+struct Buf_page_optimistic_get_functor_t{
+	btr_pcur_t * &r_cursor;
+	const char * &file;
+	ulint &line;
+	mtr_t * &mtr;
+	bool operator()(buf_block_t *hint) const {
+		return hint != NULL && buf_page_optimistic_get(
+			RW_X_LATCH, hint, r_cursor->modify_clock, file, line, mtr
+		);
+	}
+};
+/**************************************************************//**
+Restores the stored position of a persistent cursor bufferfixing the page */
+bool
+rtr_cur_restore_position_func(
+/*==========================*/
+	ulint		latch_mode,	/*!< in: BTR_CONT_MODIFY_TREE, ... */
+	btr_cur_t*	btr_cur,	/*!< in: detached persistent cursor */
+	ulint		level,		/*!< in: index level */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
+	mtr_t*		mtr)		/*!< in: mtr */
+>>>>>>> upstream/cluster-7.6
 {
   dict_index_t *index;
   mem_heap_t *heap;
@@ -1150,8 +1215,10 @@ static bool rtr_cur_restore_position(
 
   DBUG_EXECUTE_IF("rtr_pessimistic_position", r_cursor->m_modify_clock = 100;);
 
+<<<<<<< HEAD
   ut_ad(latch_mode == BTR_CONT_MODIFY_TREE);
 
+<<<<<<< HEAD
   if (r_cursor->m_block_when_stored.run_with_hint([&](buf_block_t *hint) {
         return hint != nullptr &&
                buf_page_optimistic_get(
@@ -1159,6 +1226,19 @@ static bool rtr_cur_restore_position(
                    Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
       })) {
     ut_ad(r_cursor->m_pos_state == BTR_PCUR_IS_POSITIONED);
+=======
+  if (!buf_pool_is_obsolete(r_cursor->withdraw_clock) &&
+      buf_page_optimistic_get(RW_X_LATCH, r_cursor->block_when_stored,
+                              r_cursor->modify_clock, __FILE__, __LINE__,
+                              mtr)) {
+    ut_ad(r_cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+=======
+	ut_ad(latch_mode == BTR_CONT_MODIFY_TREE);
+	Buf_page_optimistic_get_functor_t functor={r_cursor,file,line,mtr};
+	if (r_cursor->block_when_stored.run_with_hint(functor)){
+		ut_ad(r_cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     ut_ad(r_cursor->m_rel_pos == BTR_PCUR_ON);
 #ifdef UNIV_DEBUG
@@ -1187,8 +1267,22 @@ static bool rtr_cur_restore_position(
                            page_is_spatial_non_leaf(rec, index)));
       }
 
+<<<<<<< HEAD
       mem_heap_free(heap);
+<<<<<<< HEAD
     } while (false);
+=======
+    } while (0);
+=======
+				ut_ad(!cmp_rec_rec(r_cursor->old_rec,
+						   rec, offsets1, offsets2,
+						   index,page_is_spatial_non_leaf(rec, index)));
+			}
+
+			mem_heap_free(heap);
+		} while (0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif /* UNIV_DEBUG */
 
     return (true);
@@ -1246,8 +1340,13 @@ search_again:
 
     comp = rec_offs_comp(offsets1);
 
+<<<<<<< HEAD
     if ((rec_get_info_bits(r_cursor->m_old_rec, comp) &
          REC_INFO_MIN_REC_FLAG) &&
+=======
+<<<<<<< HEAD
+    if ((rec_get_info_bits(r_cursor->old_rec, comp) & REC_INFO_MIN_REC_FLAG) &&
+>>>>>>> pr/231
         (rec_get_info_bits(rec, comp) & REC_INFO_MIN_REC_FLAG)) {
       r_cursor->m_pos_state = BTR_PCUR_IS_POSITIONED;
       ret = true;
@@ -1257,6 +1356,19 @@ search_again:
       ret = true;
     }
   }
+=======
+		if ((rec_get_info_bits(r_cursor->old_rec, comp)
+		     & REC_INFO_MIN_REC_FLAG)
+		    && (rec_get_info_bits(rec, comp) & REC_INFO_MIN_REC_FLAG)) {
+			r_cursor->pos_state = BTR_PCUR_IS_POSITIONED;
+			ret = true;
+		} else if (!cmp_rec_rec(r_cursor->old_rec, rec, offsets1, offsets2,
+				 index,page_is_spatial_non_leaf(rec, index))) {
+			r_cursor->pos_state = BTR_PCUR_IS_POSITIONED;
+			ret = true;
+		}
+	}
+>>>>>>> upstream/cluster-7.6
 
   /* Check the page SSN to see if it has been split, if so, search
   the right page */
@@ -1372,10 +1484,17 @@ static void rtr_non_leaf_insert_stack_push(
                           mbr_inc);
 }
 
+<<<<<<< HEAD
 /** Copy a buf_block_t structure, except "block->lock",
 "block->mutex","block->debug_latch", "block->ahi.n_pointers and block->frame."
 @param[in,out]  matches copy to match->block
 @param[in]      block   block to copy */
+=======
+/** Copy a buf_block_t strcuture, except "block->lock" and "block->mutex".
+@param[in,out]	matches	copy to match->block
+@param[in]	block	block to copy */
+<<<<<<< HEAD
+>>>>>>> pr/231
 static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   /* Clear any space references in the page if it was copied before. */
   buf_page_prepare_for_free(&matches->block.page);
@@ -1386,6 +1505,25 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   protecting that frame (one from original block and one from dummy)*/
   new (&matches->block.page) buf_page_t(block->page);
   matches->block.unzip_LRU = block->unzip_LRU;
+=======
+static
+void
+rtr_copy_buf(
+	matched_rec_t*		matches,
+	const buf_block_t*	block)
+{
+	/* Copy all members of "block" to "matches->block" except "mutex"
+	and "lock". We skip "mutex" and "lock" because they are not used
+	from the dummy buf_block_t we create here and because memcpy()ing
+	them generates (valid) compiler warnings that the vtable pointer
+	will be copied. It is also undefined what will happen with the
+	newly memcpy()ed mutex if the source mutex was acquired by
+	(another) thread while it was copied. */
+	new (&matches->block.page) buf_page_t(block->page);
+	matches->block.frame = block->frame;
+#ifndef UNIV_HOTBACKUP
+	matches->block.unzip_LRU = block->unzip_LRU;
+>>>>>>> upstream/cluster-7.6
 
   ut_d(matches->block.in_unzip_LRU_list = block->in_unzip_LRU_list);
   ut_d(matches->block.in_withdraw_list = block->in_withdraw_list);
@@ -1755,8 +1893,17 @@ bool rtr_cur_search_with_match(const buf_block_t *block, dict_index_t *index,
       offsets = rec_get_offsets(last_match_rec, index, offsets, ULINT_UNDEFINED,
                                 UT_LOCATION_HERE, &heap);
 
+<<<<<<< HEAD
       ut_ad(cmp_rec_rec(test_rec.r_rec, last_match_rec, offsets2, offsets,
+<<<<<<< HEAD
                         index, false) == 0);
+=======
+                        index) == 0);
+=======
+			ut_ad(cmp_rec_rec(test_rec.r_rec, last_match_rec,
+					  offsets2, offsets, index, false) == 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #endif /* UNIV_DEBUG */
       /* Pop the last match record and position on it */
       match_rec->matched_recs->pop_back();

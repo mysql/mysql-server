@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +51,7 @@
 
 #include <NodeBitmask.hpp>
 #include <NdbMutex.h>
+<<<<<<< HEAD
 
 #include "portlib/NdbTick.h"
 
@@ -66,6 +71,8 @@
  */
 #define NDB_SHM_TRANSPORTER_SUPPORTED 1
 #endif
+=======
+>>>>>>> pr/231
 
 // A transporter is always in an IOState.
 // NoHalt is used initially and as long as it is no restrictions on
@@ -178,6 +185,17 @@ struct TransporterReceiveData
    */
   Uint32 m_total_spintime;
 
+  /**
+   * Spintime calculated as maximum of currently connected transporters.
+   * Only applies to shared memory transporters.
+   */
+  Uint32 m_spintime;
+
+  /**
+   * Total spintime
+   */
+  Uint32 m_total_spintime;
+
 #if defined(HAVE_EPOLL_CREATE)
   int m_epoll_fd;
   struct epoll_event *m_epoll_events;
@@ -246,7 +264,11 @@ public:
   bool connect_server(ndb_socket_t sockfd,
                       BaseString& msg,
                       bool& close_with_reset,
+<<<<<<< HEAD
                       bool& log_failure);
+=======
+                      bool& log_failure) const;
+>>>>>>> pr/231
 
   bool connect_client(NdbMgmHandle *h);
 
@@ -500,6 +522,7 @@ public:
                          NodeId nodeId,
                          const GenericSectionPtr ptr[3]);
 
+<<<<<<< HEAD
   SendStatus prepareSendOverAllLinks(
                          TransporterSendBufferHandle *sendHandle,
                          const SignalHeader *signalHeader,
@@ -512,6 +535,9 @@ public:
   bool performSend(TrpId id, bool need_wakeup = true);
   /* performSendNode is only used from NDB API */
   bool performSendNode(NodeId nodeId, bool need_wakeup = true);
+=======
+  bool performSend(NodeId nodeId, bool need_wakeup = true);
+>>>>>>> pr/231
   void performSend();
   
   void printState();
@@ -527,10 +553,16 @@ public:
 		  		 int s_port);	// signed port. <0 is dynamic
 
   int get_transporter_count() const;
+<<<<<<< HEAD
   Transporter* get_transporter(TrpId id) const;
   Transporter* get_node_transporter(NodeId nodeId) const;
   bool is_shm_transporter(NodeId nodeId);
   struct in6_addr get_connect_address(NodeId node_id) const;
+=======
+  Transporter* get_transporter(NodeId nodeId) const;
+  bool is_shm_transporter(NodeId nodeId);
+  struct in_addr get_connect_address(NodeId node_id) const;
+>>>>>>> pr/231
 
   Uint64 get_bytes_sent(NodeId nodeId) const;
   Uint64 get_bytes_received(NodeId nodeId) const;
@@ -552,7 +584,10 @@ private:
   NodeId localNodeId;
   unsigned maxTransporters;
   Uint32 nTransporters;
+<<<<<<< HEAD
   Uint32 nMultiTransporters;
+=======
+>>>>>>> pr/231
   Uint32 nTCPTransporters;
   Uint32 nSHMTransporters;
 
@@ -571,9 +606,13 @@ private:
    * Arrays holding all transporters in the order they are created
    */
   Transporter**     allTransporters;
+<<<<<<< HEAD
   Multi_Transporter** theMultiTransporters;
   TCP_Transporter** theTCPTransporters;
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
+=======
+  TCP_Transporter** theTCPTransporters;
+>>>>>>> pr/231
   SHM_Transporter** theSHMTransporters;
 #endif
 
@@ -646,6 +685,16 @@ private:
   static Uint32 unpack_length_words(const Uint32 *readPtr,
                                     Uint32 maxWords,
                                     bool extra_signal);
+<<<<<<< HEAD
+=======
+  /** 
+   * Disconnect the transporter and remove it from 
+   * theTransporters array. Do not allow any holes 
+   * in theTransporters. Delete the transporter 
+   * and remove it from theIndexedTransporters array
+   */
+  void removeTransporter(NodeId nodeId);
+>>>>>>> pr/231
 
   Uint32 poll_TCP(Uint32 timeOutMillis, TransporterReceiveHandle&);
   Uint32 poll_SHM(TransporterReceiveHandle&, bool &any_connected);
@@ -657,7 +706,10 @@ private:
 
 #ifdef NDB_SHM_TRANSPORTER_SUPPORTED
   int m_shm_own_pid;
+<<<<<<< HEAD
 #endif
+=======
+>>>>>>> pr/231
   Uint32 m_transp_count;
 
 public:
@@ -728,17 +780,27 @@ public:
   }
   inline Uint32 get_total_spintime()
   {
+<<<<<<< HEAD
     assert(receiveHandle != nullptr);
+=======
+    assert(receiveHandle != 0);
+>>>>>>> pr/231
     return receiveHandle->m_total_spintime;
   }
   inline void reset_total_spintime()
   {
+<<<<<<< HEAD
     assert(receiveHandle != nullptr);
     receiveHandle->m_total_spintime = 0;
   }
 
   TrpId getTransporterIndex(Transporter* t);
   void set_recv_thread_idx(Transporter* t, Uint32 recv_thread_idx);
+=======
+    assert(receiveHandle != 0);
+    receiveHandle->m_total_spintime = 0;
+  }
+>>>>>>> pr/231
 
 #ifdef ERROR_INSERT
   /* Utils for testing latency issues */

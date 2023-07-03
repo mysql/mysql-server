@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -210,7 +214,10 @@ private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal);
+<<<<<<< HEAD
   Uint32 validateEncryptionPassword(const EncryptionKeyMaterial* epd);
+=======
+>>>>>>> pr/231
 
  public:
   struct Node {
@@ -328,9 +335,12 @@ private:
   Uint32 m_enable_partial_lcp;
   Uint32 m_recovery_work;
   Uint32 m_insert_recovery_work;
+<<<<<<< HEAD
 
   Uint32 m_cfg_mt_backup;
   bool m_skew_disk_speed;
+=======
+>>>>>>> pr/231
 
   struct Table {
     Table(Fragment_pool &);
@@ -1001,12 +1011,15 @@ private:
   Uint64 m_debug_redo_log_count;
 //#endif
 
+<<<<<<< HEAD
   /* Keep track of disk data usage in checkpoints */
   Uint64 m_current_dd_time_us;
   Uint32 m_last_lcp_dd_percentage;
   Uint32 m_undo_log_level_percentage;
   Uint32 m_max_undo_log_level_percentage;
 
+=======
+>>>>>>> pr/231
   RedoStateRep::RedoAlertState m_redo_alert_state;
   RedoStateRep::RedoAlertState m_local_redo_alert_state;
   RedoStateRep::RedoAlertState m_global_redo_alert_state;
@@ -1030,8 +1043,11 @@ private:
   Uint64 m_lcp_timing_factor;
   Int64 m_lcp_lag[2];
   Uint32 m_lcp_timing_counter;
+<<<<<<< HEAD
   Uint32 m_redo_percentage;
   Uint32 m_max_redo_percentage;
+=======
+>>>>>>> pr/231
   bool m_first_lcp_started;
 
   void init_lcp_timers(Uint64);
@@ -1078,8 +1094,13 @@ private:
                                      Uint64 seconds_since_lcp_cut);
   void measure_change_speed(Signal*, Uint64 millis_since_last_call);
   void debug_report_redo_control(Uint32);
+<<<<<<< HEAD
   void lcp_start_point(Signal*);
   bool lcp_end_point(BackupRecordPtr);
+=======
+  void lcp_start_point();
+  void lcp_end_point();
+>>>>>>> pr/231
   Uint64 calculate_proposed_disk_write_speed();
 
   Uint32 m_curr_lcp_id;
@@ -1351,7 +1372,10 @@ private:
 
   bool convert_ctl_page_to_host(struct BackupFormat::LCPCtlFile*);
   void convert_ctl_page_to_network(Uint32*, Uint32 file_size);
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
   void handle_idle_lcp(Signal*, BackupRecordPtr);
   Uint64 get_total_memory();
   Uint64 calculate_row_change_count(BackupRecordPtr);
@@ -1528,8 +1552,11 @@ private:
   void setRestorableGci(Uint32);
   Uint32 getRestorableGci();
 
+<<<<<<< HEAD
   void set_undo_log_level(Uint32 percentage_used);
 
+=======
+>>>>>>> pr/231
   bool check_pause_lcp_backup(BackupRecordPtr ptr,
                               bool is_lcp,
                               bool is_send_scan_next_req);

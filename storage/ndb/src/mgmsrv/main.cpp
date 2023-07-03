@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +53,10 @@
 #include <LogBuffer.hpp>
 #include <OutputStream.hpp>
 
+<<<<<<< HEAD
+=======
+extern EventLogger * g_eventLogger;
+>>>>>>> pr/231
 
 #if defined VM_TRACE || defined ERROR_INSERT
 extern int g_errorInsert;
@@ -204,11 +216,24 @@ static void mgmd_exit(int result)
 static void mgmd_sigterm_handler(int signum)
 {
   g_eventLogger->info("Received SIGTERM. Performing stop.");
+<<<<<<< HEAD
   mgmd_exit(0);
 }
 #endif
 
 struct ThdData
+=======
+  fprintf(stderr, "\n*** Received SIGTERM. Performing stop. ***\n");
+  if (opts.interactive) {
+    // Force read_and_execute call to return without delay
+    fclose(stdin);
+  }
+  g_StopServer = 1;
+}
+#endif
+
+struct ThreadData
+>>>>>>> pr/231
 {
   FILE* f;
   LogBuffer* logBuf;
@@ -222,7 +247,11 @@ struct ThdData
 
 void* async_local_log_func(void* args)
 {
+<<<<<<< HEAD
   ThdData* data = (ThdData*)args;
+=======
+  ThreadData* data = (ThreadData*)args;
+>>>>>>> pr/231
   FILE* f = data->f;
   LogBuffer* logBuf = data->logBuf;
   const size_t get_bytes = 512;
@@ -230,7 +259,11 @@ void* async_local_log_func(void* args)
   size_t bytes;
   int part_bytes = 0, bytes_printed = 0;
 
+<<<<<<< HEAD
   while(!g_StopLogging)
+=======
+  while (!logBuf->is_stopped())
+>>>>>>> pr/231
   {
     part_bytes = 0;
     bytes_printed = 0;
@@ -252,7 +285,11 @@ void* async_local_log_func(void* args)
   size_t lost_count = logBuf->getLostCount();
   if(lost_count)
   {
+<<<<<<< HEAD
     fprintf(f, LostMsgHandler::LOST_BYTES_FMT, lost_count);
+=======
+    fprintf(f, "\n*** %lu BYTES LOST ***\n", (unsigned long)lost_count);
+>>>>>>> pr/231
     fflush(f);
   }
 
@@ -264,7 +301,11 @@ static void mgmd_run()
   LogBuffer* logBufLocalLog = new LogBuffer(32768); // 32kB
 
   struct NdbThread* locallog_threadvar= NULL;
+<<<<<<< HEAD
   ThdData thread_args=
+=======
+  ThreadData thread_args=
+>>>>>>> pr/231
   {
     stdout,
     logBufLocalLog,
@@ -272,10 +313,17 @@ static void mgmd_run()
 
   // Create log thread which logs data to the mgmd local log.
   locallog_threadvar = NdbThread_Create(async_local_log_func,
+<<<<<<< HEAD
                                         (void**)&thread_args,
                                         0,
                                         "async_local_log_thread",
                                         NDB_THREAD_PRIO_MEAN);
+=======
+                       (void**)&thread_args,
+                       0,
+                       (char*)"async_local_log_thread",
+                       NDB_THREAD_PRIO_MEAN);
+>>>>>>> pr/231
 
   BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBufLocalLog);
 
@@ -292,7 +340,11 @@ static void mgmd_run()
     int port= mgm->getPort();
     BaseString con_str;
     if(opts.bind_address)
+<<<<<<< HEAD
       con_str.appfmt("host=%s %d", opts.bind_address, port);
+=======
+      con_str.appfmt("host=%s:%d", opts.bind_address, port);
+>>>>>>> pr/231
     else
       con_str.appfmt("localhost:%d", port);
     Ndb_mgmclient com(con_str.c_str(), "ndb_mgm> ", 1, 5);
@@ -324,7 +376,11 @@ static void mgmd_run()
    * node logs should be available until complete shutdown.
    */
   void* dummy_return_status;
+<<<<<<< HEAD
   g_StopLogging = true;
+=======
+  logBufLocalLog->stop();
+>>>>>>> pr/231
   NdbThread_WaitFor(locallog_threadvar, &dummy_return_status);
   delete ndbouts_bufferedoutputstream;
   NdbThread_Destroy(&locallog_threadvar);
@@ -377,6 +433,7 @@ static int mgmd_main(int argc, char** argv)
     mgmd_exit(1);
   }
 
+<<<<<<< HEAD
   /* Validation to prevent using relative path for config-dir */
   if (opts.config_cache && (opts.configdir != disabled_my_option) &&
       (strcmp(opts.configdir, MYSQLCLUSTERDIR) != 0)) {
@@ -401,6 +458,8 @@ static int mgmd_main(int argc, char** argv)
     }
   }
 
+=======
+>>>>>>> pr/231
   /*validation is added to prevent user using
   wrong short option for --config-file.*/
   if (opt_ndb_connectstring)
@@ -413,6 +472,7 @@ static int mgmd_main(int argc, char** argv)
           " '/'\n");
       mgmd_exit(1);
     }
+<<<<<<< HEAD
 
     // ndb-connectstring is ignored when config file option is provided
     if (opts.config_filename) {
@@ -420,6 +480,8 @@ static int mgmd_main(int argc, char** argv)
               "WARNING: --ndb-connectstring is ignored when mgmd is started "
               "with -f or config-file.\n");
     }
+=======
+>>>>>>> pr/231
   }
 
   if (opt_nowait_nodes)

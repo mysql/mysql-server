@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +38,7 @@
 class LostMsgHandler
 {
 public:
+<<<<<<< HEAD
  static constexpr char LOST_MESSAGES_FMT[] = "*** %zu MESSAGES LOST ***";
  static constexpr char LOST_BYTES_FMT[] = "\n*** %zu BYTES LOST ***\n";
  static_assert(sizeof(size_t) <= 8);  // 20 decimal digits enough for size_t
@@ -50,10 +55,20 @@ public:
                            size_t lost_msgs) = 0;
 
  virtual ~LostMsgHandler() {}
+=======
+  /* Return size in bytes which must be appended to describe the lost messages */
+  virtual size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) = 0;
+
+  /* Write lost message summary into the buffer for the lost message summary */
+  virtual bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs) = 0;
+
+  virtual ~LostMsgHandler() {};
+>>>>>>> pr/231
 };
 
 class ByteStreamLostMsgHandler : public LostMsgHandler
 {
+<<<<<<< HEAD
 public:
  ByteStreamLostMsgHandler() {}
  /* Return size in bytes which must be appended to describe the lost messages */
@@ -66,6 +81,22 @@ public:
                    size_t lost_msgs) override;
 
  ~ByteStreamLostMsgHandler() override {}
+=======
+private:
+  const char* m_lost_msg_fmt;
+
+public:
+  ByteStreamLostMsgHandler(): m_lost_msg_fmt("\n*** %u BYTES LOST ***\n")
+  {
+  }
+  /* Return size in bytes which must be appended to describe the lost messages */
+  size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs);
+
+  /* Write lost message summary into the buffer for the lost message summary */
+  bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs);
+
+  ~ByteStreamLostMsgHandler() {}
+>>>>>>> pr/231
 };
 
 /**
@@ -169,7 +200,11 @@ public:
    * It also makes future calls to get() non-blocking.
    */
   void stop();
+<<<<<<< HEAD
 
+=======
+  bool is_stopped() const;
+>>>>>>> pr/231
 private:
   char* m_log_buf; // pointer to the start of log buffer memory
   size_t m_max_size; // max. number of bytes that can fit

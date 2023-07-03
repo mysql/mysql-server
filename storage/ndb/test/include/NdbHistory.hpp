@@ -1,4 +1,5 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2018, 2022, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
@@ -11,16 +12,30 @@
    documentation.  The authors of MySQL hereby grant you an additional
    permission to link the program and your derivative works with the
    separately licensed software that they have included with MySQL.
+=======
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+>>>>>>> pr/231
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<<<<<<< HEAD
    GNU General Public License, version 2.0, for more details.
+=======
+   GNU General Public License for more details.
+>>>>>>> pr/231
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 */
 
 #ifndef NDBT_HISTORY_HPP
@@ -222,7 +237,11 @@ struct RecordRange
   RecordRange(const Uint32 start,
               const Uint32 len) :
     m_start(start),
+<<<<<<< HEAD
     m_len(len) {}
+=======
+    m_len(len) {};
+>>>>>>> pr/231
 };
 
 

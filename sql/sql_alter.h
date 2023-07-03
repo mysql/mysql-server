@@ -1,4 +1,13 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates. All rights
+   reserved.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,11 +73,23 @@ class Alter_drop {
  public:
   enum drop_type { KEY, COLUMN, FOREIGN_KEY, CHECK_CONSTRAINT, ANY_CONSTRAINT };
   const char *name;
+<<<<<<< HEAD
   drop_type type;
 
   Alter_drop(drop_type par_type, const char *par_name)
       : name(par_name), type(par_type) {
+<<<<<<< HEAD
     assert(par_name != nullptr);
+=======
+    DBUG_ASSERT(par_name != NULL);
+=======
+  enum drop_type type;
+  Alter_drop(enum drop_type par_type,const char *par_name)
+    :name(par_name), type(par_type)
+  {
+    assert(par_name != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 };
 
@@ -527,19 +548,53 @@ class Alter_table_ctx {
      @return true if the table is renamed (i.e. its name or database changed),
              false otherwise.
   */
+<<<<<<< HEAD
   bool is_table_renamed() const {
     return is_database_changed() || is_table_name_changed();
+<<<<<<< HEAD
   }
+=======
+  };
+=======
+  const char *get_new_filename() const
+  {
+    assert(!tmp_table);
+    return new_filename;
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /**
      @return path to the original table.
   */
+<<<<<<< HEAD
   const char *get_path() const {
+<<<<<<< HEAD
     assert(!tmp_table);
+=======
+    DBUG_ASSERT(!tmp_table);
+=======
+  const char *get_path() const
+  {
+    assert(!tmp_table);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return path;
   }
 
   /**
+<<<<<<< HEAD
+=======
+     @return path to the new table.
+  */
+  const char *get_new_path() const
+  {
+    assert(!tmp_table);
+    return new_path;
+  }
+
+  /**
+>>>>>>> upstream/cluster-7.6
      @return path to the temporary table created during ALTER TABLE.
   */
   const char *get_tmp_path() const { return tmp_path; }

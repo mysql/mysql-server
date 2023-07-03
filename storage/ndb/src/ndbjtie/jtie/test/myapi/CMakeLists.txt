@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +27,11 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/utils)
 
 # a C++ API
+<<<<<<< HEAD
 ADD_LIBRARY(libmyapi STATIC myapi.cpp)
+=======
+ADD_CONVENIENCE_LIBRARY(libmyapi myapi.cpp)
+>>>>>>> pr/231
 
 # a program testing the C++ API
 NDB_ADD_TEST(test_jtie_myapi-t myapi_test.cpp LIBS libmyapi)

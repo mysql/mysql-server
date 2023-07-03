@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -401,6 +425,7 @@ static inline bool page_rec_is_last(const rec_t *rec, const page_t *page) {
   return (page_rec_get_next_const(rec) == page_get_supremum_rec(page));
 }
 
+<<<<<<< HEAD
 static inline bool page_rec_distance_is_at_most(const rec_t *left_rec,
                                                 const rec_t *right_rec,
                                                 ulint val) {
@@ -415,6 +440,40 @@ static inline bool page_rec_distance_is_at_most(const rec_t *left_rec,
 
 static inline bool page_rec_is_second_last(const rec_t *rec,
                                            const page_t *page) {
+=======
+<<<<<<< HEAD
+/** true if the record is the second last user record on a page.
+ @return true if the second last user record */
+=======
+/************************************************************//**
+true if distance between the records (measured in number of times we have to
+move to the next record) is at most the specified value */
+UNIV_INLINE
+bool
+page_rec_distance_is_at_most(
+/*=========================*/
+	const rec_t*	left_rec,
+	const rec_t*	right_rec,
+	ulint		val)
+{
+	for (ulint i = 0; i <= val; i++) {
+		if (left_rec == right_rec) {
+			return (true);
+		}
+		left_rec = page_rec_get_next_const(left_rec);
+	}
+	return (false);
+}
+
+/************************************************************//**
+true if the record is the second last user record on a page.
+@return true if the second last user record */
+>>>>>>> upstream/cluster-7.6
+UNIV_INLINE
+bool page_rec_is_second_last(const rec_t *rec,   /*!< in: record */
+                             const page_t *page) /*!< in: page */
+{
+>>>>>>> pr/231
   ut_ad(page_get_n_recs(page) > 1);
   ut_ad(!page_rec_is_last(rec, page));
 

@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -184,7 +208,31 @@ static inline void trx_rsegsf_set_page_no(trx_rsegsf_t *rsegs_header,
                                           ulint slot, page_no_t page_no,
                                           mtr_t *mtr);
 
+<<<<<<< HEAD
 /** Number of undo log slots in a rollback segment file copy */
+=======
+<<<<<<< HEAD
+=======
+/********************************************************************
+Get the number of unique rollback tablespaces in use except space id 0.
+The last space id will be the sentinel value ULINT_UNDEFINED. The array
+will be sorted on space id. Note: space_ids should have have space for
+TRX_SYS_N_RSEGS + 1 elements.
+@return number of unique rollback tablespaces in use. */
+ulint
+trx_rseg_get_n_undo_tablespaces(
+/*============================*/
+	ulint*		space_ids);	/*!< out: array of space ids of
+					UNDO tablespaces */
+
+/** Reset no-redo rseg slots on disk used by pre-5.7.2 rsegs. All data for
+these rsegs are already purged. This is a deferred action to be done post
+redo log recovery. */
+void trx_rseg_reset_pending();
+
+>>>>>>> upstream/cluster-7.6
+/* Number of undo log slots in a rollback segment file copy */
+>>>>>>> pr/231
 #define TRX_RSEG_N_SLOTS (UNIV_PAGE_SIZE / 16)
 
 /** Maximum number of transactions supported by a single rollback segment */

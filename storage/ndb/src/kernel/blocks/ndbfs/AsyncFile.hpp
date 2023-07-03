@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,8 +81,19 @@ public:
   bool get_buffer(Uint32 &rg, Ptr<GlobalPage> & ptr, Uint32 & cnt);
 
   AsyncIoThread* getThread() const { return m_thread;}
+<<<<<<< HEAD
   bool thread_bound() const { return m_thread_bound; }
   void set_thread_bound(bool value) { m_thread_bound = value; }
+=======
+  bool thread_bound() const
+  {
+    return m_thread_bound;
+  }
+  void set_thread_bound(bool value)
+  {
+    m_thread_bound = value;
+  }
+>>>>>>> pr/231
 
   /**
    * openReq() - open a file.
@@ -103,6 +118,7 @@ public:
   void attach(AsyncIoThread* thr);
   void detach(AsyncIoThread* thr);
 
+<<<<<<< HEAD
 private:
   int ndbxfrm_append(Request* request, ndbxfrm_input_iterator* in);
 
@@ -116,6 +132,11 @@ private:
 
   using byte = unsigned char;
   ndb_file m_file;
+=======
+  AsyncIoThread* m_thread; // For bound files
+  // Whether this file is one that will be/is bound to a thread
+  bool m_thread_bound;
+>>>>>>> pr/231
 
   Uint32 m_open_flags;
 
@@ -132,7 +153,16 @@ private:
   char* theWriteBuffer;
   Uint32 theWriteBufferSize;
 
+<<<<<<< HEAD
   Ndbfs& m_fs;
+=======
+public:
+  SimulatedBlock& m_fs;
+#ifdef ERROR_INSERT
+  Uint32 m_error_insert;
+  void error_insert(Uint32 code) { m_error_insert = code; }
+#endif
+>>>>>>> pr/231
 };
 
 inline

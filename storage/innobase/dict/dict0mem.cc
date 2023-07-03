@@ -1,8 +1,13 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 Copyright (c) 2012, Facebook Inc.
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -18,6 +23,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -82,13 +104,190 @@ std::ostream &operator<<(std::ostream &s, const id_name_t &id_name) {
 @return the output stream */
 std::ostream &operator<<(std::ostream &s, const table_name_t &table_name) {
 #ifndef UNIV_HOTBACKUP
+<<<<<<< HEAD
   return (s << ut_get_name(nullptr, table_name.m_name));
+=======
+<<<<<<< HEAD
+  return (s << ut_get_name(NULL, table_name.m_name));
+>>>>>>> pr/231
 #else  /* !UNIV_HOTBACKUP */
   return (s << table_name.m_name);
+=======
+	table->autoinc_lock = static_cast<ib_lock_t*>(
+		mem_heap_alloc(heap, lock_get_size()));
+
+	/* lazy creation of table autoinc latch */
+	dict_table_autoinc_create_lazy(table);
+
+	dict_table_analyze_index_create_lazy(table);
+
+	table->autoinc = 0;
+	table->sess_row_id = 0;
+	table->sess_trx_id = 0;
+
+	/* The number of transactions that are either waiting on the
+	AUTOINC lock or have been granted the lock. */
+	table->n_waiting_or_granted_auto_inc_locks = 0;
+
+	/* If the table has an FTS index or we are in the process
+	of building one, create the table->fts */
+	if (dict_table_has_fts_index(table)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
+		table->fts = fts_create(table);
+		table->fts->cache = fts_cache_create(table);
+	} else {
+		table->fts = NULL;
+	}
+>>>>>>> upstream/cluster-7.6
 #endif /* !UNIV_HOTBACKUP */
 }
 
 #ifndef UNIV_HOTBACKUP
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+	dict_table_analyze_index_destroy(table);
+	dict_table_autoinc_destroy(table);
+#endif /* UNIV_HOTBACKUP */
+
+	dict_mem_table_free_foreign_vcol_set(table);
+	dict_table_stats_latch_destroy(table);
+
+	table->foreign_set.~dict_foreign_set();
+	table->referenced_set.~dict_foreign_set();
+
+	ut_free(table->name.m_name);
+	table->name.m_name = NULL;
+
+	/* Clean up virtual index info structures that are registered
+	with virtual columns */
+	for (ulint i = 0; i < table->n_v_def; i++) {
+		dict_v_col_t*	vcol
+			= dict_table_get_nth_v_col(table, i);
+
+		UT_DELETE(vcol->v_indexes);
+	}
+
+	if (table->s_cols != NULL) {
+		UT_DELETE(table->s_cols);
+	}
+
+	mem_heap_free(table->heap);
+        table = NULL;
+}
+
+/****************************************************************//**
+Append 'name' to 'col_names'.  @see dict_table_t::col_names
+@return new column names array */
+static
+const char*
+dict_add_col_name(
+/*==============*/
+	const char*	col_names,	/*!< in: existing column names, or
+					NULL */
+	ulint		cols,		/*!< in: number of existing columns */
+	const char*	name,		/*!< in: new column name */
+	mem_heap_t*	heap)		/*!< in: heap */
+{
+	ulint	old_len;
+	ulint	new_len;
+	ulint	total_len;
+	char*	res;
+
+	ut_ad(!cols == !col_names);
+
+	/* Find out length of existing array. */
+	if (col_names) {
+		const char*	s = col_names;
+		ulint		i;
+
+		for (i = 0; i < cols; i++) {
+			s += strlen(s) + 1;
+		}
+
+		old_len = s - col_names;
+	} else {
+		old_len = 0;
+	}
+
+	new_len = strlen(name) + 1;
+	total_len = old_len + new_len;
+
+	res = static_cast<char*>(mem_heap_alloc(heap, total_len));
+
+	if (old_len > 0) {
+		memcpy(res, col_names, old_len);
+	}
+
+	memcpy(res + old_len, name, new_len);
+
+	return(res);
+}
+
+/**********************************************************************//**
+Adds a column definition to a table. */
+void
+dict_mem_table_add_col(
+/*===================*/
+	dict_table_t*	table,	/*!< in: table */
+	mem_heap_t*	heap,	/*!< in: temporary memory heap, or NULL */
+	const char*	name,	/*!< in: column name, or NULL */
+	ulint		mtype,	/*!< in: main datatype */
+	ulint		prtype,	/*!< in: precise type */
+	ulint		len)	/*!< in: precision */
+{
+	dict_col_t*	col;
+	ulint		i;
+
+	ut_ad(table);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+	ut_ad(!heap == !name);
+
+	ut_ad(!(prtype & DATA_VIRTUAL));
+
+	i = table->n_def++;
+
+	table->n_t_def++;
+
+	if (name) {
+		if (table->n_def == table->n_cols) {
+			heap = table->heap;
+		}
+		if (i && !table->col_names) {
+			/* All preceding column names are empty. */
+			char* s = static_cast<char*>(
+				mem_heap_zalloc(heap, table->n_def));
+
+			table->col_names = s;
+		}
+
+		table->col_names = dict_add_col_name(table->col_names,
+						     i, name, heap);
+	}
+
+	col = dict_table_get_nth_col(table, i);
+
+	dict_mem_fill_column_struct(col, i, mtype, prtype, len);
+}
+
+>>>>>>> upstream/cluster-7.6
+/** Adds a virtual column definition to a table.
+@param[in,out]	table		table
+@param[in,out]	heap		temporary memory heap, or NULL. It is
+                                used to store name when we have not finished
+                                adding all columns. When all columns are
+                                added, the whole name will copy to memory from
+                                table->heap
+@param[in]	name		column name
+@param[in]	mtype		main datatype
+@param[in]	prtype		precise type
+@param[in]	len		length
+@param[in]	pos		position in a table
+@param[in]	num_base	number of base columns
+@return the virtual column definition */
+>>>>>>> pr/231
 dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
                                        const char *name, ulint mtype,
                                        ulint prtype, ulint len, ulint pos,

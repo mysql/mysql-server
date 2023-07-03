@@ -1,5 +1,13 @@
 #ifndef RPL_TRX_TRACKING_INCLUDED
+<<<<<<< HEAD
 /* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2018, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,8 +76,18 @@ class Logical_clock {
     there can't any concurrent step() callers so no need to guard
     the assignment.
   */
+<<<<<<< HEAD
   void update_offset(int64 new_offset) {
+<<<<<<< HEAD
     assert(offset <= new_offset);
+=======
+    DBUG_ASSERT(offset <= new_offset);
+=======
+  void update_offset(int64 new_offset)
+  {
+    assert(offset <= new_offset);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     offset = new_offset;
   }
@@ -136,8 +154,23 @@ class Writeset_trx_dependency_tracker {
 
   void rotate(int64 start);
 
+<<<<<<< HEAD
   /* Atomic variable - opt_binlog_transaction_dependency_history_size */
   std::atomic<ulong> m_opt_max_history_size;
+=======
+   /* option opt_binlog_transaction_dependency_history_size - atomic var */
+  int64 m_opt_max_history_size;
+  /* option opt_binlog_transaction_dependency_history_size */
+  ulong m_opt_max_history_size_base_var;
+
+  /**
+    Returns the value for the max history size with an atomic read to the var
+    @return the value of opt_max_history_size
+  */
+  ulong get_opt_max_history_size(){
+    return static_cast<ulong>(my_atomic_load64(&m_opt_max_history_size));
+  }
+>>>>>>> pr/231
 
  private:
   /*
@@ -231,7 +264,10 @@ class Transaction_dependency_tracker {
 
  public:
   /* option opt_binlog_transaction_dependency_tracking */
-  long m_opt_tracking_mode;
+  int64 m_opt_tracking_mode;
+
+  /* option opt_binlog_transaction_dependency_tracking associated with sysvar */
+  long m_opt_tracking_mode_value;
 
   Writeset_trx_dependency_tracker *get_writeset() { return &m_writeset; }
 

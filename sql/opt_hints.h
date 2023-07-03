@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -283,10 +291,24 @@ class Opt_hints {
 
     @return  pointer to complex hint for a given type.
   */
+<<<<<<< HEAD
   virtual PT_hint *get_complex_hints(opt_hints_enum type [[maybe_unused]]) {
     assert(0);
     return nullptr; /* error C4716: must return a value */
   }
+=======
+<<<<<<< HEAD
+  virtual PT_hint *get_complex_hints(
+      opt_hints_enum type MY_ATTRIBUTE((unused))) {
+    DBUG_ASSERT(0);
+=======
+  virtual PT_hint *get_complex_hints(opt_hints_enum type)
+  {
+    assert(0);
+>>>>>>> upstream/cluster-7.6
+    return NULL; /* error C4716: must return a value */
+  };
+>>>>>>> pr/231
 
   /**
     Find hint among lower-level hint objects.

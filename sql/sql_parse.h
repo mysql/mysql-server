@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -261,6 +269,7 @@ bool sqlcom_can_generate_row_events(enum enum_sql_command command);
   @brief This function checks if the sql_command is one that identifies the
   boundaries (begin, end or savepoint) of a transaction.
 
+<<<<<<< HEAD
   @note this is used for replication purposes.
 
   @param command The parsed SQL_COMM to check.
@@ -285,6 +294,10 @@ bool is_xa_transaction_boundary_stmt(enum enum_sql_command command);
 
 bool all_tables_not_ok(THD *thd, Table_ref *tables);
 bool some_non_temp_table_to_be_updated(THD *thd, Table_ref *tables);
+=======
+<<<<<<< HEAD
+bool execute_show(THD *thd, TABLE_LIST *all_tables);
+>>>>>>> pr/231
 
 // TODO: remove after refactoring of ALTER DATABASE:
 bool set_default_charset(HA_CREATE_INFO *create_info,
@@ -462,5 +475,8 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
 /**
   @} (end of group GROUP_PARSER)
 */
+=======
+bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
+>>>>>>> upstream/cluster-7.6
 
 #endif /* SQL_PARSE_INCLUDED */

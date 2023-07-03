@@ -1,7 +1,12 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -17,6 +22,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -126,7 +148,11 @@ struct row_index_t {
 
 /** Meta data required by IMPORT. */
 struct row_import {
+<<<<<<< HEAD
  public:
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   row_import() UNIV_NOTHROW : m_table(),
                               m_version(),
                               m_hostname(),
@@ -145,6 +171,24 @@ struct row_import {
                               m_missing(true),
                               m_has_sdi(false),
                               m_cfp_missing(true) {}
+=======
+	row_import() UNIV_NOTHROW
+		:
+		m_table(NULL),
+		m_version(0),
+		m_hostname(NULL),
+		m_table_name(NULL),
+		m_autoinc(0),
+		m_page_size(0, 0, false),
+		m_flags(0),
+		m_n_cols(0),
+		m_cols(NULL),
+		m_col_names(NULL),
+		m_n_indexes(0),
+		m_indexes(NULL),
+		m_missing(true),
+		m_cfp_missing(true)	{ }
+>>>>>>> upstream/cluster-7.6
 
   ~row_import() UNIV_NOTHROW;
 
@@ -1395,6 +1439,7 @@ dberr_t row_import::match_schema(THD *thd,
                                  const dd::Table *dd_table) UNIV_NOTHROW {
   /* Do some simple checks. */
 
+<<<<<<< HEAD
   if (m_flags != m_table->flags) {
     if (dict_tf_to_row_format_string(m_flags) !=
         dict_tf_to_row_format_string(m_table->flags)) {
@@ -1422,7 +1467,45 @@ dberr_t row_import::match_schema(THD *thd,
             "Number of columns don't match, table has %lu"
             " columns but the tablespace meta-data file has"
             " %lu columns",
+<<<<<<< HEAD
             (ulong)m_table->n_cols, (ulong)(m_n_cols - m_n_instant_drop_cols));
+=======
+            (ulong)m_table->n_cols, (ulong)m_n_cols);
+=======
+	if (m_flags != m_table->flags) {
+		if (dict_tf_to_row_format_string(m_flags) !=
+				dict_tf_to_row_format_string(m_table->flags)) {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+				 "Table flags don't match, server table has %s"
+				 " and the meta-data file has %s",
+				(const char*)dict_tf_to_row_format_string(m_table->flags),
+				(const char*)dict_tf_to_row_format_string(m_flags));
+		} else if (DICT_TF_HAS_DATA_DIR(m_flags) !=
+				DICT_TF_HAS_DATA_DIR(m_table->flags)) {
+			/* If the meta-data flag is set for data_dir,
+			but table flag is not set for data_dir or vice versa
+			then return error. */
+			ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+				"Table location flags do not match. "
+				"The source table %s a DATA DIRECTORY "
+				"but the destination table %s.",
+				(DICT_TF_HAS_DATA_DIR(m_flags) ? "uses"
+				: "does not use"),
+				(DICT_TF_HAS_DATA_DIR(m_table->flags) ? "does"
+				: "does not"));
+		} else {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+				"Table flags don't match");
+		}
+		return(DB_ERROR);
+	} else if (m_table->n_cols != m_n_cols) {
+		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+			 "Number of columns don't match, table has %lu"
+			 " columns but the tablespace meta-data file has"
+			 " %lu columns",
+			 (ulong) m_table->n_cols, (ulong) m_n_cols);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return (DB_ERROR);
   } else if (UT_LIST_GET_LEN(m_table->indexes) + (m_has_sdi ? 1 : 0) !=
@@ -2116,9 +2199,18 @@ dberr_t IndexPurge::garbage_collect() UNIV_NOTHROW {
 
   /* Open the persistent cursor and start the mini-transaction. */
 
+<<<<<<< HEAD
   open();
+<<<<<<< HEAD
   import_ctx_t import_ctx = {false};
   m_pcur.import_ctx = &import_ctx;
+=======
+=======
+	open();
+	import_ctx_t import_ctx = {false};
+	m_pcur.import_ctx = &import_ctx;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   while ((err = next()) == DB_SUCCESS) {
     rec_t *rec = m_pcur.get_rec();
@@ -2141,7 +2233,19 @@ dberr_t IndexPurge::garbage_collect() UNIV_NOTHROW {
 
   m_pcur.import_ctx = nullptr;
 
+<<<<<<< HEAD
   return (err == DB_END_OF_INDEX ? DB_SUCCESS : err);
+=======
+	close();
+	if (m_pcur.import_ctx->is_error == true) {
+		m_pcur.import_ctx = NULL;
+		return DB_TABLE_CORRUPT;
+	}
+
+	m_pcur.import_ctx = NULL;
+
+	return(err == DB_END_OF_INDEX ? DB_SUCCESS : err);
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -2190,7 +2294,16 @@ dberr_t IndexPurge::next() UNIV_NOTHROW {
     return (DB_END_OF_INDEX);
   }
 
+<<<<<<< HEAD
   return (DB_SUCCESS);
+=======
+	if (!btr_pcur_move_to_next_user_rec(&m_pcur, &m_mtr)) {
+
+		return(DB_END_OF_INDEX);
+	}
+
+	return (DB_SUCCESS);
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -2756,7 +2869,15 @@ static void row_import_discard_changes(
 
   ut_a(err != DB_SUCCESS);
 
+<<<<<<< HEAD
   prebuilt->trx->error_index = nullptr;
+=======
+<<<<<<< HEAD
+  prebuilt->trx->error_info = NULL;
+=======
+	prebuilt->trx->error_index = NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   ib::info(ER_IB_MSG_945) << "Failed to import tablespace of table '"
                           << prebuilt->table->name.m_name
@@ -4071,9 +4192,15 @@ file.
 @param[in]      thd     session
 @param[in,out]  cfg     meta data
 @return DB_SUCCESS or error code. */
+<<<<<<< HEAD
 [[nodiscard]] static MY_ATTRIBUTE((nonnull)) dberr_t
     row_import_read_common(dd::Table *table_def, FILE *file, THD *thd,
                            row_import *cfg) {
+=======
+<<<<<<< HEAD
+static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
+    row_import_read_common(FILE *file, THD *thd, row_import *cfg) {
+>>>>>>> pr/231
   dberr_t err;
   if ((err = row_import_read_columns(table_def, file, thd, cfg)) !=
       DB_SUCCESS) {
@@ -4085,6 +4212,603 @@ file.
 
   ut_a(err == DB_SUCCESS);
   return (err);
+=======
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
+dberr_t
+row_import_cfg_read_index_fields(
+/*=============================*/
+	FILE*			file,	/*!< in: file to write to */
+	THD*			thd,	/*!< in/out: session */
+	row_index_t*		index,	/*!< Index being read in */
+	row_import*		cfg)	/*!< in/out: meta-data read */
+{
+	byte			row[sizeof(ib_uint32_t) * 3];
+	ulint			n_fields = index->m_n_fields;
+
+	index->m_fields = UT_NEW_ARRAY_NOKEY(dict_field_t, n_fields);
+
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_4",
+		UT_DELETE_ARRAY(index->m_fields);
+		index->m_fields = NULL;
+	);
+
+	if (index->m_fields == NULL) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	dict_field_t*	field = index->m_fields;
+
+	std::uninitialized_fill_n(field, n_fields, dict_field_t());
+
+	for (ulint i = 0; i < n_fields; ++i, ++field) {
+		byte*		ptr = row;
+
+		/* Trigger EOF */
+		DBUG_EXECUTE_IF("ib_import_io_read_error_1",
+				(void) fseek(file, 0L, SEEK_END););
+
+		if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+
+			ib_senderrf(
+				thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+				errno, strerror(errno),
+				"while reading index fields.");
+
+			return(DB_IO_ERROR);
+		}
+
+		field->prefix_len = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		field->fixed_len = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		/* Include the NUL byte in the length. */
+		ulint	len = mach_read_from_4(ptr);
+
+		byte*	name = UT_NEW_ARRAY_NOKEY(byte, len);
+
+		/* Trigger OOM */
+		DBUG_EXECUTE_IF(
+			"ib_import_OOM_5",
+			UT_DELETE_ARRAY(name);
+			name = NULL;
+		);
+
+		if (name == NULL) {
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		field->name = reinterpret_cast<const char*>(name);
+
+		dberr_t	err = row_import_cfg_read_string(file, name, len);
+
+		if (err != DB_SUCCESS) {
+
+			ib_senderrf(
+				thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+				errno, strerror(errno),
+				"while parsing table name.");
+
+			return(err);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*****************************************************************//**
+Read the index names and root page numbers of the indexes and set the values.
+Row format [root_page_no, len of str, str ... ]
+@return DB_SUCCESS or error code. */
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
+dberr_t
+row_import_read_index_data(
+/*=======================*/
+	FILE*		file,		/*!< in: File to read from */
+	THD*		thd,		/*!< in: session */
+	row_import*	cfg)		/*!< in/out: meta-data read */
+{
+	byte*		ptr;
+	row_index_t*	cfg_index;
+	byte		row[sizeof(index_id_t) + sizeof(ib_uint32_t) * 9];
+
+	/* FIXME: What is the max value? */
+	ut_a(cfg->m_n_indexes > 0);
+	ut_a(cfg->m_n_indexes < 1024);
+
+	cfg->m_indexes = UT_NEW_ARRAY_NOKEY(row_index_t, cfg->m_n_indexes);
+
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_6",
+		UT_DELETE_ARRAY(cfg->m_indexes);
+		cfg->m_indexes = NULL;
+	);
+
+	if (cfg->m_indexes == NULL) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	memset(cfg->m_indexes, 0x0, sizeof(*cfg->m_indexes) * cfg->m_n_indexes);
+
+	cfg_index = cfg->m_indexes;
+
+	for (ulint i = 0; i < cfg->m_n_indexes; ++i, ++cfg_index) {
+		/* Trigger EOF */
+		DBUG_EXECUTE_IF("ib_import_io_read_error_2",
+				(void) fseek(file, 0L, SEEK_END););
+
+		/* Read the index data. */
+		size_t	n_bytes = fread(row, 1, sizeof(row), file);
+
+		/* Trigger EOF */
+		DBUG_EXECUTE_IF("ib_import_io_read_error",
+				(void) fseek(file, 0L, SEEK_END););
+
+		if (n_bytes != sizeof(row)) {
+			char	msg[BUFSIZ];
+
+			ut_snprintf(msg, sizeof(msg),
+				    "while reading index meta-data, expected"
+				    " to read %lu bytes but read only %lu"
+				    " bytes",
+				    (ulong) sizeof(row), (ulong) n_bytes);
+
+			ib_senderrf(
+				thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+				errno, strerror(errno), msg);
+
+			ib::error() << "IO Error: " << msg;
+
+			return(DB_IO_ERROR);
+		}
+
+		ptr = row;
+
+		cfg_index->m_id = mach_read_from_8(ptr);
+		ptr += sizeof(index_id_t);
+
+		cfg_index->m_space = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->m_page_no = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->m_type = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->m_trx_id_offset = mach_read_from_4(ptr);
+		if (cfg_index->m_trx_id_offset != mach_read_from_4(ptr)) {
+			ut_ad(0);
+			/* Overflow. Pretend that the clustered index
+			has a variable-length PRIMARY KEY. */
+			cfg_index->m_trx_id_offset = 0;
+		}
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->m_n_user_defined_cols = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->m_n_uniq = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->m_n_nullable = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		cfg_index->m_n_fields = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		/* The NUL byte is included in the name length. */
+		ulint	len = mach_read_from_4(ptr);
+
+		if (len > OS_FILE_MAX_PATH) {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR,
+				ER_INNODB_INDEX_CORRUPT,
+				"Index name length (%lu) is too long,"
+				" the meta-data is corrupt", len);
+
+			return(DB_CORRUPTION);
+		}
+
+		cfg_index->m_name = UT_NEW_ARRAY_NOKEY(byte, len);
+
+		/* Trigger OOM */
+		DBUG_EXECUTE_IF(
+			"ib_import_OOM_7",
+			UT_DELETE_ARRAY(cfg_index->m_name);
+			cfg_index->m_name = NULL;
+		);
+
+		if (cfg_index->m_name == NULL) {
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		dberr_t	err;
+
+		err = row_import_cfg_read_string(file, cfg_index->m_name, len);
+
+		if (err != DB_SUCCESS) {
+
+			ib_senderrf(
+				thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+				errno, strerror(errno),
+				"while parsing index name.");
+
+			return(err);
+		}
+
+		err = row_import_cfg_read_index_fields(
+			file, thd, cfg_index, cfg);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*****************************************************************//**
+Set the index root page number for v1 format.
+@return DB_SUCCESS or error code. */
+static
+dberr_t
+row_import_read_indexes(
+/*====================*/
+	FILE*		file,		/*!< in: File to read from */
+	THD*		thd,		/*!< in: session */
+	row_import*	cfg)		/*!< in/out: meta-data read */
+{
+	byte		row[sizeof(ib_uint32_t)];
+
+	/* Trigger EOF */
+	DBUG_EXECUTE_IF("ib_import_io_read_error_3",
+			(void) fseek(file, 0L, SEEK_END););
+
+	/* Read the number of indexes. */
+	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+			errno, strerror(errno),
+			"while reading number of indexes.");
+
+		return(DB_IO_ERROR);
+	}
+
+	cfg->m_n_indexes = mach_read_from_4(row);
+
+	if (cfg->m_n_indexes == 0) {
+		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+			"Number of indexes in meta-data file is 0");
+
+		return(DB_CORRUPTION);
+
+	} else if (cfg->m_n_indexes > 1024) {
+		// FIXME: What is the upper limit? */
+		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+			"Number of indexes in meta-data file is too high: %lu",
+			(ulong) cfg->m_n_indexes);
+		cfg->m_n_indexes = 0;
+
+		return(DB_CORRUPTION);
+	}
+
+	return(row_import_read_index_data(file, thd, cfg));
+}
+
+/*********************************************************************//**
+Read the meta data (table columns) config file. Deserialise the contents of
+dict_col_t structure, along with the column name. */
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
+dberr_t
+row_import_read_columns(
+/*====================*/
+	FILE*			file,	/*!< in: file to write to */
+	THD*			thd,	/*!< in/out: session */
+	row_import*		cfg)	/*!< in/out: meta-data read */
+{
+	dict_col_t*		col;
+	byte			row[sizeof(ib_uint32_t) * 8];
+
+	/* FIXME: What should the upper limit be? */
+	ut_a(cfg->m_n_cols > 0);
+	ut_a(cfg->m_n_cols < 1024);
+
+	cfg->m_cols = UT_NEW_ARRAY_NOKEY(dict_col_t, cfg->m_n_cols);
+
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_8",
+		UT_DELETE_ARRAY(cfg->m_cols);
+		cfg->m_cols = NULL;
+	);
+
+	if (cfg->m_cols == NULL) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	cfg->m_col_names = UT_NEW_ARRAY_NOKEY(byte*, cfg->m_n_cols);
+
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_9",
+		UT_DELETE_ARRAY(cfg->m_col_names);
+		cfg->m_col_names = NULL;
+	);
+
+	if (cfg->m_col_names == NULL) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	memset(cfg->m_cols, 0x0, sizeof(cfg->m_cols) * cfg->m_n_cols);
+	memset(cfg->m_col_names, 0x0, sizeof(cfg->m_col_names) * cfg->m_n_cols);
+
+	col = cfg->m_cols;
+
+	for (ulint i = 0; i < cfg->m_n_cols; ++i, ++col) {
+		byte*		ptr = row;
+
+		/* Trigger EOF */
+		DBUG_EXECUTE_IF("ib_import_io_read_error_4",
+				(void) fseek(file, 0L, SEEK_END););
+
+		if (fread(row, 1,  sizeof(row), file) != sizeof(row)) {
+			ib_senderrf(
+				thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+				errno, strerror(errno),
+				"while reading table column meta-data.");
+
+			return(DB_IO_ERROR);
+		}
+
+		col->prtype = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->mtype = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->len = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->mbminmaxlen = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->ind = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->ord_part = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		col->max_prefix = mach_read_from_4(ptr);
+		ptr += sizeof(ib_uint32_t);
+
+		/* Read in the column name as [len, byte array]. The len
+		includes the NUL byte. */
+
+		ulint		len = mach_read_from_4(ptr);
+
+		/* FIXME: What is the maximum column name length? */
+		if (len == 0 || len > 128) {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR,
+				ER_IO_READ_ERROR,
+				"Column name length %lu, is invalid",
+				(ulong) len);
+
+			return(DB_CORRUPTION);
+		}
+
+		cfg->m_col_names[i] = UT_NEW_ARRAY_NOKEY(byte, len);
+
+		/* Trigger OOM */
+		DBUG_EXECUTE_IF(
+			"ib_import_OOM_10",
+			UT_DELETE_ARRAY(cfg->m_col_names[i]);
+			cfg->m_col_names[i] = NULL;
+		);
+
+		if (cfg->m_col_names[i] == NULL) {
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		dberr_t	err;
+
+		err = row_import_cfg_read_string(
+			file, cfg->m_col_names[i], len);
+
+		if (err != DB_SUCCESS) {
+
+			ib_senderrf(
+				thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+				errno, strerror(errno),
+				"while parsing table column name.");
+
+			return(err);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*****************************************************************//**
+Read the contents of the <tablespace>.cfg file.
+@return DB_SUCCESS or error code. */
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
+dberr_t
+row_import_read_v1(
+/*===============*/
+	FILE*		file,		/*!< in: File to read from */
+	THD*		thd,		/*!< in: session */
+	row_import*	cfg)		/*!< out: meta data */
+{
+	byte		value[sizeof(ib_uint32_t)];
+
+	/* Trigger EOF */
+	DBUG_EXECUTE_IF("ib_import_io_read_error_5",
+			(void) fseek(file, 0L, SEEK_END););
+
+	/* Read the hostname where the tablespace was exported. */
+	if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+			errno, strerror(errno),
+			"while reading meta-data export hostname length.");
+
+		return(DB_IO_ERROR);
+	}
+
+	ulint	len = mach_read_from_4(value);
+
+	/* NUL byte is part of name length. */
+	cfg->m_hostname = UT_NEW_ARRAY_NOKEY(byte, len);
+
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_1",
+		UT_DELETE_ARRAY(cfg->m_hostname);
+		cfg->m_hostname = NULL;
+	);
+
+	if (cfg->m_hostname == NULL) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	dberr_t	err = row_import_cfg_read_string(file, cfg->m_hostname, len);
+
+	if (err != DB_SUCCESS) {
+
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+			errno, strerror(errno),
+			"while parsing export hostname.");
+
+		return(err);
+	}
+
+	/* Trigger EOF */
+	DBUG_EXECUTE_IF("ib_import_io_read_error_6",
+			(void) fseek(file, 0L, SEEK_END););
+
+	/* Read the table name of tablespace that was exported. */
+	if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+			errno, strerror(errno),
+			"while reading meta-data table name length.");
+
+		return(DB_IO_ERROR);
+	}
+
+	len = mach_read_from_4(value);
+
+	/* NUL byte is part of name length. */
+	cfg->m_table_name = UT_NEW_ARRAY_NOKEY(byte, len);
+
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF(
+		"ib_import_OOM_2",
+		UT_DELETE_ARRAY(cfg->m_table_name);
+		cfg->m_table_name = NULL;
+	);
+
+	if (cfg->m_table_name == NULL) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	err = row_import_cfg_read_string(file, cfg->m_table_name, len);
+
+	if (err != DB_SUCCESS) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+			errno, strerror(errno),
+			"while parsing table name.");
+
+		return(err);
+	}
+
+	ib::info() << "Importing tablespace for table '" << cfg->m_table_name
+		<< "' that was exported from host '" << cfg->m_hostname << "'";
+
+	byte		row[sizeof(ib_uint32_t) * 3];
+
+	/* Trigger EOF */
+	DBUG_EXECUTE_IF("ib_import_io_read_error_7",
+			(void) fseek(file, 0L, SEEK_END););
+
+	/* Read the autoinc value. */
+	if (fread(row, 1, sizeof(ib_uint64_t), file) != sizeof(ib_uint64_t)) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+			errno, strerror(errno),
+			"while reading autoinc value.");
+
+		return(DB_IO_ERROR);
+	}
+
+	cfg->m_autoinc = mach_read_from_8(row);
+
+	/* Trigger EOF */
+	DBUG_EXECUTE_IF("ib_import_io_read_error_8",
+			(void) fseek(file, 0L, SEEK_END););
+
+	/* Read the tablespace page size. */
+	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+		ib_senderrf(
+			thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+			errno, strerror(errno),
+			"while reading meta-data header.");
+
+		return(DB_IO_ERROR);
+	}
+
+	byte*		ptr = row;
+
+	const ulint	logical_page_size = mach_read_from_4(ptr);
+	ptr += sizeof(ib_uint32_t);
+
+	if (logical_page_size != univ_page_size.logical()) {
+
+		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+			"Tablespace to be imported has a different"
+			" page size than this server. Server page size"
+			" is " ULINTPF ", whereas tablespace page size"
+			" is " ULINTPF,
+			univ_page_size.logical(),
+			logical_page_size);
+
+		return(DB_ERROR);
+	}
+
+	cfg->m_flags = mach_read_from_4(ptr);
+	ptr += sizeof(ib_uint32_t);
+
+	cfg->m_page_size.copy_from(dict_tf_get_page_size(cfg->m_flags));
+
+	ut_a(logical_page_size == cfg->m_page_size.logical());
+
+	cfg->m_n_cols = mach_read_from_4(ptr);
+
+	if (!dict_tf_is_valid(cfg->m_flags)) {
+
+		return(DB_CORRUPTION);
+
+	} else if ((err = row_import_read_columns(file, thd, cfg))
+		   != DB_SUCCESS) {
+
+		return(err);
+
+	} else  if ((err = row_import_read_indexes(file, thd, cfg))
+		   != DB_SUCCESS) {
+
+		return(err);
+	}
+
+	ut_a(err == DB_SUCCESS);
+	return(err);
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -4198,6 +4922,7 @@ Read the contents of the @<tablename@>.cfg file.
 @param[in]      file            file to read from
 @param[in]      thd             session
 @return DB_SUCCESS or error code. */
+<<<<<<< HEAD
 static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
                                                THD *thd) {
   byte row[sizeof(uint32_t)];
@@ -4206,6 +4931,21 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
   byte encryption_key[Encryption::KEY_LEN];
   byte encryption_iv[Encryption::KEY_LEN];
   lint elen;
+=======
+static
+dberr_t
+row_import_read_encryption_data(
+	dict_table_t*	table,
+	FILE*		file,
+	THD*		thd)
+{
+	byte		row[sizeof(ib_uint32_t)];
+	ulint		key_size;
+	byte		transfer_key[ENCRYPTION_KEY_LEN];
+	byte		encryption_key[ENCRYPTION_KEY_LEN];
+	byte		encryption_iv[ENCRYPTION_KEY_LEN];
+	lint		elen;
+>>>>>>> upstream/cluster-7.6
 
   if (fread(&row, 1, sizeof(row), file) != sizeof(row)) {
     ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
@@ -4306,6 +5046,7 @@ static dberr_t row_import_read_cfp(dict_table_t *table, THD *thd,
 
   FILE *file = fopen(name, "rb");
 
+<<<<<<< HEAD
   if (file != nullptr) {
     import.m_cfp_missing = false;
     err = row_import_read_encryption_data(table, file, thd);
@@ -4313,6 +5054,20 @@ static dberr_t row_import_read_cfp(dict_table_t *table, THD *thd,
   } else {
     /* If there's no cfp file, we assume it's not an
     encrpyted table. return directly. */
+=======
+<<<<<<< HEAD
+  if (file == NULL) {
+    import.m_cfp_missing = true;
+
+    /* If there's no cfp file, we assume it's not an
+    encrpyted table. return directly. */
+=======
+	if (file == NULL) {
+		/* If there's no cfp file, we assume it's not an
+		encrpyted table. return directly. */
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
     import.m_cfp_missing = true;
     err = DB_SUCCESS;
   }
@@ -4344,7 +5099,16 @@ dberr_t row_import_check_corruption(dict_table_t *table, THD *thd,
     }
   }
 
+<<<<<<< HEAD
   return (err);
+=======
+		err = row_import_read_encryption_data(table, file,
+						      thd);
+		fclose(file);
+	}
+
+	return(err);
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Imports a tablespace. The space id in the .ibd file must match the space id
@@ -4452,6 +5216,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
       err = cfg.match_schema(trx->mysql_thd, table_def);
     }
 
+<<<<<<< HEAD
     /* Update index->page and SYS_INDEXES.PAGE_NO to match the
     B-tree root page numbers in the tablespace. Use the index
     name from the .cfg file to find match. */
@@ -4460,6 +5225,40 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
       cfg.set_root_by_name();
       autoinc = cfg.m_autoinc;
     }
+=======
+	/* Read CFP file */
+	if (dict_table_is_encrypted(table)) {
+		/* First try to read CFP file here. */
+		err = row_import_read_cfp(table, trx->mysql_thd, cfg);
+		ut_ad(cfg.m_cfp_missing || err == DB_SUCCESS);
+
+		if (err != DB_SUCCESS) {
+			rw_lock_s_unlock_gen(dict_operation_lock, 0);
+			return (row_import_error(prebuilt, trx, err));
+		}
+
+		/* If table is encrypted, but can't find cfp file,
+                return error. */
+		if (cfg.m_cfp_missing) {
+			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				ER_TABLE_SCHEMA_MISMATCH,
+				"Table is in an encrypted tablespace, but the"
+				" encryption meta-data file cannot be found"
+				" while importing.");
+			err = DB_ERROR;
+			rw_lock_s_unlock_gen(dict_operation_lock, 0);
+			return (row_import_error(prebuilt, trx, err));
+		} else {
+			/* If CFP file is read, encryption_key must have been
+			populted. */
+			ut_ad(table->encryption_key != NULL &&
+				table->encryption_iv != NULL);
+		}
+	}
+
+	/* Read CFG file */
+	err = row_import_read_cfg(table, trx->mysql_thd, cfg);
+>>>>>>> upstream/cluster-7.6
 
     rw_lock_s_unlock_gen(dict_operation_lock, 0);
 
@@ -4547,6 +5346,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   /* Iterate over all the pages and do the sanity checking and
   the conversion required to import the tablespace. */
 
+<<<<<<< HEAD
   PageConverter converter(&cfg, trx);
 
   /* Set the IO buffer size in pages. */
@@ -4568,7 +5368,49 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   if (err == DB_IO_NO_ENCRYPT_TABLESPACE) {
     ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+<<<<<<< HEAD
             "Encryption attribute in the file does not match the dictionary.");
+=======
+            "Encryption attribute is no matched");
+=======
+		/* If the fsp flag is set for data_dir, but table flag is not
+		set for data_dir or vice versa then return error. */
+		if (err == DB_SUCCESS
+			&& FSP_FLAGS_HAS_DATA_DIR(space_flags) !=
+			DICT_TF_HAS_DATA_DIR(table->flags)) {
+			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				ER_TABLE_SCHEMA_MISMATCH,
+				"Table location flags do not match. "
+				"The source table %s a DATA DIRECTORY "
+				"but the destination table %s.",
+				(FSP_FLAGS_HAS_DATA_DIR(space_flags) ? "uses"
+				: "does not use"),
+				(DICT_TF_HAS_DATA_DIR(table->flags) ? "does"
+				: "does not"));
+			err = DB_ERROR;
+			return(row_import_error(prebuilt, trx, err));
+		}
+
+	} else {
+		rw_lock_s_unlock_gen(dict_operation_lock, 0);
+	}
+
+	if (err != DB_SUCCESS) {
+		if (err == DB_IO_NO_ENCRYPT_TABLESPACE) {
+			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				ER_TABLE_SCHEMA_MISMATCH,
+				"Encryption attribute in the file does not"
+				" match the dictionary.");
+		}
+		return(row_import_error(prebuilt, trx, err));
+	}
+
+	/* At this point, all required information has been collected for
+	IMPORT. */
+
+	prebuilt->trx->op_info = "importing tablespace";
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     return (row_import_cleanup(prebuilt, trx, err));
   }
@@ -4590,6 +5432,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     dd_import_instant_add_columns(table, table_def);
   }
 
+<<<<<<< HEAD
   /* If the table is stored in a remote tablespace, we need to
   determine that filepath from the link file and system tables.
   Find the space ID in SYS_TABLES since this is an ALTER TABLE. */
@@ -4599,6 +5442,13 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     ut_a(table->data_dir_path != nullptr);
 
     const auto dir = table->data_dir_path;
+=======
+	if (err == DB_IO_NO_ENCRYPT_TABLESPACE) {
+		ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			ER_TABLE_SCHEMA_MISMATCH,
+			"Encryption attribute in the file does not match the"
+			" dictionary.");
+>>>>>>> upstream/cluster-7.6
 
     filepath = Fil_path::make(dir, table->name.m_name, IBD, true);
   } else {
@@ -4730,10 +5580,27 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     return (row_import_error(prebuilt, trx, err));
   }
 
+<<<<<<< HEAD
   /* For secondary indexes, purge any records that couldn't be purged
   during the page conversion phase. */
 
+<<<<<<< HEAD
   err = row_import_adjust_root_pages_of_secondary_indexes(trx, table, cfg);
+=======
+  err = row_import_adjust_root_pages_of_secondary_indexes(prebuilt, trx, table,
+                                                          cfg);
+=======
+	if (err != DB_SUCCESS) {
+		return(row_import_error(prebuilt, trx, err));
+	}
+	DBUG_EXECUTE_IF("ib_import_page_corrupt",
+			row_index_t* i_index = cfg.get_index(index->name);
+			++i_index->m_stats.m_n_purge_failed;);
+	if (err != DB_SUCCESS) {
+		return(row_import_error(prebuilt, trx, err));
+	} else if (cfg.requires_purge(index->name)) {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   DBUG_EXECUTE_IF("ib_import_sec_root_adjust_failure", err = DB_CORRUPTION;);
 

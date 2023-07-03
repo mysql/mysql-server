@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -27,8 +51,27 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file row/row0quiesce.cc
  Quiesce a tablespace.
 
+<<<<<<< HEAD
  Created 2012-02-08 by Sunny Bains.
  *******************************************************/
+=======
+Created 2012-02-08 by Sunny Bains.
+*******************************************************/
+
+#include "ha_prototypes.h"
+
+#include "row0quiesce.h"
+#ifdef UNIV_NONINL
+#include "row0quiesce.ic"
+#endif
+
+#include "row0mysql.h"
+#include "ibuf0ibuf.h"
+#include "srv0start.h"
+#include "trx0purge.h"
+#include "trx0roll.h"
+#include "fsp0sysspace.h"
+>>>>>>> upstream/cluster-7.6
 
 #include <errno.h>
 #include <my_aes.h>
@@ -1144,14 +1187,37 @@ dberr_t row_quiesce_set_state(
       ut_a(table->quiesce == QUIESCE_START);
       break;
 
+<<<<<<< HEAD
     case QUIESCE_NONE:
       ut_a(table->quiesce == QUIESCE_COMPLETE);
       break;
   }
+=======
+	/* We should wait until rollback after recovery end,
+	to lock the table consistently. */
+	trx_rollback_or_clean_wait();
+
+	if (trx_purge_state() != PURGE_STATE_DISABLED) {
+		/* We should stop purge to lock the table consistently. */
+		trx_purge_stop();
+	}
+
+	row_mysql_lock_data_dictionary(trx);
+>>>>>>> upstream/cluster-7.6
 
   table->quiesce = state;
 
+<<<<<<< HEAD
   dict_table_x_unlock_indexes(table);
+=======
+	if (trx_purge_state() != PURGE_STATE_DISABLED) {
+		trx_purge_run();
+	}
+
+	switch (state) {
+	case QUIESCE_START:
+		break;
+>>>>>>> upstream/cluster-7.6
 
   row_mysql_unlock_data_dictionary(trx);
 

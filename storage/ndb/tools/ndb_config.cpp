@@ -1,5 +1,15 @@
+<<<<<<< HEAD
 /*
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+ /*
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/*
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -467,6 +477,7 @@ main(int argc, char** argv){
     }
   }
   printf("\n");
+<<<<<<< HEAD
   for (unsigned i = 0; i < select_list.size(); i++)
   {
     delete select_list[i];
@@ -476,6 +487,9 @@ main(int argc, char** argv){
   {
     delete where_clause[i];
   }
+=======
+  ndb_free_defaults(argv);
+>>>>>>> pr/231
   return 0;
 }
 
@@ -532,6 +546,7 @@ print_diff(int section, const ndb_mgm_configuration_iterator& iter)
   }
   else if (section == CFG_SECTION_CONNECTION)
   {
+<<<<<<< HEAD
     Uint32 node1, node2;
     if (iter.get(CFG_CONNECTION_NODE_1, &node1) != 0) { node1 = 0; }
     if (iter.get(CFG_CONNECTION_NODE_2, &node2) != 0) { node2 = 0; }
@@ -558,6 +573,18 @@ print_diff(int section, const ndb_mgm_configuration_iterator& iter)
     cstrbuf<20 + 1> str_buf; // enough for 64-bit decimal number
     const char* str = nullptr;
     if (iter.get(p->_paramId, &val32) == 0)
+=======
+    if ((g_section == CFG_SECTION_CONNECTION &&
+        (strcmp(ConfigInfo::m_ParamInfo[p]._section, "TCP") == 0 ||
+        strcmp(ConfigInfo::m_ParamInfo[p]._section, "SHM") == 0))
+        ||
+        (g_section == CFG_SECTION_NODE &&
+        (strcmp(ConfigInfo::m_ParamInfo[p]._section, "DB") == 0 ||
+        strcmp(ConfigInfo::m_ParamInfo[p]._section, "API") == 0 ||
+        strcmp(ConfigInfo::m_ParamInfo[p]._section, "MGM") == 0))
+        ||
+        (g_section == CFG_SECTION_SYSTEM))
+>>>>>>> pr/231
     {
       require(str_buf.appendf("%u", val32) == 0);
       str = str_buf.c_str();

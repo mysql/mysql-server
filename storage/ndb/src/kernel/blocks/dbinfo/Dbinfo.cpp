@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,12 +98,22 @@ void Dbinfo::execREAD_CONFIG_REQ(Signal *signal)
   counts.est_tables = ntable / 3;
 
   // Count nodes
+<<<<<<< HEAD
   for(int i = 1 ; i < MAX_NODES ; i++) {
     NodeInfo::NodeType type = getNodeInfo(i).getType();
     if(type == NodeInfo::NodeType::DB)
       counts.data_nodes++;
     if(type == NodeInfo::NodeType::DB || type == NodeInfo::NodeType::API ||
        type == NodeInfo::NodeType::MGM)
+=======
+  counts.data_nodes = 0;
+  counts.all_nodes = 0;
+  for(int i = 1 ; i < MAX_NODES ; i++) {
+    NodeInfo::NodeType type = getNodeInfo(i).getType();
+    if(type == NodeInfo::DB)
+      counts.data_nodes++;
+    if(type == NodeInfo::DB || type == NodeInfo::API || type == NodeInfo::MGM)
+>>>>>>> pr/231
       counts.all_nodes++;
   }
 
@@ -109,11 +123,19 @@ void Dbinfo::execREAD_CONFIG_REQ(Signal *signal)
   counts.threads.send = globalData.ndbMtSendThreads;
   counts.threads.db = thr_cf.getThreadCount();
   counts.threads.ldm = thr_cf.getThreadCount(THRConfig::T_LDM);
+<<<<<<< HEAD
   counts.cpus = Ndb_GetHWInfo(false)->cpu_cnt;
 
   // Count block instances
   counts.log_parts = globalData.ndbLogParts;
   counts.instances.tc  = globalData.ndbMtTcWorkers;
+=======
+  counts.cpus = 1;  // Ndb_GetHWInfo(false)->cpu_cnt in other versions
+
+  // Count block instances
+  counts.log_parts = globalData.ndbLogParts;
+  counts.instances.tc  = 1; // globalData.ndbMtTcWorkers in other versions
+>>>>>>> pr/231
   counts.instances.lqh = globalData.ndbMtLqhWorkers;
   counts.instances.pgman = counts.instances.lqh + 1;
 

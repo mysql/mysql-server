@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,9 +98,17 @@ class Gtid_table_access_context : public System_table_access {
     @returns THD* Pointer to thread structure
   */
   THD *create_thd();
+<<<<<<< HEAD
   void drop_thd(THD *thd);
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 
  private:
+=======
+  void drop_thd(THD* thd);
+private:
+>>>>>>> upstream/cluster-7.6
   /* Pointer to new created THD. */
   THD *m_drop_thd_object;
   /* Modify the table if it is true. */

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -304,6 +312,7 @@ bool Table_ref::resolve_derived(THD *thd, bool apply_semijoin) {
 
   Context_handler ctx_handler(thd);
 
+<<<<<<< HEAD
 #ifndef NDEBUG    // CTEs, derived tables can have outer references
   if (is_view())  // but views cannot.
     for (Query_block *sl = derived->first_query_block(); sl;
@@ -311,6 +320,22 @@ bool Table_ref::resolve_derived(THD *thd, bool apply_semijoin) {
       // Make sure there are no outer references
       assert(sl->context.outer_context == nullptr);
     }
+=======
+  if (derived->prepare_limit(thd, derived->global_parameters()))
+    DBUG_RETURN(true); /* purecov: inspected */
+
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+  for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select()) {
+=======
+#ifndef NDEBUG
+  for (SELECT_LEX *sl= derived->first_select(); sl; sl= sl->next_select())
+  {
+>>>>>>> upstream/cluster-7.6
+    // Make sure there are no outer references
+    assert(sl->context.outer_context == NULL);
+  }
+>>>>>>> pr/231
 #endif
 
   if (m_common_table_expr && m_common_table_expr->recursive &&
@@ -423,9 +448,15 @@ bool Table_ref::resolve_derived(THD *thd, bool apply_semijoin) {
   /*
     Prepare the underlying query expression of the derived table.
   */
+<<<<<<< HEAD
   if (derived->prepare(thd, derived_result, nullptr,
                        !apply_semijoin ? SELECT_NO_SEMI_JOIN : 0, 0))
     return true;
+=======
+  if (derived->prepare(thd, derived_result,
+                       !apply_semijoin ? SELECT_NO_SEMI_JOIN : 0, 0))
+    DBUG_RETURN(true);
+>>>>>>> pr/231
 
   if (check_duplicate_names(m_derived_column_names,
                             *derived->get_unit_column_types(), false))
@@ -782,7 +813,11 @@ bool Table_ref::setup_materialized_derived_tmp_table(THD *thd)
 {
   DBUG_TRACE;
 
+<<<<<<< HEAD
   assert(is_view_or_derived() && !is_merged() && table == nullptr);
+=======
+  assert(is_view_or_derived() && !is_merged() && table == NULL);
+>>>>>>> pr/231
 
   DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
 
@@ -882,6 +917,16 @@ bool Query_expression::check_materialized_derived_query_blocks(THD *thd_arg) {
 
     // Set all selected fields to be read:
     // @todo Do not set fields that are not referenced from outer query
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(thd_arg->mark_used_columns == MARK_COLUMNS_READ);
+=======
+    assert(thd->mark_used_columns == MARK_COLUMNS_READ);
+>>>>>>> upstream/cluster-7.6
+    List_iterator<Item> it(sl->all_fields);
+    Item *item;
+>>>>>>> pr/231
     Column_privilege_tracker tracker(thd_arg, SELECT_ACL);
     Mark_field mf(MARK_COLUMNS_READ);
     for (Item *item : sl->fields) {
@@ -1591,8 +1636,13 @@ bool Table_ref::create_materialized_table(THD *thd) {
   DBUG_TRACE;
 
   // @todo: Be able to assert !table->is_created() as well
+<<<<<<< HEAD
   assert((is_table_function() || derived_query_expression()) &&
          uses_materialization() && table);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT((unit || is_table_function()) && uses_materialization() && table);
+>>>>>>> pr/231
 
   if (!table->is_created()) {
     Derived_refs_iterator it(this);
@@ -1604,6 +1654,9 @@ bool Table_ref::create_materialized_table(THD *thd) {
         break;
       }
   }
+=======
+  assert(unit && uses_materialization() && table);
+>>>>>>> upstream/cluster-7.6
 
   /*
     Don't create result table if:
@@ -1614,6 +1667,7 @@ bool Table_ref::create_materialized_table(THD *thd) {
       (query_block->join != nullptr &&                 // 2
        (query_block->join->const_table_map & map())))  // 2
   {
+<<<<<<< HEAD
     /*
       At this point, JT_CONST derived tables should be null rows. Otherwise
       they would have been materialized already.
@@ -1623,6 +1677,31 @@ bool Table_ref::create_materialized_table(THD *thd) {
       QEP_TAB *tab = table->reginfo.qep_tab;
       assert(tab == nullptr || tab->type() != JT_CONST ||
              table->has_null_row());
+=======
+<<<<<<< HEAD
+  /*
+    At this point, JT_CONST derived tables should be null rows. Otherwise
+    they would have been materialized already.
+  */
+#ifndef DBUG_OFF
+    if (table != NULL) {
+      QEP_TAB *tab = table->reginfo.qep_tab;
+      DBUG_ASSERT(tab == NULL || tab->type() != JT_CONST ||
+                  table->has_null_row());
+=======
+    /*
+      At this point, JT_CONST derived tables should be null rows. Otherwise
+      they would have been materialized already.
+    */
+#ifndef NDEBUG
+    if (table != NULL)
+    {
+      QEP_TAB *tab= table->reginfo.qep_tab;
+      assert(tab == NULL ||
+             tab->type() != JT_CONST ||
+             table->has_null_row());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
 #endif
     return false;
@@ -1650,10 +1729,22 @@ bool Table_ref::create_materialized_table(THD *thd) {
   @returns false if success, true if error.
 */
 
+<<<<<<< HEAD
 bool Table_ref::materialize_derived(THD *thd) {
   DBUG_TRACE;
   assert(is_view_or_derived() && uses_materialization());
   assert(table && table->is_created() && !table->materialized);
+=======
+bool TABLE_LIST::materialize_derived(THD *thd) {
+  DBUG_ENTER("TABLE_LIST::materialize_derived");
+<<<<<<< HEAD
+  DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+  DBUG_ASSERT(table && table->is_created() && !table->materialized);
+=======
+
+  assert(is_view_or_derived() && uses_materialization());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Derived_refs_iterator it(this);
   while (TABLE *t = it.get_next())
@@ -1663,6 +1754,7 @@ bool Table_ref::materialize_derived(THD *thd) {
       return false;
     }
 
+<<<<<<< HEAD
   /*
     The with-recursive algorithm needs the table scan to return rows in
     insertion order.
@@ -1672,10 +1764,17 @@ bool Table_ref::materialize_derived(THD *thd) {
     be the same as insertion order.
     So let's verify that the table has no MySQL-created PK.
   */
+<<<<<<< HEAD
   Query_expression *const unit = derived_query_expression();
   if (unit->is_recursive()) {
     assert(table->s->primary_key == MAX_KEY);
   }
+=======
+  DBUG_ASSERT(table->s->primary_key == MAX_KEY);
+=======
+  assert(table && table->is_created());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (table->hash_field) {
     table->file->ha_index_init(0, false);
@@ -1687,8 +1786,18 @@ bool Table_ref::materialize_derived(THD *thd) {
   }
   bool res = unit->execute(thd);
 
+<<<<<<< HEAD
   if (table->hash_field) {
     table->file->ha_index_or_rnd_end();
+=======
+    assert(join && join->is_optimized());
+
+    unit->set_limit(thd, first_select);
+
+    join->exec();
+    res = join->error;
+    thd->lex->set_current_select(save_current_select);
+>>>>>>> pr/231
   }
 
   if (!res) {
@@ -1705,5 +1814,18 @@ bool Table_ref::materialize_derived(THD *thd) {
   // or read_system() and read_const() will forget to read the row.
   table->set_not_started();
 
+<<<<<<< HEAD
   return res;
+=======
+<<<<<<< HEAD
+bool TABLE_LIST::cleanup_derived() {
+  DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+=======
+bool TABLE_LIST::cleanup_derived()
+{
+  assert(is_view_or_derived() && uses_materialization());
+
+>>>>>>> upstream/cluster-7.6
+  return derived_unit()->cleanup(false);
+>>>>>>> pr/231
 }

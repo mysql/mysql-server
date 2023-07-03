@@ -155,7 +155,11 @@ ELSE(WIX_DONT_SET_CPACK_MONOLITHIC_INSTALL)
 		COMMENT "Run cmake on cache to turn CPACK_MONOLITHIC_INSTALL back on"
 		VERBATIM)
 ENDIF(WIX_DONT_SET_CPACK_MONOLITHIC_INSTALL)
+<<<<<<< HEAD
 ADD_DEPENDENCIES(NDB_MSI configure_mysql_server_extra configure_redist_check)
+=======
+ADD_DEPENDENCIES(NDB_MSI configure_mysql_server_extra)
+>>>>>>> pr/231
 
 # The 'dist' target will create Docs/INFO_SRC, and our top level cmake file does:
 # INSTALL(DIRECTORY Docs/ DESTINATION ${INSTALL_DOCDIR}

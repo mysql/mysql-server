@@ -553,6 +553,7 @@ private:
                         Uint32 timeout_ms);
   int try_alloc(NodeId id,
                 ndb_mgm_node_type type,
+<<<<<<< HEAD
                 Uint32 timeout_ms,
                 int& error_code,
                 BaseString& error_string);
@@ -572,6 +573,13 @@ private:
                                    Vector<ConfigNode>& config_nodes,
                                    int& error_code,
                                    BaseString& error_string) const;
+=======
+                Uint32 timeout_ms);
+  int try_alloc_from_list(NodeId& nodeid,
+                          ndb_mgm_node_type type,
+                          Uint32 timeout_ms,
+                          Vector<PossibleNode>& nodes_info);
+>>>>>>> pr/231
   int find_node_type(NodeId nodeid,
                      ndb_mgm_node_type type,
                      const sockaddr_in6* client_addr,

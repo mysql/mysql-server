@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -646,12 +654,20 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
   PFS_user *m_user;
   PFS_account *m_account;
 
+<<<<<<< HEAD
   /** Remote (peer) port */
   uint m_peer_port;
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   /** Raw socket address */
   struct sockaddr_storage m_sock_addr;
   /** Length of address */
   socklen_t m_sock_addr_len;
+=======
+  /** Remote (peer) port */
+  uint m_peer_port;
+>>>>>>> upstream/cluster-7.6
 
   /** Reset session connect attributes */
   void reset_session_connect_attrs();

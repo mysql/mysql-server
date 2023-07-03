@@ -8,7 +8,16 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
  * This file was modified by Oracle on 2015-01-23.
+<<<<<<< HEAD
  * Modifications Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:storage/archive/azio.cc
+ * Modifications copyright (c) 2015, 2017, Oracle and/or its affiliates. All
+ * rights reserved.
+=======
+ * Modifications Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6:storage/archive/azio.c
+>>>>>>> pr/231
  */
 
 /* @(#) $Id$ */
@@ -75,8 +84,17 @@ int az_open(azio_stream *s, const char *path, int Flags, File fd) {
   s->mode = 'r';
   /* this needs to be a define to version */
   s->version = (unsigned char)az_magic[1];
+<<<<<<< HEAD:storage/archive/azio.cc
   s->minor_version = (unsigned char)az_magic[2]; /* minor version */
+<<<<<<< HEAD
   assert(s->dirty == AZ_STATE_CLEAN);
+=======
+  DBUG_ASSERT(s->dirty == AZ_STATE_CLEAN);
+=======
+  s->minor_version= (unsigned char) az_magic[2]; /* minor version */
+  assert(s->dirty == AZ_STATE_CLEAN);
+>>>>>>> upstream/cluster-7.6:storage/archive/azio.c
+>>>>>>> pr/231
 
   /*
     We do our own version of append by nature.

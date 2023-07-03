@@ -1,6 +1,14 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -12,6 +20,14 @@ as designated in a particular file or component or in included license
 documentation.  The authors of MySQL hereby grant you an additional
 permission to link the program and your derivative works with the
 separately licensed software that they have included with MySQL.
+<<<<<<< HEAD
+=======
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -2349,9 +2365,18 @@ fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
 
   file.size = size;
 
+<<<<<<< HEAD
   file.flush_size = size;
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   file.magic_n = FIL_NODE_MAGIC_N;
+=======
+	node->flush_size = size;
+
+	node->magic_n = FIL_NODE_MAGIC_N;
+>>>>>>> upstream/cluster-7.6
 
   file.init_size = size;
 
@@ -2931,9 +2956,128 @@ bool Fil_shard::open_file(fil_node_t *file) {
 
   read_only_mode = !fsp_is_system_temporary(space->id) && srv_read_only_mode;
 
+<<<<<<< HEAD
   if (file->size == 0 ||
       (space->size_in_header == 0 && space->purpose == FIL_TYPE_TABLESPACE &&
        file == &space->files.front()
+=======
+		/* Read the first page of the tablespace */
+
+		const ulint buf2_size = recv_recovery_is_on()
+			? (2 * UNIV_PAGE_SIZE) : UNIV_PAGE_SIZE;
+		buf2 = static_cast<byte*>(
+			ut_malloc_nokey(buf2_size + UNIV_PAGE_SIZE));
+
+		/* Align the memory for file i/o if we might have O_DIRECT
+		set */
+		page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
+		ut_ad(page == page_align(page));
+
+		IORequest	request(IORequest::READ);
+
+		success = os_file_read(
+			request, node->handle, page, 0, buf2_size);
+
+		space_id = fsp_header_get_space_id(page);
+		flags = fsp_header_get_flags(page);
+
+		/* Close the file now that we have read the space id from it */
+
+		os_file_close(node->handle);
+
+		const page_size_t	page_size(flags);
+
+		min_size = FIL_IBD_FILE_INITIAL_SIZE * page_size.physical();
+
+		if (size_bytes < min_size) {
+
+			ib::error() << "The size of tablespace file "
+				<< node->name << " is only " << size_bytes
+				<< ", should be at least " << min_size << "!";
+
+			ut_error;
+		}
+
+		if (space_id != space->id) {
+			ib::fatal() << "Tablespace id is " << space->id
+				<< " in the data dictionary but in file "
+				<< node->name << " it is " << space_id << "!";
+		}
+
+		const page_size_t	space_page_size(space->flags);
+
+		if (!page_size.equals_to(space_page_size)) {
+			ib::fatal() << "Tablespace file " << node->name
+				<< " has page size " << page_size
+				<< " (flags=" << ib::hex(flags) << ") but the"
+				" data dictionary expects page size "
+				<< space_page_size << " (flags="
+				<< ib::hex(space->flags) << ")!";
+		}
+
+		if (space->flags != flags) {
+
+			ib::fatal()
+				<< "Table flags are "
+				<< ib::hex(space->flags) << " in the data"
+				" dictionary but the flags in file "
+				<< node->name << " are " << ib::hex(flags)
+				<< "!";
+		}
+
+		{
+			ulint	size		= fsp_header_get_field(
+				page, FSP_SIZE);
+			ulint	free_limit	= fsp_header_get_field(
+				page, FSP_FREE_LIMIT);
+			ulint	free_len	= flst_get_len(
+				FSP_HEADER_OFFSET + FSP_FREE + page);
+			ut_ad(space->free_limit == 0
+			      || space->free_limit == free_limit);
+			ut_ad(space->free_len == 0
+			      || space->free_len == free_len);
+			space->size_in_header = size;
+			space->free_limit = free_limit;
+			space->free_len = free_len;
+
+			/* Set estimated value for space->compression_type
+			during recovery process. */
+			if (recv_recovery_is_on()
+			    && (Compression::is_compressed_page(
+					page + page_size.physical())
+			        || Compression::is_compressed_encrypted_page(
+					page + page_size.physical()))) {
+				ut_ad(buf2_size >= (2 * UNIV_PAGE_SIZE));
+				Compression::meta_t header;
+				Compression::deserialize_header(
+					page + page_size.physical(), &header);
+				space->compression_type = header.m_algorithm;
+			}
+		}
+
+		ut_free(buf2);
+
+		/* For encrypted tablespace, we need to check the
+		encrytion key and iv(initial vector) is readed. */
+		if (FSP_FLAGS_GET_ENCRYPTION(flags)
+		    && !recv_recovery_is_on()) {
+			if (space->encryption_type != Encryption::AES) {
+				ib::error()
+					<< "Can't read encryption"
+					<< " key from file "
+					<< node->name << "!";
+				return(false);
+			}
+		}
+
+		if (node->size == 0) {
+			uint64_t	extent_size;
+
+			extent_size = page_size.physical() * FSP_EXTENT_SIZE;
+
+			/* After apply-incremental, tablespaces are not extended
+			to a whole megabyte. Do not cut off valid data. */
+>>>>>>> upstream/cluster-7.6
 #ifndef UNIV_HOTBACKUP
        && undo::is_active(space->id, false) &&
        srv_startup_is_before_trx_rollback_phase
@@ -3534,6 +3678,7 @@ uint32_t fil_space_get_flags(space_id_t space_id) {
   return flags;
 }
 
+<<<<<<< HEAD
 /** Open each file of a tablespace if not already open.
 @param[in]      space_id        tablespace identifier
 @retval true    if all file nodes were opened
@@ -3549,7 +3694,30 @@ bool Fil_shard::space_open(space_id_t space_id) {
     }
   }
 
+<<<<<<< HEAD
   return true;
+=======
+  return (true);
+=======
+/** Check if tablespace exists and is marked for truncation.
+@param[in]	id	space id
+@return true if tablespace is missing.
+@return true if tablespace is marked for truncate. */
+bool
+fil_space_is_being_truncated(
+	ulint id)
+{
+	bool flag = true;
+	fil_space_t* space;
+	mutex_enter(&fil_system->mutex);
+	space = fil_space_get_space(id);
+	if (space != NULL) {
+		flag = space->is_being_truncated;
+        }
+	mutex_exit(&fil_system->mutex);
+	return(flag);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /** Open each file of a tablespace if not already open.
@@ -4669,7 +4837,25 @@ bool Fil_shard::space_truncate(space_id_t space_id, page_no_t size_in_pages) {
 
   /* Step-3: Truncate the tablespace and accordingly update
   the fil_space_t handler that is used to access this tablespace. */
+<<<<<<< HEAD
+=======
+  mutex_acquire();
+
+<<<<<<< HEAD
+  fil_space_t *space = get_space_by_id(space_id);
+
+>>>>>>> pr/231
   ut_a(space->files.size() == 1);
+=======
+	/* Release the lock on the indexes too. So that
+	they won't violate the latch ordering. */
+	dict_table_x_unlock_indexes(table);
+	row_mysql_unlock_data_dictionary(trx);
+	DEBUG_SYNC_C("trunc_table_index_dropped_release_dict_lock");
+
+	DEBUG_SYNC_C("simulate_buffer_pool_scan");
+	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_ALL_NO_WRITE, 0);
+>>>>>>> upstream/cluster-7.6
 
   auto &file = space->files.front();
 
@@ -6768,7 +6954,210 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 bool fil_space_extend(fil_space_t *space, page_no_t size) {
   auto shard = fil_system->shard_by_id(space->id);
 
+<<<<<<< HEAD
   return shard->space_extend(space, size);
+=======
+<<<<<<< HEAD
+  return (shard->space_extend(space, size));
+=======
+retry:
+
+#ifdef UNIV_HOTBACKUP
+	page_size_t	page_length(space->flags);
+	ulint   actual_size = space->size;
+	ib::trace() << "space id : " << space->id << ", space name : "
+		<< space->name << ", space size : " << actual_size << " pages,"
+		<< " desired space size : " << size << " pages,"
+		<< " page size : " << page_length.physical();
+#endif /* UNIV_HOTBACKUP */
+
+	bool		success = true;
+
+	fil_mutex_enter_and_prepare_for_io(space->id);
+
+	if (space->size >= size) {
+		/* Space already big enough */
+		mutex_exit(&fil_system->mutex);
+		return(true);
+	}
+
+	page_size_t	pageSize(space->flags);
+	const os_offset_t	page_size = pageSize.physical();
+	fil_node_t*	node = UT_LIST_GET_LAST(space->chain);
+
+	if (!node->being_extended) {
+		/* Mark this node as undergoing extension. This flag
+		is used by other threads to wait for the extension
+		opereation to finish. */
+		node->being_extended = true;
+	} else {
+		/* Another thread is currently extending the file. Wait
+		for it to finish.  It'd have been better to use an event
+		driven mechanism but the entire module is peppered with
+		polling code. */
+
+		mutex_exit(&fil_system->mutex);
+		os_thread_sleep(100000);
+		goto retry;
+	}
+
+	if (!fil_node_prepare_for_io(node, fil_system, space)) {
+		/* The tablespace data file, such as .ibd file, is missing */
+		node->being_extended = false;
+		mutex_exit(&fil_system->mutex);
+
+		return(false);
+	}
+
+	/* At this point it is safe to release fil_system mutex. No
+	other thread can rename, delete or close the file because
+	we have set the node->being_extended flag. */
+	mutex_exit(&fil_system->mutex);
+
+	ulint		pages_added;
+
+	/* Note: This code is going to be executed independent of FusionIO HW
+	if the OS supports posix_fallocate() */
+
+	ut_ad(size > space->size);
+
+	os_offset_t	node_start = os_file_get_size(node->handle);
+	ut_a(node_start != (os_offset_t) -1);
+
+	/* Node first page number */
+	ulint		node_first_page = space->size - node->size;
+
+	/* Number of physical pages in the node/file */
+	ulint		n_node_physical_pages
+		= static_cast<ulint>(node_start) / page_size;
+
+	/* Number of pages to extend in the node/file */
+	lint		n_node_extend;
+
+	n_node_extend = size - (node_first_page + node->size);
+
+	/* If we already have enough physical pages to satisfy the
+	extend request on the node then ignore it */
+	if (node->size + n_node_extend > n_node_physical_pages) {
+
+		DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension",
+				DBUG_SUICIDE(););
+
+		os_offset_t     len;
+		dberr_t		err = DB_SUCCESS;
+
+		len = ((node->size + n_node_extend) * page_size) - node_start;
+		ut_ad(len > 0);
+
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+		int     ret = posix_fallocate(node->handle.m_file, node_start, len);
+
+		DBUG_EXECUTE_IF("ib_posix_fallocate_fail_eintr",
+				ret = EINTR;);
+
+		DBUG_EXECUTE_IF("ib_posix_fallocate_fail_einval",
+				ret = EINVAL;);
+
+		if (ret != 0) {
+			/* We already pass the valid offset and len in,
+			if EINVAL is returned, it could only mean that the
+			file system doesn't support fallocate(), currently
+			one known case is ext3 with O_DIRECT.
+
+			Also because above call could be interrupted,
+			in this case, simply go to plan B by writing zeroes.
+
+			Both error messages for above two scenarios are
+			skipped in case of flooding error messages, because
+			they can be ignored by users. */
+			if (ret != EINTR && ret != EINVAL) {
+				ib::error()
+					<< "posix_fallocate(): Failed to"
+					" preallocate data for file "
+					<< node->name << ", desired size "
+					<< len << " bytes."
+					" Operating system error number "
+					<< ret << ". Check"
+					" that the disk is not full or a disk"
+					" quota exceeded. Make sure the file"
+					" system supports this function."
+					" Some operating system error"
+					" numbers are described at " REFMAN
+					"operating-system-error-codes.html";
+			}
+
+			err = DB_IO_ERROR;
+		}
+#endif /* NO_FALLOCATE || !UNIV_LINUX */
+
+		if (!node->atomic_write || err == DB_IO_ERROR) {
+
+			bool	read_only_mode;
+
+			read_only_mode = (space->purpose != FIL_TYPE_TEMPORARY
+					  ? false : srv_read_only_mode);
+
+			err = fil_write_zeros(
+				node, page_size, node_start,
+				static_cast<ulint>(len), read_only_mode);
+
+			if (err != DB_SUCCESS) {
+
+				ib::warn()
+					<< "Error while writing " << len
+					<< " zeroes to " << node->name
+					<< " starting at offset " << node_start;
+			}
+		}
+
+		/* Check how many pages actually added */
+		os_offset_t	end = os_file_get_size(node->handle);
+		ut_a(end != static_cast<os_offset_t>(-1) && end >= node_start);
+
+		os_has_said_disk_full = !(success = (end == node_start + len));
+
+		pages_added = static_cast<ulint>(end - node_start) / page_size;
+
+	} else {
+		success = true;
+		pages_added = n_node_extend;
+		os_has_said_disk_full = FALSE;
+	}
+
+	mutex_enter(&fil_system->mutex);
+
+	ut_a(node->being_extended);
+
+	node->size += pages_added;
+	space->size += pages_added;
+	node->being_extended = false;
+
+	fil_node_complete_io(node, fil_system, IORequestWrite);
+
+#ifndef UNIV_HOTBACKUP
+	/* Keep the last data file size info up to date, rounded to
+	full megabytes */
+	ulint	pages_per_mb = (1024 * 1024) / page_size;
+	ulint	size_in_pages = ((node->size / pages_per_mb) * pages_per_mb);
+
+	if (space->id == srv_sys_space.space_id()) {
+		srv_sys_space.set_last_file_size(size_in_pages);
+	} else if (space->id == srv_tmp_space.space_id()) {
+		srv_tmp_space.set_last_file_size(size_in_pages);
+	}
+#else
+	ib::trace() << "extended space : " << space->name << " from "
+		<< actual_size << " pages to " << space->size << " pages "
+		<< ", desired space size : " << size << " pages.";
+#endif /* !UNIV_HOTBACKUP */
+
+	mutex_exit(&fil_system->mutex);
+
+	fil_flush(space->id);
+
+	return(success);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 #ifdef UNIV_HOTBACKUP
@@ -7994,6 +8383,96 @@ void Fil_shard::remove_from_unflushed_list(fil_space_t *space) {
   }
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+/** Flushes to disk possible writes cached by the OS. */
+void Fil_shard::redo_space_flush() {
+  ut_ad(mutex_owned());
+  ut_ad(m_id == REDO_SHARD);
+
+  fil_space_t *space = fil_space_t::s_redo_space;
+
+  if (space == nullptr) {
+    space = get_space_by_id(dict_sys_t::s_log_space_first_id);
+  } else {
+    ut_ad(space == get_space_by_id(dict_sys_t::s_log_space_first_id));
+  }
+
+  ut_a(!space->stop_new_ops);
+  ut_a(space->purpose == FIL_TYPE_LOG);
+
+  /* Prevent dropping of the space while we are flushing */
+  ++space->n_pending_flushes;
+
+  for (auto &file : space->files) {
+    ut_a(!file.is_raw_disk);
+
+    int64_t old_mod_counter = file.modification_counter;
+
+    if (old_mod_counter <= file.flush_counter) {
+      continue;
+    }
+
+    ut_a(file.is_open);
+    ut_a(file.space == space);
+
+    ++fil_n_log_flushes;
+    ++fil_n_pending_log_flushes;
+
+    bool skip_flush = false;
+
+    /* Wait for some other thread that is flushing. */
+    while (file.n_pending_flushes > 0 && !skip_flush) {
+      /* Release the mutex to avoid deadlock with
+      the flushing thread. */
+
+      int64_t sig_count = os_event_reset(file.sync_event);
+
+      mutex_release();
+
+      os_event_wait_low(file.sync_event, sig_count);
+
+      mutex_acquire();
+
+      if (file.flush_counter >= old_mod_counter) {
+        skip_flush = true;
+      }
+    }
+
+    if (!skip_flush) {
+      ut_a(file.is_open);
+
+      ++file.n_pending_flushes;
+
+      mutex_release();
+
+      os_file_flush(file.handle);
+
+      mutex_acquire();
+
+      os_event_set(file.sync_event);
+
+      --file.n_pending_flushes;
+    }
+
+    if (file.flush_counter < old_mod_counter) {
+      file.flush_counter = old_mod_counter;
+
+      remove_from_unflushed_list(space);
+    }
+
+    --fil_n_pending_log_flushes;
+  }
+
+  --space->n_pending_flushes;
+}
+
+/** Flushes to disk possible writes cached by the OS. If the space does
+not exist or is being dropped, does not do anything.
+@param[in]	space_id	File space ID (this can be a group of log files
+                                or a tablespace of the database) */
+>>>>>>> pr/231
 void Fil_shard::space_flush(space_id_t space_id) {
   ut_ad(mutex_owned());
 
@@ -8016,6 +8495,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
     /* Flush only if the file size changes */
     bool no_flush = true;
     for (const auto &file : space->files) {
+<<<<<<< HEAD
 #ifdef UNIV_DEBUG
       ut_ad(file.is_flushed());
 #endif /* UNIV_DEBUG */
@@ -8030,7 +8510,48 @@ void Fil_shard::space_flush(space_id_t space_id) {
       /* Nothing to flush. Just return */
       return;
     }
+=======
+      ut_ad(file.modification_counter == file.flush_counter);
+      ut_ad(file.n_pending_flushes == 0);
+    }
+=======
+	bool fbd = fil_buffering_disabled(space);
+	if (fbd) {
+
+		/* No need to flush. User has explicitly disabled
+		buffering. However, flush should be called if the file
+                size changes to keep OS metadata in sync. */
+		ut_ad(!space->is_in_unflushed_spaces);
+		ut_ad(fil_space_is_flushed(space));
+
+		/* Flush only if the file size changes */
+		bool no_flush = true;
+		for (node = UT_LIST_GET_FIRST(space->chain);
+		     node != NULL;
+		     node = UT_LIST_GET_NEXT(chain, node)) {
+#ifdef UNIV_DEBUG
+			ut_ad(node->modification_counter
+			      == node->flush_counter);
+>>>>>>> upstream/cluster-7.6
+#endif /* UNIV_DEBUG */
+			if (node->flush_size != node->size) {
+				/* Found at least one file whose size has changed */
+				no_flush = false;
+				break;
+			}
+		}
+
+<<<<<<< HEAD
+    return;
+>>>>>>> pr/231
   }
+=======
+		if (no_flush) {
+			mutex_exit(&fil_system->mutex);
+			return;
+		}
+	}
+>>>>>>> upstream/cluster-7.6
 
   /* Prevent dropping of the space while we are flushing */
   ++space->n_pending_flushes;
@@ -8038,6 +8559,7 @@ void Fil_shard::space_flush(space_id_t space_id) {
   for (auto &file : space->files) {
     int64_t old_mod_counter = file.modification_counter;
 
+<<<<<<< HEAD
     if (!file.is_open) {
       continue;
     }
@@ -8059,6 +8581,36 @@ void Fil_shard::space_flush(space_id_t space_id) {
     if (!disable_flush && (old_mod_counter <= file.flush_counter)) {
       continue;
     }
+=======
+<<<<<<< HEAD
+    if (old_mod_counter <= file.flush_counter) {
+      continue;
+    }
+
+    ut_a(file.is_open);
+=======
+		if (!node->is_open) {
+			continue;
+		}
+
+		/* Skip flushing if the file size has not changed since
+		last flush was done and the flush mode is O_DIRECT_NO_FSYNC */
+		if (fbd && (node->flush_size == node->size)) {
+			continue;
+		}
+
+		/* If we are here and the flush mode is O_DIRECT_NO_FSYNC, then
+		it means that the file size has changed and hence, it shold be
+		flushed, irrespective of the mod_counter and flush counter values,
+		which are always same in case of O_DIRECT_NO_FSYNC to avoid flush
+		on every write operation.
+		For other flush modes, if the flush_counter is same or ahead of
+		the mode_counter, skip the flush. */
+		if (!fbd && (old_mod_counter <= node->flush_counter)) {
+			continue;
+		}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     switch (space->purpose) {
       case FIL_TYPE_TEMPORARY:
@@ -8105,9 +8657,18 @@ void Fil_shard::space_flush(space_id_t space_id) {
 
       os_file_flush(file.handle);
 
+<<<<<<< HEAD
       file.flush_size = file.size;
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
       mutex_acquire();
+=======
+		node->flush_size = node->size;
+
+		mutex_enter(&fil_system->mutex);
+>>>>>>> upstream/cluster-7.6
 
       os_event_set(file.sync_event);
 
@@ -8251,6 +8812,7 @@ static void fil_buf_block_init(buf_block_t *block, byte *frame) {
   page_zip_des_init(&block->page.zip);
 }
 
+<<<<<<< HEAD
 struct Fil_page_iterator {
   /** File handle */
   pfs_os_file_t m_file;
@@ -8281,12 +8843,30 @@ struct Fil_page_iterator {
 
   /** Encruption iv */
   byte *m_encryption_iv;
+<<<<<<< HEAD
 
   /** FS Block Size */
   size_t block_size;
 
   /** Compression algorithm to be used if the table needs to be compressed. */
   Compression::Type m_compression_type{};
+=======
+=======
+struct fil_iterator_t {
+	pfs_os_file_t	file;			/*!< File handle */
+	const char*	filepath;		/*!< File path name */
+	os_offset_t	start;			/*!< From where to start */
+	os_offset_t	end;			/*!< Where to stop */
+	os_offset_t	file_size;		/*!< File size in bytes */
+	ulint		page_size;		/*!< Page size */
+	ulint		n_io_buffers;		/*!< Number of pages to use
+						for IO */
+	byte*		io_buffer;		/*!< Buffer to use for IO */
+	byte*		encryption_key;		/*!< Encryption key */
+	byte*		encryption_iv;		/*!< Encryption iv */
+	size_t		block_size;		/*!< FS Block Size */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /** TODO: This can be made parallel trivially by chunking up the file
@@ -8350,9 +8930,18 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     ut_ad(n_bytes > 0);
     ut_ad(!(n_bytes % iter.m_page_size));
 
+<<<<<<< HEAD
     dberr_t err;
     IORequest read_request(read_type);
+<<<<<<< HEAD
     read_request.block_size(iter.block_size);
+=======
+=======
+		dberr_t		err;
+		IORequest	read_request(read_type);
+		read_request.block_size(iter.block_size);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     /* For encrypted table, set encryption information. */
     if (iter.m_encryption_key != nullptr && offset != 0) {
@@ -8400,10 +8989,15 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
     IORequest write_request(write_type);
     write_request.block_size(iter.block_size);
 
+<<<<<<< HEAD
     /* For encrypted table, set encryption information. */
     if (iter.m_encryption_key != nullptr && offset != 0) {
       write_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
                                    iter.m_encryption_iv);
+=======
+		IORequest	write_request(write_type);
+		write_request.block_size(iter.block_size);
+>>>>>>> upstream/cluster-7.6
 
       write_request.encryption_algorithm(Encryption::AES);
     }
@@ -8580,6 +9174,7 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     err = DB_SUCCESS;
   }
 
+<<<<<<< HEAD
   /* Set File System Block Size */
   size_t block_size;
   {
@@ -8591,7 +9186,24 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     block_size = stat_info.block_size;
   }
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   callback.set_file(filepath, file);
+=======
+	/* Set File System Block Size */
+	size_t block_size;
+	{
+		os_file_stat_t stat_info;
+
+		ut_d(dberr_t err =) os_file_get_status(filepath, &stat_info, false, false);
+		ut_ad(err == DB_SUCCESS);
+
+		block_size = stat_info.block_size;
+	}
+
+	callback.set_file(filepath, file);
+>>>>>>> upstream/cluster-7.6
 
   os_offset_t file_size = os_file_get_size(file);
   ut_a(file_size != (os_offset_t)-1);
@@ -8636,15 +9248,27 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     iter.m_page_size = callback.get_page_size().physical();
     iter.block_size = block_size;
 
+<<<<<<< HEAD
     /* Set encryption info. */
     iter.m_encryption_key = table->encryption_key;
     iter.m_encryption_iv = table->encryption_iv;
+=======
+		iter.file = file;
+		iter.start = 0;
+		iter.end = file_size;
+		iter.filepath = filepath;
+		iter.file_size = file_size;
+		iter.n_io_buffers = n_io_buffers;
+		iter.page_size = callback.get_page_size().physical();
+		iter.block_size = block_size;
+>>>>>>> upstream/cluster-7.6
 
     iter.m_compression_type = compression_type;
 
     /* Check encryption is matched or not. */
     ulint space_flags = callback.get_space_flags();
 
+<<<<<<< HEAD
     if (FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
       if (!dd_is_table_in_encrypted_tablespace(table)) {
         ib::error(ER_IB_MSG_338) << "Table is not in an encrypted tablespace,"
@@ -8663,6 +9287,29 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
         }
       }
     }
+=======
+		/* Check encryption is matched or not. */
+		ulint	space_flags = callback.get_space_flags();
+		if (FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
+			if (!dict_table_is_encrypted(table)) {
+				ib::error() << "Table is not in an encrypted"
+					" tablespace, but the data file"
+                                        " intended for import is an encrypted"
+					" tablespace";
+				err = DB_IO_NO_ENCRYPT_TABLESPACE;
+			} else {
+				/* encryption_key must have been populated
+                                while reading CFP file. */
+				ut_ad(table->encryption_key != NULL &&
+				table->encryption_iv != NULL);
+
+				if (table->encryption_key == NULL ||
+					table->encryption_iv == NULL) {
+					err = DB_ERROR;
+				}
+			}
+		}
+>>>>>>> upstream/cluster-7.6
 
     if (err == DB_SUCCESS) {
       /* Compressed pages can't be optimised for block IO
@@ -8802,6 +9449,7 @@ dberr_t fil_rename_precheck(const dict_table_t *old_table,
     std::string tmp_path =
         Fil_path::make_new_path(old_path.c_str(), tmp_name, IBD);
 
+<<<<<<< HEAD
     /* Temp filepath must not exist. */
     err = fil_rename_tablespace_check(old_table->space, old_path.c_str(),
                                       tmp_path.c_str(),
@@ -8831,6 +9479,246 @@ dberr_t fil_rename_precheck(const dict_table_t *old_table,
   }
 
   return err;
+=======
+<<<<<<< HEAD
+  return (DB_SUCCESS);
+=======
+/** Note that a non-predefined persistent tablespace has been modified
+by redo log.
+@param[in,out]	space	tablespace */
+void
+fil_names_dirty(
+	fil_space_t*	space)
+{
+	ut_ad(log_mutex_own());
+	ut_ad(recv_recovery_is_on());
+	ut_ad(log_sys->lsn != 0);
+	ut_ad(space->max_lsn == 0);
+	ut_d(fil_space_validate_for_mtr_commit(space));
+
+	UT_LIST_ADD_LAST(fil_system->named_spaces, space);
+	space->max_lsn = log_sys->lsn;
+}
+
+/** Write MLOG_FILE_NAME records when a non-predefined persistent
+tablespace was modified for the first time since the latest
+fil_names_clear().
+@param[in,out]	space	tablespace
+@param[in,out]	mtr	mini-transaction */
+void
+fil_names_dirty_and_write(
+	fil_space_t*	space,
+	mtr_t*		mtr)
+{
+	ut_ad(log_mutex_own());
+	ut_d(fil_space_validate_for_mtr_commit(space));
+	ut_ad(space->max_lsn == log_sys->lsn);
+
+	UT_LIST_ADD_LAST(fil_system->named_spaces, space);
+	fil_names_write(space, mtr);
+
+	DBUG_EXECUTE_IF("fil_names_write_bogus",
+			{
+				char bogus_name[] = "./test/bogus file.ibd";
+				os_normalize_path(bogus_name);
+				fil_name_write(
+					SRV_LOG_SPACE_FIRST_ID, 0,
+					bogus_name, mtr);
+			});
+}
+#ifndef UNIV_HOTBACKUP
+/** On a log checkpoint, reset fil_names_dirty_and_write() flags
+and write out MLOG_FILE_NAME and MLOG_CHECKPOINT if needed.
+@param[in]	lsn		checkpoint LSN
+@param[in]	do_write	whether to always write MLOG_CHECKPOINT
+@return whether anything was written to the redo log
+@retval false	if no flags were set and nothing written
+@retval true	if anything was written to the redo log */
+bool
+fil_names_clear(
+	lsn_t	lsn,
+	bool	do_write)
+{
+	mtr_t	mtr;
+	ulint	mtr_checkpoint_size = LOG_CHECKPOINT_FREE_PER_THREAD;
+
+	DBUG_EXECUTE_IF(
+		"increase_mtr_checkpoint_size",
+		mtr_checkpoint_size = 75 * 1024;
+		);
+
+	ut_ad(log_mutex_own());
+
+	if (log_sys->append_on_checkpoint) {
+		mtr_write_log(log_sys->append_on_checkpoint);
+		do_write = true;
+	}
+
+	mtr.start();
+
+	for (fil_space_t* space = UT_LIST_GET_FIRST(fil_system->named_spaces);
+	     space != NULL; ) {
+		fil_space_t*	next = UT_LIST_GET_NEXT(named_spaces, space);
+
+		ut_ad(space->max_lsn > 0);
+		if (space->max_lsn < lsn) {
+			/* The tablespace was last dirtied before the
+			checkpoint LSN. Remove it from the list, so
+			that if the tablespace is not going to be
+			modified any more, subsequent checkpoints will
+			avoid calling fil_names_write() on it. */
+			space->max_lsn = 0;
+			UT_LIST_REMOVE(fil_system->named_spaces, space);
+		}
+
+		/* max_lsn is the last LSN where fil_names_dirty_and_write()
+		was called. If we kept track of "min_lsn" (the first LSN
+		where max_lsn turned nonzero), we could avoid the
+		fil_names_write() call if min_lsn > lsn. */
+
+		fil_names_write(space, &mtr);
+		do_write = true;
+
+		const mtr_buf_t* mtr_log = mtr_get_log(&mtr);
+
+		/** If the mtr buffer size exceeds the size of
+		LOG_CHECKPOINT_FREE_PER_THREAD then commit the multi record
+		mini-transaction, start the new mini-transaction to
+		avoid the parsing buffer overflow error during recovery. */
+
+		if (mtr_log->size() > mtr_checkpoint_size) {
+			ut_ad(mtr_log->size() < (RECV_PARSING_BUF_SIZE / 2));
+			mtr.commit_checkpoint(lsn, false);
+			mtr.start();
+		}
+
+		space = next;
+	}
+
+	if (do_write) {
+		mtr.commit_checkpoint(lsn, true);
+	} else {
+		ut_ad(!mtr.has_modifications());
+	}
+
+	return(do_write);
+}
+
+/** Truncate a single-table tablespace. The tablespace must be cached
+in the memory cache.
+@param space_id			space id
+@param dir_path			directory path
+@param tablename		the table name in the usual
+				databasename/tablename format of InnoDB
+@param flags			tablespace flags
+@param trunc_to_default		truncate to default size if tablespace
+				is being newly re-initialized.
+@return DB_SUCCESS or error */
+dberr_t
+truncate_t::truncate(
+/*=================*/
+	ulint		space_id,
+	const char*	dir_path,
+	const char*	tablename,
+	ulint		flags,
+	bool		trunc_to_default)
+{
+	dberr_t		err = DB_SUCCESS;
+	char*		path;
+	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
+
+	ut_a(!is_system_tablespace(space_id));
+
+	if (has_data_dir) {
+		ut_ad(dir_path != NULL);
+
+		path = fil_make_filepath(dir_path, tablename, IBD, true);
+
+	} else {
+		path = fil_make_filepath(NULL, tablename, IBD, false);
+	}
+
+	if (path == NULL) {
+		return(DB_OUT_OF_MEMORY);
+	}
+
+	mutex_enter(&fil_system->mutex);
+
+	fil_space_t*	space = fil_space_get_by_id(space_id);
+
+	/* The following code must change when InnoDB supports
+	multiple datafiles per tablespace. */
+	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
+
+	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
+
+	if (trunc_to_default) {
+		space->size = node->size = FIL_IBD_FILE_INITIAL_SIZE;
+	}
+
+	const bool already_open = node->is_open;
+
+	if (!already_open) {
+
+		bool	ret;
+
+		node->handle = os_file_create_simple_no_error_handling(
+			innodb_data_file_key, path, OS_FILE_OPEN,
+			OS_FILE_READ_WRITE,
+			fsp_is_system_temporary(space_id)
+			? false : srv_read_only_mode, &ret);
+
+		if (!ret) {
+			ib::error() << "Failed to open tablespace file "
+				<< path << ".";
+
+			mutex_exit(&fil_system->mutex);
+			ut_free(path);
+
+			return(DB_ERROR);
+		}
+
+		node->is_open = true;
+	}
+
+	os_offset_t	trunc_size = trunc_to_default
+		? FIL_IBD_FILE_INITIAL_SIZE
+		: space->size;
+
+	const bool success = os_file_truncate(
+		path, node->handle, trunc_size * UNIV_PAGE_SIZE);
+
+	if (!success) {
+		ib::error() << "Cannot truncate file " << path
+			<< " in TRUNCATE TABLESPACE.";
+		err = DB_ERROR;
+	}
+
+	space->stop_new_ops = false;
+	space->is_being_truncated = false;
+
+	/* If we opened the file in this function, close it. */
+	if (!already_open) {
+		bool	closed = os_file_close(node->handle);
+
+		if (!closed) {
+
+			ib::error() << "Failed to close tablespace file "
+				<< path << ".";
+
+			err = DB_ERROR;
+		} else {
+			node->is_open = false;
+		}
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	ut_free(path);
+
+	return(err);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 #endif /* !UNIV_HOTBACKUP */
 

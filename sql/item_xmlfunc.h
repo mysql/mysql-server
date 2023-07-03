@@ -1,7 +1,15 @@
 #ifndef ITEM_XMLFUNC_INCLUDED
 #define ITEM_XMLFUNC_INCLUDED
 
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,11 +61,34 @@ using ParsedXML = std::vector<MY_XML_NODE>;
 
 class Item_xml_str_func : public Item_str_func {
  protected:
+<<<<<<< HEAD
   ParsedXML pxml;
   Item *nodeset_func{nullptr};
   /// True if nodeset_func assigned during resolving
   bool nodeset_func_permanent{false};
   String xpath_tmp_value;
+=======
+  String tmp_value, pxml;
+  Item *nodeset_func;
+<<<<<<< HEAD
+=======
+  String xpath_tmp_value;
+public:
+  Item_xml_str_func(const POS &pos, Item *a, Item *b): 
+    Item_str_func(pos, a,b) 
+  {
+    maybe_null= TRUE;
+  }
+  Item_xml_str_func(const POS &pos, Item *a, Item *b, Item *c): 
+    Item_str_func(pos, a,b,c) 
+  {
+    maybe_null= TRUE;
+  }
+  void fix_length_and_dec();
+  String *parse_xml(String *raw_xml, String *parsed_xml_buf);
+  bool check_gcol_func_processor(uchar *int_arg) { return false; }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
  public:
   Item_xml_str_func(const POS &pos, Item *a, Item *b)

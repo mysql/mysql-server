@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -213,6 +221,7 @@ static void copy_string(MEM_ROOT *mem_root, String *dst, const String *src) {
 }
 
 Sql_condition::Sql_condition(MEM_ROOT *mem_root)
+<<<<<<< HEAD
     : m_class_origin((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
       m_subclass_origin((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
       m_constraint_catalog((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
@@ -223,17 +232,54 @@ Sql_condition::Sql_condition(MEM_ROOT *mem_root)
       m_table_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
       m_column_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
       m_cursor_name((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
+=======
+<<<<<<< HEAD
+    : m_class_origin((const char *)NULL, 0, &my_charset_utf8_bin),
+      m_subclass_origin((const char *)NULL, 0, &my_charset_utf8_bin),
+      m_constraint_catalog((const char *)NULL, 0, &my_charset_utf8_bin),
+      m_constraint_schema((const char *)NULL, 0, &my_charset_utf8_bin),
+      m_constraint_name((const char *)NULL, 0, &my_charset_utf8_bin),
+      m_catalog_name((const char *)NULL, 0, &my_charset_utf8_bin),
+      m_schema_name((const char *)NULL, 0, &my_charset_utf8_bin),
+      m_table_name((const char *)NULL, 0, &my_charset_utf8_bin),
+      m_column_name((const char *)NULL, 0, &my_charset_utf8_bin),
+      m_cursor_name((const char *)NULL, 0, &my_charset_utf8_bin),
+>>>>>>> pr/231
       m_message_text(),
       m_mysql_errno(0),
       m_severity_level(Sql_condition::SL_ERROR),
       m_mem_root(mem_root) {
+<<<<<<< HEAD
   assert(mem_root != nullptr);
+=======
+  DBUG_ASSERT(mem_root != NULL);
+=======
+ :Sql_alloc(),
+  m_class_origin((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_subclass_origin((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_constraint_catalog((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_constraint_schema((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_constraint_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_catalog_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_schema_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_table_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_column_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_cursor_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_message_text(),
+  m_mysql_errno(0),
+  m_severity_level(Sql_condition::SL_ERROR),
+  m_mem_root(mem_root)
+{
+  assert(mem_root != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   memset(m_returned_sqlstate, 0, sizeof(m_returned_sqlstate));
 }
 
 Sql_condition::Sql_condition(MEM_ROOT *mem_root, uint mysql_errno,
                              const char *returned_sqlstate,
                              Sql_condition::enum_severity_level severity,
+<<<<<<< HEAD
                              const char *message_text)
     : m_class_origin((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
       m_subclass_origin((const char *)nullptr, 0, &my_charset_utf8mb3_bin),
@@ -249,16 +295,47 @@ Sql_condition::Sql_condition(MEM_ROOT *mem_root, uint mysql_errno,
       m_mysql_errno(mysql_errno),
       m_severity_level(severity),
       m_mem_root(mem_root) {
+<<<<<<< HEAD
   assert(mem_root != nullptr);
   assert(mysql_errno != 0);
   assert(returned_sqlstate != nullptr);
   assert(message_text != nullptr);
+=======
+  DBUG_ASSERT(mem_root != NULL);
+  DBUG_ASSERT(mysql_errno != 0);
+  DBUG_ASSERT(returned_sqlstate != NULL);
+  DBUG_ASSERT(message_text != NULL);
+=======
+                             const char* message_text)
+ :Sql_alloc(),
+  m_class_origin((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_subclass_origin((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_constraint_catalog((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_constraint_schema((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_constraint_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_catalog_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_schema_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_table_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_column_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_cursor_name((const char*) NULL, 0, & my_charset_utf8_bin),
+  m_message_text(),
+  m_mysql_errno(mysql_errno),
+  m_severity_level(severity),
+  m_mem_root(mem_root)
+{
+  assert(mem_root != NULL);
+  assert(mysql_errno != 0);
+  assert(returned_sqlstate != NULL);
+  assert(message_text != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   set_message_text(message_text);
   set_returned_sqlstate(returned_sqlstate);
   set_class_origins();
 }
 
+<<<<<<< HEAD
 void Sql_condition::copy_opt_attributes(const Sql_condition *cond) {
   assert(this != cond);
   copy_string(m_mem_root, &m_class_origin, &cond->m_class_origin);
@@ -271,6 +348,22 @@ void Sql_condition::copy_opt_attributes(const Sql_condition *cond) {
   copy_string(m_mem_root, &m_table_name, &cond->m_table_name);
   copy_string(m_mem_root, &m_column_name, &cond->m_column_name);
   copy_string(m_mem_root, &m_cursor_name, &cond->m_cursor_name);
+=======
+
+void Sql_condition::copy_opt_attributes(const Sql_condition *cond)
+{
+  assert(this != cond);
+  copy_string(m_mem_root, & m_class_origin, & cond->m_class_origin);
+  copy_string(m_mem_root, & m_subclass_origin, & cond->m_subclass_origin);
+  copy_string(m_mem_root, & m_constraint_catalog, & cond->m_constraint_catalog);
+  copy_string(m_mem_root, & m_constraint_schema, & cond->m_constraint_schema);
+  copy_string(m_mem_root, & m_constraint_name, & cond->m_constraint_name);
+  copy_string(m_mem_root, & m_catalog_name, & cond->m_catalog_name);
+  copy_string(m_mem_root, & m_schema_name, & cond->m_schema_name);
+  copy_string(m_mem_root, & m_table_name, & cond->m_table_name);
+  copy_string(m_mem_root, & m_column_name, & cond->m_column_name);
+  copy_string(m_mem_root, & m_cursor_name, & cond->m_cursor_name);
+>>>>>>> upstream/cluster-7.6
 }
 
 void Sql_condition::set_message_text(const char *message_text) {
@@ -278,7 +371,15 @@ void Sql_condition::set_message_text(const char *message_text) {
 
   const char *copy = strdup_root(m_mem_root, message_text);
   m_message_text.set(copy, strlen(copy), error_message_charset_info);
+<<<<<<< HEAD
   assert(!m_message_text.is_alloced());
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!m_message_text.is_alloced());
+=======
+  assert(! m_message_text.is_alloced());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 static LEX_CSTRING sqlstate_origin[] = {{STRING_WITH_LEN("ISO 9075")},
@@ -352,7 +453,11 @@ Diagnostics_area::Diagnostics_area(bool allow_unlimited_conditions)
 Diagnostics_area::~Diagnostics_area() {}
 
 void Diagnostics_area::reset_diagnostics_area() {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("reset_diagnostics_area");
+>>>>>>> pr/231
 #ifdef NDEBUG
   set_overwrite_status(false);
   // Don't take chances in production.
@@ -370,8 +475,17 @@ void Diagnostics_area::reset_diagnostics_area() {
 void Diagnostics_area::set_ok_status(ulonglong affected_rows,
                                      ulonglong last_insert_id,
                                      const char *message_text) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(!is_set());
+=======
+  DBUG_ENTER("set_ok_status");
+<<<<<<< HEAD
+  DBUG_ASSERT(!is_set());
+=======
+  assert(! is_set());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
     In production, refuse to overwrite an error or a custom response
     with an OK packet.
@@ -391,7 +505,15 @@ void Diagnostics_area::set_ok_status(ulonglong affected_rows,
 void Diagnostics_area::set_eof_status(THD *thd) {
   DBUG_TRACE;
   /* Only allowed to report eof if has not yet reported an error */
+<<<<<<< HEAD
   assert(!is_set());
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!is_set());
+=======
+  assert(! is_set());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
     In production, refuse to overwrite an error or a custom response
     with an EOF packet.
@@ -423,7 +545,15 @@ void Diagnostics_area::set_error_status(uint mysql_errno,
     The only exception is when we flush the message to the client,
     an error can happen during the flush.
   */
+<<<<<<< HEAD
   assert(!is_set() || m_can_overwrite_status);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!is_set() || m_can_overwrite_status);
+=======
+  assert(! is_set() || m_can_overwrite_status);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   // message must be set properly by the caller.
   assert(message_text);
@@ -470,13 +600,28 @@ bool Diagnostics_area::has_sql_condition(uint sql_errno) const {
   return false;
 }
 
+<<<<<<< HEAD
 const char *Diagnostics_area::get_first_condition_message() {
   if (m_conditions_list.elements())
     return m_conditions_list.front()->message_text();
   return "";
 }
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
 void Diagnostics_area::reset_condition_info(THD *thd) {
+=======
+const char * Diagnostics_area::get_first_condition_message()
+{
+  if (m_conditions_list.elements())
+    return m_conditions_list.front()->message_text();
+  return "";
+}
+
+void Diagnostics_area::reset_condition_info(THD *thd)
+{
+>>>>>>> upstream/cluster-7.6
   /*
     Special case: @@session.error_count, @@session.warning_count
     These appear in non-diagnostics statements (SELECT ... [INTO ...], etc.),
@@ -618,20 +763,42 @@ Sql_condition *Diagnostics_area::push_warning(
 }
 
 void Diagnostics_area::push_diagnostics_area(THD *thd, Diagnostics_area *da,
+<<<<<<< HEAD
                                              bool copy_conditions) {
   assert(da->m_stacked_da == nullptr);
   da->m_stacked_da = this;
   if (copy_conditions) {
+=======
+                                             bool copy_conditions)
+{
+  assert(da->m_stacked_da == NULL);
+  da->m_stacked_da= this;
+  if (copy_conditions)
+  {
+>>>>>>> upstream/cluster-7.6
     da->copy_sql_conditions_from_da(thd, this);
     da->m_saved_warn_count = m_saved_warn_count;
     da->m_saved_error_count = m_saved_error_count;
   }
 }
 
+<<<<<<< HEAD
 Diagnostics_area *Diagnostics_area::pop_diagnostics_area() {
   assert(m_stacked_da);
   Diagnostics_area *da = m_stacked_da;
+<<<<<<< HEAD
   m_stacked_da = nullptr;
+=======
+  m_stacked_da = NULL;
+=======
+
+Diagnostics_area *Diagnostics_area::pop_diagnostics_area()
+{
+  assert(m_stacked_da);
+  Diagnostics_area *da= m_stacked_da;
+  m_stacked_da= NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   return da;
 }
 
@@ -683,7 +850,11 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
   DBUG_PRINT("enter", ("warning: %u", code));
 
   assert(code != 0);
+<<<<<<< HEAD
   if (format == nullptr) format = ER_THD(thd, code);
+=======
+  assert(format != NULL);
+>>>>>>> pr/231
 
   va_start(args, format);
   vsnprintf(warning, sizeof(warning), format, args);
@@ -803,10 +974,24 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show) {
 
 ErrConvString::ErrConvString(double nr) {
   // enough to print '-[digits].E+###'
+<<<<<<< HEAD
   assert(sizeof(err_buffer) > DBL_DIG + 8);
   buf_length =
       my_gcvt(nr, MY_GCVT_ARG_DOUBLE, static_cast<int>(sizeof(err_buffer)) - 1,
               err_buffer, nullptr);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(sizeof(err_buffer) > DBL_DIG + 8);
+  buf_length =
+      my_gcvt(nr, MY_GCVT_ARG_DOUBLE, static_cast<int>(sizeof(err_buffer)) - 1,
+              err_buffer, NULL);
+=======
+  assert(sizeof(err_buffer) > DBL_DIG + 8);
+  buf_length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE,
+                      static_cast<int>(sizeof(err_buffer)) - 1,
+                      err_buffer, NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 ErrConvString::ErrConvString(const my_decimal *nr) {

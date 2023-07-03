@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -336,6 +360,7 @@ constexpr uint32_t TRX_UNDO_PREPARED_IN_TC = 7;
 in the corresponding transaction object */
 
 struct trx_undo_t {
+<<<<<<< HEAD
   /** Undo log may could be allocated to store transaction GTIDs. */
   enum class Gtid_storage {
     /* No storage is allocated for GTID. */
@@ -370,6 +395,9 @@ struct trx_undo_t {
   @return true is the undo log segment is in prepared state, false otherwise.*/
   inline bool is_prepared() const;
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   /*-----------------------------*/
   ulint id;        /*!< undo log slot number within the
                    rollback segment */
@@ -426,6 +454,60 @@ struct trx_undo_t {
   UT_LIST_NODE_T(trx_undo_t) undo_list;
   /*!< undo log objects in the rollback
   segment are chained into lists */
+=======
+	/*-----------------------------*/
+	ulint		id;		/*!< undo log slot number within the
+					rollback segment */
+	ulint		type;		/*!< TRX_UNDO_INSERT or
+					TRX_UNDO_UPDATE */
+	ulint		state;		/*!< state of the corresponding undo log
+					segment */
+	ibool		del_marks;	/*!< relevant only in an update undo
+					log: this is TRUE if the transaction may
+					have delete marked records, because of
+					a delete of a row or an update of an
+					indexed field; purge is then
+					necessary; also TRUE if the transaction
+					has updated an externally stored
+					field */
+	trx_id_t	trx_id;		/*!< id of the trx assigned to the undo
+					log */
+	XID		xid;		/*!< X/Open XA transaction
+					identification */
+	ibool		dict_operation;	/*!< TRUE if a dict operation trx */
+	table_id_t	table_id;	/*!< if a dict operation, then the table
+					id */
+	trx_rseg_t*	rseg;		/*!< rseg where the undo log belongs */
+	/*-----------------------------*/
+	ulint		space;		/*!< space id where the undo log
+					placed */
+	page_size_t	page_size;
+	ulint		hdr_page_no;	/*!< page number of the header page in
+					the undo log */
+	ulint		hdr_offset;	/*!< header offset of the undo log on
+				       	the page */
+	ulint		last_page_no;	/*!< page number of the last page in the
+					undo log; this may differ from
+					top_page_no during a rollback */
+	ulint		size;		/*!< current size in pages */
+	/*-----------------------------*/
+	ulint		empty;		/*!< TRUE if the stack of undo log
+					records is currently empty */
+	ulint		top_page_no;	/*!< page number where the latest undo
+					log record was catenated; during
+					rollback the page from which the latest
+					undo record was chosen */
+	ulint		top_offset;	/*!< offset of the latest undo record,
+					i.e., the topmost element in the undo
+					log if we think of it as a stack */
+	undo_no_t	top_undo_no;	/*!< undo number of the latest record */
+	buf_block_t*	guess_block;	/*!< guess for the buffer block where
+					the top page might reside */
+	/*-----------------------------*/
+	UT_LIST_NODE_T(trx_undo_t) undo_list;
+					/*!< undo log objects in the rollback
+					segment are chained into lists */
+>>>>>>> upstream/cluster-7.6
 };
 
 UT_LIST_NODE_GETTER_DEFINITION(trx_undo_t, undo_list)

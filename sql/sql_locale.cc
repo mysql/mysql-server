@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -544,6 +552,7 @@ MY_LOCALE my_locale_en_US(0, "en_US", "English - United States", true,
 /***** LOCALE END en_US *****/
 
 /***** LOCALE BEGIN es_ES: Spanish - Spain *****/
+<<<<<<< HEAD
 static const char *my_locale_month_names_es_ES[13] = {
     "enero",     "febrero",   "marzo",  "abril",      "mayo",
     "junio",     "julio",     "agosto", "septiembre", "octubre",
@@ -577,6 +586,41 @@ MY_LOCALE my_locale_es_ES(17, "es_ES", "Spanish - Spain", false,
                           '.',        /* thousands_sep es_ES */
                           "\x03\x03", /* grouping      es_ES */
                           &global_errmsgs[es_ES]);
+=======
+static const char *my_locale_month_names_es_ES[13] = 
+ {"enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre", NullS };
+static const char *my_locale_ab_month_names_es_ES[13] = 
+ {"ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic", NullS };
+static const char *my_locale_day_names_es_ES[8] = 
+ {"lunes","martes","miércoles","jueves","viernes","sábado","domingo", NullS };
+static const char *my_locale_ab_day_names_es_ES[8] = 
+ {"lun","mar","mié","jue","vie","sáb","dom", NullS };
+static TYPELIB my_locale_typelib_month_names_es_ES = 
+ { array_elements(my_locale_month_names_es_ES)-1, "", my_locale_month_names_es_ES, NULL };
+static TYPELIB my_locale_typelib_ab_month_names_es_ES = 
+ { array_elements(my_locale_ab_month_names_es_ES)-1, "", my_locale_ab_month_names_es_ES, NULL };
+static TYPELIB my_locale_typelib_day_names_es_ES = 
+ { array_elements(my_locale_day_names_es_ES)-1, "", my_locale_day_names_es_ES, NULL };
+static TYPELIB my_locale_typelib_ab_day_names_es_ES = 
+ { array_elements(my_locale_ab_day_names_es_ES)-1, "", my_locale_ab_day_names_es_ES, NULL };
+MY_LOCALE my_locale_es_ES
+(
+  17,
+  "es_ES",
+  "Spanish - Spain",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  ',',        /* decimal point es_ES */
+  '.',        /* thousands_sep es_ES */
+  "\x03\x03", /* grouping      es_ES */
+  &global_errmsgs[es_ES]
+);
+>>>>>>> upstream/cluster-7.6
 /***** LOCALE END es_ES *****/
 
 /***** LOCALE BEGIN et_EE: Estonian - Estonia *****/
@@ -2408,6 +2452,7 @@ MY_LOCALE my_locale_es_AR(81, "es_AR", "Spanish - Argentina", false,
 /***** LOCALE END es_AR *****/
 
 /***** LOCALE BEGIN es_BO: Spanish - Bolivia *****/
+<<<<<<< HEAD
 MY_LOCALE my_locale_es_BO(82, "es_BO", "Spanish - Bolivia", false,
                           &my_locale_typelib_month_names_es_ES,
                           &my_locale_typelib_ab_month_names_es_ES,
@@ -2585,6 +2630,305 @@ MY_LOCALE my_locale_es_SV(96, "es_SV", "Spanish - El Salvador", false,
                           ',',        /* thousands_sep es_SV */
                           "\x03\x03", /* grouping      es_SV */
                           &global_errmsgs[es_ES]);
+=======
+MY_LOCALE my_locale_es_BO
+(
+  82,
+  "es_BO",
+  "Spanish - Bolivia",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  ',',        /* decimal point es_BO */
+  '.',        /* thousands_sep es_BO */
+  "\x03\x03", /* grouping      es_BO */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_BO *****/
+
+/***** LOCALE BEGIN es_CL: Spanish - Chile *****/
+MY_LOCALE my_locale_es_CL
+(
+  83,
+  "es_CL",
+  "Spanish - Chile",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  ',',        /* decimal point es_CL */
+  '.',        /* thousands_sep es_CL */
+  "\x03\x03", /* grouping      es_CL */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_CL *****/
+
+/***** LOCALE BEGIN es_CO: Spanish - Columbia *****/
+MY_LOCALE my_locale_es_CO
+(
+  84,
+  "es_CO",
+  "Spanish - Columbia",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  ',',        /* decimal point es_CO */
+  '.',        /* thousands_sep es_CO */
+  "\x03\x03", /* grouping      es_CO */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_CO *****/
+
+/***** LOCALE BEGIN es_CR: Spanish - Costa Rica *****/
+MY_LOCALE my_locale_es_CR
+(
+  85,
+  "es_CR",
+  "Spanish - Costa Rica",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  ',',        /* decimal point es_CR */
+  ' ',        /* thousands_sep es_CR */
+  "\x03\x03", /* grouping      es_CR */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_CR *****/
+
+/***** LOCALE BEGIN es_DO: Spanish - Dominican Republic *****/
+MY_LOCALE my_locale_es_DO
+(
+  86,
+  "es_DO",
+  "Spanish - Dominican Republic",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  '.',        /* decimal point es_DO */
+  ',',        /* thousands_sep es_DO */
+  "\x03\x03", /* grouping      es_DO */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_DO *****/
+
+/***** LOCALE BEGIN es_EC: Spanish - Ecuador *****/
+MY_LOCALE my_locale_es_EC
+(
+  87,
+  "es_EC",
+  "Spanish - Ecuador",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  ',',        /* decimal point es_EC */
+  '.',        /* thousands_sep es_EC */
+  "\x03\x03", /* grouping      es_EC */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_EC *****/
+
+/***** LOCALE BEGIN es_GT: Spanish - Guatemala *****/
+MY_LOCALE my_locale_es_GT
+(
+  88,
+  "es_GT",
+  "Spanish - Guatemala",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  '.',        /* decimal point es_GT */
+  ',',       /* thousands_sep es_GT */
+  "\x03\x03", /* grouping      es_GT */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_GT *****/
+
+/***** LOCALE BEGIN es_HN: Spanish - Honduras *****/
+MY_LOCALE my_locale_es_HN
+(
+  89,
+  "es_HN",
+  "Spanish - Honduras",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  '.',        /* decimal point es_HN */
+  ',',       /* thousands_sep es_HN */
+  "\x03\x03", /* grouping      es_HN */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_HN *****/
+
+/***** LOCALE BEGIN es_MX: Spanish - Mexico *****/
+MY_LOCALE my_locale_es_MX
+(
+  90,
+  "es_MX",
+  "Spanish - Mexico",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  '.',        /* decimal point es_MX */
+  ',',        /* thousands_sep es_MX */
+  "\x03\x03", /* grouping      es_MX */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_MX *****/
+
+/***** LOCALE BEGIN es_NI: Spanish - Nicaragua *****/
+MY_LOCALE my_locale_es_NI
+(
+  91,
+  "es_NI",
+  "Spanish - Nicaragua",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  '.',        /* decimal point es_NI */
+  ',',        /* thousands_sep es_NI */
+  "\x03\x03", /* grouping      es_NI */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_NI *****/
+
+/***** LOCALE BEGIN es_PA: Spanish - Panama *****/
+MY_LOCALE my_locale_es_PA
+(
+  92,
+  "es_PA",
+  "Spanish - Panama",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  '.',        /* decimal point es_PA */
+  ',',        /* thousands_sep es_PA */
+  "\x03\x03", /* grouping      es_PA */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_PA *****/
+
+/***** LOCALE BEGIN es_PE: Spanish - Peru *****/
+MY_LOCALE my_locale_es_PE
+(
+  93,
+  "es_PE",
+  "Spanish - Peru",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  '.',        /* decimal point es_PE */
+  ',',        /* thousands_sep es_PE */
+  "\x03\x03", /* grouping      es_PE */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_PE *****/
+
+/***** LOCALE BEGIN es_PR: Spanish - Puerto Rico *****/
+MY_LOCALE my_locale_es_PR
+(
+  94,
+  "es_PR",
+  "Spanish - Puerto Rico",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  '.',        /* decimal point es_PR */
+  ',',        /* thousands_sep es_PR */
+  "\x03\x03", /* grouping      es_PR */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_PR *****/
+
+/***** LOCALE BEGIN es_PY: Spanish - Paraguay *****/
+MY_LOCALE my_locale_es_PY
+(
+  95,
+  "es_PY",
+  "Spanish - Paraguay",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  ',',        /* decimal point es_PY */
+  '.',        /* thousands_sep es_PY */
+  "\x03\x03", /* grouping      es_PY */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_PY *****/
+
+/***** LOCALE BEGIN es_SV: Spanish - El Salvador *****/
+MY_LOCALE my_locale_es_SV
+(
+  96,
+  "es_SV",
+  "Spanish - El Salvador",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  '.',        /* decimal point es_SV */
+  ',',        /* thousands_sep es_SV */
+  "\x03\x03", /* grouping      es_SV */
+  &global_errmsgs[es_ES]
+);
+>>>>>>> upstream/cluster-7.6
 /***** LOCALE END es_SV *****/
 
 /***** LOCALE BEGIN es_US: Spanish - United States *****/
@@ -2600,6 +2944,7 @@ MY_LOCALE my_locale_es_US(97, "es_US", "Spanish - United States", false,
 /***** LOCALE END es_US *****/
 
 /***** LOCALE BEGIN es_UY: Spanish - Uruguay *****/
+<<<<<<< HEAD
 MY_LOCALE my_locale_es_UY(98, "es_UY", "Spanish - Uruguay", false,
                           &my_locale_typelib_month_names_es_ES,
                           &my_locale_typelib_ab_month_names_es_ES,
@@ -2621,6 +2966,45 @@ MY_LOCALE my_locale_es_VE(99, "es_VE", "Spanish - Venezuela", false,
                           '.',        /* thousands_sep es_VE */
                           "\x03\x03", /* grouping      es_VE */
                           &global_errmsgs[es_ES]);
+=======
+MY_LOCALE my_locale_es_UY
+(
+  98,
+  "es_UY",
+  "Spanish - Uruguay",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  ',',        /* decimal point es_UY */
+  '.',        /* thousands_sep es_UY */
+  "\x03\x03", /* grouping      es_UY */
+  &global_errmsgs[es_ES]
+);
+/***** LOCALE END es_UY *****/
+
+/***** LOCALE BEGIN es_VE: Spanish - Venezuela *****/
+MY_LOCALE my_locale_es_VE
+(
+  99,
+  "es_VE",
+  "Spanish - Venezuela",
+  FALSE,
+  &my_locale_typelib_month_names_es_ES,
+  &my_locale_typelib_ab_month_names_es_ES,
+  &my_locale_typelib_day_names_es_ES,
+  &my_locale_typelib_ab_day_names_es_ES,
+  10,
+  9,
+  ',',        /* decimal point es_VE */
+  '.',        /* thousands_sep es_VE */
+  "\x03\x03", /* grouping      es_VE */
+  &global_errmsgs[es_ES]
+);
+>>>>>>> upstream/cluster-7.6
 /***** LOCALE END es_VE *****/
 
 /***** LOCALE BEGIN fr_BE: French - Belgium *****/
@@ -2883,13 +3267,30 @@ static MY_LOCALE *my_locale_by_name(MY_LOCALE **locales, const char *name,
 
 MY_LOCALE *my_locale_by_name(THD *thd, const char *name, size_t length) {
   MY_LOCALE *locale;
+<<<<<<< HEAD
 
   if ((locale = my_locale_by_name(my_locales, name, length))) {
     // Check that locale is on its correct position in the array
     assert(locale == my_locales[locale->number]);
     return locale;
+<<<<<<< HEAD
   } else if ((locale =
                   my_locale_by_name(my_locales_deprecated, name, length))) {
+=======
+  } else if ((locale = my_locale_by_name(my_locales_deprecated, name))) {
+=======
+  
+  if ((locale= my_locale_by_name(my_locales, name)))
+  {
+      // Check that locale is on its correct position in the array
+    assert(locale == my_locales[locale->number]);
+      return locale;
+  }
+  else if ((locale= my_locale_by_name(my_locales_deprecated, name)))
+  {
+    THD *thd= current_thd;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     /*
       Replace the deprecated locale to the corresponding
       'fresh' locale with the same ID.

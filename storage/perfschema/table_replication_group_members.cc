@@ -1,5 +1,10 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -11,6 +16,25 @@
   documentation.  The authors of MySQL hereby grant you an additional
   permission to link the program and your derivative works with the
   separately licensed software that they have included with MySQL.
+=======
+      Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+
+      This program is free software; you can redistribute it and/or modify
+      it under the terms of the GNU General Public License, version 2.0,
+      as published by the Free Software Foundation.
+
+      This program is also distributed with certain software (including
+      but not limited to OpenSSL) that is licensed under separate terms,
+      as designated in a particular file or component or in included license
+      documentation.  The authors of MySQL hereby grant you an additional
+      permission to link the program and your derivative works with the
+      separately licensed software that they have included with MySQL.
+
+      This program is distributed in the hope that it will be useful,
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
+      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+      GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -167,8 +191,39 @@ PFS_engine_table_share table_replication_group_members::m_share = {
     false /* m_in_purgatory */
 };
 
+<<<<<<< HEAD
 PFS_engine_table *table_replication_group_members::create(
     PFS_engine_table_share *) {
+=======
+TABLE_FIELD_DEF
+table_replication_group_members::m_field_def=
+{ 5, field_types };
+
+PFS_engine_table_share_state
+table_replication_group_members::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_replication_group_members::m_share=
+{
+  { C_STRING_WITH_LEN("replication_group_members") },
+  &pfs_readonly_acl,
+  &table_replication_group_members::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_replication_group_members::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_replication_group_members::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_replication_group_members();
 }
 
@@ -206,8 +261,19 @@ int table_replication_group_members::rnd_pos(const void *pos) {
   }
 
   set_position(pos);
+<<<<<<< HEAD
   assert(m_pos.m_index < get_row_count());
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(m_pos.m_index < get_row_count());
+>>>>>>> pr/231
   return make_row(m_pos.m_index);
+=======
+  assert(m_pos.m_index < get_row_count());
+  make_row(m_pos.m_index);
+
+  return 0;
+>>>>>>> upstream/cluster-7.6
 }
 
 int table_replication_group_members::make_row(uint index) {
@@ -244,7 +310,12 @@ int table_replication_group_members::read_row_values(TABLE *table,
                                                      bool read_all) {
   Field *f;
 
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -285,7 +356,45 @@ int table_replication_group_members::read_row_values(TABLE *table,
                                  m_row.member_communication_stack_length);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  if (unlikely(! m_row_exists))
+    return HA_ERR_RECORD_DELETED;
+
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /** channel_name */
+        set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+        break;
+      case 1: /** member_id */
+        set_field_char_utf8(f, m_row.member_id, m_row.member_id_length);
+        break;
+      case 2: /** member_host */
+        set_field_char_utf8(f, m_row.member_host, m_row.member_host_length);
+        break;
+      case 3: /** member_port */
+        if (m_row.member_port > 0)
+          set_field_ulong(f, m_row.member_port);
+        else
+          f->set_null();
+        break;
+      case 4: /** member_state */
+        set_field_char_utf8(f, m_row.member_state, m_row.member_state_length);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

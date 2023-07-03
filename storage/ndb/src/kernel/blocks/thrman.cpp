@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -528,6 +532,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
   for (Uint32 i = 0; i < NUM_MEASUREMENTS; i++)
   {
     jam();
+<<<<<<< HEAD
     ndbrequire(c_measurementRecordPool.seize(measurePtr));
     measurePtr.p = new (measurePtr.p) MeasurementRecord();
     c_next_50ms_measure.addFirst(measurePtr);
@@ -535,6 +540,15 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
     measurePtr.p = new (measurePtr.p) MeasurementRecord();
     c_next_1sec_measure.addFirst(measurePtr);
     ndbrequire(c_measurementRecordPool.seize(measurePtr));
+=======
+    c_measurementRecordPool.seize(measurePtr);
+    measurePtr.p = new (measurePtr.p) MeasurementRecord();
+    c_next_50ms_measure.addFirst(measurePtr);
+    c_measurementRecordPool.seize(measurePtr);
+    measurePtr.p = new (measurePtr.p) MeasurementRecord();
+    c_next_1sec_measure.addFirst(measurePtr);
+    c_measurementRecordPool.seize(measurePtr);
+>>>>>>> pr/231
     measurePtr.p = new (measurePtr.p) MeasurementRecord();
     c_next_20sec_measure.addFirst(measurePtr);
   }
@@ -547,7 +561,11 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
     {
       jam();
       SendThreadPtr sendThreadPtr;
+<<<<<<< HEAD
       ndbrequire(c_sendThreadRecordPool.seizeId(sendThreadPtr, send_instance));
+=======
+      c_sendThreadRecordPool.seizeId(sendThreadPtr, send_instance);
+>>>>>>> pr/231
       sendThreadPtr.p = new (sendThreadPtr.p) SendThreadRecord();
       sendThreadPtr.p->m_send_thread_50ms_measurements.init();
       sendThreadPtr.p->m_send_thread_1sec_measurements.init();
@@ -558,7 +576,11 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
         jam();
         SendThreadMeasurementPtr sendThreadMeasurementPtr;
 
+<<<<<<< HEAD
         ndbrequire(c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr));
+=======
+        c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
+>>>>>>> pr/231
         sendThreadMeasurementPtr.p =
             new (sendThreadMeasurementPtr.p) SendThreadMeasurement();
         {
@@ -569,7 +591,11 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
           list_50ms.addFirst(sendThreadMeasurementPtr);
         }
 
+<<<<<<< HEAD
         ndbrequire(c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr));
+=======
+        c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
+>>>>>>> pr/231
         sendThreadMeasurementPtr.p =
             new (sendThreadMeasurementPtr.p) SendThreadMeasurement();
         {
@@ -580,7 +606,11 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
           list_1sec.addFirst(sendThreadMeasurementPtr);
         }
 
+<<<<<<< HEAD
         ndbrequire(c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr));
+=======
+        c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
+>>>>>>> pr/231
         sendThreadMeasurementPtr.p =
             new (sendThreadMeasurementPtr.p) SendThreadMeasurement();
         {
@@ -4553,8 +4583,12 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         row.write_uint32(Uint32(measurePtr.p->m_elapsed_time));
         ndbinfo_send_row(signal, req, row, rl);
       }
+<<<<<<< HEAD
       else if (pos_thread_id != 0 &&
                sendThreadMeasurementPtr.p->m_first_measure_done)
+=======
+      else if (pos_thread_id != 0 && sendThreadMeasurementPtr.p->m_first_measure_done)
+>>>>>>> pr/231
       {
         jam();
         row.write_uint32(getOwnNodeId());
@@ -4579,7 +4613,11 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
       }
       else
       {
+<<<<<<< HEAD
         // Proceed to next thread at first undone measurement
+=======
+        // Procede to next thread at first undone measurement
+>>>>>>> pr/231
         pos_index = NUM_MEASUREMENTS - 1;
       }
 

@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1994, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1994, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -704,6 +728,7 @@ struct dtuple_t {
   UT_LIST_NODE_T(dtuple_t) tuple_list;
 
 #ifdef UNIV_DEBUG
+<<<<<<< HEAD
   /** Memory heap where this tuple is allocated. */
   mem_heap_t *m_heap{};
 
@@ -712,7 +737,38 @@ struct dtuple_t {
 
   /** Magic number, used in debug assertions */
   size_t magic_n{MAGIC_N};
+=======
+<<<<<<< HEAD
+  ulint magic_n; /*!< magic number, used in
+                 debug assertions */
+=======
+	mem_heap_t	*m_heap;	/*!< memory heap where this tuple is
+					allocated. */
+	ulint		magic_n;	/*!< magic number, used in
+					debug assertions */
+>>>>>>> upstream/cluster-7.6
+/** Value of dtuple_t::magic_n */
+#define DATA_TUPLE_MAGIC_N 65478679
+>>>>>>> pr/231
 #endif /* UNIV_DEBUG */
+<<<<<<< HEAD
+=======
+
+
+	/** Get number of externally stored fields.
+	@retval number of externally stored fields. */
+	inline ulint get_n_ext() const
+	{
+		ulint n_ext = 0;
+		for (ulint i = 0; i < n_fields; ++i) {
+			if (dfield_is_ext(&fields[i])) {
+				n_ext++;
+			}
+		}
+		return (n_ext);
+	}
+};
+>>>>>>> upstream/cluster-7.6
 
   /** Print the tuple to the output stream.
   @param[in,out] out            Stream to output to.

@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +35,11 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
+<<<<<<< HEAD
 const GlobalSignalNumber MAX_GSN = 850;
+=======
+const GlobalSignalNumber MAX_GSN = 830;
+>>>>>>> pr/231
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1183,11 +1191,15 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SYNC_PAGE_WAIT_REP          826
 
 #define GSN_REDO_STATE_REP              827
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
 #define GSN_WAIT_LCP_IDLE_REQ           828
 #define GSN_WAIT_LCP_IDLE_CONF          829
 
 #define GSN_LOCAL_LATEST_LCP_ID_REP     830
+<<<<<<< HEAD
 
 #define GSN_SYNC_THREAD_VIA_REQ         831
 #define GSN_SYNC_THREAD_VIA_CONF        832
@@ -1216,4 +1228,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_UPD_THR_LOAD_ORD            849
 
 #define GSN_TRP_KEEP_ALIVE              850
+=======
+>>>>>>> pr/231
 #endif

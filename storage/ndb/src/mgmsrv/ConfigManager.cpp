@@ -484,9 +484,6 @@ ConfigManager::init(void)
                           m_opts.mycnf ? "my.cnf" : m_opts.config_filename);
       m_config_change.m_initial_config = new Config(conf); // Copy config
       m_config_state = CS_INITIAL;
-
-      if (!init_checkers(m_config_change.m_initial_config))
-        DBUG_RETURN(false);
     }
     else
     {
@@ -527,9 +524,6 @@ ConfigManager::init(void)
                             m_config->getGeneration(), m_config->getName());
         m_config_state= CS_INITIAL;
         m_config_change.m_initial_config = new Config(conf); // Copy config
-
-        if (!init_checkers(m_config_change.m_initial_config))
-          DBUG_RETURN(false);
       }
       else
       {
@@ -1970,8 +1964,6 @@ ConfigManager::run()
   m_all_mgm.bitANDC(m_opts.nowait_nodes);
   m_all_mgm.set(m_facade->ownId()); // Never exclude own node
 
-  start_checkers();
-
   while (!is_stopped())
   {
 
@@ -2055,8 +2047,6 @@ ConfigManager::run()
         not_checked.bitANDC(m_checked);
         sendConfigCheckReq(ss, not_checked);
       }
-
-      handle_exclude_nodes();
     }
 
     SimpleSignal *sig = ss.waitFor((Uint32)1000);
@@ -2165,7 +2155,6 @@ ConfigManager::run()
       break;
     }
   }
-  stop_checkers();
   ss.unlock();
 }
 
@@ -2522,7 +2511,12 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
           return false;
         }
       }
+<<<<<<< HEAD
       if (node_id != 0)
+=======
+
+      if (!config_copy.pack64(m_packed_config))
+>>>>>>> pr/231
       {
         NodeBitmask all_mgm;
         m_config->get_nodemask(all_mgm, NDB_MGM_NODE_TYPE_MGM);
@@ -2562,6 +2556,7 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
   return true;
 }
 
+<<<<<<< HEAD
 
 bool
 ConfigManager::init_checkers(const Config* config)
@@ -2741,6 +2736,8 @@ ConfigManager::handle_exclude_nodes(void)
 }
 
 
+=======
+>>>>>>> pr/231
 static bool
 check_dynamic_port_configured(const Config* config,
                               int node1, int node2,
@@ -2932,5 +2929,3 @@ ConfigManager::DynamicPorts::set_in_config(Config* config)
 
 
 template class Vector<ConfigSubscriber*>;
-template class Vector<ConfigManager::ConfigChecker*>;
-

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +73,7 @@ protected:
   void execEVENT_REP(Signal* );
   void sendSUM_EVENT_REP(Signal*, Uint32 ssId);
   void execRESTORABLE_GCI_REP(Signal*);
+<<<<<<< HEAD
 
   // DEFINE_BACKUP_REQ
   struct Ss_DEFINE_BACKUP_REQ : SsParallel {
@@ -149,6 +154,8 @@ protected:
   SsPool<Ss_ABORT_BACKUP_ORD> c_ss_ABORT_BACKUP_ORD;
   void execABORT_BACKUP_ORD(Signal*);
   void sendABORT_BACKUP_ORD(Signal*, Uint32 ssId, SectionHandle*);
+=======
+>>>>>>> pr/231
   void execNODE_START_REP(Signal* signal);
 };
 

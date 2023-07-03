@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2004, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -408,7 +416,76 @@ bool Sql_cmd_create_trigger::execute(THD *thd) {
     return true;
   }
 
+<<<<<<< HEAD
   if (check_trg_priv_on_subj_table(thd, m_trigger_table)) return true;
+=======
+<<<<<<< HEAD
+  if (check_trg_priv_on_subj_table(thd, m_trigger_table)) DBUG_RETURN(true);
+=======
+  if (!create)
+  {
+    bool if_exists= thd->lex->drop_if_exists;
+
+    /*
+      Protect the query table list from the temporary and potentially
+      destructive changes necessary to open the trigger's table.
+    */
+    thd->lex->reset_n_backup_query_tables_list(&backup);
+    /*
+      Restore Query_tables_list::sql_command, which was
+      reset above, as the code that writes the query to the
+      binary log assumes that this value corresponds to the
+      statement that is being executed.
+    */
+    thd->lex->sql_command= backup.sql_command;
+
+    if (check_readonly(thd, true))
+      goto end;
+
+    if (add_table_for_trigger(thd,
+                              thd->lex->spname->m_db,
+                              thd->lex->spname->m_name,
+                              if_exists, & tables))
+      goto end;
+
+    if (!tables)
+    {
+      assert(if_exists);
+      /*
+        Since the trigger does not exist, there is no associated table,
+        and therefore :
+        - no TRIGGER privileges to check,
+        - no trigger to drop,
+        - no table to lock/modify,
+        so the drop statement is successful.
+      */
+      result= FALSE;
+      /* Still, we need to log the query ... */
+      stmt_query.append(thd->query().str, thd->query().length);
+      goto end;
+    }
+  }
+
+  /*
+    Check that the user has TRIGGER privilege on the subject table.
+  */
+  {
+    bool err_status;
+    TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
+    thd->lex->query_tables_own_last= 0;
+
+    err_status= check_table_access(thd, TRIGGER_ACL, tables, FALSE, 1, FALSE);
+
+    thd->lex->query_tables_own_last= save_query_tables_own_last;
+
+    if (err_status)
+      goto end;
+  }
+
+  /* We should have only one table in table list. */
+  assert(tables->next_global == 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* We do not allow creation of triggers on temporary tables. */
   if (find_temporary_table(thd, m_trigger_table) != nullptr) {
@@ -590,7 +667,69 @@ bool Sql_cmd_drop_trigger::execute(THD *thd) {
     }
   }
 
+<<<<<<< HEAD
   restore_original_mdl_state(thd, mdl_ticket);
 
+<<<<<<< HEAD
   return result;
+=======
+  DBUG_RETURN(result);
+=======
+  /*
+    This method interfaces the mysql server code protected by
+    an exclusive metadata lock.
+  */
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                      db_name,
+                                                      table_name,
+                                                      MDL_EXCLUSIVE));
+
+  assert(my_strcasecmp(table_alias_charset, db_name, new_db_name) ||
+         my_strcasecmp(table_alias_charset, table_alias, new_table_name));
+
+  Table_trigger_dispatcher d(db_name, table_name);
+
+  return d.check_n_load(thd, true) ||
+         d.check_for_broken_triggers() ||
+         d.rename_subject_table(thd,
+                                db_name, new_db_name,
+                                table_alias,
+                                new_table_name,
+                                upgrading50to51);
+}
+
+
+
+/**
+  Drop all triggers for table.
+
+  @param thd        current thread context
+  @param db_name    name of the table schema
+  @param table_name table name
+
+  @return Operation status.
+    @retval false Success
+    @retval true  Failure
+*/
+bool drop_all_triggers(THD *thd, const char *db_name, const char *table_name)
+{
+  // Check if there is at least one trigger for the given table.
+
+  if (!Trigger_loader::trg_file_exists(db_name, table_name))
+    return false;
+
+  /*
+    Here we have to 1) load trigger definitions from TRG-files and 2) parse them
+    to find out trigger names. Since trigger names are not stored in the
+    TRG-file, it is impossible to avoid parsing just to delete triggers.
+  */
+
+  Table_trigger_dispatcher d(db_name, table_name);
+
+  return
+    d.check_n_load(thd, true) ||
+    Trigger_loader::drop_all_triggers(db_name, table_name,
+                                      &d.get_trigger_list());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }

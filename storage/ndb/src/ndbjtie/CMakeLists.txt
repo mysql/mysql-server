@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +31,7 @@
 # the native path to the JVM
 FILE(TO_NATIVE_PATH "${Java_JAVA_EXECUTABLE}" Java_JAVA_EXECUTABLE_PATH)
 
+<<<<<<< HEAD
 FOREACH(warning
     "unused-but-set-variable"
     "unused-parameter"
@@ -36,6 +41,9 @@ FOREACH(warning
     STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
   ENDIF()
 ENDFOREACH()
+=======
+ENDIF(HAVE_JAVA)
+>>>>>>> pr/231
 
 ADD_SUBDIRECTORY(jtie)
 ADD_SUBDIRECTORY(test)

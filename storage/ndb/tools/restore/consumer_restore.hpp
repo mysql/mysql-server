@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +31,16 @@
 
 #include "consumer.hpp"
 
+<<<<<<< HEAD
 #include <functional>
+=======
+namespace NdbRestoreStatus
+{
+  enum {Ok = 0, Failed = 1, WrongArgs = 2};
+}
+
+bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts);
+>>>>>>> pr/231
 
 struct restore_callback_t {
   class BackupRestore *restore;
@@ -62,6 +75,7 @@ struct PromotionRules {
 class BackupRestore : public BackupConsumer 
 {
 public:
+<<<<<<< HEAD
   BackupRestore(Ndb_cluster_connection *conn,
                 const char *instance_name,
                 Uint32 parallelism) :
@@ -71,6 +85,24 @@ public:
 #ifdef ERROR_INSERT
     ,m_error_insert(0)
 #endif
+=======
+  BackupRestore(const char* ndb_connectstring,
+                int ndb_nodeid,
+                NODE_GROUP_MAP *ng_map,
+                uint ng_map_len,
+                const char *restore_id,
+                Uint32 parallelism,
+                int ndb_connect_retry_delay,
+                int ndb_connect_retries
+                ) :
+    m_ndb(NULL),
+    m_cluster_connection(NULL),
+    m_ndb_connectstring(ndb_connectstring),
+    m_ndb_connect_retry_delay(ndb_connect_retry_delay),
+    m_ndb_connect_retries(ndb_connect_retries),
+    m_ndb_nodeid(ndb_nodeid),
+    m_restore_id(restore_id)
+>>>>>>> pr/231
   {
     m_n_tablespace = 0;
     m_n_logfilegroup = 0;
@@ -85,7 +117,10 @@ public:
     m_no_restore_disk = false;
     m_restore_epoch_requested = false;
     m_restore_epoch = false;
+<<<<<<< HEAD
     m_delete_epoch_tuple = false;
+=======
+>>>>>>> pr/231
     m_parallelism = parallelism;
     m_callback = 0;
     m_free_callback = 0;
@@ -116,6 +151,7 @@ public:
   virtual void cback(int result, restore_callback_t *cb);
   virtual void cback_logentry(int result, restore_callback_t *cb);
   virtual bool errorHandler(restore_callback_t *cb);
+<<<<<<< HEAD
   void endOfTuples() override;
   bool logEntry(const LogEntry &) override;
   void logEntry_a(restore_callback_t *cb);
@@ -142,11 +178,47 @@ public:
   bool report_log(unsigned node_id, unsigned backup_id) override;
   bool report_completed(unsigned node_id, unsigned backup_id) override;
   bool isMissingTable(const TableS& table) override;
+=======
+  virtual void exitHandler();
+  virtual void endOfTuples();
+  virtual void logEntry(const LogEntry &);
+  void logEntry_a(restore_callback_t *cb);
+  virtual void endOfLogEntrys();
+  virtual bool prepare_staging(const TableS &);
+  virtual bool finalize_staging(const TableS &);
+  virtual bool finalize_table(const TableS &);
+  virtual bool rebuild_indexes(const TableS&);
+  virtual bool has_temp_error();
+  virtual bool createSystable(const TableS & table);
+  virtual bool table_compatible_check(TableS & tableS);
+  virtual bool check_blobs(TableS & tableS); 
+  virtual bool column_compatible_check(const char* tableName,
+                                       const NDBCOL* backupCol, 
+                                       const NDBCOL* dbCol);
+  virtual bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart);
+  virtual bool report_started(unsigned node_id, unsigned backup_id);
+  virtual bool report_meta_data(unsigned node_id, unsigned backup_id);
+  virtual bool report_data(unsigned node_id, unsigned backup_id);
+  virtual bool report_log(unsigned node_id, unsigned backup_id);
+  virtual bool report_completed(unsigned node_id, unsigned backup_id);
+  bool map_in_frm(char *new_data, const char *data,
+                  uint data_len, uint *new_data_len) const;
+  bool search_replace(char *search_str, char **new_data,
+                      const char **data, const char *end_data,
+                      uint *new_data_len) const;
+  bool map_nodegroups(Uint32 *ng_array, Uint32 no_parts) const;
+  Uint32 map_ng(Uint32 ng) const;
+  bool translate_frm(NdbDictionary::Table *table) const;
+  bool isMissingTable(const TableS& table);
+>>>>>>> pr/231
   bool getPkMappingIndex(TableS* table);
   bool tryCreatePkMappingIndex(TableS* table,
                                const char* table_name);
   bool dropPkMappingIndex(const TableS* table);
+<<<<<<< HEAD
   bool handle_index_stat_tables() override;
+=======
+>>>>>>> pr/231
 
   static AttrConvType check_compat_sizes(const NDBCOL &old_col,
                                          const NDBCOL &new_col);
@@ -218,8 +290,12 @@ public:
 
   void update_next_auto_val(Uint32 orig_table_id,
                             Uint64 next_val);
+<<<<<<< HEAD
   bool get_fatal_error();
   void set_fatal_error(bool);
+=======
+
+>>>>>>> pr/231
 
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
@@ -258,9 +334,12 @@ public:
   Uint32 m_logCount;
   Uint32 m_dataCount;
 
+<<<<<<< HEAD
   static const Uint32 INSTANCE_ID_LEN = 20;
   char m_instance_name[INSTANCE_ID_LEN];
 
+=======
+>>>>>>> pr/231
   Uint32 m_parallelism;
   volatile Uint32 m_transactions;
 
@@ -268,7 +347,10 @@ public:
   restore_callback_t *m_free_callback;
   bool m_temp_error;
   Uint64 m_pk_update_warning_count;
+<<<<<<< HEAD
   bool m_fatal_error;
+=======
+>>>>>>> pr/231
 
   /**
    * m_new_table_ids[X] = Y;
@@ -280,6 +362,9 @@ public:
     const NdbDictionary::Table* m_old_table;
     const NdbDictionary::Table* m_new_table;
   } m_cache;
+
+  BaseString m_restore_id;
+
   const NdbDictionary::Table* get_table(const TableS &);
 
   Vector<Uint64> m_auto_values;

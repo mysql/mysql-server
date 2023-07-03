@@ -1,6 +1,14 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -168,7 +176,12 @@ class COPY_INFO {
      @param duplicate_handling The policy for handling duplicates.
 
   */
+<<<<<<< HEAD
   COPY_INFO(operation_type optype, mem_root_deque<Item *> *inserted_columns,
+=======
+<<<<<<< HEAD
+  COPY_INFO(operation_type optype, List<Item> *inserted_columns,
+>>>>>>> pr/231
             bool manage_defaults, enum_duplicates duplicate_handling)
       : m_optype(optype),
         m_changed_columns(inserted_columns),
@@ -179,8 +192,31 @@ class COPY_INFO {
         stats(),
         escape_char(0),
         last_errno(0),
+<<<<<<< HEAD
         update_values(nullptr) {
     assert(optype == INSERT_OPERATION);
+=======
+        update_values(NULL) {
+    DBUG_ASSERT(optype == INSERT_OPERATION);
+=======
+  COPY_INFO(operation_type optype,
+            List<Item> *inserted_columns,
+            bool manage_defaults,
+            enum_duplicates duplicate_handling) :
+    m_optype(optype),
+    m_changed_columns(inserted_columns),
+    m_changed_columns2(NULL),
+    m_manage_defaults(manage_defaults),
+    m_function_default_columns(NULL),
+    handle_duplicates(duplicate_handling),
+    stats(),
+    escape_char(0),
+    last_errno(0),
+    update_values(NULL)
+  {
+    assert(optype == INSERT_OPERATION);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   /**
@@ -205,8 +241,14 @@ class COPY_INFO {
      @param duplicates_handling How to handle duplicates.
      @param escape_character    The escape character.
   */
+<<<<<<< HEAD
   COPY_INFO(operation_type optype, mem_root_deque<Item *> *inserted_columns,
             mem_root_deque<Item *> *inserted_columns2, bool manage_defaults,
+=======
+<<<<<<< HEAD
+  COPY_INFO(operation_type optype, List<Item> *inserted_columns,
+            List<Item> *inserted_columns2, bool manage_defaults,
+>>>>>>> pr/231
             enum_duplicates duplicates_handling, int escape_character)
       : m_optype(optype),
         m_changed_columns(inserted_columns),
@@ -217,8 +259,33 @@ class COPY_INFO {
         stats(),
         escape_char(escape_character),
         last_errno(0),
+<<<<<<< HEAD
         update_values(nullptr) {
     assert(optype == INSERT_OPERATION);
+=======
+        update_values(NULL) {
+    DBUG_ASSERT(optype == INSERT_OPERATION);
+=======
+  COPY_INFO(operation_type optype,
+            List<Item> *inserted_columns,
+            List<Item> *inserted_columns2,
+            bool manage_defaults,
+            enum_duplicates duplicates_handling,
+            int escape_character) :
+    m_optype(optype),
+    m_changed_columns(inserted_columns),
+    m_changed_columns2(inserted_columns2),
+    m_manage_defaults(manage_defaults),
+    m_function_default_columns(NULL),
+    handle_duplicates(duplicates_handling),
+    stats(),
+    escape_char(escape_character),
+    last_errno(0),
+    update_values(NULL)
+  {
+    assert(optype == INSERT_OPERATION);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   /**
@@ -231,8 +298,13 @@ class COPY_INFO {
      @note that UPDATE always lists columns, so non-listed columns may need a
      default thus m_manage_defaults is always true.
   */
+<<<<<<< HEAD
   COPY_INFO(operation_type optype, mem_root_deque<Item *> *fields,
             mem_root_deque<Item *> *values)
+=======
+<<<<<<< HEAD
+  COPY_INFO(operation_type optype, List<Item> *fields, List<Item> *values)
+>>>>>>> pr/231
       : m_optype(optype),
         m_changed_columns(fields),
         m_changed_columns2(nullptr),
@@ -243,7 +315,26 @@ class COPY_INFO {
         escape_char(0),
         last_errno(0),
         update_values(values) {
+<<<<<<< HEAD
     assert(optype == UPDATE_OPERATION);
+=======
+    DBUG_ASSERT(optype == UPDATE_OPERATION);
+=======
+  COPY_INFO(operation_type optype, List<Item> *fields, List<Item> *values) :
+    m_optype(optype),
+    m_changed_columns(fields),
+    m_changed_columns2(NULL),
+    m_manage_defaults(true),
+    m_function_default_columns(NULL),
+    handle_duplicates(DUP_ERROR),
+    stats(),
+    escape_char(0),
+    last_errno(0),
+    update_values(values)
+  {
+    assert(optype == UPDATE_OPERATION);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   operation_type get_operation_type() const { return m_optype; }
@@ -303,8 +394,18 @@ class COPY_INFO {
      @note COPY_INFO::add_function_default_columns() must be called prior to
      invoking this function.
   */
+<<<<<<< HEAD
   bool function_defaults_apply(const TABLE *) const {
+<<<<<<< HEAD
     assert(m_function_default_columns != nullptr);
+=======
+    DBUG_ASSERT(m_function_default_columns != NULL);
+=======
+  bool function_defaults_apply(const TABLE *table) const
+  {
+    assert(m_function_default_columns != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return !bitmap_is_clear_all(m_function_default_columns);
   }
 
@@ -312,8 +413,18 @@ class COPY_INFO {
     True if any of the columns set in the bitmap have default functions
     that may set the column.
   */
+<<<<<<< HEAD
   bool function_defaults_apply_on_columns(MY_BITMAP *map) {
+<<<<<<< HEAD
     assert(m_function_default_columns != nullptr);
+=======
+    DBUG_ASSERT(m_function_default_columns != NULL);
+=======
+  bool function_defaults_apply_on_columns(MY_BITMAP *map)
+  {
+    assert(m_function_default_columns != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return bitmap_is_overlapping(m_function_default_columns, map);
   }
 

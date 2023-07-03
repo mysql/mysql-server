@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -95,6 +103,7 @@ bool PFS_index_mutex_instances_by_name::match(PFS_mutex *pfs) {
   return true;
 }
 
+<<<<<<< HEAD
 bool PFS_index_mutex_instances_by_thread_id::match(PFS_mutex *pfs) {
   if (m_fields >= 1) {
     if (!m_key.match_owner(pfs)) {
@@ -103,6 +112,29 @@ bool PFS_index_mutex_instances_by_thread_id::match(PFS_mutex *pfs) {
   }
   return true;
 }
+=======
+PFS_engine_table_share_state
+table_mutex_instances::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_mutex_instances::m_share=
+{
+  { C_STRING_WITH_LEN("mutex_instances") },
+  &pfs_readonly_acl,
+  table_mutex_instances::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_mutex_instances::get_row_count,
+  sizeof(PFS_simple_index),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+>>>>>>> upstream/cluster-7.6
 
 PFS_engine_table *table_mutex_instances::create(PFS_engine_table_share *) {
   return new table_mutex_instances();
@@ -227,7 +259,12 @@ int table_mutex_instances::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -247,7 +284,36 @@ int table_mutex_instances::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* NAME */
+        set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+        break;
+      case 1: /* OBJECT_INSTANCE */
+        set_field_ulonglong(f, (intptr) m_row.m_identity);
+        break;
+      case 2: /* LOCKED_BY_THREAD_ID */
+        if (m_row.m_locked)
+          set_field_ulonglong(f, m_row.m_locked_by_thread_id);
+        else
+          f->set_null();
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -308,6 +374,7 @@ bool PFS_index_rwlock_instances_by_name::match(PFS_rwlock *pfs) {
   return true;
 }
 
+<<<<<<< HEAD
 bool PFS_index_rwlock_instances_by_thread_id::match(PFS_rwlock *pfs) {
   if (m_fields >= 1) {
     if (!m_key.match_writer(pfs)) {
@@ -316,6 +383,29 @@ bool PFS_index_rwlock_instances_by_thread_id::match(PFS_rwlock *pfs) {
   }
   return true;
 }
+=======
+PFS_engine_table_share_state
+table_rwlock_instances::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_rwlock_instances::m_share=
+{
+  { C_STRING_WITH_LEN("rwlock_instances") },
+  &pfs_readonly_acl,
+  table_rwlock_instances::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_rwlock_instances::get_row_count,
+  sizeof(PFS_simple_index),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+>>>>>>> upstream/cluster-7.6
 
 PFS_engine_table *table_rwlock_instances::create(PFS_engine_table_share *) {
   return new table_rwlock_instances();
@@ -443,7 +533,12 @@ int table_rwlock_instances::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -466,7 +561,39 @@ int table_rwlock_instances::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulong(f, m_row.m_readers);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* NAME */
+        set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+        break;
+      case 1: /* OBJECT_INSTANCE */
+        set_field_ulonglong(f, (intptr) m_row.m_identity);
+        break;
+      case 2: /* WRITE_LOCKED_BY_THREAD_ID */
+        if (m_row.m_write_locked)
+          set_field_ulonglong(f, m_row.m_write_locked_by_thread_id);
+        else
+          f->set_null();
+        break;
+      case 3: /* READ_LOCKED_BY_COUNT */
+        set_field_ulong(f, m_row.m_readers);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }
@@ -524,7 +651,34 @@ bool PFS_index_cond_instances_by_name::match(PFS_cond *pfs) {
   return true;
 }
 
+<<<<<<< HEAD
 PFS_engine_table *table_cond_instances::create(PFS_engine_table_share *) {
+=======
+PFS_engine_table_share_state
+table_cond_instances::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_cond_instances::m_share=
+{
+  { C_STRING_WITH_LEN("cond_instances") },
+  &pfs_readonly_acl,
+  table_cond_instances::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_cond_instances::get_row_count,
+  sizeof(PFS_simple_index),
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_cond_instances::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_cond_instances();
 }
 
@@ -638,6 +792,7 @@ int table_cond_instances::read_row_values(TABLE *table, unsigned char *,
   /* Set the null bits */
   assert(table->s->null_bytes == 0);
 
+<<<<<<< HEAD
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       switch (f->field_index()) {
@@ -648,7 +803,27 @@ int table_cond_instances::read_row_values(TABLE *table, unsigned char *,
           set_field_ulonglong(f, (intptr)m_row.m_identity);
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* NAME */
+        set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+        break;
+      case 1: /* OBJECT_INSTANCE */
+        set_field_ulonglong(f, (intptr) m_row.m_identity);
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

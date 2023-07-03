@@ -1,5 +1,14 @@
+<<<<<<< HEAD
 /* Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD:storage/myisam/rt_split.cc
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
+=======
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+   
+>>>>>>> upstream/cluster-7.6:storage/myisam/rt_split.c
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +44,11 @@ protocol=tcp
 [cluster_config.2ndbd]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 DataMemory = 400M
@@ -49,15 +57,22 @@ MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 SendBufferMemory = 2M
 NoOfFragmentLogFiles = 4
+<<<<<<< HEAD
 FragmentLogFileSize = 256M
+=======
+FragmentLogFileSize = 128M
+>>>>>>> pr/231
 CompressedLCP=1
 CompressedBackup=1
 ODirect=1
 MaxNoOfAttributes=2000
 Checksum=1
+<<<<<<< HEAD
 PartitionsPerNode=1
 HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
+=======
+>>>>>>> pr/231
 
 SharedGlobalMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
@@ -71,7 +86,11 @@ TimeBetweenWatchDogCheckInitial=60000
 [cluster_config.2node]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 DataMemory = 400M
@@ -80,17 +99,24 @@ MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 SendBufferMemory = 2M
 NoOfFragmentLogFiles = 4
+<<<<<<< HEAD
 FragmentLogFileSize = 256M
+=======
+FragmentLogFileSize = 128M
+>>>>>>> pr/231
 CompressedLCP=1
 CompressedBackup=1
 ODirect=1
 MaxNoOfAttributes=2000
 Checksum=1
+<<<<<<< HEAD
 AutomaticThreadConfig=1
 NumCPUs=8
 PartitionsPerNode=2
 HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
+=======
+>>>>>>> pr/231
 
 SharedGlobalMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
@@ -104,7 +130,11 @@ TimeBetweenWatchDogCheckInitial=60000
 [cluster_config.2node8thr]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 IndexMemory = 100M
@@ -113,7 +143,11 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
+<<<<<<< HEAD
 FragmentLogFileSize = 256M
+=======
+FragmentLogFileSize = 128M
+>>>>>>> pr/231
 ODirect=1
 MaxNoOfExecutionThreads=8
 SendBufferMemory=4M
@@ -125,8 +159,11 @@ DiskPageBufferMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
+<<<<<<< HEAD
 HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
+=======
+>>>>>>> pr/231
 
 #
 # .2node10thr
@@ -135,7 +172,11 @@ TransactionDeadlockDetectionTimeout=2500
 [cluster_config.2node10thr]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 DataMemory = 400M
@@ -143,7 +184,11 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 4
+<<<<<<< HEAD
 FragmentLogFileSize = 256M
+=======
+FragmentLogFileSize = 128M
+>>>>>>> pr/231
 CompressedLCP=1
 CompressedBackup=1
 ODirect=1
@@ -151,14 +196,20 @@ MaxNoOfAttributes=2000
 Checksum=1
 ThreadConfig=main={count=1},rep={count=1},ldm={count=2},tc={count=2},recv={count=2},send={count=2}
 SendBufferMemory=4M
+<<<<<<< HEAD
 PartitionsPerNode=2
+=======
+>>>>>>> pr/231
 
 SharedGlobalMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:128M;datafile02.dat:64M
 TimeBetweenWatchDogCheckInitial=60000
+<<<<<<< HEAD
 HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
+=======
+>>>>>>> pr/231
 
 #
 # .4node
@@ -167,7 +218,11 @@ TransactionDeadlockDetectionTimeout=2500
 [cluster_config.4node]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host6,CHOOSE_host7
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 IndexMemory = 100M
@@ -176,6 +231,7 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
+<<<<<<< HEAD
 FragmentLogFileSize = 256M
 ODirect=1
 MaxNoOfAttributes=2000
@@ -183,6 +239,12 @@ Checksum=1
 AutomaticThreadConfig=1
 NumCPUs=4
 PartitionsPerNode=1
+=======
+FragmentLogFileSize = 128M
+ODirect=1
+MaxNoOfAttributes=2000
+Checksum=1
+>>>>>>> pr/231
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M
@@ -192,8 +254,11 @@ DiskPageBufferMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
+<<<<<<< HEAD
 HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
+=======
+>>>>>>> pr/231
 
 #
 # .16node
@@ -228,7 +293,11 @@ InitialTablespace = datafile01.dat:256M;datafile02.dat:256M
 [cluster_config.3node3rpl]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host1
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host2,CHOOSE_host3
+>>>>>>> pr/231
 
 NoOfReplicas = 3
 IndexMemory = 100M
@@ -237,6 +306,7 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
+<<<<<<< HEAD
 FragmentLogFileSize = 256M
 ODirect=1
 MaxNoOfAttributes=2000
@@ -244,12 +314,19 @@ Checksum=1
 AutomaticThreadConfig=1
 NumCPUs=4
 PartitionsPerNode=1
+=======
+FragmentLogFileSize = 128M
+ODirect=1
+MaxNoOfAttributes=2000
+Checksum=1
+>>>>>>> pr/231
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
+<<<<<<< HEAD
 HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
 
@@ -284,6 +361,8 @@ InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
 HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
+=======
+>>>>>>> pr/231
 
 #
 # .4node4rpl
@@ -292,7 +371,11 @@ TransactionDeadlockDetectionTimeout=2500
 [cluster_config.4node4rpl]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host6,CHOOSE_host7
+>>>>>>> pr/231
 
 NoOfReplicas = 4
 IndexMemory = 100M
@@ -301,6 +384,7 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
+<<<<<<< HEAD
 FragmentLogFileSize = 256M
 ODirect=1
 MaxNoOfAttributes=2000
@@ -308,6 +392,12 @@ Checksum=1
 AutomaticThreadConfig=1
 NumCPUs=1
 PartitionsPerNode=1
+=======
+FragmentLogFileSize = 128M
+ODirect=1
+MaxNoOfAttributes=2000
+Checksum=1
+>>>>>>> pr/231
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M
@@ -317,8 +407,11 @@ DiskPageBufferMemory=256M
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
 TimeBetweenWatchDogCheckInitial=60000
+<<<<<<< HEAD
 HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
+=======
+>>>>>>> pr/231
 
 #
 # .2node2mgm
@@ -327,7 +420,11 @@ TransactionDeadlockDetectionTimeout=2500
 [cluster_config.2node2mgm]
 ndb_mgmd = CHOOSE_host1,CHOOSE_host6
 ndbd = CHOOSE_host2,CHOOSE_host3
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 IndexMemory = 50M
@@ -336,10 +433,15 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 4
+<<<<<<< HEAD
 FragmentLogFileSize = 128M
 Checksum=1
 HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
+=======
+FragmentLogFileSize = 64M
+Checksum=1
+>>>>>>> pr/231
 
 #
 # .2node8thr2mgm
@@ -348,7 +450,11 @@ TransactionDeadlockDetectionTimeout=2500
 [cluster_config.2node8thr2mgm]
 ndb_mgmd = CHOOSE_host1,CHOOSE_host6
 ndbd = CHOOSE_host2,CHOOSE_host3
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 IndexMemory = 50M
@@ -357,11 +463,17 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 4
+<<<<<<< HEAD
 FragmentLogFileSize = 128M
 MaxNoOfExecutionThreads=8
 Checksum=1
 HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
+=======
+FragmentLogFileSize = 64M
+MaxNoOfExecutionThreads=8
+Checksum=1
+>>>>>>> pr/231
 
 #
 # .4node2mgm
@@ -370,7 +482,11 @@ TransactionDeadlockDetectionTimeout=2500
 [cluster_config.4node2mgm]
 ndb_mgmd = CHOOSE_host1,CHOOSE_host8
 ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host6,CHOOSE_host7
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 IndexMemory = 50M
@@ -379,7 +495,12 @@ BackupMemory = 64M
 MaxNoOfConcurrentScans = 100
 MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 4
+<<<<<<< HEAD
 FragmentLogFileSize = 128M
 Checksum=1
 HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
+=======
+FragmentLogFileSize = 64M
+Checksum=1
+>>>>>>> pr/231

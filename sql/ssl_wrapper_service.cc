@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /*  Copyright (c) 2016, 2022, Oracle and/or its affiliates.
+=======
+/*  Copyright (c) 2016, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +30,7 @@
   check the function comments.
 */
 
+<<<<<<< HEAD
 #ifdef WIN32
 // In OpenSSL before 1.1.0, we need this first.
 #include <winsock2.h>
@@ -35,11 +40,17 @@
 
 #include "my_compiler.h"
 #include "my_io.h"  // IWYU pragma: keep (for Winsock definitions)
+=======
+#include <my_global.h>
+#include "mysql/service_rules_table.h"
+#include "openssl/ssl.h"
+>>>>>>> upstream/cluster-7.6
 #include "mysql/service_ssl_wrapper.h"
 
 namespace ssl_wrapper_service {
 
 int MY_ATTRIBUTE((visibility("default")))
+<<<<<<< HEAD
     dummy_function_to_ensure_we_are_linked_into_the_server() {
   return 1;
 }
@@ -47,6 +58,18 @@ int MY_ATTRIBUTE((visibility("default")))
 }  // namespace ssl_wrapper_service
 
 static char *my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len) {
+=======
+dummy_function_to_ensure_we_are_linked_into_the_server() { return 1; }
+
+} // namespace ssl_wrappe_service
+
+extern "C"
+{
+
+static char *
+my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len)
+{
+>>>>>>> upstream/cluster-7.6
   int n_read;
   char *res = nullptr;
   BIO *bio = BIO_new(BIO_s_mem());
@@ -288,9 +311,21 @@ long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *vio_ssl) {
   Cleanup data allocated by SSL on thread stack
 
 */
+<<<<<<< HEAD
 void ssl_wrapper_thread_cleanup() {
+=======
+void ssl_wrapper_thread_cleanup()
+{
+>>>>>>> upstream/cluster-7.6
   ERR_clear_error();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+#endif
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }

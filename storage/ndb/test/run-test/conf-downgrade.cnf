@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+=======
+# Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +50,11 @@ protocol=tcp
 [cluster_config.2node]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 IndexMemory = 100M
@@ -74,7 +82,11 @@ TimeBetweenWatchDogCheckInitial=60000
 [cluster_config.2node8thr]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+>>>>>>> pr/231
 Checksum=1
 
 NoOfReplicas = 2
@@ -103,7 +115,11 @@ TimeBetweenWatchDogCheckInitial=60000
 [cluster_config.4node]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host6,CHOOSE_host7
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 IndexMemory = 100M
@@ -132,7 +148,11 @@ TimeBetweenWatchDogCheckInitial=60000
 [cluster_config.2ndbd2mgm]
 ndb_mgmd = CHOOSE_host1,CHOOSE_host6
 ndbd = CHOOSE_host2,CHOOSE_host3
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 IndexMemory = 50M
@@ -150,7 +170,11 @@ FragmentLogFileSize = 64M
 [cluster_config.2node2mgm]
 ndb_mgmd = CHOOSE_host1,CHOOSE_host6
 ndbd = CHOOSE_host2,CHOOSE_host3
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 IndexMemory = 50M
@@ -168,7 +192,11 @@ FragmentLogFileSize = 64M
 [cluster_config.2node8thr2mgm]
 ndb_mgmd = CHOOSE_host1,CHOOSE_host6
 ndbd = CHOOSE_host2,CHOOSE_host3
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+>>>>>>> pr/231
 Checksum=1
 
 NoOfReplicas = 2
@@ -188,7 +216,11 @@ MaxNoOfExecutionThreads=8
 [cluster_config.4node2mgm]
 ndb_mgmd = CHOOSE_host1,CHOOSE_host8
 ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
+<<<<<<< HEAD
 ndbapi= CHOOSE_host1,,
+=======
+ndbapi= CHOOSE_host1,CHOOSE_host6,CHOOSE_host7
+>>>>>>> pr/231
 
 NoOfReplicas = 2
 IndexMemory = 50M

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -195,11 +203,28 @@ static int lock_tables_check(THD *thd, TABLE **tables, size_t count,
       type. For table to be locked for read we must own metadata lock
       of MDL_SHARED_READ or stronger type).
     */
+<<<<<<< HEAD
     assert(t->s->tmp_table ||
            thd->mdl_context.owns_equal_or_stronger_lock(
                MDL_key::TABLE, t->s->db.str, t->s->table_name.str,
                t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE ? MDL_SHARED_WRITE
                                                             : MDL_SHARED_READ));
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(t->s->tmp_table ||
+                thd->mdl_context.owns_equal_or_stronger_lock(
+                    MDL_key::TABLE, t->s->db.str, t->s->table_name.str,
+                    t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE
+                        ? MDL_SHARED_WRITE
+                        : MDL_SHARED_READ));
+=======
+    assert(t->s->tmp_table ||
+           thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                        t->s->db.str, t->s->table_name.str,
+                                                        t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE ?
+                                                        MDL_SHARED_WRITE : MDL_SHARED_READ));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     /*
       Prevent modifications to base tables if READ_ONLY is activated.
@@ -382,9 +407,16 @@ static int lock_external(THD *thd, TABLE **tables, uint count) {
   DBUG_TRACE;
 
   DBUG_PRINT("info", ("count %d", count));
+<<<<<<< HEAD
   for (i = 1; i <= count; i++, tables++) {
     assert((*tables)->reginfo.lock_type >= TL_READ);
     lock_type = F_WRLCK; /* Lock exclusive */
+=======
+  for (i=1 ; i <= count ; i++, tables++)
+  {
+    assert((*tables)->reginfo.lock_type >= TL_READ);
+    lock_type=F_WRLCK;				/* Lock exclusive */
+>>>>>>> upstream/cluster-7.6
     if ((*tables)->db_stat & HA_READ_ONLY ||
         ((*tables)->reginfo.lock_type >= TL_READ &&
          (*tables)->reginfo.lock_type <= TL_READ_NO_INSERT))
@@ -452,11 +484,21 @@ void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock) {
 
   /* Then do the same for the external locks */
   /* Move all write locked tables first */
+<<<<<<< HEAD
   TABLE **table = sql_lock->table;
   for (i = found = 0; i < sql_lock->table_count; i++) {
     assert(sql_lock->table[i]->lock_position == i);
     if ((uint)sql_lock->table[i]->reginfo.lock_type > TL_WRITE_ALLOW_WRITE) {
       std::swap(*table, sql_lock->table[i]);
+=======
+  TABLE **table=sql_lock->table;
+  for (i=found=0 ; i < sql_lock->table_count ; i++)
+  {
+    assert(sql_lock->table[i]->lock_position == i);
+    if ((uint) sql_lock->table[i]->reginfo.lock_type > TL_WRITE_ALLOW_WRITE)
+    {
+      swap_variables(TABLE *, *table, sql_lock->table[i]);
+>>>>>>> upstream/cluster-7.6
       table++;
       found++;
     }
@@ -531,8 +573,17 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked, TABLE *table) {
         for (j = i; j < old_tables; j++) {
           tbl = locked->table[j];
           tbl->lock_position--;
+<<<<<<< HEAD
           assert(tbl->lock_position == j);
+=======
+<<<<<<< HEAD
+          DBUG_ASSERT(tbl->lock_position == j);
+>>>>>>> pr/231
           tbl->lock_data_start -= removed_locks;
+=======
+          assert(tbl->lock_position == j);
+          tbl->lock_data_start-= removed_locks;
+>>>>>>> upstream/cluster-7.6
         }
 
         /* Finally adjust lock_count. */
@@ -679,6 +730,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, size_t count,
 
     if ((table = table_ptr[i])->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
       continue;
+<<<<<<< HEAD
     lock_type = table->reginfo.lock_type;
     assert(lock_type != TL_WRITE_DEFAULT && lock_type != TL_READ_DEFAULT &&
            lock_type != TL_WRITE_CONCURRENT_DEFAULT);
@@ -689,6 +741,20 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, size_t count,
       table->lock_position = (uint)(to - table_buf);
       table->lock_data_start = (uint)(locks_start - locks_buf);
       table->lock_count = (uint)(locks - locks_start);
+=======
+    lock_type= table->reginfo.lock_type;
+    assert(lock_type != TL_WRITE_DEFAULT && lock_type != TL_READ_DEFAULT &&
+           lock_type != TL_WRITE_CONCURRENT_DEFAULT);
+    locks_start= locks;
+    locks= table->file->store_lock(thd, locks,
+                                   (flags & GET_LOCK_UNLOCK) ? TL_IGNORE :
+                                   lock_type);
+    if (flags & GET_LOCK_STORE_LOCKS)
+    {
+      table->lock_position=   (uint) (to - table_buf);
+      table->lock_data_start= (uint) (locks_start - locks_buf);
+      table->lock_count=      (uint) (locks - locks_start);
+>>>>>>> upstream/cluster-7.6
     }
     *to++ = table;
     if (locks) {
@@ -766,6 +832,7 @@ bool lock_schema_name(THD *thd, const char *db) {
     Now when we have protection against concurrent change of read_only
     option we can safely re-check its value.
   */
+<<<<<<< HEAD
   if (check_readonly(thd, true)) return true;
 
   /*
@@ -774,8 +841,74 @@ bool lock_schema_name(THD *thd, const char *db) {
     ALTER SCHEMA.
   */
   if (check_schema_readonly(thd, db)) return true;
+=======
+  if (check_readonly(thd, true))
+    return TRUE;
+>>>>>>> pr/231
 
   DEBUG_SYNC(thd, "after_wait_locked_schema_name");
+<<<<<<< HEAD
+=======
+  return FALSE;
+}
+
+
+/**
+  Obtain an exclusive metadata lock on a tablespace name.
+
+  @param thd         Thread handle.
+  @param tablespace  The tablespace name.
+
+  This function cannot be called while holding the LOCK_open mutex.
+  To avoid deadlocks, we do not try to obtain exclusive metadata
+  locks in LOCK TABLES mode, since in this mode there may be
+  other metadata locks already taken by the current connection,
+  and we must not wait for MDL locks while holding locks.
+
+  @retval false  Success.
+  @retval true   Failure: we're in LOCK TABLES mode, out of memory,
+                 connection was killed, or numerous other reasons.
+*/
+
+bool lock_tablespace_name(THD *thd, const char *tablespace)
+{
+  MDL_request_list mdl_requests;
+  MDL_request global_request;
+  MDL_request mdl_request;
+
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    return true;
+  }
+
+  if (thd->global_read_lock.can_acquire_protection())
+    return true;
+
+  MDL_REQUEST_INIT(&global_request,
+                   MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_STATEMENT);
+
+  MDL_REQUEST_INIT(&mdl_request,
+                   MDL_key::TABLESPACE, "", tablespace,
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+
+  mdl_requests.push_front(&mdl_request);
+  mdl_requests.push_front(&global_request);
+
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
+    return true;
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true))
+    return TRUE;
+
+  DEBUG_SYNC(thd, "after_wait_locked_tablespace_name");
+>>>>>>> upstream/cluster-7.6
   return false;
 }
 
@@ -798,8 +931,20 @@ bool lock_tablespace_names(THD *thd, Tablespace_hash_set *tablespace_set,
 
   // Prepare MDL_request's for all tablespace names.
   MDL_request_list mdl_tablespace_requests;
+<<<<<<< HEAD
   for (const std::string &tablespace : *tablespace_set) {
+<<<<<<< HEAD
     assert(!tablespace.empty());
+=======
+    DBUG_ASSERT(!tablespace.empty());
+=======
+  Tablespace_hash_set::Iterator it(*tablespace_set);
+  char *tablespace= NULL;
+  while ((tablespace= it++))
+  {
+    assert(strlen(tablespace));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     MDL_request *tablespace_request = new (mem_root) MDL_request;
     if (tablespace_request == nullptr) return true;
@@ -857,7 +1002,19 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
     return true;
   }
 
+<<<<<<< HEAD
   assert(name);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(name);
+  /*
+    Since name is converted to lowercase, check that this function
+    is only used for types which should be treated case insensitively.
+  */
+  DBUG_ASSERT(mdl_type == MDL_key::FUNCTION || mdl_type == MDL_key::PROCEDURE ||
+              mdl_type == MDL_key::EVENT ||
+              mdl_type == MDL_key::RESOURCE_GROUPS);
+>>>>>>> pr/231
 
   switch (mdl_type) {
     case MDL_key::FUNCTION:
@@ -877,6 +1034,9 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
       return true;
   }
 
+=======
+  assert(name);
+>>>>>>> upstream/cluster-7.6
   DEBUG_SYNC(thd, "before_wait_locked_pname");
 
   if (thd->global_read_lock.can_acquire_protection()) return true;
@@ -902,6 +1062,7 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
     Now when we have protection against concurrent change of read_only
     option we can safely re-check its value.
   */
+<<<<<<< HEAD
   if (check_readonly(thd, true)) return true;
 
   /*
@@ -910,6 +1071,10 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
     ALTER SCHEMA.
   */
   if (check_schema_readonly(thd, db)) return true;
+=======
+  if (check_readonly(thd, true))
+    return TRUE;
+>>>>>>> pr/231
 
   DEBUG_SYNC(thd, "after_wait_locked_pname");
   return false;
@@ -1049,10 +1214,23 @@ bool Global_read_lock::lock_global_read_lock(THD *thd) {
   if (!m_state) {
     MDL_request mdl_request;
 
+<<<<<<< HEAD
     assert(!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL, "",
                                                          "", MDL_SHARED));
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(!thd->mdl_context.owns_equal_or_stronger_lock(
+        MDL_key::GLOBAL, "", "", MDL_SHARED));
+>>>>>>> pr/231
     MDL_REQUEST_INIT(&mdl_request, MDL_key::GLOBAL, "", "", MDL_SHARED,
                      MDL_EXPLICIT);
+=======
+    assert(! thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
+                                                          "", "",
+                                                          MDL_SHARED));
+    MDL_REQUEST_INIT(&mdl_request,
+                     MDL_key::GLOBAL, "", "", MDL_SHARED, MDL_EXPLICIT);
+>>>>>>> upstream/cluster-7.6
 
     /* Increment static variable first to signal innodb memcached server
        to release mdl locks held by it */

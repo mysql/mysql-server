@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +31,11 @@
 #ifndef RPL_WRITE_SET_HANDLER_INCLUDED
 #define RPL_WRITE_SET_HANDLER_INCLUDED
 
+<<<<<<< HEAD
 #include "my_inttypes.h"
+=======
+#include "my_global.h"
+>>>>>>> pr/231
 
 extern const char *transaction_write_set_hashing_algorithms[];
 
@@ -44,7 +56,10 @@ const char *get_write_set_algorithm_string(unsigned int algorithm);
 
   @param[in] table - TABLE object
   @param[in] thd - THD object pointing to current thread.
+<<<<<<< HEAD
   @param[in] record - The record to process (record[0] or record[1]).
+=======
+>>>>>>> pr/231
 
   @return true if an issues exists adding the pke, false otherwise
 */

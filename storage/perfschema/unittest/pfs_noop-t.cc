@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -252,6 +260,8 @@ static void test_noop() {
   psi_statement_service->set_prepared_stmt_secondary_engine(nullptr, false);
 
   ok(true, "no error");
+
+  PSI_server->set_thread_peer_port(NULL, 0);
 
   ok(true, "all noop api called");
 }

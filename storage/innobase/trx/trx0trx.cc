@@ -1,7 +1,12 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -17,6 +22,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -217,7 +239,12 @@ static void trx_init(trx_t *trx) {
 
   trx->lock.rec_cached = 0;
 
+<<<<<<< HEAD
   trx->lock.table_cached = 0;
+=======
+	trx->lock.table_cached = 0;
+	trx->error_index = NULL;
+>>>>>>> upstream/cluster-7.6
 
   trx->error_index = nullptr;
 
@@ -1975,10 +2002,23 @@ written */
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
   gtid_persistor.set_persist_gtid(trx, false);
 
+<<<<<<< HEAD
   if (mtr != nullptr) {
     if (trx->rsegs.m_redo.insert_undo != nullptr) {
+=======
+    /* Multiple transactions can simultaneously decrement
+    the atomic counter. */
+    rseg->trx_ref_count--;
+  }
+
+<<<<<<< HEAD
+  if (mtr != NULL) {
+    if (trx->rsegs.m_redo.insert_undo != NULL) {
+>>>>>>> pr/231
       trx_undo_insert_cleanup(&trx->rsegs.m_redo, false);
     }
+=======
+>>>>>>> upstream/cluster-7.6
 
     if (trx->rsegs.m_noredo.insert_undo != nullptr) {
       trx_undo_insert_cleanup(&trx->rsegs.m_noredo, true);
@@ -2042,6 +2082,7 @@ written */
     srv_active_wake_master_thread();
   }
 
+<<<<<<< HEAD
   /* Do not decrement the reference count before this point.
   There is a potential issue where a thread attempting to drop
   an undo tablespace may end up dropping this undo space
@@ -2063,8 +2104,33 @@ written */
     trx->rsegs.m_redo.rseg = nullptr;
   }
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   /* Free all savepoints, starting from the first. */
   trx_named_savept_t *savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
+=======
+	/* Do not decrement the reference count before this point.
+	There is a potential issue where a thread attempting to truncate
+	an undo tablespace may end up truncating this undo space
+	before this thread can complete the cleanup.
+	While truncating an undo space, the server tries to find if any
+	transaction is actively using the undo log being truncated. A
+	non-zero reference count ensures that the thread attempting to
+	truncate the undo tablespace cannot be successful as the undo log
+	cannot be truncated until it is empty. */
+	if (trx->rsegs.m_redo.rseg != NULL) {
+		trx_rseg_t*	rseg = trx->rsegs.m_redo.rseg;
+		mutex_enter(&rseg->mutex);
+		ut_ad(rseg->trx_ref_count > 0);
+		--rseg->trx_ref_count;
+		mutex_exit(&rseg->mutex);
+		trx->rsegs.m_redo.rseg = NULL;
+	}
+
+	/* Free all savepoints, starting from the first. */
+	trx_named_savept_t*	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
+>>>>>>> upstream/cluster-7.6
 
   trx_roll_savepoints_free(trx, savep);
 
@@ -2174,6 +2240,7 @@ void trx_commit_low(trx_t *trx, mtr_t *mtr) {
         });
     /*--------------*/
 
+<<<<<<< HEAD
   } else {
     serialised = false;
   }
@@ -2189,6 +2256,33 @@ void trx_commit_low(trx_t *trx, mtr_t *mtr) {
   if (trx->mysql_thd != nullptr && trx_is_redo_rseg_updated(trx)) {
     DEBUG_SYNC_C("before_trx_state_committed_in_memory");
   }
+=======
+		/*--------------*/
+		mtr_commit(mtr);
+
+		DBUG_EXECUTE_IF("ib_crash_during_trx_commit_in_mem",
+				if (trx_is_rseg_updated(trx)) {
+					log_make_checkpoint_at(LSN_MAX, TRUE);
+					DBUG_SUICIDE();
+				});
+		/*--------------*/
+
+	} else {
+		serialised = false;
+	}
+#ifndef NDEBUG
+	/* In case of this function is called from a stack executing
+	   THD::release_resources -> ...
+              innobase_connection_close() ->
+                     trx_rollback_for_mysql... -> .
+           mysql's thd does not seem to have
+           thd->debug_sync_control defined any longer. However the stack
+           is possible only with a prepared trx not updating any data.
+        */
+	if (trx->mysql_thd != NULL && trx_is_redo_rseg_updated(trx)) {
+		DEBUG_SYNC_C("before_trx_state_committed_in_memory");
+	}
+>>>>>>> upstream/cluster-7.6
 #endif
 
   trx_commit_in_memory(trx, mtr, serialised);
@@ -3408,15 +3502,98 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
 
   trx_sys->rw_trx_ids.push_back(trx->id);
 
+<<<<<<< HEAD
+=======
+  trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
+
+<<<<<<< HEAD
+>>>>>>> pr/231
   /* So that we can see our own changes. */
   if (MVCC::is_view_active(trx->read_view)) {
     MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
   }
+<<<<<<< HEAD
   trx_add_to_rw_trx_list(trx);
+=======
+=======
+	case TRX_STATE_PREPARED:
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		break;
+	}
+
+	ut_error;
+}
+
+/*************************************************************//**
+Set the transaction as a read-write transaction if it is not already
+tagged as such. Read-only transactions that are writing to temporary
+tables are assigned an ID and a rollback segment but are not added
+to the trx read-write list because their updates should not be visible
+to other transactions and therefore their changes can be ignored by
+by MVCC. */
+void
+trx_set_rw_mode(
+/*============*/
+	trx_t*		trx)		/*!< in/out: transaction that is RW */
+{
+	ut_ad(trx->rsegs.m_redo.rseg == 0);
+	ut_ad(!trx->in_rw_trx_list);
+	ut_ad(!trx_is_autocommit_non_locking(trx));
+	ut_ad(!trx->read_only);
+
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
+		return;
+	}
+
+	/* Function is promoting existing trx from ro mode to rw mode.
+	In this process it has acquired trx_sys->mutex as it plan to
+	move trx from ro list to rw list. If in future, some other thread
+	looks at this trx object while it is being promoted then ensure
+	that both threads are synced by acquring trx->mutex to avoid decision
+	based on in-consistent view formed during promotion. */
+
+	trx->rsegs.m_redo.rseg = trx_assign_rseg_low(
+		srv_rollback_segments,
+		srv_undo_tablespaces,
+		TRX_RSEG_TYPE_REDO);
+
+	ut_ad(trx->rsegs.m_redo.rseg != 0);
+
+	mutex_enter(&trx_sys->mutex);
+
+	ut_ad(trx->id == 0);
+	trx->id = trx_sys_get_new_trx_id();
+
+	trx_sys->rw_trx_ids.push_back(trx->id);
+
+	trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
+
+	/* So that we can see our own changes. */
+	if (MVCC::is_view_active(trx->read_view)) {
+		MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
+	}
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   trx_sys_mutex_exit();
 
+<<<<<<< HEAD
   trx_sys_rw_trx_add(trx);
+=======
+<<<<<<< HEAD
+  if (!trx->read_only) {
+    UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
+
+    ut_d(trx->in_rw_trx_list = true);
+  }
+=======
+	UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
+
+	ut_d(trx->in_rw_trx_list = true);
+>>>>>>> upstream/cluster-7.6
+
+  mutex_exit(&trx_sys->mutex);
+>>>>>>> pr/231
 }
 
 void trx_kill_blocking(trx_t *trx) {

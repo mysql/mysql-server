@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,7 +138,12 @@ are found inside the COPY_INFO.
                       mem_root_deque<Item *> *update_fields,
                       mem_root_deque<Item *> *update_values,
                       enum_duplicates duplic)
+<<<<<<< HEAD
       : Query_result_interceptor(),
+=======
+<<<<<<< HEAD
+      : Query_result_interceptor(thd),
+>>>>>>> pr/231
         table_list(table_list_par),
         fields(target_or_source_columns),
         info(COPY_INFO::INSERT_OPERATION, target_columns,
@@ -138,9 +151,35 @@ are found inside the COPY_INFO.
              (target_columns == nullptr || !target_columns->empty()), duplic),
         update(COPY_INFO::UPDATE_OPERATION, update_fields, update_values),
         insert_into_view(table_list_par && table_list_par->is_view()) {
+<<<<<<< HEAD
     assert(target_or_source_columns != nullptr);
     assert(target_columns == target_or_source_columns ||
            target_columns == nullptr);
+=======
+    DBUG_ASSERT(target_or_source_columns != NULL);
+    DBUG_ASSERT(target_columns == target_or_source_columns ||
+                target_columns == NULL);
+=======
+    :table_list(table_list_par),
+     table(table_par),
+     fields(target_or_source_columns),
+     bulk_insert_started(false),
+     autoinc_value_of_last_inserted_row(0),
+     info(COPY_INFO::INSERT_OPERATION,
+          target_columns,
+          // manage_defaults
+          (target_columns == NULL || target_columns->elements != 0),
+          duplic),
+     update(COPY_INFO::UPDATE_OPERATION,
+            update_fields,
+            update_values),
+     insert_into_view(table_list_par && table_list_par->is_view())
+  {
+    assert(target_or_source_columns != NULL);
+    assert(target_columns == target_or_source_columns ||
+           target_columns == NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
  public:

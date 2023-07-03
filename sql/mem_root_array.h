@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,8 +78,18 @@ class Mem_root_array_YY {
   /// Convenience typedef, same typedef name as std::vector
   typedef Element_type value_type;
 
+<<<<<<< HEAD
   void init(MEM_ROOT *root) {
+<<<<<<< HEAD
     assert(root != nullptr);
+=======
+    DBUG_ASSERT(root != NULL);
+=======
+  void init(MEM_ROOT *root)
+  {
+    assert(root != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     m_root = root;
     m_array = nullptr;
@@ -87,8 +105,20 @@ class Mem_root_array_YY {
     m_capacity = 0;
   }
 
+<<<<<<< HEAD
   Element_type *data() { return m_array; }
   const Element_type *data() const { return m_array; }
+=======
+  /**
+    Switches mem-root, in case original mem-root was copied.
+    NOTE: m_root should really be const, i.e. never change after initialization.
+  */
+<<<<<<< HEAD
+  void set_mem_root(MEM_ROOT *new_root) {
+    m_root = new_root;
+    DBUG_ASSERT(m_root != NULL);
+  }
+>>>>>>> pr/231
 
   Element_type &at(size_t n) {
     assert(n < size());
@@ -96,7 +126,28 @@ class Mem_root_array_YY {
   }
 
   const Element_type &at(size_t n) const {
+<<<<<<< HEAD
     assert(n < size());
+=======
+    DBUG_ASSERT(n < size());
+=======
+  void set_mem_root(MEM_ROOT *new_root)
+  {
+    m_root= new_root;
+    assert(m_root != NULL);
+  }
+
+  Element_type &at(size_t n)
+  {
+    assert(n < size());
+    return m_array[n];
+  }
+
+  const Element_type &at(size_t n) const
+  {
+    assert(n < size());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_array[n];
   }
 
@@ -133,12 +184,24 @@ class Mem_root_array_YY {
     Chops the tail off the array, erasing all tail elements.
     @param pos Index of first element to erase.
   */
+<<<<<<< HEAD
   void chop(const size_t pos) {
     assert(pos < m_size);
     if (!has_trivial_destructor) {
       for (size_t ix = pos; ix < m_size; ++ix) {
         Element_type *p = &m_array[ix];
         p->~Element_type();  // Destroy discarded element.
+=======
+  void chop(const size_t pos)
+  {
+    assert(pos < m_size);
+    if (!has_trivial_destructor)
+    {
+      for (size_t ix= pos; ix < m_size; ++ix)
+      {
+        Element_type *p= &m_array[ix];
+        p->~Element_type();              // Destroy discarded element.
+>>>>>>> upstream/cluster-7.6
       }
     }
     m_size = pos;
@@ -247,10 +310,19 @@ class Mem_root_array_YY {
     Removes the last element in the array, effectively reducing the
     container size by one. This destroys the removed element.
    */
+<<<<<<< HEAD
   void pop_back() {
     assert(!empty());
     if (!has_trivial_destructor) back().~Element_type();
     m_size -= 1;
+=======
+  void pop_back()
+  {
+    assert(!empty());
+    if (!has_trivial_destructor)
+      back().~Element_type();
+    m_size-= 1;
+>>>>>>> upstream/cluster-7.6
   }
 
   /**

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,11 +126,22 @@ class Migrate_keyring {
  private:
   int m_argc;
   char **m_argv;
+<<<<<<< HEAD
   std::string m_source_plugin_option;
   std::string m_destination_plugin_option;
   std::string m_source_plugin_name;
   std::string m_destination_plugin_name;
+<<<<<<< HEAD
   std::string m_internal_option[2];
+=======
+=======
+  string m_source_plugin_option;
+  string m_destination_plugin_option;
+  string m_source_plugin_name;
+  string m_destination_plugin_name;
+  string m_internal_option;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   st_mysql_keyring *m_source_plugin_handle;
   st_mysql_keyring *m_destination_plugin_handle;
   std::vector<Key_info> m_source_keys;

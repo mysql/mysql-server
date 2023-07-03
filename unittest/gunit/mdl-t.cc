@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2009, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -254,8 +262,18 @@ typedef MDLTest MDLDeathTest;
 /*
   Verifies that we die with a assert if we destry a non-empty MDL_context.
  */
+<<<<<<< HEAD
 #if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+>>>>>>> pr/231
 TEST_F(MDLDeathTest, DieWhenMTicketsNonempty) {
+=======
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
+TEST_F(MDLDeathTest, DieWhenMTicketsNonempty)
+{
+>>>>>>> upstream/cluster-7.6
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   MDL_REQUEST_INIT(&m_request, MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
                    MDL_TRANSACTION);
@@ -4595,8 +4613,18 @@ typedef MDLKeyTest MDLKeyDeathTest;
   MDL_key with too long database or object names.
 */
 
+<<<<<<< HEAD
 #if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+>>>>>>> pr/231
 TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong) {
+=======
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
+TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong)
+{
+>>>>>>> upstream/cluster-7.6
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 
   /* We need a name which is longer than NAME_LEN = 64*3 = 192.*/
@@ -4626,8 +4654,18 @@ TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong) {
   truncated.
 */
 
+<<<<<<< HEAD
 #if defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if defined(DBUG_OFF)
+>>>>>>> pr/231
 TEST_F(MDLKeyTest, TruncateTooLongNames) {
+=======
+#if defined(NDEBUG)
+TEST_F(MDLKeyTest, TruncateTooLongNames)
+{
+>>>>>>> upstream/cluster-7.6
   /* We need a name which is longer than NAME_LEN = 64*3 = 192.*/
   const char *too_long_name =
       "0123456789012345678901234567890123456789012345678901234567890123"
@@ -4645,6 +4683,7 @@ TEST_F(MDLKeyTest, TruncateTooLongNames) {
   EXPECT_LE(strlen(name), (uint)NAME_LEN);
   EXPECT_TRUE(strncmp(name, too_long_name, NAME_LEN) == 0);
 }
+<<<<<<< HEAD
 
 struct Mock_MDL_context_owner : public Test_MDL_context_owner {
   void notify_shared_lock(MDL_context_owner *in_use,
@@ -4719,6 +4758,13 @@ static void BM_FindTicket(size_t num_iterations) {
 
 BENCHMARK(BM_FindTicket)
 
+<<<<<<< HEAD
 #endif  // defined(NDEBUG)
+=======
+#endif  // defined(DBUG_OFF)
+=======
+#endif  // defined(NDEBUG)
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 }  // namespace mdl_unittest

@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -630,6 +654,7 @@ static inline const page_size_t dict_table_page_size(
 static inline void dict_table_x_lock_indexes(
     dict_table_t *table) /*!< in: table */
 {
+<<<<<<< HEAD
   dict_index_t *index;
 
   ut_a(table);
@@ -642,7 +667,48 @@ static inline void dict_table_x_lock_indexes(
        index = index->next()) {
     rw_lock_x_lock(dict_index_get_lock(index), UT_LOCATION_HERE);
   }
+<<<<<<< HEAD
   rw_lock_x_lock(dict_index_get_lock(clustered_index), UT_LOCATION_HERE);
+=======
+=======
+	dict_index_t*   index;
+	dict_index_t*   clustered_index;
+
+	ut_a(table);
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_d(dict_validate_no_purge_rollback_threads());
+
+	/* Loop through each index of the table and lock them */
+	clustered_index = dict_table_get_first_index(table);
+	for (index = dict_table_get_next_index(clustered_index);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+		rw_lock_x_lock(dict_index_get_lock(index));
+	}
+	rw_lock_x_lock(dict_index_get_lock(clustered_index));
+}
+/*********************************************************************//**
+Returns true if the particular FTS index in the table is still syncing
+in the background, false otherwise.
+@param [in] table	Table containing FTS index
+@return True if sync of fts index is still going in the background  */
+UNIV_INLINE
+bool
+dict_fts_index_syncing(
+	dict_table_t*	table)
+{
+	dict_index_t*   index;
+
+	for (index = dict_table_get_first_index(table);
+	    index != NULL;
+	    index = dict_table_get_next_index(index)) {
+		if (index->index_fts_syncing) {
+			return(true);
+		}
+	}
+	return(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /** Release the exclusive locks on all index tree. */
@@ -1322,6 +1388,7 @@ static inline void dict_allocate_mem_intrinsic_cache(dict_index_t *index) {
   new (index->last_sel_cur) last_ops_cur_t();
 }
 
+<<<<<<< HEAD
 /** Generate a table_id from space id for SDI Index.
 @param[in]      space_id        InnoDB tablespace id
 @return table_id */
@@ -1382,3 +1449,20 @@ which belongs to the partition.
 static inline bool dict_table_is_partition(const dict_table_t *table) {
   return (dict_name::is_partition(table->name.m_name));
 }
+=======
+/** Check whether the table is a partitioned table.
+@param[in]	table	Table to check.
+@return true if the table is a partitioned table else false. */
+UNIV_INLINE
+bool
+dict_table_is_partition(
+	const dict_table_t*	table)
+{
+	/* Check both P and p on all platforms in case it was moved to/from
+	WIN. */
+	return(strstr(table->name.m_name, "#p#")
+	       || strstr(table->name.m_name, "#P#"));
+}
+
+#endif /* !UNIV_HOTBACKUP */
+>>>>>>> upstream/cluster-7.6

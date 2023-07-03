@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +80,38 @@ PFS_engine_table_share table_performance_timers::m_share = {
     false /* m_in_purgatory */
 };
 
+<<<<<<< HEAD
 PFS_engine_table *table_performance_timers::create(PFS_engine_table_share *) {
+=======
+TABLE_FIELD_DEF
+table_performance_timers::m_field_def=
+{ 4, field_types };
+
+PFS_engine_table_share_state
+table_performance_timers::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_performance_timers::m_share=
+{
+  { C_STRING_WITH_LEN("performance_timers") },
+  &pfs_readonly_acl,
+  table_performance_timers::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_performance_timers::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_performance_timers::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_performance_timers();
 }
 
@@ -132,8 +171,17 @@ int table_performance_timers::rnd_next(void) {
 
 int table_performance_timers::rnd_pos(const void *pos) {
   set_position(pos);
+<<<<<<< HEAD
   assert(m_pos.m_index < COUNT_TIMER_NAME);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(m_pos.m_index < COUNT_TIMER_NAME);
+>>>>>>> pr/231
   m_row = &m_data[m_pos.m_index];
+=======
+  assert(m_pos.m_index < COUNT_TIMER_NAME);
+  m_row= &m_data[m_pos.m_index];
+>>>>>>> upstream/cluster-7.6
   return 0;
 }
 
@@ -144,7 +192,12 @@ int table_performance_timers::read_row_values(TABLE *table, unsigned char *buf,
   assert(m_row);
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 1);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 1);
+>>>>>>> pr/231
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -175,7 +228,45 @@ int table_performance_timers::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+  assert(table->s->null_bytes == 1);
+  buf[0]= 0;
+
+  for (; (f= *fields) ; fields++)
+  {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index))
+    {
+      switch(f->field_index)
+      {
+      case 0: /* TIMER_NAME */
+        set_field_enum(f, m_row->m_timer_name);
+        break;
+      case 1: /* TIMER_FREQUENCY */
+        if (m_row->m_info.routine != 0)
+          set_field_ulonglong(f, m_row->m_info.frequency);
+        else
+          f->set_null();
+        break;
+      case 2: /* TIMER_RESOLUTION */
+        if (m_row->m_info.routine != 0)
+          set_field_ulonglong(f, m_row->m_info.resolution);
+        else
+          f->set_null();
+        break;
+      case 3: /* TIMER_OVERHEAD */
+        if (m_row->m_info.routine != 0)
+          set_field_ulonglong(f, m_row->m_info.overhead);
+        else
+          f->set_null();
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

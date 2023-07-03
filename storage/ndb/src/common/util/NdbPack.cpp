@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,10 +189,17 @@ NdbPack::Type::complete()
       return -1;
     }
 
+<<<<<<< HEAD
     if (unlikely(all_charsets[m_csNumber] == nullptr))
     {
       CHARSET_INFO* cs = get_charset(m_csNumber, MYF(0));
       if (unlikely(cs == nullptr))
+=======
+    if (unlikely(all_charsets[m_csNumber] == 0))
+    {
+      CHARSET_INFO* cs = get_charset(m_csNumber, MYF(0));
+      if (unlikely(cs == 0))
+>>>>>>> pr/231
       {
         set_error(CharsetNotFound, __LINE__);
         return -1;
@@ -331,7 +346,11 @@ void NdbPack::DataArray::init_bound(const BoundC& b,
   for (Uint32 i = 0; i < cnt; i++)
   {
     data.desc(iter);
+<<<<<<< HEAD
     m_entries[i].m_data_ptr = (const Uint8*)&data.m_buf[iter.m_itemPos];
+=======
+    m_entries[i].m_data_ptr = (Uint8*)&data.m_buf[iter.m_itemPos];
+>>>>>>> pr/231
     m_entries[i].m_data_len = iter.m_itemLen;
   }
   m_null_cnt = iter.m_nullCnt;
@@ -358,13 +377,21 @@ NdbPack::DataArray::init_poai(const Uint32 *buffer,
       Uint32 byte_size = ah.getByteSize();
       Uint32 word_size = ah.getDataSize();
       m_entries[i].m_data_len = byte_size;
+<<<<<<< HEAD
       m_entries[i].m_data_ptr = (const Uint8*)&buffer[inx];
+=======
+      m_entries[i].m_data_ptr = (Uint8*)&buffer[inx];
+>>>>>>> pr/231
       inx += word_size;
     }
     else
     {
       m_null_cnt++;
+<<<<<<< HEAD
       m_entries[i].m_data_ptr = nullptr;
+=======
+      m_entries[i].m_data_ptr = 0;
+>>>>>>> pr/231
       m_entries[i].m_data_len = 0;
     }
   }

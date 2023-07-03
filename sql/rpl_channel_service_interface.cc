@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,14 +117,27 @@ static void set_mi_settings(Master_info *mi,
 
   mi->rli->set_thd_tx_priority(channel_info->thd_tx_priority);
 
+<<<<<<< HEAD
   mi->rli->set_ignore_write_set_memory_limit(
       channel_info->m_ignore_write_set_memory_limit);
   mi->rli->set_allow_drop_write_set(channel_info->m_allow_drop_write_set);
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   mi->rli->replicate_same_server_id =
       (channel_info->replicate_same_server_id == RPL_SERVICE_SERVER_DEFAULT)
           ? replicate_same_server_id
           : channel_info->replicate_same_server_id;
+=======
+  mi->rli->set_ignore_write_set_memory_limit(
+      channel_info->m_ignore_write_set_memory_limit);
+  mi->rli->set_allow_drop_write_set(channel_info->m_allow_drop_write_set);
+
+  mi->rli->replicate_same_server_id=
+    (channel_info->replicate_same_server_id == RPL_SERVICE_SERVER_DEFAULT) ?
+     replicate_same_server_id : channel_info->replicate_same_server_id;
+>>>>>>> upstream/cluster-7.6
 
   mi->rli->opt_replica_parallel_workers =
       (channel_info->channel_mts_parallel_workers == RPL_SERVICE_SERVER_DEFAULT)
@@ -187,6 +204,7 @@ static void delete_surrogate_thread(THD *thd) {
   current_thd = nullptr;
 }
 
+<<<<<<< HEAD
 void initialize_channel_creation_info(Channel_creation_info *channel_info) {
   channel_info->type = SLAVE_REPLICATION_CHANNEL;
   channel_info->hostname = nullptr;
@@ -206,10 +224,36 @@ void initialize_channel_creation_info(Channel_creation_info *channel_info) {
   channel_info->connect_retry = 0;
   channel_info->public_key_path = nullptr;
   channel_info->get_public_key = 0;
+<<<<<<< HEAD
   channel_info->compression_algorithm = nullptr;
   channel_info->zstd_compression_level = 0;
   channel_info->m_ignore_write_set_memory_limit = false;
   channel_info->m_allow_drop_write_set = false;
+=======
+=======
+void
+initialize_channel_creation_info(Channel_creation_info* channel_info)
+{
+  channel_info->type= SLAVE_REPLICATION_CHANNEL;
+  channel_info->hostname= 0;
+  channel_info->port= 0;
+  channel_info->user= 0;
+  channel_info->password= 0;
+  channel_info->ssl_info= 0;
+  channel_info->auto_position= RPL_SERVICE_SERVER_DEFAULT;
+  channel_info->channel_mts_parallel_type= RPL_SERVICE_SERVER_DEFAULT;
+  channel_info->channel_mts_parallel_workers= RPL_SERVICE_SERVER_DEFAULT;
+  channel_info->channel_mts_checkpoint_group= RPL_SERVICE_SERVER_DEFAULT;
+  channel_info->replicate_same_server_id= RPL_SERVICE_SERVER_DEFAULT;
+  channel_info->thd_tx_priority= 0;
+  channel_info->sql_delay= RPL_SERVICE_SERVER_DEFAULT;
+  channel_info->preserve_relay_logs= false;
+  channel_info->retry_count= 0;
+  channel_info->connect_retry= 0;
+  channel_info->m_ignore_write_set_memory_limit = false;
+  channel_info->m_allow_drop_write_set = false;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info) {
@@ -484,8 +528,17 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
         lex_mi.until_after_gaps = true;
         break;
       case CHANNEL_UNTIL_VIEW_ID:
+<<<<<<< HEAD
         assert((thread_mask & SLAVE_SQL) && connection_info->view_id);
+=======
+<<<<<<< HEAD
+        DBUG_ASSERT((thread_mask & SLAVE_SQL) && connection_info->view_id);
+>>>>>>> pr/231
         lex_mi.view_id = connection_info->view_id;
+=======
+        assert((thread_mask & SLAVE_SQL) && connection_info->view_id);
+        lex_mi.view_id= connection_info->view_id;
+>>>>>>> upstream/cluster-7.6
         break;
       default:
         assert(0);
@@ -543,12 +596,29 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
     return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  mi->channel_rdlock();
+
+>>>>>>> pr/231
   int thread_mask = 0;
   int server_thd_mask = 0;
   int error = 0;
   bool thd_init = false;
+<<<<<<< HEAD
 
   mi->channel_wrlock();
+=======
+=======
+  int thread_mask= 0;
+  int server_thd_mask= 0;
+  int error= 0;
+  bool thd_init= false;
+
+  mi->channel_wrlock();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   lock_slave_threads(mi);
 
   init_thread_mask(&server_thd_mask, mi, false /* not inverse*/);
@@ -711,7 +781,11 @@ bool channel_is_active(const char *channel,
     return false;
   }
 
+<<<<<<< HEAD
   init_thread_mask(&thread_mask, mi, false /* not inverse*/);
+=======
+  init_thread_mask(&thread_mask, mi, 0 /* not inverse*/);
+>>>>>>> pr/231
 
   channel_map.unlock();
 
@@ -745,7 +819,17 @@ int channel_get_thread_id(const char *channel,
     return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  mi->channel_rdlock();
+
+>>>>>>> pr/231
   switch (thd_type) {
+=======
+  switch(thd_type)
+  {
+>>>>>>> upstream/cluster-7.6
     case CHANNEL_RECEIVER_THREAD:
       mysql_mutex_lock(&mi->info_thd_lock);
       if (mi->info_thd != nullptr) {
@@ -816,7 +900,11 @@ int channel_get_thread_id(const char *channel,
       break;
   }
 
+<<<<<<< HEAD
   if (need_lock) channel_map.unlock();
+=======
+  channel_map.unlock();
+>>>>>>> pr/231
 
   return number_threads;
 }
@@ -833,17 +921,36 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
     return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  mi->channel_rdlock();
+>>>>>>> pr/231
   rpl_gno last_gno = 0;
+=======
+  rpl_gno last_gno= 0;
+>>>>>>> upstream/cluster-7.6
 
   Checkable_rwlock *sid_lock = mi->rli->get_sid_lock();
   sid_lock->rdlock();
   last_gno = mi->rli->get_gtid_set()->get_last_gno(sidno);
   sid_lock->unlock();
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
   const Gtid_set *retrieved_gtid_set = mi->rli->get_gtid_set();
   char *retrieved_gtid_set_string = nullptr;
   sid_lock->wrlock();
+=======
+#if !defined(NDEBUG)
+  const Gtid_set *retrieved_gtid_set= mi->rli->get_gtid_set();
+  char *retrieved_gtid_set_string= NULL;
+  global_sid_lock->wrlock();
+>>>>>>> upstream/cluster-7.6
   retrieved_gtid_set->to_string(&retrieved_gtid_set_string);
   sid_lock->unlock();
   DBUG_PRINT("info", ("get_last_delivered_gno retrieved_set_string: %s",
@@ -1143,7 +1250,17 @@ bool channel_is_stopping(const char *channel,
     return false;
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  mi->channel_rdlock();
+
+>>>>>>> pr/231
   switch (thd_type) {
+=======
+  switch(thd_type)
+  {
+>>>>>>> upstream/cluster-7.6
     case CHANNEL_NO_THD:
       break;
     case CHANNEL_RECEIVER_THREAD:
@@ -1169,7 +1286,17 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel) {
     channel_map.unlock();
     return false;
   }
+<<<<<<< HEAD
   bool ret = mi->transaction_parser.is_inside_transaction();
+=======
+<<<<<<< HEAD
+  mi->channel_rdlock();
+  bool ret = mi->transaction_parser.is_inside_transaction();
+  mi->channel_unlock();
+=======
+  bool ret= mi->transaction_parser.is_inside_transaction();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   channel_map.unlock();
   return ret;
 }

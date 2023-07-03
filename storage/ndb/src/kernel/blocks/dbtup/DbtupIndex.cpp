@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -210,6 +214,7 @@ Dbtup::tuxReadAttrsCommon(KeyReqStruct &req_struct,
                           bool xfrmFlag,
                           Uint32 tupVersion)
 {
+<<<<<<< HEAD
   /**
    * This function can be called from both LDM threads and from Query
    * threads. However the list of operations can only be operations
@@ -218,11 +223,14 @@ Dbtup::tuxReadAttrsCommon(KeyReqStruct &req_struct,
    * To handle this we call getOperationPtrP on the TUP block in the
    * LDM thread.
    */
+=======
+>>>>>>> pr/231
   Tuple_header *tuple_ptr = req_struct.m_tuple_ptr;
   if (tuple_ptr->get_tuple_version() != tupVersion)
   {
     thrjamDebug(req_struct.jamBuffer);
     OperationrecPtr opPtr;
+<<<<<<< HEAD
     opPtr.i = tuple_ptr->m_operation_ptr_i;
     Uint32 loopGuard= 0;
     while (opPtr.i != RNIL)
@@ -233,6 +241,15 @@ Dbtup::tuxReadAttrsCommon(KeyReqStruct &req_struct,
         thrjamDebug(req_struct.jamBuffer);
 	if (!opPtr.p->m_copy_tuple_location.isNull())
         {
+=======
+    opPtr.i= tuple_ptr->m_operation_ptr_i;
+    Uint32 loopGuard= 0;
+    while (opPtr.i != RNIL) {
+      c_operation_pool.getPtr(opPtr);
+      if (opPtr.p->op_struct.bit_field.tupVersion == tupVersion) {
+        thrjamDebug(req_struct.jamBuffer);
+	if (!opPtr.p->m_copy_tuple_location.isNull()) {
+>>>>>>> pr/231
 	  req_struct.m_tuple_ptr=
             get_copy_tuple(&opPtr.p->m_copy_tuple_location);
         }
@@ -284,6 +301,7 @@ Dbtup::tuxReadPk(Uint32* fragPtrP_input,
   req_struct.m_tuple_ptr = (Tuple_header*)ptr;
   
   int ret = 0;
+<<<<<<< HEAD
   /**
    * Coming here from ACC means that we hold the page map mutex, and it
    * also means that the entry is in DBACC and the local key have been
@@ -395,11 +413,71 @@ Dbtup::tuxReadPk(Uint32* fragPtrP_input,
     }
     ndbrequire((int)i == ret);
     ret -= numAttrs;
+=======
+  if (likely(! (req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE)))
+  {
+    req_struct.check_offset[MM]= tablePtrP->get_check_offset(MM);
+    req_struct.check_offset[DD]= tablePtrP->get_check_offset(DD);
+    
+    Uint32 num_attr= tablePtrP->m_no_of_attributes;
+    Uint32 descr_start= tablePtrP->tabDescriptor;
+    TableDescriptor *tab_descr= &tableDescriptor[descr_start];
+    ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
+    req_struct.attr_descr= tab_descr; 
+
+    if (unlikely(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC))
+    {
+      Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
+      Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
+      ndbassert(!opPtrP->m_copy_tuple_location.isNull());
+      req_struct.m_tuple_ptr=
+	get_copy_tuple(&opPtrP->m_copy_tuple_location);
+    }
+    prepare_read(&req_struct, tablePtrP, false);
+    
+    const Uint32* attrIds= &tableDescriptor[tablePtrP->readKeyArray].tabDescr;
+    const Uint32 numAttrs= tablePtrP->noOfKeyAttr;
+    // read pk attributes from original tuple
+    
+    // do it
+    ret = readAttributes(&req_struct,
+			 attrIds,
+			 numAttrs,
+			 dataOut,
+			 ZNIL,
+			 xfrmFlag);
+    // done
+    if (ret >= 0) {
+      // remove headers
+      Uint32 n= 0;
+      Uint32 i= 0;
+      while (n < numAttrs) {
+	const AttributeHeader ah(dataOut[i]);
+	Uint32 size= ah.getDataSize();
+	ndbrequire(size != 0);
+	for (Uint32 j= 0; j < size; j++) {
+	  dataOut[i + j - n]= dataOut[i + j + 1];
+	}
+	n+= 1;
+	i+= 1 + size;
+      }
+      ndbrequire((int)i == ret);
+      ret -= numAttrs;
+    }
+    else
+    {
+      jam();
+      return ret;
+    }
+>>>>>>> pr/231
   }
   else
   {
     jam();
+<<<<<<< HEAD
     return ret;
+=======
+>>>>>>> pr/231
   }
   if (likely(tablePtrP->m_bits & Tablerec::TR_RowGCI))
   {
@@ -413,6 +491,7 @@ Dbtup::tuxReadPk(Uint32* fragPtrP_input,
 }
 
 int
+<<<<<<< HEAD
 Dbtup::accReadPk(Uint32 fragPageId,
                  Uint32 pageIndex,
                  Uint32* dataOut,
@@ -424,6 +503,24 @@ Dbtup::accReadPk(Uint32 fragPageId,
   // use TUX routine - optimize later
   int ret = tuxReadPk((Uint32*)prepare_fragptr.p,
                       (Uint32*)prepare_tabptr.p,
+=======
+Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
+{
+  jamEntryDebug();
+  // get table
+  TablerecPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  // get fragment
+  FragrecordPtr fragPtr;
+  getFragmentrec(fragPtr, fragId, tablePtr.p);
+  // get real page id and tuple offset
+
+  Uint32 pageId = getRealpid(fragPtr.p, fragPageId);
+  // use TUX routine - optimize later
+  int ret = tuxReadPk((Uint32*)fragPtr.p,
+                      (Uint32*)tablePtr.p,
+>>>>>>> pr/231
                       pageId,
                       pageIndex,
                       dataOut,
@@ -440,6 +537,7 @@ Dbtup::accReadPk(Uint32 fragPageId,
  * In TUP getPage() is run after ACC locking, but TUX comes here
  * before ACC access.  Instead of modifying getPage() it is more
  * clear to do the full check here.
+<<<<<<< HEAD
  *
  * This method can be called from a query thread, thus all accesses
  * to fetch operation records must refer to the blocks in the LDM
@@ -447,6 +545,8 @@ Dbtup::accReadPk(Uint32 fragPageId,
  * insert operation records into the linked list of operations
  * found in the row header.
  *
+=======
+>>>>>>> pr/231
  */
 bool
 Dbtup::tuxQueryTh(Uint32 opPtrI,
@@ -460,12 +560,19 @@ Dbtup::tuxQueryTh(Uint32 opPtrI,
 
   OperationrecPtr currOpPtr;
   currOpPtr.i = opPtrI;
+<<<<<<< HEAD
   currOpPtr.p = m_ldm_instance_used->getOperationPtrP(currOpPtr.i);
 
   const bool sameTrans =
     c_lqh->m_ldm_instance_used->is_same_trans(currOpPtr.p->userpointer,
                                               transId1,
                                               transId2);
+=======
+  c_operation_pool.getPtr(currOpPtr);
+
+  const bool sameTrans =
+    c_lqh->is_same_trans(currOpPtr.p->userpointer, transId1, transId2);
+>>>>>>> pr/231
 
   bool res = false;
   OperationrecPtr loopOpPtr = currOpPtr;
@@ -486,9 +593,13 @@ Dbtup::tuxQueryTh(Uint32 opPtrI,
     else
     {
       // loop to first op (returns false)
+<<<<<<< HEAD
       m_ldm_instance_used->find_savepoint(loopOpPtr,
                                           0,
                                           jamBuffer());
+=======
+      find_savepoint(loopOpPtr, 0);
+>>>>>>> pr/231
       const Uint32 op_type = loopOpPtr.p->op_type;
 
       if (op_type != ZINSERT)
@@ -510,9 +621,13 @@ Dbtup::tuxQueryTh(Uint32 opPtrI,
     jamDebug();
     // for own trans, ignore dirty flag
 
+<<<<<<< HEAD
     if (m_ldm_instance_used->find_savepoint(loopOpPtr,
                                             savepointId,
                                             jamBuffer()))
+=======
+    if (find_savepoint(loopOpPtr, savepointId))
+>>>>>>> pr/231
     {
       jamDebug();
       const Uint32 op_type = loopOpPtr.p->op_type;

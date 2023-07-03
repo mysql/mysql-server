@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +44,10 @@
 #include <OutputStream.hpp>
 
 #include <EventLogger.hpp>
+<<<<<<< HEAD
+=======
+extern EventLogger * g_eventLogger;
+>>>>>>> pr/231
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
@@ -63,13 +71,22 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 bool preSendChecksum,
                                  Uint32 _spintime,
                                  Uint32 _send_buffer_size) :
+<<<<<<< HEAD
   Transporter(t_reg, transporter_index, tt_SHM_TRANSPORTER,
+=======
+  Transporter(t_reg, tt_SHM_TRANSPORTER,
+>>>>>>> pr/231
 	      lHostName, rHostName, r_port, isMgmConnection_arg,
 	      lNodeId, rNodeId, serverNodeId,
 	      0, false, checksum, signalId,
               _send_buffer_size,
+<<<<<<< HEAD
               preSendChecksum,
               _spintime),
+=======
+              preSendChecksum),
+  m_spintime(_spintime),
+>>>>>>> pr/231
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
@@ -87,6 +104,7 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   printf("shm key (%d - %d) = %d\n", lNodeId, rNodeId, shmKey);
 #endif
   m_signal_threshold = 262144;
+<<<<<<< HEAD
 }
 
 SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
@@ -128,6 +146,8 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 #endif
   m_signal_threshold = 262144;
   send_checksum_state.init();
+=======
+>>>>>>> pr/231
 }
 
 
@@ -219,13 +239,22 @@ SHM_Transporter::setupBuffers()
     NdbMutex_Unlock(serverMutex);
   }
 
+<<<<<<< HEAD
   if (reader != nullptr)
+=======
+  if (reader != 0)
+>>>>>>> pr/231
   {
     DEBUG_FPRINTF((stderr, "(%u)reader = %p, m_shm_reader: %p (%u) LINE:%d",
                    localNodeId, reader, &m_shm_reader, remoteNodeId, __LINE__));
   }
+<<<<<<< HEAD
   assert(reader == nullptr);
   assert(writer == nullptr);
+=======
+  assert(reader == 0);
+  assert(writer == 0);
+>>>>>>> pr/231
   if(isServer)
   {
     * serverStatusFlag = 0;
@@ -365,7 +394,11 @@ SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
                    localNodeId, remoteNodeId, __LINE__));
     if (setupBuffers())
     {
+<<<<<<< HEAD
       g_eventLogger->info("Shared memory not supported on this platform");
+=======
+      fprintf(stderr, "Shared memory not supported on this platform\n");
+>>>>>>> pr/231
       detach_shm(false);
       DBUG_RETURN(false);
     }
@@ -406,7 +439,11 @@ SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
     // Send ok to client
     s_output.println("shm server 2 ok");
     // Wait for ok from client
+<<<<<<< HEAD
     if (s_input.gets(buf, 256) == nullptr)
+=======
+    if (s_input.gets(buf, 256) == 0)
+>>>>>>> pr/231
     {
       DEBUG_FPRINTF((stderr, "(%u)connect_server_impl failed LINE:%d,"
                              " to remote node %d\n",
@@ -424,6 +461,7 @@ SHM_Transporter::connect_server_impl(ndb_socket_t sockfd)
 }
 
 void
+<<<<<<< HEAD
 SHM_Transporter::set_socket(ndb_socket_t sockfd)
 {
   set_get(sockfd, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", 1);
@@ -433,6 +471,17 @@ SHM_Transporter::set_socket(ndb_socket_t sockfd)
   theSocket = sockfd;
   send_checksum_state.init();
   get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
+=======
+SHM_Transporter::set_socket(NDB_SOCKET_TYPE sockfd)
+{
+  set_get(sockfd, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", 1);
+  set_get(sockfd, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
+  my_socket_nonblock(sockfd, true);
+  get_callback_obj()->lock_transporter(remoteNodeId);
+  theSocket = sockfd;
+  send_checksum_state.init();
+  get_callback_obj()->unlock_transporter(remoteNodeId);
+>>>>>>> pr/231
 }
 
 bool
@@ -447,7 +496,11 @@ SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
 
   // Wait for server to create and attach
   DBUG_PRINT("info", ("Wait for server to create and attach"));
+<<<<<<< HEAD
   if (s_input.gets(buf, 256) == nullptr)
+=======
+  if (s_input.gets(buf, 256) == 0)
+>>>>>>> pr/231
   {
     DEBUG_FPRINTF((stderr, "(%u)connect_client_impl failed LINE:%d,"
                            " to remote node %d\n",
@@ -506,7 +559,11 @@ SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
                    localNodeId, remoteNodeId, __LINE__));
     if (setupBuffers())
     {
+<<<<<<< HEAD
       g_eventLogger->info("Shared memory not supported on this platform");
+=======
+      fprintf(stderr, "Shared memory not supported on this platform\n");
+>>>>>>> pr/231
       detach_shm(false);
       DBUG_RETURN(false);
     }
@@ -528,7 +585,11 @@ SHM_Transporter::connect_client_impl(ndb_socket_t sockfd)
   {
     // Wait for ok from server
     DBUG_PRINT("info", ("Wait for ok from server"));
+<<<<<<< HEAD
     if (s_input.gets(buf, 256) == nullptr)
+=======
+    if (s_input.gets(buf, 256) == 0)
+>>>>>>> pr/231
     {
       DEBUG_FPRINTF((stderr, "(%u)connect_client_impl failed LINE:%d,"
                              " to remote node %d\n",
@@ -591,7 +652,11 @@ SHM_Transporter::connect_common(ndb_socket_t)
 void
 SHM_Transporter::remove_mutexes()
 {
+<<<<<<< HEAD
   if (ndb_socket_valid(theSocket))
+=======
+  if (my_socket_valid(theSocket))
+>>>>>>> pr/231
   {
     NdbMutex_Deinit(serverMutex);
     NdbMutex_Deinit(clientMutex);
@@ -615,6 +680,7 @@ void SHM_Transporter::setupBuffersUndone()
 void
 SHM_Transporter::disconnect_socket()
 {
+<<<<<<< HEAD
   get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
 
   ndb_socket_t sock = theSocket;
@@ -629,6 +695,22 @@ SHM_Transporter::disconnect_socket()
   }
   setupBuffersUndone();
   get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
+=======
+  get_callback_obj()->lock_transporter(remoteNodeId);
+
+  NDB_SOCKET_TYPE sock = theSocket;
+  my_socket_invalidate(&theSocket);
+
+
+  if(my_socket_valid(sock))
+  {
+    if(my_socket_close(sock) < 0){
+      report_error(TE_ERROR_CLOSING_SOCKET);
+    }
+  }
+  setupBuffersUndone();
+  get_callback_obj()->unlock_transporter(remoteNodeId);
+>>>>>>> pr/231
 }
 
 /**
@@ -667,6 +749,7 @@ SHM_Transporter::wakeup()
   do
   {
     one_more_try--;
+<<<<<<< HEAD
     int nBytesSent = (int)ndb_socket_writev(theSocket, iov, iovcnt);
     if (nBytesSent != 1)
     {
@@ -675,6 +758,14 @@ SHM_Transporter::wakeup()
       if (DISCONNECT_ERRNO(err, nBytesSent))
       {
         do_disconnect(err, true);
+=======
+    int nBytesSent = (int)my_socket_writev(theSocket, iov, iovcnt);
+    if (nBytesSent != 1)
+    {
+      if (DISCONNECT_ERRNO(my_socket_errno(), nBytesSent))
+      {
+        do_disconnect(my_socket_errno());
+>>>>>>> pr/231
       }
     }
     else
@@ -692,6 +783,7 @@ SHM_Transporter::doReceive()
   do
   {
     one_more_try = false;
+<<<<<<< HEAD
     const int nBytesRead = (int)ndb_recv(theSocket, buf, sizeof(buf), 0);
     if (unlikely(nBytesRead <= 0))
     {
@@ -707,6 +799,14 @@ SHM_Transporter::doReceive()
       if (DISCONNECT_ERRNO(err, nBytesRead))
       {
         do_disconnect(err, false);
+=======
+    const int nBytesRead = (int)my_recv(theSocket, buf, sizeof(buf), 0);
+    if (unlikely(nBytesRead <= 0))
+    {
+      if (DISCONNECT_ERRNO(my_socket_errno(), nBytesRead))
+      {
+        do_disconnect(my_socket_errno());
+>>>>>>> pr/231
       }
       else
       {

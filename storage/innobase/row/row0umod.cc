@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1997, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1997, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -126,14 +150,26 @@ introduced where a call to log_free_check() is bypassed. */
     *rebuilt_old_pk = nullptr;
   }
 
+<<<<<<< HEAD
   /* Update would release the implicit lock. Must convert to
   explicit lock before applying update undo.*/
   row_convert_impl_to_expl_if_needed(btr_cur, node);
 
   node->update->table = node->table;
 
+=======
+<<<<<<< HEAD
+>>>>>>> pr/231
   if (mode != BTR_MODIFY_TREE) {
     ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
+=======
+	/* Update would release the implicit lock. Must convert to
+	explicit lock before applying update undo.*/
+	row_convert_impl_to_expl_if_needed(btr_cur, node);
+
+	if (mode != BTR_MODIFY_TREE) {
+		ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
+>>>>>>> upstream/cluster-7.6
 
     err = btr_cur_optimistic_update(BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG |
                                         BTR_KEEP_SYS_FLAG | BTR_KEEP_POS_FLAG,
@@ -338,7 +374,17 @@ introduced where a call to log_free_check() is bypassed. */
     }
   }
 
+<<<<<<< HEAD
   ut_ad(rec_get_trx_id(pcur->get_rec(), index) == node->new_trx_id);
+=======
+<<<<<<< HEAD
+  ut_ad(rec_get_trx_id(btr_pcur_get_rec(pcur), index) == node->new_trx_id);
+=======
+	DEBUG_SYNC_C("ib_undo_mod_before_remove_clust");
+
+	if (err == DB_SUCCESS && node->rec_type == TRX_UNDO_UPD_DEL_REC) {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   pcur->commit_specify_mtr(&mtr);
 
@@ -391,16 +437,33 @@ introduced where a call to log_free_check() is bypassed. */
     ulint mode)          /*!< in: latch mode BTR_MODIFY_LEAF or
                          BTR_MODIFY_TREE */
 {
+<<<<<<< HEAD
   btr_pcur_t pcur;
   btr_cur_t *btr_cur;
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   mtr_t mtr_vers;
   row_search_result search_result;
+<<<<<<< HEAD
   bool modify_leaf = false;
   ulint rec_deleted;
   bool success;
   bool old_has;
+=======
+  ibool modify_leaf = false;
+=======
+	btr_pcur_t		pcur;
+	btr_cur_t*		btr_cur;
+	ibool			success;
+	ibool			old_has;
+	dberr_t			err	= DB_SUCCESS;
+	mtr_t			mtr;
+	mtr_t			mtr_vers;
+	row_search_result	search_result;
+	ibool			modify_leaf = false;
+	ulint			rec_deleted;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   log_free_check();
 
@@ -483,6 +546,7 @@ introduced where a call to log_free_check() is bypassed. */
   which cannot be purged yet, requires its existence. If some requires,
   we should delete mark the record. */
 
+<<<<<<< HEAD
   mtr_start(&mtr_vers);
 
   success =
@@ -497,6 +561,54 @@ introduced where a call to log_free_check() is bypassed. */
     ut_ad(err == DB_SUCCESS);
   } else {
     /* Remove the index record */
+=======
+	old_has = row_vers_old_has_index_entry(FALSE,
+					       btr_pcur_get_rec(&(node->pcur)),
+					       &mtr_vers, index, entry,
+					       0, 0);
+
+	/* If the key is delete marked then the statement could not modify the
+	key yet and the transaction has no implicit lock on it. We must convert
+	to explicit lock if and only if we are the transaction which has implicit
+	lock on it.Note that it is still ok to purge the delete mark key if it is
+	purgeable.*/
+	rec_deleted = rec_get_deleted_flag(btr_pcur_get_rec(&pcur),
+                                                 dict_table_is_comp(index->table));
+	if (rec_deleted == 0) {
+		row_convert_impl_to_expl_if_needed(btr_cur, node);
+	}
+
+	if (old_has) {
+		err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
+						   btr_cur, TRUE, thr, &mtr);
+		ut_ad(err == DB_SUCCESS);
+	} else {
+		/* Remove the index record */
+		if (dict_index_is_spatial(index)) {
+			if (rec_deleted) {
+				ib::error() << "Record found in index "
+					<< index->name << " is deleted marked"
+					" on rollback update.";
+			}
+		}
+
+
+		if (modify_leaf) {
+			success = btr_cur_optimistic_delete(btr_cur, 0, &mtr);
+			if (success) {
+				err = DB_SUCCESS;
+			} else {
+				err = DB_FAIL;
+			}
+		} else {
+			/* Passing rollback=false,
+			because we are deleting a secondary index record:
+			the distinction only matters when deleting a
+			record that contains externally stored columns. */
+			ut_ad(!dict_index_is_clust(index));
+			btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
+						   false, &mtr);
+>>>>>>> upstream/cluster-7.6
 
     if (dict_index_is_spatial(index)) {
       if (rec_deleted) {

@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 /*
+<<<<<<< HEAD
    Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +44,17 @@
 #include <NdbEventOperation.hpp>
 #include <NdbSleep.h>
 #include "NdbIndexStatImpl.hpp"
+<<<<<<< HEAD
 #include "m_ctype.h"
+=======
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
+#undef min
+#undef max
+#define min(a, b) ((a) <= (b) ? (a) : (b))
+#define max(a, b) ((a) >= (b) ? (a) : (b))
+>>>>>>> pr/231
 
 static const char* const g_headtable_name = NDB_INDEX_STAT_HEAD_TABLE;
 static const char* const g_sampletable_name = NDB_INDEX_STAT_SAMPLE_TABLE;
@@ -68,10 +86,15 @@ NdbIndexStatImpl::init()
   m_keyAttrs = 0;
   m_valueAttrs = 0;
   // buffers
+<<<<<<< HEAD
   m_keySpecBuf = nullptr;
   m_valueSpecBuf = nullptr;
   m_keyDataBuf = nullptr;
   m_valueDataBuf = nullptr;
+=======
+  m_keySpecBuf = 0;
+  m_valueSpecBuf = 0;
+>>>>>>> pr/231
   // cache
   m_cacheBuild = nullptr;
   m_cacheQuery = nullptr;
@@ -89,7 +112,7 @@ NdbIndexStatImpl::~NdbIndexStatImpl()
     m_query_mutex = nullptr;
   }
 }
- 
+
 // sys tables meta
 
 NdbIndexStatImpl::Sys::Sys(NdbIndexStatImpl* impl, Ndb* ndb) :
@@ -564,7 +587,7 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
     setError(dic->getNdbError().code, __LINE__);
     return -1;
   }
-    
+
   return 0;
 }
 
@@ -593,7 +616,7 @@ int
 NdbIndexStatImpl::check_systables(Ndb* ndb)
 {
   Sys sys(this, ndb);
-  
+
   if (check_systables(sys) == -1)
     return -1;
 
@@ -779,6 +802,7 @@ NdbIndexStatImpl::set_index(const NdbDictionary::Index& index,
     }
   }
 
+<<<<<<< HEAD
   // data buffers (rounded to word)
   m_keyDataBuf = new Uint8 [m_keyData.get_max_len4()];
   m_valueDataBuf = new Uint8 [m_valueData.get_max_len4()];
@@ -787,6 +811,8 @@ NdbIndexStatImpl::set_index(const NdbDictionary::Index& index,
     setError(NoMemError, __LINE__);
     return -1;
   }
+=======
+>>>>>>> pr/231
   m_keyData.set_buf(m_keyDataBuf, m_keyData.get_max_len());
   m_valueData.set_buf(m_valueDataBuf, m_valueData.get_max_len());
 
@@ -802,8 +828,6 @@ NdbIndexStatImpl::reset_index()
   m_valueSpec.reset();
   delete [] m_keySpecBuf;
   delete [] m_valueSpecBuf;
-  delete [] m_keyDataBuf;
-  delete [] m_valueDataBuf;
   init();
 }
 
@@ -1194,6 +1218,28 @@ NdbIndexStatImpl::read_next(Con& con)
     return ret;
   }
 
+  /* varbinary column length is in first two bytes */
+  const Uint32 keyDataLen = m_keyDataBuf[0] + (m_keyDataBuf[1] << 8) + 2;
+  const Uint32 valueDataLen = m_valueDataBuf[0] + (m_valueDataBuf[1] << 8) + 2;
+
+  /* if the keyDataLen is more than that of buffer's max length or if the
+   * valueDataLen doesn't match the expected buffer length, report error */
+  if (keyDataLen > m_keyData.get_max_len() ||
+      valueDataLen != m_valueData.get_max_len())
+  {
+    g_eventLogger->error("ndb_index_stat key/value "
+                         "has different length than expected");
+    g_eventLogger->error("  index id : `%u`, table id : `%u`",
+                         m_indexId, m_tableId);
+    g_eventLogger->error("  key data length : `%u`, "
+                         "expected maximum length : `%u`",
+                         keyDataLen, m_keyData.get_max_len());
+    g_eventLogger->error("  value data length : `%u`, expected length : `%u`",
+                         valueDataLen, m_valueData.get_max_len());
+    setError(AlienUpdate, __LINE__, NdbPack::Error::InternalError);
+    return -1;
+  }
+
   /*
    * Key and value are raw data and little-endian.  Create the complete
    * NdbPack::Data instance and convert it to native-endian.
@@ -1288,6 +1334,7 @@ NdbIndexStatImpl::Cache::get_keyaddr(uint pos) const
   switch (m_addrLen) {
   case 4:
     addr += src[3] << 24;
+<<<<<<< HEAD
     [[fallthrough]];
   case 3:
     addr += src[2] << 16;
@@ -1295,6 +1342,15 @@ NdbIndexStatImpl::Cache::get_keyaddr(uint pos) const
   case 2:
     addr += src[1] << 8;
     [[fallthrough]];
+=======
+    // Fall through
+  case 3:
+    addr += src[2] << 16;
+    // Fall through
+  case 2:
+    addr += src[1] << 8;
+    // Fall through
+>>>>>>> pr/231
   case 1:
     addr += src[0] << 0;
     break;
@@ -1314,6 +1370,7 @@ NdbIndexStatImpl::Cache::set_keyaddr(uint pos, uint addr)
   switch (m_addrLen) {
   case 4:
     dst[3] = (addr >> 24) & 0xFF;
+<<<<<<< HEAD
     [[fallthrough]];
   case 3:
     dst[2] = (addr >> 16) & 0xFF;
@@ -1321,6 +1378,15 @@ NdbIndexStatImpl::Cache::set_keyaddr(uint pos, uint addr)
   case 2:
     dst[1] = (addr >> 8) & 0xFF;
     [[fallthrough]];
+=======
+    // Fall through
+  case 3:
+    dst[2] = (addr >> 16) & 0xFF;
+    // Fall through
+  case 2:
+    dst[1] = (addr >> 8) & 0xFF;
+    // Fall through
+>>>>>>> pr/231
   case 1:
     dst[0] = (addr >> 0) & 0xFF;
     break;

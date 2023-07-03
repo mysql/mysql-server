@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +63,10 @@
 
 
 #ifdef VM_TRACE
+<<<<<<< HEAD
 //#define DEBUG_DISK 1
+=======
+>>>>>>> pr/231
 //#define DEBUG_TUP_META 1
 //#define DEBUG_TUP_META_EXTRA 1
 //#define DEBUG_DROP_TAB 1
@@ -69,12 +76,15 @@
 #define DEB_DROP_TAB(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_DROP_TAB(arglist) do { } while (0)
+<<<<<<< HEAD
 #endif
 
 #ifdef DEBUG_DISK
 #define DEB_DISK(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_DISK(arglist) do { } while (0)
+=======
+>>>>>>> pr/231
 #endif
 
 #ifdef DEBUG_TUP_META
@@ -1612,12 +1622,15 @@ Dbtup::computeTableMetaData(TablerecPtr tabPtr, Uint32 line)
 
   regTabPtr->m_no_of_real_disk_attributes = regTabPtr->m_no_of_disk_attributes;
 
+<<<<<<< HEAD
   DEB_DISK(("(%u) Tab(%u) no of disk attr: %u, line: %u",
             instance(),
             tabPtr.i,
             regTabPtr->m_no_of_disk_attributes,
             line));
 
+=======
+>>>>>>> pr/231
   if(regTabPtr->m_no_of_disk_attributes > 0)
   {
     /* Room for disk part location. */

@@ -220,9 +220,16 @@ private:
     RI_DISABLE_FK        =  0,
     RI_NO_TRIGGERS       =  1,
     RI_UTIL_SHIFT        =  2,
+<<<<<<< HEAD
     RI_NOWAIT_SHIFT      =  3,
 
     /* Currently unused */
+=======
+
+    /* Currently unused */
+    RI_CLEAR_SHIFT3      =  3,
+    RI_CLEAR_SHIFT4      =  4,
+>>>>>>> pr/231
     RI_CLEAR_SHIFT5      =  5,
     RI_CLEAR_SHIFT6      =  6,
     RI_CLEAR_SHIFT7      =  7,
@@ -724,6 +731,11 @@ UintR
 LqhKeyReq::getLongClearBits(const UintR& requestInfo)
 {
   const Uint32 mask =
+<<<<<<< HEAD
+=======
+    (1 << RI_CLEAR_SHIFT3) |
+    (1 << RI_CLEAR_SHIFT4) |
+>>>>>>> pr/231
     (1 << RI_CLEAR_SHIFT5) |
     (1 << RI_CLEAR_SHIFT6) |
     (1 << RI_CLEAR_SHIFT7) |
@@ -874,8 +886,13 @@ class LqhKeyRef {
   friend bool printLQHKEYREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
+<<<<<<< HEAD
   static constexpr Uint32 SignalLengthWithoutFlags = 5;
   static constexpr Uint32 SignalLength = 6;
+=======
+  STATIC_CONST( SignalLengthWithoutFlags = 5 );
+  STATIC_CONST( SignalLength = 6 );
+>>>>>>> pr/231
 
 private:
 

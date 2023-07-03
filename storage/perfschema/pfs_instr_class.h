@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2008, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -232,6 +240,7 @@ struct PFS_instr_class {
 
   bool is_mutable() const { return m_flags & PSI_FLAG_MUTABLE; }
 
+<<<<<<< HEAD
   bool is_progress() const { return m_flags & PSI_FLAG_STAGE_PROGRESS; }
 
   bool is_shared_exclusive() const { return m_flags & PSI_FLAG_RWLOCK_SX; }
@@ -272,6 +281,18 @@ struct PFS_instr_class {
     */
     assert(valid_flags == m_flags);
     m_flags = valid_flags;
+=======
+  bool is_progress() const
+  {
+    assert(m_type == PFS_CLASS_STAGE);
+    return m_flags & PSI_FLAG_STAGE_PROGRESS;
+  }
+
+  bool is_shared_exclusive() const
+  {
+    assert(m_type == PFS_CLASS_RWLOCK);
+    return m_flags & PSI_RWLOCK_FLAG_SX;
+>>>>>>> upstream/cluster-7.6
   }
 
   static void set_enabled(PFS_instr_class *pfs, bool enabled);
@@ -348,12 +369,25 @@ struct PFS_ALIGNED PFS_cond_class : public PFS_instr_class {
 struct PFS_ALIGNED PFS_thread_class : public PFS_instr_class {
   /** Singleton instance. */
   PFS_thread *m_singleton;
+<<<<<<< HEAD
   /** Thread history instrumentation flag. */
   bool m_history{false};
+<<<<<<< HEAD
   /** Thread os name. */
   char m_os_name[PFS_MAX_OS_NAME_LENGTH];
   /** Thread instance sequence number counter. */
   std::atomic<unsigned int> m_seqnum;
+=======
+=======
+  /** Thread instrument name. */
+  char m_name[PFS_MAX_INFO_NAME_LENGTH];
+  /** Length in bytes of @c m_name. */
+  uint m_name_length;
+  /** Instrument flags. */
+  int m_flags;
+  bool is_system_thread() const { return m_flags & PSI_FLAG_THREAD_SYSTEM; }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 };
 
 /** Key identifying a table share. */

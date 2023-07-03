@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -345,7 +349,11 @@ void Dbtup::copyProcedure(Signal* signal,
                 &handle,
                 true); // isCopy
   Ptr<SectionSegment> first;
+<<<<<<< HEAD
   ndbrequire(g_sectionSegmentPool.getPtr(first, cCopyProcedure));
+=======
+  g_sectionSegmentPool.getPtr(first, cCopyProcedure);
+>>>>>>> pr/231
   signal->theData[2] = first.p->m_sz;
 }//Dbtup::copyProcedure()
 

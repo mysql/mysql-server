@@ -39,16 +39,22 @@
 
 #include <ndb_version.h>
 #include <version.h>
+<<<<<<< HEAD
 #include <NdbMutex.h>
+=======
+>>>>>>> pr/231
 #include <ndb_limits.h>
 
 #define NDB_RESTORE_STAGING_SUFFIX "$ST"
 #ifdef ERROR_INSERT
 #define NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER 1
 #define NDB_RESTORE_ERROR_INSERT_SKIP_ROWS 2
+<<<<<<< HEAD
 #define NDB_RESTORE_ERROR_INSERT_FAIL_REPLAY_LOG 3
 #define NDB_RESTORE_ERROR_INSERT_FAIL_RESTORE_TUPLE 4
 
+=======
+>>>>>>> pr/231
 #endif
 
 enum TableChangesMask
@@ -77,6 +83,43 @@ enum TableChangesMask
    * Ignore log entries updating an extended pk column
    */
   TCM_IGNORE_EXTENDED_PK_UPDATES = 0x10
+<<<<<<< HEAD
+=======
+};
+
+/**
+ * ColumnTransform
+ *
+ * Interface for classes implementing a transform on a column
+ */
+
+class ColumnTransform
+{
+public:
+  ColumnTransform() {};
+  virtual ~ColumnTransform() {};
+
+
+  /**
+   * apply
+   *
+   * apply the transform, returning a pointer to the
+   * result in dst_data.
+   *
+   * col       : The type of the column which is to be transformed
+   * src_data  : Pointer to the data to transform
+   *             NULL indicates a null value
+   * dst_data  : Pointer to a pointer to the output data
+   *
+   * returns
+   *   true : Transform was successful
+   *  false : Transform failed
+   */
+  virtual
+  bool apply(const NdbDictionary::Column* col,
+             const void* src_data,
+             void** dst_data) = 0;
+>>>>>>> pr/231
 };
 
 /**
@@ -300,7 +343,11 @@ public:
 
   bool have_auto_inc(Uint32 id) const {
     return (m_auto_val_attrib ? m_auto_val_attrib->attrId == id : false);
+<<<<<<< HEAD
   }
+=======
+  };
+>>>>>>> pr/231
 
   bool get_auto_data(const TupleS & tuple, Uint32 * syskey, Uint64 * nextid) const;
 
@@ -428,18 +475,25 @@ protected:
 
   virtual void reset_buffers() {}
 
+<<<<<<< HEAD
   // In case of multiple backup parts, each backup part is
   // identified by a unique part ID, which is m_part_id.
   Uint32 m_part_id;
   Uint32 m_part_count;
 
+=======
+>>>>>>> pr/231
   /* Get registered consumers to finish up with buffers
    * Then reset them */
   void flush_and_reset_buffers()
   {
     if (free_data_callback)
     {
+<<<<<<< HEAD
       (*free_data_callback)(m_ctx);
+=======
+      (*free_data_callback)();
+>>>>>>> pr/231
     }
     reset_buffers();
   }
@@ -478,10 +532,18 @@ public:
    *
    * But, when compressed backup is enabled, m_file_pos gives the current file
    * position in uncompressed state and m_file_size gives the backup file size
+<<<<<<< HEAD
    * in compressed state. 
    * This parameter also works when compressed backup is disabled.
    */
   Uint64 get_file_pos() const { return m_xfile.get_file_pos(); }
+=======
+   * in compressed state. So, Instead of m_file_pos, ndbzio_stream's m_file.in
+   * parameter is used to get current position in compressed state.This
+   * parameter also works when compressed backup is disabled.
+   */
+  Uint64 get_file_pos() const { return m_file.in; }
+>>>>>>> pr/231
 #ifdef ERROR_INSERT
   void error_insert(unsigned int code); 
 #endif
@@ -582,7 +644,11 @@ private:
   bool m_current_table_has_transforms;
 
 protected:
+<<<<<<< HEAD
   void reset_buffers() override { reset_extra_storage();}
+=======
+  virtual void reset_buffers() { reset_extra_storage();}
+>>>>>>> pr/231
 
   int readTupleData_old(Uint32 *buf_ptr, Uint32 dataLength);
   int readTupleData_packed(Uint32 *buf_ptr, Uint32 dataLength);
@@ -666,17 +732,28 @@ public:
 class RestoreLogger {
 public:
   RestoreLogger();
+<<<<<<< HEAD
   ~RestoreLogger();
+=======
+>>>>>>> pr/231
   void log_info(const char* fmt, ...)
          ATTRIBUTE_FORMAT(printf, 2, 3);
   void log_debug(const char* fmt, ...)
          ATTRIBUTE_FORMAT(printf, 2, 3);
   void log_error(const char* fmt, ...)
          ATTRIBUTE_FORMAT(printf, 2, 3);
+<<<<<<< HEAD
   void setThreadPrefix(const char* prefix);
   const char* getThreadPrefix() const;
 private:
   NdbMutex *m_mutex;
+=======
+  void set_print_timestamp(bool print_TS);
+  bool get_print_timestamp();
+private:
+  char timestamp[64];
+  bool print_timestamp;
+>>>>>>> pr/231
 };
 
 NdbOut& operator<<(NdbOut& ndbout, const TableS&);

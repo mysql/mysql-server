@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -255,9 +279,16 @@ static void memo_slot_release(mtr_memo_slot_t *slot) {
 #endif /* !UNIV_HOTBACKUP */
       break;
 
+<<<<<<< HEAD
     case MTR_MEMO_S_LOCK:
       rw_lock_s_unlock(reinterpret_cast<rw_lock_t *>(slot->object));
       break;
+=======
+		buf_page_release_latch(block, slot->type);
+		buf_block_unfix(block);
+		break;
+	}
+>>>>>>> upstream/cluster-7.6
 
     case MTR_MEMO_SX_LOCK:
       rw_lock_sx_unlock(reinterpret_cast<rw_lock_t *>(slot->object));
@@ -276,6 +307,10 @@ static void memo_slot_release(mtr_memo_slot_t *slot) {
   slot->object = nullptr;
 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> upstream/cluster-7.6
 /** Release the latches and blocks acquired by the mini-transaction. */
 struct Release_all {
   /** @return true always. */
@@ -403,11 +438,16 @@ class mtr_t::Command {
   /** Add blocks modified in this mini-transaction to the flush list. */
   void add_dirty_blocks_to_flush_list(lsn_t start_lsn, lsn_t end_lsn);
 
+<<<<<<< HEAD
   /** Release both the latches and blocks used in the mini-transaction. */
   void release_all();
 
   /** Release the resources */
   void release_resources();
+=======
+	/** Release both the latches and blocks used in the mini-transaction. */
+	void release_all();
+>>>>>>> upstream/cluster-7.6
 
  private:
 #ifndef UNIV_HOTBACKUP
@@ -842,6 +882,7 @@ void mtr_t::Command::release_all() {
   m_locks_released = 1;
 }
 
+<<<<<<< HEAD
 /** Add blocks modified in this mini-transaction to the flush list. */
 void mtr_t::Command::add_dirty_blocks_to_flush_list(lsn_t start_lsn,
                                                     lsn_t end_lsn) {
@@ -851,6 +892,16 @@ void mtr_t::Command::add_dirty_blocks_to_flush_list(lsn_t start_lsn,
   Iterate<Add_dirty_blocks_to_flush_list> iterator(add_to_flush);
 
   m_impl->m_memo.for_each_block_in_reverse(iterator);
+=======
+/** Release the blocks used in this mini-transaction */
+void
+mtr_t::Command::release_blocks()
+{
+	ReleaseBlocks release(m_start_lsn, m_end_lsn, m_impl->m_flush_observer);
+	Iterate<ReleaseBlocks> iterator(release);
+
+	m_impl->m_memo.for_each_block_in_reverse(iterator);
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Write the redo log record, add dirty pages to the flush list and release
@@ -871,7 +922,11 @@ void mtr_t::Command::execute() {
     write_log.m_handle = handle;
     write_log.m_lsn = handle.start_lsn;
 
+<<<<<<< HEAD
     m_impl->m_log.for_each_block(write_log);
+=======
+	release_all();
+>>>>>>> upstream/cluster-7.6
 
     ut_ad(write_log.m_left_to_write == 0);
     ut_ad(write_log.m_lsn == handle.end_lsn);

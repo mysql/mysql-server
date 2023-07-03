@@ -37,8 +37,16 @@
 #include <NdbEnv.h>
 #include <NdbSleep.h>
 #include <NdbLockCpuUtil.h>
+<<<<<<< HEAD
 #include "my_thread.h"
+<<<<<<< HEAD
 #include <NdbGetRUsage.h>
+=======
+=======
+#include <NdbGetRUsage.h>
+#include <my_thread.h>
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #include <kernel/GlobalSignalNumbers.h>
 #include "kernel/signaldata/DumpStateOrd.hpp"
@@ -55,6 +63,10 @@
 #include <signaldata/CloseComReqConf.hpp>
 #include <EventLogger.hpp>
 
+<<<<<<< HEAD
+=======
+extern EventLogger *g_eventLogger;
+>>>>>>> pr/231
 
 //#define REPORT_TRANSPORTER
 //#define API_TRACE
@@ -159,9 +171,14 @@ TransporterFacade::reportConnect(NodeId nodeId)
 /**
  * Report connection broken
  */
+<<<<<<< HEAD
 void TransporterFacade::reportDisconnect(NodeId nodeId,
                                          Uint32 error [[maybe_unused]])
 {
+=======
+void
+TransporterFacade::reportDisconnect(NodeId nodeId, Uint32 error){
+>>>>>>> pr/231
   DEBUG_FPRINTF((stderr, "(%u)FAC:reportDisconnect(%u, %u)\n",
                          ownId(), nodeId, error));
 #ifdef REPORT_TRANSPORTER
@@ -666,13 +683,21 @@ void*
 runWakeupThread_C(void *me)
 {
   ((TransporterFacade*)me)->threadMainWakeup();
+<<<<<<< HEAD
   return nullptr;
+=======
+  return 0;
+>>>>>>> pr/231
 }
 
 void TransporterFacade::init_cpu_usage(NDB_TICKS currTime)
 {
   struct ndb_rusage curr_rusage;
+<<<<<<< HEAD
   Ndb_GetRUsage(&curr_rusage, false);
+=======
+  Ndb_GetRUsage(&curr_rusage);
+>>>>>>> pr/231
   Uint64 cpu_time = curr_rusage.ru_utime + curr_rusage.ru_stime;
   m_last_recv_thread_cpu_usage_in_micros = cpu_time;
   m_recv_thread_cpu_usage_in_percent = 0;
@@ -689,7 +714,11 @@ void TransporterFacade::check_cpu_usage(NDB_TICKS currTime)
     return;
 
   m_last_cpu_usage_check = currTime;
+<<<<<<< HEAD
   int res = Ndb_GetRUsage(&curr_rusage, false);
+=======
+  int res = Ndb_GetRUsage(&curr_rusage);
+>>>>>>> pr/231
   Uint64 cpu_time = curr_rusage.ru_utime + curr_rusage.ru_stime;
   /**
    * Initialise when Ndb_GetRUsage isn't working,
@@ -890,7 +919,11 @@ void TransporterFacade::calc_recv_thread_wakeup()
 
 void TransporterFacade::threadMainWakeup()
 {
+<<<<<<< HEAD
   while (theWakeupThread == nullptr)
+=======
+  while (theWakeupThread == NULL)
+>>>>>>> pr/231
   {
     /* Wait until theWakeupThread have been set */
     NdbSleep_MilliSleep(10);
@@ -968,7 +1001,11 @@ void TransporterFacade::wakeup_and_unlock_calls()
   {
     Uint32 inx = m_wakeup_clients_cnt - 1;
     tmp = m_wakeup_clients[inx];
+<<<<<<< HEAD
     m_wakeup_clients[inx] = nullptr;
+=======
+    m_wakeup_clients[inx] = 0;
+>>>>>>> pr/231
     count_wakeup++;
     m_wakeup_clients_cnt = inx;
     if (count_wakeup == 4 && inx > 0)
@@ -1235,7 +1272,11 @@ class ReceiveThreadClient : public trp_client
   explicit ReceiveThreadClient(TransporterFacade *facade);
   ~ReceiveThreadClient() override;
   void trp_deliver_signal(const NdbApiSignal *,
+<<<<<<< HEAD
                           const LinearSectionPtr ptr[3]) override;
+=======
+                          const LinearSectionPtr ptr[3]);
+>>>>>>> pr/231
   enum {
     ACTIVE,      // Is the preferred receiver
     DEACTIVATE,  // Intermediate state going from ACTIVE -> SNOOZE
@@ -1480,7 +1521,13 @@ void TransporterFacade::threadMainReceive(void)
      * NOTE: We set this flag without mutex, which could result in
      * a 'check' to be missed now and then. 
      */
+<<<<<<< HEAD
     if (unlikely(NdbTick_Elapsed(lastCheck,currTime).milliSec() >= 100))
+=======
+    Uint64 expired_time_in_micros =
+      NdbTick_Elapsed(lastCheck,currTime).microSec();
+    if (expired_time_in_micros >= Uint64(100000))
+>>>>>>> pr/231
     {
       m_check_connections = true;
       lastCheck = currTime;
@@ -1645,16 +1692,28 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theStopSend(0),
   theStopWakeup(0),
   sendThreadWaitMillisec(10),
+<<<<<<< HEAD
   theSendThread(nullptr),
   theReceiveThread(nullptr),
   theWakeupThread(nullptr),
+=======
+  theSendThread(NULL),
+  theReceiveThread(NULL),
+  theWakeupThread(NULL),
+>>>>>>> pr/231
   m_last_recv_thread_cpu_usage_in_micros(0),
   m_recv_thread_cpu_usage_in_percent(0),
   m_recv_thread_wakeup(MAX_NO_THREADS),
   m_wakeup_clients_cnt(0),
+<<<<<<< HEAD
   m_wakeup_thread_mutex(nullptr),
   m_wakeup_thread_cond(nullptr),
   recv_client(nullptr),
+=======
+  m_wakeup_thread_mutex(NULL),
+  m_wakeup_thread_cond(NULL),
+  recv_client(NULL),
+>>>>>>> pr/231
   m_enabled_nodes_mask(),
   m_fragmented_signal_id(0),
   m_open_close_mutex(nullptr),
@@ -1913,7 +1972,11 @@ TransporterFacade::for_each(trp_client* sender,
   for (Uint32 i = 0; i < sz ; i ++) 
   {
     trp_client * clnt = m_threads.m_clients[i].m_clnt;
+<<<<<<< HEAD
     if (clnt != nullptr && clnt != sender && !clnt->is_receiver_thread())
+=======
+    if (clnt != 0 && clnt != sender && !clnt->is_receiver_thread())
+>>>>>>> pr/231
     {
       /**
        * We skip sending signal to receive thread. The receive thread
@@ -1981,7 +2044,11 @@ TransporterFacade::connected()
   for (Uint32 i = 0; i < sz ; i ++)
   {
     trp_client * clnt = m_threads.m_clients[i].m_clnt;
+<<<<<<< HEAD
     if (clnt != nullptr && !clnt->is_receiver_thread())
+=======
+    if (clnt != 0 && !clnt->is_receiver_thread())
+>>>>>>> pr/231
     {
       /**
        * The receiver thread have no interest in the
@@ -3171,7 +3238,11 @@ TransporterFacade::propose_poll_owner()
          ? recv_client
          // Avoid the recv_client as it is not ACTIVE
          : (m_poll_queue_tail == recv_client &&
+<<<<<<< HEAD
             m_poll_queue_tail->m_poll.m_prev != nullptr)
+=======
+            m_poll_queue_tail->m_poll.m_prev != NULL)
+>>>>>>> pr/231
              // 'tail' is the recv_client, prefer another
              ? m_poll_queue_tail->m_poll.m_prev
              : m_poll_queue_tail;

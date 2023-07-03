@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2002, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2002, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +78,65 @@ void *gis_wkb_realloc(void *p, size_t sz) {
   return cp + GEOM_HEADER_SIZE;
 }
 
+<<<<<<< HEAD
+=======
+/***************************** MBR *******************************/
+
+/*
+  Returns 0/1 if this MBR doesn't/does touch mbr. Returns -1 if the MBRs
+  contain invalid data. This convention is true for all MBR relation test
+  functions.
+*/
+int MBR::touches(const MBR *mbr) const {
+  const MBR *mbr2 = mbr;
+  const MBR *mbr1 = this;
+  int ret = 0;
+  int dim1 = dimension();
+  int dim2 = mbr->dimension();
+
+<<<<<<< HEAD
+  DBUG_ASSERT(dim1 >= 0 && dim1 <= 2 && dim2 >= 0 && dim2 <= 2);
+  if (dim1 == 0 && dim2 == 0) return 0;
+=======
+  assert(dim1 >= 0 && dim1 <= 2 && dim2 >= 0 && dim2 <= 2);
+  if (dim1 == 0 && dim2 == 0)
+    return 0;
+>>>>>>> upstream/cluster-7.6
+  if (dim1 == 0 && dim2 == 1)
+    return ((mbr1->xmin == mbr2->xmin && mbr1->ymin == mbr2->ymin) ||
+            (mbr1->xmin == mbr2->xmax && mbr1->ymin == mbr2->ymax));
+  if (dim1 == 1 && dim2 == 0) return mbr->touches(this);
+
+<<<<<<< HEAD
+  DBUG_ASSERT(dim1 + dim2 >= 2);
+  ret = ((mbr2->xmin == mbr1->xmax || mbr2->xmax == mbr1->xmin) &&
+         (mbr1->ymin <= mbr2->ymax && mbr1->ymax >= mbr2->ymin)) ||
+        ((mbr2->ymin == mbr1->ymax || mbr2->ymax == mbr1->ymin) &&
+         (mbr1->xmin <= mbr2->xmax && mbr1->xmax >= mbr2->xmin));
+=======
+  assert(dim1 + dim2 >= 2);
+  ret=
+    ((mbr2->xmin == mbr1->xmax || mbr2->xmax == mbr1->xmin) &&
+     (mbr1->ymin <= mbr2->ymax && mbr1->ymax >= mbr2->ymin)) ||
+    ((mbr2->ymin == mbr1->ymax || mbr2->ymax == mbr1->ymin) &&
+     (mbr1->xmin <= mbr2->xmax && mbr1->xmax >= mbr2->xmin));
+>>>>>>> upstream/cluster-7.6
+
+  if (ret && dim1 == 1 && dim2 == 1) {
+    // The two line segments may overlap, rather than touch.
+    int overlaps = ((mbr1->ymin == mbr1->ymax && mbr1->ymin == mbr2->ymax &&
+                     mbr2->ymin == mbr2->ymax && mbr1->xmin < mbr2->xmax &&
+                     mbr1->xmax > mbr2->xmin) ||
+                    (mbr1->xmin == mbr1->xmax && mbr2->xmin == mbr2->xmax &&
+                     mbr1->xmin == mbr2->xmin && mbr1->ymin < mbr2->ymax &&
+                     mbr1->ymax > mbr2->ymin));
+    if (overlaps) ret = 0;
+  }
+
+  return ret;
+}
+
+>>>>>>> pr/231
 int MBR::within(const MBR *mbr) const {
   int dim1 = dimension();
   int dim2 = mbr->dimension();
@@ -81,6 +148,7 @@ int MBR::within(const MBR *mbr) const {
     horizontal/vertical line segment, and we have to treat such cases
     separately.
    */
+<<<<<<< HEAD
   switch (dim1) {
     case 0:
       assert(xmin == xmax && ymin == ymax);
@@ -114,6 +182,44 @@ int MBR::within(const MBR *mbr) const {
                  (mbr->ymin == mbr->ymax && mbr->xmin != mbr->xmax));
           return (
               (xmin == xmax && mbr->xmin == mbr->xmax && mbr->xmin == xmin &&
+=======
+  switch (dim1)
+  {
+  case 0:
+    assert(xmin == xmax && ymin == ymax);
+    switch (dim2)
+    {
+    case 0:
+      assert(mbr->xmin == mbr->xmax && mbr->ymin == mbr->ymax);
+      return equals(mbr);
+      break;
+    case 1:
+      assert((mbr->xmin == mbr->xmax && mbr->ymin != mbr->ymax) ||
+             (mbr->ymin == mbr->ymax && mbr->xmin != mbr->xmax));
+      return ((xmin > mbr->xmin && xmin < mbr->xmax && ymin == mbr->ymin) ||
+              (ymin > mbr->ymin && ymin < mbr->ymax && xmin == mbr->xmin));
+      break;
+    case 2:
+      assert(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      return (xmin > mbr->xmin && xmax < mbr->xmax &&
+              ymin > mbr->ymin && ymax < mbr->ymax);
+      break;
+    }
+    break;
+  case 1:
+    assert((xmin == xmax && ymin != ymax) ||
+           (ymin == ymax && xmin != xmax));
+    switch (dim2)
+    {
+    case 0:
+      assert(mbr->xmin == mbr->xmax && mbr->ymin == mbr->ymax);
+      return 0;
+      break;
+    case 1:
+      assert((mbr->xmin == mbr->xmax && mbr->ymin != mbr->ymax) ||
+             (mbr->ymin == mbr->ymax && mbr->xmin != mbr->xmax));
+      return ((xmin == xmax && mbr->xmin == mbr->xmax && mbr->xmin == xmin &&
+>>>>>>> upstream/cluster-7.6
                mbr->ymin <= ymin && mbr->ymax >= ymax) ||
               (ymin == ymax && mbr->ymin == mbr->ymax && mbr->ymin == ymin &&
                mbr->xmin <= xmin && mbr->xmax >= xmax));
@@ -128,7 +234,12 @@ int MBR::within(const MBR *mbr) const {
       }
       break;
     case 2:
+<<<<<<< HEAD
       assert(xmin != xmax && ymin != ymax);
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(xmin != xmax && ymin != ymax);
+>>>>>>> pr/231
       switch (dim2) {
         case 0:
         case 1:
@@ -141,6 +252,32 @@ int MBR::within(const MBR *mbr) const {
           break;
       }
       break;
+=======
+      assert(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      return ((xmin == xmax && xmin > mbr->xmin && xmax < mbr->xmax &&
+               ymin >= mbr->ymin && ymax <= mbr->ymax) ||
+              (ymin == ymax && ymin > mbr->ymin && ymax < mbr->ymax &&
+               xmin >= mbr->xmin && xmax <= mbr->xmax));
+      break;
+    }
+    break;
+  case 2:
+    assert(xmin != xmax && ymin != ymax);
+    switch (dim2)
+    {
+    case 0:
+    case 1:
+      return 0;
+      break;
+    case 2:
+      assert(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      return ((mbr->xmin <= xmin) && (mbr->ymin <= ymin) &&
+              (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
+      break;
+
+    }
+    break;
+>>>>>>> upstream/cluster-7.6
   }
 
   // Never reached.
@@ -431,9 +568,21 @@ Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
          without owning it or duplicating the byte string.
   @return true if got error, false if successful.
  */
+<<<<<<< HEAD
 bool Geometry::as_wkb(String *wkb, bool shallow_copy) const {
+<<<<<<< HEAD
   assert(wkb->ptr() < get_cptr() - GEOM_HEADER_SIZE ||
          wkb->ptr() > get_cptr() + get_nbytes());
+=======
+  DBUG_ASSERT(wkb->ptr() < get_cptr() - GEOM_HEADER_SIZE ||
+              wkb->ptr() > get_cptr() + get_nbytes());
+=======
+bool Geometry::as_wkb(String *wkb, bool shallow_copy) const
+{
+  assert(wkb->ptr() < get_cptr() - GEOM_HEADER_SIZE ||
+         wkb->ptr() > get_cptr() + get_nbytes());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (shallow_copy) {
     /*
@@ -493,20 +642,48 @@ bool Geometry::as_geometry(String *buf, bool shallow_copy) const {
     assert(!(get_geotype() == wkb_polygon &&
              (!polygon_is_wkb_form() || is_bg_adapter())));
 
+<<<<<<< HEAD
     if (buf->ptr() != get_cptr() - GEOM_HEADER_SIZE) {
+<<<<<<< HEAD
       assert(buf->ptr() < get_cptr() - GEOM_HEADER_SIZE ||
              buf->ptr() > get_cptr() + get_nbytes());
+=======
+      DBUG_ASSERT(buf->ptr() < get_cptr() - GEOM_HEADER_SIZE ||
+                  buf->ptr() > get_cptr() + get_nbytes());
+=======
+    if (buf->ptr() != get_cptr() - GEOM_HEADER_SIZE)
+    {
+      assert(buf->ptr() < get_cptr() - GEOM_HEADER_SIZE ||
+             buf->ptr() > get_cptr() + get_nbytes());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       buf->set(get_cptr() - GEOM_HEADER_SIZE, get_nbytes() + GEOM_HEADER_SIZE,
                &my_charset_bin);
     }
     return false;
   }
 
+<<<<<<< HEAD
   if ((buf->ptr() == get_cptr() - GEOM_HEADER_SIZE)) {
     if (buf->is_alloced()) return false;
   } else
+<<<<<<< HEAD
     assert(buf->ptr() < get_cptr() - GEOM_HEADER_SIZE ||
            buf->ptr() > get_cptr() + get_nbytes());
+=======
+    DBUG_ASSERT(buf->ptr() < get_cptr() - GEOM_HEADER_SIZE ||
+                buf->ptr() > get_cptr() + get_nbytes());
+=======
+  if ((buf->ptr() == get_cptr() - GEOM_HEADER_SIZE))
+  {
+    if (buf->is_alloced())
+      return false;
+  }
+  else
+    assert(buf->ptr() < get_cptr() - GEOM_HEADER_SIZE ||
+           buf->ptr() > get_cptr() + get_nbytes());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (buf->reserve(SRID_SIZE + WKB_HEADER_SIZE + this->get_nbytes(), 512) ||
       get_data_ptr() == nullptr)
@@ -612,6 +789,7 @@ class Geometry_well_formed_checker : public WKB_scanner_event_handler {
     // Any type is allowed in geometry collections (R4).
     if (outer_type == Geometry::wkb_geometrycollection) return;
 
+<<<<<<< HEAD
     switch (geotype) {
       case Geometry::wkb_point:
         // Points can only appear in multipoints and in linestrings (R4).
@@ -643,6 +821,42 @@ class Geometry_well_formed_checker : public WKB_scanner_event_handler {
         // The list of cases above should be complete (R2).
         assert(0);
         break;
+=======
+    switch (geotype)
+    {
+    case Geometry::wkb_point:
+      // Points can only appear in multipoints and in linestrings (R4).
+      if (!(outer_type == Geometry::wkb_multipoint ||
+            (!has_hdr && outer_type == Geometry::wkb_linestring)))
+        is_ok= false;
+      if (outer_type == Geometry::wkb_linestring)
+        ++points_in_linestring;
+      break;
+    case Geometry::wkb_linestring:
+      // Linestrings can only appear in multilinestrings and as rings
+      // in polygons (R4).
+      if (!(outer_type == Geometry::wkb_multilinestring ||
+            (!has_hdr && outer_type == Geometry::wkb_polygon)))
+        is_ok= false;
+      break;
+    case Geometry::wkb_polygon:
+      // Polygons can only appear in multipolygons (R4).
+      if (outer_type != Geometry::wkb_multipolygon)
+        is_ok= false;
+      break;
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_multilinestring:
+    case Geometry::wkb_multipolygon:
+    case Geometry::wkb_geometrycollection:
+      // These are only allowed if outer_type is geometry collection,
+      // in which case they're handled before entering the switch (R4).
+      is_ok= false;
+      break;
+    default:
+      // The list of cases above should be complete (R2).
+      assert(0);
+      break;
+>>>>>>> upstream/cluster-7.6
     }
   }
 
@@ -821,11 +1035,26 @@ const char *wkb_scanner(THD *thd, const char *wkb, uint32 *len, uint32 geotype,
     *len -= WKB_HEADER_SIZE;
     if (*len <= 0) return nullptr;
     handler->on_wkb_start(get_byte_order(wkb), gt, q, *len, true);
+<<<<<<< HEAD
     if (!handler->continue_scan()) return nullptr;
+=======
+<<<<<<< HEAD
+    if (!handler->continue_scan()) return NULL;
+>>>>>>> pr/231
   } else {
     assert(geotype >= Geometry::wkb_first && geotype <= Geometry::wkb_last);
     q = wkb;
     gt = static_cast<Geometry::wkbType>(geotype);
+=======
+    if (!handler->continue_scan())
+      return NULL;
+  }
+  else
+  {
+    assert(geotype >= Geometry::wkb_first && geotype<= Geometry::wkb_last);
+    q= wkb;
+    gt= static_cast<Geometry::wkbType>(geotype);
+>>>>>>> upstream/cluster-7.6
     handler->on_wkb_start(Geometry::wkb_ndr, gt, q, *len, false);
     if (!handler->continue_scan()) return nullptr;
   }
@@ -837,6 +1066,7 @@ const char *wkb_scanner(THD *thd, const char *wkb, uint32 *len, uint32 geotype,
     *len -= 4;
   }
 
+<<<<<<< HEAD
   switch (gt) {
     case Geometry::wkb_point:
       if (*len < POINT_DATA_SIZE) return nullptr;
@@ -870,6 +1100,44 @@ const char *wkb_scanner(THD *thd, const char *wkb, uint32 *len, uint32 geotype,
     default:
       assert(false);
       break;
+=======
+  switch (gt)
+  {
+  case Geometry::wkb_point:
+    if (*len < POINT_DATA_SIZE)
+      return NULL;
+    q+= POINT_DATA_SIZE;
+    *len-= POINT_DATA_SIZE;
+    done= true;
+    handler->on_wkb_end(q);
+    if (!handler->continue_scan())
+      return NULL;
+    break;
+  case Geometry::wkb_linestring:
+    comp_type= Geometry::wkb_point;
+    break;
+  case Geometry::wkb_polygon:
+    comp_type= Geometry::wkb_linestring;
+    break;
+  case Geometry::wkb_multipoint:
+    comp_type= Geometry::wkb_point;
+    comp_hashdr= true;
+    break;
+  case Geometry::wkb_multilinestring:
+    comp_type= Geometry::wkb_linestring;
+    comp_hashdr= true;
+    break;
+  case Geometry::wkb_multipolygon:
+    comp_type= Geometry::wkb_polygon;
+    comp_hashdr= true;
+    break;
+  case Geometry::wkb_geometrycollection:
+    comp_hashdr= true;
+    break;
+  default:
+    assert(false);
+    break;
+>>>>>>> upstream/cluster-7.6
   }
 
   if (!done && q != nullptr) {
@@ -1056,9 +1324,21 @@ bool Geometry::create_point(String *result, wkb_parser *wkb) const {
                         multipoint need so.
 */
 
+<<<<<<< HEAD
 void Geometry::append_points(String *txt, uint32 n_points, wkb_parser *wkb,
                              uint32 offset, bool bracket_pt) const {
+<<<<<<< HEAD
   assert(0.0 == 0 && 0 == -0 && -0.0 == 0.0);
+=======
+  DBUG_ASSERT(0.0 == 0 && 0 == -0 && -0.0 == 0.0);
+=======
+void Geometry::append_points(String *txt, uint32 n_points,
+                             wkb_parser *wkb, uint32 offset,
+                             bool bracket_pt) const
+{
+  assert(0.0 == 0 && 0 == -0 && -0.0 == 0.0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   while (n_points--) {
     point_xy p;
@@ -1102,13 +1382,26 @@ bool Geometry::get_mbr_for_points(MBR *mbr, wkb_parser *wkb,
   return false;
 }
 
+<<<<<<< HEAD
 Geometry::Geometry(const Geometry &geo) {
 #if !defined(NDEBUG)
   wkbType geotype = geo.get_geotype();
+=======
+
+Geometry::Geometry(const Geometry &geo)
+{
+#if !defined(NDEBUG)
+  wkbType geotype= geo.get_geotype();
+>>>>>>> upstream/cluster-7.6
 #endif
   assert(is_valid_geotype(geotype) &&
+<<<<<<< HEAD
          ((geo.get_ptr() != nullptr && geo.get_nbytes() > 0) ||
           (geo.get_ptr() == nullptr && geo.get_nbytes() == 0) ||
+=======
+         ((geo.get_ptr() != NULL && geo.get_nbytes() > 0) ||
+          (geo.get_ptr() == NULL && geo.get_nbytes() == 0) ||
+>>>>>>> pr/231
           (geo.get_geotype() == wkb_polygon && geo.get_nbytes() == 0)));
 
   m_ptr = geo.m_ptr;
@@ -1133,10 +1426,22 @@ Geometry::~Geometry() {
   try/catch is only enabled here depending on the same condition, so that
   in release builds we don't have the overhead of the try-catch statement.
 
+<<<<<<< HEAD
   This is true also for destructors of children classes of Geometry.
 */
 #if !defined(NDEBUG)
   try {
+=======
+    Since assert only works when NDEBUG is not defined, the
+    try/catch is only enabled here depending on the same condition, so that
+    in release builds we don't have the overhead of the try-catch statement.
+
+    This is true also for destructors of children classes of Geometry.
+  */
+#if !defined(NDEBUG)
+  try
+  {
+>>>>>>> upstream/cluster-7.6
 #endif
     if (!is_bg_adapter()) return;
 
@@ -1154,8 +1459,19 @@ Geometry::~Geometry() {
 
     donate_data();
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
   } catch (...) {
+=======
+#if !defined(NDEBUG)
+  }
+  catch (...)
+  {
+>>>>>>> upstream/cluster-7.6
     // Should never throw exceptions in destructor.
     assert(false);
   }
@@ -1169,11 +1485,25 @@ Geometry::~Geometry() {
 Geometry &Geometry::operator=(const Geometry &rhs) {
   if (this == &rhs) return *this;
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
   Geometry::wkbType geotype = rhs.get_geotype();
+=======
+#if !defined(NDEBUG)
+  Geometry::wkbType geotype= rhs.get_geotype();
+>>>>>>> upstream/cluster-7.6
 #endif
   assert((is_bg_adapter() || rhs.is_bg_adapter()) &&
+<<<<<<< HEAD
          m_flags.geotype == rhs.m_flags.geotype && is_valid_geotype(geotype));
+=======
+         m_flags.geotype == rhs.m_flags.geotype &&
+         is_valid_geotype(geotype));
+>>>>>>> pr/231
 
   set_bg_adapter(true);
 
@@ -1189,11 +1519,27 @@ Geometry &Geometry::operator=(const Geometry &rhs) {
 
 /***************************** Point *******************************/
 
+<<<<<<< HEAD
 Gis_point::Gis_point(const self &pt) : Geometry(pt) {
   size_t nbytes = get_nbytes();
   assert((nbytes == SIZEOF_STORED_DOUBLE * GEOM_DIM || nbytes == 0));
   if (nbytes == 0) {
+<<<<<<< HEAD
     assert(get_ownmem() == false);
+=======
+    DBUG_ASSERT(get_ownmem() == false);
+=======
+
+Gis_point::Gis_point(const self &pt) :Geometry(pt)
+{
+  size_t nbytes= get_nbytes();
+  assert((nbytes == SIZEOF_STORED_DOUBLE * GEOM_DIM ||
+          nbytes == 0));
+  if (nbytes == 0)
+  {
+    assert(get_ownmem() == false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     // Allocate even if pt isn't initialized with proper value, this is
     // required behavior from Boost Geometry.
     nbytes = SIZEOF_STORED_DOUBLE * GEOM_DIM;
@@ -1225,14 +1571,35 @@ Gis_point &Gis_point::operator=(const Gis_point &rhs) {
   // This point may or may not have own memory. we allow this because in bg,
   // std::reverse is called to reverse a linestring/ring, and also,
   // points are of equal size. Not allowed on any other type of geometries.
+<<<<<<< HEAD
   assert(
       (m_ptr != nullptr && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
       (m_ptr == nullptr && get_nbytes() == 0 && !get_ownmem()));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(
+      (m_ptr != NULL && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+      (m_ptr == NULL && get_nbytes() == 0 && !get_ownmem()));
+>>>>>>> pr/231
 
   assert(
       (rhs.get_ptr() != nullptr &&
        rhs.get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+<<<<<<< HEAD
       (rhs.get_ptr() == nullptr && rhs.get_nbytes() == 0 && !rhs.get_ownmem()));
+=======
+      (rhs.get_ptr() == NULL && rhs.get_nbytes() == 0 && !rhs.get_ownmem()));
+=======
+  assert((m_ptr != NULL &&
+          get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+         (m_ptr == NULL && get_nbytes() == 0 && !get_ownmem()));
+
+  assert((rhs.get_ptr() != NULL &&
+          rhs.get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+         (rhs.get_ptr() == NULL && rhs.get_nbytes() == 0 &&
+          !rhs.get_ownmem()));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (m_owner == nullptr) m_owner = rhs.get_owner();
 
@@ -1273,16 +1640,38 @@ Gis_point &Gis_point::operator=(const Gis_point &rhs) {
  */
 void Gis_point::set_ptr(void *ptr, size_t len) {
   set_bg_adapter(true);
+<<<<<<< HEAD
   if (m_ptr && get_ownmem()) {
+<<<<<<< HEAD
     assert(get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM);
+=======
+    DBUG_ASSERT(get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM);
+=======
+  if (m_ptr && get_ownmem())
+  {
+    assert(get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     gis_wkb_free(m_ptr);
   }
   m_ptr = ptr;
   set_nbytes(len);
   set_ownmem(false);
+<<<<<<< HEAD
   assert(
       (m_ptr != nullptr && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
       (m_ptr == nullptr && get_nbytes() == 0));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(
+      (m_ptr != NULL && get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+      (m_ptr == NULL && get_nbytes() == 0));
+=======
+  assert((m_ptr != NULL &&
+          get_nbytes() == SIZEOF_STORED_DOUBLE * GEOM_DIM) ||
+         (m_ptr == NULL && get_nbytes() == 0));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 uint32 Gis_point::get_data_size() const {
@@ -1684,10 +2073,20 @@ Gis_polygon::Gis_polygon(const void *wkb, size_t nbytes, const Flags_t &flags,
   v.donate_data();
 }
 
+<<<<<<< HEAD
 Gis_polygon::~Gis_polygon() {
 /* See ~Geometry() for why we do try-catch like this. */
 #if !defined(NDEBUG)
   try {
+=======
+
+Gis_polygon::~Gis_polygon()
+{
+  /* See ~Geometry() for why we do try-catch like this. */
+#if !defined(NDEBUG)
+  try
+  {
+>>>>>>> upstream/cluster-7.6
 #endif
     if (!is_bg_adapter() && !get_ownmem()) return;
 
@@ -1702,13 +2101,34 @@ Gis_polygon::~Gis_polygon() {
       delete m_inn_rings;
       m_inn_rings = nullptr;
     }
+<<<<<<< HEAD
     /*
       Never need to free polygon's wkb memory here, because if it's one chunk
       given to us, we don't own it; otherwise the two pieces are already freed
       above.
      */
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+      /*
+        Never need to free polygon's wkb memory here, because if it's one chunk
+        given to us, we don't own it; otherwise the two pieces are already freed
+        above.
+       */
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
   } catch (...) {
+=======
+    /*
+      Never need to free polygon's wkb memory here, because if it's one chunk
+      given to us, we don't own it; otherwise the two pieces are already freed
+      above.
+     */
+#if !defined(NDEBUG)
+  }
+  catch (...)
+  {
+>>>>>>> upstream/cluster-7.6
     // Should never throw exceptions in destructor.
     assert(false);
   }
@@ -1780,8 +2200,18 @@ void Gis_polygon::set_ptr(void *ptr, size_t len) {
   is suitable as a Gis_polygon for MySQL GIS code, because it's exactly the
   same as a Gis_polygon object returned by Geometry::create_from_wkt/wkb.
  */
+<<<<<<< HEAD
 void Gis_polygon::to_wkb_unparsed() {
+<<<<<<< HEAD
   assert(polygon_is_wkb_form() == false && is_bg_adapter());
+=======
+  DBUG_ASSERT(polygon_is_wkb_form() == false && is_bg_adapter());
+=======
+void Gis_polygon::to_wkb_unparsed()
+{
+  assert(polygon_is_wkb_form() == false && is_bg_adapter());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   size_t nbytes = 0;
   void *ptr = get_packed_ptr(this, &nbytes);
@@ -1805,11 +2235,20 @@ void Gis_polygon::to_wkb_unparsed() {
   @param want_ccw whether want CCW ring(true) or CW ring(false).
   @return false if successful, true if got error -- invalid geometry data.
  */
+<<<<<<< HEAD
 bool Gis_polygon_ring::set_ring_order(bool want_ccw) {
   assert(is_bg_adapter());
   Gis_polygon_ring &ring = *this;
   double x1, x2, y1, y2, minx = DBL_MAX, miny = DBL_MAX;
   size_t min_i = 0, prev_i, post_i, rsz = ring.size();
+=======
+bool Gis_polygon_ring::set_ring_order(bool want_ccw)
+{
+  assert(is_bg_adapter());
+  Gis_polygon_ring &ring= *this;
+  double x1, x2, y1, y2, minx= DBL_MAX, miny= DBL_MAX;
+  size_t min_i= 0, prev_i, post_i, rsz= ring.size();
+>>>>>>> upstream/cluster-7.6
 
   static_assert(sizeof(double) == POINT_DATA_SIZE / 2 &&
                     sizeof(double) == SIZEOF_STORED_DOUBLE,
@@ -1908,8 +2347,17 @@ bool Gis_polygon_ring::set_ring_order(bool want_ccw) {
     char pt[POINT_DATA_SIZE];
     size_t s = ring.size();
 
+<<<<<<< HEAD
     assert(ring.get_nbytes() == (s * POINT_DATA_SIZE + 4));
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(ring.get_nbytes() == (s * POINT_DATA_SIZE + 4));
+>>>>>>> pr/231
     p0 = p;
+=======
+    assert(ring.get_nbytes() == (s * POINT_DATA_SIZE + 4));
+    p0= p;
+>>>>>>> upstream/cluster-7.6
 
     for (size_t i = 0; i < s / 2; i++, p += POINT_DATA_SIZE) {
       q = p0 + (s - i - 1) * POINT_DATA_SIZE;
@@ -1925,9 +2373,17 @@ bool Gis_polygon_ring::set_ring_order(bool want_ccw) {
   Set this polygon's outer ring to be CCW and inner rings to be CW.
   @return on error returns true, on success returns false.
 */
+<<<<<<< HEAD
 bool Gis_polygon::set_polygon_ring_order() {
   assert(is_bg_adapter());
   if (outer().set_ring_order(true /* Ring order: CCW. */)) return true;
+=======
+bool Gis_polygon::set_polygon_ring_order()
+{
+  assert(is_bg_adapter());
+  if (outer().set_ring_order(true/* Ring order: CCW. */))
+    return true;
+>>>>>>> upstream/cluster-7.6
   Gis_polygon::inner_container_type::iterator itr;
   Gis_polygon::inner_container_type &inns = inners();
   for (itr = inns.begin(); itr != inns.end(); ++itr)
@@ -2047,9 +2503,15 @@ uint Gis_polygon::init_from_wkb(THD *thd, const char *wkb, uint len,
 
     if (!(ls_len = ls.init_from_wkb(thd, wkb, len, bo, res))) return 0;
 
+<<<<<<< HEAD
     wkb += ls_len;
     assert(len >= ls_len);
     len -= ls_len;
+=======
+    wkb+= ls_len;
+    assert(len >= ls_len);
+    len-= ls_len;
+>>>>>>> upstream/cluster-7.6
   }
 
   return (uint)(wkb - wkb_orig);
@@ -2216,6 +2678,7 @@ const Geometry::Class_info *Gis_polygon::get_class_info() const {
    @param[out] pnbytes Takes back the number of bytes of the packed WKB string.
    @return The address of the packed WKB string buffer.
   */
+<<<<<<< HEAD
 void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes) {
   assert(geo0->get_geotype() == Geometry::wkb_polygon && pnbytes != nullptr);
   const Gis_polygon *geo = static_cast<const Gis_polygon *>(geo0);
@@ -2226,7 +2689,25 @@ void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes) {
   if (out_ring == nullptr) {
     assert(inn_rings == nullptr);
     *pnbytes = 0;
+<<<<<<< HEAD
     return nullptr;
+=======
+=======
+void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes)
+{
+  assert(geo0->get_geotype() == Geometry::wkb_polygon && pnbytes != NULL);
+  const Gis_polygon *geo= static_cast<const Gis_polygon *>(geo0);
+  Gis_polygon::ring_type *out_ring= outer_ring(geo);
+  Gis_polygon::inner_container_type *inn_rings= geo->inner_rings();
+  size_t &nbytes= *pnbytes;
+
+  if (out_ring == NULL)
+  {
+    assert(inn_rings == NULL);
+    *pnbytes= 0;
+>>>>>>> upstream/cluster-7.6
+    return NULL;
+>>>>>>> pr/231
   }
 
   // Inner rings may have out of line rings.
@@ -2266,6 +2747,7 @@ void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes) {
   @param geo0 The already packed polygon, we want to get its data address.
   @return The WKB string starting address, right after the WKB header if any.
  */
+<<<<<<< HEAD
 const char *get_packed_ptr(Geometry *geo0) {
   assert(geo0->get_geotype() == Geometry::wkb_polygon);
   Gis_polygon *geo = static_cast<Gis_polygon *>(geo0);
@@ -2275,6 +2757,18 @@ const char *get_packed_ptr(Geometry *geo0) {
     assert(out_ring->get_cptr() + out_ring->get_nbytes() ==
            inn_rings->get_cptr());
   return (out_ring->get_cptr() - sizeof(uint32) /*polygon's ring count */);
+=======
+const char *get_packed_ptr(Geometry *geo0)
+{
+  assert(geo0->get_geotype() == Geometry::wkb_polygon);
+  Gis_polygon *geo= static_cast<Gis_polygon *>(geo0);
+  Gis_polygon::ring_type *out_ring= outer_ring(geo);
+  Gis_polygon::inner_container_type *inn_rings= geo->inner_rings();
+  if (inn_rings)
+    assert(out_ring->get_cptr() +
+           out_ring->get_nbytes() == inn_rings->get_cptr());
+  return (out_ring->get_cptr() - sizeof(uint32)/*polygon's ring count */);
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -2283,6 +2777,7 @@ const char *get_packed_ptr(Geometry *geo0) {
   @param mplgn the multipolygon, owner/holder of plgn.
   @return true if plgn is packed into mplgn, false otherwise.
  */
+<<<<<<< HEAD
 bool polygon_is_packed(Geometry *plgn, Geometry *mplgn) {
   assert(plgn->get_geotype() == Geometry::wkb_polygon &&
          mplgn->get_geotype() == Geometry::wkb_multipolygon);
@@ -2291,12 +2786,32 @@ bool polygon_is_packed(Geometry *plgn, Geometry *mplgn) {
   Gis_polygon::inner_container_type *inn_rings = geo->inner_rings();
   const char *orstart = out_ring->get_cptr();
   bool ret = false;
+=======
+bool polygon_is_packed(Geometry *plgn, Geometry *mplgn)
+{
+  assert(plgn->get_geotype() == Geometry::wkb_polygon &&
+         mplgn->get_geotype() == Geometry::wkb_multipolygon);
+  Gis_polygon *geo= static_cast<Gis_polygon *>(plgn);
+  Gis_polygon::ring_type *out_ring= outer_ring(geo);
+  Gis_polygon::inner_container_type *inn_rings= geo->inner_rings();
+  const char *orstart= out_ring->get_cptr();
+  bool ret= false;
+>>>>>>> upstream/cluster-7.6
 
   if (orstart < mplgn->get_cptr() + mplgn->get_nbytes() &&
       orstart > mplgn->get_cptr()) {
     // This polygon is already stored packed and inline
     if (inn_rings && inn_rings->get_nbytes())
+<<<<<<< HEAD
       assert(orstart + out_ring->get_nbytes() == inn_rings->get_ptr());
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(orstart + out_ring->get_nbytes() == inn_rings->get_ptr());
+=======
+      assert(orstart + out_ring->get_nbytes() ==
+             inn_rings->get_ptr());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     ret = true;
   }
@@ -2304,9 +2819,17 @@ bool polygon_is_packed(Geometry *plgn, Geometry *mplgn) {
   return ret;
 }
 
+<<<<<<< HEAD
 void own_rings(Geometry *geo0) {
   assert(geo0->get_geotype() == Geometry::wkb_polygon);
   Gis_polygon *geo = static_cast<Gis_polygon *>(geo0);
+=======
+
+void own_rings(Geometry *geo0)
+{
+  assert(geo0->get_geotype() == Geometry::wkb_polygon);
+  Gis_polygon *geo= static_cast<Gis_polygon *>(geo0);
+>>>>>>> upstream/cluster-7.6
 
   if (outer_ring(geo)) outer_ring(geo)->set_owner(geo);
   if (geo->inner_rings()) geo->inner_rings()->set_owner(geo);
@@ -2587,11 +3110,18 @@ uint Gis_multi_line_string::init_from_wkb(THD *thd, const char *wkb, uint len,
                                     len - WKB_HEADER_SIZE, (wkbByteOrder)wkb[0],
                                     res)))
       return 0;
+<<<<<<< HEAD
     ls_len += WKB_HEADER_SIZE;
     ;
     wkb += ls_len;
     assert(len >= ls_len);
     len -= ls_len;
+=======
+    ls_len+= WKB_HEADER_SIZE;;
+    wkb+= ls_len;
+    assert(len >= ls_len);
+    len-= ls_len;
+>>>>>>> upstream/cluster-7.6
   }
   return (uint)(wkb - wkb_orig);
 }
@@ -2856,10 +3386,17 @@ uint Gis_multi_polygon::init_from_wkb(THD *thd, const char *wkb, uint len,
               p.init_from_wkb(thd, wkb + WKB_HEADER_SIZE, len - WKB_HEADER_SIZE,
                               (wkbByteOrder)wkb[0], res)))
       return 0;
+<<<<<<< HEAD
     p_len += WKB_HEADER_SIZE;
     wkb += p_len;
     assert(len >= p_len);
     len -= p_len;
+=======
+    p_len+= WKB_HEADER_SIZE;
+    wkb+= p_len;
+    assert(len >= p_len);
+    len-= p_len;
+>>>>>>> upstream/cluster-7.6
   }
   return (uint)(wkb - wkb_orig);
 }
@@ -3074,11 +3611,26 @@ Geometry *Gis_geometry_collection::scan_header_and_create(
 
  */
 bool Gis_geometry_collection::append_geometry(const Geometry *geo,
+<<<<<<< HEAD
                                               String *gcbuf) {
   uint32 collection_len = gcbuf->length(), geo_len = geo->get_data_size();
   if (geo_len == GET_SIZE_ERROR) return true;
+<<<<<<< HEAD
   assert(collection_len == 0 ||
          get_data_size() == collection_len - GEOM_HEADER_SIZE);
+=======
+  DBUG_ASSERT(collection_len == 0 ||
+              get_data_size() == collection_len - GEOM_HEADER_SIZE);
+=======
+                                              String *gcbuf)
+{
+  uint32 collection_len= gcbuf->length(), geo_len= geo->get_data_size();
+  if (geo_len == GET_SIZE_ERROR)
+    return true;
+  assert(collection_len == 0 ||
+         get_data_size() == collection_len - GEOM_HEADER_SIZE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   if (gcbuf->reserve((collection_len == 0 ? GEOM_HEADER_SIZE + 4 : 0) +
                          geo_len + WKB_HEADER_SIZE,
                      512))
@@ -3123,14 +3675,30 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
   @return false if no error, otherwise true.
 
  */
+<<<<<<< HEAD
 bool Gis_geometry_collection::append_geometry(gis::srid_t srid, wkbType gtype,
                                               const String *gbuf,
                                               String *gcbuf) {
   assert(gbuf != nullptr && gbuf->ptr() != nullptr && gbuf->length() > 0);
 
   uint32 collection_len = gcbuf->length(), geo_len = gbuf->length();
+<<<<<<< HEAD
   assert(collection_len == 0 ||
          get_data_size() == collection_len - GEOM_HEADER_SIZE);
+=======
+  DBUG_ASSERT(collection_len == 0 ||
+              get_data_size() == collection_len - GEOM_HEADER_SIZE);
+=======
+bool Gis_geometry_collection::append_geometry(srid_t srid, wkbType gtype,
+                                              const String *gbuf, String *gcbuf)
+{
+  assert(gbuf != NULL && gbuf->ptr() != NULL && gbuf->length() > 0);
+
+  uint32 collection_len= gcbuf->length(), geo_len= gbuf->length();
+  assert(collection_len == 0 ||
+         get_data_size() == collection_len - GEOM_HEADER_SIZE);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   if (gcbuf->reserve((collection_len == 0 ? GEOM_HEADER_SIZE + 4 : 0) +
                          geo_len + WKB_HEADER_SIZE,
                      512))
@@ -3176,12 +3744,26 @@ Gis_geometry_collection::Gis_geometry_collection(gis::srid_t srid,
                                                  wkbType gtype,
                                                  const String *gbuf,
                                                  String *gcbuf)
+<<<<<<< HEAD
     : Geometry(nullptr, 0, Flags_t(wkb_geometrycollection, 0), srid) {
+=======
+<<<<<<< HEAD
+    : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), srid) {
+>>>>>>> pr/231
   uint32 geo_len = gbuf ? gbuf->length() : 0, total_len = 0;
   assert((gbuf == nullptr || (gbuf->ptr() == nullptr && gbuf->length() == 0)) ||
          (gbuf->ptr() != nullptr && gbuf->length() > 0));
   total_len = geo_len + sizeof(uint32) /*NUM-objs*/ + SRID_SIZE +
               WKB_HEADER_SIZE + (geo_len > 0 ? WKB_HEADER_SIZE : 0);
+=======
+  : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), srid)
+{
+  uint32 geo_len= gbuf ? gbuf->length() : 0, total_len= 0;
+  assert((gbuf == NULL || (gbuf->ptr() == NULL && gbuf->length() == 0)) ||
+         (gbuf->ptr() != NULL && gbuf->length() > 0));
+  total_len= geo_len + sizeof(uint32)/*NUM-objs*/ +
+    SRID_SIZE + WKB_HEADER_SIZE + (geo_len > 0 ? WKB_HEADER_SIZE : 0);
+>>>>>>> upstream/cluster-7.6
 
   // Reserve 512 bytes extra space for geometries to be appended later,
   // to avoid some reallocations.
@@ -3213,13 +3795,28 @@ Gis_geometry_collection::Gis_geometry_collection(gis::srid_t srid,
   @param gcbuf this geometry collection's data buffer in GEOMETRY format.
  */
 Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
+<<<<<<< HEAD
     : Geometry(nullptr, 0, Flags_t(wkb_geometrycollection, 0),
                geo->get_srid()) {
   assert(geo != nullptr && geo->get_ptr() != nullptr);
+=======
+<<<<<<< HEAD
+    : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), geo->get_srid()) {
+  DBUG_ASSERT(geo != NULL && geo->get_ptr() != NULL);
+>>>>>>> pr/231
   uint32 geo_len = geo->get_data_size(), total_len = 0;
   assert(geo_len != GET_SIZE_ERROR);
   total_len =
       geo_len + sizeof(uint32) /*NUM-objs*/ + SRID_SIZE + WKB_HEADER_SIZE * 2;
+=======
+  : Geometry(0, 0, Flags_t(wkb_geometrycollection, 0), geo->get_srid())
+{
+  assert(geo != NULL && geo->get_ptr() != NULL);
+  uint32 geo_len= geo->get_data_size(), total_len= 0;
+  assert(geo_len != GET_SIZE_ERROR);
+  total_len= geo_len + sizeof(uint32)/*NUM-objs*/ +
+    SRID_SIZE + WKB_HEADER_SIZE * 2;
+>>>>>>> upstream/cluster-7.6
 
   // Reserve 512 bytes extra space for geometries to be appended later,
   // to avoid some reallocations.
@@ -3365,10 +3962,17 @@ uint Gis_geometry_collection::init_from_wkb(THD *thd, const char *wkb, uint len,
                                       len - WKB_HEADER_SIZE,
                                       (wkbByteOrder)wkb[0], res)))
       return 0;
+<<<<<<< HEAD
     g_len += WKB_HEADER_SIZE;
     wkb += g_len;
     assert(len >= g_len);
     len -= g_len;
+=======
+    g_len+= WKB_HEADER_SIZE;
+    wkb+= g_len;
+    assert(len >= g_len);
+    len-= g_len;
+>>>>>>> upstream/cluster-7.6
   }
   return (uint)(wkb - wkb_orig);
 }
@@ -3595,6 +4199,7 @@ class Stepper_base {
         geometrycollection, false for other geometries.
     @param geotype current geometry's type
   */
+<<<<<<< HEAD
   Stepper_base(char dim, Geometry::wkbByteOrder bo, bool has_wkb_hdr,
                Geometry::wkbType geotype) {
     m_dim = dim;
@@ -3610,7 +4215,34 @@ class Stepper_base {
   }
 
   Geometry::wkbType get_current_geotype() const {
+<<<<<<< HEAD
     assert(Geometry::is_valid_geotype(m_geotype));
+=======
+    DBUG_ASSERT(Geometry::is_valid_geotype(m_geotype));
+=======
+  Stepper_base(char dim, Geometry::wkbByteOrder bo,
+               bool has_wkb_hdr, Geometry::wkbType geotype)
+  {
+    m_dim= dim;
+    assert(bo == Geometry::wkb_ndr);
+    m_bo= bo;
+    m_has_wkb_hdr= has_wkb_hdr;
+    m_geotype= geotype;
+  }
+
+
+  Geometry::wkbByteOrder get_current_byte_order() const
+  {
+    assert((m_bo == Geometry::wkb_xdr || m_bo == Geometry::wkb_ndr));
+    return m_bo;
+  }
+
+
+  Geometry::wkbType get_current_geotype()const
+  {
+    assert(Geometry::is_valid_geotype(m_geotype));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_geotype;
   }
 
@@ -3740,8 +4372,17 @@ const char *Polygon_stepper::operator()(const char *p) {
 
   // m_bo is latest byte order, which allows mixed byte orders in the same
   // wkb byte string.
+<<<<<<< HEAD
   assert(m_has_wkb_hdr);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(m_has_wkb_hdr);
+>>>>>>> pr/231
   Geometry::wkbByteOrder bo = get_byte_order(p);
+=======
+  assert(m_has_wkb_hdr);
+  Geometry::wkbByteOrder bo= get_byte_order(p);
+>>>>>>> upstream/cluster-7.6
 
   // The next one can be other geo types, in a geometry collection.
   m_geotype = get_wkb_geotype(p + 1);
@@ -3760,6 +4401,7 @@ const char *Polygon_stepper::operator()(const char *p) {
   @param g a geometry that must be a polygon.
   @return the polygon's inner rings object.
  */
+<<<<<<< HEAD
 // SUPPRESS_UBSAN Wrong downcast. FIXME
 static inline Gis_polygon::inner_container_type *inner_rings(const Geometry *g)
     SUPPRESS_UBSAN;
@@ -3767,6 +4409,13 @@ static inline Gis_polygon::inner_container_type *inner_rings(
     const Geometry *g) {
   assert(g->get_geotype() == Geometry::wkb_polygon);
   const Gis_polygon *p = static_cast<const Gis_polygon *>(g);
+=======
+static inline
+Gis_polygon::inner_container_type *inner_rings(const Geometry *g)
+{
+  assert(g->get_geotype() == Geometry::wkb_polygon);
+  const Gis_polygon *p= static_cast<const Gis_polygon *>(g);
+>>>>>>> upstream/cluster-7.6
   return p->inner_rings();
 }
 
@@ -3778,6 +4427,7 @@ static inline Gis_polygon::inner_container_type *inner_rings(
   @param g a geometry that must be a polygon.
   @param inns The interior rings
  */
+<<<<<<< HEAD
 // SUPPRESS_UBSAN Wrong downcast. FIXME
 static inline void set_inner_rings(
     Geometry *g, Gis_polygon::inner_container_type *inns) SUPPRESS_UBSAN;
@@ -3785,6 +4435,13 @@ static inline void set_inner_rings(Geometry *g,
                                    Gis_polygon::inner_container_type *inns) {
   assert(g->get_geotype() == Geometry::wkb_polygon);
   Gis_polygon *p = static_cast<Gis_polygon *>(g);
+=======
+static inline
+void set_inner_rings(Geometry *g, Gis_polygon::inner_container_type *inns)
+{
+  assert(g->get_geotype() == Geometry::wkb_polygon);
+  Gis_polygon *p= static_cast<Gis_polygon *>(g);
+>>>>>>> upstream/cluster-7.6
   p->set_inner_rings(inns);
 }
 
@@ -3810,6 +4467,7 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
   geom->set_bg_adapter(true);
   if (p == nullptr) return;
 
+<<<<<<< HEAD
   switch (geotype) {
     case Geometry::wkb_point:
       // Point doesn't need this vector.
@@ -3818,6 +4476,18 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
     case Geometry::wkb_linestring: {
       uint32 npts = uint4korr(p);
       p += sizeof(uint32);
+=======
+  switch (geotype)
+  {
+  case Geometry::wkb_point:
+    // Point doesn't need this vector.
+    assert(false);
+    break;
+  case Geometry::wkb_linestring:
+    {
+      uint32 npts= uint4korr(p);
+      p+= sizeof(uint32);
+>>>>>>> upstream/cluster-7.6
       Point_stepper ptstep(dim, mybo, false);
       const char *first = nullptr, *last = nullptr;
 
@@ -3860,9 +4530,15 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
       uint32 npts = uint4korr(p);
       p += sizeof(uint32);
 
+<<<<<<< HEAD
       Geometry::wkbByteOrder bo = ::get_byte_order(p);
       assert(get_wkb_geotype(p + 1) == Geometry::wkb_point);
       p += WKB_HEADER_SIZE;
+=======
+      Geometry::wkbByteOrder bo= ::get_byte_order(p);
+      assert(get_wkb_geotype(p + 1) == Geometry::wkb_point);
+      p+= WKB_HEADER_SIZE;
+>>>>>>> upstream/cluster-7.6
 
       Point_stepper ptstep(dim, bo, true);
 
@@ -3881,8 +4557,17 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
         ent.set_nbytes(nbytes);
         ent.set_owner(geom);
         geom->shallow_push(&ent);
+<<<<<<< HEAD
         bo = ptstep.get_current_byte_order();
+<<<<<<< HEAD
         assert(ptstep.get_current_geotype() == Geometry::wkb_point);
+=======
+        DBUG_ASSERT(ptstep.get_current_geotype() == Geometry::wkb_point);
+=======
+        bo= ptstep.get_current_byte_order();
+        assert(ptstep.get_current_geotype() == Geometry::wkb_point);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
 
       break;
@@ -3891,9 +4576,15 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
       uint32 nls = uint4korr(p);
       p += sizeof(uint32);
 
+<<<<<<< HEAD
       Geometry::wkbByteOrder bo = ::get_byte_order(p);
       assert(get_wkb_geotype(p + 1) == Geometry::wkb_linestring);
       p += WKB_HEADER_SIZE;
+=======
+      Geometry::wkbByteOrder bo= ::get_byte_order(p);
+      assert(get_wkb_geotype(p + 1) == Geometry::wkb_linestring);
+      p+= WKB_HEADER_SIZE;
+>>>>>>> upstream/cluster-7.6
       Linestring_stepper lsstep(dim, bo, true);
 
       for (uint32 i = 0; i < nls; i++) {
@@ -3911,8 +4602,17 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
         ent.set_nbytes(nbytes);
         ent.set_owner(geom);
         geom->shallow_push(&ent);
+<<<<<<< HEAD
         bo = lsstep.get_current_byte_order();
+<<<<<<< HEAD
         assert(lsstep.get_current_geotype() == Geometry::wkb_linestring);
+=======
+        DBUG_ASSERT(lsstep.get_current_geotype() == Geometry::wkb_linestring);
+=======
+        bo= lsstep.get_current_byte_order();
+        assert(lsstep.get_current_geotype() == Geometry::wkb_linestring);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
 
       break;
@@ -4020,9 +4720,15 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
       uint32 nplgns = uint4korr(p);
       p += sizeof(uint32);
 
+<<<<<<< HEAD
       Geometry::wkbByteOrder bo = ::get_byte_order(p);
       assert(get_wkb_geotype(p + 1) == Geometry::wkb_polygon);
       p += WKB_HEADER_SIZE;
+=======
+      Geometry::wkbByteOrder bo= ::get_byte_order(p);
+      assert(get_wkb_geotype(p + 1) == Geometry::wkb_polygon);
+      p+= WKB_HEADER_SIZE;
+>>>>>>> upstream/cluster-7.6
       Polygon_stepper plgn_step(dim, bo, true);
 
       for (uint32 i = 0; i < nplgns; i++) {
@@ -4044,12 +4750,22 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
         geom->shallow_push(&ent);
         // The object 'ent' doesn't have any data of its own.
         ent.donate_data();
+<<<<<<< HEAD
         bo = plgn_step.get_current_byte_order();
+<<<<<<< HEAD
         assert(plgn_step.get_current_geotype() == Geometry::wkb_polygon);
+=======
+        DBUG_ASSERT(plgn_step.get_current_geotype() == Geometry::wkb_polygon);
+=======
+        bo= plgn_step.get_current_byte_order();
+        assert(plgn_step.get_current_geotype() == Geometry::wkb_polygon);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
 
       break;
     }
+<<<<<<< HEAD
     case Geometry::wkb_geometrycollection:
       /*
         We never create a Gis_wkb_vector using a geometry collection, because
@@ -4060,6 +4776,18 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms) {
     default:
       assert(false);
       break;
+=======
+  case Geometry::wkb_geometrycollection:
+    /*
+      We never create a Gis_wkb_vector using a geometry collection, because
+      BG never uses such a type.
+     */
+    assert(false);
+    break;
+  default:
+    assert(false);
+    break;
+>>>>>>> upstream/cluster-7.6
   }
 }
 
@@ -4179,10 +4907,23 @@ void Gis_wkb_vector<T>::reassemble() {
       // In case of a polygon, see if it's already inline in a different
       // way from other types of geometries.
       if (veci->get_geotype() == Geometry::wkb_polygon &&
+<<<<<<< HEAD
           polygon_is_packed(veci, this)) {
         if (out) {
           out = false;
+<<<<<<< HEAD
           assert(prev_start == veci->get_ptr());
+=======
+          DBUG_ASSERT(prev_start == veci->get_ptr());
+=======
+          polygon_is_packed(veci, this))
+      {
+        if (out)
+        {
+          out= false;
+          assert(prev_start == veci->get_ptr());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         }
         prev_in = i;
         continue;
@@ -4215,6 +4956,7 @@ void Gis_wkb_vector<T>::reassemble() {
         // owner's memory.
       }
 
+<<<<<<< HEAD
       if (veci->get_geotype() != Geometry::wkb_polygon) {
         // When this geometry is a geometry collection, we need to make its
         // components in one chunk first. Not gonna implement this yet since
@@ -4224,27 +4966,69 @@ void Gis_wkb_vector<T>::reassemble() {
         // so not forbidding them here.
 #if !defined(NDEBUG)
         Geometry::wkbType veci_gt = veci->get_geotype();
+=======
+      if (veci->get_geotype() != Geometry::wkb_polygon)
+      {
+        // When this geometry is a geometry collection, we need to make its
+        // components in one chunk first. Not gonna implement this yet since
+        // BG doesn't use geometry collection yet, and consequently no
+        // component can be a multipoint/multilinestring/multipolygon or a
+        // geometrycollection. And multipoint components are already supported
+        // so not forbidding them here.
+#if !defined(NDEBUG)
+        Geometry::wkbType veci_gt= veci->get_geotype();
+>>>>>>> upstream/cluster-7.6
 #endif
         assert(veci_gt != wkb_geometrycollection &&
+<<<<<<< HEAD
                veci_gt != wkb_multilinestring && veci_gt != wkb_multipolygon);
+=======
+               veci_gt != wkb_multilinestring &&
+               veci_gt != wkb_multipolygon);
+>>>>>>> pr/231
         /* A point/multipoint/linestring is always in one memory chunk. */
         totlen += veci->get_nbytes() + hdrsz;
       } else {
         // Must be a polygon out of line.
+<<<<<<< HEAD
         size_t nbytes = 0;
         void *plgn_base = get_packed_ptr(veci, &nbytes);
+<<<<<<< HEAD
         assert(veci->get_nbytes() == 0 || veci->get_nbytes() == nbytes);
+=======
+        DBUG_ASSERT(veci->get_nbytes() == 0 || veci->get_nbytes() == nbytes);
+=======
+        size_t nbytes= 0;
+        void *plgn_base= get_packed_ptr(veci, &nbytes);
+        assert(veci->get_nbytes() == 0 || veci->get_nbytes() == nbytes);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         veci->set_nbytes(nbytes);
         plgn_data.insert(std::make_pair(i, std::make_pair(plgn_base, nbytes)));
         totlen += nbytes + hdrsz;
       }
 
       segs.insert(std::make_pair(i, std::make_pair(start, end)));
+<<<<<<< HEAD
       out = true;
     } else {
       if (out) {
         out = false;
+<<<<<<< HEAD
         assert(prev_start == veci->get_ptr());
+=======
+        DBUG_ASSERT(prev_start == veci->get_ptr());
+=======
+      out= true;
+    }
+    else
+    {
+      if (out)
+      {
+        out= false;
+        assert(prev_start == veci->get_ptr());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
       prev_in = i;
     }
@@ -4256,9 +5040,20 @@ void Gis_wkb_vector<T>::reassemble() {
     return;
   }
 
+<<<<<<< HEAD
   size_t nbytes = get_nbytes();
+<<<<<<< HEAD
   assert((nbytes == 0 && m_ptr == nullptr && num == segsz) ||
          (nbytes > 0 && num >= segsz));
+=======
+  DBUG_ASSERT((nbytes == 0 && m_ptr == NULL && num == segsz) ||
+              (nbytes > 0 && num >= segsz));
+=======
+  size_t nbytes= get_nbytes();
+  assert((nbytes == 0 && m_ptr == NULL && num == segsz) ||
+         (nbytes > 0 && num >= segsz));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   // If all are out of line, m_ptr is 0 and no room for ring count, otherwise
   // the space for ring count is already counted above.
@@ -4310,6 +5105,7 @@ void Gis_wkb_vector<T>::reassemble() {
 
     // Copy the out of line geometry into buffer. A polygon's data isn't
     // packed inside itself, we've packed it and recorded it in plgn_data.
+<<<<<<< HEAD
     plgn_data_itr = plgn_data.find(i);
     if (veci->get_geotype() != Geometry::wkb_polygon) {
       assert(plgn_data_itr == plgn_data.end());
@@ -4318,6 +5114,19 @@ void Gis_wkb_vector<T>::reassemble() {
     } else {
       assert(plgn_data_itr != plgn_data.end());
       len = plgn_data_itr->second.second;
+=======
+    plgn_data_itr= plgn_data.find(i);
+    if (veci->get_geotype() != Geometry::wkb_polygon)
+    {
+      assert(plgn_data_itr == plgn_data.end());
+      len= veci->get_nbytes();
+      memcpy(q, veci->get_ptr(), len);
+    }
+    else
+    {
+      assert(plgn_data_itr != plgn_data.end());
+      len= plgn_data_itr->second.second;
+>>>>>>> upstream/cluster-7.6
       memcpy(q, plgn_data_itr->second.first, len);
     }
     q += len;
@@ -4333,8 +5142,18 @@ void Gis_wkb_vector<T>::reassemble() {
   assert(total_len == totlen);
 
   // Inner rings doesn't have ring count.
+<<<<<<< HEAD
   if (!is_inns) {
+<<<<<<< HEAD
     assert(segsz + uint4korr(ptr) <= 0xFFFFFFFF);
+=======
+    DBUG_ASSERT(segsz + uint4korr(ptr) <= 0xFFFFFFFF);
+=======
+  if (!is_inns)
+  {
+    assert(segsz + uint4korr(ptr) <= 0xFFFFFFFF);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     int4store(reinterpret_cast<uchar *>(ptr),
               uint4korr(ptr) + static_cast<uint32>(segsz));
   }
@@ -4363,12 +5182,22 @@ exit:
 /// @param is_bg_adapter Whether this object is created to be used by
 ///        Boost Geometry, or to be only used in MySQL code.
 template <typename T>
+<<<<<<< HEAD
 Gis_wkb_vector<T>::Gis_wkb_vector(const void *ptr, size_t nbytes,
                                   const Geometry::Flags_t &flags,
                                   gis::srid_t srid, bool is_bg_adapter)
     : Geometry(ptr, nbytes, flags, srid) {
   assert((ptr != nullptr && nbytes > 0) || (ptr == nullptr && nbytes == 0));
   set_ownmem(false);  // We use existing WKB data and don't own that memory.
+=======
+Gis_wkb_vector<T>::
+Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
+               srid_t srid, bool is_bg_adapter)
+  :Geometry(ptr, nbytes, flags, srid)
+{
+  assert((ptr != NULL && nbytes > 0) || (ptr == NULL && nbytes == 0));
+  set_ownmem(false); // We use existing WKB data and don't own that memory.
+>>>>>>> upstream/cluster-7.6
   set_bg_adapter(is_bg_adapter);
   m_geo_vect = nullptr;
 
@@ -4393,11 +5222,27 @@ Gis_wkb_vector<T>::Gis_wkb_vector(const void *ptr, size_t nbytes,
 }
 
 template <typename T>
+<<<<<<< HEAD
 Gis_wkb_vector<T>::Gis_wkb_vector(const Gis_wkb_vector<T> &v)
+<<<<<<< HEAD
     : Geometry(v), m_geo_vect(nullptr) {
   assert((v.get_ptr() != nullptr && v.get_nbytes() > 0) ||
          (v.get_ptr() == nullptr && !v.get_ownmem() && v.get_nbytes() == 0));
   if (!v.is_bg_adapter() || (v.get_ptr() == nullptr && v.m_geo_vect == nullptr))
+=======
+    : Geometry(v), m_geo_vect(NULL) {
+  DBUG_ASSERT((v.get_ptr() != NULL && v.get_nbytes() > 0) ||
+              (v.get_ptr() == NULL && !v.get_ownmem() && v.get_nbytes() == 0));
+=======
+Gis_wkb_vector<T>::
+Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v), m_geo_vect(NULL)
+{
+  assert((v.get_ptr() != NULL && v.get_nbytes() > 0) ||
+         (v.get_ptr() == NULL && !v.get_ownmem() &&
+          v.get_nbytes() == 0));
+>>>>>>> upstream/cluster-7.6
+  if (!v.is_bg_adapter() || (v.get_ptr() == NULL && v.m_geo_vect == NULL))
+>>>>>>> pr/231
     return;
   m_geo_vect = new Geo_vector();
   std::unique_ptr<Geo_vector> guard(m_geo_vect);
@@ -4436,11 +5281,27 @@ Gis_wkb_vector<T> &Gis_wkb_vector<T>::operator=(const Gis_wkb_vector<T> &rhs) {
   if (this == &rhs) return *this;
   Geometry::operator=(rhs);
 
+<<<<<<< HEAD
   assert((m_ptr != nullptr && get_ownmem() && get_nbytes() > 0) ||
          (m_ptr == nullptr && !get_ownmem() && get_nbytes() == 0));
   assert(
       (rhs.get_ptr() != nullptr && rhs.get_nbytes() > 0) ||
       (rhs.get_ptr() == nullptr && !rhs.get_ownmem() && rhs.get_nbytes() == 0));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT((m_ptr != NULL && get_ownmem() && get_nbytes() > 0) ||
+              (m_ptr == NULL && !get_ownmem() && get_nbytes() == 0));
+  DBUG_ASSERT(
+      (rhs.get_ptr() != NULL && rhs.get_nbytes() > 0) ||
+      (rhs.get_ptr() == NULL && !rhs.get_ownmem() && rhs.get_nbytes() == 0));
+=======
+  assert((m_ptr != NULL && get_ownmem() && get_nbytes() > 0) ||
+         (m_ptr == NULL && !get_ownmem() && get_nbytes() == 0));
+  assert((rhs.get_ptr() != NULL && rhs.get_nbytes() > 0) ||
+         (rhs.get_ptr() == NULL && !rhs.get_ownmem() &&
+          rhs.get_nbytes() == 0));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (m_owner == nullptr) m_owner = rhs.get_owner();
 
@@ -4515,9 +5376,21 @@ void Gis_wkb_vector<T>::shallow_push(const Geometry *g) {
 
   if (m_geo_vect == nullptr) m_geo_vect = new Geo_vector();
   // Allocate space and create an object with its default constructor.
+<<<<<<< HEAD
   pgeo = static_cast<T *>(m_geo_vect->append_object());
+<<<<<<< HEAD
   assert(pgeo != nullptr);
   if (pgeo == nullptr) return;
+=======
+  DBUG_ASSERT(pgeo != NULL);
+  if (pgeo == NULL) return;
+=======
+  pgeo= static_cast<T *>(m_geo_vect->append_object());
+  assert(pgeo != NULL);
+  if (pgeo == NULL)
+    return;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   pgeo->set_flags(geo.get_flags());
   pgeo->set_srid(geo.get_srid());
@@ -4533,8 +5406,18 @@ void Gis_wkb_vector<T>::shallow_push(const Geometry *g) {
 }
 
 template <typename T>
+<<<<<<< HEAD
 void Gis_wkb_vector<T>::set_ptr(void *ptr, size_t len) {
+<<<<<<< HEAD
   assert(!(ptr == nullptr && len > 0));
+=======
+  DBUG_ASSERT(!(ptr == NULL && len > 0));
+=======
+void Gis_wkb_vector<T>::set_ptr(void *ptr, size_t len)
+{
+  assert(!(ptr == NULL && len > 0));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   set_bg_adapter(true);
   if (get_geotype() != Geometry::wkb_polygon) {
     if (get_ownmem() && m_ptr != nullptr) gis_wkb_free(m_ptr);
@@ -4578,9 +5461,21 @@ void Gis_wkb_vector<T>::set_ptr(void *ptr, size_t len) {
 
 /// Clear geometry data of this object.
 template <typename T>
+<<<<<<< HEAD
 void Gis_wkb_vector<T>::clear() {
   if (!m_geo_vect) {
+<<<<<<< HEAD
     assert(m_ptr == nullptr);
+=======
+    DBUG_ASSERT(m_ptr == NULL);
+=======
+void Gis_wkb_vector<T>::clear()
+{
+  if (!m_geo_vect)
+  {
+    assert(m_ptr == NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return;
   }
 
@@ -4616,6 +5511,7 @@ size_t Gis_wkb_vector<T>::current_size() const {
 /// Get number of free bytes in the buffer held by m_ptr. this object must be
 /// an topmost geometry which owns memory.
 template <typename T>
+<<<<<<< HEAD
 size_t Gis_wkb_vector<T>::get_nbytes_free() const {
   assert((this->get_ownmem() && m_ptr) || (!get_ownmem() && !m_ptr));
 
@@ -4625,8 +5521,28 @@ size_t Gis_wkb_vector<T>::get_nbytes_free() const {
     return 0;
   }
 
+<<<<<<< HEAD
   const char *p = nullptr, *ptr = get_cptr();
   assert(ptr != nullptr);
+=======
+  const char *p = NULL, *ptr = get_cptr();
+  DBUG_ASSERT(ptr != NULL);
+=======
+size_t Gis_wkb_vector<T>::get_nbytes_free() const
+{
+  assert((this->get_ownmem() && m_ptr) || (!get_ownmem() && !m_ptr));
+
+  size_t cap= current_size();
+  if (cap == 0)
+  {
+    assert(m_ptr == NULL);
+    return 0;
+  }
+
+  const char *p= NULL, *ptr= get_cptr();
+  assert(ptr != NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     There will always be remaining free space because in push_back, when
@@ -4647,10 +5563,18 @@ void Gis_wkb_vector<T>::push_back(const T &val) {
 
   // Only three possible types of geometries for val, thus no need to
   // do val.reassemble().
+<<<<<<< HEAD
   assert(val.get_geotype() == wkb_point || val.get_geotype() == wkb_polygon ||
          val.get_geotype() == wkb_linestring);
 
   assert(val.get_ptr() != nullptr);
+=======
+  assert(val.get_geotype() == wkb_point ||
+         val.get_geotype() == wkb_polygon ||
+         val.get_geotype() == wkb_linestring);
+
+  assert(val.get_ptr() != NULL);
+>>>>>>> pr/231
 
   size_t cap = 0, nalloc = 0;
   size_t vallen, needed;
@@ -4724,6 +5648,7 @@ void Gis_wkb_vector<T>::push_back(const T &val) {
   if (geotype == Geometry::wkb_multipoint ||
       geotype == Geometry::wkb_multipolygon ||
       geotype == Geometry::wkb_multilinestring ||
+<<<<<<< HEAD
       geotype == Geometry::wkb_geometrycollection) {
     Geometry::wkbType vgt = val.get_geotype();
     assert(
@@ -4733,6 +5658,18 @@ void Gis_wkb_vector<T>::push_back(const T &val) {
         (geotype == Geometry::wkb_multilinestring &&
          vgt == Geometry::wkb_linestring) ||
         geotype == Geometry::wkb_geometrycollection);
+=======
+      geotype == Geometry::wkb_geometrycollection)
+  {
+    Geometry::wkbType vgt= val.get_geotype();
+    assert((geotype == Geometry::wkb_multipoint &&
+            vgt == Geometry::wkb_point) ||
+           (geotype == Geometry::wkb_multipolygon &&
+            vgt == Geometry::wkb_polygon) ||
+           (geotype == Geometry::wkb_multilinestring &&
+            vgt == Geometry::wkb_linestring) ||
+           geotype == Geometry::wkb_geometrycollection);
+>>>>>>> upstream/cluster-7.6
 
     val_ptr = write_wkb_header(val_ptr, vgt);
     wkb_header_size = WKB_HEADER_SIZE;
@@ -4789,8 +5726,14 @@ void Gis_wkb_vector<T>::resize(size_t sz) {
   // Can resize a topmost geometry or a out of line geometry which has
   // or will have its own memory(i.e. one that's not using others' memory).
   // Points are fixed size, polygon doesn't hold data directly.
+<<<<<<< HEAD
   assert(!(m_ptr != nullptr && !get_ownmem()) &&
          geotype != Geometry::wkb_point && geotype != Geometry::wkb_polygon);
+=======
+  assert(!(m_ptr != NULL && !get_ownmem()) &&
+         geotype != Geometry::wkb_point &&
+         geotype != Geometry::wkb_polygon);
+>>>>>>> pr/231
   set_bg_adapter(true);
   if (sz == ngeo) return;
   // Shrinking the vector.
@@ -4807,14 +5750,34 @@ void Gis_wkb_vector<T>::resize(size_t sz) {
     memset((get_cptr() + get_nbytes() - sublen), 0xff, sublen);
     set_nbytes(get_nbytes() - sublen);
 
+<<<<<<< HEAD
 #if !defined(NDEBUG)
+=======
+<<<<<<< HEAD
+#if !defined(DBUG_OFF)
+>>>>>>> pr/231
     bool rsz_ret = m_geo_vect->resize(sz);
     assert(rsz_ret == false);
 #else
     m_geo_vect->resize(sz);
 #endif
     if (get_geotype() != Geometry::wkb_polygon_inner_rings) {
+<<<<<<< HEAD
       assert(uint4korr(get_ucptr()) == ngeo);
+=======
+      DBUG_ASSERT(uint4korr(get_ucptr()) == ngeo);
+=======
+#if !defined(NDEBUG)
+    bool rsz_ret= m_geo_vect->resize(sz);
+    assert(rsz_ret == false);
+#else
+    m_geo_vect->resize(sz);
+#endif
+    if (get_geotype() != Geometry::wkb_polygon_inner_rings)
+    {
+      assert(uint4korr(get_ucptr()) == ngeo);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       int4store(get_ucptr(), static_cast<uint32>(sz));
     }
     return;
@@ -4881,9 +5844,22 @@ void Gis_wkb_vector<T>::resize(size_t sz) {
       set_nbytes(get_nbytes() + ptsz);
       ptr += ptsz;
       int4store(get_ucptr(), uint4korr(get_ucptr()) + 1);
+<<<<<<< HEAD
       assert(uint4korr(get_ucptr()) == m_geo_vect->size() + 1);
     } else
       assert(ptr == nullptr && ptr2 == nullptr);
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(uint4korr(get_ucptr()) == m_geo_vect->size() + 1);
+    } else
+      DBUG_ASSERT(ptr == NULL && ptr2 == NULL);
+=======
+      assert(uint4korr(get_ucptr()) == m_geo_vect->size() + 1);
+    }
+    else
+      assert(ptr == NULL && ptr2 == NULL);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     shallow_push(&tmp);
     if (tmp.get_geotype() == Geometry::wkb_polygon)

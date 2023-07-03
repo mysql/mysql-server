@@ -245,6 +245,7 @@ class Dbacc: public SimulatedBlock {
   friend class DbaccProxy;
 
 public:
+<<<<<<< HEAD
   /**
    * m_is_query_block is set to true for all query threads and false for all
    * LDM threads.
@@ -261,6 +262,9 @@ public:
   Uint32 m_lqh_block;
   Dbacc *m_ldm_instance_used;
   void prepare_scan_ctx(Uint32 scanPtrI) override;
+=======
+  void prepare_scan_ctx(Uint32 scanPtrI);
+>>>>>>> pr/231
 
 // State values
 enum State {
@@ -742,6 +746,10 @@ struct Operationrec {
   Uint32 fid;
   Uint32 fragptr;
   LHBits32 hashValue;
+<<<<<<< HEAD
+=======
+  Uint32 nextOp;
+>>>>>>> pr/231
   Uint32 nextParallelQue;
   union {
     Uint32 nextSerialQue;      
@@ -768,6 +776,35 @@ struct Operationrec {
   LHBits16 reducedHashValue;
   NDB_TICKS m_lockTime;
 
+<<<<<<< HEAD
+=======
+  enum OpBits {
+    OP_MASK                 = 0x0000F // 4 bits for operation type
+    ,OP_LOCK_MODE           = 0x00010 // 0 - shared lock, 1 = exclusive lock
+    ,OP_ACC_LOCK_MODE       = 0x00020 // Or:de lock mode of all operation
+                                      // before me
+    ,OP_LOCK_OWNER          = 0x00040
+    ,OP_RUN_QUEUE           = 0x00080 // In parallell queue of lock owner
+    ,OP_DIRTY_READ          = 0x00100
+    ,OP_LOCK_REQ            = 0x00200 // isAccLockReq
+    ,OP_COMMIT_DELETE_CHECK = 0x00400
+    ,OP_INSERT_IS_DONE      = 0x00800
+    ,OP_ELEMENT_DISAPPEARED = 0x01000
+    ,OP_PENDING_ABORT       = 0x02000
+
+    
+    ,OP_STATE_MASK          = 0xF0000
+    ,OP_STATE_IDLE          = 0xF0000
+    ,OP_STATE_WAITING       = 0x00000
+    ,OP_STATE_RUNNING       = 0x10000
+    ,OP_STATE_EXECUTED      = 0x30000
+    
+    ,OP_EXECUTED_DIRTY_READ = 0x3050F
+    ,OP_INITIAL             = ~(Uint32)0
+  };
+  
+  Operationrec() {}
+>>>>>>> pr/231
   bool is_same_trans(const Operationrec* op) const {
     return 
       transId1 == op->transId1 && transId2 == op->transId2;
@@ -892,8 +929,11 @@ public:
 
   bool checkOpPendingAbort(Uint32 accConnectPtr) const;
 
+<<<<<<< HEAD
   bool getPrecedingOperation(OperationrecPtr& opPtr) const;
 
+=======
+>>>>>>> pr/231
 private:
   BLOCK_DEFINES(Dbacc);
 
@@ -1064,10 +1104,15 @@ private:
   void increaselistcont(Page8Ptr);
   void seizeLeftlist(Page8Ptr slPageptr, Uint32 conidx);
   void seizeRightlist(Page8Ptr slPageptr, Uint32 conidx);
+<<<<<<< HEAD
   Uint32 find_key_operation(OperationrecPtr, bool);
   Uint32 readTablePk(Uint32, Uint32, Uint32, OperationrecPtr, Uint32*,
                      bool xfrm);
   Uint32 getElement(const AccKeyReq* signal,
+=======
+  Uint32 readTablePk(Uint32, Uint32, Uint32, OperationrecPtr, Uint32*);
+  Uint32 getElement(AccKeyReq* signal,
+>>>>>>> pr/231
                     OperationrecPtr& lockOwner,
                     Page8Ptr& bucketPageptr,
                     Uint32& bucketConidx,
@@ -1157,6 +1202,12 @@ private:
 
   void zpagesize_error(const char* where);
 
+<<<<<<< HEAD
+=======
+  // charsets
+  Uint32 xfrmKeyData(AccKeyReq* signal) const;
+
+>>>>>>> pr/231
   // Initialisation
   void initData();
   void initRecords(const ndb_mgm_configuration_iterator *mgm_cfg);

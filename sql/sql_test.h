@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2006, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2006, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,9 +47,19 @@ typedef Mem_root_array<Key_use> Key_use_array;
 
 extern const char *lock_descriptions[TL_WRITE_ONLY + 1];
 
+<<<<<<< HEAD
 #ifndef NDEBUG
 void print_where(const THD *thd, const Item *cond, const char *info,
                  enum_query_type query_type);
+=======
+<<<<<<< HEAD
+#ifndef DBUG_OFF
+void print_where(Item *cond, const char *info, enum_query_type query_type);
+=======
+#ifndef NDEBUG
+void print_where(Item *cond,const char *info, enum_query_type query_type);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 void TEST_join(JOIN *join);
 void print_plan(JOIN *join, uint idx, double record_count, double read_time,
                 double current_read_time, const char *info);

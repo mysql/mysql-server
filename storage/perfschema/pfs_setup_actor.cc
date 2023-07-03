@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +75,7 @@ static const uchar *setup_actor_hash_get_key(const uchar *entry,
   const PFS_setup_actor *const *typed_entry;
   const PFS_setup_actor *setup_actor;
   const void *result;
+<<<<<<< HEAD
   typed_entry = reinterpret_cast<const PFS_setup_actor *const *>(entry);
   assert(typed_entry != nullptr);
   setup_actor = *typed_entry;
@@ -74,6 +83,15 @@ static const uchar *setup_actor_hash_get_key(const uchar *entry,
   *length = sizeof(setup_actor->m_key);
   result = &setup_actor->m_key;
   return reinterpret_cast<const uchar *>(result);
+=======
+  typed_entry= reinterpret_cast<const PFS_setup_actor* const *> (entry);
+  assert(typed_entry != NULL);
+  setup_actor= *typed_entry;
+  assert(setup_actor != NULL);
+  *length= setup_actor->m_key.m_key_length;
+  result= setup_actor->m_key.m_hash_key;
+  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+>>>>>>> upstream/cluster-7.6
 }
 
 static uint setup_actor_hash_func(const LF_HASH *, const uchar *key,
@@ -157,6 +175,7 @@ static LF_PINS *get_setup_actor_hash_pins(PFS_thread *thread) {
   return thread->m_setup_actor_hash_pins;
 }
 
+<<<<<<< HEAD
 static void set_setup_actor_key(PFS_setup_actor_key *key,
                                 const PFS_user_name *user,
                                 const PFS_host_name *host,
@@ -164,6 +183,39 @@ static void set_setup_actor_key(PFS_setup_actor_key *key,
   key->m_user_name = *user;
   key->m_host_name = *host;
   key->m_role_name = *role;
+=======
+<<<<<<< HEAD
+static void set_setup_actor_key(PFS_setup_actor_key *key, const char *user,
+                                uint user_length, const char *host,
+                                uint host_length, const char *role,
+                                uint role_length) {
+  DBUG_ASSERT(user_length <= USERNAME_LENGTH);
+  DBUG_ASSERT(host_length <= HOSTNAME_LENGTH);
+=======
+static void set_setup_actor_key(PFS_setup_actor_key *key,
+                                const char *user, uint user_length,
+                                const char *host, uint host_length,
+                                const char *role, uint role_length)
+{
+  assert(user_length <= USERNAME_LENGTH);
+  assert(host_length <= HOSTNAME_LENGTH);
+>>>>>>> upstream/cluster-7.6
+
+  char *ptr = &key->m_hash_key[0];
+  memcpy(ptr, user, user_length);
+  ptr += user_length;
+  ptr[0] = 0;
+  ptr++;
+  memcpy(ptr, host, host_length);
+  ptr += host_length;
+  ptr[0] = 0;
+  ptr++;
+  memcpy(ptr, role, role_length);
+  ptr += role_length;
+  ptr[0] = 0;
+  ptr++;
+  key->m_key_length = ptr - &key->m_hash_key[0];
+>>>>>>> pr/231
 }
 
 int insert_setup_actor(const PFS_user_name *user, const PFS_host_name *host,

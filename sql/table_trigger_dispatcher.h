@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,6 +131,7 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
                         enum_trigger_action_time_type action_time,
                         bool old_row_is_record1);
 
+<<<<<<< HEAD
   Trigger_chain *get_triggers(int event, int action_time) {
     assert(0 <= event && event < TRG_EVENT_MAX);
     assert(0 <= action_time && action_time < TRG_ACTION_MAX);
@@ -130,8 +139,26 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
   }
 
   const Trigger_chain *get_triggers(int event, int action_time) const {
+<<<<<<< HEAD
     assert(0 <= event && event < TRG_EVENT_MAX);
     assert(0 <= action_time && action_time < TRG_ACTION_MAX);
+=======
+    DBUG_ASSERT(0 <= event && event < TRG_EVENT_MAX);
+    DBUG_ASSERT(0 <= action_time && action_time < TRG_ACTION_MAX);
+=======
+  Trigger_chain *get_triggers(int event, int action_time)
+  {
+    assert(0 <= event && event < TRG_EVENT_MAX);
+    assert(0 <= action_time && action_time < TRG_ACTION_MAX);
+    return m_trigger_map[event][action_time];
+  }
+
+  const Trigger_chain *get_triggers(int event, int action_time) const
+  {
+    assert(0 <= event && event < TRG_EVENT_MAX);
+    assert(0 <= action_time && action_time < TRG_ACTION_MAX);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_trigger_map[event][action_time];
   }
 

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,15 +72,32 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno) {
 
 enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
                                                my_thread_id owner) {
+<<<<<<< HEAD
   DBUG_TRACE;
   assert(gtid.sidno <= get_max_sidno());
   assert(gtid.gno > 0);
   assert(gtid.gno < GNO_END);
+=======
+  DBUG_ENTER("Owned_gtids::add_gtid_owner(Gtid, my_thread_id)");
+<<<<<<< HEAD
+  DBUG_ASSERT(gtid.sidno <= get_max_sidno());
+>>>>>>> pr/231
   Node *n =
       (Node *)my_malloc(key_memory_Sid_map_Node, sizeof(Node), MYF(MY_WME));
   if (n == nullptr) RETURN_REPORTED_ERROR;
   n->gno = gtid.gno;
   n->owner = owner;
+=======
+  assert(gtid.sidno <= get_max_sidno());
+  assert(gtid.gno > 0);
+  assert(gtid.gno < GNO_END);
+  Node *n= (Node *)my_malloc(key_memory_Sid_map_Node,
+                             sizeof(Node), MYF(MY_WME));
+  if (n == NULL)
+    RETURN_REPORTED_ERROR;
+  n->gno= gtid.gno;
+  n->owner= owner;
+>>>>>>> upstream/cluster-7.6
   /*
   printf("Owned_gtids(%p)::add sidno=%d gno=%lld n=%p n->owner=%u\n",
          this, sidno, gno, n, n?n->owner:0);
@@ -86,7 +107,12 @@ enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
 }
 
 void Owned_gtids::remove_gtid(const Gtid &gtid, const my_thread_id owner) {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("Owned_gtids::remove_gtid(Gtid)");
+<<<<<<< HEAD
+>>>>>>> pr/231
   // printf("Owned_gtids::remove(sidno=%d gno=%lld)\n", sidno, gno);
   // assert(contains_gtid(sidno, gno)); // allow group not owned
   malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>> *hash =
@@ -95,7 +121,32 @@ void Owned_gtids::remove_gtid(const Gtid &gtid, const my_thread_id owner) {
   for (auto it = it_range.first; it != it_range.second; ++it) {
     if (it->second->owner == owner) {
       hash->erase(it);
+<<<<<<< HEAD
       return;
+=======
+      DBUG_VOID_RETURN;
+=======
+  //printf("Owned_gtids::remove(sidno=%d gno=%lld)\n", sidno, gno);
+  //assert(contains_gtid(sidno, gno)); // allow group not owned
+  HASH_SEARCH_STATE state;
+  HASH *hash= get_hash(gtid.sidno);
+  assert(hash != NULL);
+
+  for (Node *node= (Node *)my_hash_search(hash, (const uchar *)&gtid.gno, sizeof(rpl_gno));
+       node != NULL;
+       node= (Node*) my_hash_next(hash, (const uchar *)&gtid.gno, sizeof(rpl_gno), &state))
+  {
+    if (node->owner == owner)
+    {
+#ifdef NDEBUG
+      my_hash_delete(hash, (uchar *)node);
+#else
+      // my_hash_delete returns nonzero if the element does not exist
+      assert(my_hash_delete(hash, (uchar *)node) == 0);
+#endif
+      break;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
   }
 }
@@ -127,13 +178,21 @@ void Owned_gtids::get_gtids(Gtid_set &gtid_set) const {
   }
 }
 
+<<<<<<< HEAD
 bool Owned_gtids::contains_gtid(const Gtid &gtid) const {
   malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>> *hash =
       get_hash(gtid.sidno);
+=======
+bool Owned_gtids::contains_gtid(const Gtid &gtid) const
+{
+  HASH *hash= get_hash(gtid.sidno);
+  assert(hash != NULL);
+>>>>>>> upstream/cluster-7.6
   sid_lock->assert_some_lock();
   return hash->count(gtid.gno) != 0;
 }
 
+<<<<<<< HEAD
 bool Owned_gtids::is_owned_by(const Gtid &gtid,
                               const my_thread_id thd_id) const {
   malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>> *hash =
@@ -144,6 +203,23 @@ bool Owned_gtids::is_owned_by(const Gtid &gtid,
 
   for (auto it = it_range.first; it != it_range.second; ++it) {
     if (it->second->owner == thd_id) return true;
+=======
+bool Owned_gtids::is_owned_by(const Gtid &gtid, const my_thread_id thd_id) const
+{
+  HASH_SEARCH_STATE state;
+  HASH *hash= get_hash(gtid.sidno);
+  assert(hash != NULL);
+  Node *node= (Node*) my_hash_first(hash, (const uchar *)&gtid.gno,
+                                    sizeof(rpl_gno), &state);
+  if (thd_id == 0)
+    return node == NULL;
+  while (node)
+  {
+    if (node->owner == thd_id)
+      return true;
+    node= (Node*) my_hash_next(hash, (const uchar *)&gtid.gno,
+                               sizeof(rpl_gno), &state);
+>>>>>>> upstream/cluster-7.6
   }
   return false;
 }

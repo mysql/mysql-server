@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +47,7 @@
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
+<<<<<<< HEAD
 #include "restore_tables.h"
 #include <NdbThread.h>
 #include "../src/kernel/vm/Emulator.hpp"
@@ -51,12 +60,23 @@ using byte = unsigned char;
 
 extern thread_local EmulatedJamBuffer* NDB_THREAD_TLS_JAM;
 
+=======
+<<<<<<< HEAD
+#include "sql/ha_ndbcluster_tables.h"
+=======
+#include "../../../../sql/ha_ndbcluster_tables.h"
+#include <Logger.hpp>
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 extern NdbRecordPrintFormat g_ndbrecord_print_format;
 extern bool ga_skip_unknown_objects;
 extern bool ga_skip_broken_objects;
 extern bool opt_include_stored_grants;
 
 extern ndb_password_state g_backup_password_state;
+
+#define LOG_MSGLEN 1024
 
 #define LOG_MSGLEN 1024
 
@@ -399,9 +419,13 @@ RestoreMetaData::readMetaTableList() {
   
   Uint32 sectionInfo[2];
   
+<<<<<<< HEAD
   int r = buffer_read(&sectionInfo, sizeof(sectionInfo), 1);
   if (r != 1)
   {
+=======
+  if (buffer_read(&sectionInfo, sizeof(sectionInfo), 1) != 1){
+>>>>>>> pr/231
     restoreLogger.log_error("readMetaTableList read header error");
     return 0;
   }
@@ -459,9 +483,13 @@ RestoreMetaData::readMetaTableDesc() {
     sz = 2;
     sectionInfo[2] = htonl(DictTabInfo::UserTable);
   }
+<<<<<<< HEAD
   int r = buffer_read(&sectionInfo, 4*sz, 1);
   if (r != 1)
   {
+=======
+  if (buffer_read(&sectionInfo, 4*sz, 1) != 1){
+>>>>>>> pr/231
     restoreLogger.log_error("readMetaTableDesc read header error");
     return false;
   } // if
@@ -474,9 +502,13 @@ RestoreMetaData::readMetaTableDesc() {
   // Read dictTabInfo buffer
   const Uint32 len = (sectionInfo[1] - sz);
   void *ptr;
+<<<<<<< HEAD
   r = buffer_get_ptr(&ptr, 4, len);
   if (r < 0 || Uint32(r) != len)
   {
+=======
+  if (buffer_get_ptr(&ptr, 4, len) != len){
+>>>>>>> pr/231
     restoreLogger.log_error("readMetaTableDesc read error");
     return false;
   } // if
@@ -686,6 +718,7 @@ RestoreMetaData::markSysTables()
     static constexpr const char * blobPattern = "%[^/]/%[^/]/NDB$BLOB_%d_%d";
      int id1, id2 = ~(Uint32)0;
     char buf[256];
+<<<<<<< HEAD
 
     if((sscanf(auxTableName, indxPattern, &id1) == 1) ||
        (sscanf(auxTableName, blobPattern, buf, buf, &id1, &id2) == 4)) {
@@ -696,6 +729,24 @@ RestoreMetaData::markSysTables()
         auxTable->m_main_column_id = id2;
       } else {
         restoreLogger.log_error("Restore: Bad primary table id in %s", auxTableName);
+=======
+    cnt = sscanf(blobTableName, "%[^/]/%[^/]/NDB$BLOB_%d_%d",
+                 buf, buf, &id1, &id2);
+    if (cnt == 4) {
+      Uint32 j;
+      for (j = 0; j < getNoOfTables(); j++) {
+        TableS* table = allTables[j];
+        if (table->getTableId() == (Uint32) id1) {
+          if (table->m_isSysTable)
+            blobTable->m_isSysTable = true;
+          blobTable->m_main_table = table;
+          blobTable->m_main_column_id = id2;
+          break;
+        }
+      }
+      if (j == getNoOfTables()) {
+        restoreLogger.log_error("Restore: Bad primary table id in %s", blobTableName);
+>>>>>>> pr/231
         return false;
       }
     }
@@ -771,9 +822,13 @@ RestoreMetaData::readGCPEntry() {
 
   BackupFormat::CtlFile::GCPEntry dst;
   
+<<<<<<< HEAD
   int r = buffer_read(&dst, 1, sizeof(dst));
   if(r < 0 || size_t(r) != sizeof(dst))
   {
+=======
+  if(buffer_read(&dst, 1, sizeof(dst)) != sizeof(dst)){
+>>>>>>> pr/231
     restoreLogger.log_error("readGCPEntry read error");
     return false;
   }
@@ -907,10 +962,17 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
     err_struct.code = ret;
     ndberror_update(&err_struct);
 
+<<<<<<< HEAD
     restoreLogger.log_error("parseTableInfo failed with error %u \"%s\"",
         err_struct.code, err_struct.message);
 
     restoreLogger.log_error("Check version of backup and schema contained in backup.");
+=======
+    restoreLogger.log_error("parseTableInfo failed with error  %d %s "
+			    "Check version of backup and schema contained "
+			    "in backup.",
+			    err_struct.code, err_struct.message);
+>>>>>>> pr/231
     return false;
   }
   if(tableImpl == 0)
@@ -923,6 +985,7 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
   }
 
   restoreLogger.log_debug("Parsed table id %u\nParsed table #attr %u\n"
+<<<<<<< HEAD
         "Parsed table schema version not used",
         table->getTableId(),
         table->getNoOfAttributes());
@@ -930,14 +993,28 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
   restoreLogger.log_debug("Pushing table %s\n    with %u attributes",
         table->getTableName(), table->getNoOfAttributes());
   
+=======
+			  "Parsed table schema version not used",
+			  table->getTableId(),
+			  table->getNoOfAttributes());
+
+  restoreLogger.log_debug("Pushing table %s\n    with %u attributes",
+			  table->getTableName(), table->getNoOfAttributes());
+
+>>>>>>> pr/231
   allTables.push_back(table);
 
   return true;
 }
 
 // Constructor
+<<<<<<< HEAD
 RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _free_data_callback)(void*), void *ctx)
   : BackupFile(_free_data_callback, ctx), m_metaData(md),
+=======
+RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _free_data_callback)())
+  : BackupFile(_free_data_callback), m_metaData(md),
+>>>>>>> pr/231
     m_current_table_has_transforms(false)
 {
   restoreLogger.log_debug("RestoreDataIterator constructor");
@@ -953,8 +1030,13 @@ RestoreDataIterator::validateRestoreDataIterator()
 {
     if (!m_extra_storage_ptr)
     {
+<<<<<<< HEAD
         restoreLogger.log_error("m_extra_storage_ptr is NULL");
         return false;
+=======
+      restoreLogger.log_error("m_extra_storage_ptr is NULL");
+      return false;
+>>>>>>> pr/231
     }
     return true;
 }
@@ -1205,18 +1287,30 @@ RestoreDataIterator::getNextTuple(int  & res, const bool skipFragment)
   {
     Uint32  dataLength = 0;
     // Read record length
+<<<<<<< HEAD
     int r = buffer_read(&dataLength, sizeof(dataLength), 1);
     if (r != 1)
     {
+=======
+    if (buffer_read(&dataLength, sizeof(dataLength), 1) != 1){
+>>>>>>> pr/231
       restoreLogger.log_error("getNextTuple:Error reading length of data part");
       res = -1;
       return NULL;
     } // if
+<<<<<<< HEAD
   
     // Convert length from network byte order
     dataLength = ntohl(dataLength);
     const Uint32 dataLenBytes = 4 * dataLength;
   
+=======
+
+    // Convert length from network byte order
+    dataLength = ntohl(dataLength);
+    const Uint32 dataLenBytes = 4 * dataLength;
+
+>>>>>>> pr/231
     if (dataLength == 0) {
       // Zero length for last tuple
       // End of this data fragment
@@ -1227,9 +1321,13 @@ RestoreDataIterator::getNextTuple(int  & res, const bool skipFragment)
 
     // Read tuple data
     void *_buf_ptr;
+<<<<<<< HEAD
     r = buffer_get_ptr(&_buf_ptr, 1, dataLenBytes);
     if (r < 0 || Uint32(r) != dataLenBytes)
     {
+=======
+    if (buffer_get_ptr(&_buf_ptr, 1, dataLenBytes) != dataLenBytes) {
+>>>>>>> pr/231
       restoreLogger.log_error("getNextTuple:Read error: ");
       res = -1;
       return NULL;
@@ -1667,7 +1765,11 @@ BackupFile::openFile(){
 
   info.setLevel(254);
   restoreLogger.log_info("Opening file '%s'", m_fileName);
+<<<<<<< HEAD
   r = m_file.open(m_fileName, FsOpenReq::OM_READONLY);
+=======
+  int r= ndbzopen(&m_file, m_fileName, O_RDONLY);
+>>>>>>> pr/231
 
   if(r == -1) {
     return false;
@@ -1988,6 +2090,7 @@ BackupFile::readHeader(){
   }
   
   Uint32 oldsz = sizeof(BackupFormat::FileHeader_pre_backup_version);
+<<<<<<< HEAD
   int r = buffer_read(&m_fileHeader, oldsz, 1);
   if(r != 1)
   {
@@ -2000,6 +2103,10 @@ BackupFile::readHeader(){
       restoreLogger.log_error("readDataFileHeader: Error reading header. "
                               "Wrong password?");
     }
+=======
+  if(buffer_read(&m_fileHeader, oldsz, 1) != 1){
+    restoreLogger.log_error("readDataFileHeader: Error reading header");
+>>>>>>> pr/231
     return false;
   }
   
@@ -2025,6 +2132,7 @@ BackupFile::readHeader(){
                         sizeof(m_fileHeader) - oldsz, 1);
     if (r != 1)
     {
+<<<<<<< HEAD
       if (!m_xfile.is_encrypted())
       {
         restoreLogger.log_error("readDataFileHeader: Error reading header");
@@ -2034,6 +2142,9 @@ BackupFile::readHeader(){
         restoreLogger.log_error("readDataFileHeader: Error reading header. "
                                 "Wrong password?");
       }
+=======
+      restoreLogger.log_error("readDataFileHeader: Error reading header");
+>>>>>>> pr/231
       return false;
     }
     
@@ -2228,12 +2339,22 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
   }
 
   calc_row_extra_storage_words(m_currentTable);
+<<<<<<< HEAD
   info.setLevel(254);
   restoreLogger.log_info("_____________________________________________________"
                          "\nProcessing data in table: %s(%u) fragment %u",
                            m_currentTable->getTableName(),
                            Header.TableId, Header.FragmentNo);
   
+=======
+
+  info.setLevel(254);
+  restoreLogger.log_info("_____________________________________________________"
+                         "\nProcessing data in table: %s(%u) fragment %u",
+			 m_currentTable->getTableName(),
+			 Header.TableId, Header.FragmentNo);
+
+>>>>>>> pr/231
   m_count = 0;
   ret = 0;
   *fragmentId = Header.FragmentNo;
@@ -2245,9 +2366,13 @@ bool
 RestoreDataIterator::validateFragmentFooter() {
   BackupFormat::DataFile::FragmentFooter footer;
   
+<<<<<<< HEAD
   int r = buffer_read(&footer, sizeof(footer), 1);
   if (r != 1)
   {
+=======
+  if (buffer_read(&footer, sizeof(footer), 1) != 1){
+>>>>>>> pr/231
     restoreLogger.log_error("getFragmentFooter:Error reading fragment footer");
     return false;
   } 
@@ -2770,6 +2895,7 @@ LogEntry::printSqlLog() const {
   ndbout << ";";
 }
 
+<<<<<<< HEAD
 RestoreLogger::RestoreLogger()
 {
   m_mutex = NdbMutex_Create();
@@ -2780,6 +2906,10 @@ RestoreLogger::~RestoreLogger()
   NdbMutex_Destroy(m_mutex);
 }
 
+=======
+RestoreLogger::RestoreLogger():print_timestamp(false) {}
+
+>>>>>>> pr/231
 void RestoreLogger::log_error(const char* fmt, ...)
 {
   va_list ap;
@@ -2788,9 +2918,17 @@ void RestoreLogger::log_error(const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
+<<<<<<< HEAD
   NdbMutex_Lock(m_mutex);
   err << getThreadPrefix() << buf << endl;
   NdbMutex_Unlock(m_mutex);
+=======
+  if (print_timestamp) {
+    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    err << timestamp << " ";
+  }
+  err << buf << endl;
+>>>>>>> pr/231
 }
 
 void RestoreLogger::log_info(const char* fmt, ...)
@@ -2801,9 +2939,17 @@ void RestoreLogger::log_info(const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
+<<<<<<< HEAD
   NdbMutex_Lock(m_mutex);
   info << getThreadPrefix() << buf << endl;
   NdbMutex_Unlock(m_mutex);
+=======
+  if (print_timestamp) {
+    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    info << timestamp << " ";
+  }
+  info << buf << endl;
+>>>>>>> pr/231
 }
 
 void RestoreLogger::log_debug(const char* fmt, ...)
@@ -2814,6 +2960,7 @@ void RestoreLogger::log_debug(const char* fmt, ...)
   vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
 
+<<<<<<< HEAD
   NdbMutex_Lock(m_mutex);
   debug << getThreadPrefix() << buf << endl;
   NdbMutex_Unlock(m_mutex);
@@ -2835,6 +2982,23 @@ RestoreLogger::getThreadPrefix() const
       prefix =  "";
     }
    return prefix;
+=======
+  if (print_timestamp) {
+    Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
+    debug << timestamp << " ";
+  }
+  debug << buf << endl;
+}
+
+void
+RestoreLogger::set_print_timestamp(bool print_TS) {
+  print_timestamp = print_TS;
+}
+
+bool
+RestoreLogger::get_print_timestamp() {
+  return print_timestamp;
+>>>>>>> pr/231
 }
 
 NdbOut &

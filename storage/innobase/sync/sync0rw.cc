@@ -1,6 +1,14 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1995, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+=======
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -9,6 +17,7 @@ briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
+<<<<<<< HEAD
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
 Free Software Foundation.
@@ -24,6 +33,23 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -269,15 +295,48 @@ rw_lock_t::~rw_lock_t() {
   ut_d(magic_n = 0);
 }
 
+<<<<<<< HEAD
 void rw_lock_s_lock_spin(rw_lock_t *lock, ulint pass, ut::Location location) {
+=======
+/** Lock an rw-lock in shared mode for the current thread. If the rw-lock is
+ locked in exclusive mode, or there is an exclusive lock request waiting,
+ the function spins a preset time (controlled by srv_n_spin_wait_rounds),
+ waiting for the lock, before suspending the thread. */
+void rw_lock_s_lock_spin(
+    rw_lock_t *lock,       /*!< in: pointer to rw-lock */
+    ulint pass,            /*!< in: pass value; != 0, if the lock
+                           will be passed to another thread to unlock */
+    const char *file_name, /*!< in: file name where lock requested */
+    ulint line)            /*!< in: line where requested */
+{
+<<<<<<< HEAD
+>>>>>>> pr/231
   ulint i = 0; /* spin round count */
   sync_array_t *sync_arr;
   uint64_t count_os_wait = 0;
+=======
+	ulint		i = 0;	/* spin round count */
+	sync_array_t*	sync_arr;
+	ulint		spin_count = 0;
+	uint64_t	count_os_wait = 0;
+	const os_thread_id_t curr_thread = os_thread_get_curr_id();
+>>>>>>> upstream/cluster-7.6
 
   /* We reuse the thread id to index into the counter, cache
   it here for efficiency. */
 
+<<<<<<< HEAD
   ut_ad(rw_lock_validate(lock));
+<<<<<<< HEAD
+=======
+  rw_lock_stats.rw_s_spin_wait_count.inc();
+=======
+	const size_t counter_index = (size_t) ut_rnd_gen_next_ulint(
+							(ulint) curr_thread);
+
+	ut_ad(rw_lock_validate(lock));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 lock_loop:
 
@@ -301,11 +360,28 @@ lock_loop:
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
     }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    rw_lock_stats.rw_s_spin_round_count.add(spin_count);
+
+>>>>>>> pr/231
     return; /* Success */
   } else {
     if (i < srv_n_spin_wait_rounds) {
       goto lock_loop;
     }
+=======
+		if (count_os_wait > 0) {
+			lock->count_os_wait +=
+				static_cast<uint32_t>(count_os_wait);
+			rw_lock_stats.rw_s_os_wait_count.add(counter_index,
+							     count_os_wait);
+		}
+
+		rw_lock_stats.rw_s_spin_round_count.add(counter_index,
+							spin_count);
+>>>>>>> upstream/cluster-7.6
 
     ++count_os_wait;
 
@@ -328,9 +404,37 @@ lock_loop:
       return; /* Success */
     }
 
+<<<<<<< HEAD
     /* see comments in trx_commit_low() to
     before_trx_state_committed_in_memory explaining
     this care to invoke the following sync check.*/
+=======
+<<<<<<< HEAD
+      /* see comments in trx_commit_low() to
+      before_trx_state_committed_in_memory explaining
+      this care to invoke the following sync check.*/
+=======
+			if (count_os_wait > 0) {
+
+				lock->count_os_wait +=
+					static_cast<uint32_t>(count_os_wait);
+
+				rw_lock_stats.rw_s_os_wait_count.add(
+					counter_index, count_os_wait);
+			}
+
+			rw_lock_stats.rw_s_spin_round_count.add(counter_index,
+								spin_count);
+
+			return; /* Success */
+		}
+
+		/* see comments in trx_commit_low() to
+		before_trx_state_committed_in_memory explaining
+		this care to invoke the following sync check.*/
+#ifndef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #ifdef UNIV_DEBUG
     if (lock->get_level() != SYNC_DICT_OPERATION) {
       DEBUG_SYNC_C("rw_s_lock_waiting");
@@ -355,12 +459,21 @@ void rw_lock_x_lock_move_ownership(
     rw_lock_t *lock) /*!< in: lock which was x-locked in the
                      buffer read */
 {
+<<<<<<< HEAD
   ut_ad(rw_lock_is_locked(lock, RW_LOCK_X));
 
   rw_lock_set_writer_id_and_recursion_flag(lock, true);
+=======
+	const os_thread_id_t curr_thread = os_thread_get_curr_id();
+
+	ut_ad(rw_lock_is_locked(lock, RW_LOCK_X));
+
+	rw_lock_set_writer_id_and_recursion_flag(lock, true, curr_thread);
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Function for the next writer to call. Waits for readers to exit.
+<<<<<<< HEAD
  The caller must have already decremented lock_word by X_LOCK_DECR.
  @param[in] lock pointer to rw-lock
  @param[in] pass pass value; != 0, if the lock will be passed to another thread
@@ -372,9 +485,41 @@ static inline void rw_lock_x_lock_wait_func(rw_lock_t *lock,
                                             IF_DEBUG(ulint pass, )
                                                 lint threshold,
                                             const char *file_name, ulint line) {
+=======
+ The caller must have already decremented lock_word by X_LOCK_DECR. */
+UNIV_INLINE
+void rw_lock_x_lock_wait_func(
+    rw_lock_t *lock, /*!< in: pointer to rw-lock */
+#ifdef UNIV_DEBUG
+    ulint pass, /*!< in: pass value; != 0, if the lock will
+                be passed to another thread to unlock */
+#endif
+<<<<<<< HEAD
+    lint threshold,        /*!< in: threshold to wait for */
+    const char *file_name, /*!< in: file name where lock requested */
+    ulint line)            /*!< in: line where requested */
+{
+>>>>>>> pr/231
   ulint i = 0;
   sync_array_t *sync_arr;
   uint64_t count_os_wait = 0;
+=======
+	lint		threshold,/*!< in: threshold to wait for */
+	const os_thread_id_t curr_thread,/*!< in: current thread id */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+{
+	ulint		i = 0;
+	ulint		n_spins = 0;
+	sync_array_t*	sync_arr;
+	uint64_t	count_os_wait = 0;
+	size_t		counter_index;
+
+	/* We reuse the thread id to index into the counter, cache
+	it here for efficiency. */
+
+	counter_index = (size_t) ut_rnd_gen_next_ulint((ulint) curr_thread);
+>>>>>>> upstream/cluster-7.6
 
   os_rmb;
   ut_ad(lock->lock_word <= threshold);
@@ -421,11 +566,18 @@ static inline void rw_lock_x_lock_wait_func(rw_lock_t *lock,
     }
   }
 
+<<<<<<< HEAD
+=======
+  rw_lock_stats.rw_x_spin_round_count.add(n_spins);
+
+<<<<<<< HEAD
+>>>>>>> pr/231
   if (count_os_wait > 0) {
     lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
   }
 }
 
+<<<<<<< HEAD
 /** Function for the next writer to call. Waits for readers to exit.
  The caller must have already decremented lock_word by X_LOCK_DECR.
  @param[in] lock pointer to rw-lock
@@ -444,11 +596,60 @@ static inline void rw_lock_x_lock_wait(rw_lock_t *lock,
 /** Low-level function for acquiring an exclusive lock.
  @return false if did not succeed, true if success. */
 static inline bool rw_lock_x_lock_low(
+=======
+#ifdef UNIV_DEBUG
+#define rw_lock_x_lock_wait(L, P, T, F, O) \
+  rw_lock_x_lock_wait_func(L, P, T, F, O)
+#else
+#define rw_lock_x_lock_wait(L, P, T, F, O) rw_lock_x_lock_wait_func(L, T, F, O)
+=======
+		} else {
+			sync_array_free_cell(sync_arr, cell);
+			break;
+		}
+	}
+
+	rw_lock_stats.rw_x_spin_round_count.add(counter_index, n_spins);
+
+	if (count_os_wait > 0) {
+		lock->count_os_wait +=
+			static_cast<uint32_t>(count_os_wait);
+		rw_lock_stats.rw_x_os_wait_count.add(counter_index,
+						     count_os_wait);
+	}
+}
+
+#ifdef UNIV_DEBUG
+# define rw_lock_x_lock_wait(L, P, T, C, F, O)		\
+	rw_lock_x_lock_wait_func(L, P, T, C, F, O)
+#else
+# define rw_lock_x_lock_wait(L, P, T, C, F, O)		\
+	rw_lock_x_lock_wait_func(L, T, C, F, O)
+>>>>>>> upstream/cluster-7.6
+#endif /* UNIV_DBEUG */
+
+/** Low-level function for acquiring an exclusive lock.
+ @return false if did not succeed, true if success. */
+UNIV_INLINE
+<<<<<<< HEAD
+ibool rw_lock_x_lock_low(
+>>>>>>> pr/231
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */
     const char *file_name, /*!< in: file name where lock requested */
     ulint line)            /*!< in: line where requested */
+=======
+ibool
+rw_lock_x_lock_low(
+/*===============*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const os_thread_id_t curr_thread,/*!< in: current thread id */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+>>>>>>> upstream/cluster-7.6
 {
   if (rw_lock_lock_word_decr(lock, X_LOCK_DECR, X_LOCK_HALF_DECR)) {
     /* lock->recursive == true implies that the lock->writer_thread is the
@@ -460,6 +661,7 @@ static inline bool rw_lock_x_lock_low(
     /* Decrement occurred: we are writer or next-writer. */
     rw_lock_set_writer_id_and_recursion_flag(lock, !pass);
 
+<<<<<<< HEAD
     rw_lock_x_lock_wait(lock, pass, 0, file_name, line);
 
   } else {
@@ -476,11 +678,38 @@ static inline bool rw_lock_x_lock_low(
       if (rw_lock_lock_word_decr(lock, X_LOCK_DECR, 0)) {
         /* There is at least one SX-lock from this
         thread, but no X-lock. */
+=======
+		/* Decrement occurred: we are writer or next-writer. */
+		rw_lock_set_writer_id_and_recursion_flag(
+			lock, !pass, curr_thread);
+
+		rw_lock_x_lock_wait(lock, pass, 0, curr_thread,
+				    file_name, line);
+
+	} else {
+		bool recursive;
+		os_thread_id_t writer_thread;
+
+		if (!pass) {
+			recursive = lock->recursive;
+			os_rmb;
+			writer_thread = lock->writer_thread;
+		}
+
+		/* Decrement failed: An X or SX lock is held by either
+		this thread or another. Try to relock. */
+		if (!pass && recursive
+		    && os_thread_eq(writer_thread, curr_thread)) {
+			/* Other s-locks can be allowed. If it is request x
+			recursively while holding sx lock, this x lock should
+			be along with the latching-order. */
+>>>>>>> upstream/cluster-7.6
 
         /* Wait for any the other S-locks to be
         released. */
         rw_lock_x_lock_wait(lock, pass, -X_LOCK_HALF_DECR, file_name, line);
 
+<<<<<<< HEAD
       } else {
         /* At least one X lock by this thread already
         exists. Add another. */
@@ -491,6 +720,17 @@ static inline bool rw_lock_x_lock_low(
           --lock->lock_word;
         }
       }
+<<<<<<< HEAD
+=======
+=======
+				/* Wait for any the other S-locks to be
+				released. */
+				rw_lock_x_lock_wait(
+					lock, pass, -X_LOCK_HALF_DECR,
+					curr_thread, file_name, line);
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
     } else {
       /* Another thread locked before us */
       return false;
@@ -506,7 +746,35 @@ static inline bool rw_lock_x_lock_low(
   return true;
 }
 
+<<<<<<< HEAD
 bool rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass, ut::Location location) {
+=======
+<<<<<<< HEAD
+/** Low-level function for acquiring an sx lock.
+ @return false if did not succeed, true if success. */
+ibool rw_lock_sx_lock_low(
+    rw_lock_t *lock,       /*!< in: pointer to rw-lock */
+    ulint pass,            /*!< in: pass value; != 0, if the lock will
+                           be passed to another thread to unlock */
+    const char *file_name, /*!< in: file name where lock requested */
+    ulint line)            /*!< in: line where requested */
+=======
+/******************************************************************//**
+Low-level function for acquiring an sx lock.
+@return FALSE if did not succeed, TRUE if success. */
+UNIV_INLINE
+ibool
+rw_lock_sx_lock_low(
+/*================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const os_thread_id_t curr_thread,/*!< in: current thread id */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+>>>>>>> upstream/cluster-7.6
+{
+>>>>>>> pr/231
   if (rw_lock_lock_word_decr(lock, X_LOCK_HALF_DECR, X_LOCK_HALF_DECR)) {
     /* lock->recursive == true implies that the lock->writer_thread is the
     current writer. As we are going to write our own thread id in that field it
@@ -517,9 +785,25 @@ bool rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass, ut::Location location) {
     /* Decrement occurred: we are the SX lock owner. */
     rw_lock_set_writer_id_and_recursion_flag(lock, !pass);
 
+<<<<<<< HEAD
     lock->sx_recursive = 1;
+=======
+		/* Decrement occurred: we are the SX lock owner. */
+		rw_lock_set_writer_id_and_recursion_flag(
+			lock, !pass, curr_thread);
+>>>>>>> upstream/cluster-7.6
 
   } else {
+<<<<<<< HEAD
+=======
+    os_thread_id_t thread_id = os_thread_get_curr_id();
+
+<<<<<<< HEAD
+    if (!pass) {
+      os_rmb;
+    }
+
+>>>>>>> pr/231
     /* Decrement failed: It already has an X or SX lock by this
     thread or another thread. If it is this thread, relock,
     else fail. */
@@ -535,6 +819,28 @@ bool rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass, ut::Location location) {
         * There can't be a WAIT_EX thread because we are
           the thread which has it's thread_id written in
           the writer_thread field and we are not waiting.
+=======
+	} else {
+		bool recursive;
+		os_thread_id_t writer_thread;
+
+		if (!pass) {
+			recursive = lock->recursive;
+			os_rmb;
+			writer_thread = lock->writer_thread;
+		}
+
+		/* Decrement failed: It already has an X or SX lock by this
+		thread or another thread. If it is this thread, relock,
+		else fail. */
+		if (!pass && recursive
+		    && os_thread_eq(writer_thread, curr_thread)) {
+			/* This thread owns an X or SX lock */
+			if (lock->sx_recursive++ == 0) {
+				/* This thread is making first SX-lock request
+				and it must be holding at least one X-lock here
+				because:
+>>>>>>> upstream/cluster-7.6
 
         * Any other X-lock thread cannot exist because
           it must update recursive flag only after
@@ -569,24 +875,74 @@ bool rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass, ut::Location location) {
   return true;
 }
 
+<<<<<<< HEAD
 void rw_lock_x_lock_func(rw_lock_t *lock, ulint pass, ut::Location location) {
+=======
+/** NOTE! Use the corresponding macro, not directly this function! Lock an
+ rw-lock in exclusive mode for the current thread. If the rw-lock is locked
+ in shared or exclusive mode, or there is an exclusive lock request waiting,
+ the function spins a preset time (controlled by srv_n_spin_wait_rounds),
+ waiting for the lock before suspending the thread. If the same thread has an
+ x-lock on the rw-lock, locking succeed, with the following exception: if pass
+ != 0, only a single x-lock may be taken on the lock. NOTE: If the same thread
+ has an s-lock, locking does not succeed! */
+void rw_lock_x_lock_func(
+    rw_lock_t *lock,       /*!< in: pointer to rw-lock */
+    ulint pass,            /*!< in: pass value; != 0, if the lock will
+                           be passed to another thread to unlock */
+    const char *file_name, /*!< in: file name where lock requested */
+    ulint line)            /*!< in: line where requested */
+{
+<<<<<<< HEAD
+>>>>>>> pr/231
   ulint i = 0;
   sync_array_t *sync_arr;
   uint64_t count_os_wait = 0;
   bool spinning = false;
+=======
+	ulint		i = 0;
+	sync_array_t*	sync_arr;
+	ulint		spin_count = 0;
+	uint64_t	count_os_wait = 0;
+	const os_thread_id_t curr_thread = os_thread_get_curr_id();
+
+	/* We reuse the thread id to index into the counter, cache
+	it here for efficiency. */
+
+	const size_t counter_index = (size_t) ut_rnd_gen_next_ulint(
+							(ulint) curr_thread);
+>>>>>>> upstream/cluster-7.6
 
   ut_ad(rw_lock_validate(lock));
   ut_ad(!rw_lock_own(lock, RW_LOCK_S));
 
 lock_loop:
 
+<<<<<<< HEAD
   if (rw_lock_x_lock_low(lock, pass, location.filename, location.line)) {
+=======
+<<<<<<< HEAD
+  if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
+>>>>>>> pr/231
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
     }
 
     /* Locking succeeded */
     return;
+=======
+	if (rw_lock_x_lock_low(lock, pass, curr_thread, file_name, line)) {
+
+		if (count_os_wait > 0) {
+			lock->count_os_wait +=
+				static_cast<uint32_t>(count_os_wait);
+			rw_lock_stats.rw_x_os_wait_count.add(counter_index,
+							     count_os_wait);
+		}
+
+		rw_lock_stats.rw_x_spin_round_count.add(counter_index,
+							spin_count);
+>>>>>>> upstream/cluster-7.6
 
   } else {
     if (!spinning) {
@@ -630,32 +986,105 @@ lock_loop:
     return;
   }
 
+<<<<<<< HEAD
   ++count_os_wait;
 
   sync_array_wait_event(sync_arr, cell);
 
   i = 0;
+=======
+	if (rw_lock_x_lock_low(lock, pass, curr_thread, file_name, line)) {
+		sync_array_free_cell(sync_arr, cell);
+
+		if (count_os_wait > 0) {
+			lock->count_os_wait +=
+				static_cast<uint32_t>(count_os_wait);
+			rw_lock_stats.rw_x_os_wait_count.add(counter_index,
+							     count_os_wait);
+		}
+
+		rw_lock_stats.rw_x_spin_round_count.add(counter_index,
+							spin_count);
+>>>>>>> upstream/cluster-7.6
 
   goto lock_loop;
 }
 
+<<<<<<< HEAD
 void rw_lock_sx_lock_func(rw_lock_t *lock, ulint pass, ut::Location location) {
+=======
+/** NOTE! Use the corresponding macro, not directly this function! Lock an
+ rw-lock in SX mode for the current thread. If the rw-lock is locked
+ in exclusive mode, or there is an exclusive lock request waiting,
+ the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
+ for the lock, before suspending the thread. If the same thread has an x-lock
+ on the rw-lock, locking succeed, with the following exception: if pass != 0,
+ only a single sx-lock may be taken on the lock. NOTE: If the same thread has
+ an s-lock, locking does not succeed! */
+void rw_lock_sx_lock_func(
+    rw_lock_t *lock,       /*!< in: pointer to rw-lock */
+    ulint pass,            /*!< in: pass value; != 0, if the lock will
+                           be passed to another thread to unlock */
+    const char *file_name, /*!< in: file name where lock requested */
+    ulint line)            /*!< in: line where requested */
+
+{
+<<<<<<< HEAD
+>>>>>>> pr/231
   ulint i = 0;
   sync_array_t *sync_arr;
   uint64_t count_os_wait = 0;
+<<<<<<< HEAD
+=======
+  ulint spin_wait_count = 0;
+=======
+	ulint		i = 0;
+	sync_array_t*	sync_arr;
+	ulint		spin_count = 0;
+	uint64_t	count_os_wait = 0;
+	ulint		spin_wait_count = 0;
+	const os_thread_id_t curr_thread = os_thread_get_curr_id();
+
+	/* We reuse the thread id to index into the counter, cache
+	it here for efficiency. */
+
+	const size_t counter_index = (size_t) ut_rnd_gen_next_ulint(
+							(ulint) curr_thread);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   ut_ad(rw_lock_validate(lock));
   ut_ad(!rw_lock_own(lock, RW_LOCK_S));
 
 lock_loop:
 
+<<<<<<< HEAD
   if (rw_lock_sx_lock_low(lock, pass, location)) {
+=======
+<<<<<<< HEAD
+  if (rw_lock_sx_lock_low(lock, pass, file_name, line)) {
+>>>>>>> pr/231
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
     }
 
     /* Locking succeeded */
     return;
+=======
+	if (rw_lock_sx_lock_low(lock, pass, curr_thread, file_name, line)) {
+
+		if (count_os_wait > 0) {
+			lock->count_os_wait +=
+				static_cast<uint32_t>(count_os_wait);
+			rw_lock_stats.rw_sx_os_wait_count.add(counter_index,
+							      count_os_wait);
+		}
+
+		rw_lock_stats.rw_sx_spin_round_count.add(counter_index,
+							 spin_count);
+		rw_lock_stats.rw_sx_spin_wait_count.add(counter_index,
+							spin_wait_count);
+>>>>>>> upstream/cluster-7.6
 
   } else {
     /* Spin waiting for the lock_word to become free */
@@ -697,11 +1126,60 @@ lock_loop:
 
   ++count_os_wait;
 
+<<<<<<< HEAD
   sync_array_wait_event(sync_arr, cell);
+=======
+	if (rw_lock_sx_lock_low(lock, pass, curr_thread, file_name, line)) {
+>>>>>>> upstream/cluster-7.6
 
   i = 0;
 
+<<<<<<< HEAD
   goto lock_loop;
+=======
+		if (count_os_wait > 0) {
+			lock->count_os_wait +=
+				static_cast<uint32_t>(count_os_wait);
+			rw_lock_stats.rw_sx_os_wait_count.add(counter_index,
+							      count_os_wait);
+		}
+
+		rw_lock_stats.rw_sx_spin_round_count.add(counter_index,
+							 spin_count);
+		rw_lock_stats.rw_sx_spin_wait_count.add(counter_index,
+							spin_wait_count);
+
+		/* Locking succeeded */
+		return;
+	}
+
+	++count_os_wait;
+
+	sync_array_wait_event(sync_arr, cell);
+
+	i = 0;
+
+	goto lock_loop;
+>>>>>>> upstream/cluster-7.6
+}
+
+/******************************************************************//**
+NOTE! Use the corresponding macro, not directly this function! Lock an
+rw-lock in SX mode for the current thread if the lock can be
+obtained immediately.
+@return FALSE if did not succeed, TRUE if success. */
+ibool
+rw_lock_sx_lock_func_nowait(
+/*========================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+{
+	const os_thread_id_t curr_thread = os_thread_get_curr_id();
+
+	return(rw_lock_sx_lock_low(lock, pass, curr_thread, file_name, line));
 }
 
 #ifdef UNIV_DEBUG

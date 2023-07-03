@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2012, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2012, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +45,15 @@
 */
 
 /** Table PERFORMANCE_SCHEMA.SESSION_ACCOUNT_CONNECT_ATTRS. */
+<<<<<<< HEAD
 class table_session_account_connect_attrs : public table_session_connect {
  public:
+=======
+class table_session_account_connect_attrs : public table_session_connect
+{
+public:
+  static PFS_engine_table_share_state m_share_state;
+>>>>>>> upstream/cluster-7.6
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */

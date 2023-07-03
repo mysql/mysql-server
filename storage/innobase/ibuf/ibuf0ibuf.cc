@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1997, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1997, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -2410,6 +2434,7 @@ ulint ibuf_merge_in_background(bool full) {
 
     mutex_enter(&ibuf_mutex);
 
+<<<<<<< HEAD
     /* If the ibuf->size is more than half the max_size
     then we make more aggressive contraction.
     +1 is to avoid division by zero. */
@@ -2419,6 +2444,16 @@ ulint ibuf_merge_in_background(bool full) {
       diff = std::min(diff, ibuf->max_size);
       n_pages += PCT_IO((diff * 100) / (ibuf->max_size + 1));
     }
+=======
+		/* If the ibuf->size is more than half the max_size
+		then we make more aggressive contraction.
+		+1 is to avoid division by zero. */
+		if (ibuf->size > ibuf->max_size / 2) {
+			ulint diff = ibuf->size - ibuf->max_size / 2;
+			n_pages += PCT_IO((diff * 100)
+					   / (ibuf->max_size + 1));
+		}
+>>>>>>> upstream/cluster-7.6
 
     mutex_exit(&ibuf_mutex);
   }
@@ -3814,7 +3849,20 @@ static bool ibuf_restore_pos(
                                 " ibuf record inserted to page "
                              << space << ":" << page_no;
 
+<<<<<<< HEAD
     ib::error(ER_IB_MSG_621) << BUG_REPORT_MSG;
+=======
+	if (fil_space_get_flags(space) == ULINT_UNDEFINED ||
+		fil_space_is_being_truncated(space)) {
+		/* The tablespace has been dropped. Or the tablespace is being
+		truncated. It is possible that another thread has deleted
+		the insert buffer entry.  Do not complain. */
+		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
+	} else {
+		ib::error() << "ibuf cursor restoration fails!."
+			" ibuf record inserted to page "
+			<< space << ":" << page_no;
+>>>>>>> upstream/cluster-7.6
 
     rec_print_old(stderr, pcur->get_rec());
     rec_print_old(stderr, pcur->m_old_rec);

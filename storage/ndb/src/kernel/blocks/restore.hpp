@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -289,6 +293,7 @@ private:
   Uint32 m_table_buf[MAX_WORDS_META_FILE];
   Uint32
     m_lcp_ctl_file_data[2][BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS];
+<<<<<<< HEAD
 
   bool c_encrypted_filesystem;
 
@@ -297,6 +302,8 @@ private:
   {
     return m_lqh_block;
   }
+=======
+>>>>>>> pr/231
 };
 
 NdbOut& operator << (NdbOut&, const Restore::Column&);

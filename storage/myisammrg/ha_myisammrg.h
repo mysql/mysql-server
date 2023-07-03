@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +104,12 @@ class ha_myisammrg : public handler {
   bool is_index_algorithm_supported(enum ha_key_alg key_alg) const override {
     return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_RTREE;
   }
+<<<<<<< HEAD
   ulonglong table_flags() const override {
+=======
+<<<<<<< HEAD
+  ulonglong table_flags() const {
+>>>>>>> pr/231
     return (HA_AUTO_PART_KEY | HA_NO_TRANSACTIONS | HA_BINLOG_ROW_CAPABLE |
             HA_BINLOG_STMT_CAPABLE | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS |
             HA_FILE_BASED | HA_ANY_INDEX_MAY_BE_UNIQUE | HA_CAN_BIT_FIELD |
@@ -117,6 +130,15 @@ class ha_myisammrg : public handler {
   double scan_time() override {
     return ulonglong2double(stats.data_file_length) / IO_SIZE + file->tables;
   }
+=======
+  uint max_supported_keys()          const { return MI_MAX_KEY; }
+  uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length(HA_CREATE_INFO
+                    *create_info MY_ATTRIBUTE((unused))) const
+  { return MI_MAX_KEY_LENGTH; }
+  double scan_time()
+  { return ulonglong2double(stats.data_file_length) / IO_SIZE + file->tables; }
+>>>>>>> upstream/cluster-7.6
 
   int open(const char *name, int mode, uint test_if_locked_arg,
            const dd::Table *table_def) override;

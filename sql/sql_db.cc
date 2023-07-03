@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,6 +141,333 @@ bool get_default_db_collation(const dd::Schema &schema,
   return false;
 }
 
+<<<<<<< HEAD
+=======
+
+
+/**
+  Free database option hash and locked databases hash.
+*/
+
+void my_dboptions_cache_free(void)
+{
+  if (dboptions_init)
+  {
+    dboptions_init= 0;
+    my_hash_free(&dboptions);
+    mysql_rwlock_destroy(&LOCK_dboptions);
+  }
+}
+
+
+/**
+  Cleanup cached options.
+*/
+
+void my_dbopt_cleanup(void)
+{
+  mysql_rwlock_wrlock(&LOCK_dboptions);
+  my_hash_free(&dboptions);
+  /*
+    For lower_case_table_names=0 we should use case sensitive search
+    (my_charset_bin), for 1 and 2 - case insensitive (system_charset_info).
+  */
+  my_hash_init(&dboptions, lower_case_table_names ? 
+               system_charset_info : &my_charset_bin,
+               32, 0, 0, (my_hash_get_key) dboptions_get_key,
+               free_dbopt, 0,
+               key_memory_dboptions_hash);
+  mysql_rwlock_unlock(&LOCK_dboptions);
+}
+
+
+/*
+  Find database options in the hash.
+  
+  DESCRIPTION
+    Search a database options in the hash, usings its path.
+    Fills "create" on success.
+  
+  RETURN VALUES
+    0 on success.
+    1 on error.
+*/
+
+static my_bool get_dbopt(const char *dbname, HA_CREATE_INFO *create)
+{
+  my_dbopt_t *opt;
+  size_t length;
+  my_bool error= 1;
+
+  length= strlen(dbname);
+
+  mysql_rwlock_rdlock(&LOCK_dboptions);
+  if ((opt= (my_dbopt_t*) my_hash_search(&dboptions, (uchar*) dbname, length)))
+  {
+    create->default_table_charset= opt->charset;
+    error= 0;
+  }
+  mysql_rwlock_unlock(&LOCK_dboptions);
+  return error;
+}
+
+
+/*
+  Writes database options into the hash.
+  
+  DESCRIPTION
+    Inserts database options into the hash, or updates
+    options if they are already in the hash.
+  
+  RETURN VALUES
+    0 on success.
+    1 on error.
+*/
+
+static my_bool put_dbopt(const char *dbname, HA_CREATE_INFO *create)
+{
+  my_dbopt_t *opt;
+  size_t length;
+  my_bool error= 0;
+  DBUG_ENTER("put_dbopt");
+
+  length= strlen(dbname);
+
+  mysql_rwlock_wrlock(&LOCK_dboptions);
+  if (!(opt= (my_dbopt_t*) my_hash_search(&dboptions, (uchar*) dbname,
+                                          length)))
+  { 
+    /* Options are not in the hash, insert them */
+    char *tmp_name;
+    if (!my_multi_malloc(key_memory_dboptions_hash,
+                         MYF(MY_WME | MY_ZEROFILL),
+                         &opt, sizeof(*opt), &tmp_name, length+1,
+                         NullS))
+    {
+      error= 1;
+      goto end;
+    }
+    
+    opt->name= tmp_name;
+    my_stpcpy(opt->name, dbname);
+    opt->name_length= length;
+    
+    if ((error= my_hash_insert(&dboptions, (uchar*) opt)))
+    {
+      my_free(opt);
+      goto end;
+    }
+  }
+
+  /* Update / write options in hash */
+  opt->charset= create->default_table_charset;
+
+end:
+  mysql_rwlock_unlock(&LOCK_dboptions);
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Deletes database options from the hash.
+*/
+
+static void del_dbopt(const char *path)
+{
+  my_dbopt_t *opt;
+  mysql_rwlock_wrlock(&LOCK_dboptions);
+  if ((opt= (my_dbopt_t *)my_hash_search(&dboptions, (const uchar*) path,
+                                         strlen(path))))
+    my_hash_delete(&dboptions, (uchar*) opt);
+  mysql_rwlock_unlock(&LOCK_dboptions);
+}
+
+
+/*
+  Create database options file:
+
+  DESCRIPTION
+    Currently database default charset is only stored there.
+
+  RETURN VALUES
+  0	ok
+  1	Could not create file or write to it.  Error sent through my_error()
+*/
+
+static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
+{
+  File file;
+  char buf[256]; // Should be enough for one option
+  bool error=1;
+
+  if (!create->default_table_charset)
+    create->default_table_charset= thd->variables.collation_server;
+
+  if (put_dbopt(path, create))
+    return 1;
+
+  if ((file= mysql_file_create(key_file_dbopt, path, CREATE_MODE,
+                               O_RDWR | O_TRUNC, MYF(MY_WME))) >= 0)
+  {
+    ulong length;
+    length= (ulong) (strxnmov(buf, sizeof(buf)-1, "default-character-set=",
+                              create->default_table_charset->csname,
+                              "\ndefault-collation=",
+                              create->default_table_charset->name,
+                              "\n", NullS) - buf);
+
+    /* Error is written by mysql_file_write */
+    if (!mysql_file_write(file, (uchar*) buf, length, MYF(MY_NABP+MY_WME)))
+      error=0;
+    mysql_file_close(file, MYF(0));
+  }
+  return error;
+}
+
+
+/*
+  Load database options file
+
+  load_db_opt()
+  path		Path for option file
+  create	Where to store the read options
+
+  DESCRIPTION
+
+  RETURN VALUES
+  0	File found
+  1	No database file or could not open it
+
+*/
+
+bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
+{
+  File file;
+  char buf[256];
+  DBUG_ENTER("load_db_opt");
+  bool error=1;
+  uint nbytes;
+
+  new (create) HA_CREATE_INFO;
+  create->default_table_charset= thd->variables.collation_server;
+
+  /* Check if options for this database are already in the hash */
+  if (!get_dbopt(path, create))
+    DBUG_RETURN(0);
+
+  /* Otherwise, load options from the .opt file */
+  if ((file= mysql_file_open(key_file_dbopt,
+                             path, O_RDONLY | O_SHARE, MYF(0))) < 0)
+    goto err1;
+
+  IO_CACHE cache;
+  if (init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, 0, MYF(0)))
+    goto err2;
+
+  while ((int) (nbytes= my_b_gets(&cache, (char*) buf, sizeof(buf))) > 0)
+  {
+    char *pos= buf+nbytes-1;
+    /* Remove end space and control characters */
+    while (pos > buf && !my_isgraph(&my_charset_latin1, pos[-1]))
+      pos--;
+    *pos=0;
+    if ((pos= strchr(buf, '=')))
+    {
+      if (!strncmp(buf,"default-character-set", (pos-buf)))
+      {
+        /*
+           Try character set name, and if it fails
+           try collation name, probably it's an old
+           4.1.0 db.opt file, which didn't have
+           separate default-character-set and
+           default-collation commands.
+        */
+        if (!(create->default_table_charset=
+        get_charset_by_csname(pos+1, MY_CS_PRIMARY, MYF(0))) &&
+            !(create->default_table_charset=
+              get_charset_by_name(pos+1, MYF(0))))
+        {
+          sql_print_error("Error while loading database options: '%s':",path);
+          sql_print_error(ER(ER_UNKNOWN_CHARACTER_SET),pos+1);
+          create->default_table_charset= default_charset_info;
+        }
+      }
+      else if (!strncmp(buf,"default-collation", (pos-buf)))
+      {
+        if (!(create->default_table_charset= get_charset_by_name(pos+1,
+                                                           MYF(0))))
+        {
+          sql_print_error("Error while loading database options: '%s':",path);
+          sql_print_error(ER(ER_UNKNOWN_COLLATION),pos+1);
+          create->default_table_charset= default_charset_info;
+        }
+      }
+    }
+  }
+  /*
+    Put the loaded value into the hash.
+    Note that another thread could've added the same
+    entry to the hash after we called get_dbopt(),
+    but it's not an error, as put_dbopt() takes this
+    possibility into account.
+  */
+  error= put_dbopt(path, create);
+
+  end_io_cache(&cache);
+err2:
+  mysql_file_close(file, MYF(0));
+err1:
+  DBUG_RETURN(error);
+}
+
+
+/*
+  Retrieve database options by name. Load database options file or fetch from
+  cache.
+
+  SYNOPSIS
+    load_db_opt_by_name()
+    db_name         Database name
+    db_create_info  Where to store the database options
+
+  DESCRIPTION
+    load_db_opt_by_name() is a shortcut for load_db_opt().
+
+  NOTE
+    Although load_db_opt_by_name() (and load_db_opt()) returns status of
+    the operation, it is useless usually and should be ignored. The problem
+    is that there are 1) system databases ("mysql") and 2) virtual
+    databases ("information_schema"), which do not contain options file.
+    So, load_db_opt[_by_name]() returns FALSE for these databases, but this
+    is not an error.
+
+    load_db_opt[_by_name]() clears db_create_info structure in any case, so
+    even on failure it contains valid data. So, common use case is just
+    call load_db_opt[_by_name]() without checking return value and use
+    db_create_info right after that.
+
+  RETURN VALUES (read NOTE!)
+    FALSE   Success
+    TRUE    Failed to retrieve options
+*/
+
+bool load_db_opt_by_name(THD *thd, const char *db_name,
+                         HA_CREATE_INFO *db_create_info)
+{
+  char db_opt_path[FN_REFLEN + 1];
+
+  /*
+    Pass an empty file name, and the database options file name as extension
+    to avoid table name to file name encoding.
+  */
+  (void) build_table_filename(db_opt_path, sizeof(db_opt_path) - 1,
+                              db_name, "", MY_DB_OPT_FILE, 0);
+
+  return load_db_opt(thd, db_opt_path, db_create_info);
+}
+
+
+>>>>>>> upstream/cluster-7.6
 /**
   Return default database collation.
 
@@ -362,6 +697,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     return true;
   }
 
+<<<<<<< HEAD
   /*
     When creating the schema, we must lock the schema name without case (for
     correct MDL locking) when l_c_t_n == 2.
@@ -394,6 +730,16 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
 
     store_in_dd = false;
   }
+=======
+  if (ha_check_reserved_db_name(db))
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), db);
+    DBUG_RETURN(-1);
+  }
+
+  if (lock_schema_name(thd, db))
+    DBUG_RETURN(-1);
+>>>>>>> upstream/cluster-7.6
 
   /* Check directory */
   char path[FN_REFLEN + 16];
@@ -1441,13 +1787,42 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
                 sctx->master_access(new_db_file_name.str);
   }
 
+<<<<<<< HEAD
   if (!force_switch && !(db_access & DB_OP_ACLS) &&
       check_grant_db(thd, new_db_file_name.str, true)) {
+=======
+<<<<<<< HEAD
+  if (!force_switch && !(db_access & DB_ACLS) &&
+      check_grant_db(thd, new_db_file_name.str)) {
+>>>>>>> pr/231
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->priv_host().str, new_db_file_name.str);
     query_logger.general_log_print(
         thd, COM_INIT_DB, ER_DEFAULT(ER_DBACCESS_DENIED_ERROR),
         sctx->priv_user().str, sctx->priv_host().str, new_db_file_name.str);
+=======
+  DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  db_access =
+      sctx->check_access(DB_OP_ACLS)
+          ? DB_OP_ACLS
+          : acl_get(sctx->host().str, sctx->ip().str, sctx->priv_user().str,
+                    new_db_file_name.str, false) |
+                sctx->master_access();
+
+  if (!force_switch && !(db_access & DB_OP_ACLS) &&
+      check_grant_db(thd, new_db_file_name.str, true)) {
+    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
+             sctx->priv_user().str,
+             sctx->priv_host().str,
+             new_db_file_name.str);
+    query_logger.general_log_print(thd, COM_INIT_DB,
+                                   ER(ER_DBACCESS_DENIED_ERROR),
+                                   sctx->priv_user().str,
+                                   sctx->priv_host().str,
+                                   new_db_file_name.str);
+>>>>>>> upstream/cluster-7.6
     my_free(new_db_file_name.str);
     return true;
   }

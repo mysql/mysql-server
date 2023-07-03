@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -109,7 +133,15 @@ page_no_t trx_rseg_header_create(space_id_t space_id,
 
     trx_sysf_rseg_set_space(sys_header, rseg_slot, space_id, mtr);
 
+<<<<<<< HEAD
     trx_sysf_rseg_set_page_no(sys_header, rseg_slot, page_no, mtr);
+=======
+	if (!trx_sys_is_noredo_rseg_slot(rseg_slot_no)) {
+		/* No-redo rsegs are re-created on restart and no need to
+		persist this information in sys-header. Anyway, on restart
+		this information is not valid too as there is no space with
+		persisted space-id on restart. */
+>>>>>>> upstream/cluster-7.6
 
   } else if (fsp_is_system_temporary(space_id)) {
     /* Rollback segments in the system temporary tablespace
@@ -449,7 +481,30 @@ trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
     rseg->last_page_no = FIL_NULL;
   }
 
+<<<<<<< HEAD
   return rseg;
+=======
+  return (rseg);
+}
+
+<<<<<<< HEAD
+/** Return a page number from a slot in the rseg_array page of an
+undo tablespace.
+@param[in]	space_id	undo tablespace ID
+@param[in]	rseg_id		rollback segment ID
+@return page_no Page number of the rollback segment header page */
+page_no_t trx_rseg_get_page_no(space_id_t space_id, ulint rseg_id) {
+  mtr_t mtr;
+  mtr.start();
+
+  trx_rsegsf_t *rsegs_header = trx_rsegsf_get(space_id, &mtr);
+
+  page_no_t page_no = trx_rsegsf_get_page_no(rsegs_header, rseg_id, &mtr);
+
+  mtr.commit();
+
+  return (page_no);
+>>>>>>> pr/231
 }
 
 /** Read each rollback segment slot in the TRX_SYS page and the RSEG_ARRAY
@@ -700,7 +755,258 @@ void trx_rsegs_init(purge_pq_t *purge_queue) {
       }
     }
   }
+<<<<<<< HEAD
   undo::spaces->s_unlock();
+=======
+  undo::spaces->x_unlock();
+=======
+/* Read information from system header page for a rollback segment.
+@param[in]	rseg_id		rollback segment ID
+@param[in,out]	mtr		mini transaction for reading
+@param[out]	space		space ID for the rollback segment
+@param[out]	page_no		page number of the rollback segment
+@return	page size for the rollback segment space.  */
+static const page_size_t
+read_sys_rseg_info(
+	ulint	rseg_id,
+	mtr_t	*mtr,
+	ulint	&space,
+	ulint	&page_no)
+{
+	trx_sysf_t* sys_header = trx_sysf_get(mtr);
+
+	page_no = trx_sysf_rseg_get_page_no(sys_header, rseg_id, mtr);
+
+	if (page_no == FIL_NULL) {
+		space = 0;
+		return (univ_page_size);
+	}
+
+	space = trx_sysf_rseg_get_space(sys_header, rseg_id, mtr);
+
+	bool found = true;
+
+	const page_size_t& page_size
+		= is_system_tablespace(space)
+		? univ_page_size
+		: fil_space_get_page_size(space, &found);
+
+	ut_ad(found);
+	return (page_size);
+}
+
+/** Initialize a redo rollback segment and add to purge queue if it has anything
+left to purge.
+@param[in]	rseg_id		rollback segment ID
+@param[in,out]	rseg_array	rollback segment array
+@param[in,out]	purge_queue	queue for rollback segments that need purging */
+static void
+trx_rseg_initialize(
+	ulint		rseg_id,
+	trx_rseg_t**	rseg_array,
+	purge_pq_t*	purge_queue)
+{
+	ut_a(rseg_array[rseg_id] == NULL);
+
+	mtr_t mtr;
+	mtr.start();
+
+	ulint space = 0;
+	ulint page_no = FIL_NULL;
+
+	const page_size_t& page_size =
+		read_sys_rseg_info(rseg_id, &mtr, space, page_no);
+
+	if (page_no == FIL_NULL) {
+		mtr.commit();
+		return;
+	}
+
+	trx_rseg_t* rseg = trx_rseg_mem_create(rseg_id, space, page_no,
+		page_size, purge_queue, rseg_array, &mtr);
+
+	ut_a(rseg->id == rseg_id);
+
+	mtr.commit();
+}
+
+/* Check if any of the redo rollback segment has same space, page reference
+@param[in]	space		space ID for the rollback segment
+@param[in]	page_no		page number of the rollback segment
+@return	true iff duplicate is found. */
+static bool
+check_duplicate_rseg(
+	ulint	space,
+	ulint	page_no)
+{
+	for (ulint rseg_id = 0; rseg_id < TRX_SYS_N_RSEGS; rseg_id++) {
+		/* Skip over no-redo rollback segments. */
+		if (trx_sys_is_noredo_rseg_slot(rseg_id)) {
+			continue;
+		}
+
+		trx_rseg_t* rseg = trx_sys->rseg_array[rseg_id];
+
+		if (rseg != NULL && rseg->space == space &&
+		    rseg->page_no == page_no) {
+			ib::info() << "Found duplicate reference rseg: "
+				   << rseg_id << " space: " << space
+				   << " page: " << page_no;
+			return (true);
+		}
+	}
+	return (false);
+}
+
+/** Check if pre-5.7.2 rollback segment has data to be purged.
+@param[in]	rseg_id		rollback segment ID
+@param[out]	reset_rseg	true iff need to reset rseg slot
+@return true iff there is data to purge.
+*/
+static bool is_purge_pending(
+	ulint	rseg_id,
+	bool&	reset_rseg)
+{
+	ut_a(trx_sys_is_noredo_rseg_slot(rseg_id));
+
+	mtr_t mtr;
+	mtr.start();
+
+	ulint space = 0;
+	ulint page_no = FIL_NULL;
+
+	const page_size_t& page_size =
+		read_sys_rseg_info(rseg_id, &mtr, space, page_no);
+
+	reset_rseg = (page_no != FIL_NULL);
+
+	if (page_no == FIL_NULL || !is_system_or_undo_tablespace(space)) {
+		mtr.commit();
+		return (false);
+	}
+
+	/* There is an issue till 5.7.34, which could cause a pre-5.7.2 rseg to
+	point to some redo rseg after undo tablespace truncate. We need to check
+	for it and should not add it for purge in such case. */
+	if (check_duplicate_rseg(space, page_no)) {
+		mtr.commit();
+		ib::info() << "Reset pre-5.7.2 rseg: " << rseg_id
+			   << " after duplicate is found.";
+		return (false);
+	}
+
+	trx_rsegf_t* rseg_header =
+		trx_rsegf_get_new(space, page_no, page_size, &mtr);
+
+	ulint len = flst_get_len(rseg_header + TRX_RSEG_HISTORY);
+
+	mtr.commit();
+
+	if (len > 0) {
+		ib::info() << "pre-5.7.2 rseg: " << rseg_id
+			   << " holds data to be purged. History length: "
+			   << len << ". Recommend slow shutdown with"
+			   << " innodb_fast_shutdown=0 and restart";
+		reset_rseg = false;
+		return (true);
+	}
+	return (false);
+}
+
+/** Rollback segment IDs that needs to be reset on disk. */
+static std::vector<ulint> s_pending_reset_rseg_ids;
+
+/** Creates the memory copies for the rollback segments and initializes the
+rseg array in trx_sys at a database startup.
+@param[in,out]	purge_queue	queue for rollback segments that need purging
+*/
+static void trx_rseg_create_instance(
+	purge_pq_t*	purge_queue)
+{
+        /* Initialize redo rollback segments. */
+	for (ulint rseg_id = 0; rseg_id < TRX_SYS_N_RSEGS; rseg_id++) {
+                /* Skip all no-redo segments. Slot-1....Slot-n are reserved for
+		no-redo rsegs. These no-redo rsegs are recreated on server
+		re-start and we should avoid initializing them. There could also
+		be some leftover redo rollback segments from pre-5.7.2, which we
+		handle in next iteration. */
+		if (trx_sys_is_noredo_rseg_slot(rseg_id)) {
+			continue;
+		}
+		trx_rseg_initialize(rseg_id, trx_sys->rseg_array, purge_queue);
+	}
+
+        /* Check and initialize redo rollback segments carried forward from
+	pre-5.7.2. They could occupy the no-redo rseg slots in range from
+	slot-1...slot-n. We need to schedule them for purge if there are pending
+	purge operations. It is only possible if pre-5.7.2 server is upgraded
+	without using slow shutdown (innodb_fast_shutdown = 0). */
+	for (ulint rseg_id = 0; rseg_id < TRX_SYS_N_RSEGS; rseg_id++) {
+                /* Skip all redo slots which are handled already in previous
+		iteration. */
+		if (!trx_sys_is_noredo_rseg_slot(rseg_id)) {
+			continue;
+		}
+
+		bool reset_rseg_slot = false;
+
+		if (is_purge_pending(rseg_id, reset_rseg_slot)) {
+			trx_rseg_initialize(rseg_id,
+				trx_sys->pending_purge_rseg_array, purge_queue);
+			continue;
+		}
+
+		if (reset_rseg_slot) {
+			/* We need to reset this rollback segment slot on disk.
+			Redo recovery is not finished at this point and we don't
+			want to start DB modification generating new redo logs.
+			The reset is deferred till recovery end and done by
+			trx_rseg_reset_pending(). */
+			s_pending_reset_rseg_ids.push_back(rseg_id);
+		}
+		ut_a(trx_sys->pending_purge_rseg_array[rseg_id] == NULL);
+	}
+}
+
+/** Reset no-redo rollback segment slot on disk.
+@param[in]	rseg_id	rollback segment ID */
+static void trx_rseg_reset_slot(
+	ulint	rseg_id)
+{
+	ut_a(rseg_id < TRX_SYS_N_RSEGS);
+	ut_a(trx_sys_is_noredo_rseg_slot(rseg_id));
+
+	/* Reset rollback segment slot on disk. */
+	mtr_t	mtr;
+	mtr.start();
+	trx_sysf_t* sys_header = trx_sysf_get(&mtr);
+
+	trx_sysf_rseg_set_page_no(
+                              sys_header, rseg_id, FIL_NULL, &mtr);
+	mtr.commit();
+}
+
+void trx_rseg_reset_pending() {
+	if (s_pending_reset_rseg_ids.empty()) {
+		return;
+
+	} else if (srv_read_only_mode) {
+		ib::warn() << "Could not reset pre-5.7.2 rseg slots"
+			   << " in read-only mode.";
+		return;
+	}
+        /* Check and reset no-redo rollback segment slots carried forward from
+	pre-5.7.2 with no left-over data to purge. This is a deferred action
+	from trx_rseg_create_instance(). */
+	std::for_each(s_pending_reset_rseg_ids.begin(),
+		      s_pending_reset_rseg_ids.end(), trx_rseg_reset_slot);
+
+	ib::info() << "Successfully reset " << s_pending_reset_rseg_ids.size()
+		   << " pre-5.7.2 rseg slots.";
+
+	s_pending_reset_rseg_ids.clear();
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /** Create a rollback segment in the given tablespace. This could be either

@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +31,23 @@
 #ifndef DEFINED_RPL_BINLOG_SENDER
 #define DEFINED_RPL_BINLOG_SENDER
 
+<<<<<<< HEAD
 #include <string.h>
 #include <sys/types.h>
+<<<<<<< HEAD
 #include <chrono>
+=======
+#include <time.h>
+=======
+#ifdef HAVE_REPLICATION
+#include "my_global.h"
+#include "binlog.h"           // LOG_INFO
+#include "binlog_event.h"     // enum_binlog_checksum_alg, Log_event_type
+#include "m_string.h"
+#include "mysqld_error.h"     // ER_*
+#include "sql_error.h"        // Diagnostics_area
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #include "libbinlogevents/include/binlog_event.h"
 #include "my_inttypes.h"
@@ -62,6 +84,7 @@ class Binlog_sender {
   */
   void run();
 
+<<<<<<< HEAD
   /**
     Sets the value of the previously processed event.
 
@@ -78,6 +101,23 @@ class Binlog_sender {
   */
   bool stop_waiting_for_update(my_off_t log_pos) const;
 
+=======
+<<<<<<< HEAD
+ private:
+=======
+  /**
+    Sets the value of the previously processed event.
+
+    @param type The last processed event type.
+   */
+  inline void set_prev_event_type(binary_log::Log_event_type type)
+  {
+    m_prev_event_type= type;
+  }
+
+private:
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   THD *m_thd;
   String &m_packet;
 
@@ -191,7 +231,11 @@ class Binlog_sender {
   bool m_transmit_started;
   /**
     Type of the previously processed event.
+<<<<<<< HEAD
   */
+=======
+   */
+>>>>>>> pr/231
   binary_log::Log_event_type m_prev_event_type;
   /*
     It initializes the context, checks if the dump request is valid and
@@ -311,6 +355,7 @@ class Binlog_sender {
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
+<<<<<<< HEAD
   int send_heartbeat_event_v2(my_off_t log_pos);
   /**
      Checks if the heartbeat_version flag is set or not, and call the correct
@@ -334,6 +379,11 @@ class Binlog_sender {
      @retval 1 Fail
   */
   int read_event(File_reader &reader, uchar **event_ptr, uint32 *event_len);
+=======
+  int read_event(IO_CACHE *log_cache,
+                 binary_log::enum_binlog_checksum_alg checksum_alg,
+                 uchar **event_ptr, uint32 *event_len);
+>>>>>>> pr/231
   /**
     Check if it is allowed to send this event type.
 
@@ -371,7 +421,12 @@ class Binlog_sender {
 
     @return It returns true if it should be skipped, otherwise false is turned.
   */
+<<<<<<< HEAD
   bool skip_event(const uchar *event_ptr, bool in_exclude_group);
+=======
+  bool skip_event(const uchar *event_ptr, uint32 event_len,
+                  bool in_exclude_group);
+>>>>>>> pr/231
 
   void calc_event_checksum(uchar *event_ptr, size_t event_len);
   int flush_net();
@@ -392,7 +447,15 @@ class Binlog_sender {
                           if event_len is 0, then the caller needs to extend
                           the buffer itself.
   */
+<<<<<<< HEAD
   int reset_transmit_packet(ushort flags, size_t event_len = 0);
+=======
+<<<<<<< HEAD
+  inline int reset_transmit_packet(ushort flags, size_t event_len = 0);
+=======
+  int reset_transmit_packet(ushort flags, size_t event_len= 0);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /**
     It waits until receiving an update_cond signal. It will send heartbeat
@@ -405,7 +468,11 @@ class Binlog_sender {
   */
   int wait_new_events(my_off_t log_pos);
   int wait_with_heartbeat(my_off_t log_pos);
+<<<<<<< HEAD
   int wait_without_heartbeat(my_off_t log_pos);
+=======
+  int wait_without_heartbeat();
+>>>>>>> pr/231
 
 #ifndef NDEBUG
   /* It is used to count the events that have been sent. */
@@ -417,10 +484,19 @@ class Binlog_sender {
   int check_event_count();
 #endif
 
+<<<<<<< HEAD
   inline bool has_error() { return m_errno != 0; }
   inline void set_error(int errorno, const char *errmsg) {
     snprintf(m_errmsg_buf, sizeof(m_errmsg_buf), "%.*s", MYSQL_ERRMSG_SIZE - 1,
              errmsg);
+=======
+  bool has_error() { return m_errno != 0; }
+<<<<<<< HEAD
+  void set_error(int errorno, const char *errmsg) {
+    // Need to set the final '\0' since strncpy does not do that.
+    strncpy(m_errmsg_buf, errmsg, sizeof(m_errmsg_buf) - 1);
+    m_errmsg_buf[sizeof(m_errmsg_buf) - 1] = '\0';
+>>>>>>> pr/231
     m_errmsg = m_errmsg_buf;
     m_errno = errorno;
   }
@@ -437,17 +513,67 @@ class Binlog_sender {
     return m_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG;
   }
 
+<<<<<<< HEAD
   inline bool event_checksum_on() {
+=======
+  bool event_checksum_on() {
+=======
+  inline void set_error(int errorno, const char *errmsg)
+  {
+    my_snprintf(m_errmsg_buf, sizeof(m_errmsg_buf), "%.*s",
+                MYSQL_ERRMSG_SIZE - 1, errmsg);
+    m_errmsg= m_errmsg_buf;
+    m_errno= errorno;
+  }
+
+  inline void set_unknow_error(const char *errmsg)
+  {
+    set_error(ER_UNKNOWN_ERROR, errmsg);
+  }
+
+  inline void set_fatal_error(const char *errmsg)
+  {
+    set_error(ER_MASTER_FATAL_ERROR_READING_BINLOG, errmsg);
+  }
+
+  inline bool is_fatal_error()
+  {
+    return m_errno == ER_MASTER_FATAL_ERROR_READING_BINLOG;
+  }
+
+  inline bool event_checksum_on()
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_event_checksum_alg > binary_log::BINLOG_CHECKSUM_ALG_OFF &&
            m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END;
   }
 
+<<<<<<< HEAD
   inline void set_last_pos(my_off_t log_pos) {
+=======
+<<<<<<< HEAD
+  void set_last_pos(my_off_t log_pos) {
+>>>>>>> pr/231
     m_last_file = m_linfo.log_file_name;
     m_last_pos = log_pos;
   }
 
+<<<<<<< HEAD
   inline void set_last_file(const char *log_file) {
+=======
+  void set_last_file(const char *log_file) {
+=======
+  inline void set_last_pos(my_off_t log_pos)
+  {
+    m_last_file= m_linfo.log_file_name;
+    m_last_pos= log_pos;
+  }
+
+  inline void set_last_file(const char *log_file)
+  {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     strcpy(m_last_file_buf, log_file);
     m_last_file = m_last_file_buf;
   }

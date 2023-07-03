@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2011, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,21 +137,37 @@ TEST_F(SqlTableTest, FileNameToTableName) {
 
   // This one used to fail with AddressSanitizer
   size_t name_length;
+<<<<<<< HEAD
   name_length = filename_to_tablename(test_filename, test_tablename,
                                       sizeof(test_tablename)
 #ifndef NDEBUG
                                           ,
                                       true
+=======
+  name_length= filename_to_tablename(test_filename,
+                                     test_tablename,
+                                     sizeof(test_tablename)
+#ifndef NDEBUG
+                                     , true
+>>>>>>> upstream/cluster-7.6
 #endif
   );
   EXPECT_EQ((sizeof(test_tablename)) - 1, name_length);
 
   // This one used to fail if compiled with -DHAVE_VALGRIND
+<<<<<<< HEAD
   name_length =
       filename_to_tablename(foo.str, test_tablename, sizeof(test_tablename)
 #ifndef NDEBUG
                                                          ,
                             true
+=======
+  name_length= filename_to_tablename(foo.str,
+                                     test_tablename,
+                                     sizeof(test_tablename)
+#ifndef NDEBUG
+                                     , true
+>>>>>>> upstream/cluster-7.6
 #endif
       );
   EXPECT_EQ((sizeof(test_tablename)) - 1, name_length);

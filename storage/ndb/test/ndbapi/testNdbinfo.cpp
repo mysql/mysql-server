@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2009, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,6 +159,7 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
     }
     ndbout << "table("<<tableId<<"): " << table->getName() << endl;
 
+<<<<<<< HEAD
     int last_rows = 0;
     bool rows_may_increase1 =
       (strstr(table->getName(), "cpustat_") != nullptr);
@@ -164,6 +169,10 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
       (strstr(table->getName(), "index_stats") != nullptr);
     bool rows_may_increase = (rows_may_increase1 || rows_may_increase2 ||
                               rows_may_increase3);
+=======
+    int last_rows;
+    bool rows_may_increase = (strstr(table->getName(), "cpustat_") != NULL);
+>>>>>>> pr/231
     for (int l = 0; l < ctx->getNumLoops(); l++)
     {
       if (ctx->isTestStopped())

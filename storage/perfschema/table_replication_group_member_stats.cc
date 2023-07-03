@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
   Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+  Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+  Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -201,8 +209,39 @@ PFS_engine_table_share table_replication_group_member_stats::m_share = {
     false /* m_in_purgatory */
 };
 
+<<<<<<< HEAD
 PFS_engine_table *table_replication_group_member_stats::create(
     PFS_engine_table_share *) {
+=======
+TABLE_FIELD_DEF
+table_replication_group_member_stats::m_field_def=
+{ 9, field_types };
+
+PFS_engine_table_share_state
+table_replication_group_member_stats::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_replication_group_member_stats::m_share=
+{
+  { C_STRING_WITH_LEN("replication_group_member_stats") },
+  &pfs_readonly_acl,
+  &table_replication_group_member_stats::create,
+  NULL, /* write_row */
+  NULL, /* delete_all_rows */
+  table_replication_group_member_stats::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+};
+
+PFS_engine_table* table_replication_group_member_stats::create(void)
+{
+>>>>>>> upstream/cluster-7.6
   return new table_replication_group_member_stats();
 }
 
@@ -252,7 +291,18 @@ int table_replication_group_member_stats::rnd_pos(const void *pos) {
   }
 
   set_position(pos);
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(m_pos.m_index < get_row_count());
+>>>>>>> pr/231
   return make_row(m_pos.m_index);
+=======
+  assert(m_pos.m_index < 1);
+  make_row();
+
+  return 0;
+>>>>>>> upstream/cluster-7.6
 }
 
 int table_replication_group_member_stats::make_row(uint index) {
@@ -304,8 +354,20 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
                                                           bool read_all) {
   Field *f;
 
+<<<<<<< HEAD
   assert(table->s->null_bytes == 0);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 0);
+>>>>>>> pr/231
   buf[0] = 0;
+=======
+  if (unlikely(! m_row_exists))
+    return HA_ERR_RECORD_DELETED;
+
+  assert(table->s->null_bytes == 0);
+  buf[0]= 0;
+>>>>>>> upstream/cluster-7.6
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
@@ -338,6 +400,7 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
         case 8: /** last_certified_transaction */
           set_field_blob(f, m_row.last_cert_trx, m_row.last_cert_trx_length);
 
+<<<<<<< HEAD
           break;
         case 9:
           set_field_ulonglong(f, m_row.trx_remote_applier_queue);
@@ -353,7 +416,16 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
           break;
 
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

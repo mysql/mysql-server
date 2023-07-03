@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2017, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,13 +114,27 @@ Destination_keyring_component::~Destination_keyring_component() {
   ok_ = false;
 }
 
+<<<<<<< HEAD
 Migrate_keyring::Migrate_keyring() {
   m_source_plugin_handle = nullptr;
   m_destination_plugin_handle = nullptr;
+<<<<<<< HEAD
   mysql = nullptr;
   m_destination_component = nullptr;
   m_argc = 0;
   m_argv = nullptr;
+=======
+  mysql = NULL;
+=======
+Migrate_keyring::Migrate_keyring()
+{
+  m_source_plugin_handle= NULL;
+  m_destination_plugin_handle= NULL;
+  mysql= NULL;
+  m_argc = 0;
+  m_argv = NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /**
@@ -157,9 +175,20 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   string equal("=");
   string so(".so");
   string dll(".dll");
+<<<<<<< HEAD
   const string compression_method("zlib,zstd,uncompressed");
+=======
+
+<<<<<<< HEAD
+  m_argc = argc;
+  m_argv = argv;
+>>>>>>> pr/231
 
   if (!source_plugin) {
+=======
+  if (!source_plugin)
+  {
+>>>>>>> upstream/cluster-7.6
     my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),
              "Invalid --keyring-migration-source option.");
     return true;
@@ -237,6 +266,7 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
     }
   }
 
+<<<<<<< HEAD
   m_argc = argc;
   m_argv = new char *[m_argc + 2 + 1];  // 2 extra options + nullptr
   for (int cnt = 0; cnt < m_argc; ++cnt) {
@@ -266,6 +296,19 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   // null terminate and leave
   m_argv[m_argc] = nullptr;
   return false;
+=======
+  m_argc= argc;
+  m_argv= new char *[m_argc + 2];  // 1st for extra option and 2nd for NULL
+  for (int cnt= 0; cnt < m_argc; ++cnt) {
+    m_argv[cnt]= argv[cnt];
+  }
+  /* add --loose_<plugin_name>_open_mode=1 option */
+  m_internal_option= "--loose_" + m_source_plugin_name + "_open_mode=1";
+  m_argv[m_argc]= const_cast<char *>(m_internal_option.c_str());
+  /* update m_argc, m_argv */
+  m_argv[++m_argc]= NULL;
+  DBUG_RETURN(false);
+>>>>>>> pr/231
 }
 
 /**
@@ -293,13 +336,21 @@ bool Migrate_keyring::execute() {
   /* Disable access to keyring service APIs */
   if (migrate_connect_options && disable_keyring_operations()) goto error;
 
+  char **tmp_m_argv;
+
+  /* Disable access to keyring service APIs */
+  if (migrate_connect_options && disable_keyring_operations())
+      goto error;
+
   /* Load source plugin. */
+<<<<<<< HEAD
   if (load_plugin(enum_plugin_type::SOURCE_PLUGIN)) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Failed to initialize source keyring");
     goto error;
   }
 
+<<<<<<< HEAD
   if (!m_migrate_to_component) {
     /* Load destination plugin. */
     if (load_plugin(enum_plugin_type::DESTINATION_PLUGIN)) {
@@ -313,28 +364,81 @@ bool Migrate_keyring::execute() {
              "Failed to initialize destination keyring");
       goto error;
     }
+=======
+  /* Load destination source plugin. */
+  if (load_plugin(enum_plugin_type::DESTINATION_PLUGIN)) {
+    LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
+           "Failed to initialize destination keyring");
+    DBUG_RETURN(true);
+=======
+  if (load_plugin(SOURCE_PLUGIN))
+  {
+    my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),
+             "Failed to initialize source keyring");
+    goto error;
+  }
+
+  /* Load destination source plugin. */
+  if (load_plugin(DESTINATION_PLUGIN))
+  {
+    my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),
+             "Failed to initialize destination keyring");
+    goto error;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
   /* skip program name */
   m_argc--;
   /* We use a tmp ptr instead of m_argv since if the latter gets changed, we
+<<<<<<< HEAD
    * lose access to the allocated mem and hence there would be leak */
   tmp_m_argv = m_argv + 1;
+=======
+   * lose access to the alloced mem and hence there would be leak */
+  tmp_m_argv= m_argv + 1;
+>>>>>>> pr/231
   /* check for invalid options */
+<<<<<<< HEAD
   if (m_argc > 1) {
     struct my_option no_opts[] = {{nullptr, 0, nullptr, nullptr, nullptr,
                                    nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0,
                                    nullptr, 0, nullptr}};
     my_getopt_skip_unknown = false;
     my_getopt_use_args_separator = true;
+<<<<<<< HEAD
     if (handle_options(&m_argc, &tmp_m_argv, no_opts, nullptr)) return true;
+=======
+    if (handle_options(&m_argc, &m_argv, no_opts, NULL)) DBUG_RETURN(true);
+=======
+  if (m_argc > 1)
+  {
+    struct my_option no_opts[]=
+    {
+      {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+    };
+    my_getopt_skip_unknown= 0;
+    my_getopt_use_args_separator= true;
+    if (handle_options(&m_argc, &tmp_m_argv, no_opts, NULL))
+      unireg_abort(MYSQLD_ABORT_EXIT);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     if (m_argc > 1) {
       LogErr(WARNING_LEVEL, ER_KEYRING_MIGRATION_EXTRA_OPTIONS);
       return true;
     }
   }
+<<<<<<< HEAD
 
+<<<<<<< HEAD
+=======
+  /* Disable access to keyring service APIs */
+  if (migrate_connect_options && disable_keyring_operations()) goto error;
+=======
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
   /* Fetch all keys from source plugin and store into destination plugin. */
   if (fetch_and_store_keys()) goto error;
 
@@ -523,12 +627,34 @@ bool Migrate_keyring::fetch_and_store_keys() {
   @return 1 Failure
 */
 bool Migrate_keyring::disable_keyring_operations() {
+<<<<<<< HEAD
   DBUG_TRACE;
+=======
+  DBUG_ENTER("Migrate_keyring::disable_keyring_operations");
+<<<<<<< HEAD
+>>>>>>> pr/231
   const char query[] = "SET GLOBAL KEYRING_OPERATIONS=0";
   if (mysql && mysql_real_query(mysql, query, strlen(query))) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Failed to disable keyring_operations variable.");
+<<<<<<< HEAD
     return true;
+=======
+=======
+  const char query[]= "SET GLOBAL KEYRING_OPERATIONS=0";
+
+#ifdef HAVE_OPENSSL
+  /* clear the SSL error stack first as the connection could be encrypted */
+  ERR_clear_error();
+#endif
+
+  if (mysql && mysql_real_query(mysql, query, strlen(query)))
+  {
+    my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),
+             "Failed to disable keyring_operations variable.");
+>>>>>>> upstream/cluster-7.6
+    DBUG_RETURN(true);
+>>>>>>> pr/231
   }
   return false;
 }
@@ -557,10 +683,19 @@ bool Migrate_keyring::enable_keyring_operations() {
 /**
   Standard destructor to close connection handle.
 */
+<<<<<<< HEAD
 Migrate_keyring::~Migrate_keyring() {
   delete[] m_argv;
   m_argv = nullptr;
   if (mysql) {
+=======
+Migrate_keyring::~Migrate_keyring()
+{
+  if (mysql)
+  {
+    delete[] m_argv;
+    m_argv= NULL;
+>>>>>>> upstream/cluster-7.6
     mysql_close(mysql);
     mysql = nullptr;
     if (migrate_connect_options) vio_end();

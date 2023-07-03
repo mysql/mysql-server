@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -175,6 +179,7 @@ setupUDPartitioning(Ndb* ndb, NdbDictionary::Table& tab)
 
   // Assume at least one node group had all replicas alive.
   const Uint32 numReplicas = max_alive_replicas;
+<<<<<<< HEAD
 
   /**
    * The maximum number of partitions that may be defined explicitly
@@ -185,6 +190,9 @@ setupUDPartitioning(Ndb* ndb, NdbDictionary::Table& tab)
    * higher number of LDMs as well.
    */
   const Uint32 numFragsPerNode = (rand() % (8 / numReplicas)) + 1;
+=======
+  const Uint32 numFragsPerNode = 2 + (rand() % 3);
+>>>>>>> pr/231
   const Uint32 numPartitions = numReplicas * numNgs * numFragsPerNode;
 
   tab.setFragmentType(NdbDictionary::Table::UserDefined);

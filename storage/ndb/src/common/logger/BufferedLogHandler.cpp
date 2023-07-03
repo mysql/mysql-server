@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2018, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +27,14 @@
 */
 
 #include "BufferedLogHandler.hpp"
+<<<<<<< HEAD
 #include "util/cstrbuf.h"
 #include "util/require.h"
 
 #include <time.h>
+=======
+#include <basestring_vsnprintf.h>
+>>>>>>> pr/231
 
 struct ThreadData
 {
@@ -52,23 +60,39 @@ void* async_log_function(void* args)
 
   delete data;
 
+<<<<<<< HEAD
   return nullptr;
+=======
+  return NULL;
+>>>>>>> pr/231
 }
 
 BufferedLogHandler::BufferedLogHandler(LogHandler* dest_loghandler)
  : LogHandler(), m_dest_loghandler(dest_loghandler),
+<<<<<<< HEAD
    m_log_threadvar(nullptr), m_stop_logging(false)
+=======
+   m_log_threadvar(NULL), m_stop_logging(false)
+>>>>>>> pr/231
 {
   m_logbuf = new LogBuffer(32768, new MessageStreamLostMsgHandler()); // 32kB
   ThreadData *thr_data = new ThreadData();
   thr_data->buf_loghandler = this;
 
   m_log_threadvar = NdbThread_Create(async_log_function,
+<<<<<<< HEAD
                                      (void**)thr_data,
                                      0,
                                      "async_local_log_thread",
                                      NDB_THREAD_PRIO_MEAN);
   if (m_log_threadvar == nullptr)
+=======
+                   (void**)thr_data,
+                   0,
+                   (char*)"async_local_log_thread",
+                   NDB_THREAD_PRIO_MEAN);
+  if (m_log_threadvar == NULL)
+>>>>>>> pr/231
   {
     abort();
   }
@@ -78,10 +102,16 @@ BufferedLogHandler::~BufferedLogHandler()
 {
   m_stop_logging = true;
   m_logbuf->stop();
+<<<<<<< HEAD
   NdbThread_WaitFor(m_log_threadvar, nullptr);
   NdbThread_Destroy(&m_log_threadvar);
   delete m_logbuf;
   delete m_dest_loghandler;
+=======
+  NdbThread_WaitFor(m_log_threadvar, NULL);
+  NdbThread_Destroy(&m_log_threadvar);
+  delete m_logbuf;
+>>>>>>> pr/231
 }
 
 bool
@@ -99,7 +129,11 @@ BufferedLogHandler::close()
 bool
 BufferedLogHandler::is_open()
 {
+<<<<<<< HEAD
   if (m_log_threadvar == nullptr)
+=======
+  if (m_log_threadvar == NULL)
+>>>>>>> pr/231
   {
     return false;
   }
@@ -163,8 +197,12 @@ BufferedLogHandler::isStopSet()
 }
 
 bool
+<<<<<<< HEAD
 BufferedLogHandler::setParam(const BaseString &/*param*/,
 			     const BaseString &/*value*/)
+=======
+BufferedLogHandler::setParam(const BaseString &param, const BaseString &value)
+>>>>>>> pr/231
 {
   return true;
 }
@@ -195,6 +233,7 @@ BufferedLogHandler::writeToDestLogHandler()
 void
 BufferedLogHandler::writeLostMsgDestLogHandler()
 {
+<<<<<<< HEAD
   const size_t lost_count = m_logbuf->getLostCount();
 
   if (lost_count)
@@ -244,5 +283,49 @@ bool MessageStreamLostMsgHandler::writeLostMsg(char* buf,
 
   memcpy(buf, &lost_message_fixedpart, sz_fixedpart);
 
+=======
+  size_t lost_count = m_logbuf->getLostCount();
+  char category[LogHandler::MAX_HEADER_LENGTH + 1];
+  char msg[MAX_LOG_MESSAGE_SIZE + 1];
+
+  if (lost_count)
+  {
+    strcpy(category, "MgmtSrvr");
+    Logger::LoggerLevel level = Logger::LL_INFO;
+    BaseString::snprintf(msg, MAX_LOG_MESSAGE_SIZE,
+                         "*** %lu MESSAGES LOST ***",
+                         (unsigned long)lost_count);
+    time_t now = ::time((time_t*)NULL);
+    m_dest_loghandler->append(category, level, msg, now);
+  }
+}
+
+size_t
+MessageStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs)
+{
+  size_t lost_msg_len = sizeof(BufferedLogHandler::LogMessageFixedPart) +
+      basestring_snprintf(NULL, 0, m_lost_msg_fmt, lost_msgs) +
+      strlen(m_category);
+  return lost_msg_len;
+}
+
+bool
+MessageStreamLostMsgHandler::writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs)
+{
+  BufferedLogHandler::LogMessageFixedPart lost_message_fixedpart;
+  lost_message_fixedpart.level = Logger::LL_DEBUG;
+  lost_message_fixedpart.log_timestamp = time((time_t*)NULL);
+
+  lost_message_fixedpart.varpart_length[0] = strlen(m_category);
+  lost_message_fixedpart.varpart_length[1] =
+      basestring_snprintf(NULL, 0, m_lost_msg_fmt, lost_msgs);
+
+  const size_t sz_fixedpart = sizeof(lost_message_fixedpart);
+  memcpy(buf, &lost_message_fixedpart, sz_fixedpart);
+  memcpy(buf + sz_fixedpart, m_category, strlen(m_category));
+  basestring_snprintf(buf + sz_fixedpart + strlen(m_category),
+                      lost_message_fixedpart.varpart_length[1],
+                      m_lost_msg_fmt, lost_msgs);
+>>>>>>> pr/231
   return true;
 }

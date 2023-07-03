@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
  Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+ Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -40,8 +44,12 @@
 #include "mysql_utils_jtie.hpp"
 #include "mgmapi_jtie.hpp"
 #include "ndbapi_jtie.hpp"
+<<<<<<< HEAD
 #include <mutex>
 
+=======
+#include "NdbMutex.h"
+>>>>>>> pr/231
 
 // ---------------------------------------------------------------------------
 // API Global Symbol Definitions & Template Instantiations
@@ -176,13 +184,21 @@ JTIE_INSTANTIATE_JINT_ENUM_TYPE_MAPPING(NdbTransaction::ExecType)
 JTIE_INSTANTIATE_JINT_ENUM_TYPE_MAPPING(NdbTransaction::CommitStatusType)
 
 
+<<<<<<< HEAD
 class JTie_NdbInit
+=======
+class JTie_NdbInit : protected NdbLockable
+>>>>>>> pr/231
 {
 public:
 
   int initOnLoad()
   {
+<<<<<<< HEAD
     m_mutex.lock();
+=======
+    Guard guard(m_mutex);
+>>>>>>> pr/231
     if(!is_init)
     {
       VERBOSE("initializing the NDBAPI resources ...");
@@ -190,16 +206,25 @@ public:
       if (stat != 0) {
         PRINT_ERROR_CODE("ndb_init() returned: ", stat);
         ndb_end(0);
+<<<<<<< HEAD
         m_mutex.unlock();
+=======
+>>>>>>> pr/231
         return 1;
       }
       VERBOSE("... initialized the NDBAPI resources");
       VERBOSE("initializing the MySQL Utilities resources ...");
       CharsetMap::init();
       VERBOSE("... initialized the MySQL Utilities resources");
+<<<<<<< HEAD
       is_init = true;
     }
     m_mutex.unlock();
+=======
+      return 0;
+      is_init = true;
+    }
+>>>>>>> pr/231
     return 0;
   }
 
@@ -211,11 +236,18 @@ public:
 
 private:
   static bool is_init;
+<<<<<<< HEAD
   static std::mutex m_mutex;
 
   void uninitOnUnLoad()
   {
     m_mutex.lock();
+=======
+
+  void uninitOnUnLoad()
+  {
+    Guard guard(m_mutex);
+>>>>>>> pr/231
     if(is_init)
     {
       VERBOSE("releasing the MySQL Utilities resources ...");
@@ -227,13 +259,19 @@ private:
       VERBOSE("... released NDBAPI resources");
       is_init = false;
     }
+<<<<<<< HEAD
     m_mutex.unlock();
+=======
+>>>>>>> pr/231
   }
 
 };
 
 bool JTie_NdbInit::is_init = false;
+<<<<<<< HEAD
 std::mutex JTie_NdbInit::m_mutex;
+=======
+>>>>>>> pr/231
 static JTie_NdbInit ndbInitHelper;
 
 // ---------------------------------------------------------------------------

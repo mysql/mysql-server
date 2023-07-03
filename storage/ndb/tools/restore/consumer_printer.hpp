@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,12 +50,20 @@ public:
 #ifdef USE_MYSQL
   virtual bool table(const TableS &, MYSQL* mysqlp);
 #endif
+<<<<<<< HEAD
   bool tuple(const TupleS &, Uint32 fragId) override;
   bool logEntry(const LogEntry &) override;
   void endOfTuples() override {}
   void endOfLogEntrys() override;
   bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart) override;
   bool delete_epoch_tuple() override;
+=======
+  virtual void tuple(const TupleS &, Uint32 fragId);
+  virtual void logEntry(const LogEntry &);
+  virtual void endOfTuples() {};
+  virtual void endOfLogEntrys();
+  virtual bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart);
+>>>>>>> pr/231
   bool m_print;
   bool m_print_log;
   bool m_print_sql_log;

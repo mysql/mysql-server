@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 2007, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 2007, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -131,6 +155,7 @@ constexpr uint32_t CACHE_STORAGE_HASH_CELLS = 2048;
 
 /** This structure describes the intermediate buffer */
 struct trx_i_s_cache_t {
+<<<<<<< HEAD
   rw_lock_t *rw_lock; /*!< read-write lock protecting
                       the rest of this structure */
   std::atomic<std::chrono::steady_clock::time_point> last_read{
@@ -151,6 +176,52 @@ struct trx_i_s_cache_t {
   /** this is true if the memory limit was hit and thus the data in the cache is
   truncated */
   bool is_truncated;
+=======
+<<<<<<< HEAD
+  rw_lock_t *rw_lock;             /*!< read-write lock protecting
+                                  the rest of this structure */
+  uintmax_t last_read;            /*!< last time the cache was read;
+                                  measured in microseconds since
+                                  epoch */
+  ib_mutex_t last_read_mutex;     /*!< mutex protecting the
+                          last_read member - it is updated
+                          inside a shared lock of the
+                          rw_lock member */
+  i_s_table_cache_t innodb_trx;   /*!< innodb_trx table */
+  i_s_table_cache_t innodb_locks; /*!< innodb_locks table */
+=======
+	rw_lock_t*	rw_lock;         /*!< read-write lock protecting
+				         the rest of this structure */
+	ib_time_monotonic_us_t  last_read;/*!< last time the cache was read;
+					measured in microseconds since
+				        epoch */
+	ib_mutex_t	      last_read_mutex;/*!< mutex protecting the
+					last_read member - it is updated
+					inside a shared lock of the
+					rw_lock member */
+	i_s_table_cache_t innodb_trx;	/*!< innodb_trx table */
+	i_s_table_cache_t innodb_locks;	/*!< innodb_locks table */
+	i_s_table_cache_t innodb_lock_waits;/*!< innodb_lock_waits table */
+>>>>>>> upstream/cluster-7.6
+/** the hash table size is LOCKS_HASH_CELLS_NUM * sizeof(void*) bytes */
+#define LOCKS_HASH_CELLS_NUM 10000
+  hash_table_t *locks_hash; /*!< hash table used to eliminate
+                            duplicate entries in the
+                            innodb_locks table */
+/** Initial size of the cache storage */
+#define CACHE_STORAGE_INITIAL_SIZE 1024
+/** Number of hash cells in the cache storage */
+#define CACHE_STORAGE_HASH_CELLS 2048
+  ha_storage_t *storage; /*!< storage for external volatile
+                         data that may become unavailable
+                         when we release
+                         lock_sys->mutex or trx_sys->mutex */
+  ulint mem_allocd;      /*!< the amount of memory
+                         allocated with mem_alloc*() */
+  ibool is_truncated;    /*!< this is TRUE if the memory
+                         limit was hit and thus the data
+                         in the cache is truncated */
+>>>>>>> pr/231
 };
 
 /** This is the intermediate buffer where data needed to fill the
@@ -777,6 +848,15 @@ static bool add_trx_relevant_locks_to_cache(
  @return true if can be updated */
 static bool can_cache_be_updated(trx_i_s_cache_t *cache) /*!< in: cache */
 {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  uintmax_t now;
+=======
+	ib_time_monotonic_us_t now;
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
   /* Here we read cache->last_read without acquiring its mutex
   because last_read is only updated when a shared rw lock on the
   whole cache is being held (see trx_i_s_cache_end_read()) and
@@ -786,10 +866,22 @@ static bool can_cache_be_updated(trx_i_s_cache_t *cache) /*!< in: cache */
 
   ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_X));
 
+<<<<<<< HEAD
   /** The minimum time that a cache must not be updated after it has been
   read for the last time. We use this technique to ensure that SELECTs which
   join several INFORMATION SCHEMA tables read the same version of the cache. */
   constexpr std::chrono::milliseconds cache_min_idle_time{100};
+=======
+<<<<<<< HEAD
+  now = ut_time_us(NULL);
+  if (now - cache->last_read > CACHE_MIN_IDLE_TIME_US) {
+    return (TRUE);
+  }
+=======
+	now = ut_time_monotonic_us();
+	if (now - cache->last_read > CACHE_MIN_IDLE_TIME_US) {
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return std::chrono::steady_clock::now() - cache->last_read.load() >
          cache_min_idle_time;
@@ -996,10 +1088,34 @@ void trx_i_s_cache_start_read(trx_i_s_cache_t *cache) /*!< in: cache */
 /** Release a shared/read lock on the tables cache. */
 void trx_i_s_cache_end_read(trx_i_s_cache_t *cache) /*!< in: cache */
 {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  uintmax_t now;
+=======
+	ib_time_monotonic_us_t  now;
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
   ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_S));
 
+<<<<<<< HEAD
   /* update cache last read time */
+<<<<<<< HEAD
   cache->last_read.store(std::chrono::steady_clock::now());
+=======
+  now = ut_time_us(NULL);
+  mutex_enter(&cache->last_read_mutex);
+  cache->last_read = now;
+  mutex_exit(&cache->last_read_mutex);
+=======
+	/* update cache last read time */
+	now = ut_time_monotonic_us();
+	mutex_enter(&cache->last_read_mutex);
+	cache->last_read = now;
+	mutex_exit(&cache->last_read_mutex);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   rw_lock_s_unlock(cache->rw_lock);
 }

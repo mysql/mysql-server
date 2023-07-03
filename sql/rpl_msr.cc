@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2014, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +91,11 @@ Master_info *Multisource_info::get_mi(const char *channel_name) {
 
   m_channel_map_lock->assert_some_lock();
 
+<<<<<<< HEAD
   assert(channel_name != nullptr);
+=======
+  assert(channel_name != 0);
+>>>>>>> pr/231
 
   mi_map::iterator it;
   replication_channel_map::iterator map_it;
@@ -113,15 +121,29 @@ Master_info *Multisource_info::get_mi(const char *channel_name) {
   return it->second;
 }
 
+<<<<<<< HEAD
 bool Multisource_info::delete_mi(const char *channel_name) {
   DBUG_TRACE;
+=======
+<<<<<<< HEAD
+void Multisource_info::delete_mi(const char *channel_name) {
+=======
+bool Multisource_info::delete_mi(const char* channel_name)
+{
+>>>>>>> upstream/cluster-7.6
+  DBUG_ENTER("Multisource_info::delete_mi");
+>>>>>>> pr/231
 
   m_channel_map_lock->assert_some_wrlock();
 
   Master_info *mi = nullptr;
   mi_map::iterator it;
 
+<<<<<<< HEAD
   assert(channel_name != nullptr);
+=======
+  assert(channel_name != 0);
+>>>>>>> pr/231
 
   replication_channel_map::iterator map_it;
   map_it = rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
@@ -129,21 +151,44 @@ bool Multisource_info::delete_mi(const char *channel_name) {
   if (map_it != rep_channel_map.end()) {
     it = map_it->second.find(channel_name);
   }
+<<<<<<< HEAD
   if (map_it ==
           rep_channel_map.end() ||  // If not a slave channel, maybe a group one
       it == map_it->second.end()) {
     map_it = rep_channel_map.find(GROUP_REPLICATION_CHANNEL);
     assert(map_it != rep_channel_map.end());
 
+<<<<<<< HEAD
     if (map_it != rep_channel_map.end()) {
+=======
+    it = map_it->second.find(channel_name);
+    DBUG_ASSERT(it != map_it->second.end());
+=======
+  if (map_it == rep_channel_map.end() || //If not a slave channel, maybe a group one
+      it == map_it->second.end())
+  {
+    map_it= rep_channel_map.find(GROUP_REPLICATION_CHANNEL);
+    assert(map_it != rep_channel_map.end());
+
+    if (map_it != rep_channel_map.end())
+    {
+>>>>>>> pr/231
       it = map_it->second.find(channel_name);
       assert(it != map_it->second.end());
     }
   }
 
+<<<<<<< HEAD
   if (map_it == rep_channel_map.end() || it == map_it->second.end()) {
     // the channel identified by channel_name could not be found
     return true;
+=======
+  if (map_it == rep_channel_map.end() || it == map_it->second.end())
+  {
+    // the channel identified by channel_name could not be found
+    DBUG_RETURN(true);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -176,7 +221,12 @@ bool Multisource_info::delete_mi(const char *channel_name) {
     }
     delete mi;
   }
+<<<<<<< HEAD
   return false;
+=======
+
+  DBUG_RETURN(false);
+>>>>>>> pr/231
 }
 
 bool Multisource_info::is_group_replication_channel_name(const char *channel,

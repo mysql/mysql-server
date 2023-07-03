@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -458,6 +466,7 @@ Key_use *Optimize_table_order::find_best_ref(
             }
           } else {
             // Use records per key statistics if available
+<<<<<<< HEAD
             if (keyinfo->has_records_per_key(actual_key_parts(keyinfo) - 1)) {
               cur_fanout =
                   keyinfo->records_per_key(actual_key_parts(keyinfo) - 1);
@@ -468,6 +477,21 @@ Key_use *Optimize_table_order::find_best_ref(
                    (1.0 +
                     ((double)(table->s->max_key_length - keyinfo->key_length) /
                      (double)table->s->max_key_length)));
+=======
+            if (keyinfo->has_records_per_key(actual_key_parts(keyinfo) - 1))
+            {
+              cur_fanout=
+                keyinfo->records_per_key(actual_key_parts(keyinfo) - 1);
+            }
+            else
+            {                              /* Prefer longer keys */
+              assert(table->s->max_key_length > 0);
+              cur_fanout=
+                ((double) tab->records() / (double) distinct_keys_est *
+                 (1.0 +
+                  ((double) (table->s->max_key_length-keyinfo->key_length) /
+                   (double) table->s->max_key_length)));
+>>>>>>> upstream/cluster-7.6
               if (cur_fanout < 2.0)
                 cur_fanout = 2.0; /* Can't be as good as a unique */
             }
@@ -491,9 +515,47 @@ Key_use *Optimize_table_order::find_best_ref(
               cur_fanout = (double)table->quick_rows[key];
             }
           }
+<<<<<<< HEAD
           cur_read_cost =
               prefix_rowcount *
               find_cost_for_ref(thd, table, key, cur_fanout, tab->worst_seeks);
+=======
+          // Limit the number of matched rows
+          const double tmp_fanout =
+              min(cur_fanout, (double)thd->variables.max_seeks_for_key);
+          if (table->covering_keys.is_set(key)) {
+            // We can use only index tree
+<<<<<<< HEAD
+            const Cost_estimate index_read_cost =
+                table->file->index_scan_cost(key, 1, tmp_fanout);
+            cur_read_cost = prefix_rowcount * index_read_cost.total_cost();
+          } else if (key == table->s->primary_key &&
+                     table->file->primary_key_is_clustered()) {
+            const Cost_estimate table_read_cost =
+                table->file->read_cost(key, 1, tmp_fanout);
+            cur_read_cost = prefix_rowcount * table_read_cost.total_cost();
+          } else
+            cur_read_cost = prefix_rowcount *
+                            min(table->cost_model()->page_read_cost(tmp_fanout),
+                                tab->worst_seeks);
+=======
+            const Cost_estimate index_read_cost=
+              table->file->index_scan_cost(key, 1, tmp_fanout);
+            cur_read_cost= prefix_rowcount * index_read_cost.total_cost();
+          }
+          else if (key == table->s->primary_key &&
+                   table->file->primary_key_is_clustered())
+          {
+            const Cost_estimate table_read_cost=
+              table->file->read_cost(key, 1, tmp_fanout);
+            cur_read_cost= prefix_rowcount * table_read_cost.total_cost();
+          }
+          else
+            cur_read_cost= prefix_rowcount *
+              min(table->file->page_read_cost(key, tmp_fanout),
+                  tab->worst_seeks);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         }
       } else if ((found_part & 1) &&
                  (!(table->file->index_flags(key, 0, false) &
@@ -656,11 +718,51 @@ Key_use *Optimize_table_order::find_best_ref(
           }
         }
 
+<<<<<<< HEAD
         cur_read_cost =
             prefix_rowcount *
             find_cost_for_ref(thd, table, key, cur_fanout, tab->worst_seeks);
 
+=======
+        // Limit the number of matched rows
+        set_if_smaller(tmp_fanout, (double)thd->variables.max_seeks_for_key);
+        if (table->covering_keys.is_set(key)) {
+          // We can use only index tree
+<<<<<<< HEAD
+          const Cost_estimate index_read_cost =
+              table->file->index_scan_cost(key, 1, tmp_fanout);
+          cur_read_cost = prefix_rowcount * index_read_cost.total_cost();
+        } else if (key == table->s->primary_key &&
+                   table->file->primary_key_is_clustered()) {
+          const Cost_estimate table_read_cost =
+              table->file->read_cost(key, 1, tmp_fanout);
+          cur_read_cost = prefix_rowcount * table_read_cost.total_cost();
+        } else
+          cur_read_cost = prefix_rowcount *
+                          min(table->cost_model()->page_read_cost(tmp_fanout),
+                              tab->worst_seeks);
+>>>>>>> pr/231
       } else {
+=======
+          const Cost_estimate index_read_cost=
+            table->file->index_scan_cost(key, 1, tmp_fanout);
+          cur_read_cost= prefix_rowcount * index_read_cost.total_cost();
+        }
+        else if (key == table->s->primary_key &&
+                 table->file->primary_key_is_clustered())
+        {
+          const Cost_estimate table_read_cost=
+            table->file->read_cost(key, 1, tmp_fanout);
+          cur_read_cost= prefix_rowcount * table_read_cost.total_cost();
+        }
+        else
+          cur_read_cost= prefix_rowcount *
+            min(table->file->page_read_cost(key, tmp_fanout),
+                tab->worst_seeks);
+      }
+      else
+      {
+>>>>>>> upstream/cluster-7.6
         // No useful predicates on the first keypart; cannot use key
         trace_access_idx.add("usable", false).add("chosen", false);
         continue;
@@ -1396,8 +1498,18 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
     Early exit if the only conditions for the table refers to columns
     used by the access method.
   */
+<<<<<<< HEAD
   if (bitmap_is_subset(&table->cond_set, &table->tmp_set)) {
+<<<<<<< HEAD
     assert(filter == COND_FILTER_ALLPASS);
+=======
+    DBUG_ASSERT(filter == COND_FILTER_ALLPASS);
+=======
+  if (bitmap_is_subset(&table->cond_set, &table->tmp_set))
+  {
+    assert(filter == COND_FILTER_ALLPASS);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     goto cleanup;
   }
   /*
@@ -1497,7 +1609,11 @@ cleanup:
 
   // Clear tmp_set so it can be used elsewhere
   bitmap_clear_all(&table->tmp_set);
+<<<<<<< HEAD
   assert(filter >= 0.0F && filter <= 1.0F);
+=======
+  assert(filter >= 0.0f && filter <= 1.0f);
+>>>>>>> pr/231
   return filter;
 }
 
@@ -1612,8 +1728,17 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_ls(trace, "searching_loose_scan_index");
 
+<<<<<<< HEAD
   TABLE *const table = tab->table();
+<<<<<<< HEAD
   assert(remaining_tables & tab->table_ref->map());
+=======
+  DBUG_ASSERT(remaining_tables & tab->table_ref->map());
+=======
+  TABLE *const table= tab->table();
+  assert(remaining_tables & tab->table_ref->map());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   const ulonglong bound_sj_equalities =
       get_bound_sj_equalities(tab, excluded_tables | remaining_tables);
@@ -1681,10 +1806,17 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
             (table->key_info[key].key_part[keypart].key_part_flag &
              HA_PART_KEY_SEG))
           continue;
+<<<<<<< HEAD
         handled_sj_equalities |= 1ULL << keyuse->sj_pred_no;
         handled_keyparts |= keyuse->keypart_map;
         assert(max_keypart <= keypart);  // see sort_keyuse()
         max_keypart = keypart;
+=======
+        handled_sj_equalities|= 1ULL << keyuse->sj_pred_no;
+        handled_keyparts|= keyuse->keypart_map;
+        assert(max_keypart <= keypart); // see sort_keyuse()
+        max_keypart= keypart;
+>>>>>>> upstream/cluster-7.6
       }
     }
 
@@ -2120,10 +2252,14 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables) {
   const Cost_model_server *const cost_model = join->cost_model();
 
   // resolve_subquery() disables semijoin if STRAIGHT_JOIN
+<<<<<<< HEAD
   assert(join->query_block->sj_nests.empty());
 
   Table_map_restorer deps_lateral(
       &join->deps_of_remaining_lateral_derived_tables);
+=======
+  assert(join->select_lex->sj_nests.is_empty());
+>>>>>>> pr/231
 
   Opt_trace_context *const trace = &join->thd->opt_trace;
   for (JOIN_TAB **pos = join->best_ref + idx; *pos; idx++, pos++) {
@@ -2140,7 +2276,10 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables) {
       with execution, check it:
     */
     assert(!check_interleaving_with_nj(s));
+<<<<<<< HEAD
 
+=======
+>>>>>>> pr/231
     /* Find the best access method from 's' to the current partial plan */
     best_access_path(s, join_tables, idx, false, rowcount, position);
 
@@ -2205,11 +2344,24 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables) {
   In this case, MaterializeLookup is returned based on a heuristic decision.
 */
 
+<<<<<<< HEAD
 static int semijoin_order_allows_materialization(const JOIN *join,
                                                  table_map remaining_tables,
                                                  const JOIN_TAB *tab,
                                                  uint idx) {
+<<<<<<< HEAD
   assert(!(remaining_tables & tab->table_ref->map()));
+=======
+  DBUG_ASSERT(!(remaining_tables & tab->table_ref->map()));
+=======
+static int
+semijoin_order_allows_materialization(const JOIN *join,
+                                      table_map remaining_tables,
+                                      const JOIN_TAB *tab, uint idx)
+{
+  assert(!(remaining_tables & tab->table_ref->map()));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   /*
    Check if
     1. We're in a semi-join nest that can be run with SJ-materialization
@@ -2354,7 +2506,15 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables) {
       'best_read < DBL_MAX' means that optimizer managed to find
       some plan and updated 'best_positions' array accordingly.
     */
+<<<<<<< HEAD
     assert(join->best_read < DBL_MAX);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(join->best_read < DBL_MAX);
+=======
+    assert(join->best_read < DBL_MAX); 
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     if (size_remain <= search_depth || use_best_so_far) {
       /*
@@ -2399,10 +2559,22 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables) {
     assert(!is_interleave_error);
 
     /* find the position of 'best_table' in 'join->best_ref' */
+<<<<<<< HEAD
     best_idx = idx;
     JOIN_TAB *pos = join->best_ref[best_idx];
     while (pos && best_table != pos) pos = join->best_ref[++best_idx];
+<<<<<<< HEAD
     assert((pos != nullptr));  // should always find 'best_table'
+=======
+    DBUG_ASSERT((pos != NULL));  // should always find 'best_table'
+=======
+    best_idx= idx;
+    JOIN_TAB *pos= join->best_ref[best_idx];
+    while (pos && best_table != pos)
+      pos= join->best_ref[++best_idx];
+    assert((pos != NULL)); // should always find 'best_table'
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     /*
       Maintain '#rows-sorted' order of 'best_ref[]':
        - Shift 'best_ref[]' to make first position free.
@@ -2778,10 +2950,14 @@ bool Optimize_table_order::best_extension_by_limited_search(
       POSITION *const position = join->positions + idx;
 
       // If optimizing a sj-mat nest, tables in this plan must be in nest:
+<<<<<<< HEAD
       assert(emb_sjm_nest == nullptr || emb_sjm_nest == s->emb_sj_nest);
 
       deps_lateral.restore();  // as we "popped" the previously-tried table
 
+=======
+      assert(emb_sjm_nest == NULL || emb_sjm_nest == s->emb_sj_nest);
+>>>>>>> pr/231
       /* Find the best access method from 's' to the current partial plan */
       best_access_path(s, remaining_tables, idx, false,
                        idx ? (position - 1)->prefix_rowcount : 1.0, position);
@@ -2916,8 +3092,12 @@ bool Optimize_table_order::best_extension_by_limited_search(
         */
         assert((remaining_tables_after != 0) ||
                ((cur_embedding_map == 0) &&
+<<<<<<< HEAD
                 (join->positions[idx].dups_producing_tables == 0) &&
                 (join->deps_of_remaining_lateral_derived_tables == 0)));
+=======
+                (join->positions[idx].dups_producing_tables == 0)));
+>>>>>>> pr/231
       }
       backout_nj_state(remaining_tables, s);
     }
@@ -3115,10 +3295,14 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
       }
       POSITION *const position = join->positions + idx;
 
+<<<<<<< HEAD
       assert(emb_sjm_nest == nullptr || emb_sjm_nest == s->emb_sj_nest);
 
       deps_lateral.restore();
 
+=======
+      assert(emb_sjm_nest == NULL || emb_sjm_nest == s->emb_sj_nest);
+>>>>>>> pr/231
       /* Find the best access method from 's' to the current partial plan */
       best_access_path(s, remaining_tables, idx, false,
                        idx ? (position - 1)->prefix_rowcount : 1.0, position);
@@ -3190,11 +3374,18 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
           eq_ref_ext |= eq_ref_extension_by_limited_search(
               remaining_tables_after, idx + 1, current_search_depth - 1);
         } else {
+<<<<<<< HEAD
           if (consider_plan(idx, &trace_one_table)) return ~(table_map)0;
           assert((remaining_tables_after != 0) ||
                  ((cur_embedding_map == 0) &&
                   (join->positions[idx].dups_producing_tables == 0) &&
                   (join->deps_of_remaining_lateral_derived_tables == 0)));
+=======
+          consider_plan(idx, &trace_one_table);
+          assert((remaining_tables_after != 0) ||
+                 ((cur_embedding_map == 0) &&
+                  (join->positions[idx].dups_producing_tables == 0)));
+>>>>>>> pr/231
         }
         backout_nj_state(remaining_tables, s);
         memcpy(join->best_ref + idx, saved_refs,
@@ -3214,8 +3405,18 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
     the query plan. We need to use the greedy search
     for finding the next table to be added.
   */
+<<<<<<< HEAD
   assert(!eq_ref_ext);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!eq_ref_ext);
+>>>>>>> pr/231
   if (best_extension_by_limited_search(remaining_tables, idx,
+=======
+  assert(!eq_ref_ext);
+  if (best_extension_by_limited_search(remaining_tables,
+                                       idx,
+>>>>>>> upstream/cluster-7.6
                                        current_search_depth))
     return ~(table_map)0;
 
@@ -3405,6 +3606,7 @@ bool Optimize_table_order::fix_semijoin_strategies() {
       Opt_trace_object trace_final_strategy(trace);
       trace_final_strategy.add_alnum("final_semijoin_strategy",
                                      "MaterializeLookup");
+<<<<<<< HEAD
     } else if (pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN) {
       const uint last_inner = pos->sjm_scan_last_inner;
       Table_ref *const sjm_nest =
@@ -3413,6 +3615,19 @@ bool Optimize_table_order::fix_semijoin_strategies() {
       first = last_inner - table_count + 1;
       assert((join->best_positions + first)->table->emb_sj_nest == sjm_nest);
       memcpy(join->best_positions + first,  // stale semijoin strategy here too
+=======
+    }
+    else if (pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN)
+    {
+      const uint last_inner= pos->sjm_scan_last_inner;
+      TABLE_LIST *const sjm_nest=
+        (join->best_positions + last_inner)->table->emb_sj_nest;
+      const uint table_count= my_count_bits(sjm_nest->sj_inner_tables);
+      first= last_inner - table_count + 1;
+      assert((join->best_positions + first)->table->emb_sj_nest ==
+             sjm_nest);
+      memcpy(join->best_positions + first, // stale semijoin strategy here too
+>>>>>>> upstream/cluster-7.6
              sjm_nest->nested_join->sjm.positions,
              sizeof(POSITION) * table_count);
       join->best_positions[first].sj_strategy = SJ_OPT_MATERIALIZE_SCAN;
@@ -3489,7 +3704,16 @@ bool Optimize_table_order::fix_semijoin_strategies() {
     remaining_tables |= pos->table->table_ref->map();
   }
 
+<<<<<<< HEAD
   assert(remaining_tables == (join->all_table_map & ~join->const_table_map));
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(remaining_tables ==
+              (join->all_table_map & ~join->const_table_map));
+=======
+  assert(remaining_tables == (join->all_table_map&~join->const_table_map));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return false;
 }
@@ -3741,14 +3965,25 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
         so best_access_path() should fill bound_keyparts/read_cost/fanout for
         all keys => test_all_ref_keys==true.
        */
+<<<<<<< HEAD
       assert(!test_all_ref_keys);
       test_all_ref_keys = is_ls_driving_tab;
       double prefix_rowcount = rowcount * inner_fanout * outer_fanout;
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(!test_all_ref_keys);
+      test_all_ref_keys = is_ls_driving_tab;
+=======
+      assert(!test_all_ref_keys);
+      test_all_ref_keys= is_ls_driving_tab;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       best_access_path(tab, remaining_tables, i, i < no_jbuf_before,
                        prefix_rowcount, dst_pos);
       test_all_ref_keys = false;
       if (is_ls_driving_tab)  // Use loose scan position
       {
+<<<<<<< HEAD
         if (semijoin_loosescan_fill_driving_table_position(
                 tab, remaining_tables, i, prefix_rowcount, dst_pos)) {
           dst_pos->table = tab;
@@ -3757,8 +3992,28 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
               cost + dst_pos->read_cost + cost_model->row_evaluate_cost(rows),
               rows * dst_pos->filter_effect);
         } else {
+<<<<<<< HEAD
           assert(!got_final_plan);
           return false;
+=======
+          DBUG_ASSERT(!final);
+=======
+        if (semijoin_loosescan_fill_driving_table_position(tab,
+                                                           remaining_tables,
+                                                           i, dst_pos))
+        {
+          dst_pos->table= tab;
+          const double rows= rowcount * dst_pos->rows_fetched;
+          dst_pos->set_prefix_cost(cost + dst_pos->read_cost +
+                                   cost_model->row_evaluate_cost(rows),
+                                   rows * dst_pos->filter_effect);
+        }
+        else
+        {
+          assert(!final);
+>>>>>>> upstream/cluster-7.6
+          DBUG_RETURN(false);
+>>>>>>> pr/231
         }
       }
       pos = dst_pos;
@@ -3769,9 +4024,20 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
       Terminate search if best_access_path found no possible plan.
       Otherwise we will be getting infinite cost when summing up below.
      */
+<<<<<<< HEAD
     if (pos->read_cost == DBL_MAX) {
+<<<<<<< HEAD
       assert(loosescan && !got_final_plan);
       return false;
+=======
+      DBUG_ASSERT(loosescan && !final);
+=======
+    if (pos->read_cost == DBL_MAX)
+    {
+      assert(loosescan && !final);
+>>>>>>> upstream/cluster-7.6
+      DBUG_RETURN(false);
+>>>>>>> pr/231
     }
 
     remaining_tables &= ~tab->table_ref->map();
@@ -4118,7 +4384,11 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
     within a semi-join nest have emb_sj_nest != NULL, which triggers several
     of the actions inside this function.
   */
+<<<<<<< HEAD
   assert(emb_sjm_nest == nullptr);
+=======
+  assert(emb_sjm_nest == NULL);
+>>>>>>> pr/231
 
   // remaining_tables include the current one:
   assert(remaining_tables & new_join_tab->table_ref->map());
@@ -4218,7 +4488,16 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
       pos->firstmatch_need_tables = 0;
       pos->first_firstmatch_rtbl = remaining_tables;
       // All inner tables should still be part of remaining_tables_inc
+<<<<<<< HEAD
       assert(sj_inner_tables == (remaining_tables_incl & sj_inner_tables));
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(sj_inner_tables == (remaining_tables_incl & sj_inner_tables));
+=======
+      assert(sj_inner_tables ==
+             (remaining_tables_incl & sj_inner_tables));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     }
 
     if (pos->first_firstmatch_table != MAX_TABLES) {
@@ -4324,8 +4603,19 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
         }
       } else {
         // Stage 3: Accept outer dependent and non-dependent tables:
+<<<<<<< HEAD
         assert(emb_sj_nest != first_emb_sj_nest);
         if (emb_sj_nest != nullptr) pos->first_loosescan_table = MAX_TABLES;
+=======
+<<<<<<< HEAD
+        DBUG_ASSERT(emb_sj_nest != first_emb_sj_nest);
+        if (emb_sj_nest != NULL) pos->first_loosescan_table = MAX_TABLES;
+=======
+        assert(emb_sj_nest != first_emb_sj_nest);
+        if (emb_sj_nest != NULL)
+          pos->first_loosescan_table= MAX_TABLES;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
 
@@ -4431,7 +4721,12 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
       The simple way to model this is to remove SJM-SCAN(...) fanout once
       we reach the point #2.
     */
+<<<<<<< HEAD
     if (pos->sjm_scan_need_tables && emb_sj_nest != nullptr &&
+=======
+<<<<<<< HEAD
+    if (pos->sjm_scan_need_tables && emb_sj_nest != NULL &&
+>>>>>>> pr/231
         emb_sj_nest !=
             join->positions[pos->sjm_scan_last_inner].table->emb_sj_nest)
       /*
@@ -4448,6 +4743,30 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
           .add_alnum("choice", "deferred");
     }
   } else if (sjm_strategy == SJ_OPT_MATERIALIZE_LOOKUP) {
+=======
+    if (pos->sjm_scan_need_tables &&
+        emb_sj_nest != NULL &&
+        emb_sj_nest !=
+        join->positions[pos->sjm_scan_last_inner].table->emb_sj_nest)
+      /*
+        Prevent that inner tables of different semijoin nests are
+        interleaved for MaterializeScan.
+      */
+      pos->sjm_scan_need_tables= 0;
+    else
+    {
+      pos->sjm_scan_need_tables=
+        emb_sj_nest->sj_inner_tables |
+        emb_sj_nest->nested_join->sj_depends_on;
+      pos->sjm_scan_last_inner= idx;
+      Opt_trace_object(trace).add_alnum("strategy", "MaterializeScan").
+        add_alnum("choice", "deferred");
+    }
+
+  }
+  else if (sjm_strategy == SJ_OPT_MATERIALIZE_LOOKUP)
+  {
+>>>>>>> upstream/cluster-7.6
     // Calculate access paths and cost for MaterializeLookup strategy
     double cost, rowcount;
     semijoin_mat_lookup_access_paths(idx, emb_sj_nest, &rowcount, &cost);
@@ -4650,10 +4969,21 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
                           current partial join order.
 */
 
+<<<<<<< HEAD
 void Optimize_table_order::backout_nj_state(const table_map remaining_tables
                                             [[maybe_unused]],
                                             const JOIN_TAB *tab) {
+<<<<<<< HEAD
   assert(remaining_tables & tab->table_ref->map());
+=======
+  DBUG_ASSERT(remaining_tables & tab->table_ref->map());
+=======
+void Optimize_table_order::backout_nj_state(const table_map remaining_tables,
+                                            const JOIN_TAB *tab)
+{
+  assert(remaining_tables & tab->table_ref->map());
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* Restore the nested join state */
   Table_ref *last_emb = tab->table_ref->embedding;

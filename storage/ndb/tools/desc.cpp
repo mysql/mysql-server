@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,6 +94,7 @@ static struct my_option my_long_options[] =
     &_indexinfo, nullptr, nullptr, GET_BOOL, NO_ARG,
     0, 0, 0, nullptr, 0, nullptr },
   { "table", 't', "Base table for index",
+<<<<<<< HEAD
     &_tblname, nullptr, nullptr, GET_STR, REQUIRED_ARG,
     0, 0, 0, nullptr, 0, nullptr },
   { "autoinc", 'a', "Show autoincrement information",
@@ -99,6 +108,20 @@ static struct my_option my_long_options[] =
 
 static void print_context_info(Ndb* pNdb, NdbDictionary::Table const* pTab);
 static void print_autoinc_info(Ndb* pNdb, NdbDictionary::Table const* pTab);
+=======
+    (uchar**) &_tblname, (uchar**) &_tblname, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "autoinc", 'a', "Show autoincrement information",
+    (uchar**) &_autoinc, (uchar**) &_autoinc, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "context", 'x', "Show context information",
+    (uchar**) &_context, (uchar**) &_context, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+<<<<<<< HEAD
+>>>>>>> pr/231
 static void print_part_info(Ndb* pNdb, NdbDictionary::Table const* pTab);
 
 int main(int argc, char** argv){
@@ -108,24 +131,57 @@ int main(int argc, char** argv){
   opt_debug= "d:t:O,/tmp/ndb_desc.trace";
 #endif
   if (opts.handle_options())
+=======
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(NULL);
+}
+
+static void usage()
+{
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
+}
+
+static void print_context_info(Ndb* pNdb, NdbDictionary::Table const* pTab);
+static void print_autoinc_info(Ndb* pNdb, NdbDictionary::Table const* pTab);
+static void print_part_info(Ndb* pNdb, NdbDictionary::Table const* pTab);
+
+int main(int argc, char** argv){
+  NDB_INIT(argv[0]);
+
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
+  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
+  int ho_error;
+#ifndef NDEBUG
+  opt_debug= "d:t:O,/tmp/ndb_desc.trace";
+#endif
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, 
+			       ndb_std_get_one_option)))
+  {
+    ndb_free_defaults(argv);
+>>>>>>> upstream/cluster-7.6
     return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_desc");
   if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   if (con.wait_until_ready(30,0) < 0)
   {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
   Ndb MyNdb(&con, _dbname);
   if(MyNdb.init() != 0){
     NDB_ERR(MyNdb.getNdbError());
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -149,6 +205,7 @@ int main(int argc, char** argv){
       ndbout << "No such object: " << argv[i] << endl << endl;
   }
 
+  ndb_free_defaults(argv);
   return NDBT_ProgramExit(NDBT_OK);
 }
 

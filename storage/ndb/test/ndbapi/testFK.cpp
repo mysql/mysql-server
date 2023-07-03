@@ -1,5 +1,13 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2013, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +42,15 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NodeBitmask.hpp>
 #include <NdbEnv.h>
+<<<<<<< HEAD
 #include "portlib/NdbSleep.h"
+=======
+
+<<<<<<< HEAD
+extern "C" bool opt_core;
+=======
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 #define DBG(x) \
   do { g_info << x << " at line " << __LINE__ << endl; } while (0)
@@ -924,7 +940,10 @@ runRSSsnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
   g_info << "check all resource usage" << endl;
+<<<<<<< HEAD
   NdbSleep_SecSleep(2);
+=======
+>>>>>>> pr/231
   int dump1[] = { DumpStateOrd::SchemaResourceCheckLeak };
   restarter.dumpStateAllNodes(dump1, 1);
   return NDBT_OK;

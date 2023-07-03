@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2004, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +56,76 @@ OPT_EXTERN(const char *,opt_charsets_dir,=0);
 OPT_EXTERN(const char *,opt_debug,= 0);
 #endif
 
+<<<<<<< HEAD
+=======
+#if defined VM_TRACE
+#define OPT_WANT_CORE_DEFAULT 1
+#else
+#define OPT_WANT_CORE_DEFAULT 0
+#endif
+
+#define NDB_STD_OPTS_COMMON \
+  { "usage", '?', "Display this help and exit.", \
+    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
+  { "help", '?', "Display this help and exit.", \
+    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
+  { "version", 'V', "Output version information and exit.", 0, 0, 0, \
+    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, \
+  { "ndb-connectstring", OPT_NDB_CONNECTSTRING, \
+    "Set connect string for connecting to ndb_mgmd. " \
+    "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " \
+    "Overrides specifying entries in NDB_CONNECTSTRING and my.cnf", \
+    (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, \
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
+  { "ndb-mgmd-host", NDB_OPT_NOSHORT, \
+    "same as --ndb-connectstring", \
+    (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, 0, \
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
+  { "ndb-nodeid", NDB_OPT_NOSHORT, \
+    "Set node id for this node. Overrides node id specified " \
+    "in --ndb-connectstring.", \
+    (uchar**) &opt_ndb_nodeid, (uchar**) &opt_ndb_nodeid, 0, \
+    GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
+  {"ndb-optimized-node-selection", NDB_OPT_NOSHORT,\
+    "Select nodes for transactions in a more optimal way",\
+    (uchar**) &opt_ndb_optimized_node_selection,\
+    (uchar**) &opt_ndb_optimized_node_selection, 0,\
+    GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},\
+  { "connect-string", OPT_NDB_CONNECTSTRING, "same as --ndb-connectstring",\
+    (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, \
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
+  { "core-file", NDB_OPT_NOSHORT, "Write core on errors.",\
+    (uchar**) &opt_core, (uchar**) &opt_core, 0,\
+    GET_BOOL, NO_ARG, OPT_WANT_CORE_DEFAULT, 0, 0, 0, 0, 0},\
+  {"character-sets-dir", NDB_OPT_NOSHORT,\
+     "Directory where character sets are.", (uchar**) &charsets_dir,\
+     (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},\
+  {"connect-retry-delay", NDB_OPT_NOSHORT, \
+     "Set connection time out." \
+     " This is the number of seconds after which the tool tries" \
+     " reconnecting to the cluster.", \
+     (uchar**) &opt_connect_retry_delay, (uchar**) &opt_connect_retry_delay, 0, GET_INT, \
+     REQUIRED_ARG, 5, 1, INT_MAX, 0, 0, 0},\
+  {"connect-retries", NDB_OPT_NOSHORT, \
+     "Set connection retries." \
+     " This is the number of times the tool tries connecting" \
+     " to the cluster. -1 for eternal retries", \
+     (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0, GET_INT, \
+     REQUIRED_ARG, 12, -1, INT_MAX, 0, 0, 0}
+
+#ifndef NDEBUG
+#define NDB_STD_OPTS(prog_name) \
+  { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", \
+    (uchar**) &opt_debug, (uchar**) &opt_debug, \
+    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0 }, \
+  NDB_STD_OPTS_COMMON
+#else
+#define NDB_STD_OPTS(prog_name) NDB_STD_OPTS_COMMON
+#endif
+
+void ndb_std_print_version();
+
+>>>>>>> pr/231
 enum ndb_std_options {
   /*
     --ndb-connectstring=<connectstring> has short form 'c'

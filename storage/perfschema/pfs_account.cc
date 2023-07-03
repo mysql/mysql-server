@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +79,7 @@ static const uchar *account_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_account *const *typed_entry;
   const PFS_account *account;
   const void *result;
+<<<<<<< HEAD
   typed_entry = reinterpret_cast<const PFS_account *const *>(entry);
   assert(typed_entry != nullptr);
   account = *typed_entry;
@@ -78,6 +87,15 @@ static const uchar *account_hash_get_key(const uchar *entry, size_t *length) {
   *length = sizeof(account->m_key);
   result = &account->m_key;
   return reinterpret_cast<const uchar *>(result);
+=======
+  typed_entry= reinterpret_cast<const PFS_account* const *> (entry);
+  assert(typed_entry != NULL);
+  account= *typed_entry;
+  assert(account != NULL);
+  *length= account->m_key.m_key_length;
+  result= account->m_key.m_hash_key;
+  return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
+>>>>>>> upstream/cluster-7.6
 }
 
 static uint account_hash_func(const LF_HASH *, const uchar *key,
@@ -155,10 +173,42 @@ static LF_PINS *get_account_hash_pins(PFS_thread *thread) {
   return thread->m_account_hash_pins;
 }
 
+<<<<<<< HEAD
 static void set_account_key(PFS_account_key *key, const PFS_user_name *user,
                             const PFS_host_name *host) {
   key->m_user_name = *user;
   key->m_host_name = *host;
+=======
+<<<<<<< HEAD
+static void set_account_key(PFS_account_key *key, const char *user,
+                            uint user_length, const char *host,
+                            uint host_length) {
+  DBUG_ASSERT(user_length <= USERNAME_LENGTH);
+  DBUG_ASSERT(host_length <= HOSTNAME_LENGTH);
+=======
+static void set_account_key(PFS_account_key *key,
+                              const char *user, uint user_length,
+                              const char *host, uint host_length)
+{
+  assert(user_length <= USERNAME_LENGTH);
+  assert(host_length <= HOSTNAME_LENGTH);
+>>>>>>> upstream/cluster-7.6
+
+  char *ptr = &key->m_hash_key[0];
+  if (user_length > 0) {
+    memcpy(ptr, user, user_length);
+    ptr += user_length;
+  }
+  ptr[0] = 0;
+  ptr++;
+  if (host_length > 0) {
+    memcpy(ptr, host, host_length);
+    ptr += host_length;
+  }
+  ptr[0] = 0;
+  ptr++;
+  key->m_key_length = ptr - &key->m_hash_key[0];
+>>>>>>> pr/231
 }
 
 PFS_account *find_or_create_account(PFS_thread *thread,
@@ -553,11 +603,62 @@ void PFS_account::aggregate_memory(bool alive, PFS_user *safe_user,
   return;
 }
 
+<<<<<<< HEAD
 void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host) {
+<<<<<<< HEAD
+=======
+  if (likely(safe_user != NULL && safe_host != NULL)) {
+    /*
+      Aggregate STATUS_BY_ACCOUNT to:
+      - STATUS_BY_USER
+      - STATUS_BY_HOST
+    */
+    safe_user->m_status_stats.aggregate(&m_status_stats);
+    safe_host->m_status_stats.aggregate(&m_status_stats);
+    m_status_stats.reset();
+    return;
+  }
+=======
+void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host)
+{
   /*
     Never aggregate to global_status_var,
     because of the parallel THD -> global_status_var flow.
   */
+>>>>>>> upstream/cluster-7.6
+
+  if (safe_user != NULL) {
+    /*
+      Aggregate STATUS_BY_ACCOUNT to:
+      - STATUS_BY_USER
+    */
+<<<<<<< HEAD
+    safe_user->m_status_stats.aggregate(&m_status_stats);
+    m_status_stats.aggregate_to(&global_status_var);
+    m_status_stats.reset();
+    return;
+=======
+    safe_user->m_status_stats.aggregate(& m_status_stats);
+>>>>>>> upstream/cluster-7.6
+  }
+
+  if (safe_host != NULL) {
+    /*
+      Aggregate STATUS_BY_ACCOUNT to:
+      - STATUS_BY_HOST
+    */
+<<<<<<< HEAD
+    safe_host->m_status_stats.aggregate(&m_status_stats);
+    m_status_stats.reset();
+    return;
+  }
+
+>>>>>>> pr/231
+  /*
+    Never aggregate to global_status_var,
+    because of the parallel THD -> global_status_var flow.
+  */
+<<<<<<< HEAD
 
   if (safe_user != nullptr) {
     /*
@@ -575,6 +676,14 @@ void PFS_account::aggregate_status(PFS_user *safe_user, PFS_host *safe_host) {
     safe_host->m_status_stats.aggregate(&m_status_stats);
   }
 
+=======
+  m_status_stats.aggregate_to(&global_status_var);
+=======
+    safe_host->m_status_stats.aggregate(& m_status_stats);
+  }
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   m_status_stats.reset();
   return;
 }
@@ -681,13 +790,38 @@ static void purge_account(PFS_thread *thread, PFS_account *account) {
   }
 
   PFS_account **entry;
+<<<<<<< HEAD
   entry = reinterpret_cast<PFS_account **>(lf_hash_search(
       &account_hash, pins, &account->m_key, sizeof(account->m_key)));
+=======
+<<<<<<< HEAD
+  entry = reinterpret_cast<PFS_account **>(
+      lf_hash_search(&account_hash, pins, account->m_key.m_hash_key,
+                     account->m_key.m_key_length));
+>>>>>>> pr/231
   if (entry && (entry != MY_LF_ERRPTR)) {
     assert(*entry == account);
     if (account->get_refcount() == 0) {
+<<<<<<< HEAD
       lf_hash_delete(&account_hash, pins, &account->m_key,
                      sizeof(account->m_key));
+=======
+      lf_hash_delete(&account_hash, pins, account->m_key.m_hash_key,
+=======
+  entry= reinterpret_cast<PFS_account**>
+    (lf_hash_search(&account_hash, pins,
+                    account->m_key.m_hash_key,
+                    account->m_key.m_key_length));
+  if (entry && (entry != MY_ERRPTR))
+  {
+    assert(*entry == account);
+    if (account->get_refcount() == 0)
+    {
+      lf_hash_delete(&account_hash, pins,
+                     account->m_key.m_hash_key,
+>>>>>>> upstream/cluster-7.6
+                     account->m_key.m_key_length);
+>>>>>>> pr/231
       account->aggregate(false, account->m_user, account->m_host);
       if (account->m_user != nullptr) {
         account->m_user->release();

@@ -1,6 +1,11 @@
 /*****************************************************************************
 
+<<<<<<< HEAD
 Copyright (c) 1996, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+>>>>>>> pr/231
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -17,6 +22,25 @@ This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
 for more details.
+=======
+Copyright (c) 1996, 2023, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+>>>>>>> upstream/cluster-7.6
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
@@ -1497,7 +1521,15 @@ static trx_undo_t *trx_undo_mem_create(trx_rseg_t *rseg, ulint id, ulint type,
   undo->top_page_no = page_no;
   undo->guess_block = nullptr;
 
+<<<<<<< HEAD
   return (undo);
+=======
+	undo->empty = TRUE;
+	undo->top_page_no = page_no;
+	undo->guess_block = NULL;
+
+	return(undo);
+>>>>>>> upstream/cluster-7.6
 }
 
 /** Initializes a cached undo log object for new use. */
@@ -2182,11 +2214,43 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
     ut_ad(rseg->get_curr_size() == 1);
     ut_ad(rseg->trx_ref_count == 0);
 
+<<<<<<< HEAD
     rseg->last_page_no = FIL_NULL;
     rseg->last_offset = 0;
     rseg->last_trx_no = 0;
     rseg->last_del_marks = false;
   }
+<<<<<<< HEAD
+=======
+  mtr_commit(&mtr);
+=======
+		rseg->trx_ref_count = 0;
+		rseg->last_page_no = FIL_NULL;
+		rseg->last_offset = 0;
+		rseg->last_trx_no = 0;
+		rseg->last_del_marks = FALSE;
+	}
+
+	/* During Upgrade, existing rsegs in range from slot-1....slot-32
+	were added into the array pending_purge_rseg_array[]. These rsegs also
+	reside in system or undo tablespace. */
+	trx_sysf_t* sys_header = trx_sysf_get(&mtr);
+	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		trx_rseg_t*	rseg = trx_sys->pending_purge_rseg_array[i];
+		if(rseg != NULL
+			&& rseg->space == undo_trunc->get_marked_space_id()) {
+			/* Reset the rollback segment slot in the trx
+			system header */
+			trx_sysf_rseg_set_page_no(
+				sys_header, rseg->id, FIL_NULL, &mtr);
+			/* Free a pending rollback segment instance in memory */
+			trx_rseg_mem_free(rseg,
+				trx_sys->pending_purge_rseg_array);
+		}
+	}
+	mtr_commit(&mtr);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   marked_rsegs->x_unlock();
 

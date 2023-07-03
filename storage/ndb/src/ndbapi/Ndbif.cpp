@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 /* Copyright (c) 2003, 2022, Oracle and/or its affiliates.
+=======
+/*
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1277,6 +1282,26 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     NdbApiSignal copy_signal(BlockReference(0));
     LinearSectionPtr copy_ptr[3];
 
+<<<<<<< HEAD
+=======
+    if (unlikely(op == 0 || op->m_magic_number != NDB_EVENT_OP_MAGIC_NUMBER))
+    {
+      g_eventLogger->error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
+                           "number");
+      DBUG_EXECUTE_IF("ndb_crash_on_drop_SUB_TABLE_DATA", DBUG_SUICIDE(););
+      return ;
+    }
+
+    // Accumulate DIC_TAB_INFO for TE_ALTER events
+    if (SubTableData::getOperation(sdata->requestInfo) == 
+	NdbDictionary::Event::_TE_ALTER &&
+        !op->execSUB_TABLE_DATA(aSignal, ptr))
+    {
+      return;
+    }
+    
+    LinearSectionPtr copy[3];
+>>>>>>> pr/231
     for (int i = 0; i<aSignal->m_noOfSections; i++)
     {
       copy_ptr[i] = ptr[i];
@@ -1803,8 +1828,14 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
       break;
     }//if
     theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
+<<<<<<< HEAD
     waitTime = aMilliSecondsToWait -
       (int)NdbTick_Elapsed(start, wait_end).milliSec();
+=======
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    waitTime = aMilliSecondsToWait - 
+      (int)NdbTick_Elapsed(start,now).milliSec();
+>>>>>>> pr/231
 #ifndef NDEBUG
     if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
     {

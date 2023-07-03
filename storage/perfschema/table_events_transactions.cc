@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2010, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2010, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -82,6 +90,7 @@ Plugin_table table_events_transactions_current::m_table_def(
     /* Tablespace */
     nullptr);
 
+<<<<<<< HEAD
 PFS_engine_table_share table_events_transactions_current::m_share = {
     &pfs_truncatable_acl,
     table_events_transactions_current::create,
@@ -95,10 +104,37 @@ PFS_engine_table_share table_events_transactions_current::m_share = {
     PFS_engine_table_proxy(),
     {0},
     false /* m_in_purgatory */
+=======
+TABLE_FIELD_DEF
+table_events_transactions_current::m_field_def=
+{24 , field_types };
+
+PFS_engine_table_share_state
+table_events_transactions_current::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_events_transactions_current::m_share=
+{
+  { C_STRING_WITH_LEN("events_transactions_current") },
+  &pfs_truncatable_acl,
+  table_events_transactions_current::create,
+  NULL, /* write_row */
+  table_events_transactions_current::delete_all_rows,
+  table_events_transactions_current::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+>>>>>>> upstream/cluster-7.6
 };
 
 THR_LOCK table_events_transactions_history::m_table_lock;
 
+<<<<<<< HEAD
 Plugin_table table_events_transactions_history::m_table_def(
     /* Schema name */
     "performance_schema",
@@ -148,10 +184,33 @@ PFS_engine_table_share table_events_transactions_history::m_share = {
     PFS_engine_table_proxy(),
     {0},
     false /* m_in_purgatory */
+=======
+PFS_engine_table_share_state
+table_events_transactions_history::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_events_transactions_history::m_share=
+{
+  { C_STRING_WITH_LEN("events_transactions_history") },
+  &pfs_truncatable_acl,
+  table_events_transactions_history::create,
+  NULL, /* write_row */
+  table_events_transactions_history::delete_all_rows,
+  table_events_transactions_history::get_row_count,
+  sizeof(pos_events_transactions_history), /* ref length */
+  &m_table_lock,
+  &table_events_transactions_current::m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+>>>>>>> upstream/cluster-7.6
 };
 
 THR_LOCK table_events_transactions_history_long::m_table_lock;
 
+<<<<<<< HEAD
 Plugin_table table_events_transactions_history_long::m_table_def(
     /* Schema name */
     "performance_schema",
@@ -200,6 +259,28 @@ PFS_engine_table_share table_events_transactions_history_long::m_share = {
     PFS_engine_table_proxy(),
     {0},
     false /* m_in_purgatory */
+=======
+PFS_engine_table_share_state
+table_events_transactions_history_long::m_share_state = {
+  false /* m_checked */
+};
+
+PFS_engine_table_share
+table_events_transactions_history_long::m_share=
+{
+  { C_STRING_WITH_LEN("events_transactions_history_long") },
+  &pfs_truncatable_acl,
+  table_events_transactions_history_long::create,
+  NULL, /* write_row */
+  table_events_transactions_history_long::delete_all_rows,
+  table_events_transactions_history_long::get_row_count,
+  sizeof(PFS_simple_index), /* ref length */
+  &m_table_lock,
+  &table_events_transactions_current::m_field_def,
+  false, /* m_perpetual */
+  false, /* m_optional */
+  &m_share_state
+>>>>>>> upstream/cluster-7.6
 };
 
 bool PFS_index_events_transactions::match(PFS_thread *pfs) {
@@ -230,8 +311,18 @@ table_events_transactions_common::table_events_transactions_common(
   Build a row.
   @param transaction                      the transaction the cursor is reading
 */
+<<<<<<< HEAD
 int table_events_transactions_common::make_row(
     PFS_events_transactions *transaction) {
+<<<<<<< HEAD
+=======
+  const char *base;
+  const char *safe_source_file;
+=======
+void table_events_transactions_common::make_row(PFS_events_transactions *transaction)
+{
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   ulonglong timer_end;
 
   PFS_transaction_class *unsafe = (PFS_transaction_class *)transaction->m_class;
@@ -258,9 +349,29 @@ int table_events_transactions_common::make_row(
   m_row.m_name = klass->m_name.str();
   m_row.m_name_length = klass->m_name.length();
 
+<<<<<<< HEAD
   make_source_column(transaction->m_source_file, transaction->m_source_line,
                      m_row.m_source, sizeof(m_row.m_source),
                      m_row.m_source_length);
+=======
+<<<<<<< HEAD
+  safe_source_file = transaction->m_source_file;
+  if (unlikely(safe_source_file == NULL)) {
+    return HA_ERR_RECORD_DELETED;
+  }
+
+  base = base_name(safe_source_file);
+  m_row.m_source_length =
+      (uint)snprintf(m_row.m_source, sizeof(m_row.m_source), "%s:%d", base,
+                     transaction->m_source_line);
+  if (m_row.m_source_length > sizeof(m_row.m_source)) {
+    m_row.m_source_length = sizeof(m_row.m_source);
+  }
+=======
+  /* Disable source file and line to avoid stale __FILE__ pointers. */
+  m_row.m_source_length= 0;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /* A GTID consists of the SID (source id) and GNO (transaction number).
      The SID is stored in transaction->m_sid and the GNO is stored in
@@ -318,6 +429,7 @@ static const ulong XID_BUFFER_SIZE = XIDDATASIZE * 2 + 2 + 1;
   @param length  number of bytes to process
   @return number of bytes in hex string
 */
+<<<<<<< HEAD
 static size_t xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid, size_t offset,
                          size_t length) {
   assert(buf_len >= XID_BUFFER_SIZE);
@@ -327,6 +439,15 @@ static size_t xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid, size_t offset,
   return bin_to_hex_str(buf, buf_len - 2, (char *)(xid->data + offset),
                         length) +
          2;
+=======
+static uint xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid, size_t offset, size_t length)
+{
+  assert(buf_len >= XID_BUFFER_SIZE);
+  assert(offset + length <= XIDDATASIZE);
+  *buf++= '0';
+  *buf++= 'x';
+  return bin_to_hex_str(buf, buf_len-2, (char*)(xid->data + offset), length) + 2;
+>>>>>>> upstream/cluster-7.6
 }
 
 /**
@@ -338,10 +459,18 @@ static size_t xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid, size_t offset,
   @param  offset  offset into XID.data[]
   @param  length  number of bytes to process
 */
+<<<<<<< HEAD
 static void xid_store(Field *field, PSI_xid *xid, size_t offset,
                       size_t length) {
   assert(!xid->is_null());
   if (xid_printable(xid, offset, length)) {
+=======
+static void xid_store(Field *field, PSI_xid *xid, size_t offset, size_t length)
+{
+  assert(!xid->is_null());
+  if (xid_printable(xid, offset, length))
+  {
+>>>>>>> upstream/cluster-7.6
     field->store(xid->data + offset, length, &my_charset_bin);
   } else {
     /*
@@ -371,10 +500,21 @@ int table_events_transactions_common::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
+<<<<<<< HEAD
   assert(table->s->null_bytes == 3);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(table->s->null_bytes == 3);
+>>>>>>> pr/231
   buf[0] = 0;
   buf[1] = 0;
   buf[2] = 0;
+=======
+  assert(table->s->null_bytes == 3);
+  buf[0]= 0;
+  buf[1]= 0;
+  buf[2]= 0;
+>>>>>>> upstream/cluster-7.6
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
@@ -484,6 +624,7 @@ int table_events_transactions_common::read_row_values(TABLE *table,
           break;
         case 21: /* OBJECT_INSTANCE_BEGIN */
           f->set_null();
+<<<<<<< HEAD
           break;
         case 22: /* NESTING_EVENT_ID */
           if (m_row.m_nesting_event_id != 0) {
@@ -500,7 +641,110 @@ int table_events_transactions_common::read_row_values(TABLE *table,
           }
           break;
         default:
+<<<<<<< HEAD
           assert(false);
+=======
+          DBUG_ASSERT(false);
+=======
+        break;
+      case 3: /* EVENT_NAME */
+        set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+        break;
+      case 4: /* STATE */
+        set_field_enum(f, m_row.m_state);
+        break;
+      case 5: /* TRX_ID */
+        if (m_row.m_trxid != 0)
+          set_field_ulonglong(f, m_row.m_trxid);
+        else
+          f->set_null();
+        break;
+      case 6: /* GTID */
+        set_field_varchar_utf8(f, m_row.m_gtid, m_row.m_gtid_length);
+        break;
+      case 7: /* XID_FORMAT_ID */
+        if (!m_row.m_xa || m_row.m_xid.is_null())
+          f->set_null();
+        else
+          set_field_long(f, m_row.m_xid.formatID);
+        break;
+      case 8: /* XID_GTRID */
+        if (!m_row.m_xa || m_row.m_xid.is_null() || m_row.m_xid.gtrid_length <= 0)
+          f->set_null();
+        else
+          xid_store_gtrid(f, &m_row.m_xid);
+        break;
+      case 9: /* XID_BQUAL */
+        if (!m_row.m_xa || m_row.m_xid.is_null() || m_row.m_xid.bqual_length <= 0)
+          f->set_null();
+        else
+          xid_store_bqual(f, &m_row.m_xid);
+        break;
+      case 10: /* XA STATE */
+        if (!m_row.m_xa || m_row.m_xid.is_null())
+          f->set_null();
+        else
+          set_field_xa_state(f, m_row.m_xa_state);
+        break;
+      case 11: /* SOURCE */
+        set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
+        break;
+      case 12: /* TIMER_START */
+        if (m_row.m_timer_start != 0)
+          set_field_ulonglong(f, m_row.m_timer_start);
+        else
+          f->set_null();
+        break;
+      case 13: /* TIMER_END */
+        if (m_row.m_timer_end != 0)
+          set_field_ulonglong(f, m_row.m_timer_end);
+        else
+          f->set_null();
+        break;
+      case 14: /* TIMER_WAIT */
+        if (m_row.m_timer_wait != 0)
+          set_field_ulonglong(f, m_row.m_timer_wait);
+        else
+          f->set_null();
+        break;
+      case 15: /* ACCESS_MODE */
+        set_field_enum(f, m_row.m_read_only ? TRANS_MODE_READ_ONLY
+                                            : TRANS_MODE_READ_WRITE);
+        break;
+      case 16: /* ISOLATION_LEVEL */
+        set_field_isolation_level(f, m_row.m_isolation_level);
+        break;
+      case 17: /* AUTOCOMMIT */
+        set_field_enum(f, m_row.m_autocommit ? ENUM_YES : ENUM_NO);
+        break;
+      case 18: /* NUMBER_OF_SAVEPOINTS */
+        set_field_ulonglong(f, m_row.m_savepoint_count);
+        break;
+      case 19: /* NUMBER_OF_ROLLBACK_TO_SAVEPOINT */
+        set_field_ulonglong(f, m_row.m_rollback_to_savepoint_count);
+        break;
+      case 20: /* NUMBER_OF_RELEASE_SAVEPOINT */
+        set_field_ulonglong(f, m_row.m_release_savepoint_count);
+        break;
+      case 21: /* OBJECT_INSTANCE_BEGIN */
+        f->set_null();
+        break;
+      case 22: /* NESTING_EVENT_ID */
+        if (m_row.m_nesting_event_id != 0)
+          set_field_ulonglong(f, m_row.m_nesting_event_id);
+        else
+          f->set_null();
+        break;
+      case 23: /* NESTING_EVENT_TYPE */
+        if (m_row.m_nesting_event_id != 0)
+          set_field_enum(f, m_row.m_nesting_event_type);
+        else
+          f->set_null();
+        break;
+      default:
+        assert(false);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
       }
     }
   }

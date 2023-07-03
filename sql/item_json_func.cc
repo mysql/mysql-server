@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2015, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,10 +150,21 @@ bool parse_json(const String &res, Json_dom_ptr *dom, bool require_str_or_json,
     return true;
   }
 
+<<<<<<< HEAD
   if (!dom) {
+<<<<<<< HEAD
     assert(!require_str_or_json);
     return !is_valid_json_syntax(safep, safe_length, nullptr, nullptr,
                                  depth_handler);
+=======
+    DBUG_ASSERT(!require_str_or_json);
+=======
+  if (!dom)
+  {
+    assert(!require_str_or_json);
+>>>>>>> upstream/cluster-7.6
+    return !is_valid_json_syntax(safep, safe_length);
+>>>>>>> pr/231
   }
 
   *dom = Json_dom::parse(safep, safe_length, error_handler, depth_handler);
@@ -306,6 +325,7 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
                           bool require_str_or_json, bool *valid) {
   Item *const arg_item = args[arg_idx];
 
+<<<<<<< HEAD
   enum_field_types field_type = get_normalized_field_type(arg_item);
 
   if (!is_convertible_to_json(arg_item)) {
@@ -332,9 +352,67 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
     if (current_thd->is_error()) return true;
 
     if (arg_item->null_value) {
+=======
+<<<<<<< HEAD
+  switch (get_normalized_field_type(arg_item)) {
+    case MYSQL_TYPE_NULL:
+      if (arg_item->update_null_value()) return true;
+      DBUG_ASSERT(arg_item->null_value);
+>>>>>>> pr/231
       *valid = true;
       return false;
     }
+<<<<<<< HEAD
+=======
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_TINY_BLOB: {
+      String *const res = arg_item->val_str(value);
+      if (arg_item->type() == Item::FIELD_ITEM) {
+        Item_field *fi = down_cast<Item_field *>(arg_item);
+        Field *field = fi->field;
+        if (field->flags & (ENUM_FLAG | SET_FLAG)) {
+          *valid = false;
+=======
+  switch (get_normalized_field_type(arg_item))
+  {
+  case MYSQL_TYPE_NULL:
+    arg_item->update_null_value();
+    assert(arg_item->null_value);
+    *valid= true;
+    return false;
+  case MYSQL_TYPE_JSON:
+  {
+    Json_wrapper w;
+    // Also sets the null_value flag
+    *valid= !arg_item->val_json(&w);
+    return !*valid;
+  }
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_TINY_BLOB:
+    {
+      String *const res= arg_item->val_str(value);
+      if (arg_item->type() == Item::FIELD_ITEM)
+      {
+        Item_field *fi= down_cast<Item_field *>(arg_item);
+        Field *field= fi->field;
+        if (field->flags & (ENUM_FLAG | SET_FLAG))
+        {
+          *valid= false;
+>>>>>>> upstream/cluster-7.6
+          return false;
+        }
+      }
+>>>>>>> pr/231
 
     bool parse_error = false;
     const bool failure = parse_json(
@@ -475,11 +553,25 @@ bool Json_path_cache::parse_and_cache_path(const THD *thd, Item **args,
     return false;
   }
 
+<<<<<<< HEAD
   if (cell.m_status == enum_path_status::UNINITIALIZED) {
     cell.m_index = m_paths.size();
     if (m_paths.emplace_back(key_memory_JSON))
       return true; /* purecov: inspected */
   } else {
+=======
+  assert((vector_idx == JPC_UNINITIALIZED) || (vector_idx >= 0));
+
+  if (vector_idx == JPC_UNINITIALIZED)
+  {
+    vector_idx= (int) m_paths.size();
+    if (m_paths.push_back(Json_path()))
+      return true;                            /* purecov: inspected */
+    m_arg_idx_to_vector_idx[arg_idx]= vector_idx;
+  }
+  else
+  {
+>>>>>>> upstream/cluster-7.6
     // re-parsing a non-constant path for the next row
     m_paths[cell.m_index].clear();
   }
@@ -523,9 +615,26 @@ void Item_json_func::cleanup() {
   m_path_cache.reset_cache();
 }
 
+<<<<<<< HEAD
+=======
+type_conversion_status Item_json_func::save_in_field_inner(
+    Field *field, bool no_conversions) {
+  return save_possibly_as_json(field, no_conversions);
+}
+
+<<<<<<< HEAD
+>>>>>>> pr/231
 longlong Item_func_json_valid::val_int() {
   assert(fixed == 1);
   try {
+=======
+
+longlong Item_func_json_valid::val_int()
+{
+  assert(fixed == 1);
+  try
+  {
+>>>>>>> upstream/cluster-7.6
     bool ok;
     if (json_is_valid(args, 0, &m_value, func_name(), nullptr, false, &ok)) {
       return error_int();
@@ -921,9 +1030,20 @@ void Item_func_json_contains::cleanup() {
   m_path_cache.reset_cache();
 }
 
+<<<<<<< HEAD
 longlong Item_func_json_contains::val_int() {
+<<<<<<< HEAD
   assert(fixed);
   THD *const thd = current_thd;
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+longlong Item_func_json_contains::val_int()
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   try {
     Json_wrapper doc_wrapper;
@@ -990,10 +1110,18 @@ void Item_func_json_contains_path::cleanup() {
   m_cached_ooa = ooa_uninitialized;
 }
 
+<<<<<<< HEAD
 longlong Item_func_json_contains_path::val_int() {
   assert(fixed == 1);
   longlong result = 0;
   null_value = false;
+=======
+longlong Item_func_json_contains_path::val_int()
+{
+  assert(fixed == 1);
+  longlong result= 0;
+  null_value= false;
+>>>>>>> upstream/cluster-7.6
 
   Json_wrapper wrapper;
   Json_wrapper_vector hits(key_memory_JSON);
@@ -1062,11 +1190,31 @@ longlong Item_func_json_contains_path::val_int() {
   return result;
 }
 
+<<<<<<< HEAD
 bool json_value(Item *arg, Json_wrapper *result, bool *has_value) {
   if (arg->data_type() == MYSQL_TYPE_NULL) {
     if (arg->update_null_value()) return true;
     assert(arg->null_value);
     *has_value = true;
+=======
+bool json_value(Item **args, uint arg_idx, Json_wrapper *result) {
+  Item *arg = args[arg_idx];
+
+<<<<<<< HEAD
+  if (arg->data_type() == MYSQL_TYPE_NULL) {
+    if (arg->update_null_value()) return true;
+    DBUG_ASSERT(arg->null_value);
+=======
+bool json_value(Item **args, uint arg_idx, Json_wrapper *result)
+{
+  Item *arg= args[arg_idx];
+
+  if (arg->field_type() == MYSQL_TYPE_NULL)
+  {
+    arg->update_null_value();
+    assert(arg->null_value);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return false;
   }
 
@@ -1233,8 +1381,18 @@ static uint opaque_index(enum_field_types field_type) {
   }
 }
 
+<<<<<<< HEAD
 String *Item_func_json_type::val_str(String *) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+String *Item_func_json_type::val_str(String*)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   try {
     Json_wrapper wr;
@@ -1265,7 +1423,19 @@ String *Item_func_json_type::val_str(String *) {
   return &m_value;
 }
 
+<<<<<<< HEAD
 static String *val_string_from_json(Item_func *item, String *buffer) {
+=======
+<<<<<<< HEAD
+String *Item_json_func::val_str(String *) {
+  DBUG_ASSERT(fixed == 1);
+=======
+
+String *Item_json_func::val_str(String *str)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   Json_wrapper wr;
   if (item->val_json(&wr)) return item->error_str();
   if (item->null_value) return nullptr;
@@ -1553,10 +1723,27 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "old decimal type");
       return true;
 
+<<<<<<< HEAD
     case MYSQL_TYPE_NULL:
       // May occur for a parameter that is NULL
       assert(arg->null_value);
       return false;
+<<<<<<< HEAD
+=======
+      /* purecov: end */
+=======
+  case MYSQL_TYPE_NULL:
+    /*
+      This shouldn't happen, since the only caller of this function
+      returns earlier if it sees that the type is MYSQL_TYPE_NULL.
+    */
+    /* purecov: begin inspected */
+    arg->update_null_value();
+    assert(arg->null_value);
+    return false;
+    /* purecov: end */
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
     case MYSQL_TYPE_JSON:
       assert(false); /* purecov: inspected */
@@ -1568,8 +1755,19 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
   }
 
   // Exactly one of scalar and dom should be used.
+<<<<<<< HEAD
   assert((scalar == nullptr) != (dom == nullptr));
   assert(scalar == nullptr || scalar->get() != nullptr);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT((scalar == NULL) != (dom == NULL));
+  DBUG_ASSERT(scalar == NULL || scalar->get() != NULL);
+=======
+  assert((scalar == NULL) != (dom == NULL));
+  assert((scalar == NULL) ||
+         (get_json_scalar_from_holder(scalar) != NULL));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (scalar != nullptr) {
     /*
@@ -1656,8 +1854,20 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
   return false;
 }
 
+<<<<<<< HEAD
 bool Item_typecast_json::val_json(Json_wrapper *wr) {
   assert(fixed == 1);
+=======
+<<<<<<< HEAD
+bool Item_json_typecast::val_json(Json_wrapper *wr) {
+  DBUG_ASSERT(fixed == 1);
+=======
+
+bool Item_json_typecast::val_json(Json_wrapper *wr)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Json_dom_ptr dom;  //@< if non-null we want a DOM from parse
 
@@ -1712,9 +1922,26 @@ void Item_typecast_json::print(const THD *thd, String *str,
   str->append(')');
 }
 
+<<<<<<< HEAD
+=======
+void Item_func_json_length::cleanup() {
+  Item_int_func::cleanup();
+
+  m_path_cache.reset_cache();
+}
+
+<<<<<<< HEAD
+>>>>>>> pr/231
 longlong Item_func_json_length::val_int() {
   assert(fixed == 1);
   longlong result = 0;
+=======
+
+longlong Item_func_json_length::val_int()
+{
+  assert(fixed == 1);
+  longlong result= 0;
+>>>>>>> upstream/cluster-7.6
 
   Json_wrapper wrapper;
 
@@ -1731,14 +1958,54 @@ longlong Item_func_json_length::val_int() {
     /* purecov: end */
   }
 
+<<<<<<< HEAD
+=======
+  if (arg_count > 1) {
+    if (m_path_cache.parse_and_cache_path(args, 1, true)) return error_int();
+    const Json_path *json_path = m_path_cache.get_path(1);
+    if (json_path == nullptr) {
+      null_value = true;
+      return 0;
+    }
+
+    Json_wrapper_vector hits(key_memory_JSON);
+    if (wrapper.seek(*json_path, json_path->leg_count(), &hits, true, true))
+      return error_int(); /* purecov: inspected */
+
+    if (hits.size() != 1) {
+      // path does not exist. return null.
+      null_value = true;
+      return 0;
+    }
+
+    // there should only be one hit because wildcards were forbidden
+    assert(hits.size() == 1);
+
+    wrapper = std::move(hits[0]);
+  }
+
+>>>>>>> pr/231
   result = wrapper.length();
 
   null_value = false;
   return result;
 }
 
+<<<<<<< HEAD
 longlong Item_func_json_depth::val_int() {
+<<<<<<< HEAD
   assert(fixed);
+=======
+  DBUG_ASSERT(fixed);
+=======
+
+longlong Item_func_json_depth::val_int()
+{
+  assert(fixed == 1);
+  longlong result= 0;
+
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   Json_wrapper wrapper;
 
   try {
@@ -1758,8 +2025,19 @@ longlong Item_func_json_depth::val_int() {
   return dom == nullptr ? error_int() : dom->depth();
 }
 
+<<<<<<< HEAD
 bool Item_func_json_keys::val_json(Json_wrapper *wr) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+bool Item_func_json_keys::val_json(Json_wrapper *wr)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Json_wrapper wrapper;
 
@@ -1819,8 +2097,19 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr) {
   return false;
 }
 
+<<<<<<< HEAD
 bool Item_func_json_extract::val_json(Json_wrapper *wr) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+bool Item_func_json_extract::val_json(Json_wrapper *wr)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   try {
     Json_wrapper w;
@@ -1872,8 +2161,17 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr) {
     } else  // one path, no ellipsis or wildcard
     {
       // there should only be one match
+<<<<<<< HEAD
       assert(v.size() == 1);
+=======
+<<<<<<< HEAD
+      DBUG_ASSERT(v.size() == 1);
+>>>>>>> pr/231
       *wr = std::move(v[0]);
+=======
+      assert(v.size() == 1);
+      wr->steal(&v[0]);
+>>>>>>> upstream/cluster-7.6
     }
   } catch (...) {
     /* purecov: begin inspected */
@@ -1894,6 +2192,7 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const {
       strcmp(func_name(), item_func->func_name()) != 0)
     return false;
 
+<<<<<<< HEAD
   auto cmp = [binary_cmp](const Item *arg1, const Item *arg2) {
     /*
       JSON_EXTRACT doesn't care about the collation of its arguments. String
@@ -1908,6 +2207,17 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const {
   };
   const auto item_json = down_cast<const Item_func_json_extract *>(item);
   return std::equal(args, args + arg_count, item_json->args, cmp);
+=======
+#ifndef NDEBUG
+  for (size_t i= 0; i < path->leg_count(); i++)
+  {
+    assert(path->get_leg_at(i)->get_type() == jpl_array_cell);
+    assert(path->get_leg_at(i)->get_array_cell_index() == 0);
+  }
+#endif
+
+  return true;
+>>>>>>> upstream/cluster-7.6
 }
 
 bool Item_func_modify_json_in_path::resolve_type(THD *thd) {
@@ -1942,6 +2252,7 @@ table_map Item_func_modify_json_in_path::calculate_not_null_tables() const {
 /**
   Is this a path that could possibly return the root node of a JSON document?
 
+<<<<<<< HEAD
   A path that returns the root node must be on one of the following forms:
   - the root ('$'), or
   - a sequence of array cells at index 0 or `last` that any non-array element
@@ -1964,7 +2275,16 @@ static bool possible_root_path(const Json_path_iterator &begin,
 #endif  // NDEBUG
 
 bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+bool Item_func_json_array_append::val_json(Json_wrapper *wr)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   try {
     Json_wrapper docw;
@@ -2048,8 +2368,19 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
   return false;
 }
 
+<<<<<<< HEAD
 bool Item_func_json_insert::val_json(Json_wrapper *wr) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+bool Item_func_json_insert::val_json(Json_wrapper *wr)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   try {
     Json_wrapper docw;
@@ -2114,6 +2445,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
       assert(hits.size() == 1);
       Json_dom *hit = hits[0];
 
+<<<<<<< HEAD
       // What did we specify in the path, object or array?
       if (leg->get_type() == jpl_array_cell) {
         // We specified an array, what did we find at that position?
@@ -2134,6 +2466,26 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
               newarr->append_clone(hit) /* auto-wrap this */ ||
               newarr->insert_alias(pos, valuew.clone_dom())) {
             return error_json(); /* purecov: inspected */
+=======
+        Note that, later on, we decided to forbid ellipses in the path
+        arguments to json_insert().
+      */
+      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
+      {
+        --it;
+        // We found *something* at that parent path
+
+        // What did we specify in the path, object or array?
+        if (leg->get_type() == jpl_array_cell)
+        {
+          // We specified an array, what did we find at that position?
+          if ((*it)->json_type() == Json_dom::J_ARRAY)
+          {
+            Json_array *arr= down_cast<Json_array *>(*it);
+            assert(leg->get_type() == jpl_array_cell);
+            if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
+              return error_json();        /* purecov: inspected */
+>>>>>>> upstream/cluster-7.6
           }
 
           /*
@@ -2145,10 +2497,49 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
           Json_container *parent = hit->parent();
           if (parent == nullptr)  // root
           {
+<<<<<<< HEAD
             assert(possible_root_path(path->begin(), path->end() - 1));
+=======
+<<<<<<< HEAD
+            DBUG_ASSERT(possible_root_path(path->begin(), path->end() - 1));
+>>>>>>> pr/231
             docw = Json_wrapper(std::move(newarr));
           } else {
             parent->replace_dom_in_container(hit, std::move(newarr));
+=======
+            /*
+              Found a scalar or object and we didn't specify position 0:
+              auto-wrap it
+            */
+            Json_dom *a= *it;
+            Json_array *newarr= new (std::nothrow) Json_array();
+            if (!newarr ||
+                newarr->append_clone(a) /* auto-wrap this */ ||
+                newarr->insert_clone(leg->get_array_cell_index(),
+                                     valuew.to_dom()))
+            {
+              delete newarr;                    /* purecov: inspected */
+              return error_json();        /* purecov: inspected */
+            }
+
+            /*
+              Now we need this value to replace the old document we found using
+              path. If this is root, this is trivial, but if it's inside an
+              array or object, we need to find the parent DOM to be able to
+              replace it in situ.
+            */
+            if (m_path.leg_count() == 0) // root
+            {
+              Json_wrapper newroot(newarr);
+              docw.steal(&newroot);
+            } else
+            {
+              Json_dom *parent= a->parent();
+              assert(parent);
+
+              parent->replace_dom_in_container(a, newarr);
+            }
+>>>>>>> upstream/cluster-7.6
           }
         }
       } else if (leg->get_type() == jpl_member &&
@@ -2172,8 +2563,18 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
   return false;
 }
 
+<<<<<<< HEAD
 bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   try {
     Json_wrapper docw;
@@ -2244,7 +2645,31 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
       if (arr->insert_alias(pos, valuew.clone_dom()))
         return error_json(); /* purecov: inspected */
 
+<<<<<<< HEAD
     }  // end of loop through paths
+=======
+        Note that, later on, we decided to forbid ellipses in the path
+        arguments to json_insert().
+      */
+      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
+      {
+        --it;
+        // We found *something* at that parent path
+
+        // NOP if parent is not an array
+
+        if ((*it)->json_type() == Json_dom::J_ARRAY)
+        {
+          // Excellent. Insert the value at that location.
+          Json_array *arr= down_cast<Json_array *>(*it);
+          assert(leg->get_type() == jpl_array_cell);
+          if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
+            return error_json();        /* purecov: inspected */
+        }
+      }
+
+    } // end of loop through paths
+>>>>>>> upstream/cluster-7.6
     // docw still owns the augmented doc, so hand it over to result
     *wr = std::move(docw);
 
@@ -2474,6 +2899,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
         assert(hits.size() == 1);
         Json_dom *hit = hits[0];
 
+<<<<<<< HEAD
         // We now have either an array or an object in the parent's path
         if (leg->get_type() == jpl_array_cell) {
           if (hit->json_type() == enum_json_type::J_ARRAY) {
@@ -2504,6 +2930,13 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
             if (newarr == nullptr || newarr->append_clone(hit) ||
                 newarr->insert_alias(pos, valuew.clone_dom())) {
               return error_json(); /* purecov: inspected */
+=======
+              Json_array *arr= down_cast<Json_array *>(*it);
+              assert(leg->get_type() == jpl_array_cell);
+              if (arr->insert_clone(leg->get_array_cell_index(),
+                                    valuew.to_dom()))
+                return error_json();            /* purecov: inspected */
+>>>>>>> upstream/cluster-7.6
             }
 
             /*
@@ -2522,6 +2955,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
                 disable_logical_diffs(m_partial_update_column);
                 logical_diffs = false;
               }
+<<<<<<< HEAD
             } else {
               if (logical_diffs) {
                 Json_wrapper array_wrapper(newarr.get());
@@ -2529,6 +2963,42 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
                 table->add_logical_diff(
                     m_partial_update_column, hit->get_location(),
                     enum_json_diff_operation::REPLACE, &array_wrapper);
+=======
+              else
+              {
+                // replace semantics, so we don't get larger array
+                if (!m_json_set)
+                  continue;
+
+                Json_array *newarr= new (std::nothrow) Json_array();
+                if (!newarr ||
+                    newarr->append_clone(a) ||
+                    newarr->insert_clone(leg->get_array_cell_index(),
+                                         valuew.to_dom()))
+                {
+                  delete newarr;                /* purecov: inspected */
+                  return error_json();          /* purecov: inspected */
+                }
+                res= newarr;
+              }
+
+              /*
+                Now we need this value to replace the old document we found
+                using path. If this is root, this is trivial, but if it's
+                inside an array or object, we need to find the parent DOM to be
+                able to replace it in situ.
+              */
+              if (m_path.leg_count() == 0) // root
+              {
+                Json_wrapper newroot(res);
+                docw.steal(&newroot);
+              } else
+              {
+                Json_dom *parent= a->parent();
+                assert(parent);
+
+                parent->replace_dom_in_container(a, res);
+>>>>>>> upstream/cluster-7.6
               }
               parent->replace_dom_in_container(hit, std::move(newarr));
             }
@@ -2593,8 +3063,19 @@ return_null:
   return false;
 }
 
+<<<<<<< HEAD
 bool Item_func_json_array::val_json(Json_wrapper *wr) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+bool Item_func_json_array::val_json(Json_wrapper *wr)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   try {
     Json_array *arr = new (std::nothrow) Json_array();
@@ -2628,8 +3109,18 @@ bool Item_func_json_array::val_json(Json_wrapper *wr) {
   return false;
 }
 
+<<<<<<< HEAD
 bool Item_func_json_row_object::val_json(Json_wrapper *wr) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+bool Item_func_json_row_object::val_json(Json_wrapper *wr)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   try {
     Json_object *object = new (std::nothrow) Json_object();
@@ -2829,8 +3320,18 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
   return false;
 }
 
+<<<<<<< HEAD
 bool Item_func_json_search::val_json(Json_wrapper *wr) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+bool Item_func_json_search::val_json(Json_wrapper *wr)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Json_dom_vector matches(key_memory_JSON);
 
@@ -2989,8 +3490,25 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
   return false;
 }
 
+<<<<<<< HEAD
 bool Item_func_json_remove::val_json(Json_wrapper *wr) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+Item_func_json_remove::Item_func_json_remove(THD *thd, const POS &pos,
+                                             PT_item_list *a)
+  : Item_json_func(thd, pos, a)
+{}
+
+
+bool Item_func_json_remove::val_json(Json_wrapper *wr)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Json_wrapper wrapper;
   uint32 path_count = arg_count - 1;
@@ -3111,10 +3629,28 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr) {
       }
     }
 
+<<<<<<< HEAD
     if (logical_diffs)
       table->add_logical_diff(m_partial_update_column, path,
                               enum_json_diff_operation::REMOVE, nullptr);
   }  // end of loop through all paths
+=======
+      Json_dom::enum_json_type type= parent->json_type();
+      assert((type == Json_dom::J_OBJECT) || (type == Json_dom::J_ARRAY));
+
+      if (type == Json_dom::J_OBJECT)
+      {
+        Json_object *object= down_cast<Json_object *>(parent);
+        object->remove(child);
+      }
+      else if (type == Json_dom::J_ARRAY)
+      {
+        Json_array *array= down_cast<Json_array *>(parent);
+        array->remove(child);
+      }
+    } // end of loop through matches on current path
+  }   // end of loop through all paths
+>>>>>>> upstream/cluster-7.6
 
   // wrapper still owns the pruned doc, so hand it over to result
   *wr = std::move(wrapper);
@@ -3129,8 +3665,18 @@ Item_func_json_merge::Item_func_json_merge(THD *thd, const POS &pos,
                        "JSON_MERGE_PRESERVE/JSON_MERGE_PATCH");
 }
 
+<<<<<<< HEAD
 bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Json_dom_ptr result_dom;
 
@@ -3172,8 +3718,19 @@ bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr) {
   return false;
 }
 
+<<<<<<< HEAD
 String *Item_func_json_quote::val_str(String *str) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+String *Item_func_json_quote::val_str(String *str)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   String *res = args[0]->val_str(str);
   if (!res) {
@@ -3242,8 +3799,19 @@ String *Item_func_json_quote::val_str(String *str) {
   return res;
 }
 
+<<<<<<< HEAD
 String *Item_func_json_unquote::val_str(String *str) {
+<<<<<<< HEAD
   assert(fixed == 1);
+=======
+  DBUG_ASSERT(fixed == 1);
+=======
+
+String *Item_func_json_unquote::val_str(String *str)
+{
+  assert(fixed == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   try {
     if (args[0]->data_type() == MYSQL_TYPE_JSON) {
@@ -3324,8 +3892,17 @@ String *Item_func_json_unquote::val_str(String *str) {
     /*
       Extract the internal string representation as a MySQL string
     */
+<<<<<<< HEAD
     assert(dom->json_type() == enum_json_type::J_STRING);
+=======
+<<<<<<< HEAD
+    DBUG_ASSERT(dom->json_type() == enum_json_type::J_STRING);
+>>>>>>> pr/231
     Json_wrapper wr(std::move(dom));
+=======
+    assert(dom->json_type() == Json_dom::J_STRING);
+    Json_wrapper wr(dom);
+>>>>>>> upstream/cluster-7.6
     if (str->copy(wr.get_data(), wr.get_data_length(), collation.collation))
       return error_str(); /* purecov: inspected */
   } catch (...) {
@@ -3339,9 +3916,36 @@ String *Item_func_json_unquote::val_str(String *str) {
   return str;
 }
 
+<<<<<<< HEAD
 String *Item_func_json_pretty::val_str(String *str) {
   assert(fixed);
   try {
+=======
+
+Json_scalar_holder *create_json_scalar_holder()
+{
+  return new Json_scalar_holder();
+}
+
+
+void delete_json_scalar_holder(Json_scalar_holder *holder)
+{
+  delete holder;
+}
+
+
+Json_scalar *get_json_scalar_from_holder(Json_scalar_holder *holder)
+{
+  return boost::polymorphic_get<Json_scalar>(&holder->m_val);
+}
+
+
+String *Item_func_json_pretty::val_str(String *str)
+{
+  assert(fixed);
+  try
+  {
+>>>>>>> upstream/cluster-7.6
     Json_wrapper wr;
     if (get_json_wrapper(args, 0, str, func_name(), &wr)) return error_str();
 
@@ -3362,8 +3966,19 @@ String *Item_func_json_pretty::val_str(String *str) {
   /* purecov: end */
 }
 
+<<<<<<< HEAD
 longlong Item_func_json_storage_size::val_int() {
+<<<<<<< HEAD
   assert(fixed);
+=======
+  DBUG_ASSERT(fixed);
+=======
+
+longlong Item_func_json_storage_size::val_int()
+{
+  assert(fixed);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   /*
     If the input is a reference to a JSON column, return the actual storage
@@ -3401,8 +4016,19 @@ longlong Item_func_json_storage_size::val_int() {
   return buffer.length();
 }
 
+<<<<<<< HEAD
 longlong Item_func_json_storage_free::val_int() {
+<<<<<<< HEAD
   assert(fixed);
+=======
+  DBUG_ASSERT(fixed);
+=======
+
+bool Item_func_json_merge_patch::val_json(Json_wrapper *wr)
+{
+  assert(fixed);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   Json_wrapper wrapper;
   try {

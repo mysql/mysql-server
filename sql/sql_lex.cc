@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -279,9 +283,21 @@ void Lex_input_stream::reset(const char *buffer, size_t length) {
                     buffer.
 */
 
+<<<<<<< HEAD
 void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr) {
+<<<<<<< HEAD
   assert(begin_ptr);
   assert(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
+=======
+  DBUG_ASSERT(begin_ptr);
+  DBUG_ASSERT(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
+=======
+void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr)
+{
+  assert(begin_ptr);
+  assert(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   size_t body_utf8_length =
       (m_buf_length / thd->variables.character_set_client->mbminlen) *
@@ -315,9 +331,22 @@ void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr) {
                   operation.
 */
 
+<<<<<<< HEAD
 void Lex_input_stream::body_utf8_append(const char *ptr, const char *end_ptr) {
+<<<<<<< HEAD
   assert(m_cpp_buf <= ptr && ptr <= m_cpp_buf + m_buf_length);
   assert(m_cpp_buf <= end_ptr && end_ptr <= m_cpp_buf + m_buf_length);
+=======
+  DBUG_ASSERT(m_cpp_buf <= ptr && ptr <= m_cpp_buf + m_buf_length);
+  DBUG_ASSERT(m_cpp_buf <= end_ptr && end_ptr <= m_cpp_buf + m_buf_length);
+=======
+void Lex_input_stream::body_utf8_append(const char *ptr,
+                                        const char *end_ptr)
+{
+  assert(m_cpp_buf <= ptr && ptr <= m_cpp_buf + m_buf_length);
+  assert(m_cpp_buf <= end_ptr && end_ptr <= m_cpp_buf + m_buf_length);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (!m_body_utf8) return;
 
@@ -517,12 +546,23 @@ bool lex_start(THD *thd) {
   // Initialize the cost model to be used for this query
   thd->init_cost_model();
 
+<<<<<<< HEAD
   const bool status = lex->new_top_level_query();
   assert(lex->current_query_block() == nullptr);
   lex->m_current_query_block = lex->query_block;
 
+<<<<<<< HEAD
   assert(lex->m_IS_table_stats.is_valid() == false);
   assert(lex->m_IS_tablespace_stats.is_valid() == false);
+=======
+  lex->m_IS_table_stats.invalidate_cache();
+  lex->m_IS_tablespace_stats.invalidate_cache();
+=======
+  const bool status= lex->new_top_level_query();
+  assert(lex->current_select() == NULL);
+  lex->m_current_select= lex->select_lex;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   return status;
 }
@@ -588,7 +628,29 @@ Query_block *LEX::new_empty_query_block() {
       new (thd->mem_root) Query_block(thd->mem_root, nullptr, nullptr);
   if (select == nullptr) return nullptr; /* purecov: inspected */
 
+<<<<<<< HEAD
   select->parent_lex = this;
+=======
+void LEX::release_plugins()
+{
+  if (!plugins.empty()) /* No function call and no mutex if no plugins. */
+  {
+    plugin_unlock_list(0, plugins.begin(), plugins.size());
+    plugins.clear();
+  }
+}
+
+
+
+st_select_lex *LEX::new_empty_query_block()
+{
+  st_select_lex *select=
+    new (thd->mem_root) st_select_lex(NULL, NULL, NULL, NULL, NULL, NULL);
+  if (select == NULL)
+    return NULL;             /* purecov: inspected */
+
+  select->parent_lex= this;
+>>>>>>> upstream/cluster-7.6
 
   return select;
 }
@@ -668,8 +730,33 @@ Query_block *LEX::new_query(Query_block *curr_query_block) {
   */
   if (parsing_place == CTX_NONE)  // Outer-most query block
   {
+<<<<<<< HEAD
   } else if (parsing_place == CTX_INSERT_UPDATE &&
              curr_query_block->master_query_expression()->is_set_operation()) {
+=======
+  } else if (parsing_place == CTX_ON) {
+    /*
+      This subquery is part of an ON clause, so we need to link the
+      name resolution context for this subquery with the ON context.
+
+      @todo outer_context is not the same as
+      &select_lex->outer_select()->context in one case:
+        (SELECT 1 as a) UNION (SELECT 2) ORDER BY (SELECT a);
+      When we create the select_lex for the subquery in ORDER BY,
+      1) outer_context is the context of the second SELECT of the UNION
+      2) select_lex->outer_select() is the fake select_lex, which context
+         is the one of the first SELECT of the UNION (see
+         SELECT_LEX_UNIT::add_fake_select_lex()).
+      2) is the correct context, per the documentation. 1) is not, and using
+      it leads to a resolving error for the query above.
+      We should fix 1) and then use it unconditionally here.
+    */
+<<<<<<< HEAD
+    select->context.outer_context = outer_context;
+  } else if (parsing_place == CTX_DERIVED ||
+             parsing_place == CTX_INSERT_VALUES ||
+             parsing_place == CTX_INSERT_UPDATE) {
+>>>>>>> pr/231
     /*
       Outer references are not allowed for
       subqueries in INSERT ... ON DUPLICATE KEY UPDATE clauses,
@@ -677,7 +764,23 @@ Query_block *LEX::new_query(Query_block *curr_query_block) {
     */
     assert(new_query_block->context.outer_context == nullptr);
   } else {
+<<<<<<< HEAD
     new_query_block->context.outer_context = outer_context;
+=======
+    select->context.outer_context = &select->outer_select()->context;
+=======
+    select->context.outer_context= outer_context;
+  }
+  else if (select->outer_select()->parsing_place == CTX_DERIVED)
+  {
+    // Currently, outer references are not allowed for a derived table
+    assert(select->context.outer_context == NULL);
+  }
+  else
+  {
+    select->context.outer_context= &select->outer_select()->context;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   }
   /*
     in subquery is SELECT query and we allow resolution of names in SELECT
@@ -699,9 +802,17 @@ Query_block *LEX::new_query(Query_block *curr_query_block) {
   @return new query specification if successful, NULL if an error occurred.
 */
 
+<<<<<<< HEAD
 Query_block *LEX::new_set_operation_query(Query_block *curr_query_block) {
   DBUG_TRACE;
   assert(unit != nullptr && query_block != nullptr);
+=======
+SELECT_LEX *LEX::new_union_query(SELECT_LEX *curr_select, bool distinct,
+                                 bool check_syntax) {
+  DBUG_ENTER("LEX::new_union_query");
+
+  assert(unit != NULL && select_lex != NULL);
+>>>>>>> pr/231
 
   // Is this the outer-most query expression?
   bool const outer_most = curr_query_block->master_query_expression() == unit;
@@ -777,10 +888,22 @@ bool LEX::new_top_level_query() {
   DBUG_TRACE;
 
   // Assure that the LEX does not contain any query expression already
+<<<<<<< HEAD
   assert(unit == nullptr && query_block == nullptr);
 
   // Check for the special situation when using INTO OUTFILE and LOAD DATA.
   assert(result == nullptr);
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(unit == NULL && select_lex == NULL);
+=======
+  assert(unit == NULL &&
+         select_lex == NULL);
+>>>>>>> upstream/cluster-7.6
+
+  // Check for the special situation when using INTO OUTFILE and LOAD DATA.
+  assert(result == 0);
+>>>>>>> pr/231
 
   query_block = new_query(nullptr);
   if (query_block == nullptr) return true; /* purecov: inspected */
@@ -813,8 +936,12 @@ void LEX::new_static_query(Query_expression *sel_query_expression,
 
   reset();
 
+<<<<<<< HEAD
   assert(unit == nullptr && query_block == nullptr &&
          current_query_block() == nullptr);
+=======
+  assert(unit == NULL && select_lex == NULL && current_select() == NULL);
+>>>>>>> pr/231
 
   select->parent_lex = this;
 
@@ -944,9 +1071,20 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function) {
     1         name isn't a keyword
 */
 
+<<<<<<< HEAD
 bool is_keyword(const char *name, size_t len) {
+<<<<<<< HEAD
   assert(len != 0);
   return Lex_hash::sql_keywords.get_hash_symbol(name, len) != nullptr;
+=======
+  DBUG_ASSERT(len != 0);
+=======
+bool is_keyword(const char *name, size_t len)
+{
+  assert(len != 0);
+>>>>>>> upstream/cluster-7.6
+  return Lex_hash::sql_keywords.get_hash_symbol(name, len) != NULL;
+>>>>>>> pr/231
 }
 
 /**
@@ -959,10 +1097,22 @@ bool is_keyword(const char *name, size_t len) {
     @retval 1         name isn't a function
 */
 
+<<<<<<< HEAD
 bool is_lex_native_function(const LEX_STRING *name) {
   assert(name != nullptr);
   return Lex_hash::sql_keywords_and_funcs.get_hash_symbol(
+<<<<<<< HEAD
              name->str, (uint)name->length) != nullptr;
+=======
+             name->str, (uint)name->length) != NULL;
+=======
+bool is_lex_native_function(const LEX_STRING *name)
+{
+  assert(name != NULL);
+  return Lex_hash::sql_keywords_and_funcs.get_hash_symbol(name->str,
+      (uint) name->length) != NULL;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 /* make a copy of token before ptr and set yytoklen */
@@ -1126,9 +1276,22 @@ uint Lex_input_stream::get_lineno(const char *raw_ptr) const {
   assert(m_buf <= raw_ptr && raw_ptr <= m_end_of_query);
   if (!(m_buf <= raw_ptr && raw_ptr <= m_end_of_query)) return 1;
 
+<<<<<<< HEAD
   uint ret = 1;
   const CHARSET_INFO *cs = m_thd->charset();
   for (const char *c = m_buf; c < raw_ptr; c++) {
+=======
+uint Lex_input_stream::get_lineno(const char *raw_ptr)
+{
+  assert(m_buf <= raw_ptr && raw_ptr < m_end_of_query);
+  if (!(m_buf <= raw_ptr && raw_ptr < m_end_of_query))
+    return 1;
+
+  uint ret= 1;
+  const CHARSET_INFO *cs= m_thd->charset();
+  for (const char *c= m_buf; c < raw_ptr; c++)
+  {
+>>>>>>> upstream/cluster-7.6
     uint mb_char_len;
     if (use_mb(cs) && (mb_char_len = my_ismbchar(cs, c, m_end_of_query))) {
       c += mb_char_len - 1;  // skip the rest of the multibyte character
@@ -1242,15 +1405,27 @@ static inline uint int_token(const char *str, uint length) {
 
   @retval  Whether EOF reached before comment is closed.
 */
+<<<<<<< HEAD
 static bool consume_comment(Lex_input_stream *lip,
                             int remaining_recursions_permitted) {
+<<<<<<< HEAD
   // only one level of nested comments are allowed
   assert(remaining_recursions_permitted == 0 ||
          remaining_recursions_permitted == 1);
+=======
+=======
+bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
+{
+  // only one level of nested comments are allowed
+  assert(remaining_recursions_permitted == 0 ||
+         remaining_recursions_permitted == 1);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
   uchar c;
   while (!lip->eof()) {
     c = lip->yyGet();
 
+<<<<<<< HEAD
     if (remaining_recursions_permitted == 1) {
       if ((c == '/') && (lip->yyPeek() == '*')) {
         push_warning(
@@ -1263,6 +1438,28 @@ static bool consume_comment(Lex_input_stream *lip,
         if (consume_comment(lip, 0)) return true;
         lip->yyUnput(')');  // Replace "...*/" with "...*)"
         lip->yySkip();      // and skip ")"
+=======
+<<<<<<< HEAD
+    if (remaining_recursions_permitted > 0) {
+      if ((c == '/') && (lip->yyPeek() == '*')) {
+        lip->yySkip(); /* Eat asterisk */
+        consume_comment(lip, remaining_recursions_permitted - 1);
+=======
+    if (remaining_recursions_permitted == 1)
+    {
+      if ((c == '/') && (lip->yyPeek() == '*'))
+      {
+        lip->yyUnput('(');  // Replace nested "/*..." with "(*..."
+        lip->yySkip();      // and skip "("
+
+        lip->yySkip(); /* Eat asterisk */
+        if (consume_comment(lip, 0))
+          return true;
+
+        lip->yyUnput(')');  // Replace "...*/" with "...*)"
+        lip->yySkip();      // and skip ")"
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
         continue;
       }
     }
@@ -2424,6 +2621,7 @@ void Query_expression::set_explain_marker_from(THD *thd,
   thd->unlock_query_plan();
 }
 
+<<<<<<< HEAD
 ha_rows Query_block::get_offset(const THD *) const {
   if (offset_limit != nullptr)
     return ha_rows{offset_limit->val_uint()};
@@ -2443,6 +2641,85 @@ ha_rows Query_block::get_limit(const THD *thd) const {
     return ha_rows{thd->variables.select_limit};
   else
     return ha_rows{HA_POS_ERROR};
+=======
+ha_rows SELECT_LEX::get_offset() {
+  DBUG_ASSERT(offset_limit == NULL || offset_limit->fixed);
+
+<<<<<<< HEAD
+  return ha_rows(offset_limit ? offset_limit->val_uint() : 0ULL);
+=======
+ha_rows st_select_lex::get_offset()
+{
+  ulonglong val= 0;
+
+  if (offset_limit)
+  {
+    // see comment for st_select_lex::get_limit()
+    bool fix_fields_successful= true;
+    if (!offset_limit->fixed)
+    {
+      fix_fields_successful= !offset_limit->fix_fields(master->thd, NULL);
+
+      assert(fix_fields_successful);
+    }
+    val= fix_fields_successful ? offset_limit->val_uint() : HA_POS_ERROR;
+  }
+
+  return (ha_rows)val;
+>>>>>>> upstream/cluster-7.6
+}
+
+ha_rows SELECT_LEX::get_limit() {
+  DBUG_ASSERT(select_limit == NULL || select_limit->fixed);
+
+<<<<<<< HEAD
+  return ha_rows(select_limit ? select_limit->val_uint() : HA_POS_ERROR);
+=======
+ha_rows st_select_lex::get_limit()
+{
+  ulonglong val= HA_POS_ERROR;
+
+  if (select_limit)
+  {
+    /*
+      fix_fields() has not been called for select_limit. That's due to the
+      historical reasons -- this item could be only of type Item_int, and
+      Item_int does not require fix_fields(). Thus, fix_fields() was never
+      called for select_limit.
+
+      Some time ago, Item_splocal was also allowed for LIMIT / OFFSET clauses.
+      However, the fix_fields() behavior was not updated, which led to a crash
+      in some cases.
+
+      There is no single place where to call fix_fields() for LIMIT / OFFSET
+      items during the fix-fields-phase. Thus, for the sake of readability,
+      it was decided to do it here, on the evaluation phase (which is a
+      violation of design, but we chose the lesser of two evils).
+
+      We can call fix_fields() here, because select_limit can be of two
+      types only: Item_int and Item_splocal. Item_int::fix_fields() is trivial,
+      and Item_splocal::fix_fields() (or rather Item_sp_variable::fix_fields())
+      has the following properties:
+        1) it does not affect other items;
+        2) it does not fail.
+
+        Nevertheless assert was added to catch future changes in
+      fix_fields() implementation. Also added runtime check against a result
+      of fix_fields() in order to handle error condition in non-debug build.
+    */
+    bool fix_fields_successful= true;
+    if (!select_limit->fixed)
+    {
+      fix_fields_successful= !select_limit->fix_fields(master->thd, NULL);
+
+      assert(fix_fields_successful);
+    }
+    val= fix_fields_successful ? select_limit->val_uint() : HA_POS_ERROR;
+  }
+
+  return (ha_rows)val;
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 }
 
 bool Query_block::add_item_to_list(Item *item) {
@@ -2801,6 +3078,39 @@ static void print_join(const THD *thd, String *str,
   }
 
   std::reverse(tables_to_print.begin(), tables_to_print.end());
+<<<<<<< HEAD
+=======
+
+  /*
+    If the first table is a semi-join nest, swap it with something that is
+    not a semi-join nest. This is necessary because "A SEMIJOIN B" is not the
+    same as "B SEMIJOIN A".
+  */
+<<<<<<< HEAD
+  auto it = std::find_if(tables_to_print.begin(), tables_to_print.end(),
+                         [](const TABLE_LIST *t) { return !t->sj_cond(); });
+  if (it != tables_to_print.end()) std::iter_swap(tables_to_print.begin(), it);
+=======
+  if ((*table)->sj_cond())
+  {
+    TABLE_LIST **end= table + tables_to_print;
+    for (TABLE_LIST **t2= table; t2!=end; t2++)
+    {
+      if (!(*t2)->sj_cond())
+      {
+        TABLE_LIST *tmp= *t2;
+        *t2= *table;
+        *table= tmp;
+        break;
+      }
+    }
+  }
+  assert(tables_to_print >= 1);
+  print_table_array(thd, str, table, table + tables_to_print, query_type);
+}
+>>>>>>> upstream/cluster-7.6
+
+>>>>>>> pr/231
   print_table_array(thd, str, tables_to_print, query_type);
 }
 
@@ -3119,10 +3429,15 @@ bool Query_block::print_error(const THD *thd, String *str) {
     completely cleaned till the end of the query. This is valid only for
     explainable commands.
   */
+<<<<<<< HEAD
   assert(!(master_query_expression()->cleaned == Query_expression::UC_CLEAN &&
            is_explainable_query(thd->lex->sql_command)));
   return false;
 }
+=======
+  assert(!(master_unit()->cleaned == SELECT_LEX_UNIT::UC_CLEAN &&
+           is_explainable_query(thd->lex->sql_command)));
+>>>>>>> pr/231
 
 void Query_block::print_select_options(String *str) {
   /* First add options */
@@ -3140,7 +3455,26 @@ void Query_block::print_select_options(String *str) {
     str->append(STRING_WITH_LEN("sql_buffer_result "));
   if (active_options() & OPTION_FOUND_ROWS)
     str->append(STRING_WITH_LEN("sql_calc_found_rows "));
+<<<<<<< HEAD
 }
+=======
+<<<<<<< HEAD
+=======
+  switch (sql_cache)
+  {
+    case SQL_NO_CACHE:
+      str->append(STRING_WITH_LEN("sql_no_cache "));
+      break;
+    case SQL_CACHE:
+      str->append(STRING_WITH_LEN("sql_cache "));
+      break;
+    case SQL_CACHE_UNSPECIFIED:
+      break;
+    default:
+      assert(0);
+  }
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
 void Query_block::print_update_options(String *str) {
   if (get_table_list() &&
@@ -3713,9 +4047,22 @@ bool LEX::need_correct_ident() {
   case of success
 */
 
+<<<<<<< HEAD
 bool LEX::copy_db_to(char const **p_db, size_t *p_db_length) const {
   if (sphead) {
+<<<<<<< HEAD
     assert(sphead->m_db.str && sphead->m_db.length);
+=======
+    DBUG_ASSERT(sphead->m_db.str && sphead->m_db.length);
+=======
+bool
+LEX::copy_db_to(char **p_db, size_t *p_db_length) const
+{
+  if (sphead)
+  {
+    assert(sphead->m_db.str && sphead->m_db.length);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     /*
       It is safe to assign the string by-pointer, both sphead and
       its statements reside in the same memory root.
@@ -3728,6 +4075,36 @@ bool LEX::copy_db_to(char const **p_db, size_t *p_db_length) const {
 }
 
 /**
+<<<<<<< HEAD
+=======
+  Prepare sources for offset and limit counters.
+
+  @param thd_arg thread handler
+  @param provider SELECT_LEX to get offset and limit from.
+
+  @returns false if success, true if error
+*/
+<<<<<<< HEAD
+bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
+                                    SELECT_LEX *provider) {
+  /// @todo Remove THD from class SELECT_LEX_UNIT
+  DBUG_ASSERT(this->thd == thd_arg);
+  if (provider->offset_limit && provider->offset_limit->fix_fields(thd, NULL))
+    return true; /* purecov: inspected */
+=======
+void st_select_lex_unit::set_limit(st_select_lex *sl)
+{
+  assert(!thd->stmt_arena->is_stmt_prepare());
+>>>>>>> upstream/cluster-7.6
+
+  if (provider->select_limit && provider->select_limit->fix_fields(thd, NULL))
+    return true; /* purecov: inspected */
+
+  return false;
+}
+
+/**
+>>>>>>> pr/231
   Set limit and offset for query expression object
 
   @param thd      thread handler
@@ -4354,9 +4731,23 @@ enum_explain_type Query_block::type() const {
         hence it is not necessary to e.g. renumber those, like e.g.
         Query_expression::include_down() does.
 */
+<<<<<<< HEAD
 void Query_block::include_down(LEX *lex, Query_expression *outer) {
   assert(slave == nullptr);
   next = outer->slave;
+=======
+<<<<<<< HEAD
+void SELECT_LEX::include_down(LEX *lex, SELECT_LEX_UNIT *outer) {
+  DBUG_ASSERT(slave == NULL);
+=======
+void st_select_lex::include_down(LEX *lex, st_select_lex_unit *outer)
+{
+  assert(slave == NULL);
+>>>>>>> upstream/cluster-7.6
+
+  if ((next = outer->slave)) next->prev = &next;
+  prev = &outer->slave;
+>>>>>>> pr/231
   outer->slave = this;
   master = outer;
 
@@ -4487,8 +4878,14 @@ bool Query_block::get_optimizable_conditions(THD *thd, Item **new_where,
     join->optimized is true => conditions are ready for reading.
     So if we are here, this should hold:
   */
+<<<<<<< HEAD
   assert(!(join && join->is_optimized()));
   if (m_where_cond && !thd->stmt_arena->is_regular()) {
+=======
+<<<<<<< HEAD
+  DBUG_ASSERT(!(join && join->is_optimized()));
+  if (m_where_cond && !thd->stmt_arena->is_conventional()) {
+>>>>>>> pr/231
     *new_where = m_where_cond->copy_andor_structure(thd);
     if (!*new_where) return true;
   } else
@@ -4499,6 +4896,27 @@ bool Query_block::get_optimizable_conditions(THD *thd, Item **new_where,
       if (!*new_having) return true;
     } else
       *new_having = m_having_cond;
+=======
+  assert(!(join && join->is_optimized()));
+  if (m_where_cond && !thd->stmt_arena->is_conventional())
+  {
+    *new_where= m_where_cond->copy_andor_structure(thd);
+    if (!*new_where)
+      return true;
+  }
+  else
+    *new_where= m_where_cond;
+  if (new_having)
+  {
+    if (m_having_cond && !thd->stmt_arena->is_conventional())
+    {
+      *new_having= m_having_cond->copy_andor_structure(thd);
+      if (!*new_having)
+        return true;
+    }
+    else
+      *new_having= m_having_cond;
+>>>>>>> upstream/cluster-7.6
   }
   return get_optimizable_join_conditions(thd, m_table_nest);
 }
@@ -4619,11 +5037,34 @@ bool Query_block::validate_outermost_option(LEX *lex,
   Note that validation is only performed for SELECT statements.
 */
 
+<<<<<<< HEAD
 bool Query_block::validate_base_options(LEX *lex, ulonglong options_arg) const {
   assert(!(options_arg & ~(SELECT_STRAIGHT_JOIN | SELECT_HIGH_PRIORITY |
                            SELECT_DISTINCT | SELECT_ALL | SELECT_SMALL_RESULT |
                            SELECT_BIG_RESULT | OPTION_BUFFER_RESULT |
                            OPTION_FOUND_ROWS | OPTION_SELECT_FOR_SHOW)));
+=======
+<<<<<<< HEAD
+bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const {
+  DBUG_ASSERT(
+      !(options_arg &
+        ~(SELECT_STRAIGHT_JOIN | SELECT_HIGH_PRIORITY | SELECT_DISTINCT |
+          SELECT_ALL | SELECT_SMALL_RESULT | SELECT_BIG_RESULT |
+          OPTION_BUFFER_RESULT | OPTION_FOUND_ROWS | OPTION_SELECT_FOR_SHOW)));
+=======
+bool st_select_lex::validate_base_options(LEX *lex, ulonglong options_arg) const
+{
+  assert(!(options_arg & ~(SELECT_STRAIGHT_JOIN |
+                           SELECT_HIGH_PRIORITY |
+                           SELECT_DISTINCT |
+                           SELECT_ALL |
+                           SELECT_SMALL_RESULT |
+                           SELECT_BIG_RESULT |
+                           OPTION_BUFFER_RESULT |
+                           OPTION_FOUND_ROWS |
+                           OPTION_TO_QUERY_CACHE)));
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
   if (options_arg & SELECT_DISTINCT && options_arg & SELECT_ALL) {
     my_error(ER_WRONG_USAGE, MYF(0), "ALL", "DISTINCT");
@@ -4830,10 +5271,49 @@ bool Query_options::merge(const Query_options &a, const Query_options &b) {
   return false;
 }
 
+<<<<<<< HEAD
 bool Query_options::save_to(Parse_context *pc) {
   LEX *lex = pc->thd->lex;
   ulonglong options = query_spec_options;
   if (pc->select->validate_base_options(lex, options)) return true;
+=======
+
+bool Query_options::save_to(Parse_context *pc)
+{
+  LEX *lex= pc->thd->lex;
+  ulonglong options= query_spec_options;
+
+  switch (sql_cache) {
+  case SELECT_LEX::SQL_CACHE_UNSPECIFIED:
+    break;
+  case SELECT_LEX::SQL_NO_CACHE:
+    if (pc->select != lex->select_lex)
+    {
+      my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_NO_CACHE");
+      return true;
+    }
+    assert(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
+    lex->safe_to_cache_query= false;
+    options&= ~OPTION_TO_QUERY_CACHE;
+    pc->select->sql_cache= SELECT_LEX::SQL_NO_CACHE;
+    break;
+  case SELECT_LEX::SQL_CACHE:
+    if (pc->select != lex->select_lex)
+    {
+      my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_CACHE");
+      return true;
+    }
+    assert(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
+    lex->safe_to_cache_query= true;
+    options|= OPTION_TO_QUERY_CACHE;
+    pc->select->sql_cache= SELECT_LEX::SQL_CACHE;
+    break;
+  default:
+    assert(!"Unexpected cache option!");
+  }
+  if (pc->select->validate_base_options(lex, options))
+    return true;
+>>>>>>> upstream/cluster-7.6
   pc->select->set_base_options(options);
 
   return false;

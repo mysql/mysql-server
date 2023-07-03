@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +50,20 @@ extern const char *global_plugin_typelib_names[];
 extern mysql_mutex_t LOCK_plugin;
 extern mysql_mutex_t LOCK_plugin_delete;
 
+<<<<<<< HEAD
 #ifdef NDEBUG
+=======
+<<<<<<< HEAD
+#ifdef DBUG_OFF
+=======
+#include <my_sys.h>
+#include "sql_list.h"
+#include "sql_cmd.h"
+#include "sql_plugin_ref.h"
+
+#ifdef NDEBUG
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 #define plugin_ref_to_int(A) A
 #define plugin_int_to_ref(A) A
 #else

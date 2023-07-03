@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2017, 2022, Oracle and/or its affiliates.
+=======
+   Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -373,10 +377,17 @@ public:
     ~Eval();
     void do_init();
     void do_eval();
+<<<<<<< HEAD
     void eval_line(Row* row, Line* line, const uint expect_attrcnt);
     void eval_auto_inc_field(Row* row, Line* line, Field* field, const uint attr_id);
     void eval_field(Row* row, Line* line, Field* field, const uint attr_id);
     void eval_null(Row* row, Line* line, Field* field, const uint attr_id);
+=======
+    void eval_line(Row* row, Line* line);
+    void eval_auto_inc_field(Row* row, Line* line, Field* field, uint attr_id);
+    void eval_field(Row* row, Line* line, Field* field);
+    void eval_null(Row* row, Line* line, Field* field);
+>>>>>>> pr/231
     Input& m_input;
     NdbImportCsv& m_csv;
     NdbImportUtil& m_util;

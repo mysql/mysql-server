@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /* Copyright (c) 2005, 2022, Oracle and/or its affiliates.
+=======
+<<<<<<< HEAD
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+=======
+/* Copyright (c) 2005, 2023, Oracle and/or its affiliates.
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -348,9 +356,16 @@ class Diagnostics_area {
     This is used in rare cases when the COM_ command at hand sends a response
     in a custom format. One example is COM_STMT_PREPARE.
   */
+<<<<<<< HEAD
   void disable_status() {
     assert(m_status == DA_EMPTY);
     m_status = DA_DISABLED;
+=======
+  void disable_status()
+  {
+    assert(m_status == DA_EMPTY);
+    m_status= DA_DISABLED;
+>>>>>>> upstream/cluster-7.6
   }
 
   /**
@@ -372,6 +387,7 @@ class Diagnostics_area {
 
   enum_diagnostics_status status() const { return m_status; }
 
+<<<<<<< HEAD
   const char *message_text() const {
     assert(m_status == DA_ERROR || m_status == DA_OK);
     return m_message_text;
@@ -398,7 +414,46 @@ class Diagnostics_area {
   }
 
   uint last_statement_cond_count() const {
+<<<<<<< HEAD
     assert(m_status == DA_OK || m_status == DA_EOF);
+=======
+    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
+=======
+  const char *message_text() const
+  {
+    assert(m_status == DA_ERROR || m_status == DA_OK);
+    return m_message_text;
+  }
+
+  uint mysql_errno() const
+  {
+    assert(m_status == DA_ERROR);
+    return m_mysql_errno;
+  }
+
+  const char* returned_sqlstate() const
+  {
+    assert(m_status == DA_ERROR);
+    return m_returned_sqlstate;
+  }
+
+  ulonglong affected_rows() const
+  {
+    assert(m_status == DA_OK);
+    return m_affected_rows;
+  }
+
+  ulonglong last_insert_id() const
+  {
+    assert(m_status == DA_OK);
+    return m_last_insert_id;
+  }
+
+  uint last_statement_cond_count() const
+  {
+    assert(m_status == DA_OK || m_status == DA_EOF);
+>>>>>>> upstream/cluster-7.6
+>>>>>>> pr/231
     return m_last_statement_cond_count;
   }
 
@@ -478,7 +533,11 @@ class Diagnostics_area {
 
   Sql_condition_iterator sql_conditions() const { return m_conditions_list; }
 
+<<<<<<< HEAD
   const char *get_first_condition_message();
+=======
+  const char * get_first_condition_message();
+>>>>>>> pr/231
 
   /** Make sure there is room for the given number of conditions. */
   void reserve_number_of_conditions(THD *thd, uint count);

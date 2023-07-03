@@ -192,7 +192,11 @@ extern EventLogger* g_eventLogger;
  *
  * The hash data structure stores each row as one element of 8 bytes that
  * resides in a container, the container has an 8 byte header and there can
+<<<<<<< HEAD
  * be up to 144 containers in a 8 kByte page. The pages are filled to around
+=======
+ * be upto 144 containers in a 8 kByte page. The pages are filled to around
+>>>>>>> pr/231
  * 70% in the normal case. Thus each row requires about 15 bytes of memory
  * in DBACC.
  *
@@ -205,6 +209,12 @@ extern EventLogger* g_eventLogger;
 
 // Index pages used by ACC instances, used by CMVMI to report index memory usage
 extern Uint32 g_acc_pages_used[1 + MAX_NDBMT_LQH_WORKERS];
+
+void
+Dbacc::prepare_scan_ctx(Uint32 scanPtrI)
+{
+  (void)scanPtrI;
+}
 
 void
 Dbacc::prepare_scan_ctx(Uint32 scanPtrI)
@@ -1135,7 +1145,10 @@ void Dbacc::execACCKEYREQ(Signal* signal,
   operationRecPtr.i = opPtrI;
   operationRecPtr.p = opPtrP;
   initOpRec(req, signal->getLength());
+<<<<<<< HEAD
   ndbrequire(Magic::check_ptr(operationRecPtr.p));
+=======
+>>>>>>> pr/231
 
   /*---------------------------------------------------------------*/
   /*                                                               */
@@ -1265,6 +1278,7 @@ void Dbacc::execACCKEYREQ(Signal* signal,
           operationRecPtr.p->elementPointer = elemptr;
 
 	  eh = ElementHeader::setLocked(operationRecPtr.i);
+<<<<<<< HEAD
 	  fragrecptr.p->lockCount++;
 	  opbits |= Operationrec::OP_LOCK_OWNER;
 	  operationRecPtr.p->m_op_bits = opbits;
@@ -1276,6 +1290,12 @@ void Dbacc::execACCKEYREQ(Signal* signal,
            */
           query_thread_memory_barrier();
           elemPageptr.p->word32[elemptr] = eh;
+=======
+          elemPageptr.p->word32[elemptr] = eh;
+	  
+          opbits |= Operationrec::OP_LOCK_OWNER;
+          fragrecptr.p->lockCount++;
+>>>>>>> pr/231
 
           fragrecptr.p->
             m_lockStats.req_start_imm_ok((opbits & 
@@ -1542,7 +1562,11 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   
 upgrade:
   /**
+<<<<<<< HEAD
    * Move first op in serial queue to end of parallel queue
+=======
+   * Move first op in serie queue to end of parallel queue
+>>>>>>> pr/231
    */
   
   tmp.i = loPtr.p->nextSerialQue = nextOp.p->nextSerialQue;
@@ -1678,6 +1702,22 @@ ref:
   return;
 }
 
+<<<<<<< HEAD
+=======
+Uint32
+Dbacc::xfrmKeyData(AccKeyReq* signal)const
+{
+  Uint32 table = fragrecptr.p->myTableId;
+  Uint32 dst[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
+  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
+  Uint32* const src = signal->keyInfo;
+  Uint32 len = xfrm_key(table, src, dst, sizeof(dst) >> 2, keyPartLen);
+  ndbrequire(len); // 0 means error
+  memcpy(src, dst, len << 2);
+  return len;
+}
+
+>>>>>>> pr/231
 void 
 Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr)
 {
@@ -1805,6 +1845,12 @@ void Dbacc::insertelementLab(Signal* signal,
   }//if
   ndbassert(operationRecPtr.p->tupkeylen <= fragrecptr.p->keyLength);
   ndbassert(!(operationRecPtr.p->m_op_bits & Operationrec::OP_LOCK_REQ));
+<<<<<<< HEAD
+=======
+  
+  fragrecptr.p->lockCount++;
+  operationRecPtr.p->m_op_bits |= Operationrec::OP_LOCK_OWNER;
+>>>>>>> pr/231
 
   /**
    * We acquire the mutex before starting to insert the new element.
@@ -2052,6 +2098,7 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr) const
     int cnt = 0;
     while (lastP.p->nextParallelQue != RNIL)
     {
+<<<<<<< HEAD
       if (cnt++ >= maxValidateCount) {
         // Upper limit reached, skip to end
         lastP.i = loPtr.p->m_lo_last_parallel_op_ptr_i;
@@ -2067,6 +2114,14 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr) const
         ndbrequire(oprec_pool.getValidPtr(lastP));
         vlqrequire(lastP.p->prevParallelQue == prev);
       }
+=======
+      Uint32 prev = lastP.i;
+      lastP.i = lastP.p->nextParallelQue;
+      ptrCheckGuard(lastP, coprecsize, operationrec);
+      
+      vlqrequire(lastP.p->prevParallelQue == prev);
+
+>>>>>>> pr/231
       const Uint32 opbits = lastP.p->m_op_bits;
       many |= loPtr.p->is_same_trans(lastP.p) ? 0 : 1;
       orlockmode |= ((opbits & Operationrec::OP_LOCK_MODE) != 0);
@@ -2119,6 +2174,7 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr) const
       if (aborting)
       {
         vlqrequire(many == 0);
+<<<<<<< HEAD
         /**
          * We might get here with an LQHKEYREQ after ABORT has started if we
          * are running with 3 replicas and the node information is updated
@@ -2126,6 +2182,9 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr) const
          * the new operation is in PENDING ABORT state.
          */
         //vlqrequire(lastP.p->m_op_bits & Operationrec::OP_PENDING_ABORT);
+=======
+        vlqrequire(lastP.p->m_op_bits & Operationrec::OP_PENDING_ABORT);
+>>>>>>> pr/231
       }
     }
     
@@ -2232,7 +2291,11 @@ operator<<(NdbOut & out, Dbacc::OperationrecPtr ptr)
     ,OP_ACC_LOCK_MODE       = 0x00020 // Or:de lock mode of all operation
                                       // before me
     ,OP_LOCK_OWNER          = 0x00040
+<<<<<<< HEAD
     ,OP_RUN_QUEUE           = 0x00080 // In parallel queue of lock owner
+=======
+    ,OP_RUN_QUEUE           = 0x00080 // In parallell queue of lock owner
+>>>>>>> pr/231
     ,OP_DIRTY_READ          = 0x00100
     ,OP_LOCK_REQ            = 0x00200 // isAccLockReq
     ,OP_COMMIT_DELETE_CHECK = 0x00400
@@ -2508,7 +2571,11 @@ Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr) const
   
   /**
    * Last operation in parallel queue of lock owner is same trans
+<<<<<<< HEAD
    *   and ACC_LOCK_MODE is exclusive, then we can proceed
+=======
+   *   and ACC_LOCK_MODE is exlusive, then we can proceed
+>>>>>>> pr/231
    */
   Uint32 lastbits = lastOpPtr.p->m_op_bits;
   bool same = operationRecPtr.p->is_same_trans(lastOpPtr.p);
@@ -3982,7 +4049,7 @@ Dbacc::readTablePk(Uint32 localkey1,
  * @return                     Returns ZTRUE if element was found.
  * ------------------------------------------------------------------------- */
 Uint32
-Dbacc::getElement(const AccKeyReq* signal,
+Dbacc::getElement(AccKeyReq* signal,
                   OperationrecPtr& lockOwnerPtr,
                   Page8Ptr& bucketPageptr,
                   Uint32& bucketConidx,
@@ -4015,6 +4082,10 @@ Dbacc::getElement(const AccKeyReq* signal,
    * - local key (1 word) for ACC_LOCKREQ and UNDO, stored in ACC
    */
   const bool searchLocalKey = operationRecPtr.p->tupkeylen == 0;
+  Uint32 xfrmtupkeylen = operationRecPtr.p->tupkeylen;
+  // normalize key if any char attr
+  if (!searchLocalKey && fragrecptr.p->hasCharAttr)
+    xfrmtupkeylen = xfrmKeyData(signal);
 
   ndbrequire(TelemLen == ZELEM_HEAD_SIZE + localkeylen);
   tgeNextptrtype = ZLEFT;
@@ -4105,6 +4176,7 @@ Dbacc::getElement(const AccKeyReq* signal,
                                      localkey.m_page_idx,
                                      tgeElementHeader,
                                      lockOwnerPtr,
+<<<<<<< HEAD
                                      &keys[0],
                                      xfrm);
             if (unlikely(len == 0))
@@ -4130,6 +4202,12 @@ Dbacc::getElement(const AccKeyReq* signal,
           }
           else
           {
+=======
+                                     &keys[0]);
+            found = (len == xfrmtupkeylen) &&
+              (memcmp(Tkeydata, &keys[0], len << 2) == 0);
+          } else {
+>>>>>>> pr/231
             jam();
             found = (localkey.m_page_no == Tkeydata[0] &&
                      Uint32(localkey.m_page_idx) == Tkeydata[1]);
@@ -4222,8 +4300,13 @@ Dbacc::report_pending_dealloc(Signal* signal,
     signal->theData[3] = localKey.m_page_idx;
     signal->theData[4] = userptr;
     signal->theData[5] = countOpPtrP->userptr;
+<<<<<<< HEAD
     c_lqh->execTUP_DEALLOCREQ(signal);
     jamEntryDebug();
+=======
+    EXECUTE_DIRECT(DBLQH, GSN_TUP_DEALLOCREQ, signal, 6);
+    jamEntry();
+>>>>>>> pr/231
   }
 }
 
@@ -4264,8 +4347,13 @@ Dbacc::trigger_dealloc(Signal* signal, const Operationrec* opPtrP)
     signal->theData[3] = localKey.m_page_idx;
     signal->theData[4] = userptr;
     signal->theData[5] = RNIL;
+<<<<<<< HEAD
     c_lqh->execTUP_DEALLOCREQ(signal);
     jamEntryDebug();
+=======
+    EXECUTE_DIRECT(DBLQH, GSN_TUP_DEALLOCREQ, signal, 6);
+    jamEntry();
+>>>>>>> pr/231
   }
 }
 
@@ -4422,18 +4510,25 @@ void Dbacc::commitdelete(Signal* signal)
     /*  THE LAST ELEMENT WAS THE ELEMENT TO BE DELETED. WE NEED NOT COPY IT.             */
     /*  Setting it to an invalid value only for sanity, the value should never be read.  */
     /* --------------------------------------------------------------------------------- */
+<<<<<<< HEAD
     jamLineDebug(Uint16(delPageptr.i));
     jamLineDebug(Uint16(delElemptr));
+=======
+>>>>>>> pr/231
     delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
   } else {
     /* --------------------------------------------------------------------------------- */
     /*  THE DELETED ELEMENT IS NOT THE LAST. WE READ THE LAST ELEMENT AND OVERWRITE THE  */
     /*  DELETED ELEMENT.                                                                 */
     /* --------------------------------------------------------------------------------- */
+<<<<<<< HEAD
 #if defined(VM_TRACE) || !defined(NDEBUG) || defined(ERROR_INSERT)
     jamDebug();
     jamLineDebug(Uint16(delPageptr.i));
     jamLineDebug(Uint16(delElemptr));
+=======
+#if defined(VM_TRACE) || !defined(NDEBUG)
+>>>>>>> pr/231
     delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
 #endif
     deleteElement(delPageptr,
@@ -4927,7 +5022,11 @@ Dbacc::mark_pending_abort(OperationrecPtr abortingOp, Uint32 nextParallelOp)
   follower.i = nextParallelOp;
   while (follower.i != RNIL)
   {
+<<<<<<< HEAD
     ndbrequire(oprec_pool.getValidPtr(follower));
+=======
+    ptrCheckGuard(follower, coprecsize, operationrec);
+>>>>>>> pr/231
     if (likely(follower.p->is_same_trans(abortingOp.p)))
     {
       jam();
@@ -4944,7 +5043,11 @@ Dbacc::mark_pending_abort(OperationrecPtr abortingOp, Uint32 nextParallelOp)
     {
       /* Follower is not same trans - unexpected as we hold EX lock */
       dump_lock_queue(follower);
+<<<<<<< HEAD
       ndbabort();
+=======
+      ndbrequire(false);
+>>>>>>> pr/231
     }
     follower.i = follower.p->nextParallelQue;
   }
@@ -4963,7 +5066,11 @@ Dbacc::checkOpPendingAbort(Uint32 accConnectPtr) const
 {
   OperationrecPtr opPtr;
   opPtr.i = accConnectPtr;
+<<<<<<< HEAD
   ndbrequire(oprec_pool.getValidPtr(opPtr));
+=======
+  ptrCheckGuard(opPtr, coprecsize, operationrec);
+>>>>>>> pr/231
   
   return ((opPtr.p->m_op_bits & 
            Operationrec::OP_PENDING_ABORT) != 0);
@@ -5296,6 +5403,7 @@ void Dbacc::abortOperation(Signal* signal)
 
   if (opbits & Operationrec::OP_LOCK_OWNER) 
   {
+<<<<<<< HEAD
     /**
      * We only need to protect changes when the lock owner aborts or
      * commits, this is to ensure that the state of the operation
@@ -5304,6 +5412,8 @@ void Dbacc::abortOperation(Signal* signal)
      * consider a row deleted which isn't and vice versa.
      */
     acquire_frag_mutex_hash(fragrecptr.p, operationRecPtr);
+=======
+>>>>>>> pr/231
     fragrecptr.p->lockCount--;
     opbits &= ~(Uint32)Operationrec::OP_LOCK_OWNER;
     if (opbits & Operationrec::OP_INSERT_IS_DONE)
@@ -5484,8 +5594,11 @@ void Dbacc::commitOperation(Signal* signal)
   
   if (opbits & Operationrec::OP_LOCK_OWNER) 
   {
+<<<<<<< HEAD
     jam();
     acquire_frag_mutex_hash(fragrecptr.p, operationRecPtr);
+=======
+>>>>>>> pr/231
     fragrecptr.p->lockCount--;
     opbits &= ~(Uint32)Operationrec::OP_LOCK_OWNER;
     operationRecPtr.p->m_op_bits = opbits;
@@ -8200,10 +8313,17 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
        CheckLcpStop::ZSCAN_RESOURCE_WAIT:
        CheckLcpStop::ZSCAN_RUNNABLE);
 
+<<<<<<< HEAD
     c_lqh->execCHECK_LCP_STOP(signal);
     jamEntryDebug();
     if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK) {
       jamDebug();
+=======
+    EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+    jamEntry();
+    if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK) {
+      jam();
+>>>>>>> pr/231
       scanPtr.p->scan_lastSeen = __LINE__;
       /* WE ARE ENTERING A REAL-TIME BREAK FOR A SCAN HERE */
       return;
